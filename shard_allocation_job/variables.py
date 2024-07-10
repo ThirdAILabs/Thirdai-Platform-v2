@@ -114,7 +114,6 @@ class TrainVariables(EnvLoader):
     learning_rate: float = 0.005
     max_in_memory_batches: Optional[int] = None
     batch_size: int = 2048
-    checkpoint_interval: int = 0
     unsupervised_epochs: int = 5
     supervised_epochs: int = 3
 

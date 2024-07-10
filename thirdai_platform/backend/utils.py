@@ -108,7 +108,6 @@ class NDBExtraOptions(BaseModel):
     batch_size: Optional[int] = None
     unsupervised_epochs: Optional[int] = None
     supervised_epochs: Optional[int] = None
-    checkpoint_interval: Optional[int] = None
 
     tokenizer: Optional[str] = None
     hidden_bias: Optional[bool] = None

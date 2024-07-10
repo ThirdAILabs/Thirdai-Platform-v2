@@ -40,13 +40,6 @@ class Model(ABC):
         )
         os.makedirs(self.model_dir, exist_ok=True)
 
-        self.unsupervised_checkpoint_dir = os.path.join(
-            self.model_dir, "unsupervised_checkpoints"
-        )
-        self.supervised_checkpoint_dir = os.path.join(
-            self.model_dir, "supervised_checkpoints"
-        )
-
         self.model_save_path = Path(
             os.path.join(
                 self.general_variables.model_bazaar_dir,
@@ -104,23 +97,8 @@ class Model(ABC):
             for i, file in enumerate(files)
         ]
 
-        if os.path.exists(self.supervised_checkpoint_dir):
-            resume = True
-        else:
-            os.makedirs(self.supervised_checkpoint_dir, exist_ok=True)
-            resume = False
-
-        supervised_config = None
-        if self.train_variables.checkpoint_interval:
-            supervised_config = ndb.CheckpointConfig(
-                checkpoint_dir=self.supervised_checkpoint_dir,
-                checkpoint_interval=self.train_variables.checkpoint_interval,
-                resume_from_checkpoint=resume,
-            )
-
         db.supervised_train(
             supervised_sources,
-            checkpoint_config=supervised_config,
             epochs=self.train_variables.supervised_epochs,
         )
 

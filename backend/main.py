@@ -63,7 +63,7 @@ def submit_job(job: JobRequest, credentials: HTTPBasicCredentials = Depends(HTTP
         }
     }
     response = requests.post(
-        "http://localhost:8080/api/v1/dags/udt/dagRuns",
+        "http://localhost:8080/api/v1/dags/temp/dagRuns",
         json={"conf": job_spec},
         auth=HTTPBasicAuth(credentials.username, credentials.password)
     )

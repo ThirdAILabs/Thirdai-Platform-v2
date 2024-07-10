@@ -12,3 +12,7 @@ def run():
     doc = ndb.PDF("/Users/yashwanthadunukota/neuraldb-enterprise-services/headless/data/scifact/insert.pdf", save_extra_info=False, on_disk=True)
 
     db.insert([doc])
+    
+    
+if __name__ == "__main__":
+    run()

@@ -1,13 +1,16 @@
 import os
+import traceback
 
 import thirdai
 from model import FinetunableRetriever, SingleMach
+from reporter import Reporter
 from variables import GeneralVariables, NeuralDBVariables, RetrieverEnum, TypeEnum
 
 general_variables = GeneralVariables.load_from_env()
 
 
 def main():
+    reporter = Reporter(api_url=general_variables.model_bazaar_endpoint)
     try:
         if general_variables.type == TypeEnum.NDB:
             ndb_variables = NeuralDBVariables.load_from_env()
@@ -20,8 +23,9 @@ def main():
             else:
                 model = SingleMach()
                 model.train()
-    except:
-        raise
+    except Exception as err:
+        traceback.print_exc()
+        reporter.report_status(general_variables.model_id, "failed", message=err)
 
 
 if __name__ == "__main__":

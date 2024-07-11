@@ -1,12 +1,12 @@
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import fastapi
 import uvicorn
 from backend.train import train_router as train
 from backend.user import user_router as user
-from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
-
-load_dotenv()
-
 
 app = fastapi.FastAPI()
 

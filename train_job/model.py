@@ -142,10 +142,12 @@ class Model(ABC):
         # look into adding all the items commented in schema.py file in model table.
         self.reporter.report_complete(
             model_id=self.general_variables.model_id,
-            num_params=int(num_params),
-            size=int(size),
-            size_in_memory=int(size_in_memory),
-            thirdai_version=str(thirdai.__version__),
+            metadata={
+                "num_params": str(num_params),
+                "size": str(size),
+                "size_in_memory": str(size_in_memory),
+                "thirdai_version": str(thirdai.__version__),
+            },
         )
 
 

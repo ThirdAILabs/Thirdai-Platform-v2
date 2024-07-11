@@ -20,9 +20,8 @@ engine = create_engine(db_uri, echo=echo)
 Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-def create_tables():
-    """Create all tables defined in the Base metadata."""
-    Base.metadata.create_all(engine)
+"""Create all tables defined in the Base metadata."""
+Base.metadata.create_all(engine, checkfirst=True)
 
 
 def get_session():

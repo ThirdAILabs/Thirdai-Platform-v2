@@ -1,6 +1,6 @@
-import datetime
 import enum
 import re
+from datetime import datetime
 
 from sqlalchemy import (
     JSON,
@@ -90,7 +90,7 @@ class Model(SQLDeclarativeBase):
     # description = Column(String, nullable=True)
     domain = Column(String, nullable=True)
     published_date = Column(
-        DateTime, default=datetime.datetime.now(datetime.UTC).isoformat(), nullable=True
+        DateTime, default=datetime.utcnow().isoformat(), nullable=True
     )
 
     user_id = Column(

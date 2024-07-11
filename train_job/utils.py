@@ -132,7 +132,7 @@ def convert_to_ndb_file(file):
 
 
 def process_file(file, tmp_dir):
-    if file.starts_with("s3://"):
+    if file.startswith("s3://"):
         s3 = True
         s3_client = create_s3_client()
         bucket_name, prefix = file.replace("s3://", "").split("/", 1)

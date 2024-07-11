@@ -1,0 +1,61 @@
+job "shard-allocation-{{ model_id }}" {
+  datacenters = ["dc1"]
+
+  type = "batch"
+
+  group "shard-allocation-job" {
+    count = 1
+
+    task "server" {
+
+      {% if platform == "docker" %}
+        driver = "docker"
+      {% elif platform == "local" %}
+        driver = "raw_exec"
+      {% endif %}
+
+      env {
+        MODEL_ID = "{{ model_id }}"
+        DATA_ID = "{{ data_id }}"
+        USER_ID = "{{ user_id }}"
+        MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
+        LICENSE_KEY = "{{ license_key }}"
+        BASE_MODEL_ID = "{{ base_model_id }}"
+
+        {%- for key, value in extra_options.items() %}
+        {{ key | upper }} = "{{ value }}"
+        {%- endfor %}
+
+        {% if platform == "docker" %}
+          MODEL_BAZAAR_DIR = "/model_bazaar"
+        {% elif platform == "local" %}
+          MODEL_BAZAAR_DIR = "{{ share_dir }}"
+        {% endif %}
+      }
+
+      config {
+        {% if platform == "docker" %}
+          image = "{{ registry }}/{{ image_name }}:{{ tag }}"
+          image_pull_timeout = "15m"
+          auth {
+            username = "{{ docker_username }}"
+            password = "{{ docker_password }}"
+            server_address = "{{ registry }}"
+          }
+          volumes = [
+            "{{ share_dir }}:/model_bazaar"
+          ]
+        {% elif platform == "local" %}
+          command = "{{ python_path }}"
+          args    = ["{{ train_script }}"]
+        {% endif %}
+      }
+
+      resources {
+        cpu = 2400
+        memory = {{ extra_options.get('allocation_memory', '6800') }}
+
+      }
+    }
+  }
+}

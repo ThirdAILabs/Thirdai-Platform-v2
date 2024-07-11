@@ -138,12 +138,7 @@ def train(
         work_dir = os.getcwd()
 
         submit_nomad_job(
-            str(
-                Path(work_dir)
-                / "backend"
-                / "nomad_jobs"
-                / "shard_allocation_job.hcl.j2"
-            ),
+            str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
             platform=get_platform(),
             tag=os.getenv("TAG"),
@@ -151,9 +146,7 @@ def train(
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("TRAIN_IMAGE_NAME"),
-            train_script=str(
-                get_root_absolute_path() / "neuraldb_shard_allocation_job/run.py"
-            ),
+            train_script=str(get_root_absolute_path() / "train_job/run.py"),
             model_id=str(model_id),
             data_id=str(data_id),
             user_id=str(user.id),

@@ -8,17 +8,20 @@ general_variables = GeneralVariables.load_from_env()
 
 
 def main():
-    if general_variables.type == TypeEnum.NDB:
-        ndb_variables = NeuralDBVariables.load_from_env()
-        if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
-            model = FinetunableRetriever()
-            model.train()
-        elif ndb_variables.num_models_per_shard > 1 or ndb_variables.num_shards > 1:
-            # Add the class for sharded training.
-            pass
-        else:
-            model = SingleMach()
-            model.train()
+    try:
+        if general_variables.type == TypeEnum.NDB:
+            ndb_variables = NeuralDBVariables.load_from_env()
+            if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
+                model = FinetunableRetriever()
+                model.train()
+            elif ndb_variables.num_models_per_shard > 1 or ndb_variables.num_shards > 1:
+                # Add the class for sharded training.
+                pass
+            else:
+                model = SingleMach()
+                model.train()
+    except:
+        raise
 
 
 if __name__ == "__main__":

@@ -37,8 +37,11 @@ class EnvLoader:
 
     @staticmethod
     def _convert_type(
-        value: str, field_type: Type
+        value: str, field_type: Union[Type, str]
     ) -> Union[str, int, float, bool, None, Enum]:
+        if isinstance(field_type, str):
+            field_type = eval(field_type)  # Evaluate string to get the actual type
+
         origin = get_origin(field_type)
         args = get_args(field_type)
 

@@ -1,0 +1,15 @@
+DAG1:
+  check_unsupervised:
+    dependencies: []
+    params:
+      sharded: variable
+      run_name: variable
+      config: variable
+
+DAG2:
+  check_unsupervised_supervised:
+    dependencies: []
+    params:
+      sharded: variable
+      run_name: variable
+      config: variable

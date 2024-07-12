@@ -2,9 +2,17 @@ import os
 import traceback
 
 import thirdai
-from model import FinetunableRetriever, SingleMach
+from models.multiple_mach import MultipleMach
+from models.ndb_models import FinetunableRetriever, SingleMach
+from models.shard_mach import ShardMach
 from reporter import Reporter
-from variables import GeneralVariables, NeuralDBVariables, RetrieverEnum, TypeEnum
+from variables import (
+    GeneralVariables,
+    NDBSubType,
+    NeuralDBVariables,
+    RetrieverEnum,
+    TypeEnum,
+)
 
 general_variables = GeneralVariables.load_from_env()
 
@@ -14,14 +22,21 @@ def main():
     try:
         if general_variables.type == TypeEnum.NDB:
             ndb_variables = NeuralDBVariables.load_from_env()
-            if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
-                model = FinetunableRetriever()
-                model.train()
-            elif ndb_variables.num_models_per_shard > 1 or ndb_variables.num_shards > 1:
-                # Add the class for sharded training.
-                pass
+            if general_variables.sub_type == NDBSubType.normal:
+                if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
+                    model = FinetunableRetriever()
+                    model.train()
+                else:
+                    model = SingleMach()
+                    model.train()
+            elif general_variables.sub_type == NDBSubType.shard_allocation:
+                if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
+                    raise ValueError("Currently Not supported")
+                else:
+                    model = MultipleMach()
+                    model.train()
             else:
-                model = SingleMach()
+                model = ShardMach()
                 model.train()
     except Exception as err:
         traceback.print_exc()

@@ -93,6 +93,10 @@ class Model(SQLDeclarativeBase):
         DateTime, default=datetime.utcnow().isoformat(), nullable=True
     )
 
+    parent_id = Column(
+        UUID(as_uuid=True), ForeignKey("models.id", ondelete="SET NULL"), nullable=True
+    )  # Not null if this model comes from starting training from a base model
+
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -101,6 +105,10 @@ class Model(SQLDeclarativeBase):
 
     meta_data = relationship(
         "MetaData", back_populates="model", cascade="all, delete-orphan"
+    )
+
+    model_shards = relationship(
+        "ModelShard", back_populates="model", cascade="all, delete-orphan"
     )
 
     @validates("name")
@@ -126,3 +134,18 @@ class MetaData(SQLDeclarativeBase):
     )
 
     model = relationship("Model", back_populates="meta_data")
+
+
+class ModelShard(SQLDeclarativeBase):
+    __tablename__ = "model_shards"
+
+    shard_num = Column(Integer, primary_key=True, nullable=False)
+    train_status = Column(ENUM(Status), nullable=False, default=Status.not_started)
+
+    model_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("models.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    model = relationship("Model", back_populates="model_shards")

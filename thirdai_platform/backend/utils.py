@@ -85,6 +85,7 @@ class NDBExtraOptions(BaseModel):
     # ----shard specific training params----
     num_models_per_shard: Optional[int] = Field(1, gt=0)
     num_shards: Optional[int] = Field(1, gt=0)
+    allocation_cores: Optional[int] = None
     allocation_memory: Optional[int] = None
 
     # ----shard agnostic training params----
@@ -100,6 +101,7 @@ class NDBExtraOptions(BaseModel):
     output_dim: Optional[int] = None
     max_in_memory_batches: Optional[int] = None
     extreme_num_hashes: Optional[int] = None
+    num_classes: Optional[int] = None
 
     csv_query_column: Optional[str] = None
     csv_id_delimiter: Optional[str] = None

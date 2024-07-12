@@ -1,4 +1,8 @@
-job "shard-allocation-{{ model_id }}" {
+{% if sub_type == "shard_train" %}
+job "train-{{ model_id }}-{{ type }}-{{ sub_type }}-{{ shard_num }}" {
+{% else %}
+job "train-{{ model_id }}-{{ type }}-{{ sub_type }}" {
+{% endif %}
   datacenters = ["dc1"]
 
   type = "batch"
@@ -17,10 +21,14 @@ job "shard-allocation-{{ model_id }}" {
       env {
         MODEL_ID = "{{ model_id }}"
         DATA_ID = "{{ data_id }}"
-        USER_ID = "{{ user_id }}"
         MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
         LICENSE_KEY = "{{ license_key }}"
         BASE_MODEL_ID = "{{ base_model_id }}"
+        AWS_ACCESS_KEY = "{{ aws_access_key }}"
+        AWS_ACCESS_SECRET = "{{ aws_access_secret }}"
+        TYPE = "{{ type }}"
+        SUB_TYPE = "{{ sub_type }}"
+        SHARD_NUM = "{{ shard_num }}"
 
         {%- for key, value in extra_options.items() %}
         {{ key | upper }} = "{{ value }}"
@@ -52,7 +60,7 @@ job "shard-allocation-{{ model_id }}" {
       }
 
       resources {
-        cpu = 2400
+        cpu = {{ extra_options.get('allocation__cores', 1) * 2400 }}
         memory = {{ extra_options.get('allocation_memory', '6800') }}
 
       }

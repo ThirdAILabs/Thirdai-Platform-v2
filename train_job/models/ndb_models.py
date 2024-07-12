@@ -2,12 +2,11 @@ import json
 import os
 import queue
 import threading
-from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List
 
 import thirdai
-from reporter import Reporter
+from models.model import Model
 from thirdai import neural_db as ndb
 from utils import (
     check_disk,
@@ -17,29 +16,13 @@ from utils import (
     list_files,
     producer,
 )
-from variables import GeneralVariables, MachVariables, NeuralDBVariables, TrainVariables
+from variables import MachVariables, NeuralDBVariables
 
 
-class Model(ABC):
+class NDBModel(Model):
     def __init__(self):
+        super().__init__()
         self.ndb_variables = NeuralDBVariables.load_from_env()
-        self.general_variables = GeneralVariables.load_from_env()
-        self.train_variables = TrainVariables.load_from_env()
-        self.reporter = Reporter(self.general_variables.model_bazaar_endpoint)
-        self.data_dir = os.path.join(
-            self.general_variables.model_bazaar_dir,
-            "data",
-            self.general_variables.data_id,
-        )
-        os.makedirs(self.data_dir, exist_ok=True)
-
-        self.model_dir = os.path.join(
-            self.general_variables.model_bazaar_dir,
-            "models",
-            self.general_variables.model_id,
-        )
-        os.makedirs(self.model_dir, exist_ok=True)
-
         self.model_save_path = Path(
             os.path.join(
                 self.general_variables.model_bazaar_dir,
@@ -48,14 +31,6 @@ class Model(ABC):
                 "model.ndb",
             )
         )
-
-    @abstractmethod
-    def train(self):
-        pass
-
-    @abstractmethod
-    def evaluate(self, db, files):
-        pass
 
     def unsupervised_train(self, db: ndb.NeuralDB, files: List):
         # Look into how to add checkpointing for streaming processes.
@@ -78,8 +53,7 @@ class Model(ABC):
         buffer.put(None)  # Signal the consumer to exit
         consumer_thread.join()
 
-    def supervised_train(self, db: ndb.NeuralDB, files: List):
-        # Look into how to add streaming in this supervised.
+    def get_supervised_files(self, files):
         relations_path = os.path.join(self.data_dir, "relations.json")
         if os.path.exists(relations_path):
             with open(relations_path, "r") as file:
@@ -97,6 +71,12 @@ class Model(ABC):
             for i, file in enumerate(files)
         ]
 
+        return supervised_sources
+
+    def supervised_train(self, db: ndb.NeuralDB, files: List):
+        # Look into how to add streaming in this supervised.
+        supervised_sources = self.get_supervised_files(files)
+
         db.supervised_train(
             supervised_sources,
             epochs=self.train_variables.supervised_epochs,
@@ -104,37 +84,39 @@ class Model(ABC):
 
         print("Completed Supervised Training", flush=True)
 
-    def load_db(self):
+    def get_ndb_path(self, model_id):
+        return os.path.join(
+            self.general_variables.model_bazaar_dir,
+            "models",
+            model_id,
+            "model.ndb",
+        )
+
+    def load_db(self, model_id):
+        return ndb.NeuralDB.from_checkpoint(Path(self.get_ndb_path(model_id)))
+
+    def get_db(self):
         if self.ndb_variables.base_model_id:
-            db = ndb.NeuralDB.from_checkpoint(
-                Path(
-                    os.path.join(
-                        self.general_variables.model_bazaar_dir,
-                        "models",
-                        self.ndb_variables.base_model_id,
-                        "model.ndb",
-                    )
-                )
-            )
+            db = self.load_db(self.ndb_variables.base_model_id)
         else:
             db = self.initialize_db()
         return db
 
-    @abstractmethod
     def initialize_db(self):
         pass
 
-    @abstractmethod
     def get_num_params(self, db):
         pass
 
-    @abstractmethod
     def get_size_in_memory(self):
         pass
 
+    def save(self, db):
+        db.save(self.model_save_path)
+
     def finalize_training(self, db):
         num_params = self.get_num_params(db)
-        db.save(self.model_save_path)
+        self.save(db)
 
         size = get_directory_size(self.model_save_path)
         size_in_memory = self.get_size_in_memory()
@@ -151,19 +133,19 @@ class Model(ABC):
         )
 
 
-class SingleMach(Model):
+class SingleMach(NDBModel):
     def __init__(self):
         super().__init__()
         self.mach_variables = MachVariables.load_from_env()
 
-    def train(self):
+    def train(self, **kwargs):
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
 
         unsupervised_files = list_files(os.path.join(self.data_dir, "unsupervised"))
         supervised_files = list_files(os.path.join(self.data_dir, "supervised"))
         test_files = list_files(os.path.join(self.data_dir, "test"))
 
-        db = self.load_db()
+        db = self.get_db()
 
         if unsupervised_files:
             check_disk(db, self.general_variables.model_bazaar_dir, unsupervised_files)
@@ -182,7 +164,7 @@ class SingleMach(Model):
 
         self.finalize_training(db)
 
-    def evaluate(self, db, files):
+    def evaluate(self, db, files, **kwargs):
         for file in files:
             metrics = db._savable_state.model.model.evaluate(
                 file,
@@ -216,17 +198,17 @@ class SingleMach(Model):
         )
 
 
-class FinetunableRetriever(Model):
+class FinetunableRetriever(NDBModel):
     def __init__(self):
         super().__init__()
 
-    def train(self):
+    def train(self, **kwargs):
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
 
         unsupervised_files = list_files(os.path.join(self.data_dir, "unsupervised"))
         supervised_files = list_files(os.path.join(self.data_dir, "supervised"))
 
-        db = self.load_db()
+        db = self.get_db()
 
         if unsupervised_files:
             check_disk(db, self.general_variables.model_bazaar_dir, unsupervised_files)
@@ -240,7 +222,7 @@ class FinetunableRetriever(Model):
 
         self.finalize_training(db)
 
-    def evaluate(self, db, files):
+    def evaluate(self, **kwargs):
         pass
 
     def initialize_db(self):

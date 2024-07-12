@@ -1,23 +1,26 @@
 import ast
 import json
 import os
+import pickle
 import shutil
 import sys
+from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import boto3
+import pandas as pd
 from botocore import UNSIGNED
 from botocore.client import Config
 from fastapi import Response
 from thirdai import neural_db as ndb
-from variables import S3variables
+from variables import S3Variables
 
 GB_1 = 1024 * 1024 * 1024
 
 
 def create_s3_client():
-    s3_variables = S3variables.load_from_env()
+    s3_variables = S3Variables.load_from_env()
 
     config_params = {
         "retries": {"max_attempts": 10, "mode": "standard"},
@@ -237,3 +240,52 @@ def get_directory_size(directory: Path):
         for name in files:
             size += os.stat(Path(root) / name).st_size
     return size
+
+
+def filter_dataframe_by_label(df, id_col, labels, delimiter):
+    # Check if the id_col contains the label
+    mask = df[id_col].apply(
+        lambda x: any(str(label) in str(x).split(delimiter) for label in labels)
+    )
+
+    # Filter the DataFrame using the mask
+    filtered_df = df[mask]
+    return filtered_df
+
+
+def make_test_shard_files(
+    file: str,
+    label_to_segment_map: dict,
+    destination_dir: str,
+    id_col: str,
+    id_delimiter: str,
+):
+    # Create destination directory if it doesn't exist
+    os.makedirs(destination_dir, exist_ok=True)
+
+    # Create segment to label map
+    segment_to_label_map = defaultdict(list)
+    for label, segments in label_to_segment_map.items():
+        for segment in segments:
+            segment_to_label_map[segment].append(label)
+
+    # Read the input CSV file into a pandas DataFrame
+    df = pd.read_csv(file)
+
+    # Group the DataFrame by segment
+    for segment, labels in segment_to_label_map.items():
+        segment_df = filter_dataframe_by_label(df, id_col, labels, id_delimiter)
+
+        # Write segment_df to shard file
+        shard_filename = f"shard_{segment}.csv"
+        shard_path = os.path.join(destination_dir, shard_filename)
+        segment_df.to_csv(shard_path, index=False)
+
+
+def pickle_to(obj: object, filepath: Path):
+    with open(filepath, "wb") as pkl:
+        pickle.dump(obj, pkl)
+
+
+def no_op(*args, **kwargs):
+    pass

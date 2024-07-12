@@ -24,11 +24,12 @@ class Config(ABC):
     input_dim = 10000
     hidden_dim = 1024
     output_dim = 5000
-    allocation_memory = 500
+    allocation_memory = 1000
+    allocation_cores = 2
 
     epochs = 5
 
-    retriever = "hybrid"
+    retriever = "mach"
 
 
 class Scifact(Config):

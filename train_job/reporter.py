@@ -58,3 +58,46 @@ class Reporter:
             params={"model_id": model_id, "status": status, "message": message},
         )
         print(content)
+
+    def create_shard(
+        self,
+        shard_num,
+        model_id,
+        data_id,
+        base_model_id=None,
+        extra_options={},
+    ):
+        content = self._request(
+            "post",
+            f"api/train/create-shard",
+            params={
+                "shard_num": shard_num,
+                "model_id": model_id,
+                "data_id": data_id,
+                "base_model_id": base_model_id,
+            },
+            data={"extra_options_form": json.dumps(extra_options)},
+        )
+        print(content)
+
+    def get_model_shard_train_status(self, model_id):
+        content = self._request(
+            "get",
+            f"api/train/model-shard-train-status",
+            params={"model_id": model_id},
+        )
+        print(content)
+        return content
+
+    def report_shard_train_status(self, model_id, shard_num, status, message=""):
+        content = self._request(
+            "post",
+            f"api/train/update-shard-train-status",
+            params={
+                "shard_num": shard_num,
+                "model_id": model_id,
+                "status": status,
+                "message": message,
+            },
+        )
+        print(content)

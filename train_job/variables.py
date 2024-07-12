@@ -2,14 +2,43 @@ from __future__ import annotations
 
 import ast
 import os
-from dataclasses import MISSING, dataclass, fields
+from dataclasses import MISSING, asdict, dataclass, fields
 from enum import Enum
 from typing import Dict, Optional, Type, TypeVar, Union, get_args, get_origin
 
 T = TypeVar("T", bound="EnvLoader")
 
 
+class TypeEnum(str, Enum):
+    NDB = "ndb"
+    UDT = "udt"
+
+
+class NDBSubType(str, Enum):
+    shard_allocation = "shard_allocation"
+    shard_train = "shard_train"
+    normal = "normal"
+
+
+class UDTSubType(str, Enum):
+    text = "text"
+    token = "token"
+
+
+class RetrieverEnum(str, Enum):
+    MACH = "mach"
+    HYBRID = "hybrid"
+    FINETUNABLE_RETRIEVER = "finetunable_retriever"
+
+
 class EnvLoader:
+    type_mapping = {
+        "TypeEnum": TypeEnum,
+        "NDBSubType": NDBSubType,
+        "UDTSubType": UDTSubType,
+        "RetrieverEnum": RetrieverEnum,
+    }
+
     @classmethod
     def load_from_env(cls: Type[T]) -> T:
         missing_vars = []
@@ -17,7 +46,7 @@ class EnvLoader:
 
         for f in fields(cls):
             value = os.getenv(f.name.upper())
-            if value is None:
+            if value is None or value.lower() == "none":
                 if f.default is MISSING and f.default_factory is MISSING:
                     missing_vars.append(f.name.upper())
                 else:
@@ -40,21 +69,29 @@ class EnvLoader:
         value: str, field_type: Union[Type, str]
     ) -> Union[str, int, float, bool, None, Enum]:
         if isinstance(field_type, str):
-            field_type = eval(field_type)  # Evaluate string to get the actual type
+            field_type = EnvLoader.type_mapping.get(field_type, eval(field_type))
 
         origin = get_origin(field_type)
         args = get_args(field_type)
 
-        if origin is Union and type(None) in args:
-            non_none_type = next(arg for arg in args if arg is not type(None))
-            return (
-                None
-                if value.lower() == "none"
-                else EnvLoader._convert_type(value, non_none_type)
-            )
+        if origin is Union:
+            for arg in args:
+                try:
+                    return EnvLoader._convert_type(value, arg)
+                except (ValueError, TypeError):
+                    continue
+            raise ValueError(f"Cannot convert {value} to any of {args}")
 
-        if issubclass(field_type, Enum):
-            return field_type(value)
+        if isinstance(field_type, type) and issubclass(field_type, Enum):
+            try:
+                # Try converting directly
+                return field_type(value)
+            except ValueError:
+                # Handle case where value is in form 'EnumClass.EnumMember'
+                enum_class, enum_member = value.split(".")
+                enum_type = EnvLoader.type_mapping.get(enum_class)
+                if enum_type and issubclass(enum_type, Enum):
+                    return enum_type[enum_member]
 
         if field_type == bool:
             return ast.literal_eval(value.capitalize())
@@ -68,15 +105,11 @@ class EnvLoader:
         return ast.literal_eval(value)
 
 
-class TypeEnum(str, Enum):
-    NDB = "ndb"
-    UDT = "udt"
-
-
-class RetrieverEnum(str, Enum):
-    MACH = "mach"
-    HYBRID = "hybrid"
-    FINETUNABLE_RETRIEVER = "finetunable_retriever"
+def merge_dataclasses_to_dict(*instances) -> dict:
+    result = {}
+    for instance in instances:
+        result.update(asdict(instance))
+    return result
 
 
 @dataclass
@@ -87,6 +120,7 @@ class GeneralVariables(EnvLoader):
     model_id: str
     data_id: str
     type: TypeEnum = TypeEnum.NDB
+    sub_type: Union[NDBSubType, UDTSubType] = NDBSubType.normal
 
 
 @dataclass
@@ -119,9 +153,25 @@ class TrainVariables(EnvLoader):
     batch_size: int = 2048
     unsupervised_epochs: int = 5
     supervised_epochs: int = 3
+    unsupervised_train: bool = True
+    disable_finetunable_retriever: bool = True
+    fast_approximation: bool = True
 
 
 @dataclass
-class S3variables(EnvLoader):
+class S3Variables(EnvLoader):
     aws_access_key: str = None
     aws_secret_access_key: str = None
+
+
+@dataclass
+class ComputeVariables(EnvLoader):
+    model_cores: int = None
+    model_memory: int = None
+    priority: int = None
+
+
+@dataclass
+class ShardVariables(EnvLoader):
+    shard_num: int
+    num_classes: int

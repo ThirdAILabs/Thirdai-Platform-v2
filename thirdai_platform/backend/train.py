@@ -11,6 +11,7 @@ from backend.utils import (
     NDBExtraOptions,
     get_files,
     get_model,
+    get_model_from_identifier,
     get_platform,
     get_python_path,
     get_root_absolute_path,
@@ -23,6 +24,7 @@ from backend.utils import (
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, UploadFile, status
+from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
@@ -35,6 +37,7 @@ def train(
     model_name: str,
     files: List[UploadFile],
     file_details_list: Optional[str] = Form(default=None),
+    base_model_identifier: Optional[str] = None,
     extra_options_form: str = Form(default="{}"),
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
@@ -120,6 +123,17 @@ def train(
             message=f"Duplicate filenames recieved, please ensure each filename is unique.",
         )
 
+    if base_model_identifier:
+        try:
+            base_model: schema.Model = get_model_from_identifier(
+                base_model_identifier, session
+            )
+        except Exception as error:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=str(error),
+            )
+
     try:
         new_model: schema.Model = schema.Model(
             id=model_id,
@@ -129,6 +143,7 @@ def train(
             type="ndb",
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
+            parent_id=base_model.id if base_model_identifier else None,
         )
 
         session.add(new_model)
@@ -136,6 +151,13 @@ def train(
         session.refresh(new_model)
 
         work_dir = os.getcwd()
+
+        sharded = (
+            True
+            if extra_options.get("num_models_per_shard") > 1
+            or extra_options.get("num_shards") > 1
+            else False
+        )
 
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
@@ -149,7 +171,6 @@ def train(
             train_script=str(get_root_absolute_path() / "train_job/run.py"),
             model_id=str(model_id),
             data_id=str(data_id),
-            user_id=str(user.id),
             model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
             share_dir=os.getenv("SHARE_DIR", None),
             license_key=license_info["boltLicenseKey"],
@@ -157,6 +178,9 @@ def train(
             python_path=get_python_path(),
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+            base_model_id=("NONE" if not base_model_identifier else str(base_model.id)),
+            type="ndb",
+            sub_type="normal" if not sharded else "shard_allocation",
         )
 
     except Exception as err:
@@ -237,3 +261,174 @@ def train_fail(
     session.commit()
 
     return {"message": f"successfully updated with following {message}"}
+
+
+@train_router.post("/create-shard")
+def create_shard(
+    shard_num: int,
+    model_id: str,
+    data_id: str,
+    base_model_id: Optional[str] = None,
+    extra_options_form: str = Form(default="{}"),
+    session: Session = Depends(get_session),
+):
+    try:
+        extra_options = NDBExtraOptions.parse_raw(extra_options_form).dict()
+        extra_options = {k: v for k, v in extra_options.items() if v is not None}
+        if extra_options:
+            print(f"Extra options for shard training: {extra_options}")
+    except ValidationError as e:
+        return {"error": "Invalid extra options format", "details": str(e)}
+
+    try:
+        license_info = verify_license(
+            os.getenv(
+                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
+            )
+        )
+    except Exception as e:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"License is not valid. {str(e)}",
+        )
+
+    try:
+        new_shard: schema.ModelShard = schema.ModelShard(
+            model_id=model_id,
+            shard_num=shard_num,
+            train_status=schema.Status.not_started,
+        )
+        session.add(new_shard)
+        session.commit()
+
+        work_dir = os.getcwd()
+
+        submit_nomad_job(
+            str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
+            nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+            platform=get_platform(),
+            tag=os.getenv("TAG"),
+            registry=os.getenv("DOCKER_REGISTRY"),
+            docker_username=os.getenv("DOCKER_USERNAME"),
+            docker_password=os.getenv("DOCKER_PASSWORD"),
+            image_name=os.getenv("TRAIN_IMAGE_NAME"),
+            train_script=str(get_root_absolute_path() / "train_job/run.py"),
+            model_id=str(model_id),
+            data_id=str(data_id),
+            model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
+            share_dir=os.getenv("SHARE_DIR", None),
+            license_key=license_info["boltLicenseKey"],
+            extra_options=extra_options,
+            python_path=get_python_path(),
+            type="ndb",
+            sub_type="shard_train",
+            base_model_id="NONE" if not base_model_id else base_model_id,
+            shard_num=shard_num,
+        )
+
+    except Exception as err:
+        logger.info(str(err))
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
+        )
+
+    return {"message": f"Successfully created shard"}
+
+
+@train_router.post("/update-shard-train-status")
+def update_shard_train_status(
+    shard_num: int,
+    model_id: str,
+    status: schema.Status,
+    message: str = "",
+    session: Session = Depends(get_session),
+):
+    model_shard: schema.ModelShard = (
+        session.query(schema.ModelShard)
+        .filter(
+            schema.ModelShard.model_id == model_id,
+            schema.ModelShard.shard_num == shard_num,
+        )
+        .first()
+    )
+
+    if not model_shard:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"No model shard with id {model_id} and shard number {shard_num}.",
+        )
+
+    model_shard.train_status = status
+    session.commit()
+
+    return {"message": f"Successfully updated shard with message: {message}"}
+
+
+@train_router.get("/train-status")
+def train_status(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Get the status of a NeuralDB.
+
+    - **model_identifier**: model identifier of model to retrieve info about
+
+    Returns model status.
+    """
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the train status.",
+        data={
+            "model_identifier": model_identifier,
+            "status": model.train_status,
+        },
+    )
+
+
+@train_router.get("/model-shard-train-status")
+def model_shard_train_status(
+    model_id: str,
+    session: Session = Depends(get_session),
+):
+    try:
+        model_shards: List[schema.ModelShard] = (
+            session.query(schema.ModelShard)
+            .filter(schema.ModelShard.model_id == model_id)
+            .all()
+        )
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(error),
+        )
+
+    if not model_shards:
+        return response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="No shards found for the given model id.",
+        )
+
+    results = [
+        {
+            "shard_num": result.shard_num,
+            "status": result.train_status,
+        }
+        for result in model_shards
+    ]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the train status.",
+        data=jsonable_encoder(results),
+    )

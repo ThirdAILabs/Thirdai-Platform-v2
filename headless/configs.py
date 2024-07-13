@@ -29,7 +29,7 @@ class Config(ABC):
 
     epochs = 5
 
-    retriever = "mach"
+    retriever = "hybrid"
 
 
 class Scifact(Config):

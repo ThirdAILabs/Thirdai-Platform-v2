@@ -37,27 +37,19 @@ class MultipleMach(NDBModel):
             self.mach_variables.fhr + self.mach_variables.output_dim
         ) * self.mach_variables.embedding_dim  # bolt model params
         model_params_each += (
-            2 * num_labels * self.mach_variables.extreme_num_hashes
-        )  # mach index size : 2 * num_labels * num_hashes
+            2 * num_labels * self.mach_variables.extreme_num_hashes  # mach index size
+        )
 
         model_params_total = model_params_each * num_shards * num_models_per_shard
-        total_model_size = model_params_total * 4  # int : 4 bytes
+        total_model_size = model_params_total * 4  # int: 4 bytes
         total_model_size *= 1.25  # approximation
 
-        doc_size = 0
-        for doc_path in documents:
-            doc_size += 2 * os.path.getsize(
-                doc_path
-            )  # documents and documents.pkl stored in ndb
-
+        doc_size = sum(
+            2 * os.path.getsize(doc_path) for doc_path in documents
+        )  # documents and documents.pkl stored in ndb
         total_ndb_size = total_model_size + doc_size
 
-        return (
-            total_ndb_size,
-            total_model_size,
-            doc_size,
-            model_params_total,
-        )
+        return total_ndb_size, total_model_size, doc_size, model_params_total
 
     def load_db(self):
         db = ndb.NeuralDB.from_checkpoint(
@@ -88,15 +80,10 @@ class MultipleMach(NDBModel):
 
     def save_data_shards(self, intro_shards, train_shards):
         for i, (intro_shard, train_shard) in enumerate(zip(intro_shards, train_shards)):
-            intro_shard_picklable = self.get_data_shard_dict(intro_shard)
-            with open(os.path.join(self.data_dir, f"intro_shard_{i}.pkl"), "wb") as pkl:
-                pickle.dump(intro_shard_picklable, pkl)
-            del intro_shard_picklable
-
-            train_shard_picklable = self.get_data_shard_dict(train_shard)
-            with open(os.path.join(self.data_dir, f"train_shard_{i}.pkl"), "wb") as pkl:
-                pickle.dump(train_shard_picklable, pkl)
-            del train_shard_picklable
+            with (self.data_dir / f"intro_shard_{i}.pkl").open("wb") as pkl:
+                pickle.dump(self.get_data_shard_dict(intro_shard), pkl)
+            with (self.data_dir / f"train_shard_{i}.pkl").open("wb") as pkl:
+                pickle.dump(self.get_data_shard_dict(train_shard), pkl)
 
     def save_supervised_shards(self, supervised_shards):
         for i in range(len(supervised_shards)):
@@ -107,12 +94,8 @@ class MultipleMach(NDBModel):
                 "id_delimiter": supervised_shards[i].id_delimiter,
             }
 
-            with open(
-                os.path.join(self.data_dir, f"supervised_shard_{i}.pkl"), "wb"
-            ) as pkl:
+            with (self.data_dir / f"supervised_shard_{i}.pkl").open("wb") as pkl:
                 pickle.dump(supervised_shard_picklable, pkl)
-
-            del supervised_shard_picklable
 
     def save(self, db):
         for ensemble in db._savable_state.model.ensembles:
@@ -135,9 +118,9 @@ class MultipleMach(NDBModel):
 
         db = self.get_db()
 
-        unsupervised_files = list_files(os.path.join(self.data_dir, "unsupervised"))
-        supervised_files = list_files(os.path.join(self.data_dir, "supervised"))
-        test_files = list_files(os.path.join(self.data_dir, "test"))
+        unsupervised_files = list_files(self.data_dir / "unsupervised")
+        supervised_files = list_files(self.data_dir / "supervised")
+        test_files = list_files(self.data_dir / "test")
 
         mixture: MachMixture = db._savable_state.model
 
@@ -195,10 +178,7 @@ class MultipleMach(NDBModel):
             make_test_shard_files(
                 test_files[0],
                 mixture.label_to_segment_map,
-                os.path.join(
-                    self.data_dir,
-                    "test",
-                ),
+                self.data_dir / "test",
                 mixture.get_id_col(),
                 mixture.get_id_delimiter(),
             )

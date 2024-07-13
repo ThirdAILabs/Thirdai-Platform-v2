@@ -22,44 +22,40 @@ class ShardMach(NDBModel):
         self.shard_variables = ShardVariables.load_from_env()
 
     def get_model_path(self, model_id):
-        return os.path.join(
-            os.path.dirname(self.get_ndb_path(model_id)),
-            str(self.shard_variables.shard_num),
-            "shard_mach_model.pkl",
+        return (
+            Path(self.get_ndb_path(model_id)).parent
+            / str(self.shard_variables.shard_num)
+            / "shard_mach_model.pkl"
         )
 
     def get_model(self, data_shard_num, model_num_in_shard):
         if self.ndb_variables.base_model_id:
             base_model_path = self.get_model_path(self.ndb_variables.base_model_id)
 
-            with open(base_model_path, "rb") as pkl:
-                mach_model = pickle.load(pkl)
+            with base_model_path.open("rb") as pkl:
+                return pickle.load(pkl)
 
-        else:
-            mach_model = Mach(
-                id_col="id",
-                id_delimiter=" ",
-                query_col="query",
-                fhr=self.mach_variables.fhr,
-                embedding_dimension=self.mach_variables.embedding_dim,
-                extreme_output_dim=self.mach_variables.output_dim,
-                extreme_num_hashes=self.mach_variables.extreme_num_hashes,
-                mach_index_seed=data_shard_num * 341 + model_num_in_shard * 17,
-                hybrid=(
-                    (self.ndb_variables.retriever == "hybrid")
-                    if model_num_in_shard == 0
-                    else False
-                ),
-                hidden_bias=self.mach_variables.hidden_bias,
-                tokenizer=self.mach_variables.tokenizer,
-            )
-
-        return mach_model
+        return Mach(
+            id_col="id",
+            id_delimiter=" ",
+            query_col="query",
+            fhr=self.mach_variables.fhr,
+            embedding_dimension=self.mach_variables.embedding_dim,
+            extreme_output_dim=self.mach_variables.output_dim,
+            extreme_num_hashes=self.mach_variables.extreme_num_hashes,
+            mach_index_seed=data_shard_num * 341 + model_num_in_shard * 17,
+            hybrid=(
+                (self.ndb_variables.retriever == "hybrid")
+                if model_num_in_shard == 0
+                else False
+            ),
+            hidden_bias=self.mach_variables.hidden_bias,
+            tokenizer=self.mach_variables.tokenizer,
+        )
 
     def get_shard_data(self, path):
-        with open(path, "rb") as pkl:
+        with path.open("rb") as pkl:
             shard_picklable = pickle.load(pkl)
-
         shard = DocumentDataSource(
             shard_picklable["id_column"],
             shard_picklable["strong_column"],
@@ -67,12 +63,8 @@ class ShardMach(NDBModel):
         )
         shard.documents = shard_picklable["documents"]
         shard._size = shard_picklable["_size"]
-        del shard_picklable
-
-        # We need to set document path for DocumentDataSource.resource_name to work
         for i, (doc, _) in enumerate(shard.documents):
             doc.path = Path(f"/shard_{self.shard_variables.shard_num}_doc_{i}.shard")
-
         return shard
 
     def train(self, **kwargs):
@@ -84,8 +76,8 @@ class ShardMach(NDBModel):
 
         thirdai.logging.setup(
             log_to_stderr=False,
-            path=os.path.join(
-                self.model_dir, f"train-shard-{self.shard_variables.shard_num}.log"
+            path=str(
+                self.model_dir / f"train-shard-{self.shard_variables.shard_num}.log"
             ),
             level="info",
         )
@@ -99,16 +91,14 @@ class ShardMach(NDBModel):
 
         mach_model = self.get_model(data_shard_num, model_num_in_shard)
 
-        test_file = os.path.join(self.data_dir, "test", f"shard_{data_shard_num}.csv")
+        test_file = self.data_dir / "test" / f"shard_{data_shard_num}.csv"
 
-        if os.path.exists(
-            os.path.join(self.data_dir, f"intro_shard_{data_shard_num}.pkl")
-        ):
-            intro_shard = self.get_shard_data(
-                os.path.join(self.data_dir, f"intro_shard_{data_shard_num}.pkl")
-            )
+        if (
+            intro_shard_path := self.data_dir / f"intro_shard_{data_shard_num}.pkl"
+        ).exists():
+            intro_shard = self.get_shard_data(intro_shard_path)
             train_shard = self.get_shard_data(
-                os.path.join(self.data_dir, f"train_shard_{data_shard_num}.pkl")
+                self.data_dir / f"train_shard_{data_shard_num}.pkl"
             )
 
             training_manager = TPM.from_scratch_for_unsupervised(
@@ -133,16 +123,14 @@ class ShardMach(NDBModel):
                 cancel_state=None,
             )
 
-            if os.path.exists(test_file):
+            if test_file.exists():
                 self.evaluate(mach_model, test_file)
 
-        if os.path.exists(
-            os.path.join(self.data_dir, f"supervised_shard_{data_shard_num}.pkl")
-        ):
-            with open(
-                os.path.join(self.data_dir, f"supervised_shard_{data_shard_num}.pkl"),
-                "rb",
-            ) as pkl:
+        if (
+            supervised_shard_path := self.data_dir
+            / f"supervised_shard_{data_shard_num}.pkl"
+        ).exists():
+            with supervised_shard_path.open("rb") as pkl:
                 supervised_shard_picklable = pickle.load(pkl)
 
             supervised_data_source = SupDataSource(
@@ -160,17 +148,17 @@ class ShardMach(NDBModel):
                 max_in_memory_batches=self.train_variables.max_in_memory_batches,
                 batch_size=self.train_variables.batch_size,
                 metrics=["loss", "hash_precision@1"],
-                callbacks=None,
+                callbacks=[],
                 disable_finetunable_retriever=self.train_variables.disable_finetunable_retriever,
             )
 
-            if os.path.exists(test_file):
+            if test_file.exists():
                 self.evaluate(mach_model, test_file)
 
         shard_model_path = self.get_model_path(self.general_variables.model_id)
-        os.makedirs(os.path.dirname(shard_model_path), exist_ok=True)
+        shard_model_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(shard_model_path, "wb") as pkl:
+        with shard_model_path.open("wb") as pkl:
             pickle.dump(mach_model, pkl)
 
         print("Saved Mach model", flush=True)

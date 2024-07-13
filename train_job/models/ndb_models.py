@@ -23,14 +23,7 @@ class NDBModel(Model):
     def __init__(self):
         super().__init__()
         self.ndb_variables = NeuralDBVariables.load_from_env()
-        self.model_save_path = Path(
-            os.path.join(
-                self.general_variables.model_bazaar_dir,
-                "models",
-                self.general_variables.model_id,
-                "model.ndb",
-            )
-        )
+        self.model_save_path = self.model_dir / "model.ndb"
 
     def unsupervised_train(self, db: ndb.NeuralDB, files: List):
         # Look into how to add checkpointing for streaming processes.
@@ -38,7 +31,7 @@ class NDBModel(Model):
 
         producer_thread = threading.Thread(
             target=producer,
-            args=(files, buffer, os.path.join(self.data_dir, "unsupervised")),
+            args=(files, buffer, self.data_dir / "unsupervised"),
         )
 
         consumer_thread = threading.Thread(
@@ -54,24 +47,20 @@ class NDBModel(Model):
         consumer_thread.join()
 
     def get_supervised_files(self, files):
-        relations_path = os.path.join(self.data_dir, "relations.json")
-        if os.path.exists(relations_path):
-            with open(relations_path, "r") as file:
+        relations_path = self.data_dir / "relations.json"
+        if relations_path.exists():
+            with relations_path.open("r") as file:
                 relations_data = json.load(file)
             relations_dict = {
                 entry["supervised_file"]: entry["source_id"] for entry in relations_data
             }
 
-        supervised_source_ids = [
-            relations_dict[os.path.basename(file)] for file in files
-        ]
+        supervised_source_ids = [relations_dict[Path(file).name] for file in files]
 
-        supervised_sources = [
+        return [
             convert_supervised_to_ndb_file(file, supervised_source_ids[i])
             for i, file in enumerate(files)
         ]
-
-        return supervised_sources
 
     def supervised_train(self, db: ndb.NeuralDB, files: List):
         # Look into how to add streaming in this supervised.
@@ -82,25 +71,21 @@ class NDBModel(Model):
             epochs=self.train_variables.supervised_epochs,
         )
 
-        print("Completed Supervised Training", flush=True)
-
     def get_ndb_path(self, model_id):
-        return os.path.join(
-            self.general_variables.model_bazaar_dir,
-            "models",
-            model_id,
-            "model.ndb",
+        return (
+            Path(self.general_variables.model_bazaar_dir)
+            / "models"
+            / model_id
+            / "model.ndb"
         )
 
     def load_db(self, model_id):
-        return ndb.NeuralDB.from_checkpoint(Path(self.get_ndb_path(model_id)))
+        return ndb.NeuralDB.from_checkpoint(self.get_ndb_path(model_id))
 
     def get_db(self):
         if self.ndb_variables.base_model_id:
-            db = self.load_db(self.ndb_variables.base_model_id)
-        else:
-            db = self.initialize_db()
-        return db
+            return self.load_db(self.ndb_variables.base_model_id)
+        return self.initialize_db()
 
     def initialize_db(self):
         pass
@@ -141,9 +126,9 @@ class SingleMach(NDBModel):
     def train(self, **kwargs):
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
 
-        unsupervised_files = list_files(os.path.join(self.data_dir, "unsupervised"))
-        supervised_files = list_files(os.path.join(self.data_dir, "supervised"))
-        test_files = list_files(os.path.join(self.data_dir, "test"))
+        unsupervised_files = list_files(self.data_dir / "unsupervised")
+        supervised_files = list_files(self.data_dir / "supervised")
+        test_files = list_files(self.data_dir / "test")
 
         db = self.get_db()
 
@@ -205,8 +190,8 @@ class FinetunableRetriever(NDBModel):
     def train(self, **kwargs):
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
 
-        unsupervised_files = list_files(os.path.join(self.data_dir, "unsupervised"))
-        supervised_files = list_files(os.path.join(self.data_dir, "supervised"))
+        unsupervised_files = list_files(self.data_dir / "unsupervised")
+        supervised_files = list_files(self.data_dir / "supervised")
 
         db = self.get_db()
 

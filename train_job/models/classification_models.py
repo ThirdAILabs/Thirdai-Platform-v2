@@ -1,9 +1,16 @@
 from abc import abstractmethod
 from pathlib import Path
+
+import thirdai
 from models.model import Model
 from thirdai import bolt
 from utils import list_files
-from variables import UDTVariables, TokenClassificationVariables, TextClassificationVariables
+from variables import (
+    TextClassificationVariables,
+    TokenClassificationVariables,
+    UDTVariables,
+)
+
 
 class ClassificationModel(Model):
     def __init__(self):
@@ -34,58 +41,6 @@ class ClassificationModel(Model):
             return self.load_model(self.udt_variables.base_model_id)
         return self.initialize_model()
 
-    
-          
-class TextClassificationModel(ClassificationModel):
-    def __init__(self):
-        super().__init__()
-        self.text_classification_vars = TextClassificationVariables.load_from_env()
-        
-    def initialize_model(self):
-        return bolt.UniversalDeepTransformer(
-            data_types={
-                "text": bolt.types.text(),
-                "label": bolt.types.categorical(n_classes=self.text_classification_vars.n_target_classes)
-            },
-            target="label",
-            delimiter=self.text_classification_vars.delimiter,
-        )
-    def train(self, **kwargs):
-        self.reporter.report_status(self.general_variables.model_id, "in_progress")
-        
-        model = self.get_model()
-        
-        unsupervised_files = list_files(self.data_dir / "unsupervised")
-        
-        if unsupervised_files:
-            for train_file in unsupervised_files:
-                model.train(
-                    train_file,
-                    epochs=5,
-                    learning_rate=0.01,
-                    metrics=["loss", "categorical_accuracy"],
-                )
-        self.save_model(model)
-        
-    def evaluate(self, **kwargs):
-        pass
-     
-class TokenClassificationModel(ClassificationModel):
-    def __init__(self):
-        super().__init__()
-        self.token_classification_vars = TextClassificationVariables.load_from_env()
-        
-    def initialize_model(self):
-        target_labels = self.token_classification_vars.target_labels
-        default_tag = self.token_classification_vars.default_tag
-        return bolt.UniversalDeepTransformer(
-            data_types={
-                "source": bolt.types.text(),
-                "target": bolt.types.token_tags(tags=target_labels, default_tag=default_tag),
-            },
-            target="target",
-        )
-        
     def train(self, **kwargs):
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
         
@@ -105,6 +60,47 @@ class TokenClassificationModel(ClassificationModel):
                 
         self.save_model(model)
 
+        self.reporter.report_complete(
+            self.general_variables.model_id,
+            metadata={
+                "thirdai_version": str(thirdai.__version__),
+            },
+        )
+    
+          
+class TextClassificationModel(ClassificationModel):
+    def __init__(self):
+        super().__init__()
+        self.text_classification_vars = TextClassificationVariables.load_from_env()
+        
+    def initialize_model(self):
+        return bolt.UniversalDeepTransformer(
+            data_types={
+                "text": bolt.types.text(),
+                "label": bolt.types.categorical(n_classes=self.text_classification_vars.n_target_classes)
+            },
+            target="label",
+            delimiter=self.text_classification_vars.delimiter,
+        )
+    def evaluate(self, **kwargs):
+        pass
+     
+class TokenClassificationModel(ClassificationModel):
+    def __init__(self):
+        super().__init__()
+        self.token_classification_vars = TextClassificationVariables.load_from_env()
+        
+    def initialize_model(self):
+        target_labels = self.token_classification_vars.target_labels
+        default_tag = self.token_classification_vars.default_tag
+        return bolt.UniversalDeepTransformer(
+            data_types={
+                "source": bolt.types.text(),
+                "target": bolt.types.token_tags(tags=target_labels, default_tag=default_tag),
+            },
+            target="target",
+        )
+        
     def evaluate(self, **kwargs):
         pass
            

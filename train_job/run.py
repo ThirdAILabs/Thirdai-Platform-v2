@@ -2,9 +2,12 @@ import os
 import traceback
 
 import thirdai
+from models.classification_models import (
+    TextClassificationModel,
+    TokenClassificationModel,
+)
 from models.multiple_mach import MultipleMach
 from models.ndb_models import FinetunableRetriever, SingleMach
-from models.classification_models import TextClassificationModel, TokenClassificationModel
 from models.shard_mach import ShardMach
 from reporter import Reporter
 from variables import (
@@ -13,8 +16,8 @@ from variables import (
     NeuralDBVariables,
     RetrieverEnum,
     TypeEnum,
-    UDTVariables,
     UDTSubType,
+    UDTVariables,
 )
 
 general_variables = GeneralVariables.load_from_env()
@@ -51,7 +54,7 @@ def main():
                 model.train()
             else:
                 raise ValueError("Currently Not supported")
-            
+
     except Exception as err:
         traceback.print_exc()
         reporter.report_status(general_variables.model_id, "failed", message=err)

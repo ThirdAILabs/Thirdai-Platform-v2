@@ -26,6 +26,11 @@ DAG1:
     dependencies: [await_deploy]
     params:
       deployment: deploy
+  
+  undeploy:
+    dependencies: [check_deployment]
+    params:
+      deployment: deploy
 
 DAG2:
   check_unsupervised_supervised:

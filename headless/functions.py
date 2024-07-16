@@ -88,6 +88,13 @@ def check_deployment(inputs: Dict):
     )
 
 
+def undeploy(inputs: Dict):
+    logging.info(f"Stopping the deployment {inputs}")
+    deployment = inputs.get("deployment")
+
+    flow.bazaar_client.undeploy(deployment)
+
+
 functions_registry = {
     "check_unsupervised": check_unsupervised,
     "check_unsupervised_supervised": check_unsupervised_supervised,
@@ -95,4 +102,5 @@ functions_registry = {
     "deploy": deploy,
     "check_deployment": check_deployment,
     "await_deploy": await_deploy,
+    "undeploy": undeploy,
 }

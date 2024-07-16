@@ -144,7 +144,6 @@ class MetaData(SQLDeclarativeBase):
 
     general = Column(JSON, nullable=True)
     train = Column(JSON, nullable=True)
-    deployment = Column(JSON, nullable=True)
 
     model_id = Column(
         UUID(as_uuid=True),

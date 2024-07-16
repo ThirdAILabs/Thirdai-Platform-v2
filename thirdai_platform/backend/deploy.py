@@ -11,6 +11,7 @@ from auth.jwt import (
     verify_access_token_no_throw,
 )
 from backend.utils import (
+    delete_nomad_job,
     get_deployment,
     get_empty_port,
     get_model,
@@ -27,7 +28,7 @@ from backend.utils import (
 )
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from sqlalchemy.orm import Session, joinedload
 
@@ -319,3 +320,69 @@ def deployment_status(
     session.commit()
 
     return {"message": "successfully updated"}
+
+
+@deploy_router.post("/stop")
+def undeploy_model(
+    deployment_identifier: str,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    (
+        model_username,
+        model_name,
+        deployment_username,
+        deployment_name,
+    ) = parse_deployment_identifier(deployment_identifier)
+
+    deployment_user: schema.User = (
+        session.query(schema.User)
+        .filter(schema.User.username == deployment_username)
+        .first()
+    )
+
+    model: schema.Model = get_model(session, model_username, model_name)
+    if not model:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="No deployment with this identifier",
+        )
+
+    deployment: schema.Deployment = get_deployment(
+        session, deployment_name, deployment_user.id, model.id
+    )
+
+    if not deployment:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="No deployment with this identifier",
+        )
+
+    try:
+        delete_nomad_job(
+            job_id=f"deployment-{str(deployment.id)}",
+            nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+        )
+        deployment: schema.Deployment = (
+            session.query(schema.Deployment)
+            .filter(schema.Deployment.id == deployment.id)
+            .first()
+        )
+        session.delete(deployment)
+        session.commit()
+
+    except Exception as err:
+        logger.info(str(err))
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
+        )
+
+    return response(
+        status_code=status.HTTP_202_ACCEPTED,
+        message="Service is shutting down",
+        data={
+            "status": "queued",
+            "deployment_identifier": deployment_identifier,
+        },
+    )

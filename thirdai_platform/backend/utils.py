@@ -70,8 +70,6 @@ def get_high_level_model_info(result: schema.Model):
             info.update(metadata.train)
         if metadata.general:
             info.update(metadata.general)
-        if metadata.deployment:
-            info.update(metadata.deployment)
 
     return info
 
@@ -584,3 +582,18 @@ def parse_deployment_identifier(deployment_identifier):
         return model_username, model_name, deployment_username, deployment_name
     else:
         raise ValueError("deployment identifier is not valid")
+
+
+def delete_nomad_job(job_id, nomad_endpoint):
+    job_url = urljoin(nomad_endpoint, f"v1/job/{job_id}")
+    headers = {"X-Nomad-Token": TASK_RUNNER_TOKEN}
+    response = requests.delete(job_url, headers=headers)
+
+    if response.status_code == 200:
+        print(f"Job {job_id} stopped successfully")
+    else:
+        print(
+            f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
+        )
+
+    return response

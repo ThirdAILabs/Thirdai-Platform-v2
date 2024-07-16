@@ -1,6 +1,9 @@
 import datetime
+import traceback
+from functools import wraps
 
 import requests
+from fastapi import status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
@@ -26,3 +29,18 @@ def delete_job(deployment_id, task_runner_token):
     headers = {"X-Nomad-Token": task_runner_token}
     response = requests.delete(job_url, headers=headers)
     return response, job_id
+
+
+def propagate_error(func):
+    @wraps(func)
+    def method(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message=str(traceback.format_exc()),
+                success=False,
+            )
+
+    return method

@@ -1,19 +1,16 @@
 import asyncio
 import os
 import time
-import traceback
 from functools import wraps
-from typing import Optional
 
 import thirdai
 import uvicorn
-from fastapi import APIRouter, Depends, FastAPI, status
-from fastapi.encoders import jsonable_encoder
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from models.ndb_models import ShardedNDB, SingleNDB
-from permissions import Permissions
-from pydantic_models.inputs import BaseQueryParams, NDBExtraParams
-from utils import delete_job, response
+from fastapi.responses import JSONResponse
+from reporter import Reporter
+from routers.ndb import ndb_router
+from utils import delete_job
 from variables import GeneralVariables, TypeEnum
 
 general_variables = GeneralVariables.load_from_env()
@@ -29,8 +26,6 @@ if general_variables.license_key == "file_license":
     )
 else:
     thirdai.licensing.activate(general_variables.license_key)
-
-router = APIRouter()
 
 app.add_middleware(
     CORSMiddleware,
@@ -78,63 +73,23 @@ async def async_timer():
             reset_event.clear()
 
 
-def propagate_error(func):
-    @wraps(func)
-    def method(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            return response(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message=str(traceback.format_exc()),
-                success=False,
-            )
-
-    return method
+if general_variables.type == TypeEnum.NDB:
+    app.include_router(ndb_router, prefix=f"/{general_variables.deployment_id}")
 
 
-def get_model():
-    if general_variables.type == TypeEnum.NDB:
-        if general_variables.num_shards:
-            return ShardedNDB()
-        else:
-            return SingleNDB()
-    else:
-        raise
-
-
-permissions = Permissions()
-model = get_model()
-
-
-@router.post("/predict")
-@propagate_error
-def ndb_query(
-    base_params: BaseQueryParams,
-    ndb_params: Optional[NDBExtraParams] = NDBExtraParams(),
-    _=Depends(permissions.verify_read_permission),
-):
-    params = base_params.dict()
-    if general_variables.type == TypeEnum.NDB:
-        extra_params = ndb_params.dict(exclude_unset=True)
-        params.update(extra_params)
-
-    results = model.predict(**params)
-
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Successful",
-        data=jsonable_encoder(results),
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, exc):
+    return JSONResponse(
+        status_code=404,
+        content={"message": f"Request path '{request.url.path}' doesn't exist"},
     )
 
 
-@router.on_event("startup")
+@app.on_event("startup")
 async def startup_event():
     time.sleep(10)
-    model.reporter.deploy_complete(general_variables.deployment_id)
-
-
-app.include_router(router, prefix=f"/{general_variables.deployment_id}")
+    reporter = Reporter(general_variables.model_bazaar_endpoint)
+    reporter.deploy_complete(general_variables.deployment_id)
 
 
 if __name__ == "__main__":

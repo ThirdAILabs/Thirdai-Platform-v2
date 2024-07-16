@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import socket
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -65,12 +66,12 @@ def get_high_level_model_info(result: schema.Model):
     # Include metadata if it exists
     if result.meta_data:
         metadata = result.meta_data
-        if metadata.public:
-            info.update(metadata.public)
-        if metadata.protected:
-            info.update(metadata.protected)
-        if metadata.private:
-            info.update(metadata.private)
+        if metadata.train:
+            info.update(metadata.train)
+        if metadata.general:
+            info.update(metadata.general)
+        if metadata.deployment:
+            info.update(metadata.deployment)
 
     return info
 
@@ -538,3 +539,48 @@ def update_json(current_json, new_dict):
         current_dict = json.loads(current_json)
     current_dict.update(new_dict)
     return json.dumps(current_dict)
+
+
+def get_deployment(session: Session, deployment_name, deployment_user_id, model_id):
+    return (
+        session.query(schema.Deployment)
+        .filter(
+            schema.Deployment.name == deployment_name,
+            schema.Deployment.user_id == deployment_user_id,
+            schema.Deployment.model_id == model_id,
+        )
+        .first()
+    )
+
+
+def model_accessible(model: schema.Model, user: schema.User) -> bool:
+    if model.access_level == "private":
+        if model.user.id == user.id:
+            return True
+        return False
+
+    if model.access_level == "protected":
+        if model.domain == user.domain:
+            return True
+        return False
+
+    return True
+
+
+def get_empty_port():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("", 0))  # Bind to an empty
+    port = sock.getsockname()[1]
+    sock.close()
+    return port
+
+
+def parse_deployment_identifier(deployment_identifier):
+    regex_pattern = "^[\w-]+\/[\w-]+\:[\w-]+\/[\w-]+$"
+    if re.match(regex_pattern, deployment_identifier):
+        model_identifier, deployment_tag = deployment_identifier.split(":")
+        model_username, model_name = model_identifier.split("/")
+        deployment_username, deployment_name = deployment_tag.split("/")
+        return model_username, model_name, deployment_username, deployment_name
+    else:
+        raise ValueError("deployment identifier is not valid")

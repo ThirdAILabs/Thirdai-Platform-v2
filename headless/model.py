@@ -65,3 +65,16 @@ class Flow:
             is_async=is_async,
             metadata=metadata,
         )
+
+    def deploy(
+        self,
+        model_identifier,
+        deployment_name,
+        is_async: bool = True,
+    ):
+        print("*" * 50 + f" Deploying the model {model_identifier} " + "*" * 50)
+        return self._bazaar_client.deploy(
+            model_identifier=model_identifier,
+            deployment_name=deployment_name,
+            is_async=is_async,
+        )

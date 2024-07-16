@@ -1,0 +1,321 @@
+import os
+import traceback
+import uuid
+from pathlib import Path
+from typing import Optional, Union
+
+from auth.jwt import (
+    AuthenticatedUser,
+    now_plus_minutes,
+    verify_access_token,
+    verify_access_token_no_throw,
+)
+from backend.utils import (
+    get_deployment,
+    get_empty_port,
+    get_model,
+    get_model_from_identifier,
+    get_platform,
+    get_python_path,
+    get_root_absolute_path,
+    logger,
+    model_accessible,
+    parse_deployment_identifier,
+    response,
+    submit_nomad_job,
+    validate_name,
+)
+from database import schema
+from database.session import get_session
+from fastapi import APIRouter, Depends, HTTPException, status
+from licensing.verify.verify_license import valid_job_allocation, verify_license
+from sqlalchemy.orm import Session, joinedload
+
+deploy_router = APIRouter()
+
+
+def deployment_read_write_permissions(
+    deployment_id: str,
+    session: Session,
+    authenticated_user: Union[AuthenticatedUser, HTTPException],
+):
+    deployment: schema.Deployment = (
+        session.query(schema.Deployment)
+        .options(joinedload(schema.Deployment.user))
+        .get(deployment_id)
+    )
+    access_level = session.query(schema.Model).get(deployment.model_id).access_level
+    deployment_is_public = access_level == schema.Access.public
+
+    if not isinstance(authenticated_user, AuthenticatedUser):
+        if deployment_is_public:
+            return True, False
+        return False, False
+
+    current_user: schema.User = authenticated_user.user
+    if deployment.user_id == current_user.id:
+        return True, True
+
+    if deployment_is_public:
+        return True, False
+
+    deployment_is_protected = access_level == schema.Access.protected
+    user_is_in_deployment_domain = deployment.user.domain == current_user.domain
+    if deployment_is_protected and user_is_in_deployment_domain:
+        return True, False
+
+    return False, False
+
+
+def deployment_owner_permissions(
+    deployment_id: str,
+    session: Session,
+    authenticated_user: Union[AuthenticatedUser, HTTPException],
+):
+    deployment: schema.Deployment = (
+        session.query(schema.Deployment)
+        .options(joinedload(schema.Deployment.user))
+        .get(deployment_id)
+    )
+
+    if not isinstance(authenticated_user, AuthenticatedUser):
+        return False
+
+    current_user: schema.User = authenticated_user.user
+
+    model: schema.Model = session.query(schema.Model).get(deployment.model_id)
+
+    return model.user_id == current_user.id
+
+
+@deploy_router.get("/permissions/{deployment_id}")
+def get_deployment_permissions(
+    deployment_id: str,
+    session: Session = Depends(get_session),
+    authenticated_user=Depends(verify_access_token_no_throw),
+):
+    read, write = deployment_read_write_permissions(
+        deployment_id, session, authenticated_user
+    )
+    override = deployment_owner_permissions(deployment_id, session, authenticated_user)
+    exp = (
+        authenticated_user.exp.isoformat()
+        if isinstance(authenticated_user, AuthenticatedUser)
+        else now_plus_minutes(minutes=120).isoformat()
+    )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"Successfully fetched user permissions for deployment with ID {deployment_id}",
+        data={"read": read, "write": write, "exp": exp, "override": override},
+    )
+
+
+@deploy_router.post("/run")
+def deploy_model(
+    deployment_name: str,
+    model_identifier: str,
+    memory: Optional[int] = None,
+    autoscaling_enabled: bool = False,
+    autoscaler_max_count: int = 1,
+    genai_key: Optional[str] = None,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+
+    user: schema.User = authenticated_user.user
+
+    try:
+        license_info = verify_license(
+            os.getenv(
+                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
+            )
+        )
+        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Resource limit reached, cannot allocate new jobs.",
+            )
+    except Exception as e:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"License is not valid. {str(e)}",
+        )
+
+    try:
+        validate_name(deployment_name)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Deployment name is not valid.",
+        )
+
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    if model.train_status != schema.Status.complete:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Training isn't complete yet. Current status : f{str(model.train_status)}",
+        )
+    duplicate_deployment: schema.Deployment = get_deployment(
+        session, deployment_name, user.id, model.id
+    )
+    if duplicate_deployment:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Deployment already exists",
+        )
+
+    if not model_accessible(model, user):
+        return response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            message=f"You dont have access to deploy this model.",
+        )
+
+    if not memory:
+        memory = (
+            int(model.meta_data.train["size_in_memory"]) // 1000000
+        ) + 1000  # MB required for deployment
+
+    deployment_identifier = f"{model_identifier}:{user}/{deployment_name}"
+    deployment_id = uuid.uuid3(uuid.NAMESPACE_URL, deployment_identifier)
+    try:
+        deployment = schema.Deployment(
+            id=deployment_id,
+            model_id=model.id,
+            user_id=user.id,
+            name=deployment_name,
+            status=schema.Status.not_started,
+        )
+        session.add(deployment)
+        session.commit()
+        session.refresh(deployment)
+
+        work_dir = os.getcwd()
+
+        platform = get_platform()
+
+        submit_nomad_job(
+            str(Path(work_dir) / "backend" / "nomad_jobs" / "deployment_job.hcl.j2"),
+            nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+            platform=platform,
+            tag=os.getenv("TAG"),
+            registry=os.getenv("DOCKER_REGISTRY"),
+            docker_username=os.getenv("DOCKER_USERNAME"),
+            docker_password=os.getenv("DOCKER_PASSWORD"),
+            image_name=os.getenv("DEPLOY_IMAGE_NAME"),
+            port=None if platform == "docker" else get_empty_port(),
+            deployment_app_dir=str(get_root_absolute_path() / "deployment_job"),
+            model_id=str(model.id),
+            user_id=str(user.id),
+            deployment_id=str(deployment_id),
+            model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+            share_dir=os.getenv("SHARE_DIR", None),
+            license_key=license_info["boltLicenseKey"],
+            genai_key=(genai_key or os.getenv("GENAI_KEY", "")),
+            autoscaling_enabled=("true" if autoscaling_enabled else "false"),
+            autoscaler_max_count=str(autoscaler_max_count),
+            num_shards=str(
+                len(model.model_shards)
+            ),  # If num_shards = 0, the model is not sharded
+            memory=memory,
+            python_path=get_python_path(),
+            aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
+            aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+        )
+
+        deployment.status = schema.Status.in_progress
+        session.commit()
+
+    except Exception as err:
+        deployment.status = schema.Status.failed
+        session.commit()
+
+        logger.info(traceback.format_exc())
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
+        )
+
+    return response(
+        status_code=status.HTTP_202_ACCEPTED,
+        message="Deployment is in-progress",
+        data={
+            "status": "queued",
+            "model_identifier": model_identifier,
+            "deployment_name": deployment_name,
+            "deployment_id": str(deployment_id),
+        },
+    )
+
+
+@deploy_router.get("/status")
+def deployment_status(
+    deployment_identifier: str,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    (
+        model_username,
+        model_name,
+        deployment_username,
+        deployment_name,
+    ) = parse_deployment_identifier(deployment_identifier)
+
+    deployment_user: schema.User = (
+        session.query(schema.User)
+        .filter(schema.User.username == deployment_username)
+        .first()
+    )
+
+    model: schema.Model = get_model(session, model_username, model_name)
+    if not model:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="No deployment with this identifier",
+        )
+
+    deployment: schema.Deployment = get_deployment(
+        session, deployment_name, deployment_user.id, model.id
+    )
+    if not deployment:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="No deployment with this identifier",
+        )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the deployment status",
+        data={"status": deployment.status, "deployment_id": str(deployment.id)},
+    )
+
+
+@deploy_router.post("/complete")
+def deployment_status(
+    deployment_id: str,
+    session: Session = Depends(get_session),
+):
+    deployment: schema.Deployment = (
+        session.query(schema.Deployment)
+        .filter(schema.Deployment.id == deployment_id)
+        .first()
+    )
+
+    if not deployment:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"No deployment with id {deployment_id}.",
+        )
+
+    deployment.status = schema.Status.complete
+
+    session.commit()
+
+    return {"message": "successfully updated"}

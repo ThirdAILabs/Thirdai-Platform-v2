@@ -4,14 +4,14 @@ from datetime import datetime
 
 from sqlalchemy import (
     JSON,
-    BigInteger,
     Boolean,
     Column,
     DateTime,
-    Float,
     ForeignKey,
+    Index,
     Integer,
     String,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import ENUM, UUID
@@ -54,6 +54,9 @@ class User(SQLDeclarativeBase):
     )
 
     models = relationship("Model", back_populates="user", cascade="all, delete-orphan")
+    deployments = relationship(
+        "Deployment", back_populates="user", cascade="all, delete-orphan"
+    )
 
     @validates("username")
     def validate_username(self, key, username):
@@ -81,11 +84,7 @@ class Model(SQLDeclarativeBase):
     # time_taken = Column(BigInteger, nullable=True)
     # latency = Column(Float, nullable=True)
     # dataset_size = Column(BigInteger, nullable=True)
-    # num_params = Column(BigInteger, nullable=True)
     downloads = Column(Integer, nullable=False, default=0)
-    # size = Column(BigInteger, nullable=True)
-    # size_in_memory = Column(BigInteger, nullable=True)
-    # thirdai_version = Column(String, nullable=True)
     access_level = Column(ENUM(Access), nullable=False, default=Access.private)
     # description = Column(String, nullable=True)
     domain = Column(String, nullable=True)
@@ -97,14 +96,28 @@ class Model(SQLDeclarativeBase):
         UUID(as_uuid=True), ForeignKey("models.id", ondelete="SET NULL"), nullable=True
     )  # Not null if this model comes from starting training from a base model
 
+    parent_deployment_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("deployments.id", ondelete="SET NULL"),
+        nullable=True,
+    )  # Not null if this model comes from saving a deployment session
+
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
     user = relationship("User", back_populates="models")
 
+    parent_deployment = relationship(
+        "Deployment", back_populates="child_models", foreign_keys=[parent_deployment_id]
+    )
+
+    deployments = relationship(
+        "Deployment", back_populates="model", foreign_keys="[Deployment.model_id]"
+    )
+
     meta_data = relationship(
-        "MetaData", back_populates="model", cascade="all, delete-orphan"
+        "MetaData", back_populates="model", uselist=False, cascade="all, delete-orphan"
     )
 
     model_shards = relationship(
@@ -119,13 +132,19 @@ class Model(SQLDeclarativeBase):
         ), "Model name should only contain alphanumeric characters, underscores, and hyphens"
         return name
 
+    __table_args__ = (
+        Index("train_status_index", "train_status"),
+        Index("model_identifier_index", "user_id", "name"),
+        UniqueConstraint("user_id", "name"),
+    )
+
 
 class MetaData(SQLDeclarativeBase):
     __tablename__ = "metadata"
 
-    public = Column(JSON, nullable=True)
-    protected = Column(JSON, nullable=True)
-    private = Column(JSON, nullable=True)
+    general = Column(JSON, nullable=True)
+    train = Column(JSON, nullable=True)
+    deployment = Column(JSON, nullable=True)
 
     model_id = Column(
         UUID(as_uuid=True),
@@ -149,3 +168,43 @@ class ModelShard(SQLDeclarativeBase):
     )
 
     model = relationship("Model", back_populates="model_shards")
+
+
+class Deployment(SQLDeclarativeBase):
+    __tablename__ = "deployments"
+
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    name = Column(String(256), nullable=False)
+    status = Column(ENUM(Status), nullable=False)
+
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    model_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("models.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    child_models = relationship(
+        "Model",
+        back_populates="parent_deployment",
+        foreign_keys=[Model.parent_deployment_id],
+    )
+
+    logs = Column(JSON, nullable=True)
+
+    user = relationship("User", back_populates="deployments")
+    model = relationship("Model", back_populates="deployments", foreign_keys=[model_id])
+
+    @validates("name")
+    def validate_deployment_name(self, key, name):
+        # allow only alphanumeric characters, underscores, and hyphens
+        assert re.match(
+            r"^[\w-]+$", name
+        ), "Deployment name should only contain alphanumeric characters, underscores, and hyphens"
+        return name
+
+    __table_args__ = (UniqueConstraint("model_id", "user_id", "name"),)

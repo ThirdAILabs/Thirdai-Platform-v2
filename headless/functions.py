@@ -58,7 +58,41 @@ def check_unsupervised_supervised(inputs: Dict):
     )
 
 
+def await_train(inputs: Dict):
+    logging.info(f"waiting for training to finish for {inputs}")
+    model = inputs.get("model")
+    flow.bazaar_client.await_train(model)
+
+
+def deploy(inputs: Dict):
+    logging.info(f"Deploying the model {inputs}")
+    model = inputs.get("model")
+    run_name = inputs.get("run_name")
+
+    return flow.deploy(model.model_identifier, f"{run_name}_deployment")
+
+
+def await_deploy(inputs: Dict):
+    logging.info(f"waiting for deployment to finish for {inputs}")
+    deployment = inputs.get("deployment")
+    flow.bazaar_client.await_deploy(deployment)
+
+
+def check_deployment(inputs: Dict):
+    logging.info(f"Searching the model {inputs}")
+    deployment = inputs.get("deployment")
+
+    results = deployment.search(
+        query="Can autism and down syndrome be in conjunction",
+        top_k=5,
+    )
+
+
 functions_registry = {
     "check_unsupervised": check_unsupervised,
     "check_unsupervised_supervised": check_unsupervised_supervised,
+    "await_train": await_train,
+    "deploy": deploy,
+    "check_deployment": check_deployment,
+    "await_deploy": await_deploy,
 }

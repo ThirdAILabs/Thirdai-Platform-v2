@@ -11,6 +11,8 @@ ARGS=(
     "--providers.nomad.endpoint.address=http://localhost:4646"
     "--providers.file.filename=$curr_dir/traefik_config/dynamic-conf.yml"
     "--providers.file.watch=true"
+    "--log.level=DEBUG"
+    "--providers.http.pollInterval=5s"
 )
 
 traefik ${ARGS[@]}

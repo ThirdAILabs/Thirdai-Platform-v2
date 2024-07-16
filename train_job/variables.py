@@ -4,7 +4,7 @@ import ast
 import os
 from dataclasses import MISSING, asdict, dataclass, fields
 from enum import Enum
-from typing import Dict, Optional, Type, TypeVar, Union, get_args, get_origin
+from typing import Dict, Optional, Type, TypeVar, Union, get_args, get_origin, List
 
 T = TypeVar("T", bound="EnvLoader")
 
@@ -122,7 +122,26 @@ class GeneralVariables(EnvLoader):
     type: TypeEnum = TypeEnum.NDB
     sub_type: Union[NDBSubType, UDTSubType] = NDBSubType.normal
 
-
+@dataclass 
+class UDTVariables(EnvLoader):
+    fhr: int = 50_000
+    embedding_dim: int = 2048
+    output_dim: int = 10_000
+    extreme_num_hashes: int = 1
+    base_model_id: Optional[str] = None
+    subtype: UDTSubType = UDTSubType.text
+    
+@dataclass
+class TokenClassificationVariables(EnvLoader):
+    target_labels: List[str] = []
+    default_tag: str = "O"
+    
+@dataclass
+class TextClassificationVariables(EnvLoader):
+    delimiter: str = ":"
+    n_target_classes: int = None
+    
+    
 @dataclass
 class MachVariables(EnvLoader):
     fhr: int = 50_000

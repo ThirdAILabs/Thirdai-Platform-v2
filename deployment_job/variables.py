@@ -97,6 +97,7 @@ class GeneralVariables(EnvLoader):
     model_bazaar_endpoint: str
     model_bazaar_dir: str
     license_key: str
+    task_runner_token: str
     type: TypeEnum = TypeEnum.NDB
     num_shards: int = 0
 

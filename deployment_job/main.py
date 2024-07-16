@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from models.ndb_models import ShardedNDB, SingleNDB
 from permissions import Permissions
 from pydantic_models.inputs import BaseQueryParams, NDBExtraParams
-from utils import response
+from utils import delete_job, response
 from variables import GeneralVariables, TypeEnum
 
 general_variables = GeneralVariables.load_from_env()
@@ -44,6 +44,38 @@ app.add_middleware(
 # after n minutes, this service will shut down, unless a function that is decorated
 # with @reset_timer is called, in which case the timer restarts.
 reset_event = asyncio.Event()
+
+
+def reset_timer(endpoint_func):
+    @wraps(endpoint_func)
+    def wrapper(*args, **kwargs):
+        response = endpoint_func(*args, **kwargs)
+        reset_event.set()
+        return response
+
+    return wrapper
+
+
+async def async_timer():
+    while True:
+        try:
+            await asyncio.wait_for(
+                reset_event.wait(), timeout=900
+            )  # 15 minutes = 900 seconds
+            reset_event.clear()  # clear the event if the endpoint was hit within the timeout period
+        except asyncio.TimeoutError:
+            # insert logic to cancel inference session
+            response, job_id = delete_job(
+                general_variables.deployment_id, general_variables.task_runner_token
+            )
+            if response.status_code == 200:
+                print(f"Job {job_id} stopped successfully")
+            else:
+                print(
+                    f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
+                )
+
+            reset_event.clear()
 
 
 def propagate_error(func):

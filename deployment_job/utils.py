@@ -1,5 +1,6 @@
 import datetime
 
+import requests
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 
@@ -17,3 +18,11 @@ def response(status_code: int, message: str, data={}, success: bool = None):
 
 def now():
     return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
+
+
+def delete_job(deployment_id, task_runner_token):
+    job_id = f"deployment-{deployment_id}"
+    job_url = f"http://172.17.0.1:4646/v1/jobs/{job_id}"
+    headers = {"X-Nomad-Token": task_runner_token}
+    response = requests.delete(job_url, headers=headers)
+    return response, job_id

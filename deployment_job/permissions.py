@@ -3,7 +3,6 @@ from threading import Lock
 from typing import Dict, List, Tuple
 
 import fastapi
-from utils import now
 from variables import GeneralVariables
 
 CREDENTIALS_EXCEPTION = fastapi.HTTPException(
@@ -31,6 +30,10 @@ def optional_token_bearer(request: fastapi.Request):
             # since we need some string value for the token permission verification.
             return "None"
     return "None"
+
+
+def now():
+    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
 
 
 class Permissions:

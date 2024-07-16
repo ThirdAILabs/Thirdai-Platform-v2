@@ -15,7 +15,14 @@ class Model(ABC):
             / "models"
             / self.general_variables.model_id
         )
-        self.model_dir.mkdir(parents=True, exist_ok=True)
+
+        self.data_dir = (
+            self.model_dir
+            / "deployments"
+            / self.general_variables.deployment_id
+            / "data"
+        )
+        self.data_dir.mkdir(parents=True, exist_ok=True)
 
     @abstractmethod
     def predict(self, **kwargs):

@@ -125,10 +125,6 @@ class GeneralVariables(EnvLoader):
 
 @dataclass
 class UDTVariables(EnvLoader):
-    fhr: int = 50_000
-    embedding_dim: int = 2048
-    output_dim: int = 10_000
-    extreme_num_hashes: int = 1
     base_model_id: Optional[str] = None
     subtype: UDTSubType = UDTSubType.text
 

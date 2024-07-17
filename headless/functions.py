@@ -59,29 +59,43 @@ def check_unsupervised_supervised(inputs: Dict):
 
 
 def await_train(inputs: Dict):
-    logging.info(f"waiting for training to finish for {inputs}")
+    logging.info(f"inputs: {inputs}")
     model = inputs.get("model")
+    logging.info(
+        f"Waiting for training to finish for model {model.model_identifier} and id {model.model_id}"
+    )
     flow.bazaar_client.await_train(model)
 
 
 def deploy(inputs: Dict):
-    logging.info(f"Deploying the model {inputs}")
+    logging.info(f"inputs: {inputs}")
     model = inputs.get("model")
     run_name = inputs.get("run_name")
+
+    logging.info(
+        f"Deploying the model {model.model_identifier} and id {model.model_id}"
+    )
 
     return flow.deploy(model.model_identifier, f"{run_name}_deployment")
 
 
 def await_deploy(inputs: Dict):
-    logging.info(f"waiting for deployment to finish for {inputs}")
+    logging.info(f"inputs: {inputs}")
     deployment = inputs.get("deployment")
+    logging.info(
+        f"Waiting for Deployment to finish for deployment {deployment.deployment_identifier}"
+    )
     flow.bazaar_client.await_deploy(deployment)
 
 
 def check_deployment(inputs: Dict):
-    logging.info(f"Searching the model {inputs}")
+    logging.info(f"inputs: {inputs}")
     deployment = inputs.get("deployment")
+    run_name = inputs.get("run_name")
 
+    logging.info(f"checking the deployment for {deployment.deployment_identifier}")
+
+    logging.info("Searching the deployment")
     results = deployment.search(
         query="Can autism and down syndrome be in conjunction",
         top_k=5,
@@ -92,6 +106,7 @@ def check_deployment(inputs: Dict):
 
     best_answer = references[4]
     good_answer = references[2]
+
     logging.info(f"upvoting the model")
     deployment.upvote(
         [
@@ -100,10 +115,26 @@ def check_deployment(inputs: Dict):
         ]
     )
 
+    logging.info("Associating the model")
+    deployment.associate(
+        [
+            {"source": "authors", "target": "contributors"},
+            {"source": "paper", "target": "document"},
+        ]
+    )
+
+    logging.info("Checking the sources")
+    deployment.sources()
+
+    logging.info("Ovveriding the model")
+    deployment.save_model(override=True)
+
 
 def undeploy(inputs: Dict):
-    logging.info(f"Stopping the deployment {inputs}")
+    logging.info(f"inputs: {inputs}")
     deployment = inputs.get("deployment")
+
+    logging.info(f"stopping the deployment for {deployment.deployment_identifier}")
 
     flow.bazaar_client.undeploy(deployment)
 

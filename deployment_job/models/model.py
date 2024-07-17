@@ -10,11 +10,7 @@ class Model(ABC):
         self.general_variables = GeneralVariables.load_from_env()
         self.reporter = Reporter(self.general_variables.model_bazaar_endpoint)
 
-        self.model_dir = (
-            Path(self.general_variables.model_bazaar_dir)
-            / "models"
-            / self.general_variables.model_id
-        )
+        self.model_dir = self.get_model_dir(model_id=self.general_variables.model_id)
 
         self.data_dir = (
             self.model_dir
@@ -27,3 +23,6 @@ class Model(ABC):
     @abstractmethod
     def predict(self, **kwargs):
         pass
+
+    def get_model_dir(self, model_id) -> Path:
+        return Path(self.general_variables.model_bazaar_dir) / "models" / model_id

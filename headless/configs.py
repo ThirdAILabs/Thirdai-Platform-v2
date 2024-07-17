@@ -29,7 +29,7 @@ class Config(ABC):
 
     epochs = 5
 
-    retriever = "finetunable_retriever"
+    retriever = "hybrid"
 
 
 class Scifact(Config):

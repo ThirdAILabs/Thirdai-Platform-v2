@@ -26,6 +26,7 @@ DAG1:
     dependencies: [await_deploy]
     params:
       deployment: deploy
+      run_name: variable
   
   undeploy:
     dependencies: [check_deployment]
@@ -39,3 +40,8 @@ DAG2:
       sharded: variable
       run_name: variable
       config: variable
+
+  await_train:
+    dependencies: [check_unsupervised_supervised]
+    params:
+      model: check_unsupervised_supervised

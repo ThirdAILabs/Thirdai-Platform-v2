@@ -1,4 +1,5 @@
 import datetime
+import re
 import traceback
 from functools import wraps
 
@@ -44,3 +45,9 @@ def propagate_error(func):
             )
 
     return method
+
+
+def validate_name(name):
+    regex_pattern = "^[\w-]+$"
+    if not re.match(regex_pattern, name):
+        raise ValueError("name is not valid")

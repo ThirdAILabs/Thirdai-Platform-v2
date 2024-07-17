@@ -85,6 +85,11 @@ async def custom_404_handler(request: Request, exc):
     )
 
 
+@app.get("/")
+async def homepage(request: Request):
+    return {"Deployment"}
+
+
 @app.on_event("startup")
 async def startup_event():
     time.sleep(10)

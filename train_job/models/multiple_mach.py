@@ -235,7 +235,7 @@ class MultipleMach(NDBModel):
             metadata={
                 "num_params": str(model_params),
                 "size": str(approx_ndb_size),
-                "size_in_memory": str((model_size * 4 + doc_size)),
+                "size_in_memory": str(int(model_size * 4 + doc_size)),
                 "thirdai_version": str(thirdai.__version__),
             },
         )

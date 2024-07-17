@@ -27,6 +27,7 @@ DAG1:
     params:
       deployment: deploy
       run_name: variable
+      config: variable
   
   undeploy:
     dependencies: [check_deployment]

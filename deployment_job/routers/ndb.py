@@ -1,15 +1,19 @@
+import logging
 import traceback
 import uuid
-from typing import Optional
+from multiprocessing import Lock, Manager, Queue
+from typing import List, Optional
 
 import thirdai
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Form, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from permissions import Permissions
+from pydantic import ValidationError
 from pydantic_models import inputs
+from pydantic_models.documents import DocumentList
 from pydantic_models.inputs import BaseQueryParams, NDBExtraParams
 from routers.model import get_model
-from utils import propagate_error, response, validate_name
+from utils import Status, now, propagate_error, response, validate_files, validate_name
 from variables import GeneralVariables, TypeEnum
 
 ndb_router = APIRouter()
@@ -146,3 +150,118 @@ def save(
         message="Successfully saved the model.",
         data={"new_model_id": model_id if not input.override else None},
     )
+
+
+task_queue = Queue()
+tasks = {}
+task_lock = Lock()
+
+
+@ndb_router.post("/insert")
+@propagate_error
+def insert(
+    documents: str = Form(...),
+    files: List[UploadFile] = [],
+    input_mode: str = Form("sync"),
+    _=Depends(permissions.verify_write_permission),
+):
+    try:
+        documents_list = DocumentList.model_validate_json(documents).model_dump()
+    except ValidationError as e:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Invalid format for document insertion.",
+            data={"details": str(e), "documents": documents},
+        )
+
+    if not documents_list:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="No documents supplied for insertion. Must supply at least one document.",
+        )
+
+    model = get_model()
+
+    validate_files(documents_list, files, model.data_dir)
+
+    if input_mode == "async":
+        task_id = str(uuid.uuid4())
+        with task_lock:
+            tasks[task_id] = {
+                "status": Status.not_started,
+                "action": "insert",
+                "last_modified": now(),
+                "documents": documents_list,
+                "message": "",
+                "data": None,
+            }
+        task_queue.put((task_id, documents_list))
+        return response(
+            status_code=status.HTTP_202_ACCEPTED,
+            message="Files received, insertion will start soon.",
+            data={"task_id": task_id},
+        )
+
+    try:
+        sources = model.insert(documents=documents_list)
+    except Exception as err:
+        logging.error(f"Failed to insert documents: {err}")
+        traceback.print_exc()
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message="Failed to insert the files",
+            success=False,
+        )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"{len(sources)} documents uploaded to ndb model",
+        data=sources,
+        success=True,
+    )
+
+
+@ndb_router.post("/task-status")
+@propagate_error
+def task_status(
+    task_id: str,
+    _=Depends(permissions.verify_write_permission),
+):
+    with task_lock:
+        if task_id in tasks:
+            return response(
+                status_code=status.HTTP_200_OK,
+                message=f"Information for task {task_id}",
+                data=tasks[task_id],
+            )
+        else:
+            return response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Task ID not found",
+            )
+
+
+def process_tasks():
+    model = get_model()
+    while True:
+        task_id, documents = task_queue.get()
+        try:
+            with task_lock:
+                tasks[task_id]["status"] = Status.in_progress
+                tasks[task_id]["last_modified"] = now()
+
+            sources = model.insert(documents=documents)
+
+            with task_lock:
+                tasks[task_id]["status"] = Status.complete
+                tasks[task_id]["data"] = sources
+                tasks[task_id]["last_modified"] = now()
+
+        except Exception as e:
+            with task_lock:
+                tasks[task_id]["status"] = Status.failed
+                tasks[task_id]["message"] = str(traceback.format_exc())
+                tasks[task_id]["last_modified"] = now()
+                logging.error(
+                    f"Task {task_id} with data {tasks[task_id]} failed: {str(traceback.format_exc())}"
+                )

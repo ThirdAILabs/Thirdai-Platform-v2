@@ -4,7 +4,7 @@ from typing import Dict
 
 from headless.configs import Config
 from headless.model import Flow
-from headless.utils import build_extra_options
+from headless.utils import build_extra_options, create_doc_dict
 
 logging.basicConfig(level=logging.INFO)
 
@@ -92,6 +92,7 @@ def check_deployment(inputs: Dict):
     logging.info(f"inputs: {inputs}")
     deployment = inputs.get("deployment")
     run_name = inputs.get("run_name")
+    config = inputs.get("config")
 
     logging.info(f"checking the deployment for {deployment.deployment_identifier}")
 
@@ -107,6 +108,14 @@ def check_deployment(inputs: Dict):
     best_answer = references[4]
     good_answer = references[2]
 
+    logging.info("Associating the model")
+    deployment.associate(
+        [
+            {"source": "authors", "target": "contributors"},
+            {"source": "paper", "target": "document"},
+        ]
+    )
+
     logging.info(f"upvoting the model")
     deployment.upvote(
         [
@@ -115,12 +124,23 @@ def check_deployment(inputs: Dict):
         ]
     )
 
-    logging.info("Associating the model")
-    deployment.associate(
+    logging.info(f"inserting the docs to the model")
+    deployment.insert(
         [
-            {"source": "authors", "target": "contributors"},
-            {"source": "paper", "target": "document"},
-        ]
+            create_doc_dict(
+                os.path.join(
+                    (
+                        config.base_path
+                        if config.doc_type != "nfs"
+                        else config.base_path
+                    ),
+                    file,
+                ),
+                config.doc_type,
+            )
+            for file in config.insert_paths
+        ],
+        input_mode="async",
     )
 
     logging.info("Checking the sources")

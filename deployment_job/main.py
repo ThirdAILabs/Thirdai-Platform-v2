@@ -1,15 +1,14 @@
 import asyncio
-import os
 import time
 from functools import wraps
+from multiprocessing import Process
 
-import thirdai
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from reporter import Reporter
-from routers.ndb import ndb_router
+from routers.ndb import ndb_router, process_tasks
 from utils import delete_job
 from variables import GeneralVariables, TypeEnum
 
@@ -19,13 +18,6 @@ app = FastAPI(
     docs_url=f"/{general_variables.deployment_id}/docs",
     openapi_url=f"/{general_variables.deployment_id}/openapi.json",
 )
-
-if general_variables.license_key == "file_license":
-    thirdai.licensing.set_path(
-        os.path.join(general_variables.model_bazaar_dir, "license/license.serialized")
-    )
-else:
-    thirdai.licensing.activate(general_variables.license_key)
 
 app.add_middleware(
     CORSMiddleware,
@@ -95,6 +87,9 @@ async def startup_event():
     time.sleep(10)
     reporter = Reporter(general_variables.model_bazaar_endpoint)
     reporter.deploy_complete(general_variables.deployment_id)
+
+    if general_variables.type == TypeEnum.NDB:
+        Process(target=process_tasks, daemon=True).start()
 
 
 if __name__ == "__main__":

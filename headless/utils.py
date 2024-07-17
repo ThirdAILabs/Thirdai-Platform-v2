@@ -67,3 +67,15 @@ def get_configs(config_type, config_regex):
         )
 
     return configs
+
+
+def create_doc_dict(path, doc_type):
+    _, ext = os.path.splitext(path)
+    if ext == ".pdf":
+        return {"document_type": "PDF", "path": path, "location": doc_type}
+    if ext == ".csv":
+        return {"document_type": "CSV", "path": path, "location": doc_type}
+    if ext == ".docx":
+        return {"document_type": "DOCX", "path": path, "location": doc_type}
+
+    raise Exception(f"Please add a map from {ext} to document dictionary.")

@@ -11,6 +11,7 @@ from pathlib import Path
 from models.model import Model
 from pydantic_models import inputs
 from thirdai import neural_db as ndb
+from utils import create_ndb_docs
 
 
 class NDBModel(Model):
@@ -120,6 +121,20 @@ class NDBModel(Model):
     def delete(self, **kwargs):
         source_ids = kwargs.get("source_ids")
         self.db.delete(source_ids=source_ids)
+
+    def insert(self, **kwargs):
+        documents = kwargs.get("documents")
+        ndb_docs = create_ndb_docs(documents, self.data_dir)
+
+        self.db.insert(sources=ndb_docs)
+
+        return [
+            {
+                "source": doc.reference(0).source,
+                "source_id": doc.hash,
+            }
+            for doc in ndb_docs
+        ]
 
 
 class SingleNDB(NDBModel):

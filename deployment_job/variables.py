@@ -5,6 +5,7 @@ from dataclasses import MISSING, asdict, dataclass, fields
 from enum import Enum
 from typing import Dict, Optional, Type, TypeVar, Union, get_args, get_origin
 from urllib.parse import urljoin
+from typing import Union
 
 import requests
 from fastapi import status
@@ -17,6 +18,14 @@ class TypeEnum(str, Enum):
     NDB = "ndb"
     UDT = "udt"
 
+class UDTSubtype(str, Enum):
+    token = "token"
+    text = "text"
+    
+# TODO(Anyone) add more ndb subtypes here
+class NDBSubtype(str, Enum):
+    single = "single"
+    multimach = "multimach"
 
 class EnvLoader:
     type_mapping = {
@@ -98,6 +107,7 @@ class GeneralVariables(EnvLoader):
     license_key: str
     task_runner_token: str
     type: TypeEnum = TypeEnum.NDB
+    subtype: Union[UDTSubtype, NDBSubtype] = NDBSubtype.single
     num_shards: int = 0
 
     def deployment_permissions(self, token: str):

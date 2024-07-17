@@ -1,5 +1,6 @@
 from models.ndb_models import ShardedNDB, SingleNDB
-from variables import GeneralVariables, TypeEnum
+from models.classification_models import TextClassificationModel, TokenClassificationModel
+from variables import GeneralVariables, TypeEnum, NDBSubtype, UDTSubtype
 
 # Initialize the model to None
 model_instance = None
@@ -14,6 +15,11 @@ def get_model():
                 model_instance = ShardedNDB()
             else:
                 model_instance = SingleNDB()
+        elif general_variables.type == TypeEnum.UDT:
+            if general_variables.subtype == UDTSubtype.text:
+                model_instance = TextClassificationModel()
+            else:
+                model_instance = TokenClassificationModel()
         else:
             raise ValueError("Invalid model type")
     return model_instance

@@ -144,6 +144,7 @@ class MetaData(SQLDeclarativeBase):
 
     general = Column(JSON, nullable=True)
     train = Column(JSON, nullable=True)
+    deployment = Column(JSON, nullable=True)
 
     model_id = Column(
         UUID(as_uuid=True),
@@ -192,8 +193,6 @@ class Deployment(SQLDeclarativeBase):
         back_populates="parent_deployment",
         foreign_keys=[Model.parent_deployment_id],
     )
-
-    logs = Column(JSON, nullable=True)
 
     user = relationship("User", back_populates="deployments")
     model = relationship("Model", back_populates="deployments", foreign_keys=[model_id])

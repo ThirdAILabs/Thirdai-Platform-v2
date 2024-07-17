@@ -16,6 +16,32 @@ class NDBModel(Model):
     def load_ndb(self):
         pass
 
+    def upvote(self, **kwargs):
+        text_id_pairs = kwargs.get("text_id_pairs")
+
+        self.db.text_to_result_batch(
+            text_id_pairs=[
+                (text_id_pair.query_text, text_id_pair.reference_id)
+                for text_id_pair in text_id_pairs
+            ]
+        )
+
+        train_samples = [
+            {
+                "query_text": text_id_pair.query_text,
+                "reference_id": str(text_id_pair.reference_id),
+                "reference_text": self.db._get_text(text_id_pair.reference_id),
+            }
+            for text_id_pair in text_id_pairs
+        ]
+
+        self.reporter.log(
+            action="upvote",
+            deployment_id=self.general_variables.deployment_id,
+            train_samples=train_samples,
+            access_token=kwargs.get("token"),
+        )
+
     def predict(self, **kwargs):
         constraints = kwargs.get("constraints")
 

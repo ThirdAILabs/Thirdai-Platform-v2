@@ -91,3 +91,18 @@ class Reporter:
             },
         )
         print(content)
+
+    def log(self, action, deployment_id, train_samples, access_token, used=False):
+        content = self._request(
+            "post",
+            f"api/deploy/log",
+            json={
+                "deployment_id": deployment_id,
+                "action": action,
+                "train_samples": train_samples,
+                "used": used,
+            },
+            headers=self.auth_header(access_token=access_token),
+        )
+
+        print(content)

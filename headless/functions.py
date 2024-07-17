@@ -87,6 +87,19 @@ def check_deployment(inputs: Dict):
         top_k=5,
     )
 
+    query_text = results["query_text"]
+    references = results["references"]
+
+    best_answer = references[4]
+    good_answer = references[2]
+    logging.info(f"upvoting the model")
+    deployment.upvote(
+        [
+            {"query_text": query_text, "reference_id": best_answer["id"]},
+            {"query_text": query_text, "reference_id": good_answer["id"]},
+        ]
+    )
+
 
 def undeploy(inputs: Dict):
     logging.info(f"Stopping the deployment {inputs}")

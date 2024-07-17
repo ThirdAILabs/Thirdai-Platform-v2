@@ -2,7 +2,7 @@ import os
 import traceback
 import uuid
 from pathlib import Path
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
 
 from auth.jwt import (
     AuthenticatedUser,
@@ -24,12 +24,14 @@ from backend.utils import (
     parse_deployment_identifier,
     response,
     submit_nomad_job,
+    update_json_list,
     validate_name,
 )
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 deploy_router = APIRouter()
@@ -214,7 +216,6 @@ def deploy_model(
             port=None if platform == "docker" else get_empty_port(),
             deployment_app_dir=str(get_root_absolute_path() / "deployment_job"),
             model_id=str(model.id),
-            user_id=str(user.id),
             deployment_id=str(deployment_id),
             model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
             share_dir=os.getenv("SHARE_DIR", None),
@@ -386,3 +387,60 @@ def undeploy_model(
             "deployment_identifier": deployment_identifier,
         },
     )
+
+
+class LogData(BaseModel):
+    deployment_id: str
+    action: str
+    train_samples: List[Dict[str, str]]
+    used: bool
+
+
+@deploy_router.post("/log")
+def log_results(
+    log_data: LogData,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    deployment: schema.Deployment = (
+        session.query(schema.Deployment)
+        .filter(schema.Deployment.id == log_data.deployment_id)
+        .first()
+    )
+
+    if not deployment:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="No deployment with this id",
+        )
+
+    model: schema.Model = (
+        session.query(schema.Model)
+        .filter(schema.Model.id == deployment.model_id)
+        .first()
+    )
+
+    if not model:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST, message="No model with this id"
+        )
+
+    metadata: schema.MetaData = session.query(schema.MetaData).get(model.id)
+
+    if not metadata:
+        metadata = schema.MetaData(model_id=model.id)
+        session.add(metadata)
+        session.refresh(metadata)
+
+    new_log_entry = {
+        "action": log_data.action,
+        "train_samples": log_data.train_samples,
+        "used": str(log_data.used),
+        "user_id": str(authenticated_user.user.id),
+    }
+
+    # Update the logs column with the new entry
+    metadata.deployment = update_json_list(metadata.deployment, new_log_entry)
+    session.commit()
+
+    return {"message": "Log entry added successfully"}

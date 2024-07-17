@@ -539,6 +539,16 @@ def update_json(current_json, new_dict):
     return json.dumps(current_dict)
 
 
+def update_json_list(current_list, new_dict):
+    if current_list is None:
+        current_list = []
+    else:
+        current_list = json.loads(current_list)
+
+    current_list.append(new_dict)
+    return json.dumps(current_list)
+
+
 def get_deployment(session: Session, deployment_name, deployment_user_id, model_id):
     return (
         session.query(schema.Deployment)

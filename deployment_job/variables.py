@@ -92,7 +92,6 @@ class EnvLoader:
 @dataclass
 class GeneralVariables(EnvLoader):
     model_id: str
-    user_id: str
     deployment_id: str
     model_bazaar_endpoint: str
     model_bazaar_dir: str

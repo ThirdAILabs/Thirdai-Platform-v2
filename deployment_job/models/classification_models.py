@@ -41,7 +41,7 @@ class TokenClassificationModel(ClassificationModel):
     def predict(self, **kwargs):
         query = kwargs['query']
         
-        predicted_tags = self.model.predict({"source": query})
+        predicted_tags = self.model.predict({"source": query}, top_k=1)
         predicted_tags = [x[0][0] for x in predicted_tags]
         
         return inputs.SearchResultsTokenClassification(

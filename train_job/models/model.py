@@ -3,7 +3,7 @@ from pathlib import Path
 
 from reporter import Reporter
 from variables import GeneralVariables, TrainVariables
-
+from utils import log_function_name
 
 class Model(ABC):
     """
@@ -36,6 +36,7 @@ class Model(ABC):
         )
         self.model_dir.mkdir(parents=True, exist_ok=True)
 
+    @log_function_name
     @abstractmethod
     def train(self, **kwargs):
         """
@@ -43,6 +44,7 @@ class Model(ABC):
         """
         pass
 
+    @log_function_name
     @abstractmethod
     def evaluate(self, **kwargs):
         """

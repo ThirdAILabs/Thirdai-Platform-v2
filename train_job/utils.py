@@ -2,6 +2,7 @@ import ast
 import json
 import os
 import pickle
+import functools
 import shutil
 import sys
 from collections import defaultdict
@@ -15,9 +16,17 @@ from botocore.client import Config
 from fastapi import Response
 from thirdai import neural_db as ndb
 from variables import S3Variables
+from . import logger
 
 GB_1 = 1024 * 1024 * 1024  # Define 1 GB in bytes
 
+def log_function_name(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        logger.info(f"Invoked: {func.__name__}")
+        return func(*args, **kwargs)
+
+    return wrapper
 
 def create_s3_client() -> boto3.client:
     """

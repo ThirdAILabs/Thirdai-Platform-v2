@@ -15,9 +15,10 @@ from utils import (
     get_directory_size,
     list_files,
     producer,
+    log_function_name,
+    logger
 )
 from variables import MachVariables, NeuralDBVariables
-
 
 class NDBModel(Model):
     def __init__(self):
@@ -50,6 +51,7 @@ class NDBModel(Model):
         producer_thread.start()
         consumer_thread.start()
 
+        logger.info('Started the producer and consumer threads')
         producer_thread.join()
         buffer.put(None)  # Signal the consumer to exit
         consumer_thread.join()
@@ -71,7 +73,6 @@ class NDBModel(Model):
             }
 
         supervised_source_ids = [relations_dict[Path(file).name] for file in files]
-
         return [
             convert_supervised_to_ndb_file(file, supervised_source_ids[i])
             for i, file in enumerate(files)
@@ -86,6 +87,7 @@ class NDBModel(Model):
         """
         supervised_sources = self.get_supervised_files(files)
 
+        logger.info('Starting supervised training')
         db.supervised_train(
             supervised_sources,
             epochs=self.train_variables.supervised_epochs,
@@ -152,6 +154,7 @@ class NDBModel(Model):
         """
         db.save(self.model_save_path)
 
+    @log_function_name
     def finalize_training(self, db: ndb.NeuralDB):
         """
         Finalize the training process by saving the model and reporting completion.
@@ -159,6 +162,8 @@ class NDBModel(Model):
             db (ndb.NeuralDB): The NeuralDB instance.
         """
         num_params = self.get_num_params(db)
+
+        logger.info('saving the model')
         self.save(db)
 
         size = get_directory_size(self.model_save_path)
@@ -181,8 +186,10 @@ class SingleMach(NDBModel):
         Initialize the SingleMach model with general, NeuralDB-specific, and Mach-specific variables.
         """
         super().__init__()
+        logger.info('Initialized single mach model')
         self.mach_variables: MachVariables = MachVariables.load_from_env()
 
+    @log_function_name
     def train(self, **kwargs):
         """
         Train the SingleMach model with unsupervised and supervised data.
@@ -192,11 +199,12 @@ class SingleMach(NDBModel):
         unsupervised_files = list_files(self.data_dir / "unsupervised")
         supervised_files = list_files(self.data_dir / "supervised")
         test_files = list_files(self.data_dir / "test")
-
+        logger.info('Got the path to unsupervised, supervised, and test data')
         db = self.get_db()
 
         if unsupervised_files:
             check_disk(db, self.general_variables.model_bazaar_dir, unsupervised_files)
+            logger.info('Started the unsupervised training')
             self.unsupervised_train(db, unsupervised_files)
             print("Completed Unsupervised Training", flush=True)
             if test_files:
@@ -204,14 +212,17 @@ class SingleMach(NDBModel):
 
         if supervised_files:
             check_disk(db, self.general_variables.model_bazaar_dir, supervised_files)
+            logger.info('Started the supervised training')
             self.supervised_train(db, supervised_files)
             print("Completed Supervised Training", flush=True)
 
             if test_files:
+                logger.info('Started the evaluation on test data')
                 self.evaluate(db, test_files)
 
         self.finalize_training(db)
 
+    @log_function_name
     def evaluate(self, db: ndb.NeuralDB, files: List[str], **kwargs):
         """
         Evaluate the model with the given test files.
@@ -275,7 +286,9 @@ class FinetunableRetriever(NDBModel):
         Initialize the FinetunableRetriever model with general and NeuralDB-specific variables.
         """
         super().__init__()
+        logger.info(f'Initialized finetunable retreiver model with retriever {self.ndb_variables.retriever}')
 
+    @log_function_name
     def train(self, **kwargs):
         """
         Train the FinetunableRetriever model with unsupervised and supervised data.
@@ -284,27 +297,30 @@ class FinetunableRetriever(NDBModel):
 
         unsupervised_files = list_files(self.data_dir / "unsupervised")
         supervised_files = list_files(self.data_dir / "supervised")
-
+        logger.info('Got the path to unsupervised and supervised data')
         db = self.get_db()
 
         if unsupervised_files:
             check_disk(db, self.general_variables.model_bazaar_dir, unsupervised_files)
+            logger.info('Started the unsupervised training')
             self.unsupervised_train(db, unsupervised_files)
             print("Completed Unsupervised Training", flush=True)
 
         if supervised_files:
             check_disk(db, self.general_variables.model_bazaar_dir, supervised_files)
+            logger.info('Started the supervised training')
             self.supervised_train(db, supervised_files)
             print("Completed Supervised Training", flush=True)
 
         self.finalize_training(db)
 
+    @log_function_name
     def evaluate(self, **kwargs):
         """
         Evaluate the FinetunableRetriever model. Not implemented.
         """
         pass
-
+    
     def initialize_db(self) -> ndb.NeuralDB:
         """
         Initialize a new NeuralDB instance with the retriever.

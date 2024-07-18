@@ -13,6 +13,7 @@ from variables import (
     RetrieverEnum,
     TypeEnum,
 )
+from . import logger
 
 # Load general variables from environment
 general_variables: GeneralVariables = GeneralVariables.load_from_env()

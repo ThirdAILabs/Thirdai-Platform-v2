@@ -20,14 +20,18 @@ from variables import (
     UDTVariables,
 )
 
-general_variables = GeneralVariables.load_from_env()
+# Load general variables from environment
+general_variables: GeneralVariables = GeneralVariables.load_from_env()
 
 
 def main():
+    """
+    Main function to initialize and train the appropriate model based on environment variables.
+    """
     reporter = Reporter(api_url=general_variables.model_bazaar_endpoint)
     try:
         if general_variables.type == TypeEnum.NDB:
-            ndb_variables = NeuralDBVariables.load_from_env()
+            ndb_variables: NeuralDBVariables = NeuralDBVariables.load_from_env()
             if general_variables.sub_type == NDBSubType.normal:
                 if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
                     model = FinetunableRetriever()
@@ -57,10 +61,11 @@ def main():
 
     except Exception as err:
         traceback.print_exc()
-        reporter.report_status(general_variables.model_id, "failed", message=err)
+        reporter.report_status(general_variables.model_id, "failed", message=str(err))
 
 
 if __name__ == "__main__":
+    # Set the license for ThirdAI based on the environment variable
     if general_variables.license_key == "file_license":
         thirdai.licensing.set_path(
             os.path.join(
@@ -70,4 +75,5 @@ if __name__ == "__main__":
     else:
         thirdai.licensing.activate(general_variables.license_key)
 
+    # Run the main function
     main()

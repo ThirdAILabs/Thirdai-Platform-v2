@@ -40,20 +40,20 @@ class Reporter:
     def save_model(
         self,
         access_token,
-        user_id,
         deployment_id,
         model_id,
         base_model_id,
+        model_name,
         metadata,
     ):
         content = self._request(
             "post",
             f"api/model/save-deployed",
             json={
-                "user_id": user_id,
                 "deployment_id": deployment_id,
                 "model_id": model_id,
                 "base_model_id": base_model_id,
+                "model_name": model_name,
                 "metadata": metadata,
             },
             headers=self.auth_header(access_token=access_token),

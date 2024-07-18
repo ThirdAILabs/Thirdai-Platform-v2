@@ -32,6 +32,7 @@ class RetrieverEnum(str, Enum):
 
 
 class EnvLoader:
+    # Mapping of type names to Enum classes
     type_mapping = {
         "TypeEnum": TypeEnum,
         "NDBSubType": NDBSubType,
@@ -41,6 +42,7 @@ class EnvLoader:
 
     @classmethod
     def load_from_env(cls: Type[T]) -> T:
+        """Load environment variables and return an instance of the class."""
         missing_vars = []
         env_vars: Dict[str, Optional[Union[str, int, float, bool]]] = {}
 
@@ -68,6 +70,7 @@ class EnvLoader:
     def _convert_type(
         value: str, field_type: Union[Type, str]
     ) -> Union[str, int, float, bool, None, Enum]:
+        """Convert a string value to the specified field type."""
         if isinstance(field_type, str):
             field_type = EnvLoader.type_mapping.get(field_type, eval(field_type))
 
@@ -106,6 +109,7 @@ class EnvLoader:
 
 
 def merge_dataclasses_to_dict(*instances) -> dict:
+    """Merge multiple dataclass instances into a single dictionary."""
     result = {}
     for instance in instances:
         result.update(asdict(instance))
@@ -178,15 +182,15 @@ class TrainVariables(EnvLoader):
 
 @dataclass
 class S3Variables(EnvLoader):
-    aws_access_key: str = None
-    aws_secret_access_key: str = None
+    aws_access_key: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
 
 
 @dataclass
 class ComputeVariables(EnvLoader):
-    model_cores: int = None
-    model_memory: int = None
-    priority: int = None
+    model_cores: Optional[int] = None
+    model_memory: Optional[int] = None
+    priority: Optional[int] = None
 
 
 @dataclass

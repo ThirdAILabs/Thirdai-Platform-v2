@@ -160,6 +160,7 @@ def save_deployed_model(
         user_id=user.id,
         parent_deployment_id=body.deployment_id,
         parent_id=base_model.id,
+        type=base_model.type,
     )
 
     session.add(new_model)

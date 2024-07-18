@@ -10,4 +10,4 @@ model_dir = os.path.join(
 )
 os.makedirs(model_dir, exist_ok=True)
 logger = LoggerConfig(os.path.join(model_dir, "train.log")).get_logger("train-logger")
-logger.info("Starts training logging")
+logger.info("Starts train logging")

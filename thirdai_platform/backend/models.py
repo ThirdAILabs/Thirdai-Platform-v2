@@ -1,7 +1,7 @@
 from typing import Annotated, Dict, Optional, Union
 
 from auth.jwt import AuthenticatedUser, verify_access_token
-from backend.utils import get_high_level_model_info, response
+from backend.utils import get_high_level_model_info, response, log_function_name
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Query, status
@@ -14,7 +14,7 @@ from . import logger
 
 model_router = APIRouter()
 
-
+@log_function_name
 @model_router.get("/public-list")
 def list_public_models(
     name: str,
@@ -25,7 +25,6 @@ def list_public_models(
     """
     lists models which are public, for this endpoint we dont need login.
     """
-    logger.info("started")
     results = (
         session.query(schema.Model)
         .options(joinedload(schema.Model.user))
@@ -51,7 +50,7 @@ def list_public_models(
         data=jsonable_encoder(results),
     )
 
-
+@log_function_name
 @model_router.get("/list")
 def list_models(
     name: str,
@@ -115,7 +114,7 @@ def list_models(
         data=jsonable_encoder(results),
     )
 
-
+@log_function_name
 @model_router.get("/name-check")
 def check_model(
     name: str,
@@ -143,7 +142,7 @@ class SaveNDBDeployedModel(BaseModel):
     model_name: str
     metadata: Dict[str, str]
 
-
+@log_function_name
 @model_router.post("/save-deployed")
 def save_deployed_model(
     body: SaveNDBDeployedModel,
@@ -169,6 +168,7 @@ def save_deployed_model(
     session.add(new_model)
     session.commit()
     session.refresh(new_model)
+    logger.info('saved the deployed model')
 
     metadata: schema.MetaData = schema.MetaData(
         model_id=body.model_id, deployment=body.metadata

@@ -19,7 +19,7 @@ from backend.utils import (
     get_platform,
     get_python_path,
     get_root_absolute_path,
-    logger,
+    log_function_name,
     model_accessible,
     parse_deployment_identifier,
     response,
@@ -33,7 +33,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
-
+from . import logger
 deploy_router = APIRouter()
 
 
@@ -90,7 +90,7 @@ def deployment_owner_permissions(
 
     return model.user_id == current_user.id
 
-
+@log_function_name
 @deploy_router.get("/permissions/{deployment_id}")
 def get_deployment_permissions(
     deployment_id: str,
@@ -100,6 +100,7 @@ def get_deployment_permissions(
     read, write = deployment_read_write_permissions(
         deployment_id, session, authenticated_user
     )
+    logger.info(f'READ: {read}, WRITE: {write}')
     override = deployment_owner_permissions(deployment_id, session, authenticated_user)
     exp = (
         authenticated_user.exp.isoformat()
@@ -113,7 +114,7 @@ def get_deployment_permissions(
         data={"read": read, "write": write, "exp": exp, "override": override},
     )
 
-
+@log_function_name
 @deploy_router.post("/run")
 def deploy_model(
     deployment_name: str,
@@ -188,6 +189,7 @@ def deploy_model(
 
     deployment_identifier = f"{model_identifier}:{user}/{deployment_name}"
     deployment_id = uuid.uuid3(uuid.NAMESPACE_URL, deployment_identifier)
+    logger.info(f'Deployment id: {deployment_id}')
     try:
         deployment = schema.Deployment(
             id=deployment_id,
@@ -204,6 +206,7 @@ def deploy_model(
 
         platform = get_platform()
 
+        logger.info('submit nomad job for deployment job')
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "deployment_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -239,7 +242,7 @@ def deploy_model(
         deployment.status = schema.Status.failed
         session.commit()
 
-        logger.info(traceback.format_exc())
+        logger.error(traceback.format_exc())
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -256,7 +259,7 @@ def deploy_model(
         },
     )
 
-
+@log_function_name
 @deploy_router.get("/status")
 def deployment_status(
     deployment_identifier: str,
@@ -298,7 +301,7 @@ def deployment_status(
         data={"status": deployment.status, "deployment_id": str(deployment.id)},
     )
 
-
+@log_function_name
 @deploy_router.post("/complete")
 def deployment_status(
     deployment_id: str,
@@ -322,7 +325,7 @@ def deployment_status(
 
     return {"message": "successfully updated"}
 
-
+@log_function_name
 @deploy_router.post("/stop")
 def undeploy_model(
     deployment_identifier: str,
@@ -360,6 +363,7 @@ def undeploy_model(
         )
 
     try:
+        logger.info(f'delete nomad job: deployment-{str(deployment.id)}')
         delete_nomad_job(
             job_id=f"deployment-{str(deployment.id)}",
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -373,7 +377,7 @@ def undeploy_model(
         session.commit()
 
     except Exception as err:
-        logger.info(str(err))
+        logger.error(traceback.format_exc())
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -395,7 +399,7 @@ class LogData(BaseModel):
     train_samples: List[Dict[str, str]]
     used: bool
 
-
+@log_function_name
 @deploy_router.post("/log")
 def log_results(
     log_data: LogData,

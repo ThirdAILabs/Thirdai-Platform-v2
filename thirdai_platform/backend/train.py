@@ -2,7 +2,7 @@ import os
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
-
+import traceback
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.utils import (
     FileDetails,
@@ -206,6 +206,7 @@ def train(
     except Exception as err:
         # TODO: change the status of the new model entry to failed
 
+        logger.error("Failed in training: " + traceback.format_exc())
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -356,7 +357,7 @@ def create_shard(
         )
 
     except Exception as err:
-        logger.info(str(err))
+        logger.error("Failed shard creation: " + traceback.format_exc())
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),

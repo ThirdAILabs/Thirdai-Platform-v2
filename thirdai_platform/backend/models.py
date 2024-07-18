@@ -1,7 +1,7 @@
 from typing import Annotated, Dict, Optional, Union
 
 from auth.jwt import AuthenticatedUser, verify_access_token
-from backend.utils import get_high_level_model_info, response, log_function_name
+from backend.utils import get_high_level_model_info, log_function_name, response
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Query, status
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session, joinedload
 from . import logger
 
 model_router = APIRouter()
+
 
 @log_function_name
 @model_router.get("/public-list")
@@ -49,6 +50,7 @@ def list_public_models(
         message="Successfully got the public list",
         data=jsonable_encoder(results),
     )
+
 
 @log_function_name
 @model_router.get("/list")
@@ -114,6 +116,7 @@ def list_models(
         data=jsonable_encoder(results),
     )
 
+
 @log_function_name
 @model_router.get("/name-check")
 def check_model(
@@ -142,6 +145,7 @@ class SaveNDBDeployedModel(BaseModel):
     model_name: str
     metadata: Dict[str, str]
 
+
 @log_function_name
 @model_router.post("/save-deployed")
 def save_deployed_model(
@@ -168,7 +172,7 @@ def save_deployed_model(
     session.add(new_model)
     session.commit()
     session.refresh(new_model)
-    logger.info('saved the deployed model')
+    logger.info("saved the deployed model")
 
     metadata: schema.MetaData = schema.MetaData(
         model_id=body.model_id, deployment=body.metadata

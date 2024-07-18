@@ -5,7 +5,7 @@ from urllib.parse import urlencode, urljoin
 import bcrypt
 from auth.jwt import create_access_token
 from backend.mailer import Mailer
-from backend.utils import hash_password, response, log_function_name
+from backend.utils import hash_password, log_function_name, response
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Request, status
@@ -13,6 +13,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
 from . import logger
 
 user_router = APIRouter()
@@ -45,6 +46,7 @@ def send_verification_mail(email: str, verification_token: str, username: str):
         subject=subject,
         body=body,
     )
+
 
 @log_function_name
 @user_router.post("/email-signup-basic")
@@ -84,7 +86,7 @@ def email_signup(
         session.add(user)
         session.commit()
         session.refresh(user)
-        logger.info('Sent the verification mail')
+        logger.info("Sent the verification mail")
         send_verification_mail(
             user.email,
             str(user.verification_token),
@@ -105,6 +107,7 @@ def email_signup(
         },
     )
 
+
 @log_function_name
 @user_router.get("/redirect-verify")
 def redirect_email_verify(verification_token: str, request: Request):
@@ -119,8 +122,9 @@ def redirect_email_verify(verification_token: str, request: Request):
     verify_url = urljoin(base_url, f"api/user/email-verify?{urlencode(args)}")
 
     context = {"request": request, "verify_url": verify_url}
-    logger.info('Redirected for email verification')
+    logger.info("Redirected for email verification")
     return templates.TemplateResponse("verify_email_sent.html", context=context)
+
 
 @log_function_name
 @user_router.post("/email-verify")
@@ -143,8 +147,9 @@ def email_verify(verification_token: str, session: Session = Depends(get_session
     user.verification_token = None
 
     session.commit()
-    logger.info('Email verification successful')
+    logger.info("Email verification successful")
     return {"message": "Email verification successful."}
+
 
 @log_function_name
 @user_router.get("/email-login")

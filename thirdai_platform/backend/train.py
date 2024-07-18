@@ -1,8 +1,9 @@
 import os
+import traceback
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
-import traceback
+
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.utils import (
     FileDetails,
@@ -394,6 +395,7 @@ def update_shard_train_status(
     session.commit()
     logger.info(f"Updated the train status of shard {shard_num} to {status}")
     return {"message": f"Successfully updated shard with message: {message}"}
+
 
 @log_function_name
 @train_router.get("/status")

@@ -42,7 +42,7 @@ class EnvLoader:
     @classmethod
     def load_from_env(cls: Type[T]) -> T:
         missing_vars = []
-        env_vars: Dict[str, Optional[Union[str, int, float, bool]]] = {}
+        env_vars: Dict[str, Union[str, int, float, bool]] = {}
 
         for f in fields(cls):
             value = os.getenv(f.name.upper())

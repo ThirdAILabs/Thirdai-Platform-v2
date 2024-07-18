@@ -8,9 +8,9 @@ from fastapi import APIRouter, Depends, Query, status
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
+from . import logger
 
 model_router = APIRouter()
-
 
 @model_router.get("/public-list")
 def list_public_models(
@@ -22,6 +22,7 @@ def list_public_models(
     """
     lists models which are public, for this endpoint we dont need login.
     """
+    logger.info("started")
     results = (
         session.query(schema.Model)
         .options(joinedload(schema.Model.user))

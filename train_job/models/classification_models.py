@@ -92,7 +92,7 @@ class TextClassificationModel(ClassificationModel):
 class TokenClassificationModel(ClassificationModel):
     def __init__(self):
         super().__init__()
-        self.classification_vars = TextClassificationVariables.load_from_env()
+        self.classification_vars = TokenClassificationVariables.load_from_env()
 
     def initialize_model(self):
         target_labels = self.token_classification_vars.target_labels

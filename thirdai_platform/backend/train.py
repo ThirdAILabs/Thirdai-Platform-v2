@@ -9,6 +9,7 @@ from backend.utils import (
     FileDetailsList,
     FileType,
     NDBExtraOptions,
+    UDTExtraOptions,
     get_files,
     get_model,
     get_model_from_identifier,
@@ -40,11 +41,16 @@ def train(
     base_model_identifier: Optional[str] = None,
     extra_options_form: str = Form(default="{}"),
     session: Session = Depends(get_session),
+    type: str = "ndb",
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     user: schema.User = authenticated_user.user
     try:
-        extra_options = NDBExtraOptions.parse_raw(extra_options_form).dict()
+        if type == "ndb":
+            extra_options = NDBExtraOptions.parse_raw(extra_options_form).dict()
+        elif type == "udt":
+            extra_options = UDTExtraOptions.parse_raw(extra_options_form).dict()
+
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
             print(f"Extra options for training: {extra_options}")
@@ -140,7 +146,7 @@ def train(
             user_id=user.id,
             train_status=schema.Status.not_started,
             name=model_name,
-            type="ndb",
+            type=type,
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model_identifier else None,
@@ -158,6 +164,11 @@ def train(
             or extra_options.get("num_shards") > 1
             else False
         )
+
+        if type == "ndb":
+            sub_type = "normal" if not sharded else "shard_allocation"
+        elif type == "udt":
+            sub_type = extra_options.udt_type
 
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
@@ -179,8 +190,8 @@ def train(
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
             base_model_id=("NONE" if not base_model_identifier else str(base_model.id)),
-            type="ndb",
-            sub_type="normal" if not sharded else "shard_allocation",
+            type=type,
+            sub_type=sub_type,
         )
 
     except Exception as err:

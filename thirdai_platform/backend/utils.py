@@ -80,6 +80,33 @@ def validate_name(name):
         raise ValueError("name is not valid")
 
 
+class UDTExtraOptions(BaseModel):
+    udt_type: Optional[str] = None  # Options: 'text', 'token'
+    delimiter: Optional[str] = None
+    n_target_classes: Optional[int] = None
+    target_labels: Optional[List[str]] = None
+    default_tag: Optional[str] = None
+
+    @validator("udt_type", pre=True, always=True)
+    def set_fields_based_on_type(cls, v, values, **kwargs):
+        if v == "text":
+            values["delimiter"] = ":"
+            values["n_target_classes"] = (
+                None  # Explicitly setting to None if not already
+            )
+            values["target_labels"] = None
+            values["default_tag"] = None
+        elif v == "token":
+            values["delimiter"] = None
+            values["n_target_classes"] = None
+            values["target_labels"] = []
+            values["default_tag"] = "O"
+        return v
+
+    class Config:
+        extra = "forbid"
+
+
 class NDBExtraOptions(BaseModel):
     # ----shard specific training params----
     num_models_per_shard: Optional[int] = Field(1, gt=0)

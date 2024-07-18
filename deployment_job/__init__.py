@@ -11,5 +11,5 @@ log_file = os.path.join(
     general_variables.model_id,
     f"deployement-{general_variables.deployment_id}.log",
 )
-logger = LoggerConfig(log_file).get_logger("train-logger")
+logger = LoggerConfig(log_file).get_logger("deployment-logger")
 logger.info("Starts deployment logging")

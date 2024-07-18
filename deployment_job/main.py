@@ -8,8 +8,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from reporter import Reporter
-from routers.udt import udt_router
 from routers.ndb import ndb_router, process_tasks
+from routers.udt import udt_router
 from utils import delete_job
 from variables import GeneralVariables, TypeEnum
 
@@ -70,6 +70,7 @@ if general_variables.type == TypeEnum.NDB:
     app.include_router(ndb_router, prefix=f"/{general_variables.deployment_id}")
 elif general_variables.type == TypeEnum.UDT:
     app.include_router(udt_router, prefix=f"/{general_variables.deployment_id}")
+
 
 @app.exception_handler(404)
 async def custom_404_handler(request: Request, exc):

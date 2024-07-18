@@ -1,9 +1,12 @@
 import os
 
 import thirdai
+from models.classification_models import (
+    TextClassificationModel,
+    TokenClassificationModel,
+)
 from models.ndb_models import ShardedNDB, SingleNDB
-from models.classification_models import TextClassificationModel, TokenClassificationModel
-from variables import GeneralVariables, TypeEnum, NDBSubtype, UDTSubtype
+from variables import GeneralVariables, NDBSubtype, TypeEnum, UDTSubtype
 
 # Initialize the model to None
 model_instance = None

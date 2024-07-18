@@ -37,17 +37,21 @@ class SearchResults(BaseModel):
     query_text: str
     references: List[Reference]
 
+
 class DeleteInput(BaseModel):
     source_ids: List[str]
+
 
 class SearchResultsTextClassification(BaseModel):
     query_text: str
     class_name: str
-    
+
+
 class SearchResultsTokenClassification(BaseModel):
     query_text: str
     predicted_tags: List[str]
-    
+
+
 class SaveModel(BaseModel):
     override: bool
     model_name: Optional[str] = None

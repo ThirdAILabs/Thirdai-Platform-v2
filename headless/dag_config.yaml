@@ -6,6 +6,32 @@ DAG1:
       run_name: variable
       config: variable
 
+  await_train:
+    dependencies: [check_unsupervised]
+    params:
+      model: check_unsupervised
+    
+  deploy:
+    dependencies: [await_train]
+    params:
+      model: check_unsupervised
+      run_name: variable
+
+  await_deploy:
+    dependencies: [deploy]
+    params:
+      deployment: deploy
+
+  check_deployment:
+    dependencies: [await_deploy]
+    params:
+      deployment: deploy
+  
+  undeploy:
+    dependencies: [check_deployment]
+    params:
+      deployment: deploy
+
 DAG2:
   check_unsupervised_supervised:
     dependencies: []

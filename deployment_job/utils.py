@@ -12,7 +12,15 @@ from fastapi import UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from thirdai import neural_db as ndb
+from . import logger
 
+def log_function_name(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        logger.info(f"Invoked: {func.__name__}")
+        return func(*args, **kwargs)
+
+    return wrapper
 
 def response(status_code: int, message: str, data={}, success: bool = None):
     if success is not None:

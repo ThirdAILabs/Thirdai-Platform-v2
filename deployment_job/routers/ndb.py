@@ -13,7 +13,7 @@ from pydantic_models import inputs
 from pydantic_models.documents import DocumentList
 from pydantic_models.inputs import BaseQueryParams, NDBExtraParams
 from routers.model import get_model
-from utils import Status, now, propagate_error, response, validate_files, validate_name
+from utils import Status, now, propagate_error, response, validate_files, validate_name, log_function_name, logger
 from variables import GeneralVariables, TypeEnum
 
 ndb_router = APIRouter()
@@ -21,7 +21,7 @@ permissions = Permissions()
 
 general_variables = GeneralVariables.load_from_env()
 
-
+@log_function_name
 @ndb_router.post("/predict")
 @propagate_error
 def ndb_query(
@@ -30,9 +30,9 @@ def ndb_query(
     _=Depends(permissions.verify_read_permission),
 ):
     model = get_model()
-    params = base_params.dict()
+    params = base_params.model_dump()
     if general_variables.type == TypeEnum.NDB:
-        extra_params = ndb_params.dict(exclude_unset=True)
+        extra_params = ndb_params.model_dump(exclude_unset=True)
         params.update(extra_params)
 
     results = model.predict(**params)
@@ -43,7 +43,7 @@ def ndb_query(
         data=jsonable_encoder(results),
     )
 
-
+@log_function_name
 @ndb_router.post("/upvote")
 @propagate_error
 def ndb_upvote(
@@ -54,7 +54,7 @@ def ndb_upvote(
 
     return response(status_code=status.HTTP_200_OK, message="Sucessfully upvoted")
 
-
+@log_function_name
 @ndb_router.post("/associate")
 @propagate_error
 def ndb_associate(
@@ -66,7 +66,7 @@ def ndb_associate(
 
     return response(status_code=status.HTTP_200_OK, message="Sucessfully associated")
 
-
+@log_function_name
 @ndb_router.get("/sources")
 @propagate_error
 def get_sources(_=Depends(permissions.verify_read_permission)):
@@ -78,7 +78,7 @@ def get_sources(_=Depends(permissions.verify_read_permission)):
         data=sources,
     )
 
-
+@log_function_name
 @ndb_router.post("/delete")
 @propagate_error
 def delete(input: inputs.DeleteInput, _=Depends(permissions.verify_write_permission)):
@@ -91,7 +91,7 @@ def delete(input: inputs.DeleteInput, _=Depends(permissions.verify_write_permiss
         success=True,
     )
 
-
+@log_function_name
 @ndb_router.post("/save")
 def save(
     input: inputs.SaveModel,
@@ -156,7 +156,7 @@ task_queue = Queue()
 tasks = {}
 task_lock = Lock()
 
-
+@log_function_name
 @ndb_router.post("/insert")
 @propagate_error
 def insert(
@@ -220,7 +220,7 @@ def insert(
         success=True,
     )
 
-
+@log_function_name
 @ndb_router.post("/task-status")
 @propagate_error
 def task_status(
@@ -239,7 +239,6 @@ def task_status(
                 status_code=status.HTTP_404_NOT_FOUND,
                 message="Task ID not found",
             )
-
 
 def process_tasks():
     model = get_model()

@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from reporter import Reporter
 from routers.ndb import ndb_router, process_tasks
-from utils import delete_job
+from utils import delete_job, log_function_name, logger
 from variables import GeneralVariables, TypeEnum
 
 general_variables = GeneralVariables.load_from_env()

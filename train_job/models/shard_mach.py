@@ -1,4 +1,3 @@
-import os
 import pickle
 from pathlib import Path
 
@@ -17,18 +16,36 @@ from variables import MachVariables, ShardVariables
 
 class ShardMach(NDBModel):
     def __init__(self):
+        """
+        Initialize the ShardMach model with general, NeuralDB-specific, Mach-specific, and Shard-specific variables.
+        """
         super().__init__()
-        self.mach_variables = MachVariables.load_from_env()
-        self.shard_variables = ShardVariables.load_from_env()
+        self.mach_variables: MachVariables = MachVariables.load_from_env()
+        self.shard_variables: ShardVariables = ShardVariables.load_from_env()
 
-    def get_model_path(self, model_id):
+    def get_model_path(self, model_id: str) -> Path:
+        """
+        Get the path to the model file for a given model ID.
+        Args:
+            model_id (str): The model ID.
+        Returns:
+            Path: The path to the model file.
+        """
         return (
             Path(self.get_ndb_path(model_id)).parent
             / str(self.shard_variables.shard_num)
             / "shard_mach_model.pkl"
         )
 
-    def get_model(self, data_shard_num, model_num_in_shard):
+    def get_model(self, data_shard_num: int, model_num_in_shard: int) -> Mach:
+        """
+        Get the Mach model instance, either from a checkpoint or initialize a new one.
+        Args:
+            data_shard_num (int): The data shard number.
+            model_num_in_shard (int): The model number within the shard.
+        Returns:
+            Mach: The Mach model instance.
+        """
         if self.ndb_variables.base_model_id:
             base_model_path = self.get_model_path(self.ndb_variables.base_model_id)
 
@@ -53,7 +70,14 @@ class ShardMach(NDBModel):
             tokenizer=self.mach_variables.tokenizer,
         )
 
-    def get_shard_data(self, path):
+    def get_shard_data(self, path: Path) -> DocumentDataSource:
+        """
+        Get the shard data from a pickle file.
+        Args:
+            path (Path): The path to the pickle file.
+        Returns:
+            DocumentDataSource: The shard data.
+        """
         with path.open("rb") as pkl:
             shard_picklable = pickle.load(pkl)
         shard = DocumentDataSource(
@@ -68,6 +92,9 @@ class ShardMach(NDBModel):
         return shard
 
     def train(self, **kwargs):
+        """
+        Train the ShardMach model.
+        """
         self.reporter.report_shard_train_status(
             self.general_variables.model_id,
             self.shard_variables.shard_num,
@@ -167,7 +194,13 @@ class ShardMach(NDBModel):
             self.general_variables.model_id, self.shard_variables.shard_num, "complete"
         )
 
-    def evaluate(self, model: Mach, file, **kwargs):
+    def evaluate(self, model: Mach, file: Path, **kwargs):
+        """
+        Evaluate the Mach model with the given test file.
+        Args:
+            model (Mach): The Mach model instance.
+            file (Path): The path to the test file.
+        """
         metrics = model.model.evaluate(
             file,
             metrics=["precision@1", "precision@5", "recall@1", "recall@5"],

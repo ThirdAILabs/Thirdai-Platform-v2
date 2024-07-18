@@ -14,10 +14,18 @@ from variables import ComputeVariables, MachVariables, merge_dataclasses_to_dict
 
 class MultipleMach(NDBModel):
     def __init__(self):
+        """
+        Initialize the MultipleMach model with environment variables.
+        """
         super().__init__()
-        self.mach_variables = MachVariables.load_from_env()
+        self.mach_variables: MachVariables = MachVariables.load_from_env()
 
-    def initialize_db(self):
+    def initialize_db(self) -> ndb.NeuralDB:
+        """
+        Initialize the NeuralDB with the required parameters.
+        Returns:
+            ndb.NeuralDB: The initialized NeuralDB instance.
+        """
         return ndb.NeuralDB(
             fhr=self.mach_variables.fhr,
             embedding_dimension=self.mach_variables.embedding_dim,
@@ -31,8 +39,22 @@ class MultipleMach(NDBModel):
         )
 
     def get_approx_ndb_size(
-        self, num_labels, documents, num_shards, num_models_per_shard
-    ):
+        self,
+        num_labels: int,
+        documents: list[str],
+        num_shards: int,
+        num_models_per_shard: int,
+    ) -> tuple[int, int, int, int]:
+        """
+        Estimate the approximate size of the NeuralDB.
+        Args:
+            num_labels (int): Number of labels in the data.
+            documents (list[str]): List of document paths.
+            num_shards (int): Number of shards.
+            num_models_per_shard (int): Number of models per shard.
+        Returns:
+            tuple[int, int, int, int]: Tuple containing the total NDB size, model size, document size, and total model parameters.
+        """
         model_params_each = (
             self.mach_variables.fhr + self.mach_variables.output_dim
         ) * self.mach_variables.embedding_dim  # bolt model params
@@ -51,7 +73,12 @@ class MultipleMach(NDBModel):
 
         return total_ndb_size, total_model_size, doc_size, model_params_total
 
-    def load_db(self):
+    def load_db(self) -> ndb.NeuralDB:
+        """
+        Load the NeuralDB from a checkpoint.
+        Returns:
+            ndb.NeuralDB: The loaded NeuralDB instance.
+        """
         db = ndb.NeuralDB.from_checkpoint(
             self.get_ndb_path(self.ndb_variables.base_model_id)
         )
@@ -69,7 +96,14 @@ class MultipleMach(NDBModel):
 
         return db
 
-    def get_data_shard_dict(self, data_shard):
+    def get_data_shard_dict(self, data_shard) -> dict:
+        """
+        Get the dictionary representation of a data shard.
+        Args:
+            data_shard: The data shard to convert.
+        Returns:
+            dict: Dictionary representation of the data shard.
+        """
         return {
             "documents": data_shard.documents,
             "id_column": data_shard.id_column,
@@ -79,6 +113,12 @@ class MultipleMach(NDBModel):
         }
 
     def save_data_shards(self, intro_shards, train_shards):
+        """
+        Save the data shards to disk.
+        Args:
+            intro_shards: List of introduction data shards.
+            train_shards: List of training data shards.
+        """
         for i, (intro_shard, train_shard) in enumerate(zip(intro_shards, train_shards)):
             with (self.data_dir / f"intro_shard_{i}.pkl").open("wb") as pkl:
                 pickle.dump(self.get_data_shard_dict(intro_shard), pkl)
@@ -86,6 +126,11 @@ class MultipleMach(NDBModel):
                 pickle.dump(self.get_data_shard_dict(train_shard), pkl)
 
     def save_supervised_shards(self, supervised_shards):
+        """
+        Save the supervised data shards to disk.
+        Args:
+            supervised_shards: List of supervised data shards.
+        """
         for i in range(len(supervised_shards)):
             supervised_shard_picklable = {
                 "id_column": supervised_shards[i].id_column,
@@ -97,12 +142,22 @@ class MultipleMach(NDBModel):
             with (self.data_dir / f"supervised_shard_{i}.pkl").open("wb") as pkl:
                 pickle.dump(supervised_shard_picklable, pkl)
 
-    def save(self, db):
+    def save(self, db: ndb.NeuralDB):
+        """
+        Save the NeuralDB to disk.
+        Args:
+            db (ndb.NeuralDB): The NeuralDB instance to save.
+        """
         for ensemble in db._savable_state.model.ensembles:
             ensemble.set_model([])
         db.save(self.model_save_path)
 
-    def create_extra_options(self):
+    def create_extra_options(self) -> dict:
+        """
+        Create extra options for shard creation.
+        Returns:
+            dict: Dictionary of extra options.
+        """
         compute_variables = ComputeVariables.load_from_env()
         extra_options = merge_dataclasses_to_dict(
             self.mach_variables, self.ndb_variables, compute_variables
@@ -114,6 +169,9 @@ class MultipleMach(NDBModel):
         return extra_options
 
     def train(self, **kwargs):
+        """
+        Train the MultipleMach model.
+        """
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
 
         db = self.get_db()
@@ -241,4 +299,7 @@ class MultipleMach(NDBModel):
         )
 
     def evaluate(self, **kwargs):
+        """
+        Evaluate the MultipleMach model.
+        """
         pass

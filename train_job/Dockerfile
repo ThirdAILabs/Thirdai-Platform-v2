@@ -1,11 +1,17 @@
+# Use the official FastAPI image with Python 3.9
 FROM tiangolo/uvicorn-gunicorn-fastapi:python3.9
 
+# Set the working directory in the container to /app
 WORKDIR /app
 
-# Install dependencies before copying the directory so python dependencies are 
-# cached even when there are changes in the directory.
-RUN python3 -m pip install thirdai[neural_db]
+# Copy the requirements.txt file into the container
+COPY requirements.txt /app/
 
+# Install dependencies from requirements.txt
+RUN python3 -m pip install --no-cache-dir -r requirements.txt
+
+# Copy the current directory contents into the container at /app
 COPY . /app
 
+# Set the default command to run the FastAPI application
 CMD ["python3", "run.py"]

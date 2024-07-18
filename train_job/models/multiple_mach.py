@@ -8,8 +8,15 @@ from thirdai import neural_db as ndb
 from thirdai.neural_db.models.mach_mixture_model import MachMixture
 from thirdai.neural_db.sharded_documents import shard_data_source
 from thirdai.neural_db.supervised_datasource import SupDataSource
-from utils import convert_to_ndb_file, list_files, make_test_shard_files, log_function_name, logger
+from utils import (
+    convert_to_ndb_file,
+    list_files,
+    log_function_name,
+    logger,
+    make_test_shard_files,
+)
 from variables import ComputeVariables, MachVariables, merge_dataclasses_to_dict
+
 
 class MultipleMach(NDBModel):
     def __init__(self):
@@ -17,7 +24,7 @@ class MultipleMach(NDBModel):
         Initialize the MultipleMach model with environment variables.
         """
         super().__init__()
-        logger.info('Initialized a multiple mach model')
+        logger.info("Initialized a multiple mach model")
         self.mach_variables: MachVariables = MachVariables.load_from_env()
 
     def initialize_db(self) -> ndb.NeuralDB:
@@ -180,7 +187,7 @@ class MultipleMach(NDBModel):
         unsupervised_files = list_files(self.data_dir / "unsupervised")
         supervised_files = list_files(self.data_dir / "supervised")
         test_files = list_files(self.data_dir / "test")
-        logger.info('Got the path to unsupervised, supervised, and test data')
+        logger.info("Got the path to unsupervised, supervised, and test data")
 
         mixture: MachMixture = db._savable_state.model
 
@@ -199,7 +206,7 @@ class MultipleMach(NDBModel):
             total_num_labels += intro_and_train.intro.size
             total_documents.extend(unsupervised_files)
 
-            logger.info('Sharing the introduce data source')
+            logger.info("Sharing the introduce data source")
             introduce_data_sources = shard_data_source(
                 data_source=intro_and_train.intro,
                 label_to_segment_map=mixture.label_to_segment_map,
@@ -207,7 +214,7 @@ class MultipleMach(NDBModel):
                 update_segment_map=True,
             )
 
-            logger.info('Sharing the train data source')
+            logger.info("Sharing the train data source")
             train_data_sources = shard_data_source(
                 data_source=intro_and_train.train,
                 label_to_segment_map=mixture.label_to_segment_map,
@@ -215,11 +222,11 @@ class MultipleMach(NDBModel):
                 update_segment_map=False,
             )
 
-            logger.info('Saving the sharded data source')
+            logger.info("Saving the sharded data source")
             self.save_data_shards(introduce_data_sources, train_data_sources)
 
         if supervised_files:
-            logger.info('Getting supervised files')
+            logger.info("Getting supervised files")
             supervised_sources = self.get_supervised_files(supervised_files)
             doc_manager = db._savable_state.documents
             supervised_data_source = SupDataSource(
@@ -228,7 +235,7 @@ class MultipleMach(NDBModel):
                 data=supervised_sources,
                 id_delimiter=db._savable_state.model.get_id_delimiter(),
             )
-            logger.info('Sharding the supervised data source')
+            logger.info("Sharding the supervised data source")
             sharded_supervised_datasource = shard_data_source(
                 data_source=supervised_data_source,
                 number_shards=mixture.num_shards,
@@ -236,11 +243,11 @@ class MultipleMach(NDBModel):
                 update_segment_map=False,
             )
 
-            logger.info('saving the supervised data source')
+            logger.info("saving the supervised data source")
             self.save_supervised_shards(sharded_supervised_datasource)
 
         if test_files:
-            logger.info('shading the test file')
+            logger.info("shading the test file")
             make_test_shard_files(
                 test_files[0],
                 mixture.label_to_segment_map,
@@ -256,13 +263,15 @@ class MultipleMach(NDBModel):
             num_models_per_shard=mixture.num_models_per_shard,
         )
 
-        logger.info('saving the mulitple mach db model')
+        logger.info("saving the mulitple mach db model")
         self.save(db)
         extra_options = self.create_extra_options()
         extra_options["num_classes"] = total_num_labels
         for i in range(mixture.num_shards):
             for j in range(mixture.num_models_per_shard):
-                logger.info(f'Reporting shard job for shard num: {i * mixture.num_models_per_shard + j}')
+                logger.info(
+                    f"Reporting shard job for shard num: {i * mixture.num_models_per_shard + j}"
+                )
                 self.reporter.create_shard(
                     shard_num=i * mixture.num_models_per_shard + j,
                     model_id=self.general_variables.model_id,

@@ -13,13 +13,23 @@ from pydantic_models import inputs
 from pydantic_models.documents import DocumentList
 from pydantic_models.inputs import BaseQueryParams, NDBExtraParams
 from routers.model import get_model
-from utils import Status, now, propagate_error, response, validate_files, validate_name, log_function_name, logger
+from utils import (
+    Status,
+    log_function_name,
+    logger,
+    now,
+    propagate_error,
+    response,
+    validate_files,
+    validate_name,
+)
 from variables import GeneralVariables, TypeEnum
 
 ndb_router = APIRouter()
 permissions = Permissions()
 
 general_variables = GeneralVariables.load_from_env()
+
 
 @log_function_name
 @ndb_router.post("/predict")
@@ -43,6 +53,7 @@ def ndb_query(
         data=jsonable_encoder(results),
     )
 
+
 @log_function_name
 @ndb_router.post("/upvote")
 @propagate_error
@@ -53,6 +64,7 @@ def ndb_upvote(
     model.upvote(text_id_pairs=input.text_id_pairs, token=token)
 
     return response(status_code=status.HTTP_200_OK, message="Sucessfully upvoted")
+
 
 @log_function_name
 @ndb_router.post("/associate")
@@ -66,6 +78,7 @@ def ndb_associate(
 
     return response(status_code=status.HTTP_200_OK, message="Sucessfully associated")
 
+
 @log_function_name
 @ndb_router.get("/sources")
 @propagate_error
@@ -77,6 +90,7 @@ def get_sources(_=Depends(permissions.verify_read_permission)):
         message="Successful",
         data=sources,
     )
+
 
 @log_function_name
 @ndb_router.post("/delete")
@@ -90,6 +104,7 @@ def delete(input: inputs.DeleteInput, _=Depends(permissions.verify_write_permiss
         message=f"{len(input.source_ids)} file(s) deleted",
         success=True,
     )
+
 
 @log_function_name
 @ndb_router.post("/save")
@@ -156,6 +171,7 @@ task_queue = Queue()
 tasks = {}
 task_lock = Lock()
 
+
 @log_function_name
 @ndb_router.post("/insert")
 @propagate_error
@@ -220,6 +236,7 @@ def insert(
         success=True,
     )
 
+
 @log_function_name
 @ndb_router.post("/task-status")
 @propagate_error
@@ -239,6 +256,7 @@ def task_status(
                 status_code=status.HTTP_404_NOT_FOUND,
                 message="Task ID not found",
             )
+
 
 def process_tasks():
     model = get_model()

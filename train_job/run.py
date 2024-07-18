@@ -13,6 +13,7 @@ from variables import (
     RetrieverEnum,
     TypeEnum,
 )
+
 from . import logger
 
 # Load general variables from environment

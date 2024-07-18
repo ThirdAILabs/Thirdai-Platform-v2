@@ -2,8 +2,9 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from reporter import Reporter
-from variables import GeneralVariables, TrainVariables
 from utils import log_function_name
+from variables import GeneralVariables, TrainVariables
+
 
 class Model(ABC):
     """

@@ -1,3 +1,4 @@
+import functools
 import json
 import logging
 import os
@@ -16,23 +17,16 @@ from jinja2 import Template
 from pydantic import BaseModel, Field, validator
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger("ThirdAI_Platform")
+from . import logger
 
 
-def setup_logger(
-    level=logging.DEBUG, format="%(asctime)s | [%(name)s] [%(levelname)s] %(message)s"
-):
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(level)
+def log_function_name(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        logger.info(f"Invoked: {func.__name__}")
+        return func(*args, **kwargs)
 
-    formatter = logging.Formatter(format)
-    console_handler.setFormatter(formatter)
-
-    # add ch to logger
-    logger.addHandler(console_handler)
-
-    logger.setLevel(level)
-    logger.info("Initialized console logging.")
+    return wrapper
 
 
 def response(status_code: int, message: str, data={}, success: bool = None):
@@ -40,6 +34,10 @@ def response(status_code: int, message: str, data={}, success: bool = None):
         status = "success" if success else "failed"
     else:
         status = "success" if status_code < 400 else "failed"
+
+    if status != "success":
+        logger.error(message)
+
     return JSONResponse(
         status_code=status_code,
         content={"status": status, "message": message, "data": data},

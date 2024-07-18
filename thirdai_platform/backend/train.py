@@ -15,7 +15,7 @@ from backend.utils import (
     get_platform,
     get_python_path,
     get_root_absolute_path,
-    logger,
+    log_function_name,
     response,
     submit_nomad_job,
     update_json,
@@ -29,9 +29,12 @@ from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
+from . import logger
+
 train_router = APIRouter()
 
 
+@log_function_name
 @train_router.post("/ndb")
 def train(
     model_name: str,
@@ -44,18 +47,28 @@ def train(
 ):
     user: schema.User = authenticated_user.user
     try:
-        extra_options = NDBExtraOptions.parse_raw(extra_options_form).dict()
+        extra_options = NDBExtraOptions.model_validate_json(
+            extra_options_form
+        ).model_dump()
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
+            logger.info(f"Extra options for training: {extra_options}")
             print(f"Extra options for training: {extra_options}")
     except ValidationError as e:
-        return {"error": "Invalid extra options format", "details": str(e)}
-
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Invalid extra options format, Details: " + str(e),
+        )
     if file_details_list:
         try:
-            files_info = FileDetailsList.parse_raw(file_details_list).file_details
+            files_info = FileDetailsList.model_validate_json(
+                file_details_list
+            ).file_details
         except ValidationError as e:
-            return {"error": "Invalid file details list format", "details": str(e)}
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Invalid file details list format, Details" + str(e),
+            )
     else:
         files_info = [
             FileDetails(mode=FileType.unsupervised, location="local") for _ in files
@@ -96,6 +109,9 @@ def train(
     model_id = uuid.uuid4()
     data_id = model_id
 
+    logger.info(f"Data_id: {data_id}")
+    logger.info(f"Model_id: {model_id}")
+
     if len(files) != len(files_info):
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -103,6 +119,7 @@ def train(
         )
 
     filenames = get_files(files, data_id, files_info)
+    logger.info("Populated the files in the data folder")
 
     if not isinstance(filenames, list):
         return response(
@@ -128,6 +145,7 @@ def train(
             base_model: schema.Model = get_model_from_identifier(
                 base_model_identifier, session
             )
+            logger.info("Found the base model")
         except Exception as error:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -150,6 +168,7 @@ def train(
         session.commit()
         session.refresh(new_model)
 
+        logger.info("Created database entry for this model")
         work_dir = os.getcwd()
 
         sharded = (
@@ -159,6 +178,7 @@ def train(
             else False
         )
 
+        logger.info("Submitting train_job to nomad")
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -186,7 +206,6 @@ def train(
     except Exception as err:
         # TODO: change the status of the new model entry to failed
 
-        logger.info(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -207,6 +226,7 @@ class TrainComplete(BaseModel):
     metadata: Dict[str, str]
 
 
+@log_function_name
 @train_router.post("/complete")
 def train_complete(
     body: TrainComplete,
@@ -224,7 +244,6 @@ def train_complete(
 
     trained_model.train_status = schema.Status.complete
     trained_model.access_level = schema.Access.private
-
     metadata: schema.MetaData = trained_model.meta_data
     if metadata:
         metadata.public = update_json(metadata.public, body.metadata)
@@ -236,12 +255,14 @@ def train_complete(
         session.add(new_metadata)
 
     session.commit()
+    logger.info("Updated the train status, access level, and metadata of the model")
 
     return {"message": "successfully updated"}
 
 
+@log_function_name
 @train_router.post("/update-status")
-def train_fail(
+def update_train_status(
     model_id: str,
     status: schema.Status,
     message: str,
@@ -259,10 +280,12 @@ def train_fail(
 
     trained_model.train_status = status
     session.commit()
+    logger.info(f"Updated the model's train status to {status}")
 
     return {"message": f"successfully updated with following {message}"}
 
 
+@log_function_name
 @train_router.post("/create-shard")
 def create_shard(
     shard_num: int,
@@ -273,12 +296,17 @@ def create_shard(
     session: Session = Depends(get_session),
 ):
     try:
-        extra_options = NDBExtraOptions.parse_raw(extra_options_form).dict()
+        extra_options = NDBExtraOptions.model_validate_json(
+            extra_options_form
+        ).model_dump()
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
             print(f"Extra options for shard training: {extra_options}")
     except ValidationError as e:
-        return {"error": "Invalid extra options format", "details": str(e)}
+        return response(
+            status=status.HTTP_400_BAD_REQUEST,
+            message="Invalid extra options format, Details: " + str(e),
+        )
 
     try:
         license_info = verify_license(
@@ -303,6 +331,7 @@ def create_shard(
 
         work_dir = os.getcwd()
 
+        logger.info(f"Submitting shard-train-job for shard num {shard_num}")
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -336,6 +365,7 @@ def create_shard(
     return {"message": f"Successfully created shard"}
 
 
+@log_function_name
 @train_router.post("/update-shard-train-status")
 def update_shard_train_status(
     shard_num: int,
@@ -361,10 +391,11 @@ def update_shard_train_status(
 
     model_shard.train_status = status
     session.commit()
-
+    logger.info(f"Updated the train status of shard {shard_num} to {status}")
     return {"message": f"Successfully updated shard with message: {message}"}
 
 
+@log_function_name
 @train_router.get("/train-status")
 def train_status(
     model_identifier: str,
@@ -385,7 +416,7 @@ def train_status(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=str(error),
         )
-
+    logger.info(f"Retreived the train-status of the model as {model.train_status}")
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the train status.",
@@ -396,6 +427,7 @@ def train_status(
     )
 
 
+@log_function_name
 @train_router.get("/model-shard-train-status")
 def model_shard_train_status(
     model_id: str,
@@ -426,7 +458,7 @@ def model_shard_train_status(
         }
         for result in model_shards
     ]
-
+    logger.info(f"Retreived the shard status of model id {model_id}")
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the train status.",

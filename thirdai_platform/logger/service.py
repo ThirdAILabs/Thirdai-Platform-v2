@@ -1,9 +1,10 @@
 import logging
+
 from colorlog import ColoredFormatter
 
 
 class LoggerConfig:
-    def __init__(self, log_file, level=logging.DEBUG):
+    def __init__(self, log_file="app.log", level=logging.DEBUG):
         self.log_file = log_file
         self.level = level
         self.setup_logging()
@@ -48,4 +49,6 @@ class LoggerConfig:
     @staticmethod
     def get_logger(name):
         """Retrieve the logger with the given name."""
-        return logging.getLogger(name)
+        logger = logging.getLogger(name)
+        logger.info("started logging service")
+        return logger

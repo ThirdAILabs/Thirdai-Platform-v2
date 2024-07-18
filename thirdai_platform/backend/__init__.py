@@ -1,5 +1,6 @@
 import os
-from logger.log_module import LoggerConfig
+
+from logger.service import LoggerConfig
 
 log_filepath = os.path.join(os.getenv("MODEL_BAZAAR_DIR"), "logfile")
-logger = LoggerConfig(os.getenv("MODEL_BAZAAR_DIR")).get_logger(log_filepath)
+logger = LoggerConfig(log_filepath).get_logger("bazaar-logger")

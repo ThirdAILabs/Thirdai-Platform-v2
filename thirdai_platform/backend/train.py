@@ -246,11 +246,11 @@ def train_complete(
     trained_model.access_level = schema.Access.private
     metadata: schema.MetaData = trained_model.meta_data
     if metadata:
-        metadata.public = update_json(metadata.public, body.metadata)
+        metadata.train = update_json(metadata.train, body.metadata)
     else:
         new_metadata = schema.MetaData(
             model_id=trained_model.id,
-            public=body.metadata,
+            train=body.metadata,
         )
         session.add(new_metadata)
 
@@ -394,9 +394,8 @@ def update_shard_train_status(
     logger.info(f"Updated the train status of shard {shard_num} to {status}")
     return {"message": f"Successfully updated shard with message: {message}"}
 
-
 @log_function_name
-@train_router.get("/train-status")
+@train_router.get("/status")
 def train_status(
     model_identifier: str,
     session: Session = Depends(get_session),

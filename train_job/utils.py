@@ -16,10 +16,13 @@ from fastapi import Response
 from thirdai import neural_db as ndb
 from variables import S3Variables
 
-GB_1 = 1024 * 1024 * 1024
+GB_1 = 1024 * 1024 * 1024  # Define 1 GB in bytes
 
 
-def create_s3_client():
+def create_s3_client() -> boto3.client:
+    """
+    Create and return an S3 client using environment variables.
+    """
     s3_variables = S3Variables.load_from_env()
 
     config_params = {
@@ -42,7 +45,10 @@ def create_s3_client():
     return s3_client
 
 
-def list_files_in_s3(bucket_name, prefix):
+def list_files_in_s3(bucket_name: str, prefix: str) -> list[str]:
+    """
+    List all files in an S3 bucket with a given prefix.
+    """
     s3 = create_s3_client()
     paginator = s3.get_paginator("list_objects_v2")
     pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
@@ -56,7 +62,10 @@ def list_files_in_s3(bucket_name, prefix):
     return file_keys
 
 
-def list_files_from_s3_txt(file_path):
+def list_files_from_s3_txt(file_path: str) -> list[str]:
+    """
+    Read a list of S3 URLs from a text file and list all files within those URLs.
+    """
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"The file {file_path} does not exist.")
 
@@ -72,7 +81,10 @@ def list_files_from_s3_txt(file_path):
     return s3_urls
 
 
-def list_files(file_dir):
+def list_files(file_dir: str) -> list[str]:
+    """
+    List all files in a directory, including files from S3 URLs listed in 's3_files.txt'.
+    """
     files = []
     if os.path.exists(file_dir):
         for filename in os.listdir(file_dir):
@@ -87,7 +99,10 @@ def list_files(file_dir):
     return files
 
 
-def convert_to_ndb_file(file):
+def convert_to_ndb_file(file: str) -> ndb.Document:
+    """
+    Convert a file to an NDB file type based on its extension.
+    """
     filename, ext = os.path.splitext(file)
 
     json_file_path = f"{filename}_metadata.json"
@@ -134,7 +149,10 @@ def convert_to_ndb_file(file):
         raise TypeError(f"{ext} Document type isn't supported yet.")
 
 
-def process_file(file, tmp_dir):
+def process_file(file: str, tmp_dir: str) -> ndb.Document:
+    """
+    Process a file, downloading it from S3 if necessary, and convert it to an NDB file.
+    """
     if file.startswith("s3://"):
         s3 = True
         s3_client = create_s3_client()
@@ -162,7 +180,10 @@ def process_file(file, tmp_dir):
     return ndb_file
 
 
-def producer(files, buffer, tmp_dir):
+def producer(files: list[str], buffer, tmp_dir: str):
+    """
+    Process files in parallel and add the resulting NDB files to a buffer.
+    """
     max_cores = os.cpu_count()
     num_workers = max(1, max_cores - 6)
     with ProcessPoolExecutor(max_workers=num_workers) as executor:
@@ -183,7 +204,10 @@ def producer(files, buffer, tmp_dir):
     buffer.put(None)  # Signal that the producer is done
 
 
-def consumer(buffer, db, epochs=5, batch_size=10):
+def consumer(buffer, db, epochs: int = 5, batch_size: int = 10):
+    """
+    Consume NDB files from a buffer and insert them into NeuralDB in batches.
+    """
     batch = []
 
     while True:
@@ -202,7 +226,10 @@ def consumer(buffer, db, epochs=5, batch_size=10):
             batch.clear()
 
 
-def check_disk(db, model_bazaar_dir, files):
+def check_disk(db, model_bazaar_dir: str, files: list[str]):
+    """
+    Check if there is enough disk space to process the files.
+    """
     approx_ndb_size = 1.5 * sys.getsizeof(db) + 2 * sum(
         [os.path.getsize(file) for file in files]
     )
@@ -218,7 +245,10 @@ def check_disk(db, model_bazaar_dir, files):
         raise Exception("Training aborted due to low disk space.")
 
 
-def convert_supervised_to_ndb_file(file, source_id):
+def convert_supervised_to_ndb_file(file: str, source_id: str) -> ndb.Sup:
+    """
+    Convert a supervised training file to an NDB file.
+    """
     _, ext = os.path.splitext(file)
     if ext == ".csv":
         return ndb.Sup(
@@ -234,7 +264,10 @@ def convert_supervised_to_ndb_file(file, source_id):
         )
 
 
-def get_directory_size(directory: Path):
+def get_directory_size(directory: Path) -> int:
+    """
+    Calculate the size of a directory in bytes.
+    """
     size = 0
     for root, dirs, files in os.walk(directory):
         for name in files:
@@ -242,7 +275,12 @@ def get_directory_size(directory: Path):
     return size
 
 
-def filter_dataframe_by_label(df, id_col, labels, delimiter):
+def filter_dataframe_by_label(
+    df: pd.DataFrame, id_col: str, labels: list, delimiter: str
+) -> pd.DataFrame:
+    """
+    Filter a DataFrame by labels found in a specified column.
+    """
     # Check if the id_col contains the label
     mask = df[id_col].apply(
         lambda x: any(str(label) in str(x).split(delimiter) for label in labels)
@@ -260,6 +298,9 @@ def make_test_shard_files(
     id_col: str,
     id_delimiter: str,
 ):
+    """
+    Create test shard files by segmenting a CSV file based on labels.
+    """
     # Create destination directory if it doesn't exist
     os.makedirs(destination_dir, exist_ok=True)
 
@@ -283,9 +324,15 @@ def make_test_shard_files(
 
 
 def pickle_to(obj: object, filepath: Path):
+    """
+    Pickle an object to a specified file path.
+    """
     with open(filepath, "wb") as pkl:
         pickle.dump(obj, pkl)
 
 
 def no_op(*args, **kwargs):
+    """
+    A no-op function that does nothing.
+    """
     pass

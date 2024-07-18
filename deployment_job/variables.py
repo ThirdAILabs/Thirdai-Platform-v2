@@ -1,10 +1,14 @@
-from __future__ import annotations
-
 import ast
+import datetime
 import os
 from dataclasses import MISSING, asdict, dataclass, fields
 from enum import Enum
 from typing import Dict, Optional, Type, TypeVar, Union, get_args, get_origin
+from urllib.parse import urljoin
+
+import requests
+from fastapi import status
+from utils import now
 
 T = TypeVar("T", bound="EnvLoader")
 
@@ -14,37 +18,15 @@ class TypeEnum(str, Enum):
     UDT = "udt"
 
 
-class NDBSubType(str, Enum):
-    shard_allocation = "shard_allocation"
-    shard_train = "shard_train"
-    normal = "normal"
-
-
-class UDTSubType(str, Enum):
-    text = "text"
-    token = "token"
-
-
-class RetrieverEnum(str, Enum):
-    MACH = "mach"
-    HYBRID = "hybrid"
-    FINETUNABLE_RETRIEVER = "finetunable_retriever"
-
-
 class EnvLoader:
-    # Mapping of type names to Enum classes
     type_mapping = {
         "TypeEnum": TypeEnum,
-        "NDBSubType": NDBSubType,
-        "UDTSubType": UDTSubType,
-        "RetrieverEnum": RetrieverEnum,
     }
 
     @classmethod
     def load_from_env(cls: Type[T]) -> T:
-        """Load environment variables and return an instance of the class."""
         missing_vars = []
-        env_vars: Dict[str, Union[str, int, float, bool]] = {}
+        env_vars: Dict[str, Optional[Union[str, int, float, bool]]] = {}
 
         for f in fields(cls):
             value = os.getenv(f.name.upper())
@@ -70,7 +52,6 @@ class EnvLoader:
     def _convert_type(
         value: str, field_type: Union[Type, str]
     ) -> Union[str, int, float, bool, None, Enum]:
-        """Convert a string value to the specified field type."""
         if isinstance(field_type, str):
             field_type = EnvLoader.type_mapping.get(field_type, eval(field_type))
 
@@ -108,74 +89,41 @@ class EnvLoader:
         return ast.literal_eval(value)
 
 
+@dataclass
+class GeneralVariables(EnvLoader):
+    model_id: str
+    deployment_id: str
+    model_bazaar_endpoint: str
+    model_bazaar_dir: str
+    license_key: str
+    task_runner_token: str
+    type: TypeEnum = TypeEnum.NDB
+    num_shards: int = 0
+
+    def deployment_permissions(self, token: str):
+        deployment_permissions_endpoint = urljoin(
+            self.model_bazaar_endpoint,
+            f"api/deploy/permissions/{self.deployment_id}",
+        )
+        response = requests.get(
+            deployment_permissions_endpoint,
+            headers={"Authorization": "Bearer " + token},
+        )
+        if response.status_code == status.HTTP_401_UNAUTHORIZED:
+            return {
+                "read": False,
+                "write": False,
+                "exp": now() + datetime.timedelta(minutes=5),
+                "override": False,
+            }
+        res_json = response.json()
+        permissions = res_json["data"]
+        permissions["exp"] = datetime.datetime.fromisoformat(permissions["exp"])
+        return permissions
+
+
 def merge_dataclasses_to_dict(*instances) -> dict:
-    """Merge multiple dataclass instances into a single dictionary."""
     result = {}
     for instance in instances:
         result.update(asdict(instance))
     return result
-
-
-@dataclass
-class GeneralVariables(EnvLoader):
-    model_bazaar_dir: str
-    license_key: str
-    model_bazaar_endpoint: str
-    model_id: str
-    data_id: str
-    type: TypeEnum = TypeEnum.NDB
-    sub_type: Union[NDBSubType, UDTSubType] = NDBSubType.normal
-
-
-@dataclass
-class MachVariables(EnvLoader):
-    fhr: int = 50_000
-    embedding_dim: int = 2048
-    output_dim: int = 10_000
-    extreme_num_hashes: int = 1
-    hidden_bias: bool = False
-    tokenizer: str = "char-4"
-
-
-@dataclass
-class FinetunableRetrieverVariables(EnvLoader):
-    on_disk: bool = True
-
-
-@dataclass
-class NeuralDBVariables(EnvLoader):
-    num_shards: int = 1
-    num_models_per_shard: int = 1
-    base_model_id: Optional[str] = None
-    retriever: RetrieverEnum = RetrieverEnum.FINETUNABLE_RETRIEVER
-
-
-@dataclass
-class TrainVariables(EnvLoader):
-    learning_rate: float = 0.005
-    max_in_memory_batches: Optional[int] = None
-    batch_size: int = 2048
-    unsupervised_epochs: int = 5
-    supervised_epochs: int = 3
-    unsupervised_train: bool = True
-    disable_finetunable_retriever: bool = True
-    fast_approximation: bool = True
-
-
-@dataclass
-class S3Variables(EnvLoader):
-    aws_access_key: Optional[str] = None
-    aws_secret_access_key: Optional[str] = None
-
-
-@dataclass
-class ComputeVariables(EnvLoader):
-    model_cores: Optional[int] = None
-    model_memory: Optional[int] = None
-    priority: Optional[int] = None
-
-
-@dataclass
-class ShardVariables(EnvLoader):
-    shard_num: int
-    num_classes: int

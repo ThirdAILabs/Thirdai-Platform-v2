@@ -1,4 +1,4 @@
-from typing import Annotated, Optional, Union
+from typing import Annotated, Dict, Optional, Union
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.utils import get_high_level_model_info, response
@@ -6,6 +6,7 @@ from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -113,3 +114,67 @@ def list_models(
         message="Successfully got the list",
         data=jsonable_encoder(results),
     )
+
+
+@model_router.get("/name-check")
+def check_model(
+    name: str,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    user: schema.User = authenticated_user.user
+    model: schema.Model = (
+        session.query(schema.Model)
+        .filter(and_(schema.Model.name == name, schema.Model.user_id == user.id))
+        .first()
+    )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Sucessfully checked for model name",
+        data={"model_present": True if model else False},
+    )
+
+
+class SaveNDBDeployedModel(BaseModel):
+    deployment_id: str
+    model_id: str
+    base_model_id: str
+    model_name: str
+    metadata: Dict[str, str]
+
+
+@model_router.post("/save-deployed")
+def save_deployed_model(
+    body: SaveNDBDeployedModel,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    user: schema.User = authenticated_user.user
+    base_model: schema.Model = session.query(schema.Model).get(body.base_model_id)
+    user: schema.User = session.query(schema.User).get(user.id)
+
+    new_model = schema.Model(
+        id=body.model_id,
+        name=body.model_name,
+        train_status=schema.Status.complete,
+        access_level=schema.Access.private,
+        domain=user.email.split("@")[1],
+        user_id=user.id,
+        parent_deployment_id=body.deployment_id,
+        parent_id=base_model.id,
+        type=base_model.type,
+    )
+
+    session.add(new_model)
+    session.commit()
+    session.refresh(new_model)
+
+    metadata: schema.MetaData = schema.MetaData(
+        model_id=body.model_id, deployment=body.metadata
+    )
+
+    session.add(metadata)
+    session.commit()
+
+    return {"message": "successfully added the model."}

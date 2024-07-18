@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+boto3
+pandas
+requests
+thirdai[neural_db]

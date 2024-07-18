@@ -21,12 +21,20 @@ from variables import MachVariables, NeuralDBVariables
 
 class NDBModel(Model):
     def __init__(self):
+        """
+        Initialize the NDBModel with general and NeuralDB-specific variables.
+        """
         super().__init__()
-        self.ndb_variables = NeuralDBVariables.load_from_env()
-        self.model_save_path = self.model_dir / "model.ndb"
+        self.ndb_variables: NeuralDBVariables = NeuralDBVariables.load_from_env()
+        self.model_save_path: Path = self.model_dir / "model.ndb"
 
-    def unsupervised_train(self, db: ndb.NeuralDB, files: List):
-        # Look into how to add checkpointing for streaming processes.
+    def unsupervised_train(self, db: ndb.NeuralDB, files: List[str]):
+        """
+        Train the model with unsupervised data.
+        Args:
+            db (ndb.NeuralDB): The NeuralDB instance.
+            files (List[str]): List of file paths for unsupervised training data.
+        """
         buffer = queue.Queue()
 
         producer_thread = threading.Thread(
@@ -46,7 +54,14 @@ class NDBModel(Model):
         buffer.put(None)  # Signal the consumer to exit
         consumer_thread.join()
 
-    def get_supervised_files(self, files):
+    def get_supervised_files(self, files: List[str]) -> List[ndb.Sup]:
+        """
+        Convert files to supervised NDB files.
+        Args:
+            files (List[str]): List of file paths for supervised training data.
+        Returns:
+            List[ndb.Sup]: List of converted supervised NDB files.
+        """
         relations_path = self.data_dir / "relations.json"
         if relations_path.exists():
             with relations_path.open("r") as file:
@@ -62,8 +77,13 @@ class NDBModel(Model):
             for i, file in enumerate(files)
         ]
 
-    def supervised_train(self, db: ndb.NeuralDB, files: List):
-        # Look into how to add streaming in this supervised.
+    def supervised_train(self, db: ndb.NeuralDB, files: List[str]):
+        """
+        Train the model with supervised data.
+        Args:
+            db (ndb.NeuralDB): The NeuralDB instance.
+            files (List[str]): List of file paths for supervised training data.
+        """
         supervised_sources = self.get_supervised_files(files)
 
         db.supervised_train(
@@ -71,7 +91,14 @@ class NDBModel(Model):
             epochs=self.train_variables.supervised_epochs,
         )
 
-    def get_ndb_path(self, model_id):
+    def get_ndb_path(self, model_id: str) -> Path:
+        """
+        Get the path to the NeuralDB checkpoint for a given model ID.
+        Args:
+            model_id (str): The model ID.
+        Returns:
+            Path: The path to the NeuralDB checkpoint.
+        """
         return (
             Path(self.general_variables.model_bazaar_dir)
             / "models"
@@ -79,34 +106,64 @@ class NDBModel(Model):
             / "model.ndb"
         )
 
-    def load_db(self, model_id):
+    def load_db(self, model_id: str) -> ndb.NeuralDB:
+        """
+        Load the NeuralDB from a checkpoint.
+        Args:
+            model_id (str): The model ID.
+        Returns:
+            ndb.NeuralDB: The loaded NeuralDB instance.
+        """
         return ndb.NeuralDB.from_checkpoint(self.get_ndb_path(model_id))
 
-    def get_db(self):
+    def get_db(self) -> ndb.NeuralDB:
+        """
+        Get the NeuralDB instance, either by loading from a checkpoint or initializing a new one.
+        Returns:
+            ndb.NeuralDB: The NeuralDB instance.
+        """
         if self.ndb_variables.base_model_id:
             return self.load_db(self.ndb_variables.base_model_id)
         return self.initialize_db()
 
     def initialize_db(self):
+        """
+        Initialize a new NeuralDB instance. Must be implemented by subclasses with single training.
+        """
         pass
 
-    def get_num_params(self, db):
+    def get_num_params(self, db: ndb.NeuralDB):
+        """
+        Get the number of parameters in the model. Must be implemented by subclasses with single training.
+        """
         pass
 
-    def get_size_in_memory(self):
+    def get_size_in_memory(self) -> int:
+        """
+        Get the size of the model in memory. Must be implemented by subclasses with single training
+        """
         pass
 
-    def save(self, db):
+    def save(self, db: ndb.NeuralDB):
+        """
+        Save the NeuralDB to disk.
+        Args:
+            db (ndb.NeuralDB): The NeuralDB instance to save.
+        """
         db.save(self.model_save_path)
 
-    def finalize_training(self, db):
+    def finalize_training(self, db: ndb.NeuralDB):
+        """
+        Finalize the training process by saving the model and reporting completion.
+        Args:
+            db (ndb.NeuralDB): The NeuralDB instance.
+        """
         num_params = self.get_num_params(db)
         self.save(db)
 
         size = get_directory_size(self.model_save_path)
         size_in_memory = self.get_size_in_memory()
 
-        # look into adding all the items commented in schema.py file in model table.
         self.reporter.report_complete(
             model_id=self.general_variables.model_id,
             metadata={
@@ -120,10 +177,16 @@ class NDBModel(Model):
 
 class SingleMach(NDBModel):
     def __init__(self):
+        """
+        Initialize the SingleMach model with general, NeuralDB-specific, and Mach-specific variables.
+        """
         super().__init__()
-        self.mach_variables = MachVariables.load_from_env()
+        self.mach_variables: MachVariables = MachVariables.load_from_env()
 
     def train(self, **kwargs):
+        """
+        Train the SingleMach model with unsupervised and supervised data.
+        """
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
 
         unsupervised_files = list_files(self.data_dir / "unsupervised")
@@ -149,14 +212,25 @@ class SingleMach(NDBModel):
 
         self.finalize_training(db)
 
-    def evaluate(self, db, files, **kwargs):
+    def evaluate(self, db: ndb.NeuralDB, files: List[str], **kwargs):
+        """
+        Evaluate the model with the given test files.
+        Args:
+            db (ndb.NeuralDB): The NeuralDB instance.
+            files (List[str]): List of file paths for evaluation data.
+        """
         for file in files:
             metrics = db._savable_state.model.model.evaluate(
                 file,
                 metrics=["precision@1", "precision@5", "recall@1", "recall@5"],
             )
 
-    def initialize_db(self):
+    def initialize_db(self) -> ndb.NeuralDB:
+        """
+        Initialize a new NeuralDB instance with the required parameters.
+        Returns:
+            ndb.NeuralDB: The initialized NeuralDB instance.
+        """
         return ndb.NeuralDB(
             fhr=self.mach_variables.fhr,
             embedding_dimension=self.mach_variables.embedding_dim,
@@ -167,11 +241,23 @@ class SingleMach(NDBModel):
             retriever=self.ndb_variables.retriever,
         )
 
-    def get_num_params(self, db):
+    def get_num_params(self, db: ndb.NeuralDB) -> int:
+        """
+        Get the number of parameters in the model.
+        Args:
+            db (ndb.NeuralDB): The NeuralDB instance.
+        Returns:
+            int: The number of parameters in the model.
+        """
         model = db._savable_state.model.model._get_model()
         return model.num_params()
 
-    def get_size_in_memory(self):
+    def get_size_in_memory(self) -> int:
+        """
+        Get the size of the model in memory.
+        Returns:
+            int: The size of the model in memory.
+        """
         udt_pickle = self.model_save_path / "model.pkl"
         documents_pickle = self.model_save_path / "documents.pkl"
         logger_pickle = self.model_save_path / "logger.pkl"
@@ -185,9 +271,15 @@ class SingleMach(NDBModel):
 
 class FinetunableRetriever(NDBModel):
     def __init__(self):
+        """
+        Initialize the FinetunableRetriever model with general and NeuralDB-specific variables.
+        """
         super().__init__()
 
     def train(self, **kwargs):
+        """
+        Train the FinetunableRetriever model with unsupervised and supervised data.
+        """
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
 
         unsupervised_files = list_files(self.data_dir / "unsupervised")
@@ -208,18 +300,38 @@ class FinetunableRetriever(NDBModel):
         self.finalize_training(db)
 
     def evaluate(self, **kwargs):
+        """
+        Evaluate the FinetunableRetriever model. Not implemented.
+        """
         pass
 
-    def initialize_db(self):
+    def initialize_db(self) -> ndb.NeuralDB:
+        """
+        Initialize a new NeuralDB instance with the retriever.
+        Returns:
+            ndb.NeuralDB: The initialized NeuralDB instance.
+        """
         return ndb.NeuralDB(
             retriever=self.ndb_variables.retriever,
             on_disk=True,  # See if we have to configure this from variables
         )
 
-    def get_num_params(self, db):
+    def get_num_params(self, db: ndb.NeuralDB) -> int:
+        """
+        Get the number of parameters in the model.
+        Args:
+            db (ndb.NeuralDB): The NeuralDB instance.
+        Returns:
+            int: The number of parameters in the model.
+        """
         return sum(doc.size for doc in db._savable_state.documents.sources().values())
 
-    def get_size_in_memory(self):
+    def get_size_in_memory(self) -> int:
+        """
+        Get the size of the model in memory.
+        Returns:
+            int: The size of the model in memory.
+        """
         udt_pickle = self.model_save_path / "model.pkl"
         documents_pickle = self.model_save_path / "documents.pkl"
         logger_pickle = self.model_save_path / "logger.pkl"

@@ -41,21 +41,56 @@ class ClassificationModel(Model):
             return self.load_model(self.udt_variables.base_model_id)
         return self.initialize_model()
 
+    @abstractmethod
+    def train(self, **kwargs):
+        pass
+
+
+class TextClassificationModel(ClassificationModel):
+    def __init__(self):
+        super().__init__()
+        self.txt_cls_vars = TextClassificationVariables.load_from_env()
+
+    def initialize_model(self):
+        return bolt.UniversalDeepTransformer(
+            data_types={
+                self.txt_cls_vars.text_column: bolt.types.text(),
+                self.txt_cls_vars.label_column: bolt.types.categorical(
+                    n_classes=self.txt_cls_vars.n_target_classes
+                ),
+            },
+            target=self.txt_cls_vars.label_column,
+            delimiter=self.txt_cls_vars.delimiter,
+        )
+
     def train(self, **kwargs):
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
 
         model = self.get_model()
 
         unsupervised_files = list_files(self.data_dir / "unsupervised")
+        supervised_files = list_files(self.data_dir / "supervised")
 
         if unsupervised_files:
-            for train_file in unsupervised_files:
+            for unsup_train_file in unsupervised_files:
+                model.cold_start(
+                    unsup_train_file,
+                    strong_column_names=[self.txt_cls_vars.text_column],
+                    weak_column_names=[],
+                    epochs=self.train_variables.unsupervised_epochs,
+                    learning_rate=self.train_variables.learning_rate,
+                    batch_size=self.train_variables.batch_size,
+                    metrics=self.train_variables.metrics,
+                )
+
+        if supervised_files:
+            for sup_train_file in supervised_files:
                 model.train(
-                    train_file,
-                    epochs=3,
-                    learning_rate=0.001,
-                    batch_size=1024,
-                    metrics=["loss", "categorical_accuracy"],
+                    sup_train_file,
+                    epochs=self.train_variables.supervised_epochs,
+                    learning_rate=self.train_variables.learning_rate,
+                    batch_size=self.train_variables.batch_size,
+                    metrics=self.train_variables.metrics,
                 )
 
         self.save_model(model)
@@ -67,24 +102,6 @@ class ClassificationModel(Model):
             },
         )
 
-
-class TextClassificationModel(ClassificationModel):
-    def __init__(self):
-        super().__init__()
-        self.classification_vars = TextClassificationVariables.load_from_env()
-
-    def initialize_model(self):
-        return bolt.UniversalDeepTransformer(
-            data_types={
-                "text": bolt.types.text(),
-                "label": bolt.types.categorical(
-                    n_classes=self.text_classification_vars.n_target_classes
-                ),
-            },
-            target="label",
-            delimiter=self.text_classification_vars.delimiter,
-        )
-
     def evaluate(self, **kwargs):
         pass
 
@@ -92,19 +109,58 @@ class TextClassificationModel(ClassificationModel):
 class TokenClassificationModel(ClassificationModel):
     def __init__(self):
         super().__init__()
-        self.classification_vars = TokenClassificationVariables.load_from_env()
+        self.tkn_cls_vars = TokenClassificationVariables.load_from_env()
 
     def initialize_model(self):
-        target_labels = self.token_classification_vars.target_labels
-        default_tag = self.token_classification_vars.default_tag
+        target_labels = self.tkn_cls_vars.target_labels
+        default_tag = self.tkn_cls_vars.default_tag
         return bolt.UniversalDeepTransformer(
             data_types={
-                "source": bolt.types.text(),
-                "target": bolt.types.token_tags(
+                self.tkn_cls_vars.source_column: bolt.types.text(),
+                self.tkn_cls_vars.target_column: bolt.types.token_tags(
                     tags=target_labels, default_tag=default_tag
                 ),
             },
-            target="target",
+            target=self.tkn_cls_vars.target_column,
+        )
+
+    def train(self, **kwargs):
+        self.reporter.report_status(self.general_variables.model_id, "in_progress")
+
+        model = self.get_model()
+
+        unsupervised_files = list_files(self.data_dir / "supervised")
+        supervised_files = list_files(self.data_dir / "supervised")
+
+        if unsupervised_files:
+            for unsup_train_file in unsupervised_files:
+                model.cold_start(
+                    unsup_train_file,
+                    strong_column_names=[self.tkn_cls_vars.source_column],
+                    weak_column_names=[],
+                    epochs=self.train_variables.unsupervised_epochs,
+                    learning_rate=self.train_variables.learning_rate,
+                    batch_size=self.train_variables.batch_size,
+                    metrics=self.train_variables.metrics,
+                )
+
+        if supervised_files:
+            for sup_train_file in supervised_files:
+                model.train(
+                    sup_train_file,
+                    epochs=self.train_variables.supervised_epochs,
+                    learning_rate=self.train_variables.learning_rate,
+                    batch_size=self.train_variables.batch_size,
+                    metrics=self.train_variables.metrics,
+                )
+
+        self.save_model(model)
+
+        self.reporter.report_complete(
+            self.general_variables.model_id,
+            metadata={
+                "thirdai_version": str(thirdai.__version__),
+            },
         )
 
     def evaluate(self, **kwargs):

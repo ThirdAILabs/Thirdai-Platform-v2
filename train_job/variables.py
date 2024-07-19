@@ -136,13 +136,19 @@ class UDTVariables(EnvLoader):
 @dataclass
 class TokenClassificationVariables(EnvLoader):
     target_labels: List[str] = []
+    source_column: str = "source"
+    target_column: str = "target"
     default_tag: str = "O"
+    metrics: List[str] = ["loss", "categorical_accuracy"]
 
 
 @dataclass
 class TextClassificationVariables(EnvLoader):
     delimiter: str = ":"
-    n_target_classes: int = None
+    text_column: str = "text"
+    label_column: str = "label"
+    n_target_classes: Optional[int] = None
+    metrics: List[str] = ["loss", "categorical_accuracy"]
 
 
 @dataclass
@@ -178,6 +184,7 @@ class TrainVariables(EnvLoader):
     unsupervised_train: bool = True
     disable_finetunable_retriever: bool = True
     fast_approximation: bool = True
+    metrics: List[str] = ["loss"]
 
 
 @dataclass

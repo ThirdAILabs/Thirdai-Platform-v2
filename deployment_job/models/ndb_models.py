@@ -1,5 +1,4 @@
 import copy
-import logging
 import pickle
 import shutil
 import tempfile
@@ -11,7 +10,7 @@ from pathlib import Path
 from models.model import Model
 from pydantic_models import inputs
 from thirdai import neural_db as ndb
-from utils import create_ndb_docs
+from utils import create_ndb_docs, logger
 
 
 class NDBModel(Model):
@@ -50,7 +49,11 @@ class NDBModel(Model):
             for text_id_pair in text_id_pairs
         ]
 
-        self.reporter.log(
+        self.reporter.action_log(
+            action="upvote",
+            train_samples=train_samples,
+        )
+        self.reporter.deploy_log(
             action="upvote",
             deployment_id=self.general_variables.deployment_id,
             train_samples=train_samples,
@@ -85,6 +88,7 @@ class NDBModel(Model):
             inputs.convert_reference_to_pydantic(ref, kwargs.get("context_radius", 1))
             for ref in references
         ]
+
         return inputs.SearchResults(
             query_text=kwargs["query"],
             references=pydantic_references,
@@ -99,7 +103,7 @@ class NDBModel(Model):
         )
 
         train_samples = [pair.dict() for pair in text_pairs]
-        self.reporter.log(
+        self.reporter.deploy_log(
             action="associate",
             deployment_id=self.general_variables.deployment_id,
             train_samples=train_samples,
@@ -166,7 +170,7 @@ class SingleNDB(NDBModel):
                     shutil.rmtree(backup_path.parent)
 
         except Exception as err:
-            logging.error(f"Failed while saving with error: {err}")
+            logger.error(f"Failed while saving with error: {err}")
             traceback.print_exc()
 
             if "backup_path" in locals() and backup_path.exists():
@@ -252,7 +256,7 @@ class ShardedNDB(NDBModel):
                     shutil.rmtree(backup_dir)
 
         except Exception as err:
-            logging.error(f"Failed while saving with error: {err}")
+            logger.error(f"Failed while saving with error: {err}")
             traceback.print_exc()
 
             if backup_dir and backup_dir.exists():

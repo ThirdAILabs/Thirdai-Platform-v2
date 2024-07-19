@@ -91,6 +91,7 @@ class EnvLoader:
 
 @dataclass
 class GeneralVariables(EnvLoader):
+    user_id: str
     model_id: str
     deployment_id: str
     model_bazaar_endpoint: str

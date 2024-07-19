@@ -19,6 +19,7 @@ from utils import (
     logger,
     now,
     propagate_error,
+    report_log,
     response,
     validate_files,
     validate_name,
@@ -39,19 +40,26 @@ def ndb_query(
     ndb_params: Optional[NDBExtraParams] = NDBExtraParams(),
     _=Depends(permissions.verify_read_permission),
 ):
-    model = get_model()
-    params = base_params.model_dump()
-    if general_variables.type == TypeEnum.NDB:
-        extra_params = ndb_params.model_dump(exclude_unset=True)
-        params.update(extra_params)
+    try:
+        model = get_model()
+        params = base_params.model_dump()
+        if general_variables.type == TypeEnum.NDB:
+            extra_params = ndb_params.model_dump(exclude_unset=True)
+            params.update(extra_params)
 
-    results = model.predict(**params)
+        results = model.predict(**params)
 
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Successful",
-        data=jsonable_encoder(results),
-    )
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successful",
+            data=jsonable_encoder(results),
+        )
+    except Exception as e:
+        logger.error(traceback.print_exc())
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=f"Error: {str(e)}",
+        )
 
 
 @log_function_name

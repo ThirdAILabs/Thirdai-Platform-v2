@@ -68,6 +68,7 @@ EOF
       {% endif %}
 
       env {
+        USER_ID = "{{ user_id }}"
         MODEL_ID = "{{ model_id }}"
         DEPLOYMENT_ID = "{{ deployment_id }}"
         MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"

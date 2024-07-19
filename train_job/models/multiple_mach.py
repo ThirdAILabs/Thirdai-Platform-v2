@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 
 import thirdai
-from models.ndb_models import NDBModel
+from models.ndb_model_interface import NDBModel
 from thirdai import neural_db as ndb
 from thirdai.neural_db.models.mach_mixture_model import MachMixture
 from thirdai.neural_db.sharded_documents import shard_data_source

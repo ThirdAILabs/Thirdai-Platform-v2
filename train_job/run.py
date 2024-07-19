@@ -2,9 +2,10 @@ import os
 import traceback
 
 import thirdai
+from models.finetunable_retriever import FinetunableRetriever
 from models.multiple_mach import MultipleMach
-from models.ndb_models import FinetunableRetriever, SingleMach
 from models.shard_mach import ShardMach
+from models.single_mach import SingleMach
 from reporter import Reporter
 from variables import (
     GeneralVariables,

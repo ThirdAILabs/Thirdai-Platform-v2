@@ -2,7 +2,7 @@ import pickle
 from pathlib import Path
 
 import thirdai
-from models.ndb_models import NDBModel
+from models.ndb_model_interface import NDBModel
 from thirdai import data
 from thirdai.neural_db.documents import DocumentDataSource
 from thirdai.neural_db.models.mach import Mach

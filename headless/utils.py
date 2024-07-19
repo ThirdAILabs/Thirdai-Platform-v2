@@ -1,6 +1,7 @@
 import os
 import re
 import warnings
+from typing import Any, Dict, List, Optional
 
 from thirdai import neural_db as ndb
 
@@ -8,13 +9,30 @@ from headless.configs import Config
 
 
 def get_csv_source_id(
-    file,
-    CSV_ID_COLUMN=None,
-    CSV_STRONG_COLUMNS=None,
-    CSV_WEAK_COLUMNS=None,
-    CSV_REFERENCE_COLUMNS=None,
-    CSV_METADATA=None,
-):
+    file: str,
+    CSV_ID_COLUMN: Optional[str] = None,
+    CSV_STRONG_COLUMNS: Optional[List[str]] = None,
+    CSV_WEAK_COLUMNS: Optional[List[str]] = None,
+    CSV_REFERENCE_COLUMNS: Optional[List[str]] = None,
+    CSV_METADATA: Optional[Dict[str, str]] = None,
+) -> str:
+    """
+    Returns the source ID for a CSV file.
+
+    Parameters:
+    file (str): Path to the CSV file.
+    CSV_ID_COLUMN (str, optional): Column name for IDs.
+    CSV_STRONG_COLUMNS (list[str], optional): List of strong columns.
+    CSV_WEAK_COLUMNS (list[str], optional): List of weak columns.
+    CSV_REFERENCE_COLUMNS (list[str], optional): List of reference columns.
+    CSV_METADATA (dict[str, str], optional): Metadata for the CSV file.
+
+    Returns:
+    str: The hash ID of the CSV source.
+
+    Raises:
+    TypeError: If the file type is not supported.
+    """
     _, ext = os.path.splitext(file)
 
     if ext == ".csv":
@@ -30,7 +48,17 @@ def get_csv_source_id(
         raise TypeError(f"{ext} Document type isn't supported.")
 
 
-def build_extra_options(config: Config, sharded=False):
+def build_extra_options(config: Config, sharded: bool = False) -> Dict[str, Any]:
+    """
+    Builds a dictionary of extra options for training.
+
+    Parameters:
+    config (Config): Configuration object containing various settings.
+    sharded (bool, optional): Whether to use sharded training.
+
+    Returns:
+    dict[str, Any]: Dictionary of extra training options.
+    """
     return {
         "model_cores": config.model_cores,
         "model_memory": config.model_memory,
@@ -52,7 +80,20 @@ def build_extra_options(config: Config, sharded=False):
     }
 
 
-def get_configs(config_type, config_regex):
+def get_configs(config_type: type, config_regex: str) -> List[Config]:
+    """
+    Retrieves a list of configuration subclasses that match a given regex pattern.
+
+    Parameters:
+    config_type (type): The base configuration class type.
+    config_regex (str): Regular expression to filter configuration names.
+
+    Returns:
+    list[Config]: List of matching configuration subclasses.
+
+    Raises:
+    Warning: If no configurations match the regex pattern.
+    """
     configs = [config for config in config_type.__subclasses__()]
     config_re = re.compile(config_regex)
     configs = list(
@@ -69,7 +110,20 @@ def get_configs(config_type, config_regex):
     return configs
 
 
-def create_doc_dict(path, doc_type):
+def create_doc_dict(path: str, doc_type: str) -> Dict[str, str]:
+    """
+    Creates a document dictionary for different document types.
+
+    Parameters:
+    path (str): Path to the document file.
+    doc_type (str): Type of the document location.
+
+    Returns:
+    dict[str, str]: Dictionary containing document details.
+
+    Raises:
+    Exception: If the document type is not supported.
+    """
     _, ext = os.path.splitext(path)
     if ext == ".pdf":
         return {"document_type": "PDF", "path": path, "location": doc_type}

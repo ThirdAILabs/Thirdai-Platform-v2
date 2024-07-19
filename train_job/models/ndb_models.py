@@ -159,13 +159,10 @@ class SingleMach(NDBModel):
 
         unsupervsied_checkpoint_config = None
         if self.train_variables.checkpoint_interval:
-            resume = False
-            if self.unsupervised_checkpoint_dir.exists():
-                resume = True
             unsupervsied_checkpoint_config = ndb.CheckpointConfig(
                 checkpoint_dir=self.unsupervised_checkpoint_dir,
                 checkpoint_interval=self.train_variables.checkpoint_interval,
-                resume_from_checkpoint=resume,
+                resume_from_checkpoint=self.unsupervised_checkpoint_dir.exists(),
             )
 
         db.insert(
@@ -186,13 +183,10 @@ class SingleMach(NDBModel):
 
         supervsied_checkpoint_config = None
         if self.train_variables.checkpoint_interval:
-            resume = False
-            if self.supervised_checkpoint_dir.exists():
-                resume = True
             supervsied_checkpoint_config = ndb.CheckpointConfig(
                 checkpoint_dir=self.supervised_checkpoint_dir,
                 checkpoint_interval=self.train_variables.checkpoint_interval,
-                resume_from_checkpoint=resume,
+                resume_from_checkpoint=self.supervised_checkpoint_dir.exists(),
             )
 
         db.supervised_train(

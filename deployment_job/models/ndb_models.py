@@ -52,6 +52,7 @@ class NDBModel(Model):
         self.reporter.action_log(
             action="upvote",
             train_samples=train_samples,
+            deployment_id=self.general_variables.deployment_id,
         )
         self.reporter.deploy_log(
             action="upvote",
@@ -89,6 +90,13 @@ class NDBModel(Model):
             for ref in references
         ]
 
+        # SUGGESTION: Instead of logging predict, we can increase the 'queried' count in the DB's table 'Log' Schema.
+        self.reporter.action_log(
+            action="predict",
+            train_samples=None,
+            used=False,
+            deployment_id=self.general_variables.deployment_id,
+        )
         return inputs.SearchResults(
             query_text=kwargs["query"],
             references=pydantic_references,
@@ -109,6 +117,15 @@ class NDBModel(Model):
             train_samples=train_samples,
             access_token=kwargs.get("token"),
         )
+        self.reporter.action_log(
+            action="associate",
+            train_samples=[
+                {"source": text_pair.source, "target": text_pair.target}
+                for text_pair in text_pairs
+            ],
+            used=False,
+            deployment_id=self.general_variables.deployment_id,
+        )
 
     def sources(self):
         return sorted(
@@ -125,12 +142,23 @@ class NDBModel(Model):
     def delete(self, **kwargs):
         source_ids = kwargs.get("source_ids")
         self.db.delete(source_ids=source_ids)
+        self.reporter.action_log(
+            action="delete",
+            train_samples=[{"source_ids": source_ids}],
+            used=False,
+            deployment_id=self.general_variables.deployment_id,
+        )
 
     def insert(self, **kwargs):
         documents = kwargs.get("documents")
         ndb_docs = create_ndb_docs(documents, self.data_dir)
-
-        self.db.insert(sources=ndb_docs)
+        doc_sources = self.db.insert(sources=ndb_docs)
+        self.reporter.action_log(
+            action="insert",
+            train_samples=[{"source_ids": doc_sources}],
+            used=False,
+            deployment_id=self.general_variables.deployment_id,
+        )
 
         return [
             {
@@ -161,9 +189,8 @@ class SingleNDB(NDBModel):
                     backup_path = self.get_ndb_path(backup_id)
                     print(f"Creating backup: {backup_id}")
                     shutil.copytree(model_path, backup_path)
-
-                if model_path.exists():
                     shutil.rmtree(model_path)
+
                 shutil.move(temp_model_path, model_path)
 
                 if model_path.exists() and "backup_path" in locals():

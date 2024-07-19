@@ -109,7 +109,7 @@ class Reporter:
 
         print(content)
 
-    def action_log(self, action, train_samples, access_token, used=False, **kwargs):
+    def action_log(self, action, train_samples, used=False, **kwargs):
         params = (
             {
                 "action": action,
@@ -122,7 +122,6 @@ class Reporter:
             "post",
             f"api/logger/log",
             json=params,
-            headers=self.auth_header(access_token=access_token),
         )
 
         print(content)

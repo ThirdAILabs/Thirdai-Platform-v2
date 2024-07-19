@@ -160,6 +160,7 @@ class TrainVariables(EnvLoader):
     unsupervised_train: bool = True
     disable_finetunable_retriever: bool = True
     fast_approximation: bool = True
+    checkpoint_interval: Optional[int] = None
 
 
 @dataclass

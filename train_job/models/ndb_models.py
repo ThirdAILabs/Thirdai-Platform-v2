@@ -1,6 +1,7 @@
 import json
 import os
 import queue
+import shutil
 import threading
 from pathlib import Path
 from typing import List
@@ -14,6 +15,7 @@ from utils import (
     convert_supervised_to_ndb_file,
     get_directory_size,
     list_files,
+    process_file,
     producer,
 )
 from variables import MachVariables, NeuralDBVariables
@@ -27,32 +29,6 @@ class NDBModel(Model):
         super().__init__()
         self.ndb_variables: NeuralDBVariables = NeuralDBVariables.load_from_env()
         self.model_save_path: Path = self.model_dir / "model.ndb"
-
-    def unsupervised_train(self, db: ndb.NeuralDB, files: List[str]):
-        """
-        Train the model with unsupervised data.
-        Args:
-            db (ndb.NeuralDB): The NeuralDB instance.
-            files (List[str]): List of file paths for unsupervised training data.
-        """
-        buffer = queue.Queue()
-
-        producer_thread = threading.Thread(
-            target=producer,
-            args=(files, buffer, self.data_dir / "unsupervised"),
-        )
-
-        consumer_thread = threading.Thread(
-            target=consumer,
-            args=(buffer, db, self.train_variables.unsupervised_epochs, 50),
-        )
-
-        producer_thread.start()
-        consumer_thread.start()
-
-        producer_thread.join()
-        buffer.put(None)  # Signal the consumer to exit
-        consumer_thread.join()
 
     def get_supervised_files(self, files: List[str]) -> List[ndb.Sup]:
         """
@@ -76,20 +52,6 @@ class NDBModel(Model):
             convert_supervised_to_ndb_file(file, supervised_source_ids[i])
             for i, file in enumerate(files)
         ]
-
-    def supervised_train(self, db: ndb.NeuralDB, files: List[str]):
-        """
-        Train the model with supervised data.
-        Args:
-            db (ndb.NeuralDB): The NeuralDB instance.
-            files (List[str]): List of file paths for supervised training data.
-        """
-        supervised_sources = self.get_supervised_files(files)
-
-        db.supervised_train(
-            supervised_sources,
-            epochs=self.train_variables.supervised_epochs,
-        )
 
     def get_ndb_path(self, model_id: str) -> Path:
         """
@@ -159,7 +121,6 @@ class NDBModel(Model):
             db (ndb.NeuralDB): The NeuralDB instance.
         """
         num_params = self.get_num_params(db)
-        self.save(db)
 
         size = get_directory_size(self.model_save_path)
         size_in_memory = self.get_size_in_memory()
@@ -182,6 +143,63 @@ class SingleMach(NDBModel):
         """
         super().__init__()
         self.mach_variables: MachVariables = MachVariables.load_from_env()
+
+    def unsupervised_train(self, db: ndb.NeuralDB, files: List[str]):
+        """
+        Train the model with unsupervised data.
+        Args:
+            db (ndb.NeuralDB): The NeuralDB instance.
+            files (List[str]): List of file paths for unsupervised training data.
+        """
+        # For mach we need to have all the files in insert otherwise mach has
+        # this forgetting nature, so not doing the streaming way for mach.
+        unsupervised_docs = [
+            process_file(file, self.data_dir / "unsupervised") for file in files
+        ]
+
+        unsupervsied_checkpoint_config = None
+        if self.train_variables.checkpoint_interval:
+            resume = False
+            if self.unsupervised_checkpoint_dir.exists():
+                resume = True
+            unsupervsied_checkpoint_config = ndb.CheckpointConfig(
+                checkpoint_dir=self.unsupervised_checkpoint_dir,
+                checkpoint_interval=self.train_variables.checkpoint_interval,
+                resume_from_checkpoint=resume,
+            )
+
+        db.insert(
+            unsupervised_docs,
+            train=True,
+            checkpoint_config=unsupervsied_checkpoint_config,
+            epochs=self.train_variables.unsupervised_epochs,
+        )
+
+    def supervised_train(self, db: ndb.NeuralDB, files: List[str]):
+        """
+        Train the model with supervised data.
+        Args:
+            db (ndb.NeuralDB): The NeuralDB instance.
+            files (List[str]): List of file paths for supervised training data.
+        """
+        supervised_sources = self.get_supervised_files(files)
+
+        supervsied_checkpoint_config = None
+        if self.train_variables.checkpoint_interval:
+            resume = False
+            if self.supervised_checkpoint_dir.exists():
+                resume = True
+            supervsied_checkpoint_config = ndb.CheckpointConfig(
+                checkpoint_dir=self.supervised_checkpoint_dir,
+                checkpoint_interval=self.train_variables.checkpoint_interval,
+                resume_from_checkpoint=resume,
+            )
+
+        db.supervised_train(
+            supervised_sources,
+            epochs=self.train_variables.supervised_epochs,
+            checkpoint_config=supervsied_checkpoint_config,
+        )
 
     def train(self, **kwargs):
         """
@@ -209,6 +227,13 @@ class SingleMach(NDBModel):
 
             if test_files:
                 self.evaluate(db, test_files)
+
+        self.save(db)
+
+        if self.unsupervised_checkpoint_dir.exists():
+            shutil.rmtree(self.unsupervised_checkpoint_dir)
+        if self.supervised_checkpoint_dir.exists():
+            shutil.rmtree(self.supervised_checkpoint_dir)
 
         self.finalize_training(db)
 
@@ -276,6 +301,46 @@ class FinetunableRetriever(NDBModel):
         """
         super().__init__()
 
+    def unsupervised_train(self, db: ndb.NeuralDB, files: List[str]):
+        """
+        Train the model with unsupervised data.
+        Args:
+            db (ndb.NeuralDB): The NeuralDB instance.
+            files (List[str]): List of file paths for unsupervised training data.
+        """
+        buffer = queue.Queue()
+
+        producer_thread = threading.Thread(
+            target=producer,
+            args=(files, buffer, self.data_dir / "unsupervised"),
+        )
+
+        consumer_thread = threading.Thread(
+            target=consumer,
+            args=(buffer, db, self.train_variables.unsupervised_epochs, 50),
+        )
+
+        producer_thread.start()
+        consumer_thread.start()
+
+        producer_thread.join()
+        buffer.put(None)  # Signal the consumer to exit
+        consumer_thread.join()
+
+    def supervised_train(self, db: ndb.NeuralDB, files: List[str]):
+        """
+        Train the model with supervised data.
+        Args:
+            db (ndb.NeuralDB): The NeuralDB instance.
+            files (List[str]): List of file paths for supervised training data.
+        """
+        supervised_sources = self.get_supervised_files(files)
+
+        db.supervised_train(
+            supervised_sources,
+            epochs=self.train_variables.supervised_epochs,
+        )
+
     def train(self, **kwargs):
         """
         Train the FinetunableRetriever model with unsupervised and supervised data.
@@ -296,6 +361,8 @@ class FinetunableRetriever(NDBModel):
             check_disk(db, self.general_variables.model_bazaar_dir, supervised_files)
             self.supervised_train(db, supervised_files)
             print("Completed Supervised Training", flush=True)
+
+        self.save(db)
 
         self.finalize_training(db)
 

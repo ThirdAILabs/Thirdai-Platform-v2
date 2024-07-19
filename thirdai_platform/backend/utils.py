@@ -117,6 +117,7 @@ class NDBExtraOptions(BaseModel):
     disable_finetunable_retriever: Optional[bool] = (
         None  # This flag is to disable inverted index in supervised training.
     )
+    checkpoint_interval: Optional[int] = None
 
     class Config:
         extra = "forbid"

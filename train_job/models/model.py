@@ -36,6 +36,13 @@ class Model(ABC):
         )
         self.model_dir.mkdir(parents=True, exist_ok=True)
 
+        self.unsupervised_checkpoint_dir: Path = (
+            self.model_dir / "checkpoints" / "unsupervised"
+        )
+        self.supervised_checkpoint_dir: Path = (
+            self.model_dir / "checkpoints" / "supervised"
+        )
+
     @abstractmethod
     def train(self, **kwargs):
         """

@@ -1,4 +1,5 @@
 from abc import ABC
+from typing import Optional
 
 
 class Config(ABC):
@@ -57,10 +58,11 @@ class Config(ABC):
     output_dim: int = 5000
     allocation_memory: int = 1000
     allocation_cores: int = 2
+    checkpoint_interval: int = 1
 
-    epochs: int = 5
+    epochs: int = 3
 
-    retriever: str = "hybrid"
+    retriever: str = "mach"
 
 
 class Scifact(Config):

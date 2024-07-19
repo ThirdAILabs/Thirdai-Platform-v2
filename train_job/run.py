@@ -12,6 +12,7 @@ from variables import (
     NDBSubType,
     NeuralDBVariables,
     RetrieverEnum,
+    ShardVariables,
     TypeEnum,
 )
 
@@ -45,7 +46,18 @@ def main():
                 model.train()
     except Exception as err:
         traceback.print_exc()
-        reporter.report_status(general_variables.model_id, "failed", message=str(err))
+        if isinstance(model, ShardMach):
+            shard_variables = ShardVariables.load_from_env()
+            reporter.report_shard_train_status(
+                general_variables.model_id,
+                shard_variables.shard_num,
+                "failed",
+                message=str(err),
+            )
+        else:
+            reporter.report_status(
+                general_variables.model_id, "failed", message=str(err)
+            )
 
 
 if __name__ == "__main__":

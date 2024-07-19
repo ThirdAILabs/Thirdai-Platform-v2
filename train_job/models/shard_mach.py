@@ -7,6 +7,10 @@ from thirdai import data
 from thirdai.neural_db.documents import DocumentDataSource
 from thirdai.neural_db.models.mach import Mach
 from thirdai.neural_db.supervised_datasource import SupDataSource
+from thirdai.neural_db.trainer.training_data_manager import (
+    InsertDataManager,
+    SupervisedDataManager,
+)
 from thirdai.neural_db.trainer.training_progress_manager import (
     TrainingProgressManager as TPM,
 )
@@ -19,9 +23,12 @@ class ShardMach(NDBModel):
         """
         Initialize the ShardMach model with general, NeuralDB-specific, Mach-specific, and Shard-specific variables.
         """
+        self.shard_variables: ShardVariables = ShardVariables.load_from_env()
         super().__init__()
         self.mach_variables: MachVariables = MachVariables.load_from_env()
-        self.shard_variables: ShardVariables = ShardVariables.load_from_env()
+
+    def get_checkpoint_dir(self, base_checkpoint_dir: Path):
+        return base_checkpoint_dir / str(self.shard_variables.shard_num)
 
     def get_model_path(self, model_id: str) -> Path:
         """
@@ -91,16 +98,10 @@ class ShardMach(NDBModel):
             doc.path = Path(f"/shard_{self.shard_variables.shard_num}_doc_{i}.shard")
         return shard
 
-    def train(self, **kwargs):
+    def setup_logging(self):
         """
-        Train the ShardMach model.
+        Setup logging for training.
         """
-        self.reporter.report_shard_train_status(
-            self.general_variables.model_id,
-            self.shard_variables.shard_num,
-            "in_progress",
-        )
-
         thirdai.logging.setup(
             log_to_stderr=False,
             path=str(
@@ -109,25 +110,50 @@ class ShardMach(NDBModel):
             level="info",
         )
 
-        data_shard_num = int(
-            self.shard_variables.shard_num / self.ndb_variables.num_models_per_shard
+    def load_shard_data(self, data_shard_num: int):
+        """
+        Load the intro and training shard data.
+        Args:
+            data_shard_num (int): The data shard number.
+        Returns:
+            tuple: Intro and training shard data.
+        """
+        intro_shard_path = self.data_dir / f"intro_shard_{data_shard_num}.pkl"
+        train_shard_path = self.data_dir / f"train_shard_{data_shard_num}.pkl"
+
+        intro_shard = (
+            self.get_shard_data(intro_shard_path) if intro_shard_path.exists() else None
         )
-        model_num_in_shard = (
-            self.shard_variables.shard_num % self.ndb_variables.num_models_per_shard
+        train_shard = (
+            self.get_shard_data(train_shard_path) if train_shard_path.exists() else None
         )
 
-        mach_model = self.get_model(data_shard_num, model_num_in_shard)
+        return intro_shard, train_shard
 
-        test_file = self.data_dir / "test" / f"shard_{data_shard_num}.csv"
-
-        if (
-            intro_shard_path := self.data_dir / f"intro_shard_{data_shard_num}.pkl"
-        ).exists():
-            intro_shard = self.get_shard_data(intro_shard_path)
-            train_shard = self.get_shard_data(
-                self.data_dir / f"train_shard_{data_shard_num}.pkl"
+    def get_unsupervised_training_manager(self, mach_model, intro_shard, train_shard):
+        """
+        Create or load a unsupervised training manager.
+        Args:
+            mach_model (Mach): The Mach model instance.
+            intro_shard (DocumentDataSource): Intro shard data.
+            train_shard (DocumentDataSource): Training shard data.
+        Returns:
+            TrainingProgressManager: The training progress manager instance.
+        """
+        if self.unsupervised_checkpoint_config.resume_from_checkpoint:
+            datasource_manager = InsertDataManager(
+                checkpoint_dir=None,
+                intro_source=intro_shard,
+                train_source=train_shard,
             )
 
+            return TPM.from_checkpoint(
+                original_mach_model=mach_model,
+                checkpoint_config=self.unsupervised_checkpoint_config.get_mach_config(),
+                for_supervised=False,
+                datasource_manager=datasource_manager,
+            )
+        else:
             training_manager = TPM.from_scratch_for_unsupervised(
                 model=mach_model,
                 intro_documents=intro_shard,
@@ -141,22 +167,62 @@ class ShardMach(NDBModel):
                 epochs=self.train_variables.unsupervised_epochs,
                 learning_rate=self.train_variables.learning_rate,
                 batch_size=self.train_variables.batch_size,
-                checkpoint_config=None,
+                checkpoint_config=self.unsupervised_checkpoint_config.get_mach_config(),
+            )
+            training_manager.make_preindexing_checkpoint(save_datasource=False)
+            return training_manager
+
+    def get_supervised_training_manager(
+        self, mach_model: Mach, supervised_data_source: SupDataSource
+    ):
+        """
+        Create or load a supervised training manager.
+        Args:
+            mach_model (Mach): The Mach model instance.
+            supervised_data_source (SupDataSource): The supervised data source.
+        Returns:
+            TrainingProgressManager: The training progress manager instance.
+        """
+        if self.supervised_checkpoint_config.resume_from_checkpoint:
+            datasource_manager = SupervisedDataManager(
+                checkpoint_dir=None, train_source=supervised_data_source
             )
 
-            mach_model.index_documents_impl(
-                training_progress_manager=training_manager,
-                on_progress=no_op,
-                cancel_state=None,
+            return TPM.from_checkpoint(
+                original_mach_model=mach_model,
+                checkpoint_config=self.supervised_checkpoint_config.get_mach_config(),
+                for_supervised=True,
+                datasource_manager=datasource_manager,
             )
+        else:
+            training_manager = TPM.from_scratch_for_supervised(
+                model=mach_model,
+                supervised_datasource=supervised_data_source,
+                metrics=[
+                    "loss",
+                    f"hash_precision@{mach_model.extreme_num_hashes}",
+                    "hash_precision@5",
+                ],
+                checkpoint_config=self.supervised_checkpoint_config.get_mach_config(),
+                learning_rate=self.train_variables.learning_rate,
+                epochs=self.train_variables.supervised_epochs,
+                max_in_memory_batches=self.train_variables.max_in_memory_batches,
+                batch_size=self.train_variables.batch_size,
+                disable_finetunable_retriever=self.train_variables.disable_finetunable_retriever,
+            )
+            training_manager.make_preindexing_checkpoint(save_datasource=False)
+            return training_manager
 
-            if test_file.exists():
-                self.evaluate(mach_model, test_file)
-
-        if (
-            supervised_shard_path := self.data_dir
-            / f"supervised_shard_{data_shard_num}.pkl"
-        ).exists():
+    def load_supervised_data(self, data_shard_num: int):
+        """
+        Load supervised shard data.
+        Args:
+            data_shard_num (int): The data shard number.
+        Returns:
+            SupDataSource: The supervised data source.
+        """
+        supervised_shard_path = self.data_dir / f"supervised_shard_{data_shard_num}.pkl"
+        if supervised_shard_path.exists():
             with supervised_shard_path.open("rb") as pkl:
                 supervised_shard_picklable = pickle.load(pkl)
 
@@ -166,30 +232,70 @@ class ShardMach(NDBModel):
                 id_delimiter=supervised_shard_picklable["id_delimiter"],
                 id_column=supervised_shard_picklable["id_column"],
             )
-            del supervised_shard_picklable
+            return supervised_data_source
+        return None
 
-            mach_model.train_on_supervised_data_source(
-                supervised_data_source,
-                learning_rate=self.train_variables.learning_rate,
-                epochs=self.train_variables.supervised_epochs,
-                max_in_memory_batches=self.train_variables.max_in_memory_batches,
-                batch_size=self.train_variables.batch_size,
-                metrics=["loss", "hash_precision@1"],
-                callbacks=[],
-                disable_finetunable_retriever=self.train_variables.disable_finetunable_retriever,
+    def save_model(self, mach_model):
+        """
+        Save the Mach model to a file.
+        Args:
+            mach_model (Mach): The Mach model instance.
+        """
+        shard_model_path = self.get_model_path(self.general_variables.model_id)
+        shard_model_path.parent.mkdir(parents=True, exist_ok=True)
+        with shard_model_path.open("wb") as pkl:
+            pickle.dump(mach_model, pkl)
+        print("Saved Mach model", flush=True)
+
+    def train(self, **kwargs):
+        """
+        Train the ShardMach model.
+        """
+        self.reporter.report_shard_train_status(
+            self.general_variables.model_id,
+            self.shard_variables.shard_num,
+            "in_progress",
+        )
+        self.setup_logging()
+
+        data_shard_num = int(
+            self.shard_variables.shard_num / self.ndb_variables.num_models_per_shard
+        )
+        model_num_in_shard = (
+            self.shard_variables.shard_num % self.ndb_variables.num_models_per_shard
+        )
+
+        mach_model = self.get_model(data_shard_num, model_num_in_shard)
+        test_file = self.data_dir / "test" / f"shard_{data_shard_num}.csv"
+
+        intro_shard, train_shard = self.load_shard_data(data_shard_num)
+
+        if intro_shard and train_shard:
+            training_manager = self.get_unsupervised_training_manager(
+                mach_model, intro_shard, train_shard
+            )
+            mach_model.index_documents_impl(
+                training_progress_manager=training_manager,
+                on_progress=no_op,
+                cancel_state=None,
             )
 
             if test_file.exists():
                 self.evaluate(mach_model, test_file)
 
-        shard_model_path = self.get_model_path(self.general_variables.model_id)
-        shard_model_path.parent.mkdir(parents=True, exist_ok=True)
+        supervised_data_source = self.load_supervised_data(data_shard_num)
+        if supervised_data_source:
+            training_manager = self.get_supervised_training_manager(
+                mach_model, supervised_data_source
+            )
+            mach_model.supervised_training_impl(
+                supervised_progress_manager=training_manager, callbacks=[]
+            )
 
-        with shard_model_path.open("wb") as pkl:
-            pickle.dump(mach_model, pkl)
+            if test_file.exists():
+                self.evaluate(mach_model, test_file)
 
-        print("Saved Mach model", flush=True)
-
+        self.save_model(mach_model)
         self.reporter.report_shard_train_status(
             self.general_variables.model_id, self.shard_variables.shard_num, "complete"
         )

@@ -1,6 +1,7 @@
 import os
 import pickle
 import time
+from pathlib import Path
 
 import thirdai
 from models.ndb_models import NDBModel
@@ -160,7 +161,10 @@ class MultipleMach(NDBModel):
         """
         compute_variables = ComputeVariables.load_from_env()
         extra_options = merge_dataclasses_to_dict(
-            self.mach_variables, self.ndb_variables, compute_variables
+            self.mach_variables,
+            self.ndb_variables,
+            compute_variables,
+            self.train_variables,
         )
         extra_options["allocation_memory"] = extra_options["model_memory"]
         extra_options["allocation_cores"] = extra_options["model_cores"]

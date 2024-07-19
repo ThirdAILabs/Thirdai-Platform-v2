@@ -118,6 +118,7 @@ class NDBExtraOptions(BaseModel):
         None  # This flag is to disable inverted index in supervised training.
     )
     checkpoint_interval: Optional[int] = None
+    fast_approximation: Optional[bool] = None
 
     class Config:
         extra = "forbid"

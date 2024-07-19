@@ -30,6 +30,35 @@ class NDBModel(Model):
         self.ndb_variables: NeuralDBVariables = NeuralDBVariables.load_from_env()
         self.model_save_path: Path = self.model_dir / "model.ndb"
 
+        self.unsupervised_checkpoint_config = (
+            ndb.CheckpointConfig(
+                checkpoint_dir=self.get_checkpoint_dir(
+                    self.unsupervised_checkpoint_dir
+                ),
+                checkpoint_interval=self.train_variables.checkpoint_interval,
+                resume_from_checkpoint=self.get_checkpoint_dir(
+                    self.unsupervised_checkpoint_dir
+                ).exists(),
+            )
+            if self.train_variables.checkpoint_interval
+            else None
+        )
+
+        self.supervised_checkpoint_config = (
+            ndb.CheckpointConfig(
+                checkpoint_dir=self.get_checkpoint_dir(self.supervised_checkpoint_dir),
+                checkpoint_interval=self.train_variables.checkpoint_interval,
+                resume_from_checkpoint=self.get_checkpoint_dir(
+                    self.supervised_checkpoint_dir
+                ).exists(),
+            )
+            if self.train_variables.checkpoint_interval
+            else None
+        )
+
+    def get_checkpoint_dir(self, base_checkpoint_dir: Path):
+        return base_checkpoint_dir
+
     def get_supervised_files(self, files: List[str]) -> List[ndb.Sup]:
         """
         Convert files to supervised NDB files.
@@ -157,18 +186,10 @@ class SingleMach(NDBModel):
             process_file(file, self.data_dir / "unsupervised") for file in files
         ]
 
-        unsupervsied_checkpoint_config = None
-        if self.train_variables.checkpoint_interval:
-            unsupervsied_checkpoint_config = ndb.CheckpointConfig(
-                checkpoint_dir=self.unsupervised_checkpoint_dir,
-                checkpoint_interval=self.train_variables.checkpoint_interval,
-                resume_from_checkpoint=self.unsupervised_checkpoint_dir.exists(),
-            )
-
         db.insert(
             unsupervised_docs,
             train=True,
-            checkpoint_config=unsupervsied_checkpoint_config,
+            checkpoint_config=self.unsupervised_checkpoint_config,
             epochs=self.train_variables.unsupervised_epochs,
         )
 
@@ -181,18 +202,10 @@ class SingleMach(NDBModel):
         """
         supervised_sources = self.get_supervised_files(files)
 
-        supervsied_checkpoint_config = None
-        if self.train_variables.checkpoint_interval:
-            supervsied_checkpoint_config = ndb.CheckpointConfig(
-                checkpoint_dir=self.supervised_checkpoint_dir,
-                checkpoint_interval=self.train_variables.checkpoint_interval,
-                resume_from_checkpoint=self.supervised_checkpoint_dir.exists(),
-            )
-
         db.supervised_train(
             supervised_sources,
             epochs=self.train_variables.supervised_epochs,
-            checkpoint_config=supervsied_checkpoint_config,
+            checkpoint_config=self.supervised_checkpoint_config,
         )
 
     def train(self, **kwargs):

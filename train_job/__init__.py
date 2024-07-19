@@ -1,6 +1,6 @@
 import os
 
-from logging_service import LoggerConfig
+from stream_logger import LoggerConfig
 from variables import GeneralVariables
 
 general_variables: GeneralVariables = GeneralVariables.load_from_env()

@@ -206,3 +206,33 @@ class Deployment(SQLDeclarativeBase):
         return name
 
     __table_args__ = (UniqueConstraint("model_id", "user_id", "name"),)
+
+class Log(SQLDeclarativeBase):
+    __tablename__ = "logs"
+
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    action = Column(String, nullable=False)
+    train_samples = Column(JSON, nullable=True)
+    used = Column(Boolean, nullable=False, default=False)
+    timestamp = Column(DateTime, default=datetime.utcnow().isoformat(), nullable=False)
+
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    model_id = Column(
+        UUID(as_uuid=True), ForeignKey("models.id", ondelete="CASCADE"), nullable=False
+    )
+    deployment_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("deployments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    user = relationship("User", back_populates="logs")
+    model = relationship("Model", back_populates="logs")
+    deployment = relationship("Deployment", back_populates="logs")
+
+    def __repr__(self):
+        return f"Log(id = {self.id}, user_id = {self.user_id}, action = {self.action}, train_samples = {self.train_samples})"

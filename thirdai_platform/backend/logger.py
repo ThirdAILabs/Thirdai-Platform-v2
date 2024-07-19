@@ -4,8 +4,9 @@ from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
-from .utils import response
 from sqlalchemy.orm import Session
+
+from .utils import response
 
 logger_router = APIRouter()
 

@@ -207,6 +207,7 @@ class Deployment(SQLDeclarativeBase):
 
     __table_args__ = (UniqueConstraint("model_id", "user_id", "name"),)
 
+
 class Log(SQLDeclarativeBase):
     __tablename__ = "logs"
 

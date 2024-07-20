@@ -195,6 +195,8 @@ class MultipleMach(NDBModel):
         documents = doc_manager.sources()
         total_documents = [value.path for _, value in documents.items()]
 
+        start_time = time.time()
+
         if unsupervised_files:
             unsupervised_sources = [
                 convert_to_ndb_file(file) for file in unsupervised_files
@@ -296,6 +298,8 @@ class MultipleMach(NDBModel):
 
             time.sleep(10)
 
+        total_time = time.time() - start_time
+
         self.reporter.report_complete(
             self.general_variables.model_id,
             metadata={
@@ -303,6 +307,7 @@ class MultipleMach(NDBModel):
                 "size": str(approx_ndb_size),
                 "size_in_memory": str(int(model_size * 4 + doc_size)),
                 "thirdai_version": str(thirdai.__version__),
+                "training_time": str(total_time),
             },
         )
 

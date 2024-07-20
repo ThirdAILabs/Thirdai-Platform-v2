@@ -80,13 +80,9 @@ class Model(SQLDeclarativeBase):
     name = Column(String, nullable=False)
     train_status = Column(ENUM(Status), nullable=False, default=Status.not_started)
     type = Column(String(256), nullable=False)
-    # trained_on = Column(String, nullable=True)
-    # time_taken = Column(BigInteger, nullable=True)
-    # latency = Column(Float, nullable=True)
     # dataset_size = Column(BigInteger, nullable=True)
     downloads = Column(Integer, nullable=False, default=0)
     access_level = Column(ENUM(Access), nullable=False, default=Access.private)
-    # description = Column(String, nullable=True)
     domain = Column(String, nullable=True)
     published_date = Column(
         DateTime, default=datetime.utcnow().isoformat(), nullable=True

@@ -1,6 +1,7 @@
 import os
 import queue
 import threading
+import time
 from typing import List
 
 from exeptional_handler import apply_exception_handler
@@ -74,6 +75,8 @@ class FinetunableRetriever(NDBModel):
 
         db = self.get_db()
 
+        start_time = time.time()
+
         if unsupervised_files:
             check_disk(db, self.general_variables.model_bazaar_dir, unsupervised_files)
             self.unsupervised_train(db, unsupervised_files)
@@ -84,9 +87,11 @@ class FinetunableRetriever(NDBModel):
             self.supervised_train(db, supervised_files)
             print("Completed Supervised Training", flush=True)
 
+        total_time = time.time() - start_time
+
         self.save(db)
 
-        self.finalize_training(db)
+        self.finalize_training(db, total_time)
 
     def evaluate(self, **kwargs):
         """

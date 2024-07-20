@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 from typing import List
 
@@ -120,6 +121,16 @@ class NDBModel(Model):
         """
         pass
 
+    def get_latency(self, db: ndb.NeuralDB) -> float:
+        """
+        Get the latency of the db, Must be implemented by subclasses with single training
+        """
+        start_time = time.time()
+
+        db.search("Checking for latency", top_k=5)
+
+        return time.time() - start_time
+
     def save(self, db: ndb.NeuralDB):
         """
         Save the NeuralDB to disk.
@@ -128,7 +139,7 @@ class NDBModel(Model):
         """
         db.save(self.model_save_path)
 
-    def finalize_training(self, db: ndb.NeuralDB):
+    def finalize_training(self, db: ndb.NeuralDB, train_time: int):
         """
         Finalize the training process by saving the model and reporting completion.
         Args:
@@ -138,6 +149,7 @@ class NDBModel(Model):
 
         size = get_directory_size(self.model_save_path)
         size_in_memory = self.get_size_in_memory()
+        latency = self.get_latency(db)
 
         self.reporter.report_complete(
             model_id=self.general_variables.model_id,
@@ -146,5 +158,7 @@ class NDBModel(Model):
                 "size": str(size),
                 "size_in_memory": str(size_in_memory),
                 "thirdai_version": str(thirdai.__version__),
+                "training_time": str(train_time),
+                "latency": str(latency),
             },
         )

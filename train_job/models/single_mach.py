@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 from typing import List
 
 from exeptional_handler import apply_exception_handler
@@ -67,6 +68,8 @@ class SingleMach(NDBModel):
 
         db = self.get_db()
 
+        start_time = time.time()
+
         if unsupervised_files:
             check_disk(db, self.general_variables.model_bazaar_dir, unsupervised_files)
             self.unsupervised_train(db, unsupervised_files)
@@ -82,6 +85,8 @@ class SingleMach(NDBModel):
             if test_files:
                 self.evaluate(db, test_files)
 
+        total_time = time.time()
+
         self.save(db)
 
         if self.unsupervised_checkpoint_dir.exists():
@@ -89,7 +94,7 @@ class SingleMach(NDBModel):
         if self.supervised_checkpoint_dir.exists():
             shutil.rmtree(self.supervised_checkpoint_dir)
 
-        self.finalize_training(db)
+        self.finalize_training(db, total_time)
 
     def evaluate(self, db: ndb.NeuralDB, files: List[str], **kwargs):
         """

@@ -166,7 +166,7 @@ class ShardMach(NDBModel):
                 override_number_classes=self.shard_variables.num_classes,
                 variable_length=data.transformations.VariableLengthConfig(),
                 fast_approximation=self.train_variables.fast_approximation,
-                num_buckets_to_sample=None,
+                num_buckets_to_sample=self.train_variables.num_buckets_to_sample,
                 max_in_memory_batches=self.train_variables.max_in_memory_batches,
                 epochs=self.train_variables.unsupervised_epochs,
                 learning_rate=self.train_variables.learning_rate,
@@ -202,11 +202,7 @@ class ShardMach(NDBModel):
             training_manager = TPM.from_scratch_for_supervised(
                 model=mach_model,
                 supervised_datasource=supervised_data_source,
-                metrics=[
-                    "loss",
-                    f"hash_precision@{mach_model.extreme_num_hashes}",
-                    "hash_precision@5",
-                ],
+                metrics=self.train_variables.metrics,
                 checkpoint_config=self.supervised_checkpoint_config.get_mach_config(),
                 learning_rate=self.train_variables.learning_rate,
                 epochs=self.train_variables.supervised_epochs,
@@ -313,5 +309,7 @@ class ShardMach(NDBModel):
         """
         metrics = model.model.evaluate(
             file,
-            metrics=["precision@1", "precision@5", "recall@1", "recall@5"],
+            metrics=self.train_variables.metrics,
         )
+
+        print(f"For file {file} the metrics are {metrics}")

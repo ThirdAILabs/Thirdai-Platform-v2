@@ -7,6 +7,7 @@ from exeptional_handler import apply_exception_handler
 from models.ndb_model_interface import NDBModel
 from thirdai import neural_db as ndb
 from utils import check_disk, consumer, list_files, producer
+from variables import FinetunableRetrieverVariables
 
 
 @apply_exception_handler
@@ -18,6 +19,9 @@ class FinetunableRetriever(NDBModel):
         Initialize the FinetunableRetriever model with general and NeuralDB-specific variables.
         """
         super().__init__()
+        self.finetunable_retriever_variables = (
+            FinetunableRetrieverVariables.load_from_env()
+        )
 
     def unsupervised_train(self, db: ndb.NeuralDB, files: List[str]):
         """
@@ -98,7 +102,7 @@ class FinetunableRetriever(NDBModel):
         """
         return ndb.NeuralDB(
             retriever=self.ndb_variables.retriever,
-            on_disk=True,  # See if we have to configure this from variables
+            on_disk=self.finetunable_retriever_variables.on_disk,
         )
 
     def get_num_params(self, db: ndb.NeuralDB) -> int:

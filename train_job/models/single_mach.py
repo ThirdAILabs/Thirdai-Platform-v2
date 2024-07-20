@@ -101,8 +101,9 @@ class SingleMach(NDBModel):
         for file in files:
             metrics = db._savable_state.model.model.evaluate(
                 file,
-                metrics=["precision@1", "precision@5", "recall@1", "recall@5"],
+                metrics=self.train_variables.metrics,
             )
+            print(f"for file {file} metrics are {metrics}", flush=True)
 
     def initialize_db(self) -> ndb.NeuralDB:
         """

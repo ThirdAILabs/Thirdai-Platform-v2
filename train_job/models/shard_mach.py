@@ -46,8 +46,8 @@ class ShardMach(NDBModel):
         Returns:
             Mach: The Mach model instance.
         """
-        if self.ndb_variables.base_model_id:
-            base_model_path = self.get_model_path(self.ndb_variables.base_model_id)
+        if self.general_variables.base_model_id:
+            base_model_path = self.get_model_path(self.general_variables.base_model_id)
 
             with base_model_path.open("rb") as pkl:
                 return pickle.load(pkl)

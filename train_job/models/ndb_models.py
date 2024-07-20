@@ -122,8 +122,8 @@ class NDBModel(Model):
         Returns:
             ndb.NeuralDB: The NeuralDB instance.
         """
-        if self.ndb_variables.base_model_id:
-            return self.load_db(self.ndb_variables.base_model_id)
+        if self.general_variables.base_model_id:
+            return self.load_db(self.general_variables.base_model_id)
         return self.initialize_db()
 
     def initialize_db(self):

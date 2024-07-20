@@ -14,7 +14,7 @@ from database import schema
 from fastapi import UploadFile
 from fastapi.responses import JSONResponse
 from jinja2 import Template
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, root_validator, validator
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger("ThirdAI_Platform")
@@ -81,30 +81,33 @@ def validate_name(name):
 
 
 class UDTExtraOptions(BaseModel):
-    udt_type: Optional[str] = None  # Options: 'text', 'token'
-    delimiter: Optional[str] = None
-    n_target_classes: Optional[int] = None
-    target_labels: Optional[List[str]] = None
+    sub_type: Optional[str] = None
+    target_labels: List[str] = None
+    source_column: Optional[str] = None
+    target_column: Optional[str] = None
     default_tag: Optional[str] = None
+    delimiter: Optional[str] = None
+    text_column: Optional[str] = None
+    label_column: Optional[str] = None
+    n_target_classes: Optional[int] = None
+    metrics: List[str] = None
 
-    @validator("udt_type", pre=True, always=True)
-    def set_fields_based_on_type(cls, v, values, **kwargs):
-        if v == "text":
+    @root_validator(pre=True)
+    def set_fields_based_on_type(cls, values):
+        sub_type = values.get("sub_type")
+        if sub_type == "text":
             values["delimiter"] = ":"
-            values["n_target_classes"] = (
-                None  # Explicitly setting to None if not already
-            )
-            values["target_labels"] = None
-            values["default_tag"] = None
-        elif v == "token":
-            values["delimiter"] = None
+            values["text_column"] = "text"
+            values["label_column"] = "label"
             values["n_target_classes"] = None
+            values["metrics"] = ["loss", "categorical_accuracy"]
+        elif sub_type == "token":
             values["target_labels"] = []
+            values["source_column"] = "source"
+            values["target_column"] = "target"
             values["default_tag"] = "O"
-        return v
-
-    class Config:
-        extra = "forbid"
+            values["metrics"] = ["loss"]
+        return values
 
 
 class NDBExtraOptions(BaseModel):

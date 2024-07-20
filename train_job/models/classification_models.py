@@ -37,8 +37,8 @@ class ClassificationModel(Model):
         model.save(self.model_save_path)
 
     def get_model(self):
-        if self.udt_variables.base_model_id:
-            return self.load_model(self.udt_variables.base_model_id)
+        if self.general_variables.base_model_id:
+            return self.load_model(self.general_variables.base_model_id)
         return self.initialize_model()
 
     @abstractmethod

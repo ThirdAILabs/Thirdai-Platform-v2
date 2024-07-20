@@ -21,39 +21,6 @@ class ClassificationModel(Model):
     def get_udt_path(self, model_id):
         return self.get_model_dir(model_id) / "model.udt"
 
-    def save_udt(self, **kwargs):
-        model_path = self.get_udt_path(kwargs.get("model_id"))
-        temp_dir = None
-
-        try:
-            with tempfile.TemporaryDirectory() as temp_dir:
-                temp_model_path = Path(temp_dir) / "model.udt"
-                self.model.save(save_to=temp_model_path)
-                if model_path.exists():
-                    backup_id = str(uuid.uuid4())
-                    backup_path = self.get_udt_path(backup_id)
-                    print(f"Creating backup: {backup_id}")
-                    shutil.copytree(model_path, backup_path)
-
-                if model_path.exists():
-                    shutil.rmtree(model_path)
-                shutil.move(temp_model_path, model_path)
-
-                if model_path.exists() and "backup_path" in locals():
-                    shutil.rmtree(backup_path.parent)
-
-        except Exception as err:
-            logging.error(f"Failed while saving with error: {err}")
-            traceback.print_exc()
-
-            if "backup_path" in locals() and backup_path.exists():
-                if model_path.exists():
-                    shutil.rmtree(model_path)
-                shutil.copytree(backup_path, model_path)
-                shutil.rmtree(backup_path.parent)
-
-            raise
-
     def load_model(self):
         return bolt.UniversalDeepTranformer.load(self.model_path)
 
@@ -68,13 +35,13 @@ class TextClassificationModel(ClassificationModel):
 
     def predict(self, **kwargs):
         query = kwargs["query"]
-
-        prediction = self.model.predict({"text": query})
-        class_name = self.model.class_name(np.argmax(prediction))
+        top_k = kwargs["top_k"]
+        prediction = self.model.predict({"text": query}, top_k=top_k)
+        class_names = [self.model.class_name(x) for x in prediction[0]]
 
         return inputs.SearchResultsTextClassification(
             query_text=query,
-            class_name=class_name,
+            class_name=class_names,
         )
 
 

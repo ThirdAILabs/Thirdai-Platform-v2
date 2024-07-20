@@ -121,6 +121,7 @@ class GeneralVariables(EnvLoader):
     model_bazaar_dir: str
     license_key: str
     model_bazaar_endpoint: str
+    base_model_id: Optional[str]
     model_id: str
     data_id: str
     type: TypeEnum = TypeEnum.NDB
@@ -129,26 +130,25 @@ class GeneralVariables(EnvLoader):
 
 @dataclass
 class UDTVariables(EnvLoader):
-    base_model_id: Optional[str] = None
     subtype: UDTSubType = UDTSubType.text
 
 
 @dataclass
 class TokenClassificationVariables(EnvLoader):
     target_labels: List[str] = []
-    source_column: str = "source"
-    target_column: str = "target"
-    default_tag: str = "O"
-    metrics: List[str] = ["loss", "categorical_accuracy"]
+    source_column: str = None
+    target_column: str = None
+    default_tag: str = None
+    metrics: List[str] = None
 
 
 @dataclass
 class TextClassificationVariables(EnvLoader):
-    delimiter: str = ":"
-    text_column: str = "text"
-    label_column: str = "label"
+    delimiter: str = None
+    text_column: str = None
+    label_column: str = None
     n_target_classes: Optional[int] = None
-    metrics: List[str] = ["loss", "categorical_accuracy"]
+    metrics: List[str] = None
 
 
 @dataclass
@@ -170,7 +170,6 @@ class FinetunableRetrieverVariables(EnvLoader):
 class NeuralDBVariables(EnvLoader):
     num_shards: int = 1
     num_models_per_shard: int = 1
-    base_model_id: Optional[str] = None
     retriever: RetrieverEnum = RetrieverEnum.FINETUNABLE_RETRIEVER
 
 

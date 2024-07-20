@@ -44,7 +44,7 @@ class DeleteInput(BaseModel):
 
 class SearchResultsTextClassification(BaseModel):
     query_text: str
-    class_name: str
+    class_names: List[str]
 
 
 class SearchResultsTokenClassification(BaseModel):

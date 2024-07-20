@@ -80,7 +80,7 @@ class MultipleMach(NDBModel):
             ndb.NeuralDB: The loaded NeuralDB instance.
         """
         db = ndb.NeuralDB.from_checkpoint(
-            self.get_ndb_path(self.ndb_variables.base_model_id)
+            self.get_ndb_path(self.general_variables.base_model_id)
         )
 
         mixture: MachMixture = db._savable_state.model
@@ -257,7 +257,7 @@ class MultipleMach(NDBModel):
                     shard_num=i * mixture.num_models_per_shard + j,
                     model_id=self.general_variables.model_id,
                     data_id=self.general_variables.data_id,
-                    base_model_id=self.ndb_variables.base_model_id,
+                    base_model_id=self.general_variables.base_model_id,
                     extra_options=extra_options,
                 )
 

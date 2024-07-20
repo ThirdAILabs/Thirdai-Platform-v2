@@ -1,15 +1,19 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from exeptional_handler import apply_exception_handler
 from reporter import Reporter
 from variables import GeneralVariables, TrainVariables
 
 
+@apply_exception_handler
 class Model(ABC):
     """
     Abstract base class for a model.
     Provides common initialization and abstract methods for training and evaluation.
     """
+
+    report_failure_method = "report_status"
 
     def __init__(self):
         """

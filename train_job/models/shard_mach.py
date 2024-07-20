@@ -2,6 +2,7 @@ import pickle
 from pathlib import Path
 
 import thirdai
+from exeptional_handler import apply_exception_handler
 from models.ndb_model_interface import NDBModel
 from thirdai import data
 from thirdai.neural_db.documents import DocumentDataSource
@@ -18,7 +19,10 @@ from utils import no_op
 from variables import MachVariables, ShardVariables
 
 
+@apply_exception_handler
 class ShardMach(NDBModel):
+    report_failure_method = "report_shard_train_status"
+
     def __init__(self):
         """
         Initialize the ShardMach model with general, NeuralDB-specific, Mach-specific, and Shard-specific variables.

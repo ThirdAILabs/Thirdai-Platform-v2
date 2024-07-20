@@ -3,12 +3,16 @@ import queue
 import threading
 from typing import List
 
+from exeptional_handler import apply_exception_handler
 from models.ndb_model_interface import NDBModel
 from thirdai import neural_db as ndb
 from utils import check_disk, consumer, list_files, producer
 
 
+@apply_exception_handler
 class FinetunableRetriever(NDBModel):
+    report_failure_method = "report_status"
+
     def __init__(self):
         """
         Initialize the FinetunableRetriever model with general and NeuralDB-specific variables.

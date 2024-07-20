@@ -3,13 +3,17 @@ from pathlib import Path
 from typing import List
 
 import thirdai
+from exeptional_handler import apply_exception_handler
 from models.model import Model
 from thirdai import neural_db as ndb
 from utils import convert_supervised_to_ndb_file, get_directory_size
 from variables import NeuralDBVariables
 
 
+@apply_exception_handler
 class NDBModel(Model):
+    report_failure_method = "report_status"
+
     def __init__(self):
         """
         Initialize the NDBModel with general and NeuralDB-specific variables.

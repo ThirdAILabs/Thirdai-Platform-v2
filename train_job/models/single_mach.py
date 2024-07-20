@@ -2,13 +2,17 @@ import os
 import shutil
 from typing import List
 
+from exeptional_handler import apply_exception_handler
 from models.ndb_model_interface import NDBModel
 from thirdai import neural_db as ndb
 from utils import check_disk, list_files, process_file
 from variables import MachVariables
 
 
+@apply_exception_handler
 class SingleMach(NDBModel):
+    report_failure_method = "report_status"
+
     def __init__(self):
         """
         Initialize the SingleMach model with general, NeuralDB-specific, and Mach-specific variables.

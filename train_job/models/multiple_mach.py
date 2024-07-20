@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 import thirdai
+from exeptional_handler import apply_exception_handler
 from models.ndb_model_interface import NDBModel
 from thirdai import neural_db as ndb
 from thirdai.neural_db.models.mach_mixture_model import MachMixture
@@ -13,7 +14,10 @@ from utils import convert_to_ndb_file, list_files, make_test_shard_files
 from variables import ComputeVariables, MachVariables, merge_dataclasses_to_dict
 
 
+@apply_exception_handler
 class MultipleMach(NDBModel):
+    report_failure_method = "report_status"
+
     def __init__(self):
         """
         Initialize the MultipleMach model with environment variables.

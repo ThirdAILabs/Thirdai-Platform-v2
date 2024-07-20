@@ -77,6 +77,7 @@ def build_extra_options(config: Config, sharded: bool = False) -> Dict[str, Any]
         "unsupervised_epochs": config.epochs,
         "supervised_epochs": config.epochs,
         "retriever": config.retriever,
+        "checkpoint_interval": config.checkpoint_interval,
     }
 
 

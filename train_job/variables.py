@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ast
 import os
-from dataclasses import MISSING, asdict, dataclass, fields
+from dataclasses import MISSING, asdict, dataclass, field, fields
 from enum import Enum
 from typing import Dict, List, Optional, Type, TypeVar, Union, get_args, get_origin
 
@@ -171,6 +171,7 @@ class NeuralDBVariables(EnvLoader):
     num_shards: int = 1
     num_models_per_shard: int = 1
     retriever: RetrieverEnum = RetrieverEnum.FINETUNABLE_RETRIEVER
+    docs_on_disk: bool = True
 
 
 @dataclass
@@ -183,7 +184,9 @@ class TrainVariables(EnvLoader):
     unsupervised_train: bool = True
     disable_finetunable_retriever: bool = True
     fast_approximation: bool = True
-    metrics: List[str] = ["loss"]
+    checkpoint_interval: Optional[int] = None
+    metrics: List[str] = field(default_factory=lambda: ["loss", "hash_precision@1"])
+    num_buckets_to_sample: Optional[int] = None
 
 
 @dataclass

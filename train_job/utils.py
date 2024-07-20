@@ -14,7 +14,7 @@ from botocore import UNSIGNED
 from botocore.client import Config
 from fastapi import Response
 from thirdai import neural_db as ndb
-from variables import S3Variables
+from variables import NeuralDBVariables, S3Variables
 
 GB_1 = 1024 * 1024 * 1024  # Define 1 GB in bytes
 
@@ -100,6 +100,7 @@ def list_files(file_dir: str) -> list[str]:
 
 
 def convert_to_ndb_file(file: str) -> ndb.Document:
+    ndb_variables = NeuralDBVariables.load_from_env()
     """
     Convert a file to an NDB file type based on its extension.
     """
@@ -112,9 +113,14 @@ def convert_to_ndb_file(file: str) -> ndb.Document:
         with open(json_file_path, "r") as json_file:
             data_dict = json.load(json_file)
     if ext == ".pdf":
-        return ndb.PDF(file, metadata=data_dict, save_extra_info=False, on_disk=True)
+        return ndb.PDF(
+            file,
+            metadata=data_dict,
+            save_extra_info=False,
+            on_disk=ndb_variables.docs_on_disk,
+        )
     elif ext == ".docx":
-        return ndb.DOCX(file, metadata=data_dict, on_disk=True)
+        return ndb.DOCX(file, metadata=data_dict, on_disk=ndb_variables.docs_on_disk)
     elif ext == ".html":
         base_filename = os.path.basename(filename)
 
@@ -129,7 +135,7 @@ def convert_to_ndb_file(file: str) -> ndb.Document:
             base_filename,
             dummy_response,
             metadata=data_dict,
-            on_disk=True,
+            on_disk=ndb_variables.docs_on_disk,
             save_extra_info=False,
         )
     elif ext == ".csv":
@@ -143,7 +149,7 @@ def convert_to_ndb_file(file: str) -> ndb.Document:
             ),
             metadata=data_dict,
             save_extra_info=False,
-            on_disk=True,
+            on_disk=ndb_variables.docs_on_disk,
         )
     else:
         raise TypeError(f"{ext} Document type isn't supported yet.")

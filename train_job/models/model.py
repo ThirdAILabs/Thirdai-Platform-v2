@@ -1,15 +1,19 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from exeptional_handler import apply_exception_handler
 from reporter import Reporter
 from variables import GeneralVariables, TrainVariables
 
 
+@apply_exception_handler
 class Model(ABC):
     """
     Abstract base class for a model.
     Provides common initialization and abstract methods for training and evaluation.
     """
+
+    report_failure_method = "report_status"
 
     def __init__(self):
         """
@@ -35,6 +39,13 @@ class Model(ABC):
             / self.general_variables.model_id
         )
         self.model_dir.mkdir(parents=True, exist_ok=True)
+
+        self.unsupervised_checkpoint_dir: Path = (
+            self.model_dir / "checkpoints" / "unsupervised"
+        )
+        self.supervised_checkpoint_dir: Path = (
+            self.model_dir / "checkpoints" / "supervised"
+        )
 
     @abstractmethod
     def train(self, **kwargs):

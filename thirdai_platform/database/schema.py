@@ -87,7 +87,6 @@ class Model(SQLDeclarativeBase):
     # dataset_size = Column(BigInteger, nullable=True)
     downloads = Column(Integer, nullable=False, default=0)
     access_level = Column(ENUM(Access), nullable=False, default=Access.private)
-    # description = Column(String, nullable=True)
     domain = Column(String, nullable=True)
     published_date = Column(
         DateTime, default=datetime.utcnow().isoformat(), nullable=True

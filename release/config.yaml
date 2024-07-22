@@ -1,0 +1,28 @@
+azure:
+  branches:
+    test_1:
+      pull_credentials:
+        password: lfhxcL/qmrYP24rIH2vmRNSYV9ZlNCfxJyQI6E3kVi+ACRDjUz22
+        username: thirdaiplatform-pull-test-1
+      push_credentials:
+        password: XCM9NnRa3ybEjKNbsZSl8eEio1VC3NHMOGCwqOXb/r+ACRCD4kbn
+        username: thirdaiplatform-push-test-1
+      version: 0.0.1
+    test_2:
+      pull_credentials:
+        password: wgAJy1o7t1aybREkWMi8oQnsHxLg5eetcD98yyXpXY+ACRB5rap/
+        username: thirdaiplatform-pull-test-2
+      push_credentials:
+        password: v5yOJruG8kxPB5jpr50OurWDYBRuc+lw+VmXV+p4QU+ACRBitPEC
+        username: thirdaiplatform-push-test-2
+      version: 0.0.2
+    test_3:
+      pull_credentials:
+        password: /5bqfPyF2QlEKJ/Xo26ctZmZ7SAqYNaq6P+DVRaMI2+ACRCxY8ds
+        username: thirdaiplatform-pull-test-3
+      push_credentials:
+        password: PkCR7YWr0zG/sW6rZex19qzQdR4A1QNg7RXWFKCBGt+ACRDolvsb
+        username: thirdaiplatform-push-test-3
+      version: 0.0.1
+  registry: thirdaiplatform.azurecr.io
+provider: azure

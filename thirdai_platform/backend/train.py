@@ -313,7 +313,7 @@ def train(
             train_status=schema.Status.not_started,
             name=model_name,
             type="udt",
-            sub_type=extra_options.sub_type,
+            sub_type=extra_options['sub_type'],
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model_identifier else None,
@@ -325,6 +325,9 @@ def train(
 
         work_dir = os.getcwd()
 
+        udt_subtype = extra_options['sub_type']
+        extra_options.pop('sub_type', None)
+        print(extra_options)
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -346,12 +349,11 @@ def train(
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
             base_model_id=("NONE" if not base_model_identifier else str(base_model.id)),
             type="udt",
-            sub_type=extra_options.sub_type,
+            sub_type=udt_subtype,
         )
 
     except Exception as err:
         # TODO: change the status of the new model entry to failed
-
         logger.info(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

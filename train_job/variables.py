@@ -121,7 +121,7 @@ class GeneralVariables(EnvLoader):
     model_bazaar_dir: str
     license_key: str
     model_bazaar_endpoint: str
-    base_model_id: Optional[str]
+    base_model_id: Optional[str] = None
     model_id: str
     data_id: str
     type: TypeEnum = TypeEnum.NDB
@@ -130,12 +130,12 @@ class GeneralVariables(EnvLoader):
 
 @dataclass
 class UDTVariables(EnvLoader):
-    subtype: UDTSubType = UDTSubType.text
+    sub_type: UDTSubType = UDTSubType.text
 
 
 @dataclass
 class TokenClassificationVariables(EnvLoader):
-    target_labels: List[str] = []
+    target_labels: List[str] = None
     source_column: str = None
     target_column: str = None
     default_tag: str = None
@@ -147,7 +147,7 @@ class TextClassificationVariables(EnvLoader):
     delimiter: str = None
     text_column: str = None
     label_column: str = None
-    n_target_classes: Optional[int] = None
+    n_target_classes: int = None
     metrics: List[str] = None
 
 

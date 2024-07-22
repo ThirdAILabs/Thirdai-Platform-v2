@@ -96,17 +96,17 @@ class UDTExtraOptions(BaseModel):
     def set_fields_based_on_type(cls, values):
         sub_type = values.get("sub_type")
         if sub_type == "text":
-            values["delimiter"] = ":"
-            values["text_column"] = "text"
-            values["label_column"] = "label"
-            values["n_target_classes"] = None
-            values["metrics"] = ["loss", "categorical_accuracy"]
+            values["delimiter"] = values.get("delimiter", ",")
+            values["text_column"] = values.get("text_column", "text")
+            values["label_column"] = values.get("label_column", "label")
+            values["n_target_classes"] = values.get("n_target_classes", None)
+            values["metrics"] = values.get("metrics", ['categorical_accuracy','loss'])
         elif sub_type == "token":
-            values["target_labels"] = []
-            values["source_column"] = "source"
-            values["target_column"] = "target"
-            values["default_tag"] = "O"
-            values["metrics"] = ["loss"]
+            values["target_labels"] = values.get("target_labels", [])
+            values["source_column"] = values.get("source_column", "source")
+            values["target_column"] = values.get("target_column", "target")
+            values["default_tag"] = values.get("default_tag", "O")
+            values["metrics"] = values.get("metrics", ['categorical_accuracy','loss'])
         return values
 
 
@@ -517,6 +517,7 @@ def submit_nomad_job(filepath, nomad_endpoint, **kwargs):
     json_payload_response = requests.post(
         json_payload_url, headers=headers, json=hcl_payload
     )
+    print(json_payload_response.text)
     json_payload = json_payload_response.json()
 
     # Submit the JSON job spec to Nomad

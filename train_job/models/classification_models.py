@@ -34,7 +34,7 @@ class ClassificationModel(Model):
         return bolt.UniversalDeepTransformer.load(self.get_udt_path(model_id))
 
     def save_model(self, model):
-        model.save(self.model_save_path)
+        model.save(str(self.model_save_path))
 
     def get_model(self):
         if self.general_variables.base_model_id:
@@ -69,29 +69,16 @@ class TextClassificationModel(ClassificationModel):
         model = self.get_model()
 
         unsupervised_files = list_files(self.data_dir / "unsupervised")
-        supervised_files = list_files(self.data_dir / "supervised")
 
-        if unsupervised_files:
-            for unsup_train_file in unsupervised_files:
-                model.cold_start(
-                    unsup_train_file,
-                    strong_column_names=[self.txt_cls_vars.text_column],
-                    weak_column_names=[],
-                    epochs=self.train_variables.unsupervised_epochs,
-                    learning_rate=self.train_variables.learning_rate,
-                    batch_size=self.train_variables.batch_size,
-                    metrics=self.train_variables.metrics,
-                )
 
-        if supervised_files:
-            for sup_train_file in supervised_files:
-                model.train(
-                    sup_train_file,
-                    epochs=self.train_variables.supervised_epochs,
-                    learning_rate=self.train_variables.learning_rate,
-                    batch_size=self.train_variables.batch_size,
-                    metrics=self.train_variables.metrics,
-                )
+        for train_file in unsupervised_files:
+            model.train(
+                train_file,
+                epochs=self.train_variables.unsupervised_epochs,
+                learning_rate=self.train_variables.learning_rate,
+                batch_size=self.train_variables.batch_size,
+                metrics=self.train_variables.metrics,
+            )
 
         self.save_model(model)
 
@@ -129,30 +116,16 @@ class TokenClassificationModel(ClassificationModel):
 
         model = self.get_model()
 
-        unsupervised_files = list_files(self.data_dir / "supervised")
-        supervised_files = list_files(self.data_dir / "supervised")
+        unsupervised_files = list_files(self.data_dir / "unsupervised")
 
-        if unsupervised_files:
-            for unsup_train_file in unsupervised_files:
-                model.cold_start(
-                    unsup_train_file,
-                    strong_column_names=[self.tkn_cls_vars.source_column],
-                    weak_column_names=[],
-                    epochs=self.train_variables.unsupervised_epochs,
-                    learning_rate=self.train_variables.learning_rate,
-                    batch_size=self.train_variables.batch_size,
-                    metrics=self.train_variables.metrics,
-                )
-
-        if supervised_files:
-            for sup_train_file in supervised_files:
-                model.train(
-                    sup_train_file,
-                    epochs=self.train_variables.supervised_epochs,
-                    learning_rate=self.train_variables.learning_rate,
-                    batch_size=self.train_variables.batch_size,
-                    metrics=self.train_variables.metrics,
-                )
+        for train_file in unsupervised_files:
+            model.train(
+                train_file,
+                epochs=self.train_variables.unsupervised_epochs,
+                learning_rate=self.train_variables.learning_rate,
+                batch_size=self.train_variables.batch_size,
+                metrics=self.train_variables.metrics,
+            )
 
         self.save_model(model)
 

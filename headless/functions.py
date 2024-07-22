@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Dict
+from typing import Any, Callable, Dict
 
 from headless.configs import Config
 from headless.model import Flow
@@ -8,15 +8,23 @@ from headless.utils import build_extra_options, create_doc_dict
 
 logging.basicConfig(level=logging.INFO)
 
-flow = None
+flow: Flow = None
 
 
-def initialize_flow(base_url, email, password):
+def initialize_flow(base_url: str, email: str, password: str):
+    """
+    Initializes the Flow object with the given credentials.
+
+    Parameters:
+    base_url (str): Base URL of the API.
+    email (str): Email for authentication.
+    password (str): Password for authentication.
+    """
     global flow
     flow = Flow(base_url=base_url, email=email, password=password)
 
 
-def check_unsupervised(inputs: Dict):
+def check_unsupervised(inputs: Dict[str, Any]) -> Any:
     logging.info(f"Running unsupervised with {inputs}")
     sharded = inputs.get("sharded")
     run_name = inputs.get("run_name")
@@ -34,7 +42,7 @@ def check_unsupervised(inputs: Dict):
     )
 
 
-def check_unsupervised_supervised(inputs: Dict):
+def check_unsupervised_supervised(inputs: Dict[str, Any]) -> Any:
     logging.info(f"Running unsupervised supervised with {inputs}")
     sharded = inputs.get("sharded")
     run_name = inputs.get("run_name")
@@ -58,7 +66,13 @@ def check_unsupervised_supervised(inputs: Dict):
     )
 
 
-def await_train(inputs: Dict):
+def await_train(inputs: Dict[str, Any]):
+    """
+    Awaits the completion of model training.
+
+    Parameters:
+    inputs (dict): Dictionary containing input parameters.
+    """
     logging.info(f"inputs: {inputs}")
     model = inputs.get("model")
     logging.info(
@@ -67,7 +81,7 @@ def await_train(inputs: Dict):
     flow.bazaar_client.await_train(model)
 
 
-def deploy(inputs: Dict):
+def deploy(inputs: Dict[str, Any]) -> Any:
     logging.info(f"inputs: {inputs}")
     model = inputs.get("model")
     run_name = inputs.get("run_name")
@@ -79,7 +93,13 @@ def deploy(inputs: Dict):
     return flow.deploy(model.model_identifier, f"{run_name}_deployment")
 
 
-def await_deploy(inputs: Dict):
+def await_deploy(inputs: Dict[str, Any]):
+    """
+    Awaits the completion of model deployment.
+
+    Parameters:
+    inputs (dict): Dictionary containing input parameters.
+    """
     logging.info(f"inputs: {inputs}")
     deployment = inputs.get("deployment")
     logging.info(
@@ -88,11 +108,17 @@ def await_deploy(inputs: Dict):
     flow.bazaar_client.await_deploy(deployment)
 
 
-def check_deployment(inputs: Dict):
+def check_deployment(inputs: Dict[str, Any]):
+    """
+    Checks the status and functionality of a deployment.
+
+    Parameters:
+    inputs (dict): Dictionary containing input parameters.
+    """
     logging.info(f"inputs: {inputs}")
     deployment = inputs.get("deployment")
     run_name = inputs.get("run_name")
-    config = inputs.get("config")
+    config: Config = inputs.get("config")
 
     logging.info(f"checking the deployment for {deployment.deployment_identifier}")
 
@@ -150,7 +176,13 @@ def check_deployment(inputs: Dict):
     deployment.save_model(override=True)
 
 
-def undeploy(inputs: Dict):
+def undeploy(inputs: Dict[str, Any]):
+    """
+    Stops a deployment.
+
+    Parameters:
+    inputs (dict): Dictionary containing input parameters.
+    """
     logging.info(f"inputs: {inputs}")
     deployment = inputs.get("deployment")
 
@@ -159,7 +191,7 @@ def undeploy(inputs: Dict):
     flow.bazaar_client.undeploy(deployment)
 
 
-functions_registry = {
+functions_registry: Dict[str, Callable] = {
     "check_unsupervised": check_unsupervised,
     "check_unsupervised_supervised": check_unsupervised_supervised,
     "await_train": await_train,

@@ -1,11 +1,10 @@
 import os
-import traceback
 
 import thirdai
+from models.finetunable_retriever import FinetunableRetriever
 from models.multiple_mach import MultipleMach
-from models.ndb_models import FinetunableRetriever, SingleMach
 from models.shard_mach import ShardMach
-from reporter import Reporter
+from models.single_mach import SingleMach
 from variables import (
     GeneralVariables,
     NDBSubType,
@@ -24,29 +23,24 @@ def main():
     """
     Main function to initialize and train the appropriate model based on environment variables.
     """
-    reporter = Reporter(api_url=general_variables.model_bazaar_endpoint)
-    try:
-        if general_variables.type == TypeEnum.NDB:
-            ndb_variables: NeuralDBVariables = NeuralDBVariables.load_from_env()
-            if general_variables.sub_type == NDBSubType.normal:
-                if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
-                    model = FinetunableRetriever()
-                    model.train()
-                else:
-                    model = SingleMach()
-                    model.train()
-            elif general_variables.sub_type == NDBSubType.shard_allocation:
-                if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
-                    raise ValueError("Currently Not supported")
-                else:
-                    model = MultipleMach()
-                    model.train()
-            else:
-                model = ShardMach()
+    if general_variables.type == TypeEnum.NDB:
+        ndb_variables: NeuralDBVariables = NeuralDBVariables.load_from_env()
+        if general_variables.sub_type == NDBSubType.normal:
+            if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
+                model = FinetunableRetriever()
                 model.train()
-    except Exception as err:
-        traceback.print_exc()
-        reporter.report_status(general_variables.model_id, "failed", message=str(err))
+            else:
+                model = SingleMach()
+                model.train()
+        elif general_variables.sub_type == NDBSubType.shard_allocation:
+            if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
+                raise ValueError("Currently Not supported")
+            else:
+                model = MultipleMach()
+                model.train()
+        else:
+            model = ShardMach()
+            model.train()
 
 
 if __name__ == "__main__":

@@ -1,54 +1,91 @@
 from abc import ABC
+from typing import Optional
 
 
 class Config(ABC):
-    name = None
+    """
+    Abstract base class for configuration settings.
 
-    base_path = "/Users/yashwanthadunukota/neuraldb-enterprise-services/headless/data"
-    doc_type = "local"
-    nfs_original_base_path = "/opt/neuraldb_enterprise/"
-    unsupervised_paths = []
-    supervised_paths = []
-    test_paths = []
-    insert_paths = []
+    Attributes:
+    name (str): Name of the configuration.
+    base_path (str): Base path for data storage.
+    doc_type (str): Type of documents (e.g., local, nfs).
+    nfs_original_base_path (str): Base path for NFS storage.
+    unsupervised_paths (list[str]): List of paths to unsupervised data files.
+    supervised_paths (list[str]): List of paths to supervised data files.
+    test_paths (list[str]): List of paths to test data files.
+    insert_paths (list[str]): List of paths to insert data files.
+    id_column (str): Column name for ID.
+    strong_columns (list[str]): List of strong columns for data.
+    weak_columns (list[str]): List of weak columns for data.
+    reference_columns (list[str]): List of reference columns for data.
+    query_column (str): Column name for queries.
+    id_delimiter (str): Delimiter used in IDs.
+    model_cores (int): Number of cores used for single model( Used for sharded training).
+    model_memory (int): Amount of memory allocated for the model (in MB) (Used for sharded training).
+    input_dim (int): Input dimension for the model.
+    hidden_dim (int): Hidden dimension for the model.
+    output_dim (int): Output dimension for the model.
+    allocation_memory (int): Memory allocation for the model (in MB) (Used for shard allocation or single training).
+    allocation_cores (int): Number of cores allocated for model training (Used for shard allocation or single training).
+    epochs (int): Number of training epochs.
+    retriever (str): Type of retriever used (e.g., hybrid, mach).
+    """
 
-    id_column = None
-    strong_columns = None
-    weak_columns = None
-    reference_columns = None
-    query_column = None
-    id_delimiter = None
+    name: str = None
 
-    model_cores = 2
-    model_memory = 2000
-    input_dim = 10000
-    hidden_dim = 1024
-    output_dim = 5000
-    allocation_memory = 1000
-    allocation_cores = 2
+    base_path: str = (
+        "/Users/yashwanthadunukota/neuraldb-enterprise-services/headless/data"
+    )
+    doc_type: str = "local"
+    nfs_original_base_path: str = "/opt/neuraldb_enterprise/"
+    unsupervised_paths: list[str] = []
+    supervised_paths: list[str] = []
+    test_paths: list[str] = []
+    insert_paths: list[str] = []
 
-    epochs = 5
+    id_column: str = None
+    strong_columns: list[str] = None
+    weak_columns: list[str] = None
+    reference_columns: list[str] = None
+    query_column: str = None
+    id_delimiter: str = None
 
-    retriever = "hybrid"
+    model_cores: int = 2
+    model_memory: int = 2000
+    input_dim: int = 10000
+    hidden_dim: int = 1024
+    output_dim: int = 5000
+    allocation_memory: int = 1000
+    allocation_cores: int = 2
+    checkpoint_interval: int = 1
+
+    epochs: int = 3
+
+    retriever: str = "mach"
 
 
 class Scifact(Config):
-    name = "scifact"
+    """
+    Configuration settings for the Scifact dataset.
+    """
 
-    unsupervised_paths = [
+    name: str = "scifact"
+
+    unsupervised_paths: list[str] = [
         "scifact/unsupervised_1.csv",
         "scifact/unsupervised_2.csv",
     ]
-    supervised_paths = [
+    supervised_paths: list[str] = [
         "scifact/supervised_1.csv",
         "scifact/supervised_2.csv",
     ]
-    test_paths = ["scifact/test_1.csv", "scifact/test_2.csv"]
-    insert_paths = ["scifact/insert.pdf"]
+    test_paths: list[str] = ["scifact/test_1.csv", "scifact/test_2.csv"]
+    insert_paths: list[str] = ["scifact/insert.pdf"]
 
-    strong_columns = ["TITLE"]
-    weak_columns = ["TEXT"]
-    reference_columns = ["TITLE", "TEXT"]
-    id_column = "id"
-    query_column = "query"
-    id_delimiter = ":"
+    strong_columns: list[str] = ["TITLE"]
+    weak_columns: list[str] = ["TEXT"]
+    reference_columns: list[str] = ["TITLE", "TEXT"]
+    id_column: str = "id"
+    query_column: str = "query"
+    id_delimiter: str = ":"

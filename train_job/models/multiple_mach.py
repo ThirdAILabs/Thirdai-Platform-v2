@@ -1,9 +1,11 @@
 import os
 import pickle
 import time
+from pathlib import Path
 
 import thirdai
-from models.ndb_models import NDBModel
+from exeptional_handler import apply_exception_handler
+from models.ndb_model_interface import NDBModel
 from thirdai import neural_db as ndb
 from thirdai.neural_db.models.mach_mixture_model import MachMixture
 from thirdai.neural_db.sharded_documents import shard_data_source
@@ -18,7 +20,10 @@ from utils import (
 from variables import ComputeVariables, MachVariables, merge_dataclasses_to_dict
 
 
+@apply_exception_handler
 class MultipleMach(NDBModel):
+    report_failure_method = "report_status"
+
     def __init__(self):
         """
         Initialize the MultipleMach model with environment variables.
@@ -167,7 +172,10 @@ class MultipleMach(NDBModel):
         """
         compute_variables = ComputeVariables.load_from_env()
         extra_options = merge_dataclasses_to_dict(
-            self.mach_variables, self.ndb_variables, compute_variables
+            self.mach_variables,
+            self.ndb_variables,
+            compute_variables,
+            self.train_variables,
         )
         extra_options["allocation_memory"] = extra_options["model_memory"]
         extra_options["allocation_cores"] = extra_options["model_cores"]
@@ -195,6 +203,8 @@ class MultipleMach(NDBModel):
         total_num_labels = doc_manager.get_data_source().size
         documents = doc_manager.sources()
         total_documents = [value.path for _, value in documents.items()]
+
+        start_time = time.time()
 
         if unsupervised_files:
             unsupervised_sources = [
@@ -307,6 +317,8 @@ class MultipleMach(NDBModel):
 
             time.sleep(10)
 
+        total_time = time.time() - start_time
+
         self.reporter.report_complete(
             self.general_variables.model_id,
             metadata={
@@ -314,6 +326,7 @@ class MultipleMach(NDBModel):
                 "size": str(approx_ndb_size),
                 "size_in_memory": str(int(model_size * 4 + doc_size)),
                 "thirdai_version": str(thirdai.__version__),
+                "training_time": str(total_time),
             },
         )
 

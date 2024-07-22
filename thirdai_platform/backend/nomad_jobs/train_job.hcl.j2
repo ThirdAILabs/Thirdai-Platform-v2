@@ -7,7 +7,7 @@ job "train-{{ model_id }}-{{ type }}-{{ sub_type }}" {
 
   type = "batch"
 
-  group "shard-allocation-job" {
+  group "train-job" {
     count = 1
 
     task "server" {

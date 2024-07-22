@@ -41,6 +41,10 @@ class ClassificationModel(Model):
             return self.load_model(self.general_variables.base_model_id)
         return self.initialize_model()
 
+    def evaluate(self, model, test_files):
+        for test_file in test_files:
+            model.evaluate(test_file, metrics=self.train_variables.validation_metrics)
+        
     @abstractmethod
     def train(self, **kwargs):
         pass
@@ -69,8 +73,8 @@ class TextClassificationModel(ClassificationModel):
         model = self.get_model()
 
         unsupervised_files = list_files(self.data_dir / "unsupervised")
-
-
+        test_files = list_files(self.data_dir / "test")
+        
         for train_file in unsupervised_files:
             model.train(
                 train_file,
@@ -81,17 +85,16 @@ class TextClassificationModel(ClassificationModel):
             )
 
         self.save_model(model)
-
+        
+        self.evaluate(model, test_files)
+            
         self.reporter.report_complete(
             self.general_variables.model_id,
             metadata={
                 "thirdai_version": str(thirdai.__version__),
             },
         )
-
-    def evaluate(self, **kwargs):
-        pass
-
+        
 
 class TokenClassificationModel(ClassificationModel):
     def __init__(self):
@@ -117,7 +120,8 @@ class TokenClassificationModel(ClassificationModel):
         model = self.get_model()
 
         unsupervised_files = list_files(self.data_dir / "unsupervised")
-
+        test_files = list_files(self.data_dir / "test")
+        
         for train_file in unsupervised_files:
             model.train(
                 train_file,
@@ -129,12 +133,11 @@ class TokenClassificationModel(ClassificationModel):
 
         self.save_model(model)
 
+        self.evaluate(model, test_files)
+        
         self.reporter.report_complete(
             self.general_variables.model_id,
             metadata={
                 "thirdai_version": str(thirdai.__version__),
             },
         )
-
-    def evaluate(self, **kwargs):
-        pass

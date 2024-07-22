@@ -186,6 +186,7 @@ class TrainVariables(EnvLoader):
     fast_approximation: bool = True
     checkpoint_interval: Optional[int] = None
     metrics: List[str] = field(default_factory=lambda: ["loss", "hash_precision@1"])
+    validation_metrics: List[str] = field(default_factory=lambda: ["categorical_accuracy"])
     num_buckets_to_sample: Optional[int] = None
 
 

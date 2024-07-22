@@ -327,7 +327,7 @@ def train(
 
         udt_subtype = extra_options['sub_type']
         extra_options.pop('sub_type', None)
-        print(extra_options)
+        
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),

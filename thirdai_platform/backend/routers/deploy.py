@@ -28,6 +28,7 @@ from backend.utils import (
     update_json_list,
     validate_name,
 )
+from backend.dependencies import verify_model_access
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -148,7 +149,7 @@ def get_deployment_permissions(
     )
 
 
-@deploy_router.post("/run")
+@deploy_router.post("/run", dependencies=[Depends(verify_model_access)])
 def deploy_model(
     deployment_name: str,
     model_identifier: str,
@@ -221,18 +222,25 @@ def deploy_model(
     )
 
     if duplicate_deployment:
-        if duplicate_deployment.status != schema.Status.stopped:
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="Deployment already running",
-            )
-        else:
-            duplicate_deployment.status = schema.Status.not_started
-            session.commit()
-            deployment = duplicate_deployment
-    else:
-        deployment_identifier = f"{model_identifier}:{user.username}/{deployment_name}"
-        deployment_id = uuid.uuid3(uuid.NAMESPACE_URL, deployment_identifier)
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Deployment already exists",
+        )
+
+    if not model_accessible(model, user):
+        return response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            message=f"You don't have access to deploy this model.",
+        )
+
+    if not memory:
+        memory = (
+            int(model.meta_data.train["size_in_memory"]) // 1000000
+        ) + 1000  # MB required for deployment
+
+    deployment_identifier = f"{model_identifier}:{user}/{deployment_name}"
+    deployment_id = uuid.uuid3(uuid.NAMESPACE_URL, deployment_identifier)
+    try:
         deployment = schema.Deployment(
             id=deployment_id,
             model_id=model.id,
@@ -308,7 +316,6 @@ def deploy_model(
             "deployment_id": str(deployment.id),
         },
     )
-
 
 @deploy_router.get("/status")
 def deployment_status(

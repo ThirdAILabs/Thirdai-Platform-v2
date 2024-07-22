@@ -3,7 +3,7 @@ import pathlib
 from urllib.parse import urlencode, urljoin
 
 import bcrypt
-from auth.jwt import create_access_token
+from auth.jwt import AuthenticatedUser, create_access_token, verify_access_token
 from backend.mailer import Mailer
 from backend.utils import hash_password, response
 from database import schema
@@ -125,6 +125,47 @@ def email_signup(
         },
     )
 
+@user_router.post("/add-admin")
+def add_admin(
+    email: str,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    user: schema.User = authenticated_user.user
+
+    if not user.admin:
+        return response(
+            status_code=status.HTTP_403_FORBIDDEN,
+            message=f"You dont have enough permission to add another admin.",
+        )
+
+    user: schema.User = (
+        session.query(schema.User).filter(schema.User.email == email).first()
+    )
+
+    if not user:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"User is not registered yet.",
+        )
+
+    admin: schema.Admins = (
+        session.query(schema.Admins).filter(schema.Admins.domain == user.domain).first()
+    )
+    if not admin:
+        admin = schema.Admins(domain=user.domain)
+        session.add(admin)
+        session.commit()
+        session.refresh(admin)
+
+    if admin not in user.admin:
+        user.admin.append(admin)
+        session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"User {email} has been successfully added as an admin.",
+    )
 
 @user_router.get("/redirect-verify")
 def redirect_email_verify(verification_token: str, request: Request):
@@ -232,4 +273,53 @@ def email_login(
             "access_token": create_access_token(user.id, expiration_min=120),
             "verified": user.verified,
         },
+    )
+    
+class VerifyResetPassword(BaseModel):
+    email: str
+    reset_password_code: int
+    new_password: str
+
+
+@user_router.post("/new-password", include_in_schema=False)
+def reset_password_verify(
+    body: VerifyResetPassword,
+    session: Session = Depends(get_session),
+):
+    """
+    The password change process involves verification of the reset password code sent to the
+    user's email, ensuring security. Once verified, the system allows the user to update their
+    password seamlessly.
+    """
+    user: schema.User = (
+        session.query(schema.User).filter(schema.User.email == body.email).first()
+    )
+
+    if not user:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="This email is not registered with any account.",
+        )
+
+    if not user.reset_password_code:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Click on forgot password to get verification code.",
+        )
+
+    if user.reset_password_code != body.reset_password_code:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="entered wrong reset password code.",
+        )
+
+    user.reset_password_code = None
+
+    user.password_hash = hash_password(body.new_password)
+
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully changed the password.",
     )

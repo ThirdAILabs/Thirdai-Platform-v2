@@ -11,6 +11,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Table,
     UniqueConstraint,
     text,
 )
@@ -33,7 +34,23 @@ class Access(str, enum.Enum):
     public = "public"
     protected = "protected"
     private = "private"
+    
+user_admin_association = Table(
+    "user_admin",
+    SQLDeclarativeBase.metadata,
+    Column("user_id", ForeignKey("users.id"), primary_key=True),
+    Column("admins_id", ForeignKey("admins.id"), primary_key=True),
+)
 
+class Admins(SQLDeclarativeBase):
+    __tablename__ = "admins"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    domain = Column(String, nullable=False, unique=True)
+
+    members = relationship(
+        "User", secondary=user_admin_association, back_populates="admin"
+    )
 
 class User(SQLDeclarativeBase):
     __tablename__ = "users"

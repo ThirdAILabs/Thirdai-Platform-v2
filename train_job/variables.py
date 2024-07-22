@@ -121,9 +121,9 @@ class GeneralVariables(EnvLoader):
     model_bazaar_dir: str
     license_key: str
     model_bazaar_endpoint: str
-    base_model_id: Optional[str] = None
     model_id: str
     data_id: str
+    base_model_id: Optional[str] = None
     type: TypeEnum = TypeEnum.NDB
     sub_type: Union[NDBSubType, UDTSubType] = NDBSubType.normal
 

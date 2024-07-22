@@ -1,0 +1,12 @@
+azure:
+  branches:
+    test_1:
+      pull_credentials:
+        password: lfhxcL/qmrYP24rIH2vmRNSYV9ZlNCfxJyQI6E3kVi+ACRDjUz22
+        username: thirdaiplatform-pull-test-1
+      push_credentials:
+        password: XCM9NnRa3ybEjKNbsZSl8eEio1VC3NHMOGCwqOXb/r+ACRCD4kbn
+        username: thirdaiplatform-push-test-1
+      version: 0.0.1
+  registry: thirdaiplatform.azurecr.io
+provider: azure

@@ -122,7 +122,6 @@ def redirect_email_verify(verification_token: str, request: Request):
     verify_url = urljoin(base_url, f"api/user/email-verify?{urlencode(args)}")
 
     context = {"request": request, "verify_url": verify_url}
-    logger.info("Redirected for email verification")
     return templates.TemplateResponse("verify_email_sent.html", context=context)
 
 

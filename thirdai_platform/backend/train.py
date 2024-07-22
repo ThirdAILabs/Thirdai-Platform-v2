@@ -53,9 +53,10 @@ def train(
         ).model_dump()
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
-            logger.info(f"Extra options for training: {extra_options}")
+            logger.debug(f"Extra options for training: {extra_options}")
             print(f"Extra options for training: {extra_options}")
     except ValidationError as e:
+        logger.error(msg = f"Invalid extra options format, Details: " + str(e))
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"Invalid extra options format, Details: " + str(e),
@@ -66,11 +67,13 @@ def train(
                 file_details_list
             ).file_details
         except ValidationError as e:
+            logger.error(msg = "Invalid file details list format, Details" + str(e))
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message="Invalid file details list format, Details" + str(e),
             )
     else:
+        logger.warning('Setting fileDetails to unsupervised mode and location to local')
         files_info = [
             FileDetails(mode=FileType.unsupervised, location="local") for _ in files
         ]
@@ -82,11 +85,13 @@ def train(
             )
         )
         if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
+            logger.error(msg = f"Resource limit reached, cannot allocate new jobs.")
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message=f"Resource limit reached, cannot allocate new jobs.",
             )
     except Exception as e:
+        logger.error(msg = f"License is not valid. {str(e)}")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"License is not valid. {str(e)}",
@@ -95,6 +100,7 @@ def train(
     try:
         validate_name(model_name)
     except:
+        logger.error(msg = f"{model_name} is not a valid model name.")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"{model_name} is not a valid model name.",
@@ -102,6 +108,7 @@ def train(
 
     duplicate_model = get_model(session, username=user.username, model_name=model_name)
     if duplicate_model:
+        logger.error(msg = f"Model with name {model_name} already exists for user {user.username}.")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"Model with name {model_name} already exists for user {user.username}.",
@@ -110,25 +117,27 @@ def train(
     model_id = uuid.uuid4()
     data_id = model_id
 
-    logger.info(f"Data_id: {data_id}")
-    logger.info(f"Model_id: {model_id}")
+    logger.debug(f"Data_id: {data_id}")
+    logger.debug(f"Model_id: {model_id}")
 
     if len(files) != len(files_info):
+        logger.error(msg = f"Given {len(files)} files but for {len(files_info)} files the info has given.")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"Given {len(files)} files but for {len(files_info)} files the info has given.",
         )
 
     filenames = get_files(files, data_id, files_info)
-    logger.info("Populated the files in the data folder")
 
     if not isinstance(filenames, list):
+        logger.error(msg = f"Error while processing the file: {filenames}")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=filenames,
         )
 
     if len(filenames) == 0:
+        logger.error(msg = f"No files provided.")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"No files provided.",
@@ -136,18 +145,21 @@ def train(
 
     unique_filenames = set(filenames)
     if len(filenames) != len(unique_filenames):
+        logger.error(msg = f"Duplicate filenames recieved. files received = {len(filenames)} and unique files = {len(unique_filenames)}")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"Duplicate filenames recieved, please ensure each filename is unique.",
         )
 
+    logger.info("Populated the files in the data folder successfully")
     if base_model_identifier:
         try:
             base_model: schema.Model = get_model_from_identifier(
                 base_model_identifier, session
             )
-            logger.info("Found the base model")
+            logger.debug(msg = "Found the base model")
         except Exception as error:
+            logger.error(msg = f"Error: {str(error)}")
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message=str(error),
@@ -169,7 +181,6 @@ def train(
         session.commit()
         session.refresh(new_model)
 
-        logger.info("Created database entry for this model")
         work_dir = os.getcwd()
 
         sharded = (
@@ -179,7 +190,7 @@ def train(
             else False
         )
 
-        logger.info("Submitting train_job to nomad")
+        logger.debug("Submitting train_job to nomad")
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -257,7 +268,7 @@ def train_complete(
         session.add(new_metadata)
 
     session.commit()
-    logger.info("Updated the train status, access level, and metadata of the model")
+    logger.debug(msg = "Updated the train status, access level, and metadata of the model")
 
     return {"message": "successfully updated"}
 
@@ -282,7 +293,7 @@ def update_train_status(
 
     trained_model.train_status = status
     session.commit()
-    logger.info(f"Updated the model's train status to {status}")
+    logger.debug(msg = f"Updated the model's train status to {status}")
 
     return {"message": f"successfully updated with following {message}"}
 
@@ -305,6 +316,7 @@ def create_shard(
         if extra_options:
             print(f"Extra options for shard training: {extra_options}")
     except ValidationError as e:
+        logger.error(msg = "Invalid extra options format, Details: " + str(e))
         return response(
             status=status.HTTP_400_BAD_REQUEST,
             message="Invalid extra options format, Details: " + str(e),
@@ -317,6 +329,7 @@ def create_shard(
             )
         )
     except Exception as e:
+        logger.error(msg = f"License is not valid. {str(e)}")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"License is not valid. {str(e)}",
@@ -333,7 +346,7 @@ def create_shard(
 
         work_dir = os.getcwd()
 
-        logger.info(f"Submitting shard-train-job for shard num {shard_num}")
+        logger.debug(f"Submitting shard-train-job for shard num {shard_num} with model_id {str(model_id)}")
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -393,7 +406,7 @@ def update_shard_train_status(
 
     model_shard.train_status = status
     session.commit()
-    logger.info(f"Updated the train status of shard {shard_num} to {status}")
+    logger.debug(f"Updated the train status of shard {shard_num} of model {model_id} to {status}")
     return {"message": f"Successfully updated shard with message: {message}"}
 
 
@@ -414,11 +427,12 @@ def train_status(
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
     except Exception as error:
+        logger.error('Error while fetching train status')
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=str(error),
         )
-    logger.info(f"Retreived the train-status of the model as {model.train_status}")
+    logger.debug(f"Retreived the train-status of the model {model_identifier} as {model.train_status}")
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the train status.",
@@ -460,7 +474,7 @@ def model_shard_train_status(
         }
         for result in model_shards
     ]
-    logger.info(f"Retreived the shard status of model id {model_id}")
+    logger.debug(f"Retreived all shard status of model id {model_id}")
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the train status.",

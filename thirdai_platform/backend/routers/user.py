@@ -8,6 +8,7 @@ from backend.mailer import Mailer
 from backend.utils import hash_password, response
 from database import schema
 from database.session import get_session
+from dependencies import get_current_user, verify_admin_access
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
@@ -165,6 +166,28 @@ def add_admin(
     return response(
         status_code=status.HTTP_200_OK,
         message=f"User {email} has been successfully added as an admin.",
+    )
+    
+@user_router.delete("/delete-user/{user_id}", dependencies=[Depends(verify_admin_access)])
+def delete_user(
+    user_id: int,
+    session: Session = Depends(get_session),
+    current_user: schema.User = Depends(get_current_user),
+):
+    user = session.query(schema.User).filter(schema.User.id == user_id).first()
+
+    if not user:
+        return response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message=f"User with id {user_id} not found.",
+        )
+
+    session.delete(user)
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"User with id {user_id} has been successfully deleted.",
     )
 
 @user_router.get("/redirect-verify")

@@ -7,7 +7,7 @@ import yaml
 from azure_provider import AzureProvider
 from cloud_provider_interface import CloudProviderInterface
 from docker_constants import image_base_names
-from utils import image_name_for_branch
+from utils import Credentials, image_name_for_branch
 
 
 def get_args():
@@ -33,6 +33,11 @@ def get_args():
         type=str,
         help="If provided it will use this version for the provided branch.",
     )
+    parser.add_argument(
+        "--dont-update-latest",
+        action="store_true",
+        help="If this flag is present, the 'latest' tag will not be updated.",
+    )
     return parser.parse_args()
 
 
@@ -41,7 +46,12 @@ def get_tag(branch: str, config: dict):
 
 
 def get_root_absolute_path():
-    return Path(__file__).parent.parent.absolute()
+    current_path = Path(__file__).resolve()
+    while current_path.name != "ThirdAI-Platform":
+        current_path = current_path.parent
+
+    print(current_path)
+    return current_path
 
 
 def build_image(
@@ -101,10 +111,14 @@ def build_images(
     return image_ids
 
 
-def verify_tag(provider: CloudProviderInterface, image_ids: Dict[str, str], tag: str):
+def verify_tag(
+    provider: CloudProviderInterface, image_ids: Dict[str, str], tag: str, branch: str
+):
     for name, image_id in image_ids.items():
-        existing = provider.get_image_digest(name=name, tag=tag)
-        new = provider.get_image_digest(name=name, tag=image_id)
+        existing = provider.get_image_digest(
+            name=image_name_for_branch(name, branch), tag=tag
+        )
+        new = provider.get_local_image_digest(image_id=image_id)
         if existing and existing != new:
             raise RuntimeError(
                 f"A docker image with name '{name}' and tag '{tag}' with "
@@ -112,10 +126,19 @@ def verify_tag(provider: CloudProviderInterface, image_ids: Dict[str, str], tag:
             )
 
 
-def push_images(provider: CloudProviderInterface, image_ids: Dict[str, str], tag: str):
+def push_images(
+    provider: CloudProviderInterface,
+    image_ids: Dict[str, str],
+    tag: str,
+    branch: str,
+    dont_update_latest: bool,
+):
     for name, image_id in image_ids.items():
-        provider.push_image(image_id, provider.get_full_image_name(name, "", tag))
-        provider.push_image(image_id, provider.get_full_image_name(name, "", "latest"))
+        provider.push_image(image_id, provider.get_full_image_name(name, branch, tag))
+        if not dont_update_latest:
+            provider.push_image(
+                image_id, provider.get_full_image_name(name, branch, "latest")
+            )
 
 
 def load_config(config_path: str):
@@ -171,7 +194,7 @@ def main():
             new_push_credentials = provider.create_credentials(
                 name=f"thirdaiplatform-push-{sanitized_branch}",
                 image_names=[
-                    image_name_for_branch(name, sanitized_branch)
+                    image_name_for_branch(name, args.branch)
                     for name in image_base_names.to_list()
                 ],
                 push_access=True,
@@ -188,7 +211,7 @@ def main():
             new_pull_credentials = provider.create_credentials(
                 name=f"thirdaiplatform-pull-{sanitized_branch}",
                 image_names=[
-                    image_name_for_branch(name, sanitized_branch)
+                    image_name_for_branch(name, args.branch)
                     for name in image_base_names.to_list()
                 ],
                 push_access=False,
@@ -204,15 +227,22 @@ def main():
         # Write back the configuration to ensure it is up-to-date
         save_config(args.config, config)
 
-        provider.login(push_username, push_password, azure_config["registry"])
+        provider.authorize_credentials(
+            credentials=Credentials(
+                push_username=push_username,
+                push_password=push_password,
+                pull_username=pull_username,
+                pull_password=pull_password,
+            )
+        )
 
         # Build images
         image_ids = build_images(
-            provider, args.branch, tag, push_username, push_password, args.no_cache
+            provider, args.branch, tag, pull_username, pull_password, args.no_cache
         )
 
-        verify_tag(provider, image_ids, tag)
-        push_images(provider, image_ids, tag)
+        verify_tag(provider, image_ids, tag, args.branch)
+        push_images(provider, image_ids, tag, args.branch, args.dont_update_latest)
 
 
 if __name__ == "__main__":

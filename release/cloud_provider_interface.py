@@ -1,9 +1,12 @@
 from typing import Dict, List
 
+import docker
+from utils import Credentials
+
 
 class CloudProviderInterface:
-    def login(self, username: str, password: str, registry: str) -> None:
-        raise NotImplementedError
+    def authorize_credentials(self, credentials: Credentials):
+        self.credentials = credentials
 
     def build_image(
         self, path: str, tag: str, nocache: bool, buildargs: Dict[str, str]
@@ -37,3 +40,9 @@ class CloudProviderInterface:
 
     def get_full_image_name(self, base_name: str, branch: str, tag: str) -> str:
         raise NotImplementedError
+
+    def get_local_image_digest(self, image_id: str):
+        client = docker.from_env()
+        image = client.images.get(image_id)
+        digest = image.attrs["RootFS"]["Layers"]
+        return digest

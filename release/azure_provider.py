@@ -7,6 +7,7 @@ import docker
 from azure.containerregistry import ContainerRegistryClient
 from azure.identity import ClientSecretCredential
 from cloud_provider_interface import CloudProviderInterface
+from tqdm import tqdm
 from utils import image_name_for_branch
 
 
@@ -14,10 +15,6 @@ class AzureProvider(CloudProviderInterface):
     def __init__(self, registry: str):
         self.registry = registry
         self.registry_name = registry.split(".")[0]
-
-    def login(self, username: str, password: str, registry: str) -> None:
-        client = docker.from_env()
-        client.login(username=username, password=password, registry=registry)
 
     def build_image(
         self, path: str, tag: str, nocache: bool, buildargs: Dict[str, str]
@@ -57,19 +54,66 @@ class AzureProvider(CloudProviderInterface):
 
     def push_image(self, image_id: str, tag: str) -> None:
         client = docker.from_env()
+        client.login(
+            username=self.credentials.push_username,
+            password=self.credentials.push_password,
+            registry=self.registry,
+        )
         image = client.images.get(image_id)
         image.tag(tag)
+        print(f"Pushing image with id {image_id} to {tag}")
+        progress_bar = None
+        total_size = None
+        last_progress = 0
+
         for line in client.images.push(tag, stream=True, decode=True):
-            print(line)
+            if "status" in line and "progressDetail" in line:
+                progress_detail = line["progressDetail"]
+                current = progress_detail.get("current", 0)
+                total = progress_detail.get("total", 0)
+
+                if total_size is None and total > 0:
+                    total_size = total
+                    progress_bar = tqdm(
+                        total=total_size,
+                        unit="B",
+                        unit_scale=True,
+                        desc=f"Pushing {tag}",
+                    )
+
+                if progress_bar:
+                    increment = current - last_progress
+                    if increment > 0:
+                        progress_bar.update(increment)
+                        last_progress = current
+            elif "status" in line and "progressDetail" not in line:
+                if progress_bar:
+                    progress_bar.close()
+                print(line["status"])
+            elif "errorDetail" in line:
+                if progress_bar:
+                    progress_bar.close()
+                raise RuntimeError(line["errorDetail"]["message"])
+
+        if progress_bar:
+            progress_bar.close()
 
     def get_image_digest(self, name: str, tag: str) -> List[str]:
         client = docker.from_env()
+        client.login(
+            username=self.credentials.pull_username,
+            password=self.credentials.pull_password,
+            registry=self.registry,
+        )
         image_full_name = f"{self.registry}/{name}:{tag}"
         try:
             image = client.images.pull(image_full_name)
             digest = image.attrs["RootFS"]["Layers"]
             return digest
         except docker.errors.ImageNotFound as e:
+            print(f"{image_full_name} not found: {e}")
+            return None
+        except docker.errors.NotFound as e:
             print(f"{image_full_name} not found: {e}")
             return None
 
@@ -209,6 +253,11 @@ class AzureProvider(CloudProviderInterface):
 
     def update_image(self, image_id: str, name: str, tag: str) -> None:
         client = docker.from_env()
+        client.login(
+            username=self.credentials.push_username,
+            password=self.credentials.push_password,
+            registry=self.registry,
+        )
         image = client.images.get(image_id)
         image.tag(name, tag)
         for line in client.images.push(name, stream=True, decode=True):

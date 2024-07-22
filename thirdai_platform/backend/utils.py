@@ -23,7 +23,7 @@ from . import logger
 def log_function_name(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        logger.info(f"Invoked: {func.__name__}")
+        logger.debug(f"Invoked: {func.__name__}")
         return func(*args, **kwargs)
 
     return wrapper
@@ -34,9 +34,6 @@ def response(status_code: int, message: str, data={}, success: bool = None):
         status = "success" if success else "failed"
     else:
         status = "success" if status_code < 400 else "failed"
-
-    if status != "success":
-        logger.error(message)
 
     return JSONResponse(
         status_code=status_code,

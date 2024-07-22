@@ -103,7 +103,7 @@ def get_deployment_permissions(
     read, write = deployment_read_write_permissions(
         deployment_id, session, authenticated_user
     )
-    logger.info(f"READ: {read}, WRITE: {write}")
+    logger.debug(msg = f"Deployment id: {deployment_id} READ: {read}, WRITE: {write}")
     override = deployment_owner_permissions(deployment_id, session, authenticated_user)
     exp = (
         authenticated_user.exp.isoformat()
@@ -140,11 +140,13 @@ def deploy_model(
             )
         )
         if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
+            logger.error(msg =f'Resource limit reached, cannot allocate deployment jobs. Deployment name: {deployment_name}')
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message=f"Resource limit reached, cannot allocate new jobs.",
             )
     except Exception as e:
+        logger.error(msg = f"License is not valid. {str(e)}")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"License is not valid. {str(e)}",
@@ -153,6 +155,7 @@ def deploy_model(
     try:
         validate_name(deployment_name)
     except Exception as error:
+        logger.error(msg = f"Deployment name {deployment_name} is not valid.")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Deployment name is not valid.",
@@ -161,12 +164,14 @@ def deploy_model(
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
     except Exception as error:
+        logger.error(f'Error while fetching the model {str(error)}')
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=str(error),
         )
 
     if model.train_status != schema.Status.complete:
+        logger.error(f'model {model.id} training is not completed yet. Current status : {str(model.train_status)}')
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"Training isn't complete yet. Current status : f{str(model.train_status)}",
@@ -175,12 +180,14 @@ def deploy_model(
         session, deployment_name, user.id, model.id
     )
     if duplicate_deployment:
+        logger.error(f'Deployment already exists')
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"Deployment already exists",
         )
 
     if not model_accessible(model, user):
+        logger.error(f'Model is not acessible by you')
         return response(
             status_code=status.HTTP_403_FORBIDDEN,
             message=f"You dont have access to deploy this model.",
@@ -193,7 +200,7 @@ def deploy_model(
 
     deployment_identifier = f"{model_identifier}:{user}/{deployment_name}"
     deployment_id = uuid.uuid3(uuid.NAMESPACE_URL, deployment_identifier)
-    logger.info(f"Deployment id: {deployment_id}")
+    logger.debug(msg = f"Deployment id: {deployment_id}")
     try:
         deployment = schema.Deployment(
             id=deployment_id,
@@ -210,7 +217,7 @@ def deploy_model(
 
         platform = get_platform()
 
-        logger.info("submit nomad job for deployment job")
+        logger.debug(msg = "submit nomad job for deployment job")
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "deployment_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -246,7 +253,7 @@ def deploy_model(
         deployment.status = schema.Status.failed
         session.commit()
 
-        logger.error(traceback.format_exc())
+        logger.error(msg = f"Error: {traceback.format_exc()}")
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -286,6 +293,7 @@ def deployment_status(
 
     model: schema.Model = get_model(session, model_username, model_name)
     if not model:
+        logger.error(msg = f"No model found with the deployment id: {deployment_identifier}")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="No deployment with this identifier",
@@ -295,6 +303,7 @@ def deployment_status(
         session, deployment_name, deployment_user.id, model.id
     )
     if not deployment:
+        logger.error(msg = f"No deployment with this identifier {deployment_identifier} found")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="No deployment with this identifier",
@@ -354,9 +363,10 @@ def undeploy_model(
 
     model: schema.Model = get_model(session, model_username, model_name)
     if not model:
+        logger.error(msg = f"No model with this deployment identifier {deployment_identifier}")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="No deployment with this identifier",
+            message="No model with this deployment identifier",
         )
 
     deployment: schema.Deployment = get_deployment(
@@ -364,13 +374,14 @@ def undeploy_model(
     )
 
     if not deployment:
+        logger.error(msg = f"No deployment with this deployment identifier {deployment_identifier}")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="No deployment with this identifier",
         )
 
     try:
-        logger.info(f"delete nomad job: deployment-{str(deployment.id)}")
+        logger.debug(f"delete nomad job: deployment-{str(deployment.id)}")
         delete_nomad_job(
             job_id=f"deployment-{str(deployment.id)}",
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -421,6 +432,7 @@ def log_results(
     )
 
     if not deployment:
+        logger.error(msg = f"No deployment with this id {log_data.deployment_id}")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="No deployment with this id",
@@ -433,6 +445,7 @@ def log_results(
     )
 
     if not model:
+        logger.error(msg = f"No model with this deployment id {log_data.deployment_id}")
         return response(
             status_code=status.HTTP_400_BAD_REQUEST, message="No model with this id"
         )

@@ -14,8 +14,6 @@ from . import logger
 
 model_router = APIRouter()
 
-
-@log_function_name
 @model_router.get("/public-list")
 def list_public_models(
     name: str,
@@ -51,8 +49,6 @@ def list_public_models(
         data=jsonable_encoder(results),
     )
 
-
-@log_function_name
 @model_router.get("/list")
 def list_models(
     name: str,
@@ -116,8 +112,6 @@ def list_models(
         data=jsonable_encoder(results),
     )
 
-
-@log_function_name
 @model_router.get("/name-check")
 def check_model(
     name: str,
@@ -145,7 +139,6 @@ class SaveNDBDeployedModel(BaseModel):
     model_name: str
     metadata: Dict[str, str]
 
-
 @log_function_name
 @model_router.post("/save-deployed")
 def save_deployed_model(
@@ -172,7 +165,7 @@ def save_deployed_model(
     session.add(new_model)
     session.commit()
     session.refresh(new_model)
-    logger.info("saved the deployed model")
+    logger.debug(msg = f"saved the deployed model {body.model_id}")
 
     metadata: schema.MetaData = schema.MetaData(
         model_id=body.model_id, deployment=body.metadata

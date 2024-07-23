@@ -44,9 +44,9 @@ export function ProductsTable({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Products</CardTitle>
+        <CardTitle>Models</CardTitle>
         <CardDescription>
-          Manage your products and view their sales performance.
+          Manage your models and view their performance.
         </CardDescription>
       </CardHeader>
       <CardContent>

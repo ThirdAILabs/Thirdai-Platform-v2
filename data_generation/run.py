@@ -5,8 +5,6 @@ from variables import DataCategory, GeneralVariables
 
 # Load general variables from environment
 general_variables: GeneralVariables = GeneralVariables.load_from_env()
-# print(general_variables)
-
 
 def main():
     """
@@ -20,7 +18,6 @@ def main():
         factory = TextDataFactory(api_key=general_variables.genai_key)
         args = TextGenerationVariables.load_from_env()
 
-        print(args)
         factory.generate(
             task_prompt=args.task_prompt,
             samples_per_label=args.samples_per_label,
@@ -39,7 +36,7 @@ def main():
 
         factory = TokenDataFactory(api_key=general_variables.genai_key)
         args = TokenGenerationVariables.load_from_env()
-        print(args)
+        
         factory.generate(
             domain_prompt=args.domain_prompt,
             tags=args.tags,

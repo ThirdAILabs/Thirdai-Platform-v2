@@ -88,6 +88,11 @@ def generate_text_data(
         python_path=get_python_path(),
     )
 
+    return response(
+        status_code=status.HTTP_200_OK, 
+        message = "Successfully submitted the data-generation job"
+    )
+
 
 class TokenClassificationGenerateArgs(BaseModel):
     domain_prompt: str
@@ -153,4 +158,9 @@ def generate_text_data(
         license_key=license_info["boltLicenseKey"],
         extra_options=extra_options,
         python_path=get_python_path(),
+    )
+
+    return response(
+        status_code=status.HTTP_200_OK, 
+        message = "Successfully submitted the data-generation job"
     )

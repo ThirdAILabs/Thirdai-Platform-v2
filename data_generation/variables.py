@@ -92,7 +92,8 @@ class EnvLoader:
 
 @dataclass
 class GeneralVariables(EnvLoader):
-    save_dir: str
+    model_bazaar_dir: str
+    data_id: str
     data_category: DataCategory
     genai_key: str
 

@@ -91,8 +91,7 @@ async def startup_event():
     reporter = Reporter(general_variables.model_bazaar_endpoint)
     reporter.deploy_complete(general_variables.deployment_id)
 
-    if general_variables.type == TypeEnum.NDB:
-        Process(target=process_tasks, daemon=True).start()
+    Process(target=process_tasks, daemon=True).start()
 
 
 if __name__ == "__main__":

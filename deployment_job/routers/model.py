@@ -29,7 +29,7 @@ def get_model():
             else:
                 model_instance = SingleNDB()
         elif general_variables.type == TypeEnum.UDT:
-            if general_variables.subtype == UDTSubtype.text:
+            if general_variables.sub_type == UDTSubtype.text:
                 model_instance = TextClassificationModel()
             else:
                 model_instance = TokenClassificationModel()

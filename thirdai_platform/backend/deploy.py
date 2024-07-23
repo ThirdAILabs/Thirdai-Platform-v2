@@ -227,6 +227,8 @@ def deploy_model(
                 len(model.model_shards)
             ),  # If num_shards = 0, the model is not sharded
             memory=memory,
+            type=model.type,
+            sub_type=model.sub_type,
             python_path=get_python_path(),
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),

@@ -15,14 +15,14 @@ from thirdai import bolt
 class ClassificationModel(Model):
     def __init__(self):
         super().__init__()
-        self.model_path = self.model_dir / "model.udt"
+        self.model_path = self.get_udt_path()
         self.model: bolt.UniversalDeepTransformer = self.load_model()
 
-    def get_udt_path(self, model_id):
-        return self.get_model_dir(model_id) / "model.udt"
+    def get_udt_path(self):
+        return str(self.get_model_dir(self.general_variables.model_id) / "model.udt")
 
     def load_model(self):
-        return bolt.UniversalDeepTranformer.load(self.model_path)
+        return bolt.UniversalDeepTransformer.load(self.model_path)
 
     @abstractmethod
     def predict(self, **kwargs):
@@ -41,7 +41,7 @@ class TextClassificationModel(ClassificationModel):
 
         return inputs.SearchResultsTextClassification(
             query_text=query,
-            class_name=class_names,
+            class_names=class_names,
         )
 
 
@@ -51,11 +51,14 @@ class TokenClassificationModel(ClassificationModel):
 
     def predict(self, **kwargs):
         query = kwargs["query"]
+        top_k = kwargs["top_k"]
 
-        predicted_tags = self.model.predict({"source": query}, top_k=1)
-        predicted_tags = [x[0][0] for x in predicted_tags]
-
+        predicted_tags = self.model.predict({"source": query}, top_k=top_k)
+        predictions = []
+        for predicted_tag in predicted_tags:
+            predictions.append([x[0] for x in predicted_tag])
+            
         return inputs.SearchResultsTokenClassification(
             query_text=query,
-            predicted_tags=predicted_tags,
+            predicted_tags=predictions,
         )

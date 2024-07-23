@@ -411,7 +411,7 @@ def train_complete(
 @train_router.post("/update-status")
 def train_fail(
     model_id: str,
-    status: schema.Status,
+    train_status: schema.Status,
     message: str,
     session: Session = Depends(get_session),
 ):
@@ -425,7 +425,7 @@ def train_fail(
             message=f"No model with id {model_id}.",
         )
 
-    trained_model.train_status = status
+    trained_model.train_status = train_status
     session.commit()
 
     return {"message": f"successfully updated with following {message}"}

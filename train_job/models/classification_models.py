@@ -1,3 +1,5 @@
+import os
+import time
 from abc import abstractmethod
 from pathlib import Path
 
@@ -22,6 +24,32 @@ class ClassificationModel(Model):
     def initialize_model(self):
         pass
 
+
+    def get_size(self):
+        """
+        Calculate the size of the model in bytes
+        """
+        return os.stat(self.model_save_path).st_size 
+        
+    def get_num_params(self, model: bolt.UniversalDeepTransformer) -> int:
+        """
+        Gets the number of parameters in the model
+        
+        Args:
+            model: (bolt.UniversalDeepTransformer): The UDT instance
+        Returns:
+            int: The number of parameters in the model.
+            
+        """
+        
+        num_params = model._get_model().num_params()
+        self.logger.info(f"Number of parameters in the model: {num_params}")
+        return num_params
+    
+    @abstractmethod
+    def get_latency(self):
+        pass
+    
     def get_udt_path(self, model_id):
         return (
             Path(self.general_variables.model_bazaar_dir)
@@ -75,6 +103,7 @@ class TextClassificationModel(ClassificationModel):
         unsupervised_files = list_files(self.data_dir / "unsupervised")
         test_files = list_files(self.data_dir / "test")
         
+        start_time = time.time()
         for train_file in unsupervised_files:
             model.train(
                 train_file,
@@ -83,18 +112,38 @@ class TextClassificationModel(ClassificationModel):
                 batch_size=self.train_variables.batch_size,
                 metrics=self.train_variables.metrics,
             )
+        training_time = time.time() - start_time
 
         self.save_model(model)
         
         self.evaluate(model, test_files)
             
+        num_params = self.get_num_params(model)
+        model_size = self.get_size()
+        model_size_in_memory = model_size * 4
+        latency = self.get_latency(model)
+        
         self.reporter.report_complete(
             self.general_variables.model_id,
             metadata={
+                "num_params": str(num_params),
                 "thirdai_version": str(thirdai.__version__),
+                "training_time": str(training_time),
+                "size": str(model_size),
+                "size_in_memory": str(model_size_in_memory),
+                "latency": str(latency),
             },
         )
+    def get_latency(self, model) -> float:
+
+        self.logger.info("Measuring latency of the UDT instance.")
         
+        start_time = time.time()
+        model.predict({self.txt_cls_vars.text_column: "Checking for latency"}, top_k=1)
+        latency = time.time() - start_time
+        
+        self.logger.info(f"Latency measured: {latency} seconds.")
+        return latency
 
 class TokenClassificationModel(ClassificationModel):
     def __init__(self):
@@ -122,6 +171,7 @@ class TokenClassificationModel(ClassificationModel):
         unsupervised_files = list_files(self.data_dir / "unsupervised")
         test_files = list_files(self.data_dir / "test")
         
+        start_time = time.time()
         for train_file in unsupervised_files:
             model.train(
                 train_file,
@@ -130,14 +180,36 @@ class TokenClassificationModel(ClassificationModel):
                 batch_size=self.train_variables.batch_size,
                 metrics=self.train_variables.metrics,
             )
-
+        training_time = time.time() - start_time
+        
         self.save_model(model)
 
         self.evaluate(model, test_files)
         
+        num_params = self.get_num_params(model)
+        model_size = self.get_size()
+        model_size_in_memory = model_size * 4
+        latency = self.get_latency(model)
+        
         self.reporter.report_complete(
             self.general_variables.model_id,
             metadata={
+                "num_params": str(num_params),
                 "thirdai_version": str(thirdai.__version__),
+                "training_time": str(training_time),
+                "size": str(model_size),
+                "size_in_memory": str(model_size_in_memory),
+                "latency": str(latency),
             },
         )
+        
+    def get_latency(self, model) -> float:
+
+        self.logger.info("Measuring latency of the UDT instance.")
+        
+        start_time = time.time()
+        model.predict({self.tkn_cls_vars.source_column: "Checking for latency"}, top_k=1)
+        latency = time.time() - start_time
+        
+        self.logger.info(f"Latency measured: {latency} seconds.")
+        return latency

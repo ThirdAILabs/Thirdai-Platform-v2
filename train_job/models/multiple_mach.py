@@ -90,7 +90,7 @@ class MultipleMach(NDBModel):
             ndb.NeuralDB: The loaded NeuralDB instance.
         """
         self.logger.info(
-            f"Loading NeuralDB from checkpoint: {self.get_ndb_path(self.ndb_variables.base_model_id)}"
+            f"Loading NeuralDB from checkpoint: {self.get_ndb_path(self.general_variables.base_model_id)}"
         )
         db = ndb.NeuralDB.from_checkpoint(
             self.get_ndb_path(self.general_variables.base_model_id)

@@ -23,10 +23,9 @@ class UDTSubtype(str, Enum):
     text = "text"
 
 
-# TODO(Anyone) add more ndb subtypes here
 class NDBSubtype(str, Enum):
     single = "single"
-    multimach = "multimach"
+    sharded = "sharded"
 
 
 class EnvLoader:
@@ -109,7 +108,7 @@ class GeneralVariables(EnvLoader):
     license_key: str
     task_runner_token: str
     type: TypeEnum = TypeEnum.NDB
-    subtype: Union[UDTSubtype, NDBSubtype] = NDBSubtype.single
+    sub_type: Union[UDTSubtype, NDBSubtype] = NDBSubtype.single
     num_shards: int = 0
 
     def deployment_permissions(self, token: str):

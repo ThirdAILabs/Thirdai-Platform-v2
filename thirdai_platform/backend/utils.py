@@ -90,7 +90,6 @@ class UDTExtraOptions(BaseModel):
     text_column: Optional[str] = None
     label_column: Optional[str] = None
     n_target_classes: Optional[int] = None
-    metrics: List[str] = None
 
     @root_validator(pre=True)
     def set_fields_based_on_type(cls, values):
@@ -100,13 +99,11 @@ class UDTExtraOptions(BaseModel):
             values["text_column"] = values.get("text_column", "text")
             values["label_column"] = values.get("label_column", "label")
             values["n_target_classes"] = values.get("n_target_classes", None)
-            values["metrics"] = values.get("metrics", ['categorical_accuracy','loss'])
         elif sub_type == "token":
             values["target_labels"] = values.get("target_labels", [])
             values["source_column"] = values.get("source_column", "source")
             values["target_column"] = values.get("target_column", "target")
             values["default_tag"] = values.get("default_tag", "O")
-            values["metrics"] = values.get("metrics", ['categorical_accuracy','loss'])
         return values
 
 

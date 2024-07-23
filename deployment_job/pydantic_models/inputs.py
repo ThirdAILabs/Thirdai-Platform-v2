@@ -49,7 +49,7 @@ class SearchResultsTextClassification(BaseModel):
 
 class SearchResultsTokenClassification(BaseModel):
     query_text: str
-    predicted_tags: List[str]
+    predicted_tags: List[List[str]]
 
 
 class SaveModel(BaseModel):

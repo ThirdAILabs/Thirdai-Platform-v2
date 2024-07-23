@@ -139,7 +139,6 @@ class TokenClassificationVariables(EnvLoader):
     source_column: str = None
     target_column: str = None
     default_tag: str = None
-    metrics: List[str] = None
 
 
 @dataclass
@@ -148,7 +147,6 @@ class TextClassificationVariables(EnvLoader):
     text_column: str = None
     label_column: str = None
     n_target_classes: int = None
-    metrics: List[str] = None
 
 
 @dataclass
@@ -176,6 +174,7 @@ class NeuralDBVariables(EnvLoader):
 
 @dataclass
 class TrainVariables(EnvLoader):
+    type: TypeEnum = TypeEnum.NDB
     learning_rate: float = 0.005
     max_in_memory_batches: Optional[int] = None
     batch_size: int = 2048
@@ -185,10 +184,16 @@ class TrainVariables(EnvLoader):
     disable_finetunable_retriever: bool = True
     fast_approximation: bool = True
     checkpoint_interval: Optional[int] = None
-    metrics: List[str] = field(default_factory=lambda: ["loss", "hash_precision@1"])
+    metrics: List[str] = field(default_factory=lambda: ["loss"])
     validation_metrics: List[str] = field(default_factory=lambda: ["categorical_accuracy"])
     num_buckets_to_sample: Optional[int] = None
-
+    
+    def __post_init__(self):
+      if self.type == TypeEnum.NDB:
+          self.metrics = ["hash_precision@1", "loss"]
+      elif self.type == TypeEnum.UDT:
+          self.metrics = ["precision@1", "loss"]
+          self.validation_metrics = ["categorical_accuracy", "recall@1"]
 
 @dataclass
 class S3Variables(EnvLoader):

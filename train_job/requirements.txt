@@ -4,3 +4,4 @@ boto3
 pandas
 requests
 thirdai[neural_db]
+colorlog

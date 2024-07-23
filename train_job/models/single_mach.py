@@ -3,7 +3,7 @@ import shutil
 import time
 from typing import List
 
-from exeptional_handler import apply_exception_handler
+from exceptional_handler import apply_exception_handler
 from models.ndb_model_interface import NDBModel
 from thirdai import neural_db as ndb
 from utils import check_disk, list_files, process_file
@@ -20,6 +20,7 @@ class SingleMach(NDBModel):
         """
         super().__init__()
         self.mach_variables: MachVariables = MachVariables.load_from_env()
+        self.logger.info("SingleMach initialized with Mach-specific variables.")
 
     def unsupervised_train(self, db: ndb.NeuralDB, files: List[str]):
         """
@@ -28,11 +29,11 @@ class SingleMach(NDBModel):
             db (ndb.NeuralDB): The NeuralDB instance.
             files (List[str]): List of file paths for unsupervised training data.
         """
-        # For mach we need to have all the files in insert otherwise mach has
-        # this forgetting nature, so not doing the streaming way for mach.
+        self.logger.info("Starting unsupervised training.")
         unsupervised_docs = [
             process_file(file, self.data_dir / "unsupervised") for file in files
         ]
+        self.logger.info(f"Processed {len(unsupervised_docs)} unsupervised documents.")
 
         db.insert(
             unsupervised_docs,
@@ -40,6 +41,7 @@ class SingleMach(NDBModel):
             checkpoint_config=self.unsupervised_checkpoint_config,
             epochs=self.train_variables.unsupervised_epochs,
         )
+        self.logger.info("Completed unsupervised training.")
 
     def supervised_train(self, db: ndb.NeuralDB, files: List[str]):
         """
@@ -48,6 +50,7 @@ class SingleMach(NDBModel):
             db (ndb.NeuralDB): The NeuralDB instance.
             files (List[str]): List of file paths for supervised training data.
         """
+        self.logger.info("Starting supervised training.")
         supervised_sources = self.get_supervised_files(files)
 
         db.supervised_train(
@@ -55,11 +58,13 @@ class SingleMach(NDBModel):
             epochs=self.train_variables.supervised_epochs,
             checkpoint_config=self.supervised_checkpoint_config,
         )
+        self.logger.info("Completed supervised training.")
 
     def train(self, **kwargs):
         """
         Train the SingleMach model with unsupervised and supervised data.
         """
+        self.logger.info("Training process started.")
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
 
         unsupervised_files = list_files(self.data_dir / "unsupervised")
@@ -71,30 +76,41 @@ class SingleMach(NDBModel):
         start_time = time.time()
 
         if unsupervised_files:
+            self.logger.info(f"Found {len(unsupervised_files)} unsupervised files.")
             check_disk(db, self.general_variables.model_bazaar_dir, unsupervised_files)
             self.unsupervised_train(db, unsupervised_files)
-            print("Completed Unsupervised Training", flush=True)
+            self.logger.info("Completed Unsupervised Training")
             if test_files:
                 self.evaluate(db, test_files)
 
         if supervised_files:
+            self.logger.info(f"Found {len(supervised_files)} supervised files.")
             check_disk(db, self.general_variables.model_bazaar_dir, supervised_files)
             self.supervised_train(db, supervised_files)
-            print("Completed Supervised Training", flush=True)
+            self.logger.info("Completed Supervised Training")
 
             if test_files:
                 self.evaluate(db, test_files)
 
-        total_time = time.time()
+        total_time = time.time() - start_time
+        self.logger.info(f"Total training time: {total_time} seconds")
 
         self.save(db)
+        self.logger.info("Model saved successfully.")
 
         if self.unsupervised_checkpoint_dir.exists():
             shutil.rmtree(self.unsupervised_checkpoint_dir)
+            self.logger.info(
+                f"Removed unsupervised checkpoint directory: {self.unsupervised_checkpoint_dir}"
+            )
         if self.supervised_checkpoint_dir.exists():
             shutil.rmtree(self.supervised_checkpoint_dir)
+            self.logger.info(
+                f"Removed supervised checkpoint directory: {self.supervised_checkpoint_dir}"
+            )
 
         self.finalize_training(db, total_time)
+        self.logger.info("Training finalized successfully.")
 
     def evaluate(self, db: ndb.NeuralDB, files: List[str], **kwargs):
         """
@@ -103,12 +119,13 @@ class SingleMach(NDBModel):
             db (ndb.NeuralDB): The NeuralDB instance.
             files (List[str]): List of file paths for evaluation data.
         """
+        self.logger.info("Starting evaluation process.")
         for file in files:
             metrics = db._savable_state.model.model.evaluate(
                 file,
                 metrics=self.train_variables.metrics,
             )
-            print(f"for file {file} metrics are {metrics}", flush=True)
+            self.logger.info(f"For file {file} metrics are {metrics}")
 
     def initialize_db(self) -> ndb.NeuralDB:
         """
@@ -116,6 +133,7 @@ class SingleMach(NDBModel):
         Returns:
             ndb.NeuralDB: The initialized NeuralDB instance.
         """
+        self.logger.info("Initializing a new NeuralDB instance.")
         return ndb.NeuralDB(
             fhr=self.mach_variables.fhr,
             embedding_dimension=self.mach_variables.embedding_dim,
@@ -135,7 +153,9 @@ class SingleMach(NDBModel):
             int: The number of parameters in the model.
         """
         model = db._savable_state.model.model._get_model()
-        return model.num_params()
+        num_params = model.num_params()
+        self.logger.info(f"Number of parameters in the model: {num_params}")
+        return num_params
 
     def get_size_in_memory(self) -> int:
         """
@@ -147,8 +167,10 @@ class SingleMach(NDBModel):
         documents_pickle = self.model_save_path / "documents.pkl"
         logger_pickle = self.model_save_path / "logger.pkl"
 
-        return (
+        size_in_memory = (
             os.path.getsize(udt_pickle) * 4
             + os.path.getsize(documents_pickle)
             + os.path.getsize(logger_pickle)
         )
+        self.logger.info(f"Size of the model in memory: {size_in_memory} bytes")
+        return size_in_memory

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List
 
 import thirdai
-from exeptional_handler import apply_exception_handler
+from exceptional_handler import apply_exception_handler
 from models.model import Model
 from thirdai import neural_db as ndb
 from utils import convert_supervised_to_ndb_file, get_directory_size
@@ -22,16 +22,20 @@ class NDBModel(Model):
         super().__init__()
         self.ndb_variables: NeuralDBVariables = NeuralDBVariables.load_from_env()
         self.model_save_path: Path = self.model_dir / "model.ndb"
+        self.logger.info("NDBModel initialized with NeuralDB variables.")
 
         self.unsupervised_checkpoint_config = self.create_checkpoint_config(
             self.get_checkpoint_dir(self.unsupervised_checkpoint_dir)
         )
+        self.logger.info(f"Unsupervised checkpoint config created")
 
         self.supervised_checkpoint_config = self.create_checkpoint_config(
             self.get_checkpoint_dir(self.supervised_checkpoint_dir)
         )
+        self.logger.info(f"Supervised checkpoint config created")
 
     def create_checkpoint_config(self, dir_path: Path):
+        self.logger.info(f"Creating checkpoint config for directory: {dir_path}")
         return (
             ndb.CheckpointConfig(
                 checkpoint_dir=dir_path,
@@ -43,6 +47,7 @@ class NDBModel(Model):
         )
 
     def get_checkpoint_dir(self, base_checkpoint_dir: Path):
+        self.logger.info(f"Getting checkpoint directory: {base_checkpoint_dir}")
         return base_checkpoint_dir
 
     def get_supervised_files(self, files: List[str]) -> List[ndb.Sup]:
@@ -53,13 +58,18 @@ class NDBModel(Model):
         Returns:
             List[ndb.Sup]: List of converted supervised NDB files.
         """
+        self.logger.info("Converting supervised files.")
         relations_path = self.data_dir / "relations.json"
         if relations_path.exists():
+            self.logger.info(f"Loading relations from {relations_path}")
             with relations_path.open("r") as file:
                 relations_data = json.load(file)
             relations_dict = {
                 entry["supervised_file"]: entry["source_id"] for entry in relations_data
             }
+        else:
+            self.logger.warning(f"Relations file not found at {relations_path}")
+            relations_dict = {}
 
         supervised_source_ids = [relations_dict[Path(file).name] for file in files]
 
@@ -76,12 +86,14 @@ class NDBModel(Model):
         Returns:
             Path: The path to the NeuralDB checkpoint.
         """
-        return (
+        path = (
             Path(self.general_variables.model_bazaar_dir)
             / "models"
             / model_id
             / "model.ndb"
         )
+        self.logger.info(f"NeuralDB path for model {model_id}: {path}")
+        return path
 
     def load_db(self, model_id: str) -> ndb.NeuralDB:
         """
@@ -91,6 +103,7 @@ class NDBModel(Model):
         Returns:
             ndb.NeuralDB: The loaded NeuralDB instance.
         """
+        self.logger.info(f"Loading NeuralDB from checkpoint for model {model_id}")
         return ndb.NeuralDB.from_checkpoint(self.get_ndb_path(model_id))
 
     def get_db(self) -> ndb.NeuralDB:
@@ -100,7 +113,9 @@ class NDBModel(Model):
             ndb.NeuralDB: The NeuralDB instance.
         """
         if self.ndb_variables.base_model_id:
+            self.logger.info(f"Loading base model {self.ndb_variables.base_model_id}")
             return self.load_db(self.ndb_variables.base_model_id)
+        self.logger.info("Initializing a new NeuralDB instance.")
         return self.initialize_db()
 
     def initialize_db(self):
@@ -125,11 +140,14 @@ class NDBModel(Model):
         """
         Get the latency of the db, Must be implemented by subclasses with single training
         """
+        self.logger.info("Measuring latency of the NeuralDB instance.")
         start_time = time.time()
 
         db.search("Checking for latency", top_k=5)
 
-        return time.time() - start_time
+        latency = time.time() - start_time
+        self.logger.info(f"Latency measured: {latency} seconds.")
+        return latency
 
     def save(self, db: ndb.NeuralDB):
         """
@@ -137,7 +155,9 @@ class NDBModel(Model):
         Args:
             db (ndb.NeuralDB): The NeuralDB instance to save.
         """
+        self.logger.info(f"Saving NeuralDB to {self.model_save_path}")
         db.save(self.model_save_path)
+        self.logger.info("NeuralDB saved successfully.")
 
     def finalize_training(self, db: ndb.NeuralDB, train_time: int):
         """
@@ -145,6 +165,7 @@ class NDBModel(Model):
         Args:
             db (ndb.NeuralDB): The NeuralDB instance.
         """
+        self.logger.info("Finalizing training process.")
         num_params = self.get_num_params(db)
 
         size = get_directory_size(self.model_save_path)
@@ -162,3 +183,4 @@ class NDBModel(Model):
                 "latency": str(latency),
             },
         )
+        self.logger.info("Training finalized and reported successfully.")

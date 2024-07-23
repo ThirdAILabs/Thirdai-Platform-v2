@@ -1,10 +1,9 @@
 import os
 import pickle
 import time
-from pathlib import Path
 
 import thirdai
-from exeptional_handler import apply_exception_handler
+from exceptional_handler import apply_exception_handler
 from models.ndb_model_interface import NDBModel
 from thirdai import neural_db as ndb
 from thirdai.neural_db.models.mach_mixture_model import MachMixture
@@ -24,6 +23,7 @@ class MultipleMach(NDBModel):
         """
         super().__init__()
         self.mach_variables: MachVariables = MachVariables.load_from_env()
+        self.logger.info("MultipleMach initialized with Mach-specific variables.")
 
     def initialize_db(self) -> ndb.NeuralDB:
         """
@@ -31,6 +31,7 @@ class MultipleMach(NDBModel):
         Returns:
             ndb.NeuralDB: The initialized NeuralDB instance.
         """
+        self.logger.info("Initializing a new NeuralDB instance.")
         return ndb.NeuralDB(
             fhr=self.mach_variables.fhr,
             embedding_dimension=self.mach_variables.embedding_dim,
@@ -60,6 +61,7 @@ class MultipleMach(NDBModel):
         Returns:
             tuple[int, int, int, int]: Tuple containing the total NDB size, model size, document size, and total model parameters.
         """
+        self.logger.info("Estimating approximate size of the NeuralDB.")
         model_params_each = (
             self.mach_variables.fhr + self.mach_variables.output_dim
         ) * self.mach_variables.embedding_dim  # bolt model params
@@ -76,6 +78,9 @@ class MultipleMach(NDBModel):
         )  # documents and documents.pkl stored in ndb
         total_ndb_size = total_model_size + doc_size
 
+        self.logger.info(
+            f"Total NDB size: {total_ndb_size}, Model size: {total_model_size}, Document size: {doc_size}, Total model parameters: {model_params_total}"
+        )
         return total_ndb_size, total_model_size, doc_size, model_params_total
 
     def load_db(self) -> ndb.NeuralDB:
@@ -84,6 +89,9 @@ class MultipleMach(NDBModel):
         Returns:
             ndb.NeuralDB: The loaded NeuralDB instance.
         """
+        self.logger.info(
+            f"Loading NeuralDB from checkpoint: {self.get_ndb_path(self.ndb_variables.base_model_id)}"
+        )
         db = ndb.NeuralDB.from_checkpoint(
             self.get_ndb_path(self.ndb_variables.base_model_id)
         )
@@ -99,6 +107,7 @@ class MultipleMach(NDBModel):
                 f"Number of Models per shard in the base model is {mixture.num_models_per_shard} which is not equal to the value for num_models_per_shard specified in the argument"
             )
 
+        self.logger.info("NeuralDB loaded successfully.")
         return db
 
     def get_data_shard_dict(self, data_shard) -> dict:
@@ -109,6 +118,7 @@ class MultipleMach(NDBModel):
         Returns:
             dict: Dictionary representation of the data shard.
         """
+        self.logger.info("Converting data shard to dictionary representation.")
         return {
             "documents": data_shard.documents,
             "id_column": data_shard.id_column,
@@ -124,11 +134,13 @@ class MultipleMach(NDBModel):
             intro_shards: List of introduction data shards.
             train_shards: List of training data shards.
         """
+        self.logger.info("Saving data shards to disk.")
         for i, (intro_shard, train_shard) in enumerate(zip(intro_shards, train_shards)):
             with (self.data_dir / f"intro_shard_{i}.pkl").open("wb") as pkl:
                 pickle.dump(self.get_data_shard_dict(intro_shard), pkl)
             with (self.data_dir / f"train_shard_{i}.pkl").open("wb") as pkl:
                 pickle.dump(self.get_data_shard_dict(train_shard), pkl)
+        self.logger.info("Data shards saved successfully.")
 
     def save_supervised_shards(self, supervised_shards):
         """
@@ -136,6 +148,7 @@ class MultipleMach(NDBModel):
         Args:
             supervised_shards: List of supervised data shards.
         """
+        self.logger.info("Saving supervised data shards to disk.")
         for i in range(len(supervised_shards)):
             supervised_shard_picklable = {
                 "id_column": supervised_shards[i].id_column,
@@ -146,6 +159,7 @@ class MultipleMach(NDBModel):
 
             with (self.data_dir / f"supervised_shard_{i}.pkl").open("wb") as pkl:
                 pickle.dump(supervised_shard_picklable, pkl)
+        self.logger.info("Supervised data shards saved successfully.")
 
     def save(self, db: ndb.NeuralDB):
         """
@@ -153,9 +167,11 @@ class MultipleMach(NDBModel):
         Args:
             db (ndb.NeuralDB): The NeuralDB instance to save.
         """
+        self.logger.info(f"Saving NeuralDB to {self.model_save_path}")
         for ensemble in db._savable_state.model.ensembles:
             ensemble.set_model([])
         db.save(self.model_save_path)
+        self.logger.info("NeuralDB saved successfully.")
 
     def create_extra_options(self) -> dict:
         """
@@ -163,6 +179,7 @@ class MultipleMach(NDBModel):
         Returns:
             dict: Dictionary of extra options.
         """
+        self.logger.info("Creating extra options for shard creation.")
         compute_variables = ComputeVariables.load_from_env()
         extra_options = merge_dataclasses_to_dict(
             self.mach_variables,
@@ -174,12 +191,14 @@ class MultipleMach(NDBModel):
         extra_options["allocation_cores"] = extra_options["model_cores"]
         extra_options.pop("base_model_id")
 
+        self.logger.info(f"Extra options created: {extra_options}")
         return extra_options
 
     def train(self, **kwargs):
         """
         Train the MultipleMach model.
         """
+        self.logger.info("Training process started.")
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
 
         db = self.get_db()
@@ -198,6 +217,7 @@ class MultipleMach(NDBModel):
         start_time = time.time()
 
         if unsupervised_files:
+            self.logger.info(f"Found {len(unsupervised_files)} unsupervised files.")
             unsupervised_sources = [
                 convert_to_ndb_file(file) for file in unsupervised_files
             ]
@@ -222,8 +242,10 @@ class MultipleMach(NDBModel):
             )
 
             self.save_data_shards(introduce_data_sources, train_data_sources)
+            self.logger.info("Completed Unsupervised Training")
 
         if supervised_files:
+            self.logger.info(f"Found {len(supervised_files)} supervised files.")
             supervised_sources = self.get_supervised_files(supervised_files)
             doc_manager = db._savable_state.documents
             supervised_data_source = SupDataSource(
@@ -241,8 +263,10 @@ class MultipleMach(NDBModel):
             )
 
             self.save_supervised_shards(sharded_supervised_datasource)
+            self.logger.info("Completed Supervised Training")
 
         if test_files:
+            self.logger.info(f"Found {len(test_files)} test files.")
             make_test_shard_files(
                 test_files[0],
                 mixture.label_to_segment_map,
@@ -270,6 +294,7 @@ class MultipleMach(NDBModel):
                     base_model_id=self.ndb_variables.base_model_id,
                     extra_options=extra_options,
                 )
+        self.logger.info("Model shards created successfully.")
 
         all_shard_status = False
         while not all_shard_status:
@@ -294,9 +319,10 @@ class MultipleMach(NDBModel):
                 [shard["status"] == "failed" for shard in model_shard_train_status]
             )
             if fail_shard_status:
-                raise Exception("model shard train failure")
+                raise Exception("Model shard train failure")
 
             time.sleep(10)
+        self.logger.info("All model shards completed training successfully.")
 
         total_time = time.time() - start_time
 
@@ -310,9 +336,10 @@ class MultipleMach(NDBModel):
                 "training_time": str(total_time),
             },
         )
+        self.logger.info("Training process completed successfully.")
 
     def evaluate(self, **kwargs):
         """
         Evaluate the MultipleMach model.
         """
-        pass
+        self.logger.warning("Evaluation method called. Not implemented.")

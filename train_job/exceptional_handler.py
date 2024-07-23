@@ -1,17 +1,22 @@
 import functools
-import logging
 import sys
 
+from logger import get_default_logger
 
-def exception_handler(report_method):
+
+def exception_handler(report_method, logger):
+    if logger is None:
+        logger = get_default_logger()
+
     def decorator_exception_handler(func):
         @functools.wraps(func)
         def wrapper_exception_handler(*args, **kwargs):
             try:
-                return func(*args, **kwargs)
+                result = func(*args, **kwargs)
+                return result
             except Exception as e:
                 print(f"Exception caught in {func.__name__}: {e}")
-                logging.error(f"Exception in {func.__name__}: {e}", exc_info=True)
+                logger.error(f"Exception in {func.__name__}: {e}", exc_info=True)
                 instance = args[0]
                 if hasattr(instance, "reporter") and hasattr(
                     instance, "general_variables"
@@ -52,13 +57,17 @@ def apply_exception_handler(cls):
     for attr in dir(cls):
         if callable(getattr(cls, attr)) and not attr.startswith("__"):
             method = getattr(cls, attr)
-            decorated_method = exception_handler(cls.report_failure_method)(method)
+            decorated_method = exception_handler(cls.report_failure_method, cls.logger)(
+                method
+            )
             setattr(cls, attr, decorated_method)
 
     # Wrap the __init__ method
     init_method = getattr(cls, "__init__", None)
     if callable(init_method):
-        decorated_init = exception_handler(cls.report_failure_method)(init_method)
+        decorated_init = exception_handler(cls.report_failure_method, cls.logger)(
+            init_method
+        )
         setattr(cls, "__init__", decorated_init)
 
     return cls

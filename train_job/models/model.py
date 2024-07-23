@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
+from logging import Logger
 from pathlib import Path
 
-from exeptional_handler import apply_exception_handler
+from exceptional_handler import apply_exception_handler
+from logger import LoggerConfig
 from reporter import Reporter
 from variables import GeneralVariables, TrainVariables
 
@@ -14,6 +16,7 @@ class Model(ABC):
     """
 
     report_failure_method = "report_status"
+    logger: Logger = None
 
     def __init__(self):
         """
@@ -39,6 +42,11 @@ class Model(ABC):
             / self.general_variables.model_id
         )
         self.model_dir.mkdir(parents=True, exist_ok=True)
+
+        logger_file_path = self.model_dir / "train.log"
+        self.__class__.logger = LoggerConfig(logger_file_path).get_logger(
+            "train-logger"
+        )
 
         self.unsupervised_checkpoint_dir: Path = (
             self.model_dir / "checkpoints" / "unsupervised"

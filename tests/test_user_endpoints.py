@@ -1,4 +1,3 @@
-# test_user_endpoints.py
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -61,8 +60,8 @@ def normal_user_token(test_client):
 
 def test_email_signup(test_client):
     response = test_client.post("/email-signup-basic", json={
-        "username": "testuser",
-        "email": "test@example.com",
+        "username": "test",
+        "email": "test@mail.com",
         "password": "testpassword"
     })
     assert response.status_code == 200
@@ -70,23 +69,23 @@ def test_email_signup(test_client):
 
 def test_add_admin(test_client, admin_token):
     response = test_client.post("/add-admin", headers={"Authorization": f"Bearer {admin_token}"}, params={
-        "email": "user@example.com"
+        "email": "user@mail.com"
     })
     assert response.status_code == 200
     assert response.json()["message"] == "User user@example.com has been successfully added as an admin."
 
 def test_add_admin_not_allowed(test_client, normal_user_token):
     response = test_client.post("/add-admin", headers={"Authorization": f"Bearer {normal_user_token}"}, params={
-        "email": "test@example.com"
+        "email": "test@mail.com"
     })
     assert response.status_code == 403
     assert response.json()["message"] == "You dont have enough permission to add another admin."
 
 def test_delete_user(test_client, admin_token):
     response = test_client.post("/email-signup-basic", json={
-        "username": "usertodelete",
-        "email": "delete@example.com",
-        "password": "deletepassword"
+        "username": "delete",
+        "email": "delete@mail.com",
+        "password": "password"
     })
     user_to_delete = response.json()["data"]["user"]
 

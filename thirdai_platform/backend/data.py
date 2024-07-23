@@ -1,11 +1,21 @@
+import os
+import uuid
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
+from backend.utils import (
+    get_platform,
+    get_python_path,
+    get_root_absolute_path,
+    response,
+    submit_nomad_job,
+)
 from database.session import get_session
-from fastapi import APIRouter, Depends, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Form, status
+from licensing.verify.verify_license import valid_job_allocation, verify_license
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
-from utils import response
 
 data_router = APIRouter()
 
@@ -13,10 +23,10 @@ data_router = APIRouter()
 class TextClassificationGenerateArgs(BaseModel):
     samples_per_label: int
     target_labels: List[str]
-    user_vocab: Optional[List[str]] = []
-    examples: Optional[Dict[str, List[str]]] = None
+    examples: Dict[str, List[str]]
+    labels_description: Dict[str, str]
+    user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
-    labels_description: Optional[Dict[str, str]] = None
     batch_size: int = 40
     vocab_per_sentence: int = 4
 
@@ -24,18 +34,59 @@ class TextClassificationGenerateArgs(BaseModel):
 @data_router.post("/generate-text-data")
 def generate_text_data(
     task_prompt: str,
-    args: TextClassificationGenerateArgs,
+    form: str = Form(default="{}"),
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:
-        pass
-        # TODO(Gautam): Submit data_generation nomad job
+        extra_options = TextClassificationGenerateArgs.model_validate_json(
+            form
+        ).model_dump()
+        extra_options = {k: v for k, v in extra_options.items() if v is not None}
+        if extra_options:
+            print(f"Extra options for training: {extra_options}")
+    except ValidationError as e:
+        return {"error": "Invalid extra options format", "details": str(e)}
+
+    try:
+        license_info = verify_license(
+            os.getenv(
+                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
+            )
+        )
+        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Resource limit reached, cannot allocate new jobs.",
+            )
     except Exception as e:
         return response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e)
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"License is not valid. {str(e)}",
         )
+
+    data_id = uuid.uuid4()
+
+    submit_nomad_job(
+        str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
+        nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+        platform=get_platform(),
+        tag=os.getenv("TAG"),
+        registry=os.getenv("DOCKER_REGISTRY"),
+        docker_username=os.getenv("DOCKER_USERNAME"),
+        docker_password=os.getenv("DOCKER_PASSWORD"),
+        image_name=os.getenv("TRAIN_IMAGE_NAME"),
+        train_script=str(get_root_absolute_path() / "data_generation/run.py"),
+        task_prompt=task_prompt,
+        data_id=str(data_id),
+        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
+        share_dir=os.getenv("SHARE_DIR", None),
+        genai_key=os.getenv("GENAI_KEY", None),
+        license_key=license_info["boltLicenseKey"],
+        extra_options=extra_options,
+        python_path=get_python_path(),
+    )
 
 
 class TokenClassificationGenerateArgs(BaseModel):
@@ -50,15 +101,56 @@ class TokenClassificationGenerateArgs(BaseModel):
 @data_router.post("/generate-token-data")
 def generate_text_data(
     task_prompt: str,
-    args: TextClassificationGenerateArgs,
+    form: str = Form(default="{}"),
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:
-        pass
-        # TODO(Gautam): Submit data_generation nomad job
+        extra_options = TokenClassificationGenerateArgs.model_validate_json(
+            form
+        ).model_dump()
+        extra_options = {k: v for k, v in extra_options.items() if v is not None}
+        if extra_options:
+            print(f"Extra options for training: {extra_options}")
+    except ValidationError as e:
+        return {"error": "Invalid extra options format", "details": str(e)}
+
+    try:
+        license_info = verify_license(
+            os.getenv(
+                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
+            )
+        )
+        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Resource limit reached, cannot allocate new jobs.",
+            )
     except Exception as e:
         return response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(e)
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"License is not valid. {str(e)}",
         )
+
+    data_id = uuid.uuid4()
+
+    submit_nomad_job(
+        str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
+        nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+        platform=get_platform(),
+        tag=os.getenv("TAG"),
+        registry=os.getenv("DOCKER_REGISTRY"),
+        docker_username=os.getenv("DOCKER_USERNAME"),
+        docker_password=os.getenv("DOCKER_PASSWORD"),
+        image_name=os.getenv("TRAIN_IMAGE_NAME"),
+        train_script=str(get_root_absolute_path() / "data_generation/run.py"),
+        task_prompt=task_prompt,
+        data_id=str(data_id),
+        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
+        share_dir=os.getenv("SHARE_DIR", None),
+        genai_key=os.getenv("GENAI_KEY", None),
+        license_key=license_info["boltLicenseKey"],
+        extra_options=extra_options,
+        python_path=get_python_path(),
+    )

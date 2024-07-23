@@ -15,8 +15,9 @@ job "GenerateData"
       {% endif %}
 
       env {
-        save_dir = "{{ save_dir }}"
+        DATA_ID = "{{ data_id }}"
         GENAI_KEY = "{{ genai_key }}"
+        TASK_PROMPT = "{{ task_prompt }}"
 
         {%- for key, value in extra_options.items() %}
         {{ key | upper }} = "{{ value }}"

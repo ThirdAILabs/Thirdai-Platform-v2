@@ -4,6 +4,7 @@ import random
 import traceback
 from typing import List
 
+from data_factory_interface import DataFactory
 from faker import Faker
 from tqdm import tqdm
 from utils import (
@@ -13,8 +14,6 @@ from utils import (
     load_random_prompts,
     subsample_dictionary,
 )
-
-from data_generation.data_factory_interface import DataFactory
 
 
 class TokenDataFactory(DataFactory):

@@ -5,9 +5,8 @@ import random
 import traceback
 from typing import Dict, List, Optional
 
+from data_factory_interface import DataFactory
 from utils import datagen_prompt, load_random_prompts, load_vocab
-
-from data_generation.data_factory_interface import DataFactory
 
 
 class TextDataFactory(DataFactory):

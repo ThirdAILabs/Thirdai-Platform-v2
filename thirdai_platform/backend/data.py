@@ -80,6 +80,7 @@ def generate_text_data(
         train_script=str(get_root_absolute_path() / "data_generation/run.py"),
         task_prompt=task_prompt,
         data_id=str(data_id),
+        data_category="text",
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
         share_dir=os.getenv("SHARE_DIR", None),
         genai_key=os.getenv("GENAI_KEY", None),
@@ -89,8 +90,8 @@ def generate_text_data(
     )
 
     return response(
-        status_code=status.HTTP_200_OK, 
-        message = "Successfully submitted the data-generation job"
+        status_code=status.HTTP_200_OK,
+        message="Successfully submitted the data-generation job",
     )
 
 
@@ -152,6 +153,7 @@ def generate_text_data(
         train_script=str(get_root_absolute_path() / "data_generation/run.py"),
         task_prompt=task_prompt,
         data_id=str(data_id),
+        data_category="token",
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
         share_dir=os.getenv("SHARE_DIR", None),
         genai_key=os.getenv("GENAI_KEY", None),
@@ -161,6 +163,6 @@ def generate_text_data(
     )
 
     return response(
-        status_code=status.HTTP_200_OK, 
-        message = "Successfully submitted the data-generation job"
+        status_code=status.HTTP_200_OK,
+        message="Successfully submitted the data-generation job",
     )

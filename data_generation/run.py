@@ -6,14 +6,14 @@ from variables import DataCategory, GeneralVariables
 # Load general variables from environment
 general_variables: GeneralVariables = GeneralVariables.load_from_env()
 
+
 def main():
     """
     Main function to initialize and generate the data based on environment variables.
     """
     if general_variables.data_category == DataCategory.text:
+        from text_data_factory import TextDataFactory
         from variables import TextGenerationVariables
-
-        from data_generation.text_data_factory import TextDataFactory
 
         factory = TextDataFactory(api_key=general_variables.genai_key)
         args = TextGenerationVariables.load_from_env()
@@ -30,13 +30,12 @@ def main():
             vocab_per_sentence=args.vocab_per_sentence,
         )
     else:
+        from token_data_factory import TokenDataFactory
         from variables import TokenGenerationVariables
-
-        from data_generation.token_data_factory import TokenDataFactory
 
         factory = TokenDataFactory(api_key=general_variables.genai_key)
         args = TokenGenerationVariables.load_from_env()
-        
+
         factory.generate(
             domain_prompt=args.domain_prompt,
             tags=args.tags,

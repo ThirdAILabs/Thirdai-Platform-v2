@@ -3,10 +3,11 @@ import json
 import os
 import random
 import traceback
-from typing import List
+from typing import Dict, List, Optional
 
-from data_generator_interface import DataFactory
 from utils import datagen_prompt, load_random_prompts, load_vocab
+
+from data_generation.data_factory_interface import DataFactory
 
 
 class TextDataFactory(DataFactory):
@@ -26,14 +27,13 @@ class TextDataFactory(DataFactory):
 
     def generate(
         self,
-        save_dir: str,
         task_prompt: str,
         samples_per_label: int,
         target_labels: List[str],
-        user_vocab: List[str] = [],
-        examples: dict = {},
-        user_prompts: List[str] = None,
-        labels_description: dict = {},
+        examples: Dict[str, List[str]],
+        labels_description: Dict[str, str],
+        user_vocab: Optional[List[str]] = None,
+        user_prompts: Optional[List[str]] = None,
         batch_size=40,
         vocab_per_sentence=4,
         sentences_generated=0,  # To resume the generate function incase of midway failure. TODO(Gautam): Incorporate resuming the data_generation task
@@ -54,7 +54,7 @@ class TextDataFactory(DataFactory):
 
         assert all(label in target_labels for label in list(examples.keys()))
 
-        user_vocab = self.vocab + user_vocab
+        user_vocab = self.vocab + (user_vocab if user_vocab is not None else [])
         tasks = []
         if user_prompts:
             user_prompts_combined = "\n".join(user_prompts)
@@ -108,7 +108,7 @@ class TextDataFactory(DataFactory):
         random.shuffle(tasks)
         tasks = tasks[: total_expected_sentences - sentences_generated]
         file_mode = "w" if sentences_generated == 0 else "a"
-        train_file_location = os.path.join(save_dir, "train.csv")
+        train_file_location = os.path.join(self.save_dir, "train.csv")
 
         error_logs = set()
         with open(
@@ -156,7 +156,7 @@ class TextDataFactory(DataFactory):
             "target_labels": target_labels,
             "num_samples": sentences_generated,
         }
-        with open(os.path.join(save_dir, "config.json"), "w") as file:
+        with open(os.path.join(self.save_dir, "config.json"), "w") as file:
             json.dump(dataset_config, file, indent=4)
 
         return dataset_config

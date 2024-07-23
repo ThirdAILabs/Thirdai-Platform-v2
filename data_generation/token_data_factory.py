@@ -4,7 +4,6 @@ import random
 import traceback
 from typing import List
 
-from data_generator_interface import DataFactory
 from faker import Faker
 from tqdm import tqdm
 from utils import (
@@ -14,6 +13,8 @@ from utils import (
     load_random_prompts,
     subsample_dictionary,
 )
+
+from data_generation.data_factory_interface import DataFactory
 
 
 class TokenDataFactory(DataFactory):
@@ -43,7 +44,6 @@ class TokenDataFactory(DataFactory):
 
     def generate(
         self,
-        save_dir: str,
         domain_prompt: str,
         tags: List[str],
         num_call_batches: int,
@@ -68,7 +68,7 @@ class TokenDataFactory(DataFactory):
 
         assert all(tag in tags for tag in list(tag_examples.keys()))
 
-        attribute_dimension_prompt = f"""Which attribute dimensions do you consider most vital in determining the topic of the task: ```{self.domain_prompt}```?
+        attribute_dimension_prompt = f"""Which attribute dimensions do you consider most vital in determining the topic of the task: ```{domain_prompt}```?
 
         DO NOT include any bulleting or prefix at start of each sentence and each. Do not include any quotes or emojis.
 
@@ -94,7 +94,7 @@ class TokenDataFactory(DataFactory):
 
         attribute_values = {}
         for attribute in tqdm(attributes, desc="Attributed definition..."):
-            attribute_value_prompt = f"""Given your extensive expertise in {self.domain_prompt}, please provide a range of realistic values for {attribute}. Ensure these estimates are diverse and applicable to real-world scenarios. 
+            attribute_value_prompt = f"""Given your extensive expertise in {domain_prompt}, please provide a range of realistic values for {attribute}. Ensure these estimates are diverse and applicable to real-world scenarios. 
             For attributes known to have well-defined values, provide specific, practical estimates; for all other attributes, offer generalized yet realistic ranges.
 
             DO NOT include any bulleting or prefix at start of each sentence and each. Do not include any quotes or emojis.
@@ -130,7 +130,7 @@ class TokenDataFactory(DataFactory):
             subsampled_values = value
             if len(value) > 10:
                 subsampled_values = random.sample(value, 10)
-            generate_random_entities_prompt = f"""You possess deep expertise in {self.domain_prompt}. Please generate {num_samples_per_tag} diverse samples for the {key} named entity. Below are some examples of the {key} entity:
+            generate_random_entities_prompt = f"""You possess deep expertise in {domain_prompt}. Please generate {num_samples_per_tag} diverse samples for the {key} named entity. Below are some examples of the {key} entity:
         {subsampled_values}
 
         Ensure each sample starts on a new line without any bullet points, prefixes, quotes, or emojis at the beginning of each sentence.
@@ -195,7 +195,7 @@ class TokenDataFactory(DataFactory):
             ]
             rnd_prompts_str = "\n -\t".join(rnd_prompts)
 
-            dataset_generation_prompt = f"""You possess deep expertise in {self.domain_prompt}. Please generate {batch_size} templates of synthetic sentences and associated tags for {self.domain_prompt}
+            dataset_generation_prompt = f"""You possess deep expertise in {domain_prompt}. Please generate {batch_size} templates of synthetic sentences and associated tags for {domain_prompt}
             
             VERY IMPORTANT: MAKE SURE identify all named entities occurred that belong to one of the following entity types: 
             {sampled_labels}
@@ -221,8 +221,7 @@ class TokenDataFactory(DataFactory):
 
             tasks.append(dataset_generation_prompt)
 
-        os.makedirs(save_dir, exist_ok=True)
-        training_file_path = os.path.join(save_dir, "train.csv")
+        training_file_path = os.path.join(self.save_dir, "train.csv")
 
         random.shuffle(tasks)
         tasks = tasks[: total_expected_sentences - sentences_generated]
@@ -232,7 +231,7 @@ class TokenDataFactory(DataFactory):
         for task_batch_id in range(0, len(tasks), 20):
             task_batch = tasks[task_batch_id : task_batch_id + 20]
             results = []
-            for task in tqdm.tqdm(task_batch):
+            for task in tqdm(task_batch):
                 results.append(process_task(task))
 
             for response, error_msg in results:
@@ -263,7 +262,7 @@ class TokenDataFactory(DataFactory):
             "target_labels": tags,
             "num_samples": sentences_generated,
         }
-        with open(os.path.join(save_dir, "config.json"), "w") as file:
+        with open(os.path.join(self.save_dir, "config.json"), "w") as file:
             json.dump(dataset_config, file, indent=4)
 
         return dataset_config

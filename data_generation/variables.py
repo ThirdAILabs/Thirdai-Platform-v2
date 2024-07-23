@@ -4,6 +4,11 @@ from dataclasses import MISSING, dataclass, fields
 from enum import Enum
 from typing import Dict, List, Optional, Type, TypeVar, Union, get_args, get_origin
 
+# from dotenv import load_dotenv
+
+# dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+# load_dotenv(dotenv_path)
+
 T = TypeVar("T", bound="EnvLoader")
 
 
@@ -31,6 +36,7 @@ class EnvLoader:
                         f.default if f.default is not MISSING else f.default_factory()
                     )
             else:
+                # print(f'{f.name = }, {value = }, {f.type = }')
                 value = cls._convert_type(value, f.type)
             env_vars[f.name] = value
 
@@ -63,9 +69,11 @@ class EnvLoader:
         if isinstance(field_type, type) and issubclass(field_type, Enum):
             try:
                 # Try converting directly
+                print(f"{field_type = }")
                 return field_type(value)
             except ValueError:
                 # Handle case where value is in form 'EnumClass.EnumMember'
+                print(f"{value = }, {type(value) = }")
                 enum_class, enum_member = value.split(".")
                 enum_type = EnvLoader.type_mapping.get(enum_class)
                 if enum_type and issubclass(enum_type, Enum):
@@ -79,7 +87,6 @@ class EnvLoader:
             return float(value)
         if field_type == str:
             return value
-
         return ast.literal_eval(value)
 
 
@@ -95,10 +102,10 @@ class TextGenerationVariables(EnvLoader):
     task_prompt: str
     samples_per_label: int
     target_labels: List[str]
-    user_vocab: Optional[List[str]] = []
-    examples: Optional[Dict[str, List[str]]] = None
+    examples: Dict[str, List[str]]
+    labels_description: Dict[str, str]
+    user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
-    labels_description: Optional[Dict[str, str]] = None
     batch_size: int = 40
     vocab_per_sentence: int = 4
 

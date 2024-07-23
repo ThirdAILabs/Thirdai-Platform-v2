@@ -73,6 +73,29 @@ def subsample_dictionary(data, k=2):
     return new_dict
 
 
+def convert_template_to_json(allowed_tags, data_strings):
+    data = []
+    for data_string in data_strings:
+        if len(data_string.split()):
+            try:
+                words = data_string.split()
+                tag_list = ["O"] * len(words)
+                for i, word in enumerate(words):
+                    if "[" in word and "]" in word:
+                        start = word.index("[")
+                        end = word.index("]")
+                        assert word[start + 1 : end].upper() in allowed_tags
+                        tag_list[i] = word[start + 1 : end].upper()
+                json_obj = {
+                    "source": words,
+                    "target": tag_list,
+                }
+                data.append(json_obj)
+            except Exception as e:
+                print(f"Error processing data: {e}")
+    return data
+
+
 def fill_and_transform_templates(
     allowed_tags, templates: List[str], generated_samples: dict
 ):

@@ -82,12 +82,13 @@ class Reporter:
 
         return content["data"]["model_present"]
 
-    def deploy_complete(self, deployment_id):
+    def update_deploy_status(self, deployment_id, status):
         content = self._request(
             "post",
-            f"api/deploy/complete",
+            f"api/deploy/update-status",
             params={
                 "deployment_id": deployment_id,
+                "status": status,
             },
         )
         print(content)

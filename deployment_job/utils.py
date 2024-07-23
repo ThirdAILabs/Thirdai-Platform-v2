@@ -116,7 +116,7 @@ class Status(str, enum.Enum):
     not_started = "not_started"
     starting = "starting"
     in_progress = "in_progress"
-    stopping = "stopping"
+    stopped = "stopped"
     complete = "complete"
     failed = "failed"
 

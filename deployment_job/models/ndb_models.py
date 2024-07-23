@@ -85,6 +85,14 @@ class NDBModel(Model):
             inputs.convert_reference_to_pydantic(ref, kwargs.get("context_radius", 1))
             for ref in references
         ]
+
+        self.reporter.log(
+            action="predict",
+            deployment_id=self.general_variables.deployment_id,
+            access_token=kwargs.get("token"),
+            train_samples=[{"query": kwargs["query"]}],
+        )
+
         return inputs.SearchResults(
             query_text=kwargs["query"],
             references=pydantic_references,
@@ -122,11 +130,25 @@ class NDBModel(Model):
         source_ids = kwargs.get("source_ids")
         self.db.delete(source_ids=source_ids)
 
+        self.reporter.log(
+            action="delete",
+            deployment_id=self.general_variables.deployment_id,
+            access_token=kwargs.get("token"),
+            train_samples=[{"source_ids": " ".join(source_ids)}],
+        )
+
     def insert(self, **kwargs):
         documents = kwargs.get("documents")
         ndb_docs = create_ndb_docs(documents, self.data_dir)
 
-        self.db.insert(sources=ndb_docs)
+        source_ids = self.db.insert(sources=ndb_docs)
+
+        self.reporter.log(
+            action="insert",
+            deployment_id=self.general_variables.deployment_id,
+            access_token=kwargs.get("token"),
+            train_samples=[{"sources_ids": " ".join(source_ids)}],
+        )
 
         return [
             {

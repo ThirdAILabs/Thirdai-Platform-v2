@@ -24,7 +24,7 @@ class Status(str, enum.Enum):
     not_started = "not_started"
     starting = "starting"
     in_progress = "in_progress"
-    stopping = "stopping"
+    stopped = "stopped"
     complete = "complete"
     failed = "failed"
 
@@ -57,6 +57,7 @@ class User(SQLDeclarativeBase):
     deployments = relationship(
         "Deployment", back_populates="user", cascade="all, delete-orphan"
     )
+    logs = relationship("Log", back_populates="user", cascade="all, delete-orphan")
 
     @validates("username")
     def validate_username(self, key, username):
@@ -140,7 +141,6 @@ class MetaData(SQLDeclarativeBase):
 
     general = Column(JSON, nullable=True)
     train = Column(JSON, nullable=True)
-    deployment = Column(JSON, nullable=True)
 
     model_id = Column(
         UUID(as_uuid=True),
@@ -192,6 +192,9 @@ class Deployment(SQLDeclarativeBase):
 
     user = relationship("User", back_populates="deployments")
     model = relationship("Model", back_populates="deployments", foreign_keys=[model_id])
+    logs = relationship(
+        "Log", back_populates="deployment", cascade="all, delete-orphan"
+    )
 
     @validates("name")
     def validate_deployment_name(self, key, name):
@@ -202,3 +205,30 @@ class Deployment(SQLDeclarativeBase):
         return name
 
     __table_args__ = (UniqueConstraint("model_id", "user_id", "name"),)
+
+
+class Log(SQLDeclarativeBase):
+    __tablename__ = "logs"
+
+    deployment_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("deployments.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    action = Column(String, primary_key=True)
+    count = Column(Integer, nullable=False, default=0)
+    log_entries = Column(JSON, nullable=True)
+
+    deployment = relationship("Deployment", back_populates="logs")
+    user = relationship("User", back_populates="logs")
+
+    __table_args__ = (
+        Index("log_deployment_index", "deployment_id"),
+        Index("log_user_index", "user_id"),
+        UniqueConstraint(
+            "deployment_id", "user_id", "action", name="unique_deployment_user_action"
+        ),
+    )

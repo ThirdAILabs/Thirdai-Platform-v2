@@ -1,3 +1,7 @@
+"""
+Main module to initialize and retrieve the appropriate model instance.
+"""
+
 import os
 
 import thirdai
@@ -6,7 +10,7 @@ from variables import GeneralVariables, TypeEnum
 
 # Initialize the model to None
 model_instance = None
-general_variables = GeneralVariables.load_from_env()
+general_variables: GeneralVariables = GeneralVariables.load_from_env()
 
 if general_variables.license_key == "file_license":
     thirdai.licensing.set_path(
@@ -17,6 +21,15 @@ else:
 
 
 def get_model():
+    """
+    Retrieves the appropriate model instance based on general variables.
+
+    Returns:
+        Union[ShardedNDB, SingleNDB]: The initialized model instance.
+
+    Raises:
+        ValueError: If the model type is invalid.
+    """
     global model_instance
     if model_instance is None:
         if general_variables.type == TypeEnum.NDB:

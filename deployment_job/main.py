@@ -2,6 +2,7 @@ import asyncio
 import time
 from functools import wraps
 from multiprocessing import Lock, Manager, Process, Queue
+from typing import Any
 
 import uvicorn
 from fastapi import FastAPI, Request
@@ -35,6 +36,10 @@ reset_event = asyncio.Event()
 
 
 def reset_timer(endpoint_func):
+    """
+    Decorator to reset the shutdown timer on endpoint access.
+    """
+
     @wraps(endpoint_func)
     def wrapper(*args, **kwargs):
         response = endpoint_func(*args, **kwargs)
@@ -44,15 +49,17 @@ def reset_timer(endpoint_func):
     return wrapper
 
 
-async def async_timer():
+async def async_timer() -> None:
+    """
+    Async function to start a shutdown timer and reset it upon endpoint access.
+    """
     while True:
         try:
             await asyncio.wait_for(
-                reset_event.wait(), timeout=900
-            )  # 15 minutes = 900 seconds
+                reset_event.wait(), timeout=900  # 15 minutes = 900 seconds
+            )
             reset_event.clear()  # clear the event if the endpoint was hit within the timeout period
         except asyncio.TimeoutError:
-            # insert logic to cancel inference session
             response, job_id = delete_job(
                 general_variables.deployment_id, general_variables.task_runner_token
             )
@@ -62,7 +69,6 @@ async def async_timer():
                 print(
                     f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
                 )
-
             reset_event.clear()
 
 
@@ -78,7 +84,7 @@ if general_variables.type == TypeEnum.NDB:
 
 
 @app.exception_handler(404)
-async def custom_404_handler(request: Request, exc):
+async def custom_404_handler(request: Request, exc: Any) -> JSONResponse:
     return JSONResponse(
         status_code=404,
         content={"message": f"Request path '{request.url.path}' doesn't exist"},
@@ -86,12 +92,15 @@ async def custom_404_handler(request: Request, exc):
 
 
 @app.get("/")
-async def homepage(request: Request):
+async def homepage(request: Request) -> dict:
     return {"Deployment"}
 
 
 @app.on_event("startup")
-async def startup_event():
+async def startup_event() -> None:
+    """
+    Event handler for application startup.
+    """
     try:
         time.sleep(10)
         reporter.update_deploy_status(general_variables.deployment_id, "complete")

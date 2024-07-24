@@ -16,11 +16,21 @@ from utils import Status, now, propagate_error, response, validate_files, valida
 from variables import GeneralVariables, TypeEnum
 
 permissions = Permissions()
-
 general_variables = GeneralVariables.load_from_env()
 
 
-def create_ndb_router(task_queue, task_lock, tasks):
+def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
+    """
+    Creates an API router for handling NDB-related endpoints.
+
+    Args:
+        task_queue (Any): Queue for handling background tasks.
+        task_lock (Any): Lock for synchronizing task access.
+        tasks (dict): Dictionary to store task details.
+
+    Returns:
+        APIRouter: The configured API router.
+    """
     ndb_router = APIRouter()
 
     @ndb_router.post("/predict")
@@ -28,7 +38,7 @@ def create_ndb_router(task_queue, task_lock, tasks):
     def ndb_query(
         base_params: BaseQueryParams,
         ndb_params: Optional[NDBExtraParams] = NDBExtraParams(),
-        token=Depends(permissions.verify_read_permission),
+        token: str = Depends(permissions.verify_read_permission),
     ):
         model = get_model()
         params = base_params.dict()
@@ -49,24 +59,25 @@ def create_ndb_router(task_queue, task_lock, tasks):
     @ndb_router.post("/upvote")
     @propagate_error
     def ndb_upvote(
-        input: inputs.UpvoteInput, token=Depends(permissions.verify_write_permission)
+        input: inputs.UpvoteInput,
+        token: str = Depends(permissions.verify_write_permission),
     ):
         model = get_model()
         model.upvote(text_id_pairs=input.text_id_pairs, token=token)
 
-        return response(status_code=status.HTTP_200_OK, message="Sucessfully upvoted")
+        return response(status_code=status.HTTP_200_OK, message="Successfully upvoted")
 
     @ndb_router.post("/associate")
     @propagate_error
     def ndb_associate(
         input: inputs.AssociateInput,
-        token=Depends(permissions.verify_write_permission),
+        token: str = Depends(permissions.verify_write_permission),
     ):
         model = get_model()
         model.associate(text_pairs=input.text_pairs, token=token)
 
         return response(
-            status_code=status.HTTP_200_OK, message="Sucessfully associated"
+            status_code=status.HTTP_200_OK, message="Successfully associated"
         )
 
     @ndb_router.get("/sources")
@@ -83,7 +94,8 @@ def create_ndb_router(task_queue, task_lock, tasks):
     @ndb_router.post("/delete")
     @propagate_error
     def delete(
-        input: inputs.DeleteInput, token=Depends(permissions.verify_write_permission)
+        input: inputs.DeleteInput,
+        token: str = Depends(permissions.verify_write_permission),
     ):
         model = get_model()
         model.delete(source_ids=input.source_ids, token=token)
@@ -97,8 +109,8 @@ def create_ndb_router(task_queue, task_lock, tasks):
     @ndb_router.post("/save")
     def save(
         input: inputs.SaveModel,
-        token=Depends(permissions.verify_read_permission),
-        override_permission=Depends(permissions.get_owner_permission),
+        token: str = Depends(permissions.verify_read_permission),
+        override_permission: bool = Depends(permissions.get_owner_permission),
     ):
         model = get_model()
         model_id = general_variables.model_id
@@ -130,7 +142,7 @@ def create_ndb_router(task_queue, task_lock, tasks):
             if not override_permission:
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message="You dont have permissions to override this model.",
+                    message="You don't have permissions to override this model.",
                 )
         try:
             model.save_ndb(model_id=model_id)
@@ -161,7 +173,7 @@ def create_ndb_router(task_queue, task_lock, tasks):
         documents: str = Form(...),
         files: List[UploadFile] = [],
         input_mode: str = Form("sync"),
-        token=Depends(permissions.verify_write_permission),
+        token: str = Depends(permissions.verify_write_permission),
     ):
         try:
             documents_list = DocumentList.model_validate_json(documents).model_dump()
@@ -241,7 +253,15 @@ def create_ndb_router(task_queue, task_lock, tasks):
     return ndb_router
 
 
-def process_tasks(task_queue, task_lock, tasks):
+def process_tasks(task_queue, task_lock, tasks) -> None:
+    """
+    Processes tasks from the task queue.
+
+    Args:
+        task_queue (Any): Queue for handling background tasks.
+        task_lock (Any): Lock for synchronizing task access.
+        tasks (dict): Dictionary to store task details.
+    """
     model = get_model()
     while True:
         task_id, documents = task_queue.get()

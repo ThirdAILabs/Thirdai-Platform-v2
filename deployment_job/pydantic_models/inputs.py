@@ -1,57 +1,103 @@
+"""
+Defines input models for Pydantic validation and utility functions for conversions.
+"""
+
 import json
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 from pydantic_models.constraints import Constraints
 
 
 class AssociateInputSingle(BaseModel):
+    """
+    Represents a single source-target pair for association.
+    """
+
     source: str
     target: str
 
 
 class AssociateInput(BaseModel):
+    """
+    Represents a list of source-target pairs for association.
+    """
+
     text_pairs: List[AssociateInputSingle]
 
 
 class Reference(BaseModel):
+    """
+    Represents a reference result from a search query.
+    """
+
     id: int = Field(..., ge=0)
     text: str
     context: str
     source: str
-    metadata: Dict
+    metadata: Dict[str, Any]
     source_id: str
     score: float
 
 
 class UpvoteInputSingle(BaseModel):
+    """
+    Represents a single query-reference pair for upvoting.
+    """
+
     query_text: str
     reference_id: int = Field(..., ge=0)
 
 
 class UpvoteInput(BaseModel):
+    """
+    Represents a list of query-reference pairs for upvoting.
+    """
+
     text_id_pairs: List[UpvoteInputSingle]
 
 
 class SearchResults(BaseModel):
+    """
+    Represents the search results including the query and references.
+    """
+
     query_text: str
     references: List[Reference]
 
 
 class DeleteInput(BaseModel):
+    """
+    Represents a list of source IDs to be deleted.
+    """
+
     source_ids: List[str]
 
 
 class SaveModel(BaseModel):
+    """
+    Represents the parameters for saving a model.
+    """
+
     override: bool
     model_name: Optional[str] = None
 
 
-def convert_reference_to_pydantic(input, context_radius: int):
-    def convert_to_json_encodable(value):
+def convert_reference_to_pydantic(input: Any, context_radius: int) -> Reference:
+    """
+    Converts a reference object to a Pydantic Reference model.
+
+    Args:
+        input: The input reference object.
+        context_radius: The context radius for the reference.
+
+    Returns:
+        Reference: The Pydantic Reference model.
+    """
+
+    def convert_to_json_encodable(value: Any) -> str:
         try:
-            json_value = json.dumps(value)
-            return json_value
+            return json.dumps(value)
         except TypeError:
             return str(value)
 
@@ -67,11 +113,19 @@ def convert_reference_to_pydantic(input, context_radius: int):
 
 
 class BaseQueryParams(BaseModel):
+    """
+    Represents the base query parameters.
+    """
+
     query: str
     top_k: int = 5
 
 
 class NDBExtraParams(BaseModel):
+    """
+    Represents extra parameters for NDB search queries.
+    """
+
     rerank: bool = False
     top_k_rerank: int = 100
     context_radius: int = 1

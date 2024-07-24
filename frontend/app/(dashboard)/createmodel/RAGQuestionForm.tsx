@@ -4,6 +4,7 @@ const RAGQuestionForm = () => {
   const [llmType, setLlmType] = useState<string|null>(null);
   const [sourceType, setSourceType] = useState('');
   const [llmGuardrail, setLlmGuardrail] = useState('');
+  const [useExistingGuardrail, setUseExistingGuardrail] = useState<string|null>(null);
 
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState<Array<{ sender: string, message: string }>>([]);
@@ -80,6 +81,26 @@ const RAGQuestionForm = () => {
           <option value="No">No</option>
         </select>
       </div>
+
+      {/* Begin choose to use existing LLM guardrail */}
+
+      {llmGuardrail === 'Yes' && (
+        <div className="mb-4">
+          <label htmlFor="useExistingGuardrail" className="block text-sm font-medium text-gray-700">Use Existing Guardrail?</label>
+          <select
+            id="useExistingGuardrail"
+            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+            value={useExistingGuardrail ? useExistingGuardrail : ''}
+            onChange={(e) => setUseExistingGuardrail(e.target.value)}
+          >
+            <option value="">-- Please choose an option --</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No, create a new one</option>
+          </select>
+        </div>
+      )}
+
+      {/* End choose to use existing LLM guardrail */}
 
       {/* End choose LLM guardrail */}
 

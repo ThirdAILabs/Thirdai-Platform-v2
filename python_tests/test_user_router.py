@@ -1,3 +1,6 @@
+#TODO(pratik): This test file needs to be refactored as 
+#  pytests for this service to run that on github CI.
+
 import requests
 
 BASE_URL = "http://localhost:8000"

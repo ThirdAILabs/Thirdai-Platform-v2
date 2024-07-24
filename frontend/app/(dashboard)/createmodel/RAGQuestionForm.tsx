@@ -5,6 +5,18 @@ const RAGQuestionForm = () => {
   const [sourceType, setSourceType] = useState('');
   const [llmGuardrail, setLlmGuardrail] = useState('');
 
+  const [chatInput, setChatInput] = useState('');
+  const [chatHistory, setChatHistory] = useState<Array<{ sender: string, message: string }>>([]);
+
+  const handleSendMessage = () => {
+    if (chatInput.trim()) {
+      setChatHistory([...chatHistory, { sender: 'User', message: chatInput }]);
+      // Simulate LLM response for demo purposes
+      setChatHistory([...chatHistory, { sender: 'User', message: chatInput }, { sender: 'LLM', message: `LLM response to "${chatInput}"` }]);
+      setChatInput('');
+    }
+  };
+
   return (
     <div>
       {/* Begin source files */}
@@ -52,25 +64,6 @@ const RAGQuestionForm = () => {
 
       {/* End source files */}
 
-      {/* Begin choose LLM */}
-
-      <span className="block text-lg font-semibold mb-2">Choose your LLM</span>
-      <div className="mb-4">
-        <label htmlFor="llmType" className="block text-sm font-medium text-gray-700">Select LLM Type</label>
-        <select
-          id="llmType"
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-          value={llmType ? llmType : ''}
-          onChange={(e) => setLlmType(e.target.value)}
-        >
-          <option value="">-- Please choose an option --</option>
-          <option value="OpenAI">OpenAI</option>
-          <option value="Llama">Llama</option>
-        </select>
-      </div>
-
-      {/* End choose LLM */}
-
       {/* Begin choose LLM guardrail */}
 
       <span className="block text-lg font-semibold mb-2">Would you like an LLM guardrail?</span>
@@ -90,6 +83,56 @@ const RAGQuestionForm = () => {
 
       {/* End choose LLM guardrail */}
 
+      {/* Begin choose LLM */}
+
+      <span className="block text-lg font-semibold mb-2">Choose your LLM</span>
+      <div className="mb-4">
+        <label htmlFor="llmType" className="block text-sm font-medium text-gray-700">Select LLM Type</label>
+        <select
+          id="llmType"
+          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+          value={llmType ? llmType : ''}
+          onChange={(e) => setLlmType(e.target.value)}
+        >
+          <option value="">-- Please choose an option --</option>
+          <option value="OpenAI">OpenAI</option>
+          <option value="Llama">Llama</option>
+        </select>
+      </div>
+
+      {/* End choose LLM */}
+
+      {/* Begin chat interface */}
+
+      <span className="block text-lg font-semibold mb-2">Chat with LLM</span>
+      <div className="mb-4">
+        <div className="border border-gray-300 rounded-md p-4 h-64 overflow-y-scroll">
+          {chatHistory.map((chat, index) => (
+            <div key={index} className={`mb-2 ${chat.sender === 'User' ? 'text-right' : 'text-left'}`}>
+              <span className={`inline-block px-4 py-2 rounded-md ${chat.sender === 'User' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}>
+                <strong>{chat.sender}:</strong> {chat.message}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex">
+          <input
+            type="text"
+            className="flex-grow border border-gray-300 rounded-l-md p-2"
+            placeholder="Type your message..."
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+          />
+          <button
+            className="bg-blue-500 text-white px-4 py-2 rounded-r-md"
+            onClick={handleSendMessage}
+          >
+            Send
+          </button>
+        </div>
+      </div>
+
+      {/* End chat interface */}
     </div>
   );
 };

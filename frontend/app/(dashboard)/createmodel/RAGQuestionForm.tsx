@@ -195,9 +195,8 @@ const RAGQuestionForm = () => {
 
       {/* End choose LLM guardrail */}
 
-      {/* Begin choose LLM */}
-
-      <span className="block text-lg font-semibold mb-2">LLM</span>
+      {/* Begin chat interface */}
+      <span className="block text-lg font-semibold mb-2">Chat with LLM</span>
       <div className="mb-4">
         <label htmlFor="llmType" className="block text-sm font-medium text-gray-700">Choose your LLM</label>
         <select
@@ -210,38 +209,37 @@ const RAGQuestionForm = () => {
           <option value="OpenAI">OpenAI</option>
           <option value="Llama">Llama</option>
         </select>
-      </div>
 
-      {/* End choose LLM */}
-
-      {/* Begin chat interface */}
-
-      <span className="block text-lg font-semibold mb-2">Chat with LLM</span>
-      <div className="mb-4">
-        <div className="border border-gray-300 rounded-md p-4 h-64 overflow-y-scroll">
-          {chatHistory.map((chat, index) => (
-            <div key={index} className={`mb-2 ${chat.sender === 'User' ? 'text-right' : 'text-left'}`}>
-              <span className={`inline-block px-4 py-2 rounded-md ${chat.sender === 'User' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}>
-                <strong>{chat.sender}:</strong> {chat.message}
-              </span>
+        {
+          llmType
+          &&
+          <>
+            <div className="border border-gray-300 rounded-md p-4 h-64 overflow-y-scroll mt-4">          
+              {chatHistory.map((chat, index) => (
+                <div key={index} className={`mb-2 ${chat.sender === 'User' ? 'text-right' : 'text-left'}`}>
+                  <span className={`inline-block px-4 py-2 rounded-md ${chat.sender === 'User' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-black'}`}>
+                    <strong>{chat.sender}:</strong> {chat.message}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <div className="mt-4 flex">
-          <input
-            type="text"
-            className="flex-grow border border-gray-300 rounded-l-md p-2"
-            placeholder="Type your message..."
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-          />
-          <button
-            className="bg-blue-500 text-white px-4 py-2 rounded-r-md"
-            onClick={handleSendMessage}
-          >
-            Send
-          </button>
-        </div>
+            <div className="mt-4 flex">
+              <input
+                type="text"
+                className="flex-grow border border-gray-300 rounded-l-md p-2"
+                placeholder="Type your message..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+              />
+              <button
+                className="bg-blue-500 text-white px-4 py-2 rounded-r-md"
+                onClick={handleSendMessage}
+              >
+                Send
+              </button>
+            </div>
+          </>
+        }
       </div>
 
       {/* End chat interface */}

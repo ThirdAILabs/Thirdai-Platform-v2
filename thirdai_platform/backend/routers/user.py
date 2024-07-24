@@ -100,7 +100,7 @@ def email_signup(
             email=body.email,
             password_hash=hash_password(body.password),
             verified=False,
-        )
+        )       
 
         session.add(user)
         session.commit()
@@ -168,11 +168,10 @@ def add_admin(
         message=f"User {email} has been successfully added as an admin.",
     )
     
-@user_router.delete("/delete-user/{user_id}", dependencies=[Depends(verify_admin_access)])
+@user_router.delete("/delete-user")
 def delete_user(
-    user_id: int,
+    user_id: str,
     session: Session = Depends(get_session),
-    current_user: schema.User = Depends(get_current_user),
 ):
     user = session.query(schema.User).filter(schema.User.id == user_id).first()
 
@@ -279,10 +278,10 @@ def email_login(
             status_code=status.HTTP_401_UNAUTHORIZED, message="Invalid password."
         )
 
-    if not user.verified:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST, message="User is not verified yet."
-        )
+    # if not user.verified:
+    #     return response(
+    #         status_code=status.HTTP_400_BAD_REQUEST, message="User is not verified yet."
+    #     )
 
     return response(
         status_code=status.HTTP_200_OK,

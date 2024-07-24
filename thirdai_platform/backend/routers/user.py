@@ -8,7 +8,7 @@ from backend.mailer import Mailer
 from backend.utils import hash_password, response
 from database import schema
 from database.session import get_session
-from dependencies import get_current_user, verify_admin_access
+from backend.auth_dependencies import get_current_user, verify_admin_access
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates

@@ -70,6 +70,10 @@ class User(SQLDeclarativeBase):
         server_default=text("gen_random_uuid()"),
     )
 
+    admin = relationship(
+        "Admins", secondary=user_admin_association, back_populates="members"
+    )
+     
     models = relationship("Model", back_populates="user", cascade="all, delete-orphan")
     deployments = relationship(
         "Deployment", back_populates="user", cascade="all, delete-orphan"

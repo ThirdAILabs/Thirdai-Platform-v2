@@ -82,6 +82,9 @@ def validate_name(name):
 
 
 class UDTExtraOptions(BaseModel):
+    allocation_cores: Optional[int] = None
+    allocation_memory: Optional[int] = None
+
     sub_type: Optional[str] = None
     target_labels: List[str] = None
     source_column: Optional[str] = None

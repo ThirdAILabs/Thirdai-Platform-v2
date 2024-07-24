@@ -3,13 +3,17 @@ from abc import abstractmethod
 from pathlib import Path
 
 import thirdai
+from exceptional_handler import apply_exception_handler
 from models.model import Model
 from thirdai import bolt
 from utils import list_files
 from variables import TextClassificationVariables, TokenClassificationVariables
 
 
+@apply_exception_handler
 class ClassificationModel(Model):
+    report_failure_method = "report_status"
+
     def __init__(self):
         super().__init__()
         self.model_save_path = self.model_dir / "model.udt"
@@ -71,6 +75,7 @@ class ClassificationModel(Model):
         pass
 
 
+@apply_exception_handler
 class TextClassificationModel(ClassificationModel):
     def __init__(self):
         super().__init__()
@@ -140,6 +145,7 @@ class TextClassificationModel(ClassificationModel):
         return latency
 
 
+@apply_exception_handler
 class TokenClassificationModel(ClassificationModel):
     def __init__(self):
         super().__init__()

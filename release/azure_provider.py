@@ -1,7 +1,7 @@
 import json
 import re
 import subprocess
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import docker
 from azure.containerregistry import ContainerRegistryClient
@@ -13,12 +13,24 @@ from utils import image_name_for_branch
 
 class AzureProvider(CloudProviderInterface):
     def __init__(self, registry: str):
+        """
+        Initialize the AzureProvider with the registry URL.
+        """
         self.registry = registry
         self.registry_name = registry.split(".")[0]
 
     def build_image(
         self, path: str, tag: str, nocache: bool, buildargs: Dict[str, str]
     ) -> str:
+        """
+        Build a Docker image from the specified path with the given tag.
+
+        :param path: Path to the Dockerfile
+        :param tag: Tag for the built image
+        :param nocache: Whether to use cache during build
+        :param buildargs: Build arguments for the Docker build
+        :return: ID of the built image
+        """
         print(f"Building image at path: {path} with tag: {tag}")
         docker_client = docker.APIClient(base_url="unix://var/run/docker.sock")
         generator = docker_client.build(
@@ -29,7 +41,7 @@ class AzureProvider(CloudProviderInterface):
             nocache=nocache,
             buildargs=buildargs,
         )
-        image_id = None
+        image_id: Optional[str] = None
         for chunk in generator:
             for minichunk in chunk.strip(b"\r\n").split(b"\r\n"):
                 json_chunk = json.loads(minichunk)
@@ -47,12 +59,17 @@ class AzureProvider(CloudProviderInterface):
             raise RuntimeError(f"Did not successfully build {tag} from {path}")
 
         print(f"\nLocal: Built {image_id}\n")
-
         print("\n===============================================================\n")
 
         return image_id
 
     def push_image(self, image_id: str, tag: str) -> None:
+        """
+        Push a Docker image to the registry.
+
+        :param image_id: ID of the image to push
+        :param tag: Tag for the image in the registry
+        """
         client = docker.from_env()
         client.login(
             username=self.credentials.push_username,
@@ -98,7 +115,14 @@ class AzureProvider(CloudProviderInterface):
         if progress_bar:
             progress_bar.close()
 
-    def get_image_digest(self, name: str, tag: str) -> List[str]:
+    def get_image_digest(self, name: str, tag: str) -> Optional[List[str]]:
+        """
+        Get the digest of a Docker image.
+
+        :param name: Name of the image
+        :param tag: Tag of the image
+        :return: List of layer digests or None if the image is not found
+        """
         client = docker.from_env()
         client.login(
             username=self.credentials.pull_username,
@@ -118,6 +142,13 @@ class AzureProvider(CloudProviderInterface):
             return None
 
     def delete_image(self, repository: str, tag: str, **kwargs) -> None:
+        """
+        Delete a tag of an image from the Azure Container Registry.
+
+        :param repository: Name of the repository
+        :param tag: Tag of the image to delete
+        :param kwargs: Additional keyword arguments (tenant_id, client_id, client_secret)
+        """
         credential = ClientSecretCredential(
             tenant_id=kwargs.get("tenant_id"),
             client_id=kwargs.get("client_id"),
@@ -129,6 +160,14 @@ class AzureProvider(CloudProviderInterface):
     def create_credentials(
         self, name: str, image_names: List[str], push_access: bool
     ) -> Dict[str, str]:
+        """
+        Create credentials for pushing and pulling images.
+
+        :param name: Name for the scope map and token
+        :param image_names: List of image names the credentials should have access to
+        :param push_access: Whether the credentials should have push access
+        :return: Dictionary with username and password
+        """
         check_scope_map_cmd = (
             "az acr scope-map show"
             f" --name {name}"
@@ -199,6 +238,13 @@ class AzureProvider(CloudProviderInterface):
     def update_credentials(
         self, name: str, image_names: List[str], push_access: bool
     ) -> None:
+        """
+        Update credentials for pushing and pulling images.
+
+        :param name: Name for the scope map and token
+        :param image_names: List of image names the credentials should have access to
+        :param push_access: Whether the credentials should have push access
+        """
         check_scope_map_cmd = (
             "az acr scope-map show"
             f" --name {name}"
@@ -252,6 +298,13 @@ class AzureProvider(CloudProviderInterface):
         print(out)
 
     def update_image(self, image_id: str, name: str, tag: str) -> None:
+        """
+        Update an image with a new name and tag.
+
+        :param image_id: ID of the image to update
+        :param name: New name for the image
+        :param tag: New tag for the image
+        """
         client = docker.from_env()
         client.login(
             username=self.credentials.push_username,
@@ -264,8 +317,21 @@ class AzureProvider(CloudProviderInterface):
             print(line)
 
     def get_registry_name(self) -> str:
+        """
+        Get the registry name.
+
+        :return: Registry name
+        """
         return self.registry
 
     def get_full_image_name(self, base_name: str, branch: str, tag: str) -> str:
+        """
+        Get the full image name for a given base name, branch, and tag.
+
+        :param base_name: Base name of the image
+        :param branch: Branch name
+        :param tag: Tag for the image
+        :return: Full image name
+        """
         image_name = f"{self.registry}/{image_name_for_branch(base_name, branch)}:{tag}"
         return image_name

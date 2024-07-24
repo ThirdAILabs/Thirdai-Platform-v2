@@ -135,6 +135,13 @@ def train(
                 message=str(error),
             )
 
+    sharded = (
+        True
+        if extra_options.get("num_models_per_shard") > 1
+        or extra_options.get("num_shards") > 1
+        else False
+    )
+
     try:
         new_model: schema.Model = schema.Model(
             id=model_id,
@@ -142,7 +149,7 @@ def train(
             train_status=schema.Status.not_started,
             name=model_name,
             type="ndb",
-            sub_type=None,
+            sub_type="single" if not sharded else "sharded",
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model_identifier else None,
@@ -153,13 +160,6 @@ def train(
         session.refresh(new_model)
 
         work_dir = os.getcwd()
-
-        sharded = (
-            True
-            if extra_options.get("num_models_per_shard") > 1
-            or extra_options.get("num_shards") > 1
-            else False
-        )
 
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
@@ -182,7 +182,7 @@ def train(
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
             base_model_id=("NONE" if not base_model_identifier else str(base_model.id)),
             type="ndb",
-            sub_type="normal" if not sharded else "shard_allocation",
+            sub_type="single" if not sharded else "shard_allocation",
         )
 
     except Exception as err:
@@ -313,7 +313,7 @@ def train(
             train_status=schema.Status.not_started,
             name=model_name,
             type="udt",
-            sub_type=extra_options['sub_type'],
+            sub_type=extra_options["sub_type"],
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model_identifier else None,
@@ -325,9 +325,9 @@ def train(
 
         work_dir = os.getcwd()
 
-        udt_subtype = extra_options['sub_type']
-        extra_options.pop('sub_type', None)
-        
+        udt_subtype = extra_options["sub_type"]
+        extra_options.pop("sub_type", None)
+
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -411,7 +411,7 @@ def train_complete(
 @train_router.post("/update-status")
 def train_fail(
     model_id: str,
-    train_status: schema.Status,
+    status: schema.Status,
     message: str,
     session: Session = Depends(get_session),
 ):
@@ -425,7 +425,7 @@ def train_fail(
             message=f"No model with id {model_id}.",
         )
 
-    trained_model.train_status = train_status
+    trained_model.train_status = status
     session.commit()
 
     return {"message": f"successfully updated with following {message}"}

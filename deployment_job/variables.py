@@ -109,7 +109,6 @@ class GeneralVariables(EnvLoader):
     task_runner_token: str
     type: TypeEnum = TypeEnum.NDB
     sub_type: Union[UDTSubtype, NDBSubtype] = NDBSubtype.single
-    num_shards: int = 0
 
     def deployment_permissions(self, token: str):
         deployment_permissions_endpoint = urljoin(

@@ -61,6 +61,7 @@ def get_high_level_model_info(result: schema.Model):
         "username": result.user.username,
         "access_level": result.access_level,
         "domain": result.domain,
+        "type": result.type,
     }
 
     # Include metadata if it exists
@@ -514,7 +515,6 @@ def submit_nomad_job(filepath, nomad_endpoint, **kwargs):
     json_payload_response = requests.post(
         json_payload_url, headers=headers, json=hcl_payload
     )
-    print(json_payload_response.text)
     json_payload = json_payload_response.json()
 
     # Submit the JSON job spec to Nomad

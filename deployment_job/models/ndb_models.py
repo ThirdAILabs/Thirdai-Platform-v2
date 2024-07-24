@@ -81,7 +81,7 @@ class NDBModel(Model):
             access_token=kwargs.get("token"),
         )
 
-    def predict(self, **kwargs: Any) -> inputs.SearchResults:
+    def predict(self, **kwargs: Any) -> inputs.SearchResultsNDB:
         """
         Makes a prediction using the NDB model.
         """
@@ -114,7 +114,7 @@ class NDBModel(Model):
             train_samples=[{"query": kwargs["query"]}],
         )
 
-        return inputs.SearchResults(
+        return inputs.SearchResultsNDB(
             query_text=kwargs["query"],
             references=pydantic_references,
         )

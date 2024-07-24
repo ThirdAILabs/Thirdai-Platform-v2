@@ -1,15 +1,10 @@
-import traceback
-import uuid
-
-import thirdai
 from fastapi import APIRouter, Depends, status
 from fastapi.encoders import jsonable_encoder
 from permissions import Permissions
-from pydantic_models import inputs
 from pydantic_models.inputs import BaseQueryParams
 from routers.model import get_model
-from utils import Status, now, propagate_error, response, validate_files, validate_name
-from variables import GeneralVariables, TypeEnum
+from utils import propagate_error, response
+from variables import GeneralVariables
 
 udt_router = APIRouter()
 permissions = Permissions()

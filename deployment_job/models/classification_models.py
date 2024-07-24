@@ -1,12 +1,5 @@
-import logging
-import shutil
-import tempfile
-import traceback
-import uuid
 from abc import abstractmethod
-from pathlib import Path
 
-import numpy as np
 from models.model import Model
 from pydantic_models import inputs
 from thirdai import bolt
@@ -57,7 +50,7 @@ class TokenClassificationModel(ClassificationModel):
         predictions = []
         for predicted_tag in predicted_tags:
             predictions.append([x[0] for x in predicted_tag])
-            
+
         return inputs.SearchResultsTokenClassification(
             query_text=query,
             predicted_tags=predictions,

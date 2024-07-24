@@ -29,7 +29,7 @@ def get_model():
     Retrieves the appropriate model instance based on general variables.
 
     Returns:
-        Union[ShardedNDB, SingleNDB]: The initialized model instance.
+        The initialized model instance.
 
     Raises:
         ValueError: If the model type is invalid.
@@ -37,7 +37,7 @@ def get_model():
     global model_instance
     if model_instance is None:
         if general_variables.type == TypeEnum.NDB:
-            if general_variables.num_shards:
+            if general_variables.sub_type == NDBSubtype.sharded:
                 model_instance = ShardedNDB()
             else:
                 model_instance = SingleNDB()

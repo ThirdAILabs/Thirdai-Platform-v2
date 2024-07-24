@@ -16,7 +16,6 @@ from variables import (
     RetrieverEnum,
     TypeEnum,
     UDTSubType,
-    UDTVariables,
 )
 
 # Load general variables from environment
@@ -29,7 +28,7 @@ def main():
     """
     if general_variables.type == TypeEnum.NDB:
         ndb_variables: NeuralDBVariables = NeuralDBVariables.load_from_env()
-        if general_variables.sub_type == NDBSubType.normal:
+        if general_variables.sub_type == NDBSubType.single:
             if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
                 model = FinetunableRetriever()
                 model.train()
@@ -46,15 +45,15 @@ def main():
             model = ShardMach()
             model.train()
     elif general_variables.type == TypeEnum.UDT:
-        udt_variables = UDTVariables.load_from_env()
-        if udt_variables.sub_type == UDTSubType.text:
+        if general_variables.sub_type == UDTSubType.text:
             model = TextClassificationModel()
             model.train()
-        elif udt_variables.sub_type == UDTSubType.token:
+        elif general_variables.sub_type == UDTSubType.token:
             model = TokenClassificationModel()
             model.train()
         else:
             raise ValueError("Currently Not supported")
+
 
 if __name__ == "__main__":
     # Set the license for ThirdAI based on the environment variable

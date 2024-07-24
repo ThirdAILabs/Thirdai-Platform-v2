@@ -17,7 +17,7 @@ class TypeEnum(str, Enum):
 class NDBSubType(str, Enum):
     shard_allocation = "shard_allocation"
     shard_train = "shard_train"
-    normal = "normal"
+    single = "single"
 
 
 class UDTSubType(str, Enum):
@@ -125,12 +125,7 @@ class GeneralVariables(EnvLoader):
     data_id: str
     base_model_id: Optional[str] = None
     type: TypeEnum = TypeEnum.NDB
-    sub_type: Union[NDBSubType, UDTSubType] = NDBSubType.normal
-
-
-@dataclass
-class UDTVariables(EnvLoader):
-    sub_type: UDTSubType = UDTSubType.text
+    sub_type: Union[NDBSubType, UDTSubType] = NDBSubType.single
 
 
 @dataclass
@@ -185,15 +180,18 @@ class TrainVariables(EnvLoader):
     fast_approximation: bool = True
     checkpoint_interval: Optional[int] = None
     metrics: List[str] = field(default_factory=lambda: ["loss"])
-    validation_metrics: List[str] = field(default_factory=lambda: ["categorical_accuracy"])
+    validation_metrics: List[str] = field(
+        default_factory=lambda: ["categorical_accuracy"]
+    )
     num_buckets_to_sample: Optional[int] = None
-    
+
     def __post_init__(self):
-      if self.type == TypeEnum.NDB:
-          self.metrics = ["hash_precision@1", "loss"]
-      elif self.type == TypeEnum.UDT:
-          self.metrics = ["precision@1", "loss"]
-          self.validation_metrics = ["categorical_accuracy", "recall@1"]
+        if self.type == TypeEnum.NDB:
+            self.metrics = ["hash_precision@1", "loss"]
+        elif self.type == TypeEnum.UDT:
+            self.metrics = ["precision@1", "loss"]
+            self.validation_metrics = ["categorical_accuracy", "recall@1"]
+
 
 @dataclass
 class S3Variables(EnvLoader):

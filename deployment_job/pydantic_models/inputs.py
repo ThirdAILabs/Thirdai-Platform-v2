@@ -57,7 +57,7 @@ class UpvoteInput(BaseModel):
     text_id_pairs: List[UpvoteInputSingle]
 
 
-class SearchResults(BaseModel):
+class SearchResultsNDB(BaseModel):
     """
     Represents the search results including the query and references.
     """

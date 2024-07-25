@@ -10,10 +10,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
-import { SelectProduct } from '@/lib/db';
-import { deleteProduct } from './actions';
+import { SelectModel } from '@/lib/db';
+import { deleteModel } from './actions';
 
-export function Product({ product }: { product: SelectProduct }) {
+export function Model({ model }: { model: SelectModel }) {
   return (
     <TableRow>
       <TableCell className="hidden sm:table-cell">
@@ -21,20 +21,20 @@ export function Product({ product }: { product: SelectProduct }) {
           alt="Model image"
           className="aspect-square rounded-md object-cover"
           height="64"
-          src={product.imageUrl}
+          src={model.imageUrl}
           width="64"
         />
       </TableCell>
-      <TableCell className="font-medium">{product.name}</TableCell>
+      <TableCell className="font-medium">{model.name}</TableCell>
       <TableCell>
         <Badge variant="outline" className="capitalize">
-          {product.status}
+          {model.status}
         </Badge>
       </TableCell>
-      {/* <TableCell className="hidden md:table-cell">{`$${product.price}`}</TableCell> */}
-      {/* <TableCell className="hidden md:table-cell">{product.stock}</TableCell> */}
+      {/* <TableCell className="hidden md:table-cell">{`$${model.price}`}</TableCell> */}
+      {/* <TableCell className="hidden md:table-cell">{model.stock}</TableCell> */}
       <TableCell className="hidden md:table-cell">
-        {product.availableAt.toLocaleDateString()}
+        {model.trainedAt.toLocaleDateString()}
       </TableCell>
       <TableCell>
         <DropdownMenu>
@@ -48,7 +48,7 @@ export function Product({ product }: { product: SelectProduct }) {
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem>Edit</DropdownMenuItem>
             <DropdownMenuItem>
-              <form action={deleteProduct}>
+              <form action={deleteModel}>
                 <button type="submit">Delete</button>
               </form>
             </DropdownMenuItem>

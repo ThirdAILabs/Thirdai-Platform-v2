@@ -15,23 +15,23 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
-import { Product } from './product';
-import { SelectProduct } from '@/lib/db';
+import { Model } from './model';
+import { SelectModel } from '@/lib/db';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export function ProductsTable({
-  products,
+export function ModelsTable({
+  models,
   offset,
-  totalProducts
+  totalModels
 }: {
-  products: SelectProduct[];
+  models: SelectModel[];
   offset: number;
-  totalProducts: number;
+  totalModels: number;
 }) {
   let router = useRouter();
-  let productsPerPage = 5;
+  let modelsPerPage = 5;
 
   function prevPage() {
     router.back();
@@ -62,15 +62,15 @@ export function ProductsTable({
               {/* <TableHead className="hidden md:table-cell">
                 Total Sales
               </TableHead> */}
-              <TableHead className="hidden md:table-cell">Created at</TableHead>
+              <TableHead className="hidden md:table-cell">Trained at</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.map((product) => (
-              <Product key={product.id} product={product} />
+            {models.map((model) => (
+              <Model key={model.id} model={model} />
             ))}
           </TableBody>
         </Table>
@@ -80,9 +80,9 @@ export function ProductsTable({
           <div className="text-xs text-muted-foreground">
             Showing{' '}
             <strong>
-              {Math.min(offset - productsPerPage, totalProducts) + 1}-{offset}
+              {Math.min(offset - modelsPerPage, totalModels) + 1}-{offset}
             </strong>{' '}
-            of <strong>{totalProducts}</strong> models
+            of <strong>{totalModels}</strong> models
           </div>
           <div className="flex">
             <Button
@@ -90,7 +90,7 @@ export function ProductsTable({
               variant="ghost"
               size="sm"
               type="submit"
-              disabled={offset === productsPerPage}
+              disabled={offset === modelsPerPage}
             >
               <ChevronLeft className="mr-2 h-4 w-4" />
               Prev
@@ -100,7 +100,7 @@ export function ProductsTable({
               variant="ghost"
               size="sm"
               type="submit"
-              disabled={offset + productsPerPage > totalProducts}
+              disabled={offset + modelsPerPage > totalModels}
             >
               Next
               <ChevronRight className="ml-2 h-4 w-4" />

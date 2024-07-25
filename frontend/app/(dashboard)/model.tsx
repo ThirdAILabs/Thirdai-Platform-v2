@@ -31,7 +31,7 @@ export function Model({ model }: { model: SelectModel }) {
           {model.status}
         </Badge>
       </TableCell>
-      {/* <TableCell className="hidden md:table-cell">{`$${model.price}`}</TableCell> */}
+      <TableCell className="hidden md:table-cell">{model.description}</TableCell>
       {/* <TableCell className="hidden md:table-cell">{model.stock}</TableCell> */}
       <TableCell className="hidden md:table-cell">
         {model.trainedAt.toLocaleDateString()}

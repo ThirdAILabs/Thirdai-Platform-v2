@@ -58,7 +58,7 @@ export function ModelsTable({
               </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Status</TableHead>
-              {/* <TableHead className="hidden md:table-cell">Price</TableHead> */}
+              <TableHead className="hidden md:table-cell">Description</TableHead>
               {/* <TableHead className="hidden md:table-cell">
                 Total Sales
               </TableHead> */}

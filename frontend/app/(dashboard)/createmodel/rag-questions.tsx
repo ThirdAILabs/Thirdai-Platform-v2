@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const RAGQuestionForm = () => {
+const RAGQuestions = () => {
   // Begin state variables & func for source
   const [useExistingSemanticSearch, setUseExistingSemanticSearch] = useState<string|null>(null);
   const [sources, setSources] = useState<Array<{ type: string, value: string }>>([]);
@@ -247,4 +247,4 @@ const RAGQuestionForm = () => {
   );
 };
 
-export default RAGQuestionForm;
+export default RAGQuestions;

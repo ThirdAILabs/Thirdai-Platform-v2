@@ -1,6 +1,6 @@
 import React from 'react';
 
-const NLPQuestionForm = () => {
+const NLPQuestions = () => {
   return (
     <div>
       <h2>NLP Model Questions</h2>
@@ -9,4 +9,4 @@ const NLPQuestionForm = () => {
   );
 };
 
-export default NLPQuestionForm;
+export default NLPQuestions;

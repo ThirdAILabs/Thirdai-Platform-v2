@@ -10,7 +10,9 @@ const RAGQuestions = ({
   console.log('All models:', models);
 
   // Begin state variables & func for source
-  const [useExistingSemanticSearch, setUseExistingSemanticSearch] = useState<string|null>(null);
+  const [semanticSearchModels, setSemanticSearchModels] = useState<SelectModel[]>([]);
+  const [semanticSearchModelToUse, setSemanticSearchModelToUse] = useState<string|null>(null);
+  const [ifUseExistingSemanticSearch, setUseExistingSemanticSearch] = useState<string|null>(null);
   const [sources, setSources] = useState<Array<{ type: string, value: string }>>([]);
   const [newSourceType, setNewSourceType] = useState<string>('');
   const [newSourceValue, setNewSourceValue] = useState<string>('');
@@ -35,6 +37,12 @@ const RAGQuestions = ({
     const updatedSources = sources.filter((_, i) => i !== index);
     setSources(updatedSources);
   };
+
+  useEffect(() => {
+    setSemanticSearchModels(models.filter(model => model.modelType === 'semantic search model'));
+  }, [models]);
+
+  console.log('Filtered Semantic Search Models:', semanticSearchModels);
 
   // End state variables & func for source
 
@@ -79,7 +87,7 @@ const RAGQuestions = ({
         <select
           id="useExistingSemanticSearch"
           className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-          value={useExistingSemanticSearch ? useExistingSemanticSearch : ''}
+          value={ifUseExistingSemanticSearch ? ifUseExistingSemanticSearch : ''}
           onChange={(e) => setUseExistingSemanticSearch(e.target.value)}
         >
           <option value="">-- Please choose an option --</option>
@@ -88,8 +96,33 @@ const RAGQuestions = ({
         </select>
       </div>
 
+      {/* Begin existing Semantic Search Models Dropdown */}
+
+      {ifUseExistingSemanticSearch === 'Yes' && (
+        <div className="mb-4">
+          <label htmlFor="semanticSearchModels" className="block text-sm font-medium text-gray-700">
+            Choose Semantic Search Model
+          </label>
+          <select
+            id="semanticSearchModels"
+            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+            value={semanticSearchModelToUse || ''}
+            onChange={(e) => setSemanticSearchModelToUse(e.target.value)}
+          >
+            <option value="">-- Please choose a model --</option>
+            {semanticSearchModels.map(model => (
+              <option key={model.id} value={model.id}>
+                {model.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* End existing Semantic Search Models Dropdown */}
+
       {
-        useExistingSemanticSearch === 'No' &&
+        ifUseExistingSemanticSearch === 'No' &&
         <>
           <span className="block text-lg font-semibold mb-2">Choose source files</span>
           <p className="mb-4">Please upload the necessary files for the RAG model.</p>

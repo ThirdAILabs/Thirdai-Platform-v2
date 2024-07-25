@@ -1,8 +1,12 @@
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Dict, List, Optional
 
 import networkx as nx
 import yaml
+
+from headless.configs import Config
+from headless.utils import get_configs
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,6 +23,7 @@ class DAGExecutor:
         self.outputs: Dict[str, Any] = {}
         self.variables: Dict[str, Any] = {}
         self.function_registry: Dict[str, Callable] = function_registry
+        self.dag_configs: Dict[str, List[Config]] = {}
 
     def load_dags_from_file(self, file_path: str):
         """
@@ -32,18 +37,26 @@ class DAGExecutor:
 
         self.variables = config.get("variables", {})
 
-        for dag_name, tasks in config.items():
+        for dag_name, dag_info in config.items():
             if dag_name == "variables":
                 continue
             self.add_dag(dag_name)
-            for task_name, task_info in tasks.items():
+            config_names = dag_info.get("config")
+            if isinstance(config_names, str):
+                config_names = [config_names]
+            self.dag_configs[dag_name] = [
+                get_configs(Config, config_name)[0] for config_name in config_names
+            ]
+            for task_name, task_info in dag_info.items():
+                if task_name == "config":
+                    continue
                 func_name = task_info.get("function", task_name)
                 func = self.function_registry.get(func_name)
                 self.add_task(
                     dag_name,
                     task_name,
                     func,
-                    task_info["dependencies"],
+                    task_info.get("dependencies", []),
                     task_info.get("params", {}),
                 )
 
@@ -127,13 +140,14 @@ class DAGExecutor:
         """
         return self.dags[dag_name].nodes[task_name]["params"]
 
-    def execute_task(self, dag_name: str, task_name: str):
+    def execute_task(self, dag_name: str, task_name: str, variables: Dict[str, Any]):
         """
         Executes a specified task in a DAG.
 
         Parameters:
         dag_name (str): Name of the DAG.
         task_name (str): Name of the task.
+        variables (dict): Dictionary of variables for the task execution.
         """
         logging.info(f"Executing task '{task_name}' in DAG '{dag_name}'")
         task_func = self.get_task_func(dag_name, task_name)
@@ -142,31 +156,69 @@ class DAGExecutor:
             inputs = {}
             for param, source in task_params.items():
                 if source == "variable":
-                    inputs[param] = self.variables[param]
+                    inputs[param] = variables[param]
                 elif source in self.outputs:
                     inputs[param] = self.outputs[source]
+                else:
+                    inputs[param] = source
             self.outputs[task_name] = task_func(inputs)
         logging.info(f"Finished executing task '{task_name}' in DAG '{dag_name}'")
 
+    def execute_dag_with_config(self, dag_name: str, config: Config):
+        """
+        Executes a specified DAG with a given configuration.
+
+        Parameters:
+        dag_name (str): Name of the DAG.
+        config (Config): Configuration to use for the DAG execution.
+        """
+        logging.info(
+            f"Starting execution of DAG '{dag_name}' with config '{config.name}'"
+        )
+        variables = self.variables.copy()
+        variables["config"] = config
+        order = self.get_execution_order(dag_name)
+        for task_name in order:
+            self.execute_task(dag_name, task_name, variables)
+        logging.info(
+            f"Finished execution of DAG '{dag_name}' with config '{config.name}'"
+        )
+
     def execute_dag(self, dag_name: str):
         """
-        Executes all tasks in a specified DAG in the correct order.
+        Executes all configurations of a specified DAG.
 
         Parameters:
         dag_name (str): Name of the DAG.
         """
-        logging.info(f"Starting execution of DAG '{dag_name}'")
-        order = self.get_execution_order(dag_name)
-        for task_name in order:
-            self.execute_task(dag_name, task_name)
-        logging.info(f"Finished execution of DAG '{dag_name}'")
+        configs = self.dag_configs.get(dag_name)
+        if not configs:
+            raise ValueError(f"No configurations found for DAG '{dag_name}'")
+        logging.info(
+            f"Starting execution of DAG '{dag_name}' with {len(configs)} configurations"
+        )
+        for config in configs:
+            self.execute_dag_with_config(dag_name, config)
+        logging.info(f"Finished execution of DAG '{dag_name}' with all configurations")
 
     def execute_all(self):
         """
-        Executes all DAGs managed by the executor.
+        Executes all DAGs managed by the executor, with all their configurations, in parallel.
         """
-        for dag_name in self.dags:
-            self.execute_dag(dag_name)
+        logging.info(f"Starting execution of all DAGs")
+        with ThreadPoolExecutor() as executor:
+            futures = []
+            for dag_name, configs in self.dag_configs.items():
+                for config in configs:
+                    futures.append(
+                        executor.submit(self.execute_dag_with_config, dag_name, config)
+                    )
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as exc:
+                    logging.error(f"DAG generated an exception: {exc}")
+        logging.info(f"Finished execution of all DAGs")
 
     def set_variable(self, name: str, value: Any):
         """

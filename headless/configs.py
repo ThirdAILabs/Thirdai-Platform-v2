@@ -64,6 +64,10 @@ class Config(ABC):
 
     retriever: str = "mach"
 
+    sub_type: str = "text"
+    n_classes: Optional[int] = None
+    target_labels: list[str] = None
+
 
 class Scifact(Config):
     """
@@ -89,3 +93,27 @@ class Scifact(Config):
     id_column: str = "id"
     query_column: str = "query"
     id_delimiter: str = ":"
+
+
+class Text(Config):
+
+    name: str = "text"
+
+    unsupervised_paths: list[str] = ["clinc/train.csv"]
+    id_column: str = "category"
+    query_column: str = "text"
+    n_classes: int = 150
+
+    sub_type: str = "text"
+
+
+class Token(Config):
+
+    name: str = "token"
+
+    unsupervised_paths: list[str] = ["token/ner.csv"]
+    id_column: str = "target"
+    query_column: str = "source"
+
+    target_labels: list[str] = ["PER", "ORG"]
+    sub_type: str = "token"

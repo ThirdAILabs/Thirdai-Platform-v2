@@ -1,4 +1,5 @@
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Dict, List, Optional
 
@@ -20,10 +21,17 @@ class DAGExecutor:
         function_registry (dict): A dictionary mapping function names to callable functions.
         """
         self.dags: Dict[str, nx.DiGraph] = {}
-        self.outputs: Dict[str, Any] = {}
-        self.variables: Dict[str, Any] = {}
         self.function_registry: Dict[str, Callable] = function_registry
         self.dag_configs: Dict[str, List[Config]] = {}
+        self.global_variables: Dict[str, Any] = {}
+        self.thread_local = threading.local()
+
+    def _initialize_thread_local(self):
+        """
+        Initializes the thread-local storage attributes.
+        """
+        self.thread_local.variables = {}
+        self.thread_local.outputs = {}
 
     def load_dags_from_file(self, file_path: str):
         """
@@ -35,7 +43,7 @@ class DAGExecutor:
         with open(file_path, "r") as file:
             config = yaml.safe_load(file)
 
-        self.variables = config.get("variables", {})
+        self.global_variables = config.get("variables", {})
 
         for dag_name, dag_info in config.items():
             if dag_name == "variables":
@@ -140,14 +148,13 @@ class DAGExecutor:
         """
         return self.dags[dag_name].nodes[task_name]["params"]
 
-    def execute_task(self, dag_name: str, task_name: str, variables: Dict[str, Any]):
+    def execute_task(self, dag_name: str, task_name: str):
         """
         Executes a specified task in a DAG.
 
         Parameters:
         dag_name (str): Name of the DAG.
         task_name (str): Name of the task.
-        variables (dict): Dictionary of variables for the task execution.
         """
         logging.info(f"Executing task '{task_name}' in DAG '{dag_name}'")
         task_func = self.get_task_func(dag_name, task_name)
@@ -156,12 +163,12 @@ class DAGExecutor:
             inputs = {}
             for param, source in task_params.items():
                 if source == "variable":
-                    inputs[param] = variables[param]
-                elif source in self.outputs:
-                    inputs[param] = self.outputs[source]
+                    inputs[param] = self.thread_local.variables[param]
+                elif source in self.thread_local.outputs:
+                    inputs[param] = self.thread_local.outputs[source]
                 else:
                     inputs[param] = source
-            self.outputs[task_name] = task_func(inputs)
+            self.thread_local.outputs[task_name] = task_func(inputs)
         logging.info(f"Finished executing task '{task_name}' in DAG '{dag_name}'")
 
     def execute_dag_with_config(self, dag_name: str, config: Config):
@@ -175,11 +182,13 @@ class DAGExecutor:
         logging.info(
             f"Starting execution of DAG '{dag_name}' with config '{config.name}'"
         )
-        variables = self.variables.copy()
-        variables["config"] = config
+        self._initialize_thread_local()
+        self.thread_local.variables = self.global_variables.copy()
+        self.thread_local.variables["config"] = config
+        self.thread_local.outputs = {}
         order = self.get_execution_order(dag_name)
         for task_name in order:
-            self.execute_task(dag_name, task_name, variables)
+            self.execute_task(dag_name, task_name)
         logging.info(
             f"Finished execution of DAG '{dag_name}' with config '{config.name}'"
         )
@@ -197,8 +206,17 @@ class DAGExecutor:
         logging.info(
             f"Starting execution of DAG '{dag_name}' with {len(configs)} configurations"
         )
-        for config in configs:
-            self.execute_dag_with_config(dag_name, config)
+        with ThreadPoolExecutor() as executor:
+            futures = []
+            for config in configs:
+                futures.append(
+                    executor.submit(self.execute_dag_with_config, dag_name, config)
+                )
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as exc:
+                    logging.error(f"DAG generated an exception: {exc}")
         logging.info(f"Finished execution of DAG '{dag_name}' with all configurations")
 
     def execute_all(self):
@@ -229,7 +247,7 @@ class DAGExecutor:
         value (Any): Value to set for the variable.
         """
         logging.info(f"Setting variable '{name}' to '{value}'")
-        self.variables[name] = value
+        self.global_variables[name] = value
 
     def update_variables(self, new_vars: Dict[str, Any]):
         """
@@ -239,4 +257,4 @@ class DAGExecutor:
         new_vars (dict): A dictionary of new variable values.
         """
         logging.info(f"Updating variables with '{new_vars}'")
-        self.variables.update(new_vars)
+        self.global_variables.update(new_vars)

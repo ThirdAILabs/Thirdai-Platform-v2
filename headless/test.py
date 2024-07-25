@@ -3,10 +3,8 @@ import os
 import sys
 
 from headless import add_basic_args
-from headless.configs import Config
 from headless.dag_executor import DAGExecutor
 from headless.functions import functions_registry, initialize_flow
-from headless.utils import get_configs
 
 
 def main():

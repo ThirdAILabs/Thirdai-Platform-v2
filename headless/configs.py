@@ -21,7 +21,7 @@ class Config(ABC):
     reference_columns (list[str]): List of reference columns for data.
     query_column (str): Column name for queries.
     id_delimiter (str): Delimiter used in IDs.
-    model_cores (int): Number of cores used for single model( Used for sharded training).
+    model_cores (int): Number of cores used for single model (Used for sharded training).
     model_memory (int): Amount of memory allocated for the model (in MB) (Used for sharded training).
     input_dim (int): Input dimension for the model.
     hidden_dim (int): Hidden dimension for the model.
@@ -30,6 +30,10 @@ class Config(ABC):
     allocation_cores (int): Number of cores allocated for model training (Used for shard allocation or single training).
     epochs (int): Number of training epochs.
     retriever (str): Type of retriever used (e.g., hybrid, mach).
+    checkpoint_interval (int): Interval for saving model checkpoints.
+    sub_type (str): Sub-type of the configuration.
+    n_classes (Optional[int]): Number of classes for classification tasks.
+    target_labels (Optional[list[str]]): List of target labels for token classification.
     """
 
     name: str = None
@@ -96,6 +100,9 @@ class Scifact(Config):
 
 
 class Text(Config):
+    """
+    Configuration settings for text data.
+    """
 
     name: str = "text"
 
@@ -108,6 +115,9 @@ class Text(Config):
 
 
 class Token(Config):
+    """
+    Configuration settings for token data.
+    """
 
     name: str = "token"
 

@@ -16,6 +16,7 @@ Each DAG consists of multiple tasks. Each task can have dependencies (tasks that
 
 ```yaml
 DAG1:
+  config: [text, token]
   check_unsupervised:
     dependencies: []
     params:
@@ -55,9 +56,10 @@ DAG2:
 
 ### Key Elements
 - DAG_NAME: The name of the DAG.
+- Config: List of configs on which this dag will run (All the configs will run parallely.)
 - TASK_NAME: The name of the task within the DAG ( these must be the functions in the function_registry)
 - dependencies: A list of tasks that must be completed before this task.
-- params: Parameters required by the task. These can be variables or outputs from other tasks.
+- params: Parameters required by the task. These can be variables or outputs from other tasks or raw values too.
 
 
 ## Executing the DAG
@@ -72,11 +74,11 @@ Run the DAG using the command-line interface with the provided script.
 - `--all`: Run all DAGs.
 - `--run-name`: Name of the run (required).
 - `--sharded`: Run sharded training.
-- `--config`: Regex indicating which configs to run (default: all).
 
 ### Example Commands
 
 - **Run All DAGs**:
+  It will run all dags parallely.
   ```sh
   python your_script.py --dag-file path/to/dag_config.yaml --all --run-name your_run_name
   ```

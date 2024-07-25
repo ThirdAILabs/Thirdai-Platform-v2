@@ -18,7 +18,7 @@ export function Product({ product }: { product: SelectProduct }) {
     <TableRow>
       <TableCell className="hidden sm:table-cell">
         <Image
-          alt="Product image"
+          alt="Model image"
           className="aspect-square rounded-md object-cover"
           height="64"
           src={product.imageUrl}
@@ -31,8 +31,8 @@ export function Product({ product }: { product: SelectProduct }) {
           {product.status}
         </Badge>
       </TableCell>
-      <TableCell className="hidden md:table-cell">{`$${product.price}`}</TableCell>
-      <TableCell className="hidden md:table-cell">{product.stock}</TableCell>
+      {/* <TableCell className="hidden md:table-cell">{`$${product.price}`}</TableCell> */}
+      {/* <TableCell className="hidden md:table-cell">{product.stock}</TableCell> */}
       <TableCell className="hidden md:table-cell">
         {product.availableAt.toLocaleDateString()}
       </TableCell>

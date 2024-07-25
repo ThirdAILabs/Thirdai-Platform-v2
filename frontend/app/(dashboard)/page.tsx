@@ -2,7 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { File, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProductsTable } from './products-table';
-import { getProducts } from '@/lib/db';
+import { SelectProduct } from '@/lib/db';
 import CreateModelButton from '@/components/ui/create-model-button';
 
 export default async function ProductsPage({
@@ -12,10 +12,30 @@ export default async function ProductsPage({
 }) {
   const search = searchParams.q ?? '';
   const offset = searchParams.offset ?? 0;
-  const { products, newOffset, totalProducts } = await getProducts(
-    search,
-    Number(offset)
-  );
+  // const { products, newOffset, totalProducts } = await getProducts(
+  //   search,
+  //   Number(offset)
+  // );
+
+  // console.log('products', products)
+  // console.log('newOffset', newOffset)
+  // console.log('totalProducts', totalProducts)
+
+  // temporarily hard code the fields
+  const products: SelectProduct[] = [
+    {
+      id: 1,
+      imageUrl: '/thirdai-small.png',
+      name: 'ThirdAI NER',
+      status: 'active',
+      price: '999.00',
+      stock: 150,
+      availableAt: new Date('2024-07-23T17:50:02.904Z')
+    },
+  ]
+  const newOffset = 5
+  const totalProducts = 10
+
 
   return (
     <Tabs defaultValue="all">

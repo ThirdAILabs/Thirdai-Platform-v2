@@ -58,10 +58,10 @@ export function ProductsTable({
               </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="hidden md:table-cell">Price</TableHead>
-              <TableHead className="hidden md:table-cell">
+              {/* <TableHead className="hidden md:table-cell">Price</TableHead> */}
+              {/* <TableHead className="hidden md:table-cell">
                 Total Sales
-              </TableHead>
+              </TableHead> */}
               <TableHead className="hidden md:table-cell">Created at</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
@@ -82,7 +82,7 @@ export function ProductsTable({
             <strong>
               {Math.min(offset - productsPerPage, totalProducts) + 1}-{offset}
             </strong>{' '}
-            of <strong>{totalProducts}</strong> products
+            of <strong>{totalProducts}</strong> models
           </div>
           <div className="flex">
             <Button

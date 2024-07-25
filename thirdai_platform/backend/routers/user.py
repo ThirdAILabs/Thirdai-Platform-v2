@@ -100,7 +100,7 @@ def email_signup(
             email=body.email,
             password_hash=hash_password(body.password),
             verified=False,
-        )       
+        )
 
         session.add(user)
         session.commit()
@@ -126,20 +126,13 @@ def email_signup(
         },
     )
 
+
 @user_router.post("/add-admin")
 def add_admin(
     email: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    current_user: schema.User = Depends(verify_admin_access),
 ):
-    user: schema.User = authenticated_user.user
-
-    if not user.admin:
-        return response(
-            status_code=status.HTTP_403_FORBIDDEN,
-            message=f"You dont have enough permission to add another admin.",
-        )
-
     user: schema.User = (
         session.query(schema.User).filter(schema.User.email == email).first()
     )
@@ -147,7 +140,7 @@ def add_admin(
     if not user:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"User is not registered yet.",
+            message="User is not registered yet.",
         )
 
     admin: schema.Admins = (
@@ -167,11 +160,13 @@ def add_admin(
         status_code=status.HTTP_200_OK,
         message=f"User {email} has been successfully added as an admin.",
     )
-    
+
+
 @user_router.delete("/delete-user")
 def delete_user(
     user_id: str,
     session: Session = Depends(get_session),
+    current_user: schema.User = Depends(verify_admin_access),
 ):
     user = session.query(schema.User).filter(schema.User.id == user_id).first()
 
@@ -188,6 +183,7 @@ def delete_user(
         status_code=status.HTTP_200_OK,
         message=f"User with id {user_id} has been successfully deleted.",
     )
+
 
 @user_router.get("/redirect-verify")
 def redirect_email_verify(verification_token: str, request: Request):
@@ -296,7 +292,8 @@ def email_login(
             "verified": user.verified,
         },
     )
-    
+
+
 class VerifyResetPassword(BaseModel):
     email: str
     reset_password_code: int

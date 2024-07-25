@@ -1,6 +1,8 @@
 /**
  * @YeCao This is how the table was created:
 
+ * CREATE TYPE model_type AS ENUM ('semantic search model', 'rag model', 'ner model');
+
  * CREATE TYPE status AS ENUM ('active', 'inactive', 'archived');
 
  * CREATE TABLE models (
@@ -14,7 +16,8 @@
     on_disk_size_kb NUMERIC(10, 2) NOT NULL,
     ram_size_kb NUMERIC(10, 2) NOT NULL,
     number_parameters INTEGER NOT NULL,
-    rlhf_counts INTEGER NOT NULL
+    rlhf_counts INTEGER NOT NULL,
+    model_type model_type NOT NULL,
   );
 
   * INSERT INTO models (
@@ -38,7 +41,8 @@
       300 * 1024,  -- 300 MB converted to KB
       300 * 1024 * 2,  -- 300 * 2 MB converted to KB
       51203077, 
-      0
+      0,
+      'ner model'
     );
  */
 
@@ -61,6 +65,7 @@ import { createInsertSchema } from 'drizzle-zod';
 export const db = drizzle(neon(process.env.POSTGRES_URL!));
 
 export const statusEnum = pgEnum('status', ['active', 'inactive', 'archived']);
+export const modelTypeEnum = pgEnum('model_type', ['semantic search model', 'rag model', 'ner model']);
 
 export const models = pgTable('models', {
   id: serial('id').primaryKey(),
@@ -73,7 +78,8 @@ export const models = pgTable('models', {
   onDiskSizeKb: numeric('on_disk_size_kb', { precision: 10, scale: 2 }).notNull(),
   ramSizeKb: numeric('ram_size_kb', { precision: 10, scale: 2 }).notNull(),
   numberParameters: integer('number_parameters').notNull(),
-  rlhfCounts: integer('rlhf_counts').notNull()
+  rlhfCounts: integer('rlhf_counts').notNull(),
+  modelType: modelTypeEnum('model_type').notNull(),
 });
 
 export type SelectModel = typeof models.$inferSelect;

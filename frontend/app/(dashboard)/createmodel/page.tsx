@@ -28,7 +28,7 @@ export default async function NewModelPage({
         <CardDescription>Create a new model with a few simple steps.</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChooseProblem />
+        <ChooseProblem models = {models} />
       </CardContent>
     </Card>
   );

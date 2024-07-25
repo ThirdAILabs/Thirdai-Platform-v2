@@ -31,11 +31,11 @@ export function Model({ model }: { model: SelectModel }) {
           {model.status}
         </Badge>
       </TableCell>
-      <TableCell className="hidden md:table-cell">{model.description}</TableCell>
-      {/* <TableCell className="hidden md:table-cell">{model.stock}</TableCell> */}
+      <TableCell className="hidden md:table-cell">{model.modelType}</TableCell>
       <TableCell className="hidden md:table-cell">
         {model.trainedAt.toLocaleDateString()}
       </TableCell>
+      <TableCell className="hidden md:table-cell">{model.description}</TableCell>
       <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

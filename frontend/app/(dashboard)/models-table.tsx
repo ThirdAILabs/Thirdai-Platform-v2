@@ -58,11 +58,9 @@ export function ModelsTable({
               </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="hidden md:table-cell">Description</TableHead>
-              {/* <TableHead className="hidden md:table-cell">
-                Total Sales
-              </TableHead> */}
+              <TableHead className="hidden md:table-cell">Type</TableHead>
               <TableHead className="hidden md:table-cell">Trained at</TableHead>
+              <TableHead className="hidden md:table-cell">Description</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>

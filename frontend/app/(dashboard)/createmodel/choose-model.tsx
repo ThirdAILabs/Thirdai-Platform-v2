@@ -1,11 +1,18 @@
 "use client"
 
 import { useState } from 'react';
+import { SelectModel } from '@/lib/db';
 import RAGQuestions from './rag-questions';
 import NLPQuestions from './nlp-questions';
 
-export default function ChooseProblem() {
+export default function ChooseProblem({
+  models,
+}: {
+  models: SelectModel[];
+}) {
   const [modelType, setModelType] = useState('RAG');
+
+  console.log(models)
 
   return (
     <>

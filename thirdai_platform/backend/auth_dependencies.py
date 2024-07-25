@@ -3,21 +3,26 @@ from sqlalchemy.orm import Session
 from database.session import get_session
 from auth.jwt import AuthenticatedUser, verify_access_token
 from database import schema
-from utils import get_model_from_identifier
+from backend.utils import get_model_from_identifier, response
 
 
 def verify_model_access(
-    model_id: str,
+    model_identifier: str,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     user = authenticated_user.user
-    model = get_model_from_identifier(model_id, session)
-    if model.user_id != user.id or user.admin:
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+    if model.user_id != user.id and not user.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to the model"
         )
-    return model
 
 
 def get_current_user(

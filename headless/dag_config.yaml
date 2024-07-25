@@ -1,48 +1,76 @@
-DAG1:
-  check_unsupervised:
-    dependencies: []
-    params:
-      sharded: variable      # Use the value of the "sharded" variable
-      run_name: variable      # Use the value of the "run_name" variable
-      config: variable        # Use the value of the "config" variable
-
-  await_train:
-    dependencies: [check_unsupervised]    # Depends on the completion of the "check_unsupervised" task
-    params:
-      model: check_unsupervised           # Use the output of the "check_unsupervised" task as the "model" parameter
-
-  deploy:
-    dependencies: [await_train]           # Depends on the completion of the "await_train" task
-    params:
-      model: check_unsupervised           # Use the output of the "check_unsupervised" task as the "model" parameter
-      run_name: variable                  # Use the value of the "run_name" variable
-
-  await_deploy:
-    dependencies: [deploy]                # Depends on the completion of the "deploy" task
-    params:
-      deployment: deploy                  # Use the output of the "deploy" task as the "deployment" parameter
-
-  check_deployment:
-    dependencies: [await_deploy]          # Depends on the completion of the "await_deploy" task
-    params:
-      deployment: deploy                  # Use the output of the "deploy" task as the "deployment" parameter
-      run_name: variable                  # Use the value of the "run_name" variable
-      config: variable                    # Use the value of the "config" variable
-  
-  undeploy:
-    dependencies: [check_deployment]      # Depends on the completion of the "check_deployment" task
-    params:
-      deployment: deploy                  # Use the output of the "deploy" task as the "deployment" parameter
-
-DAG2:
+NDB:
+  config: scifact
   check_unsupervised_supervised:
     dependencies: []
     params:
-      sharded: variable      # Use the value of the "sharded" variable
-      run_name: variable      # Use the value of the "run_name" variable
-      config: variable        # Use the value of the "config" variable
+      sharded: variable
+      run_name: variable
+      config: variable
 
   await_train:
-    dependencies: [check_unsupervised_supervised]  # Depends on the completion of the "check_unsupervised_supervised" task
+    dependencies: [check_unsupervised_supervised]
     params:
-      model: check_unsupervised_supervised          # Use the output of the "check_unsupervised_supervised" task as the "model" parameter
+      model: check_unsupervised_supervised
+
+  deploy_ndb:
+    dependencies: [await_train]
+    params:
+      model: check_unsupervised_supervised
+      run_name: variable
+
+  await_deploy:
+    dependencies: [deploy_ndb]
+    params:
+      deployment: deploy_ndb
+
+  check_search:
+    dependencies: [await_deploy]
+    params:
+      deployment: deploy_ndb
+
+  check_deployment_ndb:
+    dependencies: [check_search]
+    params:
+      deployment: deploy_ndb
+      config: variable
+      results: check_search
+  
+  undeploy:
+    dependencies: [check_deployment_ndb]
+    params:
+      deployment: deploy_ndb
+
+UDT:
+  config: [token, text]
+  check_udt_train:
+    dependencies: []
+    params:
+      run_name: variable
+      config: variable
+
+  await_train:
+    dependencies: [check_udt_train]
+    params:
+      model: check_udt_train
+  
+  udt_deploy:
+    dependencies: [await_train]
+    params:
+      model: check_udt_train
+      run_name: variable
+      config: variable
+
+  await_deploy:
+    dependencies: [udt_deploy]
+    params:
+      deployment: udt_deploy
+
+  check_search:
+    dependencies: [await_deploy]
+    params:
+      deployment: udt_deploy
+
+  undeploy:
+    dependencies: [check_search]
+    params:
+      deployment: udt_deploy

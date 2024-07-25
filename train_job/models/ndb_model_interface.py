@@ -112,9 +112,11 @@ class NDBModel(Model):
         Returns:
             ndb.NeuralDB: The NeuralDB instance.
         """
-        if self.ndb_variables.base_model_id:
-            self.logger.info(f"Loading base model {self.ndb_variables.base_model_id}")
-            return self.load_db(self.ndb_variables.base_model_id)
+        if self.general_variables.base_model_id:
+            self.logger.info(
+                f"Loading base model {self.general_variables.base_model_id}"
+            )
+            return self.load_db(self.general_variables.base_model_id)
         self.logger.info("Initializing a new NeuralDB instance.")
         return self.initialize_db()
 

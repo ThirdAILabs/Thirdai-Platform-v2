@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from reporter import Reporter
 from routers.ndb import create_ndb_router, process_tasks
+from routers.udt import udt_router
 from utils import delete_job
 from variables import GeneralVariables, TypeEnum
 
@@ -81,6 +82,8 @@ task_lock = Lock()
 if general_variables.type == TypeEnum.NDB:
     ndb_router = create_ndb_router(task_queue, task_lock, tasks)
     app.include_router(ndb_router, prefix=f"/{general_variables.deployment_id}")
+elif general_variables.type == TypeEnum.UDT:
+    app.include_router(udt_router, prefix=f"/{general_variables.deployment_id}")
 
 
 @app.exception_handler(404)

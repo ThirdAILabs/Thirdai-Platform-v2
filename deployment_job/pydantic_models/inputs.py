@@ -57,7 +57,7 @@ class UpvoteInput(BaseModel):
     text_id_pairs: List[UpvoteInputSingle]
 
 
-class SearchResults(BaseModel):
+class SearchResultsNDB(BaseModel):
     """
     Represents the search results including the query and references.
     """
@@ -72,6 +72,16 @@ class DeleteInput(BaseModel):
     """
 
     source_ids: List[str]
+
+
+class SearchResultsTextClassification(BaseModel):
+    query_text: str
+    class_names: List[str]
+
+
+class SearchResultsTokenClassification(BaseModel):
+    query_text: str
+    predicted_tags: List[List[str]]
 
 
 class SaveModel(BaseModel):

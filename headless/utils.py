@@ -1,7 +1,8 @@
+import inspect
 import os
 import re
 import warnings
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Type
 
 from thirdai import neural_db as ndb
 
@@ -46,39 +47,6 @@ def get_csv_source_id(
         ).hash
     else:
         raise TypeError(f"{ext} Document type isn't supported.")
-
-
-def build_extra_options(config: Config, sharded: bool = False) -> Dict[str, Any]:
-    """
-    Builds a dictionary of extra options for training.
-
-    Parameters:
-    config (Config): Configuration object containing various settings.
-    sharded (bool, optional): Whether to use sharded training.
-
-    Returns:
-    dict[str, Any]: Dictionary of extra training options.
-    """
-    return {
-        "model_cores": config.model_cores,
-        "model_memory": config.model_memory,
-        "csv_id_column": config.id_column,
-        "csv_strong_columns": config.strong_columns,
-        "csv_weak_columns": config.weak_columns,
-        "csv_reference_columns": config.reference_columns,
-        "fhr": config.input_dim,
-        "embedding_dim": config.hidden_dim,
-        "output_dim": config.output_dim,
-        "csv_query_column": config.query_column,
-        "csv_id_delimiter": config.id_delimiter,
-        "num_models_per_shard": 2 if sharded else 1,
-        "num_shards": 2 if sharded else 1,
-        "allocation_memory": config.allocation_memory,
-        "unsupervised_epochs": config.epochs,
-        "supervised_epochs": config.epochs,
-        "retriever": config.retriever,
-        "checkpoint_interval": config.checkpoint_interval,
-    }
 
 
 def get_configs(config_type: type, config_regex: str) -> List[Config]:
@@ -134,3 +102,20 @@ def create_doc_dict(path: str, doc_type: str) -> Dict[str, str]:
         return {"document_type": "DOCX", "path": path, "location": doc_type}
 
     raise Exception(f"Please add a map from {ext} to document dictionary.")
+
+
+def extract_static_methods(cls: Type) -> Dict[str, Callable]:
+    """
+    Extracts all static methods from a given class and returns them in a dictionary.
+
+    Args:
+        cls (Type): The class to extract static methods from.
+
+    Returns:
+        Dict[str, Callable]: A dictionary with method names as keys and static methods as values.
+    """
+    static_methods = {}
+    for name, method in cls.__dict__.items():
+        if isinstance(method, staticmethod):
+            static_methods[name] = method.__func__
+    return static_methods

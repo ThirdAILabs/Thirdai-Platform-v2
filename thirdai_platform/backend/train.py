@@ -9,6 +9,7 @@ from backend.utils import (
     FileDetailsList,
     FileType,
     NDBExtraOptions,
+    UDTExtraOptions,
     get_files,
     get_model,
     get_model_from_identifier,
@@ -134,6 +135,13 @@ def train(
                 message=str(error),
             )
 
+    sharded = (
+        True
+        if extra_options.get("num_models_per_shard") > 1
+        or extra_options.get("num_shards") > 1
+        else False
+    )
+
     try:
         new_model: schema.Model = schema.Model(
             id=model_id,
@@ -141,6 +149,7 @@ def train(
             train_status=schema.Status.not_started,
             name=model_name,
             type="ndb",
+            sub_type="single" if not sharded else "sharded",
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model_identifier else None,
@@ -151,13 +160,6 @@ def train(
         session.refresh(new_model)
 
         work_dir = os.getcwd()
-
-        sharded = (
-            True
-            if extra_options.get("num_models_per_shard") > 1
-            or extra_options.get("num_shards") > 1
-            else False
-        )
 
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
@@ -180,12 +182,178 @@ def train(
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
             base_model_id=("NONE" if not base_model_identifier else str(base_model.id)),
             type="ndb",
-            sub_type="normal" if not sharded else "shard_allocation",
+            sub_type="single" if not sharded else "shard_allocation",
         )
 
     except Exception as err:
         # TODO: change the status of the new model entry to failed
 
+        logger.info(str(err))
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
+        )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully submitted the job",
+        data={
+            "model_id": str(model_id),
+            "user_id": str(user.id),
+        },
+    )
+
+
+@train_router.post("/udt")
+def train(
+    model_name: str,
+    files: List[UploadFile],
+    file_details_list: Optional[str] = Form(default=None),
+    base_model_identifier: Optional[str] = None,
+    extra_options_form: str = Form(default="{}"),
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    user: schema.User = authenticated_user.user
+    try:
+        extra_options = UDTExtraOptions.parse_raw(extra_options_form).dict()
+        extra_options = {k: v for k, v in extra_options.items() if v is not None}
+        if extra_options:
+            print(f"Extra options for training: {extra_options}")
+    except ValidationError as e:
+        return {"error": "Invalid extra options format", "details": str(e)}
+
+    if file_details_list:
+        try:
+            files_info = FileDetailsList.parse_raw(file_details_list).file_details
+        except ValidationError as e:
+            return {"error": "Invalid file details list format", "details": str(e)}
+    else:
+        files_info = [
+            FileDetails(mode=FileType.unsupervised, location="local") for _ in files
+        ]
+
+    try:
+        license_info = verify_license(
+            os.getenv(
+                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
+            )
+        )
+        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Resource limit reached, cannot allocate new jobs.",
+            )
+    except Exception as e:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"License is not valid. {str(e)}",
+        )
+
+    try:
+        validate_name(model_name)
+    except:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"{model_name} is not a valid model name.",
+        )
+
+    duplicate_model = get_model(session, username=user.username, model_name=model_name)
+    if duplicate_model:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Model with name {model_name} already exists for user {user.username}.",
+        )
+
+    model_id = uuid.uuid4()
+    data_id = model_id
+
+    if len(files) != len(files_info):
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Given {len(files)} files but for {len(files_info)} files the info has given.",
+        )
+
+    filenames = get_files(files, data_id, files_info)
+
+    if not isinstance(filenames, list):
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=filenames,
+        )
+
+    if len(filenames) == 0:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"No files provided.",
+        )
+
+    unique_filenames = set(filenames)
+    if len(filenames) != len(unique_filenames):
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Duplicate filenames recieved, please ensure each filename is unique.",
+        )
+
+    if base_model_identifier:
+        try:
+            base_model: schema.Model = get_model_from_identifier(
+                base_model_identifier, session
+            )
+        except Exception as error:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=str(error),
+            )
+
+    try:
+        new_model: schema.Model = schema.Model(
+            id=model_id,
+            user_id=user.id,
+            train_status=schema.Status.not_started,
+            name=model_name,
+            type="udt",
+            sub_type=extra_options["sub_type"],
+            domain=user.email.split("@")[1],
+            access_level=schema.Access.private,
+            parent_id=base_model.id if base_model_identifier else None,
+        )
+
+        session.add(new_model)
+        session.commit()
+        session.refresh(new_model)
+
+        work_dir = os.getcwd()
+
+        udt_subtype = extra_options["sub_type"]
+        extra_options.pop("sub_type", None)
+
+        submit_nomad_job(
+            str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
+            nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+            platform=get_platform(),
+            tag=os.getenv("TAG"),
+            registry=os.getenv("DOCKER_REGISTRY"),
+            docker_username=os.getenv("DOCKER_USERNAME"),
+            docker_password=os.getenv("DOCKER_PASSWORD"),
+            image_name=os.getenv("TRAIN_IMAGE_NAME"),
+            train_script=str(get_root_absolute_path() / "train_job/run.py"),
+            model_id=str(model_id),
+            data_id=str(data_id),
+            model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
+            share_dir=os.getenv("SHARE_DIR", None),
+            license_key=license_info["boltLicenseKey"],
+            extra_options=extra_options,
+            python_path=get_python_path(),
+            aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
+            aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+            base_model_id=("NONE" if not base_model_identifier else str(base_model.id)),
+            type="udt",
+            sub_type=udt_subtype,
+        )
+
+    except Exception as err:
+        # TODO: change the status of the new model entry to failed
         logger.info(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

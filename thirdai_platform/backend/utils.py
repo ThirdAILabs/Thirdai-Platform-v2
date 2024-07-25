@@ -14,7 +14,7 @@ from database import schema
 from fastapi import UploadFile
 from fastapi.responses import JSONResponse
 from jinja2 import Template
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, root_validator, validator
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger("ThirdAI_Platform")
@@ -61,6 +61,7 @@ def get_high_level_model_info(result: schema.Model):
         "username": result.user.username,
         "access_level": result.access_level,
         "domain": result.domain,
+        "type": result.type,
     }
 
     # Include metadata if it exists
@@ -78,6 +79,36 @@ def validate_name(name):
     regex_pattern = "^[\w-]+$"
     if not re.match(regex_pattern, name):
         raise ValueError("name is not valid")
+
+
+class UDTExtraOptions(BaseModel):
+    allocation_cores: Optional[int] = None
+    allocation_memory: Optional[int] = None
+
+    sub_type: Optional[str] = None
+    target_labels: List[str] = None
+    source_column: Optional[str] = None
+    target_column: Optional[str] = None
+    default_tag: Optional[str] = None
+    delimiter: Optional[str] = None
+    text_column: Optional[str] = None
+    label_column: Optional[str] = None
+    n_target_classes: Optional[int] = None
+
+    @root_validator(pre=True)
+    def set_fields_based_on_type(cls, values):
+        sub_type = values.get("sub_type")
+        if sub_type == "text":
+            values["delimiter"] = values.get("delimiter", ",")
+            values["text_column"] = values.get("text_column", "text")
+            values["label_column"] = values.get("label_column", "label")
+            values["n_target_classes"] = values.get("n_target_classes", None)
+        elif sub_type == "token":
+            values["target_labels"] = values.get("target_labels", [])
+            values["source_column"] = values.get("source_column", "source")
+            values["target_column"] = values.get("target_column", "target")
+            values["default_tag"] = values.get("default_tag", "O")
+        return values
 
 
 class NDBExtraOptions(BaseModel):

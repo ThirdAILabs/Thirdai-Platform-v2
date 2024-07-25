@@ -3,10 +3,8 @@ import os
 import sys
 
 from headless import add_basic_args
-from headless.configs import Config
 from headless.dag_executor import DAGExecutor
 from headless.functions import functions_registry, initialize_flow
-from headless.utils import get_configs
 
 
 def main():
@@ -31,20 +29,8 @@ def main():
     parser.add_argument("--all", action="store_true", help="Run all DAGs")
     parser.add_argument("--run-name", type=str, required=True, help="Name of the run")
     parser.add_argument("--sharded", action="store_true", help="Run sharded training")
-    parser.add_argument(
-        "--config",
-        type=str,
-        default="",
-        help="Regular expression indicating which configs to run. (Empty string returns all configs)",
-    )
 
     args = parser.parse_args()
-
-    configs = get_configs(
-        config_type=Config,  # since we only have one Runner
-        config_regex=args.config,
-    )
-
     dag_executor = DAGExecutor(function_registry=functions_registry)
     dag_executor.load_dags_from_file(args.dag_file)
 
@@ -52,8 +38,7 @@ def main():
         {
             "sharded": args.sharded,
             "run_name": args.run_name,
-            "config": configs[0],
-        }  # Way to pass all configs and run on them.
+        }
     )
 
     initialize_flow(args.base_url, args.email, args.password)

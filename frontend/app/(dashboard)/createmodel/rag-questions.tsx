@@ -1,6 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { SelectModel } from '@/lib/db';
 
-const RAGQuestions = () => {
+const RAGQuestions = ({
+  models,
+}: {
+  models: SelectModel[];
+}) => {
+
+  console.log('All models:', models);
+
   // Begin state variables & func for source
   const [useExistingSemanticSearch, setUseExistingSemanticSearch] = useState<string|null>(null);
   const [sources, setSources] = useState<Array<{ type: string, value: string }>>([]);
@@ -33,7 +41,15 @@ const RAGQuestions = () => {
   // Begin state variables & func for LLM guardrail
 
   const [llmGuardrail, setLlmGuardrail] = useState('');
-  const [useExistingGuardrail, setUseExistingGuardrail] = useState<string|null>(null);
+  const [nerModels, setNerModels] = useState<SelectModel[]>([]);
+  const [ifUseExistingGuardrail, setIfUseExistingGuardrail] = useState<string|null>(null);
+  const [nerModelToUse, setNerModelToUse] = useState<string|null>(null);
+
+  useEffect(() => {
+    setNerModels(models.filter(model => model.modelType === 'ner model'));
+  }, [models]);
+
+  console.log('Filtered NER Models:', nerModels);
 
   // End state variables & func for LLM guardrail
 
@@ -181,8 +197,8 @@ const RAGQuestions = () => {
           <select
             id="useExistingGuardrail"
             className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            value={useExistingGuardrail ? useExistingGuardrail : ''}
-            onChange={(e) => setUseExistingGuardrail(e.target.value)}
+            value={ifUseExistingGuardrail ? ifUseExistingGuardrail : ''}
+            onChange={(e) => setIfUseExistingGuardrail(e.target.value)}
           >
             <option value="">-- Please choose an option --</option>
             <option value="Yes">Yes</option>
@@ -192,6 +208,31 @@ const RAGQuestions = () => {
       )}
 
       {/* End choose to use existing LLM guardrail */}
+
+
+      {/* Begin existing NER Models Dropdown */}
+      {ifUseExistingGuardrail === 'Yes' && (
+        <div className="mb-4">
+          <label htmlFor="nerModels" className="block text-sm font-medium text-gray-700">
+            Choose NER Model
+          </label>
+          <select
+            id="nerModels"
+            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+            value={nerModelToUse || ''}
+            onChange={(e) => setNerModelToUse(e.target.value)}
+          >
+            <option value="">-- Please choose a model --</option>
+            {nerModels.map(model => (
+              <option key={model.id} value={model.id}>
+                {model.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* End existing NER Models Dropdown */}
 
       {/* End choose LLM guardrail */}
 

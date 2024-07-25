@@ -12,8 +12,6 @@ export default function ChooseProblem({
 }) {
   const [modelType, setModelType] = useState('RAG');
 
-  console.log(models)
-
   return (
     <>
         <span className="block text-lg font-semibold mb-2">Use case</span>
@@ -33,7 +31,7 @@ export default function ChooseProblem({
 
         {modelType && (
           <div>
-            {modelType === 'RAG' && <RAGQuestions />}
+            {modelType === 'RAG' && <RAGQuestions models = {models}/>}
             {modelType === 'NLP' && <NLPQuestions />}
           </div>
         )}

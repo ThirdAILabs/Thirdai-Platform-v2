@@ -82,8 +82,8 @@ const RAGQuestions = ({
     <div>
       {/* Begin source files */}
       <div className="mb-4">
-        <span className="block text-lg font-semibold mb-2">Search system</span>
-        <label htmlFor="useExistingSemanticSearch" className="block text-sm font-medium text-gray-700">Use Existing Semantic Search?</label>
+        <span className="block text-lg font-semibold mb-2">Search Model</span>
+        <label htmlFor="useExistingSemanticSearch" className="block text-sm font-medium text-gray-700">Use an existing semantic search model?</label>
         <select
           id="useExistingSemanticSearch"
           className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
@@ -101,7 +101,7 @@ const RAGQuestions = ({
       {ifUseExistingSemanticSearch === 'Yes' && (
         <div className="mb-4">
           <label htmlFor="semanticSearchModels" className="block text-sm font-medium text-gray-700">
-            Choose Semantic Search Model
+            Choose from existing semantic search model(s)
           </label>
           <select
             id="semanticSearchModels"
@@ -112,7 +112,7 @@ const RAGQuestions = ({
             <option value="">-- Please choose a model --</option>
             {semanticSearchModels.map(model => (
               <option key={model.id} value={model.id}>
-                {model.name}
+                {`${model.name} (${model.description})`}
               </option>
             ))}
           </select>
@@ -226,7 +226,7 @@ const RAGQuestions = ({
 
       {llmGuardrail === 'Yes' && (
         <div className="mb-4">
-          <label htmlFor="useExistingGuardrail" className="block text-sm font-medium text-gray-700">Use Existing Guardrail?</label>
+          <label htmlFor="useExistingGuardrail" className="block text-sm font-medium text-gray-700">Use an existing NER model for LLM guardrail?</label>
           <select
             id="useExistingGuardrail"
             className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
@@ -247,7 +247,7 @@ const RAGQuestions = ({
       {ifUseExistingGuardrail === 'Yes' && (
         <div className="mb-4">
           <label htmlFor="nerModels" className="block text-sm font-medium text-gray-700">
-            Choose NER Model
+            Choose from existing NER Model(s)
           </label>
           <select
             id="nerModels"
@@ -258,7 +258,7 @@ const RAGQuestions = ({
             <option value="">-- Please choose a model --</option>
             {nerModels.map(model => (
               <option key={model.id} value={model.id}>
-                {model.name}
+                {`${model.name} (${model.description})`}
               </option>
             ))}
           </select>
@@ -270,9 +270,9 @@ const RAGQuestions = ({
       {/* End choose LLM guardrail */}
 
       {/* Begin chat interface */}
-      <span className="block text-lg font-semibold mb-2">Chat with LLM</span>
+      <span className="block text-lg font-semibold mb-2">Chat</span>
       <div className="mb-4">
-        <label htmlFor="llmType" className="block text-sm font-medium text-gray-700">Choose your LLM</label>
+        <label htmlFor="llmType" className="block text-sm font-medium text-gray-700">Choose an LLM option</label>
         <select
           id="llmType"
           className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
@@ -282,6 +282,7 @@ const RAGQuestions = ({
           <option value="">-- Please choose an option --</option>
           <option value="OpenAI">OpenAI</option>
           <option value="Llama">Llama</option>
+          <option value="Llama">Self-host</option>
         </select>
 
         {

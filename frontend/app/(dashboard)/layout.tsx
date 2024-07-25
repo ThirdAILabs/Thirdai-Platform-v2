@@ -82,7 +82,7 @@ function DesktopNav() {
           <Package className="h-5 w-5" />
         </NavItem>
 
-        <NavItem href="/customers" label="Customers">
+        <NavItem href="/access" label="Access">
           <Users2 className="h-5 w-5" />
         </NavItem>
 
@@ -152,7 +152,7 @@ function MobileNav() {
             className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
           >
             <Users2 className="h-5 w-5" />
-            Customers
+            Access
           </Link>
           <Link
             href="#"

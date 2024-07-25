@@ -1,27 +1,19 @@
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database.session import get_session
-from auth.jwt import AuthenticatedUser, create_access_token, verify_access_token
+from auth.jwt import AuthenticatedUser, verify_access_token
 from database import schema
-
-
-def get_model_from_identifier(model_identifier: str, session: Session):
-    model = session.query(schema.Model).get(model_identifier)
-    if not model:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Model not found"
-        )
-    return model
+from utils import get_model_from_identifier
 
 
 def verify_model_access(
-    model_identifier: str,
+    model_id: str,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     user = authenticated_user.user
-    model = get_model_from_identifier(model_identifier, session)
-    if model.user_id != user.id:
+    model = get_model_from_identifier(model_id, session)
+    if model.user_id != user.id or user.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to the model"
         )

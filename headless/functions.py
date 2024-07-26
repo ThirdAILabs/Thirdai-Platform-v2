@@ -33,7 +33,7 @@ class UDTFunctions:
 
         return flow.bazaar_client.train_udt(
             model_name=f"{run_name}_{config.name}_udt_{config.sub_type}",
-            unsupervised_docs=[
+            supervised_docs=[
                 os.path.join(config.base_path, config.unsupervised_paths[0])
             ],
             train_extra_options=UDTFunctions.build_extra_options(config),

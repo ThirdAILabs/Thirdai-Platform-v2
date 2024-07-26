@@ -98,11 +98,11 @@ class TextClassificationModel(ClassificationModel):
 
         model = self.get_model()
 
-        unsupervised_files = list_files(self.data_dir / "unsupervised")
+        supervised_files = list_files(self.data_dir / "supervised")
         test_files = list_files(self.data_dir / "test")
 
         start_time = time.time()
-        for train_file in unsupervised_files:
+        for train_file in supervised_files:
             model.train(
                 train_file,
                 epochs=self.train_variables.unsupervised_epochs,
@@ -169,11 +169,11 @@ class TokenClassificationModel(ClassificationModel):
 
         model = self.get_model()
 
-        unsupervised_files = list_files(self.data_dir / "unsupervised")
+        supervised_files = list_files(self.data_dir / "supervised")
         test_files = list_files(self.data_dir / "test")
 
         start_time = time.time()
-        for train_file in unsupervised_files:
+        for train_file in supervised_files:
             model.train(
                 train_file,
                 epochs=self.train_variables.unsupervised_epochs,

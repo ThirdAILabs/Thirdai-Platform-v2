@@ -1,16 +1,22 @@
+import json
 import os
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
-from backend.utils import (
-    FileDetails,
-    FileDetailsList,
+from backend.file_handler import (
+    FileLocation,
     FileType,
+    NDBFileDetails,
+    NDBFileDetailsList,
+    UDTFileDetails,
+    UDTFileDetailsList,
+    get_files,
+)
+from backend.utils import (
     NDBExtraOptions,
     UDTExtraOptions,
-    get_files,
     get_model,
     get_model_from_identifier,
     get_platform,
@@ -34,7 +40,7 @@ train_router = APIRouter()
 
 
 @train_router.post("/ndb")
-def train(
+def train_ndb(
     model_name: str,
     files: List[UploadFile],
     file_details_list: Optional[str] = Form(default=None),
@@ -54,12 +60,17 @@ def train(
 
     if file_details_list:
         try:
-            files_info = FileDetailsList.parse_raw(file_details_list).file_details
+            files_info_list = NDBFileDetailsList.parse_raw(file_details_list)
+            files_info = [
+                NDBFileDetails(**detail.dict())
+                for detail in files_info_list.file_details
+            ]
         except ValidationError as e:
             return {"error": "Invalid file details list format", "details": str(e)}
     else:
         files_info = [
-            FileDetails(mode=FileType.unsupervised, location="local") for _ in files
+            NDBFileDetails(mode=FileType.unsupervised, location=FileLocation.local)
+            for _ in files
         ]
 
     try:
@@ -71,7 +82,7 @@ def train(
         if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Resource limit reached, cannot allocate new jobs.",
+                message="Resource limit reached, cannot allocate new jobs.",
             )
     except Exception as e:
         return response(
@@ -114,14 +125,14 @@ def train(
     if len(filenames) == 0:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"No files provided.",
+            message="No files provided.",
         )
 
     unique_filenames = set(filenames)
     if len(filenames) != len(unique_filenames):
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Duplicate filenames recieved, please ensure each filename is unique.",
+            message="Duplicate filenames received, please ensure each filename is unique.",
         )
 
     if base_model_identifier:
@@ -205,7 +216,7 @@ def train(
 
 
 @train_router.post("/udt")
-def train(
+def train_udt(
     model_name: str,
     files: List[UploadFile],
     file_details_list: Optional[str] = Form(default=None),
@@ -225,12 +236,17 @@ def train(
 
     if file_details_list:
         try:
-            files_info = FileDetailsList.parse_raw(file_details_list).file_details
+            files_info_list = UDTFileDetailsList.parse_raw(file_details_list)
+            files_info = [
+                UDTFileDetails(**detail.dict())
+                for detail in files_info_list.file_details
+            ]
         except ValidationError as e:
             return {"error": "Invalid file details list format", "details": str(e)}
     else:
         files_info = [
-            FileDetails(mode=FileType.unsupervised, location="local") for _ in files
+            UDTFileDetails(mode=FileType.supervised, location=FileLocation.local)
+            for _ in files
         ]
 
     try:
@@ -242,7 +258,7 @@ def train(
         if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Resource limit reached, cannot allocate new jobs.",
+                message="Resource limit reached, cannot allocate new jobs.",
             )
     except Exception as e:
         return response(
@@ -285,14 +301,14 @@ def train(
     if len(filenames) == 0:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"No files provided.",
+            message="No files provided.",
         )
 
     unique_filenames = set(filenames)
     if len(filenames) != len(unique_filenames):
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Duplicate filenames recieved, please ensure each filename is unique.",
+            message="Duplicate filenames received, please ensure each filename is unique.",
         )
 
     if base_model_identifier:

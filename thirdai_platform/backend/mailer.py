@@ -1,6 +1,6 @@
 import os
 
-from backend.utils import logger
+from thirdai_platform.backend.routers.utils import logger
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 

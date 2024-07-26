@@ -5,7 +5,7 @@ from urllib.parse import urlencode, urljoin
 import bcrypt
 from auth.jwt import AuthenticatedUser, create_access_token, verify_access_token
 from backend.mailer import Mailer
-from backend.utils import hash_password, response
+from thirdai_platform.backend.routers.utils import hash_password, response
 from database import schema
 from database.session import get_session
 from backend.auth_dependencies import get_current_user, verify_admin_access

@@ -3,7 +3,7 @@ import uuid
 from typing import Annotated, Dict, List, Optional, Union
 
 from auth.jwt import AuthenticatedUser, verify_access_token
-from backend.utils import (
+from backend.routers.utils import (
     get_expiry_min,
     get_high_level_model_info,
     get_model,

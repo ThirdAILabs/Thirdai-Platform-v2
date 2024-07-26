@@ -11,7 +11,7 @@ from auth.jwt import (
     verify_access_token,
     verify_access_token_no_throw,
 )
-from backend.utils import (
+from thirdai_platform.backend.routers.utils import (
     delete_nomad_job,
     get_deployment,
     get_empty_port,

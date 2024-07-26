@@ -3,7 +3,17 @@ from sqlalchemy.orm import Session
 from database.session import get_session
 from auth.jwt import AuthenticatedUser, verify_access_token
 from database import schema
-from backend.utils import get_model_from_identifier, response
+from thirdai_platform.backend.routers.utils import get_model_from_identifier, response
+import hvac
+
+
+def get_vault_client():
+    client = hvac.Client(
+        url="http://127.0.0.1:8200", token="hvs.2Sia7aY91hwidc5vU0WpzVBI"
+    )
+    if not client.is_authenticated():
+        raise HTTPException(status_code=500, detail="Vault authentication failed")
+    return client
 
 
 def verify_model_access(

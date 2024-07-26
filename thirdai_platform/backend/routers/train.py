@@ -14,7 +14,7 @@ from backend.file_handler import (
     UDTFileDetailsList,
     get_files,
 )
-from backend.utils import (
+from thirdai_platform.backend.routers.utils import (
     NDBExtraOptions,
     UDTExtraOptions,
     get_model,

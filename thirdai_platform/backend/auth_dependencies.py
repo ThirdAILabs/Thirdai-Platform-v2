@@ -72,3 +72,5 @@ def verify_model_access(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to the model"
         )
+
+    return model

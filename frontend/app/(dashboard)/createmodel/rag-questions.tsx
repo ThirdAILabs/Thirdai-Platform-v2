@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import { SelectModel } from '@/lib/db';
 
@@ -323,6 +324,7 @@ const RAGQuestions = ({
       {
         semanticSearchModelToUse && nerModelToUse && llmType &&
         <div className="flex justify-center">
+          <Link href="/">
           <button
             type="button"
             className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
@@ -332,7 +334,7 @@ const RAGQuestions = ({
                 imageUrl: '/thirdai-small.png',
                 name: 'ThirdAI RAG model',
                 status: 'active',
-                trainedAt: new Date('2024-07-23T17:50:02.904Z'),
+                trainedAt: new Date(), // Use current date and time
                 description: 'This is an RAG model trained by composing a semantic search model and an NER model as LLM guardrail model.',
                 deployEndpointUrl: 'http://localhost/search?id=d43bdbe0-8c31-303d-8d60-984401509fec',
                 onDiskSizeKb: (300 * 1024).toString(),  // 300 MB converted to KB as string
@@ -362,14 +364,11 @@ const RAGQuestions = ({
               } catch (error) {
                 console.error('Error inserting model:', error);
               }
-          
-
-
-              window.open('http://localhost/search?id=d43bdbe0-8c31-303d-8d60-984401509fec', '_blank');
             }}
           >
             Create and Deploy
           </button>
+          </Link>
         </div>
       }
     </div>

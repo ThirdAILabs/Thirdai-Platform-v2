@@ -327,7 +327,7 @@ const RAGQuestions = ({
             type="button"
             className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
             onClick={() => {
-              window.open('http://localhost/search?id=d5575570-8a05-34a3-9532-ae00399e87f9', '_blank');
+              window.open('http://localhost/search?id=761ff920-7f32-30fb-bb95-7e36b8226e69', '_blank');
             }}
           >
             Create and Deploy

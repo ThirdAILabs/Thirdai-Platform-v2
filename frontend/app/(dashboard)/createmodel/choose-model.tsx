@@ -10,7 +10,7 @@ export default function ChooseProblem({
 }: {
   models: SelectModel[];
 }) {
-  const [modelType, setModelType] = useState('RAG');
+  const [modelType, setModelType] = useState('');
 
   return (
     <>

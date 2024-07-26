@@ -17,6 +17,18 @@ def get_vault_client():
     return client
 
 
+def get_current_user(
+    session: Session = Depends(get_session),
+    user: schema.User = Depends(verify_access_token),
+):
+    user = session.query(schema.User).filter(schema.User.id == user.user.id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user"
+        )
+    return user
+
+
 def verify_admin_access(current_user: schema.User = Depends(get_current_user)):
     if not current_user.admin:
         raise HTTPException(
@@ -42,18 +54,6 @@ def verify_model_access(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to the model"
         )
-
-
-def get_current_user(
-    session: Session = Depends(get_session),
-    user: schema.User = Depends(verify_access_token),
-):
-    user = session.query(schema.User).filter(schema.User.id == user.user.id).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user"
-        )
-    return user
 
 
 class SecretRequest(BaseModel):

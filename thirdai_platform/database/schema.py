@@ -52,6 +52,9 @@ class Organization(SQLDeclarativeBase):
     users = relationship(
         "User", back_populates="organization", cascade="all, delete-orphan"
     )
+    models = relationship(
+        "Model", back_populates="organization", cascade="all, delete-orphan"
+    )
 
 
 class User(SQLDeclarativeBase):
@@ -124,8 +127,12 @@ class Model(SQLDeclarativeBase):
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    organization_id = Column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
+    )
 
     user = relationship("User", back_populates="models")
+    organization = relationship("Organization", back_populates="models")
 
     parent_deployment = relationship(
         "Deployment", back_populates="child_models", foreign_keys=[parent_deployment_id]

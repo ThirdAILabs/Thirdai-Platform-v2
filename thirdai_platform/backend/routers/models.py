@@ -110,15 +110,13 @@ def list_models(
                 # protected and matching domain
                 and_(
                     schema.Model.access_level == schema.Access.protected,
-                    schema.Model.domain == user.domain,
+                    schema.Model.organization_id == user.organization_id,
                 ),
                 # private and matching user or admin
                 and_(
                     schema.Model.access_level == schema.Access.private,
-                    or_(
-                        schema.Model.user_id == user.id,
-                        schema.User.id == user.id,
-                    ),
+                    or_(schema.Model.user_id == user.id, schema.User.id == user.id),
+                    or_(user.role == schema.Role.admin),
                 ),
             ),
             schema.Model.train_status == schema.Status.complete,
@@ -214,7 +212,7 @@ def save_deployed_model(
         train_status=schema.Status.complete,
         access_level=schema.Access.private,
         domain=user.email.split("@")[1],
-        user_id=user.id,
+        organization_id=user.organization_id,
         parent_deployment_id=body.deployment_id,
         parent_id=base_model.id,
         type=base_model.type,

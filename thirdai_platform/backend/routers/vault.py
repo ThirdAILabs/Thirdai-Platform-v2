@@ -23,11 +23,14 @@ class SecretResponse(BaseModel):
     value: str
 
 
-@vault_router.post("/add_secret", response_model=SecretResponse)
+@vault_router.post(
+    "/add_secret",
+    response_model=SecretResponse,
+    dependencies=[Depends(verify_admin_access)],
+)
 async def add_secret(
     secret: SecretRequest,
     client: hvac.Client = Depends(get_vault_client),
-    _=Depends(verify_admin_access),
 ):
     if secret.key not in ["AWS_ACCESS_TOKEN", "OPENAI_API_KEY"]:
         raise HTTPException(

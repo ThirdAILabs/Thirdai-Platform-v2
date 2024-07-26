@@ -28,6 +28,7 @@ from thirdai_platform.backend.routers.utils import (
     update_json,
     validate_name,
 )
+from backend.auth_dependencies import verify_model_access
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, UploadFile, status
@@ -35,6 +36,7 @@ from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
+
 
 train_router = APIRouter()
 
@@ -782,11 +784,10 @@ def update_shard_train_status(
     return {"message": f"Successfully updated shard with message: {message}"}
 
 
-@train_router.get("/status")
+@train_router.get("/status", dependencies=[Depends(verify_model_access)])
 def train_status(
     model_identifier: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Get the status of a NeuralDB.
@@ -817,7 +818,9 @@ def train_status(
     )
 
 
-@train_router.get("/model-shard-train-status")
+@train_router.get(
+    "/model-shard-train-status", dependencies=[Depends(verify_model_access)]
+)
 def model_shard_train_status(
     model_id: str,
     session: Session = Depends(get_session),

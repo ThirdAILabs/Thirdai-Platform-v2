@@ -282,7 +282,7 @@ const RAGQuestions = ({
           <option value="">-- Please choose an option --</option>
           <option value="OpenAI">OpenAI</option>
           <option value="Llama">Llama</option>
-          <option value="Llama">Self-host</option>
+          <option value="Self-host">Self-host</option>
         </select>
 
         {/* {
@@ -326,7 +326,45 @@ const RAGQuestions = ({
           <button
             type="button"
             className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-            onClick={() => {
+            onClick={async () => {
+
+              const modelData: Omit<SelectModel, 'id'> = {
+                imageUrl: '/thirdai-small.png',
+                name: 'ThirdAI RAG model',
+                status: 'active',
+                trainedAt: new Date('2024-07-23T17:50:02.904Z'),
+                description: 'This is an RAG model trained by composing a semantic search model and an NER model as LLM guardrail model.',
+                deployEndpointUrl: 'http://localhost/search?id=d43bdbe0-8c31-303d-8d60-984401509fec',
+                onDiskSizeKb: (300 * 1024).toString(),  // 300 MB converted to KB as string
+                ramSizeKb: (300 * 1024 * 2).toString(),  // 300 * 2 MB converted to KB as string
+                numberParameters: 51203077,
+                rlhfCounts: 0,
+                modelType: 'rag model'
+              };
+
+              try {
+                const response = await fetch('/api/insertModel', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(modelData)
+                });
+          
+                if (response.ok) {
+                  const result = await response.json();
+                  console.log('Model inserted:', result);
+                  window.open('http://localhost/search?id=d43bdbe0-8c31-303d-8d60-984401509fec', '_blank');
+                } else {
+                  const error = await response.json();
+                  console.error('Failed to insert model:', error);
+                }
+              } catch (error) {
+                console.error('Error inserting model:', error);
+              }
+          
+
+
               window.open('http://localhost/search?id=d43bdbe0-8c31-303d-8d60-984401509fec', '_blank');
             }}
           >

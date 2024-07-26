@@ -124,3 +124,13 @@ export async function getModels(
 export async function deleteModelById(id: number) {
   await db.delete(models).where(eq(models.id, id));
 }
+
+export const insertModel = async (modelData: Omit<SelectModel, 'id'>) => {
+  try {
+    const result = await db.insert(models).values(modelData);
+    return result;
+  } catch (error) {
+    console.error('Error inserting model:', error);
+    throw error;
+  }
+};

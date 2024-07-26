@@ -170,7 +170,7 @@ const NERQuestions = () => {
         </div>
       )}
 
-      {generatedData.length > 0 && (
+      {! isDataGenerating && generatedData.length > 0 && (
         <div className='mt-5'>
           <h3 className='mb-3 text-lg font-semibold'>Generated Data</h3>
           <div>

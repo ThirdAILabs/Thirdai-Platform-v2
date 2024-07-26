@@ -1,7 +1,6 @@
 import enum
 import re
 from datetime import datetime
-
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -34,23 +33,26 @@ class Access(str, enum.Enum):
     public = "public"
     protected = "protected"
     private = "private"
-    
-user_admin_association = Table(
-    "user_admin",
-    SQLDeclarativeBase.metadata,
-    Column("user_id", ForeignKey("users.id"), primary_key=True),
-    Column("admins_id", ForeignKey("admins.id"), primary_key=True),
-)
 
-class Admins(SQLDeclarativeBase):
-    __tablename__ = "admins"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    domain = Column(String, nullable=False, unique=True)
+class Role(enum.Enum):
+    user = "user"
+    admin = "admin"
 
-    members = relationship(
-        "User", secondary=user_admin_association, back_populates="admin"
+
+class Organization(SQLDeclarativeBase):
+    __tablename__ = "organizations"
+
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
+    domain = Column(String(254), nullable=False, unique=True)
+    name = Column(String(100), nullable=False)
+
+    users = relationship(
+        "User", back_populates="organization", cascade="all, delete-orphan"
+    )
+
 
 class User(SQLDeclarativeBase):
     __tablename__ = "users"
@@ -65,15 +67,14 @@ class User(SQLDeclarativeBase):
     )  # If NULL then its verified from some of the OAuth providers.
     verified = Column(Boolean, default=False)
     verification_token = Column(
-        UUID(as_uuid=True),
-        unique=True,
-        server_default=text("gen_random_uuid()"),
+        UUID(as_uuid=True), unique=True, server_default=text("gen_random_uuid()")
+    )
+    role = Column(ENUM(Role), default=Role.user)
+    organization_id = Column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True
     )
 
-    admin = relationship(
-        "Admins", secondary=user_admin_association, back_populates="members"
-    )
-     
+    organization = relationship("Organization", back_populates="users")
     models = relationship("Model", back_populates="user", cascade="all, delete-orphan")
     deployments = relationship(
         "Deployment", back_populates="user", cascade="all, delete-orphan"

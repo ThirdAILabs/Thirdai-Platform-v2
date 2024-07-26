@@ -88,18 +88,31 @@ def email_signup(
     name = (
         session.query(schema.User).filter(schema.User.username == body.username).first()
     )
-
     if name:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="There is already an user associated with this name.",
+            message="There is already a user associated with this name.",
         )
+
+    domain = body.email.split("@")[1]
+    organization = (
+        session.query(schema.Organization)
+        .filter(schema.Organization.domain == domain)
+        .first()
+    )
+    if not organization:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Organization does not exist for the provided email domain.",
+        )
+
     try:
         user = schema.User(
             username=body.username,
             email=body.email,
             password_hash=hash_password(body.password),
             verified=False,
+            organization_id=organization.id,
         )
 
         session.add(user)
@@ -127,11 +140,10 @@ def email_signup(
     )
 
 
-@user_router.post("/add-admin")
+@user_router.post("/add-admin", dependencies=[Depends(verify_admin_access)])
 def add_admin(
     email: str,
     session: Session = Depends(get_session),
-    current_user: schema.User = Depends(verify_admin_access),
 ):
     user: schema.User = (
         session.query(schema.User).filter(schema.User.email == email).first()
@@ -143,18 +155,8 @@ def add_admin(
             message="User is not registered yet.",
         )
 
-    admin: schema.Admins = (
-        session.query(schema.Admins).filter(schema.Admins.domain == user.domain).first()
-    )
-    if not admin:
-        admin = schema.Admins(domain=user.domain)
-        session.add(admin)
-        session.commit()
-        session.refresh(admin)
-
-    if admin not in user.admin:
-        user.admin.append(admin)
-        session.commit()
+    user.role = schema.Role.admin
+    session.commit()
 
     return response(
         status_code=status.HTTP_200_OK,
@@ -162,11 +164,10 @@ def add_admin(
     )
 
 
-@user_router.delete("/delete-user")
+@user_router.delete("/delete-user", dependencies=[Depends(verify_admin_access)])
 def delete_user(
     user_id: str,
     session: Session = Depends(get_session),
-    current_user: schema.User = Depends(verify_admin_access),
 ):
     user = session.query(schema.User).filter(schema.User.id == user_id).first()
 

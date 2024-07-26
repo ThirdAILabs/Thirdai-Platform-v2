@@ -6,12 +6,14 @@ from database import schema
 from database.schema import SQLDeclarativeBase as Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import SQLAlchemyError
 
 
 def hash_password(password: str):
     byte_password = password.encode("utf-8")
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(byte_password, salt).decode()
+
 
 db_uri = os.getenv("DATABASE_URI")
 if db_uri is None:
@@ -65,7 +67,26 @@ def get_session():
 class AdminAddition:
     @classmethod
     def add_admin(cls):
-        with contextmanager(get_session)() as session:
+        with get_session() as session:
+            domain = admin_mail.split("@")[1]
+
+            organization = (
+                session.query(schema.Organization)
+                .filter(schema.Organization.domain == domain)
+                .first()
+            )
+            if not organization:
+                try:
+                    organization = schema.Organization(
+                        domain=domain, name=domain.split(".")[0]
+                    )
+                    session.add(organization)
+                    session.commit()
+                    session.refresh(organization)
+                except SQLAlchemyError as e:
+                    session.rollback()
+                    raise ValueError(f"Error creating organization: {str(e)}")
+
             user: schema.User = (
                 session.query(schema.User)
                 .filter(schema.User.email == admin_mail)
@@ -78,25 +99,15 @@ class AdminAddition:
                     email=admin_mail,
                     password_hash=hash_password(admin_password),
                     verified=True,
+                    role=schema.Role.admin,
+                    organization_id=organization.id,
                 )
-
                 session.add(user)
                 session.commit()
                 session.refresh(user)
-
-            admin: schema.Admins = (
-                session.query(schema.Admins)
-                .filter(schema.Admins.domain == admin_mail.split("@")[1])
-                .first()
-            )
-            if not admin:
-                admin = schema.Admins(domain=admin_mail.split("@")[1])
-                session.add(admin)
-                session.commit()
-                session.refresh(admin)
-
-            if admin not in user.admin:
-                user.admin.append(admin)
+            else:
+                user.role = schema.Role.admin
+                user.organization_id = organization.id
                 session.commit()
 
 

@@ -61,6 +61,7 @@ export function ModelsTable({
               <TableHead className="hidden md:table-cell">Type</TableHead>
               <TableHead className="hidden md:table-cell">Trained at</TableHead>
               <TableHead className="hidden md:table-cell">Description</TableHead>
+              <TableHead className="hidden md:table-cell">Endpoint</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>

@@ -48,8 +48,27 @@ def verify_model_access(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=str(error),
         )
-    if model.user_id != current_user.id and current_user.role != schema.Role.admin:
+
+    model_owner = (
+        session.query(schema.User).filter(schema.User.id == model.user_id).first()
+    )
+
+    if not model_owner:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Model owner not found"
+        )
+
+    if model.access_level == schema.Access.public:
+        if current_user.organization_id != model_owner.organization_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to the model",
+            )
+
+    elif model.user_id != current_user.id and (
+        current_user.role != schema.Role.admin
+        or current_user.organization_id != model_owner.organization_id
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to the model"
         )
-    return model

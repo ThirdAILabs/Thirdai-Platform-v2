@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import { SelectModel } from '@/lib/db';
+import NERQuestions from './ner-questions';
 
 const RAGQuestions = ({
   models,
@@ -243,6 +244,11 @@ const RAGQuestions = ({
 
       {/* End choose to use existing LLM guardrail */}
 
+      {/* Begin creating a new NER model */}
+      {ifUseExistingGuardrail === 'No' && (
+        <NERQuestions />
+      )}
+      {/* Begin creating a new NER model */}
 
       {/* Begin existing NER Models Dropdown */}
       {ifUseExistingGuardrail === 'Yes' && (
@@ -322,7 +328,7 @@ const RAGQuestions = ({
 
       {/* Button to create and deploy */}
       {
-        semanticSearchModelToUse && nerModelToUse && llmType &&
+        semanticSearchModelToUse && (nerModelToUse || ifUseExistingGuardrail === 'No') && llmType &&
         <div className="flex justify-center">
           <Link href="/">
           <button
@@ -336,7 +342,7 @@ const RAGQuestions = ({
                 status: 'active',
                 trainedAt: new Date(), // Use current date and time
                 description: 'This is an RAG model trained by composing a semantic search model and an NER model as LLM guardrail model.',
-                deployEndpointUrl: 'http://localhost/search?id=d43bdbe0-8c31-303d-8d60-984401509fec',
+                deployEndpointUrl: 'http://localhost/search?id=f103a489-ed9b-3c84-bd12-26c6d1f1b010&useGuardrail=true',
                 onDiskSizeKb: (300 * 1024).toString(),  // 300 MB converted to KB as string
                 ramSizeKb: (300 * 1024 * 2).toString(),  // 300 * 2 MB converted to KB as string
                 numberParameters: 51203077,
@@ -356,7 +362,7 @@ const RAGQuestions = ({
                 if (response.ok) {
                   const result = await response.json();
                   console.log('Model inserted:', result);
-                  window.open('http://localhost/search?id=d43bdbe0-8c31-303d-8d60-984401509fec', '_blank');
+                  window.open('http://localhost/search?id=f103a489-ed9b-3c84-bd12-26c6d1f1b010&useGuardrail=true', '_blank');
                 } else {
                   const error = await response.json();
                   console.error('Failed to insert model:', error);

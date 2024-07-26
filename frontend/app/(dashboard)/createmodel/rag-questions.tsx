@@ -285,7 +285,7 @@ const RAGQuestions = ({
           <option value="Llama">Self-host</option>
         </select>
 
-        {
+        {/* {
           llmType
           &&
           <>
@@ -314,7 +314,7 @@ const RAGQuestions = ({
               </button>
             </div>
           </>
-        }
+        } */}
       </div>
 
       {/* End chat interface */}
@@ -327,7 +327,7 @@ const RAGQuestions = ({
             type="button"
             className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
             onClick={() => {
-              window.open('http://localhost/search?id=761ff920-7f32-30fb-bb95-7e36b8226e69', '_blank');
+              window.open('http://localhost/search?id=d43bdbe0-8c31-303d-8d60-984401509fec', '_blank');
             }}
           >
             Create and Deploy

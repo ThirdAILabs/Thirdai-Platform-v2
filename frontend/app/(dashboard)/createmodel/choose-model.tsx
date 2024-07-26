@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { SelectModel } from '@/lib/db';
 import RAGQuestions from './rag-questions';
-import NLPQuestions from './nlp-questions';
+import NERQuestions from './ner-questions';
+import SemanticSearchQuestions from './semantic-search-questions';
 
 export default function ChooseProblem({
   models,
@@ -24,7 +25,8 @@ export default function ChooseProblem({
             onChange={(e)=>setModelType(e.target.value)}
           >
             <option value="">-- Please choose an option --</option>
-            <option value="NLP">NLP (Natural Language Processing)</option>
+            <option value="semantic-search">Semantic search</option>
+            <option value="NER">NER (Name Entity Recognition)</option>
             <option value="RAG">RAG (Retrieval Augmented Generation)</option>
           </select>
         </div>
@@ -32,7 +34,8 @@ export default function ChooseProblem({
         {modelType && (
           <div>
             {modelType === 'RAG' && <RAGQuestions models = {models}/>}
-            {modelType === 'NLP' && <NLPQuestions />}
+            {modelType === 'NER' && <NERQuestions />}
+            {modelType === 'semantic-search' && <SemanticSearchQuestions />}
           </div>
         )}
     </>

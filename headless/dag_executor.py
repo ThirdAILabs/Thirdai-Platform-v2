@@ -51,6 +51,7 @@ class DAGExecutor:
             config_names = dag_info.get("config")
             if isinstance(config_names, str):
                 config_names = [config_names]
+            print(config_names)
             self.dag_configs[dag_name] = [
                 get_configs(Config, config_name)[0] for config_name in config_names
             ]

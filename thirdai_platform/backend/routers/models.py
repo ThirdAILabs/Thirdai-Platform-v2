@@ -212,11 +212,11 @@ def save_deployed_model(
         train_status=schema.Status.complete,
         access_level=schema.Access.private,
         domain=user.email.split("@")[1],
-        organization_id=user.organization_id,
         parent_deployment_id=body.deployment_id,
         parent_id=base_model.id,
         type=base_model.type,
         sub_type=base_model.sub_type,
+        organization_id=user.organization_id,
     )
 
     session.add(new_model)

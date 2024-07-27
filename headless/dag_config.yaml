@@ -92,6 +92,7 @@ UDT:
       deployment: udt_deploy
 
 AdminFunctions:
+  config: ""
   test_add_admin:
     dependencies: []
     params:

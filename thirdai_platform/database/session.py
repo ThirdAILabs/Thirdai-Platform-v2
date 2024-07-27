@@ -54,7 +54,6 @@ Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base.metadata.create_all(engine, checkfirst=True)
 
 
-@contextmanager
 def get_session():
     session = Session()
     try:
@@ -69,7 +68,7 @@ def get_session():
 class AdminAddition:
     @classmethod
     def add_admin(cls):
-        with get_session() as session:
+        with contextmanager(get_session)() as session:
             domain = admin_mail.split("@")[1]
 
             organization = (

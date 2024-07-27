@@ -251,6 +251,29 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
                     message="Task ID not found",
                 )
 
+    @ndb_router.post("/update-chat-settings")
+    @propagate_error
+    def update_chat_settings(
+        settings: inputs.ChatSettings,
+        _=Depends(permissions.verify_write_permission),
+    ):
+        """
+        Return the chat history of a session
+
+        - **input**: contains session_id, specifying the session to get chat history for.
+
+        Returns list of chat messages.
+        """
+
+        model = get_model()
+
+        model.set_chat(**(settings.dict()))
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully updated chat settings",
+        )
+
     return ndb_router
 
 

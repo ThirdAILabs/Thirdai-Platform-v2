@@ -13,8 +13,10 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List
 
+from chat.chat_interface import llm_default_keys, llm_providers
 from file_handler import create_ndb_docs
 from models.model import Model
+from pkg_resources import get_provider
 from pydantic_models import inputs
 from thirdai import neural_db as ndb
 
@@ -31,6 +33,7 @@ class NDBModel(Model):
         super().__init__()
         self.model_path: Path = self.model_dir / "model.ndb"
         self.db: ndb.NeuralDB = self.load_ndb()
+        self.chat = None
 
     @abstractmethod
     def load_ndb(self) -> ndb.NeuralDB:
@@ -190,6 +193,17 @@ class NDBModel(Model):
             }
             for doc in ndb_docs
         ]
+
+    def set_chat(self, **kwargs):
+        sqlite_db_path = self.data_dir.parent / "chat_history.db"
+
+        chat_history_sql_uri = f"sqlite:///{sqlite_db_path}"
+
+        llm_chat_interface = llm_providers.get(kwargs.get("provider", "openai"))
+
+        self.chat = llm_chat_interface(
+            db=self.db, chat_history_sql_uri=chat_history_sql_uri, **kwargs
+        )
 
 
 class SingleNDB(NDBModel):

@@ -90,3 +90,27 @@ UDT:
     dependencies: [check_search]
     params:
       deployment: udt_deploy
+
+AdminFunctions:
+  test_add_admin:
+    dependencies: []
+    params:
+      email: "test1user@mail.com"
+
+  delete_user:
+    dependencies: [test_add_admin]
+    params:
+      user_id: "user_id_from_previous_step"
+
+  test_add_key:
+    dependencies: [test_add_admin]
+    params:
+      user_id: "user123"
+      key: "AWS_ACCESS_TOKEN"
+      value: "aws_secret_value"
+
+  test_get_key:
+    dependencies: [test_get_key]
+    params:
+      user_id: "user123"
+      key: "AWS_ACCESS_TOKEN"

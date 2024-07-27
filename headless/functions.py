@@ -303,8 +303,48 @@ class NDBFunctions:
         }
 
 
+class AdminFunctions:
+    @staticmethod
+    def test_add_admin(inputs: Dict[str, str]):
+        response = flow.bazaar_client.add_admin(inputs.get("email"))
+        logging.info(
+            "Test Add Admin: ",
+            "Passed" if response.status_code == 200 else "Failed",
+            response.json(),
+        )
+
+    def delete_user(inputs: Dict[str, str]):
+        response = flow.bazaar_client.delete_user(inputs.get("user_id"))
+        logging.info(
+            "Test Delete User: ",
+            "Passed" if response.status_code == 200 else "Failed",
+            response.json(),
+        )
+
+    def test_add_key(inputs: Dict[str, str]):
+        response = flow.bazaar_client.add_secret_key(
+            inputs.get("user_id"), inputs.get("key"), inputs.get("value")
+        )
+        logging.info(
+            "Add Secret Key: ",
+            "Passed" if response.status_code == 200 else "Failed",
+            response.json(),
+        )
+
+    def test_get_key(inputs: Dict[str, str]):
+        response = flow.bazaar_client.get_secret_key(
+            inputs.get("user_id"), inputs.get("key")
+        )
+        logging.info(
+            "Get Secret Key: ",
+            "Passed" if response.status_code == 200 else "Failed",
+            response.json(),
+        )
+
+
 functions_registry: Dict[str, Callable] = {
     **extract_static_methods(CommonFunctions),
     **extract_static_methods(NDBFunctions),
     **extract_static_methods(UDTFunctions),
+    **extract_static_methods(AdminFunctions),
 }

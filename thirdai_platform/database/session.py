@@ -7,6 +7,7 @@ from database.schema import SQLDeclarativeBase as Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
+from contextlib import contextmanager
 
 
 def hash_password(password: str):
@@ -53,6 +54,7 @@ Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base.metadata.create_all(engine, checkfirst=True)
 
 
+@contextmanager
 def get_session():
     session = Session()
     try:

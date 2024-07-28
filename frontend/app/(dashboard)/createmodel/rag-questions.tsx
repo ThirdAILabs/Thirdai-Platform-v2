@@ -342,7 +342,7 @@ const RAGQuestions = ({
                 status: 'active',
                 trainedAt: new Date(), // Use current date and time
                 description: 'This is an RAG model trained by composing a semantic search model and an NER model as LLM guardrail model.',
-                deployEndpointUrl: 'http://40.86.17.143/search?id=0a31c93d-20d8-3733-ab73-0dd114df1fdf&useGuardrail=true',
+                deployEndpointUrl: 'http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=true',
                 onDiskSizeKb: (300 * 1024).toString(),  // 300 MB converted to KB as string
                 ramSizeKb: (300 * 1024 * 2).toString(),  // 300 * 2 MB converted to KB as string
                 numberParameters: 51203077,
@@ -362,7 +362,7 @@ const RAGQuestions = ({
                 if (response.ok) {
                   const result = await response.json();
                   console.log('Model inserted:', result);
-                  window.open('http://40.86.17.143/search?id=0a31c93d-20d8-3733-ab73-0dd114df1fdf&useGuardrail=true', '_blank');
+                  window.open('http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=true', '_blank');
                 } else {
                   const error = await response.json();
                   console.error('Failed to insert model:', error);

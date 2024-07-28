@@ -338,7 +338,7 @@ const RAGQuestions = ({
 
               const modelData: Omit<SelectModel, 'id'> = {
                 imageUrl: '/thirdai-small.png',
-                name: 'ThirdAI RAG model',
+                name: 'My custom rag model',
                 status: 'active',
                 trainedAt: new Date(), // Use current date and time
                 description: 'This is an RAG model trained by composing a semantic search model and an NER model as LLM guardrail model.',

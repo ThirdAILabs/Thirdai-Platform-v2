@@ -31,15 +31,15 @@ def main():
     parser.add_argument("--sharded", action="store_true", help="Run sharded training")
 
     args = parser.parse_args()
-    dag_executor = DAGExecutor(function_registry=functions_registry)
-    dag_executor.load_dags_from_file(args.dag_file)
+    additional_variables = {
+        "sharded": args.sharded,
+        "run_name": args.run_name,
+    }
 
-    dag_executor.update_variables(
-        {
-            "sharded": args.sharded,
-            "run_name": args.run_name,
-        }
+    dag_executor = DAGExecutor(
+        function_registry=functions_registry, global_vars=additional_variables
     )
+    dag_executor.load_dags_from_file(args.dag_file)
 
     initialize_flow(args.base_url, args.email, args.password)
 

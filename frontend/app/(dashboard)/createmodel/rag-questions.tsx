@@ -398,7 +398,12 @@ const RAGQuestions = ({
                 if (response.ok) {
                   const result = await response.json();
                   console.log('Model inserted:', result);
-                  window.open(link, '_blank');
+
+                  if (ifUseExistingSemanticSearch === 'No' || (llmGuardrail === 'Yes' && ifUseExistingGuardrail === 'No')) {
+                    // if training is going on, don't redirect
+                  } else {
+                    window.open(link, '_blank');
+                  }
                 } else {
                   const error = await response.json();
                   console.error('Failed to insert model:', error);

@@ -200,7 +200,7 @@ const NERQuestions = () => {
                   ramSizeKb: (300 * 1024 * 2).toString(),  // 300 * 2 MB converted to KB as string
                   numberParameters: 51203077,
                   rlhfCounts: 0,
-                  modelType: 'rag model'
+                  modelType: 'ner model'
                 };
   
                 try {

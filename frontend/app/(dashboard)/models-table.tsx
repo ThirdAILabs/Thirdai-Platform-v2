@@ -99,7 +99,7 @@ export function ModelsTable({
               variant="ghost"
               size="sm"
               type="submit"
-              disabled={offset + modelsPerPage > totalModels}
+              // disabled={offset + modelsPerPage > totalModels}
             >
               Next
               <ChevronRight className="ml-2 h-4 w-4" />

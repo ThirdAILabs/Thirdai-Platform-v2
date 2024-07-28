@@ -12,24 +12,23 @@ vault_router = APIRouter()
 
 
 class SecretRequest(BaseModel):
-    user_id: str
+    email: str
     key: str
-    value: str
 
 
 class SecretResponse(BaseModel):
-    user_id: str
+    email: str
     key: str
     value: str
 
 
 @vault_router.post(
-    "/add_secret",
+    "/add-secret",
     response_model=SecretResponse,
     dependencies=[Depends(verify_admin_access)],
 )
 async def add_secret(
-    secret: SecretRequest,
+    secret: SecretResponse,
     client: hvac.Client = Depends(get_vault_client),
 ):
     if secret.key not in ["AWS_ACCESS_TOKEN", "OPENAI_API_KEY"]:
@@ -37,27 +36,27 @@ async def add_secret(
             status_code=400,
             detail="Invalid key. Only 'AWS_ACCESS_TOKEN' and 'OPENAI_API_KEY' are allowed.",
         )
-    secret_path = f"secret/data/{secret.user_id}/{secret.key}"
+    secret_path = f"secret/data/{secret.email}/{secret.key}"
     client.secrets.kv.v2.create_or_update_secret(
         path=secret_path, secret={"value": secret.value}
     )
-    return SecretResponse(user_id=secret.user_id, key=secret.key, value=secret.value)
+    return SecretResponse(email=secret.email, key=secret.key, value=secret.value)
 
 
-@vault_router.get("/get_secret/{user_id}/{key}", response_model=SecretResponse)
+@vault_router.get("/get-secret", response_model=SecretResponse)
 async def get_secret(
-    user_id: str, key: str, client: hvac.Client = Depends(get_vault_client)
+    secret: SecretRequest, client: hvac.Client = Depends(get_vault_client)
 ):
-    if key not in ["AWS_ACCESS_TOKEN", "OPENAI_API_KEY"]:
+    if secret.key not in ["AWS_ACCESS_TOKEN", "OPENAI_API_KEY"]:
         raise HTTPException(
             status_code=400,
             detail="Invalid key. Only 'AWS_ACCESS_TOKEN' and 'OPENAI_API_KEY' are allowed.",
         )
-    secret_path = f"secret/data/{user_id}/{key}"
+    secret_path = f"secret/data/{secret.email}/{secret.key}"
     try:
         read_response = client.secrets.kv.v2.read_secret_version(path=secret_path)
     except hvac.exceptions.InvalidPath as e:
         return HTTPException(status_code=404, detail="Secret not found")
 
     secret_value = read_response["data"]["data"]["value"]
-    return SecretResponse(user_id=user_id, key=key, value=secret_value)
+    return SecretResponse(email=secret.email, key=secret.key, value=secret_value)

@@ -51,7 +51,7 @@ class TestVaultEndpoints(unittest.TestCase):
 
     def test_add_secret_admin(self):
         secret_data = {
-            "user_id": "user123",
+            "email": "admin@mail.com",
             "key": "AWS_ACCESS_TOKEN",
             "value": "aws_secret_value",
         }
@@ -60,11 +60,11 @@ class TestVaultEndpoints(unittest.TestCase):
         )
         print(f"Add Secret Admin Response: {response.json()}")
         self.assertEqual(response.status_code, 200)
-        self.assertDictEqual(response.json(), secret_data)
+        self.assertEqual(response.json(), secret_data)
 
     def test_add_secret_user_forbidden(self):
         secret_data = {
-            "user_id": "user123",
+            "email": "test1user@mail.com",
             "key": "AWS_ACCESS_TOKEN",
             "value": "aws_secret_value",
         }
@@ -77,7 +77,7 @@ class TestVaultEndpoints(unittest.TestCase):
 
     def test_get_secret(self):
         secret_data = {
-            "user_id": "user123",
+            "email": "admin@mail.com",
             "key": "AWS_ACCESS_TOKEN",
             "value": "aws_secret_value",
         }
@@ -86,17 +86,33 @@ class TestVaultEndpoints(unittest.TestCase):
         )
         print(f"Add Secret Response: {add_response.json()}")
 
+        get_secret_data = {
+            "email": "admin@mail.com",
+            "key": "AWS_ACCESS_TOKEN",
+        }
         response = self.client.get(
-            f"/api/vault/get_secret/{secret_data['user_id']}/{secret_data['key']}",
-            headers=self.user_headers,
+            f"/api/vault/get_secret?email={get_secret_data['email']}&key={get_secret_data['key']}",
+            headers=self.admin_headers,
         )
         print(f"Get Secret Response: {response.json()}")
         self.assertEqual(response.status_code, 200)
-        self.assertDictEqual(response.json(), secret_data)
+        self.assertEqual(
+            response.json(),
+            {
+                "email": "admin@mail.com",
+                "key": "AWS_ACCESS_TOKEN",
+                "value": "aws_secret_value",
+            },
+        )
 
     def test_get_secret_invalid_key(self):
+        get_secret_data = {
+            "email": "test1user@mail.com",
+            "key": "AZURE_KEY",
+        }
         response = self.client.get(
-            "/api/vault/get_secret/user123/INVALID_KEY", headers=self.user_headers
+            f"/api/vault/get_secret?email={get_secret_data['email']}&key={get_secret_data['key']}",
+            headers=self.user_headers,
         )
         print(f"Get Secret Invalid Key Response: {response.json()}")
         self.assertEqual(response.status_code, 400)
@@ -108,10 +124,15 @@ class TestVaultEndpoints(unittest.TestCase):
         )
 
     def test_get_secret_not_found(self):
+        get_secret_data = {
+            "email": "user123@mail.com",
+            "key": "OPENAI_API_KEY",
+        }
         response = self.client.get(
-            "/api/vault/get_secret/user123/OPENAI_API_KEY", headers=self.user_headers
+            f"/api/vault/get_secret?email={get_secret_data['email']}&key={get_secret_data['key']}",
+            headers=self.user_headers,
         )
-        print(f"Get Secret Not Found Response: {response.json()}")
+        print(f"Get Secret Not Found Response: {response}")
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json(), {"detail": "Secret not found"})
 

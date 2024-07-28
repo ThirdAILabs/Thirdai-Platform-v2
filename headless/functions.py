@@ -100,6 +100,8 @@ class CommonFunctions:
         logging.info(f"checking the deployment for {deployment.deployment_identifier}")
 
         logging.info("Searching the deployment")
+
+        print(deployment)
         return deployment.search(
             query="Can autism and down syndrome be in conjunction",
             top_k=5,
@@ -305,7 +307,25 @@ class NDBFunctions:
 
 class AdminFunctions:
     @staticmethod
+    def add_new_user(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        try:
+            flow.bazaar_client.signup(
+                email="testuser@mail.com",
+                password="password",
+                username="testuser",
+            )
+        except Exception as e:
+            pass
+
+        flow.bazaar_client.login(
+            email="admin@mail.com",
+            password="password",
+        )
+
+    @staticmethod
     def test_add_admin(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
         response = flow.bazaar_client.add_admin(inputs.get("email"))
         logging.info(
             "Test Add Admin: ",
@@ -313,17 +333,21 @@ class AdminFunctions:
             response.json(),
         )
 
-    def delete_user(inputs: Dict[str, str]):
-        response = flow.bazaar_client.delete_user(inputs.get("user_id"))
+    @staticmethod
+    def test_delete_user(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.delete_user(inputs.get("email"))
         logging.info(
             "Test Delete User: ",
             "Passed" if response.status_code == 200 else "Failed",
             response.json(),
         )
 
+    @staticmethod
     def test_add_key(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
         response = flow.bazaar_client.add_secret_key(
-            inputs.get("user_id"), inputs.get("key"), inputs.get("value")
+            inputs.get("email"), inputs.get("key"), inputs.get("value")
         )
         logging.info(
             "Add Secret Key: ",
@@ -331,9 +355,11 @@ class AdminFunctions:
             response.json(),
         )
 
+    @staticmethod
     def test_get_key(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
         response = flow.bazaar_client.get_secret_key(
-            inputs.get("user_id"), inputs.get("key")
+            inputs.get("email"), inputs.get("key")
         )
         logging.info(
             "Get Secret Key: ",

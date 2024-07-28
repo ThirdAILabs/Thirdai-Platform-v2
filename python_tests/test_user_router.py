@@ -86,7 +86,7 @@ def test_delete_user():
             "password": "password",
         },
     )
-    user_id = response.json()["data"]["user"]["user_id"]
+    # user_id = response.json()["data"]["user"]["email"]
 
     response = requests.get(
         f"{BASE_URL}/api/user/email-login", auth=("admin@mail.com", "password")
@@ -95,7 +95,7 @@ def test_delete_user():
 
     response = requests.delete(
         f"{BASE_URL}/api/user/delete-user",
-        params={"user_id": user_id},
+        params={"email": "delete12@mail.com"},
         headers={"Authorization": f"Bearer {access_token}"},
     )
     print(

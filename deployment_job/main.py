@@ -30,10 +30,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+print("Is it even coming here?")
+
 # The following logic will start a timer at this Fast API application's start up.
 # after n minutes, this service will shut down, unless a function that is decorated
 # with @reset_timer is called, in which case the timer restarts.
 reset_event = asyncio.Event()
+
+print("are we resetting event")
 
 
 def reset_timer(endpoint_func):
@@ -73,17 +77,33 @@ async def async_timer() -> None:
             reset_event.clear()
 
 
+print("Task Queue")
 task_queue = Queue()
+print(f"Manager Starting: {task_queue}")
 manager = Manager()
+print(f"Tasks: {manager.dict()}")
 tasks = manager.dict()
+print(f"Starting lock")
 task_lock = Lock()
+print("YO YO")
 
 
+print(f"Is it even getting called: General Variable: {general_variables}")
 if general_variables.type == TypeEnum.NDB:
+    print("**************************")
+    print("Initializing NDB Router")
+    print("**************************")
     ndb_router = create_ndb_router(task_queue, task_lock, tasks)
     app.include_router(ndb_router, prefix=f"/{general_variables.deployment_id}")
 elif general_variables.type == TypeEnum.UDT:
+    print("**************************")
+    print("Initializing UDT router")
+    print("**************************")
     app.include_router(udt_router, prefix=f"/{general_variables.deployment_id}")
+else:
+    print("**************************")
+    print("Initializing No router")
+    print("**************************")
 
 
 @app.exception_handler(404)

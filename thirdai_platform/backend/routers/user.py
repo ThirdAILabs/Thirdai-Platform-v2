@@ -166,15 +166,15 @@ def add_admin(
 
 @user_router.delete("/delete-user", dependencies=[Depends(verify_admin_access)])
 def delete_user(
-    user_id: str,
+    email: str,
     session: Session = Depends(get_session),
 ):
-    user = session.query(schema.User).filter(schema.User.id == user_id).first()
+    user = session.query(schema.User).filter(schema.User.email == email).first()
 
     if not user:
         return response(
             status_code=status.HTTP_404_NOT_FOUND,
-            message=f"User with id {user_id} not found.",
+            message=f"User with id {email} not found.",
         )
 
     session.delete(user)
@@ -182,7 +182,7 @@ def delete_user(
 
     return response(
         status_code=status.HTTP_200_OK,
-        message=f"User with id {user_id} has been successfully deleted.",
+        message=f"User with id {email} has been successfully deleted.",
     )
 
 

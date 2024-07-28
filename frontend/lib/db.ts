@@ -3,7 +3,7 @@
 
  * CREATE TYPE model_type AS ENUM ('semantic search model', 'rag model', 'ner model');
 
- * CREATE TYPE status AS ENUM ('active', 'inactive', 'archived');
+ * CREATE TYPE status AS ENUM ('active', 'inactive', 'archived', 'training');
 
  * CREATE TABLE models (
     id SERIAL PRIMARY KEY,
@@ -64,7 +64,7 @@ import { createInsertSchema } from 'drizzle-zod';
 
 export const db = drizzle(neon(process.env.POSTGRES_URL!));
 
-export const statusEnum = pgEnum('status', ['active', 'inactive', 'archived']);
+export const statusEnum = pgEnum('status', ['active', 'inactive', 'archived', 'training']);
 export const modelTypeEnum = pgEnum('model_type', ['semantic search model', 'rag model', 'ner model']);
 
 export const models = pgTable('models', {

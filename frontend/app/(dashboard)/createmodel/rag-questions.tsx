@@ -247,13 +247,13 @@ const RAGQuestions = ({
       {/* End choose to use existing LLM guardrail */}
 
       {/* Begin creating a new NER model */}
-      {ifUseExistingGuardrail === 'No' && (
+      {llmGuardrail === 'Yes' && ifUseExistingGuardrail === 'No' && (
         <NERQuestions />
       )}
       {/* Begin creating a new NER model */}
 
       {/* Begin existing NER Models Dropdown */}
-      {ifUseExistingGuardrail === 'Yes' && (
+      {llmGuardrail === 'Yes' && ifUseExistingGuardrail === 'Yes' && (
         <div className="mb-4">
           <label htmlFor="nerModels" className="block text-sm font-medium text-gray-700">
             Choose from existing NER Model(s)
@@ -347,7 +347,7 @@ const RAGQuestions = ({
 
       {/* Button to create and deploy */}
       {
-        semanticSearchModelToUse && (llmGuardrail === 'No' || (nerModelToUse || ifUseExistingGuardrail === 'No')) && llmType && modelName &&
+        (semanticSearchModelToUse || sources) && (llmGuardrail === 'No' || (nerModelToUse || ifUseExistingGuardrail === 'No')) && llmType && modelName &&
         <div className="flex justify-center">
           <Link href="/">
           <button
@@ -356,19 +356,26 @@ const RAGQuestions = ({
             onClick={async () => {
 
               let link = '', description = '';
+              let model_stats: 'training' | 'active' | 'inactive' | 'archived' = 'training';
 
               if (llmGuardrail === 'No') {
                 link = 'http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=false'
-                description = 'This is an RAG model trained on an existing a semantic search model.'
+                description = 'This is an RAG model.'
               } else {
                 link = 'http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=true'
                 description = 'This is an RAG model trained by composing a semantic search model and an NER model as LLM guardrail model.'
               }
 
+              if (ifUseExistingSemanticSearch === 'No' || (llmGuardrail === 'Yes' && ifUseExistingGuardrail === 'No')) {
+                model_stats = 'training'
+              } else {
+                model_stats = 'active'
+              }
+
               const modelData: Omit<SelectModel, 'id'> = {
                 imageUrl: '/thirdai-small.png',
                 name: modelName,
-                status: 'active',
+                status: model_stats,
                 trainedAt: new Date(), // Use current date and time
                 description: description,
                 deployEndpointUrl: link,
@@ -401,7 +408,7 @@ const RAGQuestions = ({
               }
             }}
           >
-            Create and Deploy
+            {`${ifUseExistingSemanticSearch === 'No' || (llmGuardrail === 'Yes' && ifUseExistingGuardrail === 'No') ? 'Create' : 'Create and Deploy'}`}
           </button>
           </Link>
         </div>

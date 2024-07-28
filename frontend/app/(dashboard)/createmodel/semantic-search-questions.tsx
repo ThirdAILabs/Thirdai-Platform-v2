@@ -111,6 +111,15 @@ const SemanticSearchQuestions = () => {
           </>
         }
         {/* End source files */}
+
+        <div className="flex justify-center">
+          <button
+            type="button"
+            className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
+          >
+            Create and Deploy
+          </button>
+        </div>
       </div>
     );
 };

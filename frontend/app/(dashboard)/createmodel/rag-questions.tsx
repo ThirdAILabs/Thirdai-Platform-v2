@@ -63,6 +63,8 @@ const RAGQuestions = ({
 
   // End state variables & func for LLM guardrail
 
+  const [modelName, setModelName] = useState('')
+
   // Begin state variables & func for LLM
 
   const [llmType, setLlmType] = useState<string|null>(null);
@@ -326,9 +328,26 @@ const RAGQuestions = ({
 
       {/* End chat interface */}
 
+      {/* Add Model Name Input Field */}
+      <span className="block text-lg font-semibold mb-2">Name your model</span>
+      <div className="mb-4">
+        <label htmlFor="modelName" className="block text-sm font-medium text-gray-700">
+          Model Name
+        </label>
+        <input
+          type="text"
+          id="modelName"
+          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+          value={modelName || ''}
+          onChange={(e) => setModelName(e.target.value)}
+          placeholder="Enter model name"
+        />
+      </div>
+
+
       {/* Button to create and deploy */}
       {
-        semanticSearchModelToUse && (nerModelToUse || ifUseExistingGuardrail === 'No') && llmType &&
+        semanticSearchModelToUse && (llmGuardrail === 'No' || (nerModelToUse || ifUseExistingGuardrail === 'No')) && llmType && modelName &&
         <div className="flex justify-center">
           <Link href="/">
           <button
@@ -336,13 +355,23 @@ const RAGQuestions = ({
             className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
             onClick={async () => {
 
+              let link = '', description = '';
+
+              if (llmGuardrail === 'No') {
+                link = 'http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=false'
+                description = 'This is an RAG model trained on an existing a semantic search model.'
+              } else {
+                link = 'http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=true'
+                description = 'This is an RAG model trained by composing a semantic search model and an NER model as LLM guardrail model.'
+              }
+
               const modelData: Omit<SelectModel, 'id'> = {
                 imageUrl: '/thirdai-small.png',
-                name: 'My custom rag model',
+                name: modelName,
                 status: 'active',
                 trainedAt: new Date(), // Use current date and time
-                description: 'This is an RAG model trained by composing a semantic search model and an NER model as LLM guardrail model.',
-                deployEndpointUrl: 'http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=true',
+                description: description,
+                deployEndpointUrl: link,
                 onDiskSizeKb: (300 * 1024).toString(),  // 300 MB converted to KB as string
                 ramSizeKb: (300 * 1024 * 2).toString(),  // 300 * 2 MB converted to KB as string
                 numberParameters: 51203077,
@@ -362,7 +391,7 @@ const RAGQuestions = ({
                 if (response.ok) {
                   const result = await response.json();
                   console.log('Model inserted:', result);
-                  window.open('http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=true', '_blank');
+                  window.open(link, '_blank');
                 } else {
                   const error = await response.json();
                   console.error('Failed to insert model:', error);

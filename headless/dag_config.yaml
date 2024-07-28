@@ -46,7 +46,7 @@ NDB:
       sharded: variable
       run_name: variable
       config: variable
-      base_model_identifier: check_unsupervised_supervised
+      base_model: check_unsupervised_supervised
       file_num: 1
 
   await_train_2:

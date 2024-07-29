@@ -31,7 +31,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+import os
+import boto3
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+from pathlib import Path
 
 deploy_router = APIRouter()
 
@@ -539,3 +543,67 @@ def get_deployment_info(
         message="Deployment info retrieved successfully",
         data=jsonable_encoder(deployment_info),
     )
+
+
+def get_s3_client():
+    aws_access_key = os.getenv("AWS_ACCESS_KEY")
+    aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    if not aws_access_key or not aws_secret_access_key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="AWS credentials are not set in the environment variables.",
+        )
+    return boto3.client(
+        "s3",
+        aws_access_key_id=aws_access_key,
+        aws_secret_access_key=aws_secret_access_key,
+    )
+
+
+def create_bucket_if_not_exists(s3_client, bucket_name):
+    try:
+        s3_client.head_bucket(Bucket=bucket_name)
+        print(f"Bucket {bucket_name} already exists.")
+    except s3_client.exceptions.NoSuchBucket:
+        try:
+            s3_client.create_bucket(
+                Bucket=bucket_name,
+                CreateBucketConfiguration={
+                    "LocationConstraint": boto3.session.Session().region_name
+                },
+            )
+            print(f"Bucket {bucket_name} created successfully.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create bucket {bucket_name}. Error: {str(e)}",
+            )
+
+
+def upload_files_to_s3(s3_client, bucket_name, local_dir):
+    for root, _, files in os.walk(local_dir):
+        for file in files:
+            local_path = os.path.join(root, file)
+            relative_path = os.path.relpath(local_path, local_dir)
+            try:
+                s3_client.upload_file(local_path, bucket_name, relative_path)
+                print(f"Uploaded {local_path} to {bucket_name}/{relative_path}.")
+            except Exception as e:
+                print(f"Failed to upload {local_path}. Error: {str(e)}")
+
+
+@deploy_router.post("/backup-to-s3")
+def backup_to_s3(session: Session = Depends(get_session)):
+    local_dir = os.getenv("SHARE_DIR")
+    if not local_dir:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="SHARE_DIR environment variable is not set.",
+        )
+
+    bucket_name = "thirdai-recovery"
+    s3_client = get_s3_client()
+    create_bucket_if_not_exists(s3_client, bucket_name)
+    upload_files_to_s3(s3_client, bucket_name, local_dir)
+
+    return {"message": "Backup to S3 completed successfully."}

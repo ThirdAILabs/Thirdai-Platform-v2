@@ -6,13 +6,14 @@ from typing import List, Optional
 import thirdai
 from fastapi import APIRouter, Depends, Form, UploadFile, status
 from fastapi.encoders import jsonable_encoder
+from file_handler import validate_files
 from permissions import Permissions
 from pydantic import ValidationError
 from pydantic_models import inputs
 from pydantic_models.documents import DocumentList
 from pydantic_models.inputs import BaseQueryParams, NDBExtraParams
 from routers.model import get_model
-from utils import Status, now, propagate_error, response, validate_files, validate_name
+from utils import Status, now, propagate_error, response, validate_name
 from variables import GeneralVariables, TypeEnum
 
 permissions = Permissions()

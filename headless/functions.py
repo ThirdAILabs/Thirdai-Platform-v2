@@ -202,16 +202,21 @@ class NDBFunctions:
         sharded = inputs.get("sharded")
         run_name = inputs.get("run_name")
         config: Config = inputs.get("config")
+        base_model = inputs.get("base_model", None)
+        file_num = inputs.get("file_num", 0)
+
+        base_model_identifier = base_model.model_identifier if base_model else None
 
         type = "single" if not sharded else "multiple"
         return flow.train(
             model_name=f"{run_name}_{config.name}_{type}_unsupervised",
             unsupervised_docs=[
-                os.path.join(config.base_path, config.unsupervised_paths[0])
+                os.path.join(config.base_path, config.unsupervised_paths[file_num])
             ],
             extra_options=NDBFunctions.build_extra_options(config, sharded),
             doc_type=config.doc_type,
             nfs_base_path=config.nfs_original_base_path,
+            base_model_identifier=base_model_identifier,
         )
 
     @staticmethod
@@ -220,22 +225,27 @@ class NDBFunctions:
         sharded = inputs.get("sharded")
         run_name = inputs.get("run_name")
         config: Config = inputs.get("config")
+        base_model = inputs.get("base_model", None)
+        file_num = inputs.get("file_num", 0)
+
+        base_model_identifier = base_model.model_identifier if base_model else None
 
         type = "single" if not sharded else "multiple"
         return flow.train(
             model_name=f"{run_name}_{config.name}_{type}_unsupervised_supervised",
             unsupervised_docs=[
-                os.path.join(config.base_path, config.unsupervised_paths[0])
+                os.path.join(config.base_path, config.unsupervised_paths[file_num])
             ],
             supervised_docs=[
                 (
-                    os.path.join(config.base_path, config.supervised_paths[0]),
-                    os.path.join(config.base_path, config.unsupervised_paths[0]),
+                    os.path.join(config.base_path, config.supervised_paths[file_num]),
+                    os.path.join(config.base_path, config.unsupervised_paths[file_num]),
                 )
             ],
             extra_options=NDBFunctions.build_extra_options(config, sharded),
             doc_type=config.doc_type,
             nfs_base_path=config.nfs_original_base_path,
+            base_model_identifier=base_model_identifier,
         )
 
     @staticmethod

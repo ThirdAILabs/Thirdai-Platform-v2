@@ -13,10 +13,10 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List
 
+from file_handler import create_ndb_docs
 from models.model import Model
 from pydantic_models import inputs
 from thirdai import neural_db as ndb
-from utils import create_ndb_docs
 
 
 class NDBModel(Model):

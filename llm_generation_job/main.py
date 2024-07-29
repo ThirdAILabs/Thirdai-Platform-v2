@@ -1,12 +1,24 @@
-from fastapi import APIRouter, WebSocket
+from dotenv import load_dotenv
+
+load_dotenv()
+from fastapi import FastAPI, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
 from llms import default_keys, model_classes
 from pydantic import ValidationError
 from pydantic_models import GenerateArgs
 
-router = APIRouter()
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-@router.websocket("/generate")
+@app.websocket("/generate")
 async def generate(websocket: WebSocket):
     await websocket.accept()
     while True:
@@ -73,3 +85,9 @@ async def generate(websocket: WebSocket):
     await websocket.send_json(
         {"status": "success", "content": "", "end_of_stream": True}
     )
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="localhost", port=8000)

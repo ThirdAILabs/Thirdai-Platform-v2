@@ -1,0 +1,117 @@
+job "deployment-{{ deployment_id }}" {
+  datacenters = ["dc1"]
+
+  type = "service"
+
+  group "deployment" {
+    count = 1
+
+    scaling {
+      enabled = "{{ autoscaling_enabled }}"
+      min = 1
+      max = "{{ autoscaler_max_count }}"
+      policy {
+        cooldown = "3m"
+        evaluation_interval = "1m"
+        check "avg_cpu" {
+          source = "nomad-apm"
+          query = "avg_cpu-allocated"
+          query_window = "3m"
+          strategy "target-value" {
+            target = 70
+          }
+        }
+      }
+    }
+
+    network {
+      port "{{ deployment_id }}-http" {
+        {% if platform == "docker" %}
+          to = 80
+        {% elif platform == "local" %}
+          static = {{ port }}
+        {% endif %}
+      }
+    }
+
+    service {
+      name = "{{ deployment_id }}"
+      port = "{{ deployment_id }}-http"
+      provider = "nomad"
+
+      tags = [
+        "traefik.enable=true",
+        "traefik.http.routers.{{ deployment_id }}-http.rule=PathPrefix(`/{{ deployment_id }}/`)",
+        "traefik.http.routers.{{ deployment_id }}-http.priority=10"
+      ]
+    }
+
+    task "backend" {
+      {% if platform == "local" %}
+        driver = "raw_exec"
+      {% elif platform == "docker" %}  
+        driver = "docker"
+
+      template {
+        destination = "${NOMAD_SECRETS_DIR}/env.vars"
+        env         = true
+        change_mode = "restart"
+        data        = <<EOF
+{% raw %}
+{{- with nomadVar "nomad/jobs" -}}
+TASK_RUNNER_TOKEN = {{ .task_runner_token }}
+{{- end -}}
+{% endraw %}
+EOF
+      }
+
+      {% endif %}
+
+      env {
+        MODEL_ID = "{{ model_id }}"
+        DEPLOYMENT_ID = "{{ deployment_id }}"
+        MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
+        LICENSE_KEY = "{{ license_key }}"
+        GENAI_KEY = "{{ genai_key }}"
+        TYPE = "{{ type }}"
+        SUB_TYPE = "{{ sub_type }}"
+        AWS_ACCESS_KEY = "{{ aws_access_key }}"
+        AWS_ACCESS_SECRET = "{{ aws_access_secret }}"
+        {% if platform == "local" %}
+          MODEL_BAZAAR_DIR = "{{ share_dir }}"
+        {% elif platform == "docker" %}  
+          MODEL_BAZAAR_DIR = "/model_bazaar"
+        {% endif %}
+
+        TASK_RUNNER_TOKEN = "${TASK_RUNNER_TOKEN}"
+      }
+
+      config {
+        {% if platform == "docker" %}  
+          image = "{{ registry }}/{{ image_name }}:{{ tag }}"
+          image_pull_timeout = "15m"
+          ports = ["{{ deployment_id }}-http"]
+          group_add = ["4646"]
+          auth {
+            username = "{{ docker_username }}"
+            password = "{{ docker_password }}"
+            server_address = "{{ registry }}"
+          }
+          volumes = [
+            "{{ share_dir }}:/model_bazaar"
+          ]
+        {% elif platform == "local" %}
+          command = "{{ python_path }}"
+          args    = ["-m", "uvicorn", "main:app","--app-dir","{{ deployment_app_dir }}","--reload","--host","0.0.0.0","--port","{{ port }}"]
+        {% endif %}
+      }
+
+      resources {
+        cpu = 2400
+        memory = {{ memory }}
+        memory_max = {{ 4 * memory }}
+
+      }
+    }
+  }
+}

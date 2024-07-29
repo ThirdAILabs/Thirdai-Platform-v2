@@ -123,6 +123,8 @@ def deploy_model(
     autoscaling_enabled: bool = False,
     autoscaler_max_count: int = 1,
     genai_key: Optional[str] = None,
+    use_llm_guardrail: Optional[bool] = None,
+    token_model_identifier: Optional[str] = None,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
@@ -206,6 +208,17 @@ def deploy_model(
             int(model.meta_data.train["size_in_memory"]) // 1000000
         ) + 1000  # MB required for deployment
 
+    if token_model_identifier:
+        try:
+            token_model: schema.Model = get_model_from_identifier(
+                token_model_identifier, session
+            )
+        except Exception as error:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=str(error),
+            )
+
     try:
         work_dir = os.getcwd()
         platform = get_platform()
@@ -235,6 +248,10 @@ def deploy_model(
             python_path=get_python_path(),
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+            llm_guardrail=("true" if use_llm_guardrail else "false"),
+            token_model_id=(
+                "NONE" if not token_model_identifier else str(token_model.id)
+            ),
         )
 
         deployment.status = schema.Status.in_progress

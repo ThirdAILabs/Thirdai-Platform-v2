@@ -12,7 +12,7 @@ from pydantic import ValidationError
 from pydantic_models import inputs
 from pydantic_models.documents import DocumentList
 from pydantic_models.inputs import BaseQueryParams, NDBExtraParams
-from routers.model import get_model
+from routers.model import get_model, get_token_model
 from utils import Status, now, propagate_error, response, validate_name
 from variables import GeneralVariables, TypeEnum
 
@@ -250,6 +250,22 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
                     status_code=status.HTTP_404_NOT_FOUND,
                     message="Task ID not found",
                 )
+
+    @ndb_router.post("/pii-detect")
+    @propagate_error
+    def pii_detection(
+        query: str,
+        _: str = Depends(permissions.verify_read_permission),
+    ):
+        token_model = get_token_model()
+
+        results = token_model.predict(query=query)
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully detected PII.",
+            data=jsonable_encoder(results),
+        )
 
     return ndb_router
 

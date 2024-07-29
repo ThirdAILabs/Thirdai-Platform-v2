@@ -37,7 +37,6 @@ from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
-
 train_router = APIRouter()
 
 

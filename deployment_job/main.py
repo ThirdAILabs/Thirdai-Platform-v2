@@ -30,7 +30,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # The following logic will start a timer at this Fast API application's start up.
 # after n minutes, this service will shut down, unless a function that is decorated
 # with @reset_timer is called, in which case the timer restarts.

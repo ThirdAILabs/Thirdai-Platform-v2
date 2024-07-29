@@ -592,8 +592,18 @@ def upload_files_to_s3(s3_client, bucket_name, local_dir):
                 print(f"Failed to upload {local_path}. Error: {str(e)}")
 
 
+# TODO(pratik): Add tests using moto3
 @deploy_router.post("/backup-to-s3")
 def backup_to_s3(session: Session = Depends(get_session)):
+    """
+    This file backups the local NFS directory to a remote directory, right now, it just is aws.
+
+    Args:
+        session (Session, optional): _description_. Defaults to Depends(get_session).
+
+    Raises:
+        HTTPException: Throw when SHARE_DIR doesnnot exist.
+    """
     local_dir = os.getenv("SHARE_DIR")
     if not local_dir:
         raise HTTPException(

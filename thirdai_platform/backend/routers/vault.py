@@ -24,7 +24,6 @@ class SecretResponse(BaseModel):
 
 @vault_router.post(
     "/add-secret",
-    response_model=SecretResponse,
     dependencies=[Depends(verify_admin_access)],
 )
 async def add_secret(
@@ -40,10 +39,15 @@ async def add_secret(
     client.secrets.kv.v2.create_or_update_secret(
         path=secret_path, secret={"value": secret.value}
     )
-    return SecretResponse(email=secret.email, key=secret.key, value=secret.value)
+    return {
+        "email": secret.email,
+        "key": secret.key,
+        "value": secret.value,
+        "status": "success",
+    }
 
 
-@vault_router.get("/get-secret", response_model=SecretResponse)
+@vault_router.get("/get-secret")
 async def get_secret(
     secret: SecretRequest, client: hvac.Client = Depends(get_vault_client)
 ):
@@ -59,4 +63,9 @@ async def get_secret(
         return HTTPException(status_code=404, detail="Secret not found")
 
     secret_value = read_response["data"]["data"]["value"]
-    return SecretResponse(email=secret.email, key=secret.key, value=secret_value)
+    return {
+        "email": secret.email,
+        "key": secret.key,
+        "value": secret_value,
+        "status": "success",
+    }

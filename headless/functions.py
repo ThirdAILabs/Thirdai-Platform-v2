@@ -328,9 +328,7 @@ class AdminFunctions:
         logging.info(f"inputs: {inputs}")
         response = flow.bazaar_client.add_admin(inputs.get("email"))
         logging.info(
-            "Test Add Admin: ",
-            "Passed" if response.status_code == 200 else "Failed",
-            response.json(),
+            f"Test Add Admin: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
         )
 
     @staticmethod
@@ -338,9 +336,7 @@ class AdminFunctions:
         logging.info(f"inputs: {inputs}")
         response = flow.bazaar_client.delete_user(inputs.get("email"))
         logging.info(
-            "Test Delete User: ",
-            "Passed" if response.status_code == 200 else "Failed",
-            response.json(),
+            f"Test Delete User: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
         )
 
     @staticmethod
@@ -350,9 +346,7 @@ class AdminFunctions:
             inputs.get("email"), inputs.get("key"), inputs.get("value")
         )
         logging.info(
-            "Add Secret Key: ",
-            "Passed" if response.status_code == 200 else "Failed",
-            response.json(),
+            f"Add Secret Key: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
         )
 
     @staticmethod
@@ -362,9 +356,7 @@ class AdminFunctions:
             inputs.get("email"), inputs.get("key")
         )
         logging.info(
-            "Get Secret Key: ",
-            "Passed" if response.status_code == 200 else "Failed",
-            response.json(),
+            f"Get Secret Key: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
         )
 
 

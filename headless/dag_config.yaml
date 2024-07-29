@@ -101,20 +101,21 @@ Admin:
     params:
       email: testuser@mail.com
 
-  # test_delete_user:
-  #   dependencies: [add_new_user]
-  #   params:
-  #     email: testuser@mail.com
 
-  # test_add_key:
-  #   dependencies: []
-  #   params:
-  #     email: testuser@mail.com
-  #     key: "AWS_ACCESS_TOKEN"
-  #     value: "aws_secret_value"
+  test_add_key:
+    dependencies: [add_new_user]
+    params:
+      email: testuser@mail.com
+      key: "AWS_ACCESS_TOKEN"
+      value: "aws_secret_value"
 
-  # test_get_key:
-  #   dependencies: [add_new_user]
-  #   params:
-  #     email: testuser@mail.com
-  #     key: "AWS_ACCESS_TOKEN"
+  test_get_key:
+    dependencies: [add_new_user, test_add_key]
+    params:
+      email: testuser@mail.com
+      key: "AWS_ACCESS_TOKEN"
+  
+  test_delete_user:
+    dependencies: [add_new_user, test_add_admin, test_add_key, test_get_key]
+    params:
+      email: testuser@mail.com

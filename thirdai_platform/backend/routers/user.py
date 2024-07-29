@@ -29,6 +29,10 @@ class AccountSignupBody(BaseModel):
     password: str
 
 
+class AdminRequest(BaseModel):
+    email: str
+
+
 def send_verification_mail(email: str, verification_token: str, username: str):
     """
     Send a verification email to the user.
@@ -142,9 +146,10 @@ def email_signup(
 
 @user_router.post("/add-admin", dependencies=[Depends(verify_admin_access)])
 def add_admin(
-    email: str,
+    admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
+    email = admin_request.email
     user: schema.User = (
         session.query(schema.User).filter(schema.User.email == email).first()
     )
@@ -166,9 +171,10 @@ def add_admin(
 
 @user_router.delete("/delete-user", dependencies=[Depends(verify_admin_access)])
 def delete_user(
-    email: str,
+    admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
+    email = admin_request.email
     user = session.query(schema.User).filter(schema.User.email == email).first()
 
     if not user:

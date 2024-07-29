@@ -8,8 +8,11 @@ import hvac
 
 
 def get_vault_client():
+    # TODO(pratik): Change token in production environment
+    # Note(pratik): Refer to the following for instruction to set up vault
+    # https://waytohksharma.medium.com/install-hashicorp-vault-on-mac-fdbd8cd9113b
     client = hvac.Client(
-        url="http://127.0.0.1:8200", token="hvs.2Sia7aY91hwidc5vU0WpzVBI"
+        url="http://127.0.0.1:8200", token="00000000-0000-0000-0000-000000000000"
     )
     if not client.is_authenticated():
         raise HTTPException(status_code=500, detail="Vault authentication failed")

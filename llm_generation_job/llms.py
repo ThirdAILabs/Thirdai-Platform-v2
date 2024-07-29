@@ -58,36 +58,42 @@ class CohereLLM(LLMBase):
     async def stream(
         self, key: str, query: str, model: str
     ) -> AsyncGenerator[str, None]:
-        url = "https://api.cohere.ai/v1/generate"
+        url = "https://api.cohere.com/v1/chat"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {key}",
         }
         body = {
-            "prompt": query,
+            "message": query,
             "model": model,
-            "max_tokens": 200,
-            "temperature": 0.7,
+            "chat_history": [
+                {
+                    "role": "USER",
+                    "message": query,
+                }
+            ],
+            "stream": True,
         }
         async with aiohttp.ClientSession() as session:
             async with session.post(url, headers=headers, json=body) as response:
                 if response.status == 200:
-                    async for multi_chunk_bytes, _ in response.content.iter_chunks():
-                        for chunk_string in multi_chunk_bytes.decode("utf8").split(
-                            "\n"
-                        ):
-                            if chunk_string == "":
-                                continue
-                            offset = len(
-                                "data: "
-                            )  # The chunk responses are prefixed with "data: "
-                            try:
-                                chunk = json.loads(chunk_string[offset:])
-                            except:
-                                continue
-                            content = chunk.get("text")
-                            if content is not None:
-                                yield content
+                    async for line in response.content:
+                        line = line.decode("utf8").strip()
+                        try:
+                            chunk = json.loads(line)
+                            if chunk.get(
+                                "event_type"
+                            ) == "text-generation" and not chunk.get("is_finished"):
+                                content = chunk.get("text")
+                                if content:
+                                    yield content
+                        except json.JSONDecodeError as e:
+                            raise Exception(f"Error decoding JSON response: {e}")
+                        except Exception as e:
+                            raise Exception(f"Error processing response chunk: {e}")
+                else:
+                    error_message = await response.text()
+                    raise Exception(f"Cohere API request failed: {error_message}")
 
 
 model_classes = {

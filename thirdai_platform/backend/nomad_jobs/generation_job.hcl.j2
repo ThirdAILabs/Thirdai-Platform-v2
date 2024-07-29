@@ -28,7 +28,7 @@ job "llm-generation" {
       ]
     }
 
-    task "server" {
+    task "backend" {
       {% if platform == "local" %}
         driver = "raw_exec"
       {% elif platform == "docker" %}  

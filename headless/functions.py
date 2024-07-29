@@ -101,7 +101,6 @@ class CommonFunctions:
 
         logging.info("Searching the deployment")
 
-        print(deployment)
         return deployment.search(
             query="Can autism and down syndrome be in conjunction",
             top_k=5,

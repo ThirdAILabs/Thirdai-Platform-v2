@@ -51,7 +51,6 @@ class DAGExecutor:
             config_names = dag_info.get("config")
             if isinstance(config_names, str):
                 config_names = [config_names]
-            print(config_names)
             self.dag_configs[dag_name] = [
                 get_configs(Config, config_name)[0] for config_name in config_names
             ]
@@ -125,7 +124,6 @@ class DAGExecutor:
         graph = self.dags[dag_name]
         try:
             order = list(nx.topological_sort(graph))
-            print("Execution Order: ", order)
             return order
         except nx.NetworkXUnfeasible:
             raise Exception(f"The DAG '{dag_name}' has cycles, which is not allowed.")
@@ -141,13 +139,6 @@ class DAGExecutor:
         Returns:
         Callable: The function associated with the task.
         """
-        print(
-            "DAG Name: ",
-            dag_name,
-            "Task Name: ",
-            task_name,
-            self.dags[dag_name].nodes[task_name]["func"],
-        )
         return self.dags[dag_name].nodes[task_name]["func"]
 
     def get_task_params(self, dag_name: str, task_name: str) -> Dict[str, str]:
@@ -192,9 +183,6 @@ class DAGExecutor:
                 else:
                     inputs[param] = source
             self.outputs[dag_name][config_name][task_name] = task_func(inputs)
-            logging.info(
-                f"Func: {task_func}, Output: {self.outputs[dag_name][config_name][task_name]}"
-            )
         logging.info(
             f"Finished executing task '{task_name}' in DAG '{dag_name}' with config '{config_name}', with output {self.outputs[dag_name][config_name][task_name]}."
         )

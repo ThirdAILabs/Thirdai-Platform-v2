@@ -3,6 +3,7 @@ import traceback
 import uuid
 from typing import List, Optional
 
+import jwt
 import thirdai
 from fastapi import APIRouter, Depends, Form, UploadFile, status
 from fastapi.encoders import jsonable_encoder
@@ -257,14 +258,6 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         settings: inputs.ChatSettings,
         _=Depends(permissions.verify_write_permission),
     ):
-        """
-        Return the chat history of a session
-
-        - **input**: contains session_id, specifying the session to get chat history for.
-
-        Returns list of chat messages.
-        """
-
         model = get_model()
 
         model.set_chat(**(settings.dict()))
@@ -272,6 +265,71 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         return response(
             status_code=status.HTTP_200_OK,
             message="Successfully updated chat settings",
+        )
+
+    @ndb_router.post("/get-chat-history")
+    @propagate_error
+    def get_chat_history(
+        input: inputs.ChatHistoryInput,
+        token=Depends(permissions.verify_read_permission),
+    ):
+        model = get_model()
+        if not model.chat:
+            raise Exception(
+                "Chat is not enabled. Please provide an GenAI key to enable chat."
+            )
+
+        if not input.session_id:
+            try:
+                # Use logged-in user id as the chat session id if no other session id is provided
+                session_id = jwt.decode(token, options={"verify_signature": False})[
+                    "user_id"
+                ]
+            except:
+                raise Exception(
+                    "Must provide a session ID or be logged in to use chat feature"
+                )
+        else:
+            session_id = input.session_id
+
+        chat_history = {"chat_history": model.chat.get_chat_history(session_id)}
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successful",
+            data=chat_history,
+        )
+
+    @ndb_router.post("/chat")
+    @propagate_error
+    def chat(
+        input: inputs.ChatInput, token=Depends(permissions.verify_read_permission)
+    ):
+        model = get_model()
+        if not model.chat:
+            raise Exception(
+                "Chat is not enabled. Please provide an GENAI key to enable chat."
+            )
+
+        if not input.session_id:
+            try:
+                # Use logged-in user id as the chat session id if no other session id is provided
+                session_id = jwt.decode(token, options={"verify_signature": False})[
+                    "user_id"
+                ]
+            except:
+                raise Exception(
+                    "Must provide a session ID or be logged in to use chat feature"
+                )
+        else:
+            session_id = input.session_id
+
+        chat_result = {"response": model.chat.chat(input.user_input, session_id)}
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successful",
+            data=chat_result,
         )
 
     return ndb_router

@@ -33,7 +33,10 @@ class NDBModel(Model):
         super().__init__()
         self.model_path: Path = self.model_dir / "model.ndb"
         self.db: ndb.NeuralDB = self.load_ndb()
-        self.chat = None
+        self.set_chat(
+            provider=self.general_variables.llm_provider,
+            key=self.general_variables.genai_key,
+        )
 
     @abstractmethod
     def load_ndb(self) -> ndb.NeuralDB:
@@ -195,15 +198,19 @@ class NDBModel(Model):
         ]
 
     def set_chat(self, **kwargs):
-        sqlite_db_path = self.data_dir.parent / "chat_history.db"
+        try:
+            sqlite_db_path = self.data_dir.parent / "chat_history.db"
 
-        chat_history_sql_uri = f"sqlite:///{sqlite_db_path}"
+            chat_history_sql_uri = f"sqlite:///{sqlite_db_path}"
 
-        llm_chat_interface = llm_providers.get(kwargs.get("provider", "openai"))
+            llm_chat_interface = llm_providers.get(kwargs.get("provider", "openai"))
 
-        self.chat = llm_chat_interface(
-            db=self.db, chat_history_sql_uri=chat_history_sql_uri, **kwargs
-        )
+            self.chat = llm_chat_interface(
+                db=self.db, chat_history_sql_uri=chat_history_sql_uri, **kwargs
+            )
+        except Exception as err:
+            print(str(err))
+            self.chat = None
 
 
 class SingleNDB(NDBModel):

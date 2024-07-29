@@ -56,14 +56,19 @@ def main():
         print("Error: LOCAL_TEST_DIR environment variable is not set.")
         sys.exit(1)
 
+    # Note(pratik): Make sure to not include '/' in the end.
     s3_uris = [
-        "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/scifact/",
-        "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/clinc/",
-        "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/token/",
+        "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/scifact",
+        "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/clinc",
+        "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/token",
     ]
 
     for s3_uri in s3_uris:
-        download_from_s3_if_not_exists(s3_uri, local_test_dir)
+        folder_name = s3_uri.split("/")[-1]
+
+        download_from_s3_if_not_exists(
+            s3_uri, os.path.join(local_test_dir, folder_name)
+        )
 
     dag_executor = DAGExecutor(
         function_registry=functions_registry, global_vars=additional_variables

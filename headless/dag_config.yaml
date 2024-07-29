@@ -40,6 +40,21 @@ NDB:
     params:
       deployment: deploy_ndb
 
+  check_unsupervised:
+    dependencies: [await_train]
+    params:
+      sharded: variable
+      run_name: variable
+      config: variable
+      base_model: check_unsupervised_supervised
+      file_num: 1
+
+  await_train_2:
+    function: await_train
+    dependencies: [check_unsupervised]
+    params:
+      model: check_unsupervised
+
 UDT:
   config: [token, text]
   check_udt_train:

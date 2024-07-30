@@ -379,7 +379,7 @@ async def restart_generate_job():
         registry=os.getenv("DOCKER_REGISTRY"),
         docker_username=os.getenv("DOCKER_USERNAME"),
         docker_password=os.getenv("DOCKER_PASSWORD"),
-        image_name=os.getenv("GENERATION_IMAGE"),
+        image_name=os.getenv("GENERATION_IMAGE_NAME"),
         python_path=get_python_path(),
         generate_app_dir=str(get_root_absolute_path() / "llm_generation_job"),
     )

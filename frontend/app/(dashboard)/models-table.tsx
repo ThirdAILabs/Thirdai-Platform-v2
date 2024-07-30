@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   TableHead,
   TableRow,
@@ -23,6 +23,39 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { fetchPublicModels, fetchPrivateModels } from "@/lib/backend"
 
+// Define a type for the private model data structure
+type PrivateModel = {
+  access_level: string;
+  domain: string;
+  latency: string;
+  model_name: string;
+  num_params: string;
+  publish_date: string;
+  size: string;
+  size_in_memory: string;
+  thirdai_version: string;
+  training_time: string;
+  type: string;
+  user_email: string;
+  username: string;
+};
+
+// Map the private model data to the required model structure
+const mapPrivateModelToSelectModel = (privateModel: PrivateModel, index: number): SelectModel => ({
+  id: index + 1, // Use index as a unique identifier for demonstration
+  imageUrl: '/thirdai-small.png', // Provide a default or dummy image URL
+  name: privateModel.model_name,
+  status: 'active', // Assuming all fetched models are active, replace with appropriate status if available
+  trainedAt: new Date(privateModel.publish_date),
+  description: `Model by ${privateModel.username}`,
+  deployEndpointUrl: null, // Provide a default or dummy endpoint URL
+  onDiskSizeKb: privateModel.size,
+  ramSizeKb: privateModel.size_in_memory,
+  numberParameters: Number(privateModel.num_params),
+  rlhfCounts: 0, // Replace with the appropriate value if available
+  modelType: 'ner model', // Adjust the model type based on expected literals
+});
+
 export function ModelsTable({
   models,
   offset,
@@ -43,13 +76,22 @@ export function ModelsTable({
     router.push(`/?offset=${offset}`, { scroll: false });
   }
 
+  const [privateModels, setPrivateModels] = useState<SelectModel[]>([])
+
   useEffect(() => {
     async function getModels() {
         try {
-            const publicModels = await fetchPublicModels('');
-            const privateModels = await fetchPrivateModels('');
-            console.log('privateModels', privateModels)
-            console.log('publicModels', publicModels)
+          const publicModels = await fetchPublicModels('');
+          console.log('publicModels', publicModels)
+
+          const response = await fetchPrivateModels('');
+          const privateModels: PrivateModel[] = response.data; // Extract the data field
+          console.log('privateModels', privateModels)
+
+          const mappedModels = privateModels.map(mapPrivateModelToSelectModel);
+
+          console.log('mappedModels', mappedModels)
+          setPrivateModels(mappedModels)
         } catch (err) {
           if (err instanceof Error) {
               console.log(err.message);
@@ -91,6 +133,10 @@ export function ModelsTable({
           <TableBody>
             {models.map((model) => (
               <Model key={model.id} model={model} />
+            ))}
+
+            {privateModels.map((model) => (
+                <Model key={model.id} model={model} />
             ))}
           </TableBody>
         </Table>

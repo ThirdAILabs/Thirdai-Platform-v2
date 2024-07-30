@@ -10,6 +10,7 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { userEmailLogin } from '@/lib/backend';
+import Link from 'next/link'
 
 export default function LoginPage() {
   const [email, setEmail] = useState<string>('');
@@ -61,8 +62,16 @@ export default function LoginPage() {
               />
             </div>
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-            <Button type="submit" className="w-full">Login</Button>
+            
+            <Link href="/">
+              <Button type="submit" className="w-full">Login</Button>
+            </Link>
           </form>
+          <Link href="/signup">
+            <button type="button">
+              Sign up
+            </button>
+          </Link>
         </CardFooter>
       </Card>
     </div>

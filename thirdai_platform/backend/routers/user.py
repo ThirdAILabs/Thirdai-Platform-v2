@@ -18,7 +18,7 @@ user_router = APIRouter()
 basic_security = HTTPBasic()
 
 root_folder = pathlib.Path(__file__).parent
-template_directory = root_folder.joinpath("templates/").resolve()
+template_directory = root_folder.joinpath("../templates/").resolve()
 templates = Jinja2Templates(directory=template_directory)
 
 

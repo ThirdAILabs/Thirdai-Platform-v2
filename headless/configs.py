@@ -95,7 +95,6 @@ class Scifact(Config):
     ]
     test_paths: list[str] = [
         "scifact/tst_supervised.csv",
-        "sscifact/tst_supervised.csv",
     ]
     insert_paths: list[str] = ["scifact/sample_nda.pdf"]
 

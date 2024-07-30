@@ -170,7 +170,13 @@ def add_global_admin(
             )
 
     user.role = schema.Role.global_admin
-    user.team_id = None
+    global_admin_team = (
+        session.query(schema.Team)
+        .filter(schema.Team.name == "global_admin_team")
+        .first()
+    )
+
+    user.team_id = global_admin_team.id
     session.commit()
 
     return {

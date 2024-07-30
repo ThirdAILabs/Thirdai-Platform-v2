@@ -71,7 +71,7 @@ class User(SQLDeclarativeBase):
     role = Column(ENUM(Role), default=Role.user)
 
     # nullable since global admin wont be part of any team
-    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=True)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"))
 
     team = relationship("Team", back_populates="users")
     models = relationship("Model", back_populates="user", cascade="all, delete-orphan")
@@ -123,7 +123,7 @@ class Model(SQLDeclarativeBase):
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=False)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"))
 
     user = relationship("User", back_populates="models")
     team = relationship("Team", back_populates="models")

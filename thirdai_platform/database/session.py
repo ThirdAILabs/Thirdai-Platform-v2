@@ -76,6 +76,12 @@ class AdminAddition:
                 .first()
             )
 
+            # Here we create a specific team named `global_admin_team` just for storing global_admins
+            global_admin_team = schema.Team(name="global_admin_team")
+            session.add(global_admin_team)
+            session.commit()
+            session.refresh(global_admin_team)
+
             if not user:
                 user = schema.User(
                     username=admin_username,
@@ -83,7 +89,7 @@ class AdminAddition:
                     password_hash=hash_password(admin_password),
                     verified=True,
                     role=schema.Role.global_admin,
-                    team_id=None,
+                    team_id=global_admin_team.id,
                 )
                 session.add(user)
                 session.commit()

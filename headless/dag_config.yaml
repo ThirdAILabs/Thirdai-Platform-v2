@@ -47,8 +47,7 @@ NDB:
       run_name: variable
       config: variable
       base_model: check_unsupervised_supervised
-      file_num: 1
-      test: True
+      file_num: 0
 
   await_train_2:
     function: await_train

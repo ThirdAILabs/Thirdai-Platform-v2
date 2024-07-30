@@ -37,24 +37,20 @@ class Access(str, enum.Enum):
 
 class Role(enum.Enum):
     user = "user"
-    admin = "admin"
+    team_admin = "team_admin"
+    global_admin = "global_admin"  # Global Admin wont have be part of any team
 
 
-class Organization(SQLDeclarativeBase):
-    __tablename__ = "organizations"
+class Team(SQLDeclarativeBase):
+    __tablename__ = "teams"
 
     id = Column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
-    domain = Column(String(254), nullable=False, unique=True)
-    name = Column(String(100), nullable=False)
+    name = Column(String(100), nullable=False, unique=True)
 
-    users = relationship(
-        "User", back_populates="organization", cascade="all, delete-orphan"
-    )
-    models = relationship(
-        "Model", back_populates="organization", cascade="all, delete-orphan"
-    )
+    users = relationship("User", back_populates="team", cascade="all, delete-orphan")
+    models = relationship("Model", back_populates="team", cascade="all, delete-orphan")
 
 
 class User(SQLDeclarativeBase):
@@ -73,11 +69,11 @@ class User(SQLDeclarativeBase):
         UUID(as_uuid=True), unique=True, server_default=text("gen_random_uuid()")
     )
     role = Column(ENUM(Role), default=Role.user)
-    organization_id = Column(
-        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=True
-    )
 
-    organization = relationship("Organization", back_populates="users")
+    # nullable since global admin wont be part of any team
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=True)
+
+    team = relationship("Team", back_populates="users")
     models = relationship("Model", back_populates="user", cascade="all, delete-orphan")
     deployments = relationship(
         "Deployment", back_populates="user", cascade="all, delete-orphan"
@@ -127,12 +123,10 @@ class Model(SQLDeclarativeBase):
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    organization_id = Column(
-        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
-    )
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=False)
 
     user = relationship("User", back_populates="models")
-    organization = relationship("Organization", back_populates="models")
+    team = relationship("Team", back_populates="models")
 
     parent_deployment = relationship(
         "Deployment", back_populates="child_models", foreign_keys=[parent_deployment_id]

@@ -31,8 +31,26 @@ def get_current_user(
     return user
 
 
-def verify_admin_access(current_user: schema.User = Depends(get_current_user)):
-    if current_user.role != schema.Role.admin:
+def global_admin_only(current_user: schema.User = Depends(get_current_user)):
+    if current_user.role != schema.Role.global_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user doesn't have enough privileges",
+        )
+    return current_user
+
+
+def team_admin_or_global_admin(current_user: schema.User = Depends(get_current_user)):
+    if current_user.role not in [schema.Role.team_admin, schema.Role.global_admin]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The user doesn't have enough privileges",
+        )
+    return current_user
+
+
+def team_admin_only(current_user: schema.User = Depends(get_current_user)):
+    if current_user.role != schema.Role.team_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required"
         )
@@ -62,15 +80,15 @@ def verify_model_access(
         )
 
     if model.access_level == schema.Access.public:
-        if current_user.organization_id != model_owner.organization_id:
+        if current_user.team_id != model_owner.team_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied to the model",
             )
 
     elif model.user_id != current_user.id and (
-        current_user.role != schema.Role.admin
-        or current_user.organization_id != model_owner.organization_id
+        current_user.role != schema.Role.team_admin
+        or current_user.team_id != model_owner.team_id
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to the model"

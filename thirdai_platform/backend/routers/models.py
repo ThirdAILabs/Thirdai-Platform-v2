@@ -14,13 +14,15 @@ from backend.routers.utils import (
 )
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, Header, Query, UploadFile, status
+from fastapi import APIRouter, Depends, Header, Query, UploadFile, status, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
 from storage import interface, local
+
+from backend.auth_dependencies import team_admin_or_global_admin
 
 model_router = APIRouter()
 
@@ -99,29 +101,34 @@ def list_models(
     """
     user: schema.User = authenticated_user.user
 
-    results = (
-        session.query(schema.Model)
-        .options(joinedload(schema.Model.user))
-        .filter(
-            schema.Model.name.ilike(f"%{name}%"),
-            or_(
-                # public
-                schema.Model.access_level == schema.Access.public,
-                # protected and matching domain
-                and_(
-                    schema.Model.access_level == schema.Access.protected,
-                    schema.Model.organization_id == user.organization_id,
-                ),
-                # private and matching user or admin
-                and_(
-                    schema.Model.access_level == schema.Access.private,
-                    or_(schema.Model.user_id == user.id, schema.User.id == user.id),
-                    or_(user.role == schema.Role.admin),
-                ),
-            ),
-            schema.Model.train_status == schema.Status.complete,
+    if user.role == schema.Role.global_admin:
+        results = (
+            session.query(schema.Model).options(joinedload(schema.Model.user)).all()
         )
-    )
+    else:
+        results = (
+            session.query(schema.Model)
+            .options(joinedload(schema.Model.user))
+            .filter(
+                schema.Model.name.ilike(f"%{name}%"),
+                or_(
+                    # public
+                    schema.Model.access_level == schema.Access.public,
+                    # protected and matching domain
+                    and_(
+                        schema.Model.access_level == schema.Access.protected,
+                        schema.Model.team_id == user.team_id,
+                    ),
+                    # private and matching user or admin
+                    and_(
+                        schema.Model.access_level == schema.Access.private,
+                        or_(schema.Model.user_id == user.id, schema.User.id == user.id),
+                        or_(user.role == schema.Role.team_admin),
+                    ),
+                ),
+                schema.Model.train_status == schema.Status.complete,
+            )
+        )
 
     if domain:
         results = results.filter(schema.Model.domain == domain)
@@ -216,7 +223,7 @@ def save_deployed_model(
         parent_id=base_model.id,
         type=base_model.type,
         sub_type=base_model.sub_type,
-        organization_id=user.organization_id,
+        team_id=user.team_id,
     )
 
     session.add(new_model)
@@ -646,3 +653,38 @@ def download_model(
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
 
     return StreamingResponse(iterfile(), headers=headers, media_type=media_type)
+
+
+@model_router.get("/team-models", dependencies=[Depends(team_admin_or_global_admin)])
+def list_team_models(
+    team_name: str,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    user: schema.User = authenticated_user.user
+    if user.role not in [schema.Role.team_admin, schema.Role.global_admin]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have the required permissions.",
+        )
+
+    team = session.query(schema.Team).filter(schema.Team.name == team_name).first()
+    if not team:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
+        )
+
+    results = (
+        session.query(schema.Model)
+        .filter(schema.Model.team_id == team.id)
+        .options(joinedload(schema.Model.user))
+        .all()
+    )
+
+    results = [get_high_level_model_info(result) for result in results]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the team models list",
+        data=jsonable_encoder(results),
+    )

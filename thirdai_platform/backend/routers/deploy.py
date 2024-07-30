@@ -76,8 +76,8 @@ def deployment_read_write_permissions(
         return True, False
 
     deployment_is_protected = access_level == schema.Access.protected
-    user_is_in_deployment_domain = deployment.user.domain == current_user.domain
-    if deployment_is_protected and user_is_in_deployment_domain:
+    user_is_in_deployment_team = deployment.user.team_id == current_user.team_id
+    if deployment_is_protected and user_is_in_deployment_team:
         return True, False
 
     return False, False

@@ -8,8 +8,11 @@ from backend.mailer import Mailer
 from thirdai_platform.backend.routers.utils import hash_password, response
 from database import schema
 from database.session import get_session
-from backend.auth_dependencies import get_current_user, verify_admin_access
-from fastapi import APIRouter, Depends, Request, status
+from backend.auth_dependencies import (
+    team_admin_or_global_admin,
+    global_admin_only,
+)
+from fastapi import APIRouter, Depends, Request, status, HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -98,25 +101,13 @@ def email_signup(
             message="There is already a user associated with this name.",
         )
 
-    domain = body.email.split("@")[1]
-    organization = (
-        session.query(schema.Organization)
-        .filter(schema.Organization.domain == domain)
-        .first()
-    )
-    if not organization:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="Organization does not exist for the provided email domain.",
-        )
-
     try:
         user = schema.User(
             username=body.username,
             email=body.email,
             password_hash=hash_password(body.password),
             verified=False,
-            organization_id=organization.id,
+            team_id=None,  # Only global admin can add a user to a team
         )
 
         session.add(user)
@@ -144,8 +135,8 @@ def email_signup(
     )
 
 
-@user_router.post("/add-admin", dependencies=[Depends(verify_admin_access)])
-def add_admin(
+@user_router.post("/add-global-admin", dependencies=[Depends(global_admin_only)])
+def add_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
@@ -155,21 +146,39 @@ def add_admin(
     )
 
     if not user:
-        return response(
+        raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="User is not registered yet.",
+            detail="User is not registered yet.",
         )
 
-    user.role = schema.Role.admin
+    if user.role == schema.Role.team_admin:
+        # Check if there is another team admin in the same team
+        other_team_admin_count = (
+            session.query(schema.User)
+            .filter(
+                schema.User.team_id == user.team_id,
+                schema.User.role == schema.Role.team_admin,
+                schema.User.id != user.id,
+            )
+            .count()
+        )
+
+        if other_team_admin_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="There must be at least one other team admin before promoting this user to global admin.",
+            )
+
+    user.role = schema.Role.global_admin
+    user.team_id = None
     session.commit()
 
-    return response(
-        status_code=status.HTTP_200_OK,
-        message=f"User {email} has been successfully added as an admin.",
-    )
+    return {
+        "message": f"User {email} has been successfully added as a global admin.",
+    }
 
 
-@user_router.delete("/delete-user", dependencies=[Depends(verify_admin_access)])
+@user_router.delete("/delete-user", dependencies=[Depends(team_admin_or_global_admin)])
 def delete_user(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),

@@ -65,29 +65,11 @@ def get_session():
         session.close()
 
 
+# Adding a global_admin by default initially
 class AdminAddition:
     @classmethod
     def add_admin(cls):
         with contextmanager(get_session)() as session:
-            domain = admin_mail.split("@")[1]
-
-            organization = (
-                session.query(schema.Organization)
-                .filter(schema.Organization.domain == domain)
-                .first()
-            )
-            if not organization:
-                try:
-                    organization = schema.Organization(
-                        domain=domain, name=domain.split(".")[0]
-                    )
-                    session.add(organization)
-                    session.commit()
-                    session.refresh(organization)
-                except SQLAlchemyError as e:
-                    session.rollback()
-                    raise ValueError(f"Error creating organization: {str(e)}")
-
             user: schema.User = (
                 session.query(schema.User)
                 .filter(schema.User.email == admin_mail)
@@ -100,15 +82,15 @@ class AdminAddition:
                     email=admin_mail,
                     password_hash=hash_password(admin_password),
                     verified=True,
-                    role=schema.Role.admin,
-                    organization_id=organization.id,
+                    role=schema.Role.global_admin,
+                    team_id=None,
                 )
                 session.add(user)
                 session.commit()
                 session.refresh(user)
             else:
-                user.role = schema.Role.admin
-                user.organization_id = organization.id
+                user.role = schema.Role.global_admin
+                user.team_id = None
                 session.commit()
 
 

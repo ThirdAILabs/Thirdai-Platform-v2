@@ -238,7 +238,7 @@ def train_ndb(
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model_identifier else None,
-            organization_id=user.organization_id,
+            team_id=user.team_id,
         )
 
         session.add(new_model)
@@ -453,7 +453,7 @@ def train_udt(
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model_identifier else None,
-            organization_id=user.organization_id,
+            team_id=user.team_id,
         )
 
         session.add(new_model)

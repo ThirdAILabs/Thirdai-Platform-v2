@@ -305,11 +305,29 @@ class NDBFunctions:
 
 class AdminFunctions:
     @staticmethod
-    def add_new_user(inputs: Dict[str, str]):
+    def add_new_users(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
         try:
             flow.bazaar_client.signup(
-                email="testuser@mail.com",
+                email="test_global_admin@mail.com",
+                password="password",
+                username="testuser",
+            )
+        except Exception as e:
+            pass
+
+        try:
+            flow.bazaar_client.signup(
+                email="test_team_admin@mail.com",
+                password="password",
+                username="testuser",
+            )
+        except Exception as e:
+            pass
+
+        try:
+            flow.bazaar_client.signup(
+                email="test_team_member@mail.com",
                 password="password",
                 username="testuser",
             )
@@ -322,9 +340,9 @@ class AdminFunctions:
         )
 
     @staticmethod
-    def test_add_admin(inputs: Dict[str, str]):
+    def test_add_global_admin(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
-        response = flow.bazaar_client.add_admin(inputs.get("email"))
+        response = flow.bazaar_client.add_global_admin(inputs.get("email"))
         logging.info(
             f"Test Add Admin: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
         )
@@ -341,7 +359,7 @@ class AdminFunctions:
     def test_add_key(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
         response = flow.bazaar_client.add_secret_key(
-            inputs.get("email"), inputs.get("key"), inputs.get("value")
+            inputs.get("key"), inputs.get("value")
         )
         logging.info(
             f"Add Secret Key: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
@@ -350,11 +368,45 @@ class AdminFunctions:
     @staticmethod
     def test_get_key(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
-        response = flow.bazaar_client.get_secret_key(
-            inputs.get("email"), inputs.get("key")
-        )
+        response = flow.bazaar_client.get_secret_key(inputs.get("key"))
         logging.info(
             f"Get Secret Key: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_create_team(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.create_team(inputs.get("name"))
+        logging.info(
+            f"Create Team: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_add_user_to_team(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.add_user_to_team(
+            inputs.get("user_email"), inputs.get("team_name")
+        )
+        logging.info(
+            f"Add User to Team: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_assign_team_admin(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.assign_team_admin(
+            inputs.get("user_email"), inputs.get("team_name")
+        )
+        logging.info(
+            f"Assign Team Admin: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_delete_team(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.delete_team(inputs.get("team_name"))
+        logging.info(
+            f"Delete Team: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
         )
 
 

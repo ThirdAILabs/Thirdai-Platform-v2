@@ -36,6 +36,22 @@ export async function fetchPublicModels(name: string) {
     return response.json();
 }
 
+export async function fetchPendingModel() {
+  // Retrieve the access token from local storage
+  const accessToken = getAccessToken()
+
+  // Set the default authorization header for axios
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  try {
+    const response = await axios.get(`http://localhost:8000/api/model/pending-train-models`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching private models:', error);
+    throw new Error('Failed to fetch private models');
+  }
+}
+
 interface TrainNdbParams {
     name: string;
     formData: FormData;

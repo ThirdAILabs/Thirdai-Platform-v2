@@ -21,7 +21,7 @@ import { SelectModel } from '@/lib/db';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { fetchPublicModels, fetchPrivateModels } from "@/lib/backend"
+import { fetchPublicModels, fetchPrivateModels, fetchPendingModel } from "@/lib/backend"
 
 // Define a type for the private model data structure
 type PrivateModel = {
@@ -40,20 +40,53 @@ type PrivateModel = {
   username: string;
 };
 
+// Define a type for the pending model data structure
+type PendingModel = {
+  model_name: string;
+  status: string;
+  username: string;
+};
+
 // Map the private model data to the required model structure
-const mapPrivateModelToSelectModel = (privateModel: PrivateModel, index: number): SelectModel => ({
-  id: index + 1, // Use index as a unique identifier for demonstration
+const mapPrivateModelToSelectModel = (privateModel: PrivateModel, index: number): SelectModel => {
+  let modelType: 'semantic search model' | 'rag model' | 'ner model' = 'ner model'; // Default value
+
+  if (privateModel.type === 'ndb') {
+    modelType = 'semantic search model';
+  } else if (privateModel.type === 'rag') {
+    modelType = 'rag model';
+  }
+
+  return {
+    id: index + 1, // Use index as a unique identifier for demonstration
+    imageUrl: '/thirdai-small.png', // Provide a default or dummy image URL
+    name: privateModel.model_name,
+    status: 'active', // Assuming all fetched models are active, replace with appropriate status if available
+    trainedAt: new Date(privateModel.publish_date),
+    description: `Model by ${privateModel.username}`,
+    deployEndpointUrl: null, // Provide a default or dummy endpoint URL
+    onDiskSizeKb: privateModel.size,
+    ramSizeKb: privateModel.size_in_memory,
+    numberParameters: Number(privateModel.num_params),
+    rlhfCounts: 0, // Replace with the appropriate value if available
+    modelType,
+  };
+};
+
+// Map the pending model data to the required model structure
+const mapPendingModelToSelectModel = (pendingModel: PendingModel, index: number): SelectModel => ({
+  id: index + 1000, // Use a different range for pending models to avoid id conflicts
   imageUrl: '/thirdai-small.png', // Provide a default or dummy image URL
-  name: privateModel.model_name,
-  status: 'active', // Assuming all fetched models are active, replace with appropriate status if available
-  trainedAt: new Date(privateModel.publish_date),
-  description: `Model by ${privateModel.username}`,
+  name: pendingModel.model_name,
+  status: 'training', // Set status to "training"
+  trainedAt: new Date(), // Use the current date as a placeholder
+  description: `Model by ${pendingModel.username}`,
   deployEndpointUrl: null, // Provide a default or dummy endpoint URL
-  onDiskSizeKb: privateModel.size,
-  ramSizeKb: privateModel.size_in_memory,
-  numberParameters: Number(privateModel.num_params),
-  rlhfCounts: 0, // Replace with the appropriate value if available
-  modelType: 'ner model', // Adjust the model type based on expected literals
+  onDiskSizeKb: '0', // Placeholder value
+  ramSizeKb: '0', // Placeholder value
+  numberParameters: 0, // Placeholder value
+  rlhfCounts: 0, // Placeholder value
+  modelType: 'semantic search model', // Placeholder value
 });
 
 export function ModelsTable({
@@ -77,6 +110,7 @@ export function ModelsTable({
   }
 
   const [privateModels, setPrivateModels] = useState<SelectModel[]>([])
+  const [pendingModels, setPendingModels] = useState<SelectModel[]>([]);
 
   useEffect(() => {
     async function getModels() {
@@ -84,7 +118,7 @@ export function ModelsTable({
           const publicModels = await fetchPublicModels('');
           console.log('publicModels', publicModels)
 
-          const response = await fetchPrivateModels('');
+          let response = await fetchPrivateModels('');
           const privateModels: PrivateModel[] = response.data; // Extract the data field
           console.log('privateModels', privateModels)
 
@@ -92,6 +126,14 @@ export function ModelsTable({
 
           console.log('mappedModels', mappedModels)
           setPrivateModels(mappedModels)
+
+          response = await fetchPendingModel();
+          const pendingModels: PendingModel[] = response.data; // Extract the data field
+          console.log('pendingModels', pendingModels)
+          const mappedPendingModels = pendingModels.map(mapPendingModelToSelectModel);
+          console.log('mappedPendingModels', mappedPendingModels);
+          setPendingModels(mappedPendingModels);
+
         } catch (err) {
           if (err instanceof Error) {
               console.log(err.message);
@@ -136,6 +178,10 @@ export function ModelsTable({
             ))} */}
 
             {privateModels.map((model) => (
+                <Model key={model.id} model={model} />
+            ))}
+
+            {pendingModels.map((model) => (
                 <Model key={model.id} model={model} />
             ))}
           </TableBody>

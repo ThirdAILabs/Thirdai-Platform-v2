@@ -1,7 +1,7 @@
-from abc import ABC
-from typing import Optional
 import os
 import sys
+from abc import ABC
+from typing import Optional
 
 base_path = os.getenv("LOCAL_TEST_DIR")
 if not base_path:

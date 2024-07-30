@@ -3,6 +3,8 @@ import os
 import sys
 
 import boto3
+from botocore import UNSIGNED
+from botocore.client import Config
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
 from headless import add_basic_args
@@ -14,7 +16,14 @@ def download_from_s3_if_not_exists(s3_uri, local_dir):
     if not os.path.exists(local_dir):
         os.makedirs(local_dir)
 
-    s3 = boto3.client("s3")
+    config = Config(
+        signature_version=UNSIGNED,
+        retries={"max_attempts": 10, "mode": "standard"},
+        connect_timeout=5,
+        read_timeout=60,
+    )
+
+    s3 = boto3.client("s3", config=config)
     bucket_name = s3_uri.split("/")[2]
     s3_path = "/".join(s3_uri.split("/")[3:])
 

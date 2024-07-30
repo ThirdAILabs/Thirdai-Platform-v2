@@ -8,6 +8,7 @@ import fastapi
 import uvicorn
 from backend.routers.deploy import deploy_router as deploy
 from backend.routers.models import model_router as model
+from backend.routers.team import team_router as team
 from backend.routers.train import train_router as train
 from backend.routers.user import user_router as user
 from backend.routers.vault import vault_router as vault

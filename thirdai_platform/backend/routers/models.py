@@ -15,14 +15,15 @@ from backend.routers.utils import (
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Header, Query, UploadFile, status, HTTPException
+from backend.auth_dependencies import team_admin_or_global_admin
+from database import schema
+from database.session import get_session
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
 from storage import interface, local
-
-from backend.auth_dependencies import team_admin_or_global_admin
 
 model_router = APIRouter()
 

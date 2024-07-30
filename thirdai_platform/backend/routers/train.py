@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
+from backend.auth_dependencies import verify_model_access
 from backend.file_handler import (
     FileLocation,
     FileType,
@@ -28,7 +29,6 @@ from thirdai_platform.backend.routers.utils import (
     update_json,
     validate_name,
 )
-from backend.auth_dependencies import verify_model_access
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, UploadFile, status

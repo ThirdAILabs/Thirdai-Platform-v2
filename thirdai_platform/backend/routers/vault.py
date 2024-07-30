@@ -1,11 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Header
-from sqlalchemy.orm import Session
-from database.session import get_session
-from auth.jwt import AuthenticatedUser, verify_access_token
-from database import schema
-from thirdai_platform.backend.routers.utils import response, get_model_from_identifier
 import hvac
-from backend.auth_dependencies import global_admin_only, get_vault_client
+from auth.jwt import verify_access_token
+from backend.auth_dependencies import get_vault_client, global_admin_only
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel
 
 vault_router = APIRouter()
@@ -46,6 +43,8 @@ async def add_secret(
 
 
 # Note(pratik): Any user can access the secrets, set by global admin
+# TODO(pratik): Add a way pass the vault secrets to nomad jobs as env
+# variable directly rather than accessing the endpoint
 @vault_router.get("/get-secret")
 async def get_secret(
     secret: SecretRequest, client: hvac.Client = Depends(get_vault_client)
@@ -71,3 +70,21 @@ async def get_secret(
         "value": secret_value,
         "status": "success",
     }
+
+
+@vault_router.get("/list-keys", dependencies=[Depends(verify_access_token)])
+async def list_vault_keys(
+    client: hvac.Client = Depends(get_vault_client),
+):
+    try:
+        list_response = client.secrets.kv.v2.list_secrets(path="secret/data/")
+        keys = list_response["data"]["keys"]
+        return keys
+    except hvac.exceptions.InvalidPath:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No keys found in the vault."
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )

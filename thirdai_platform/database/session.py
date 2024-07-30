@@ -1,13 +1,12 @@
 import os
 from contextlib import contextmanager
-import bcrypt
 
+import bcrypt
 from database import schema
 from database.schema import SQLDeclarativeBase as Base
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
-from contextlib import contextmanager
+from sqlalchemy.orm import sessionmaker
 
 
 def hash_password(password: str):

@@ -11,6 +11,7 @@ from auth.jwt import (
     verify_access_token,
     verify_access_token_no_throw,
 )
+from backend.auth_dependencies import verify_model_access
 from thirdai_platform.backend.routers.utils import (
     delete_nomad_job,
     get_deployment,
@@ -30,7 +31,6 @@ from thirdai_platform.backend.routers.utils import (
 )
 from database import schema
 from database.session import get_session
-from backend.auth_dependencies import verify_model_access
 from fastapi import APIRouter, Depends, HTTPException, status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel

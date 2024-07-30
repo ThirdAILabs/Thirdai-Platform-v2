@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from database.session import get_session
-from sqlalchemy.orm import Session
-from database import schema
 from backend.auth_dependencies import global_admin_only, team_admin_or_global_admin
+from database import schema
+from database.session import get_session
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 team_router = APIRouter()
 

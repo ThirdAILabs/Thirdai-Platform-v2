@@ -1,6 +1,7 @@
 import enum
 import re
 from datetime import datetime
+
 from sqlalchemy import (
     JSON,
     Boolean,

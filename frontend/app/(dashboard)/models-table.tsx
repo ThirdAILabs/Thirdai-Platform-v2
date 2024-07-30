@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import {
   TableHead,
   TableRow,
@@ -20,6 +21,7 @@ import { SelectModel } from '@/lib/db';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { fetchPublicModels } from "@/lib/backend"
 
 export function ModelsTable({
   models,
@@ -40,6 +42,23 @@ export function ModelsTable({
   function nextPage() {
     router.push(`/?offset=${offset}`, { scroll: false });
   }
+
+  useEffect(() => {
+    async function getModels() {
+        try {
+            const models = await fetchPublicModels('');
+            console.log(models);
+        } catch (err) {
+          if (err instanceof Error) {
+              console.log(err.message);
+          } else {
+              console.log('An unknown error occurred');
+          }
+      }
+    }
+
+    getModels();
+  }, []);
 
   return (
     <Card>

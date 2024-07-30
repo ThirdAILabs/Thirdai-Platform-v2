@@ -1,18 +1,19 @@
 import Link from 'next/link';
 import React, { useState } from 'react';
 import { SelectModel } from '@/lib/db';
+import { train_ndb } from '@/lib/backend';
 
 const SemanticSearchQuestions = () => {
     // Begin state variables & func for source
-    const [sources, setSources] = useState<Array<{ type: string, value: string }>>([]);
+    const [sources, setSources] = useState<Array<{ type: string, value: File | null }>>([]);
     const [newSourceType, setNewSourceType] = useState<string>('');
-    const [newSourceValue, setNewSourceValue] = useState<string>('');
+    const [newSourceValue, setNewSourceValue] = useState<File | null>(null);
   
     const handleAddSource = () => {
       if (newSourceType && newSourceValue) {
         setSources([...sources, { type: newSourceType, value: newSourceValue }]);
         setNewSourceType('');
-        setNewSourceValue('');
+        setNewSourceValue(null);
       }
     };
   
@@ -21,12 +22,60 @@ const SemanticSearchQuestions = () => {
     };
   
     const handleSourceValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setNewSourceValue(e.target.value);
+      if (e.target.files && e.target.files[0]) {
+        setNewSourceValue(e.target.files[0]);
+      }
     };
   
     const handleDeleteSource = (index: number) => {
       const updatedSources = sources.filter((_, i) => i !== index);
       setSources(updatedSources);
+    };
+
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [modelName, setModelName] = useState('new-modl')
+    const [retriever, setRetriever] = useState('finetunable_retriever');
+
+    const handleFileFormdata = async () => {
+      let formData = new FormData();
+      const fileDetailsList: Array<{ mode: string; location: string }> = [];
+
+      sources.forEach((source) => {
+        if (source.type === 'local' && source.value) {
+          formData.append('files', source.value);
+          fileDetailsList.push({ mode: 'unsupervised', location: 'local' });
+        } else if (source.type === 's3' && source.value) {
+          formData.append('files', new File([], source.value.name)); // "don't care" as a placeholder
+          fileDetailsList.push({ mode: 'unsupervised', location: 's3' });
+        }
+      });
+  
+      const extraOptionsForm = { retriever };
+      formData.append('extra_options_form', JSON.stringify(extraOptionsForm));
+      formData.append('file_details_list', JSON.stringify({ file_details: fileDetailsList }));
+
+      return formData;
+    };
+
+    const handleSubmit = async () => {
+      setIsLoading(true);
+      try {
+        const formData = await handleFileFormdata();
+
+        // Print out all the FormData entries
+        formData.forEach((value, key) => {
+          console.log(`${key}:`, value);
+        });
+
+        console.log('modelName', modelName)
+
+        await train_ndb({ name: modelName, formData });
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     return (
@@ -58,8 +107,7 @@ const SemanticSearchQuestions = () => {
                   id="newSourceValue"
                   className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                   placeholder="Enter S3 URL"
-                  value={newSourceValue}
-                  onChange={handleSourceValueChange}
+                  onChange={(e) => setNewSourceValue(new File([], e.target.value))} // "don't care" as a placeholder
                 />
               </div>
             )}
@@ -71,11 +119,7 @@ const SemanticSearchQuestions = () => {
                   type="file"
                   id="newSourceValue"
                   className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                  onChange={(e) => {
-                    if (e.target.files) {
-                      setNewSourceValue(e.target.files[0].name);
-                    }
-                  }}
+                  onChange={handleSourceValueChange}
                   multiple
                 />
               </div>
@@ -96,7 +140,7 @@ const SemanticSearchQuestions = () => {
                 {sources.map((source, index) => (
                   <li key={index} className="mb-2 flex items-center justify-between">
                     <span className="inline-block px-4 py-2 rounded-md bg-gray-200 text-black">
-                      <strong>{source.type === 's3' ? 'S3 URL' : 'Local File'}:</strong> {source.value}
+                      <strong>{source.type === 's3' ? 'S3 URL' : 'Local File'}:</strong> {source.value?.name || 'N/A'}
                     </span>
                     <button
                       type="button"
@@ -115,51 +159,52 @@ const SemanticSearchQuestions = () => {
         {/* End source files */}
 
         <div className="flex justify-center">
-          <Link href="/">
+          {/* <Link href="/"> */}
           <button
             type="button"
             className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-            onClick={async () => {
+            onClick={handleSubmit}
+            // onClick={async () => {
 
-              const modelData: Omit<SelectModel, 'id'> = {
-                imageUrl: '/thirdai-small.png',
-                name: 'my support ticket model',
-                status: 'training',
-                trainedAt: new Date(), // Use current date and time
-                description: 'This is a semantic search model',
-                deployEndpointUrl: 'http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=false',
-                onDiskSizeKb: (300 * 1024).toString(),  // 300 MB converted to KB as string
-                ramSizeKb: (300 * 1024 * 2).toString(),  // 300 * 2 MB converted to KB as string
-                numberParameters: 51203077,
-                rlhfCounts: 0,
-                modelType: 'semantic search model'
-              };
+            //   const modelData: Omit<SelectModel, 'id'> = {
+            //     imageUrl: '/thirdai-small.png',
+            //     name: 'my support ticket model',
+            //     status: 'training',
+            //     trainedAt: new Date(), // Use current date and time
+            //     description: 'This is a semantic search model',
+            //     deployEndpointUrl: 'http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=false',
+            //     onDiskSizeKb: (300 * 1024).toString(),  // 300 MB converted to KB as string
+            //     ramSizeKb: (300 * 1024 * 2).toString(),  // 300 * 2 MB converted to KB as string
+            //     numberParameters: 51203077,
+            //     rlhfCounts: 0,
+            //     modelType: 'semantic search model'
+            //   };
 
-              try {
-                const response = await fetch('/api/insertModel', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify(modelData)
-                });
+            //   try {
+            //     const response = await fetch('/api/insertModel', {
+            //       method: 'POST',
+            //       headers: {
+            //         'Content-Type': 'application/json'
+            //       },
+            //       body: JSON.stringify(modelData)
+            //     });
           
-                if (response.ok) {
-                  const result = await response.json();
-                  console.log('Model inserted:', result);
-                } else {
-                  const error = await response.json();
-                  console.error('Failed to insert model:', error);
-                }
-              } catch (error) {
-                console.error('Error inserting model:', error);
-              }
+            //     if (response.ok) {
+            //       const result = await response.json();
+            //       console.log('Model inserted:', result);
+            //     } else {
+            //       const error = await response.json();
+            //       console.error('Failed to insert model:', error);
+            //     }
+            //   } catch (error) {
+            //     console.error('Error inserting model:', error);
+            //   }
 
-            }}
+            // }}
           >
             Create
           </button>
-          </Link>
+          {/* </Link> */}
         </div>
       </div>
     );

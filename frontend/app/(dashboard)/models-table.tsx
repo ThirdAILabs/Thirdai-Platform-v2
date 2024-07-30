@@ -21,7 +21,7 @@ import { SelectModel } from '@/lib/db';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { fetchPublicModels } from "@/lib/backend"
+import { fetchPublicModels, fetchPrivateModels } from "@/lib/backend"
 
 export function ModelsTable({
   models,
@@ -46,8 +46,10 @@ export function ModelsTable({
   useEffect(() => {
     async function getModels() {
         try {
-            const models = await fetchPublicModels('');
-            console.log(models);
+            const publicModels = await fetchPublicModels('');
+            const privateModels = await fetchPrivateModels('');
+            console.log('privateModels', privateModels)
+            console.log('publicModels', publicModels)
         } catch (err) {
           if (err instanceof Error) {
               console.log(err.message);

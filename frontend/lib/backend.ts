@@ -2,6 +2,32 @@
 
 import axios from 'axios';
 
+function getAccessToken(): string {
+  const accessToken = localStorage.getItem('accessToken');
+  if (!accessToken) {
+    throw new Error('Access token is not available');
+  }
+  return accessToken;
+}
+
+export async function fetchPrivateModels(name: string) {
+  // Retrieve the access token from local storage
+  const accessToken = getAccessToken()
+
+  // Set the default authorization header for axios
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  try {
+    const response = await axios.get(`http://localhost:8000/api/model/list`, {
+      params: { name },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching private models:', error);
+    throw new Error('Failed to fetch private models');
+  }
+}
+
 export async function fetchPublicModels(name: string) {
     const response = await fetch(`http://localhost:8000/api/model/public-list?name=${name}`);
     if (!response.ok) {
@@ -16,9 +42,11 @@ interface TrainNdbParams {
 }
 
 export function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
-    const access_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiOTM4MGQ2NmQtMTIzZi00ODhkLTgwNTUtOTEwNGI5YzBhM2ViIiwiZXhwIjoxNzIyMzU0Mzk1fQ.Tl13wtCHnXes7nPxiI2KkHE4bJYqyXijNmOpjYDRQbA";
+    // Retrieve the access token from local storage
+    const accessToken = getAccessToken()
 
-    axios.defaults.headers.common.Authorization = `Bearer ${access_token}`;
+    // Set the default authorization header for axios
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
     return new Promise((resolve, reject) => {
         axios
@@ -45,6 +73,12 @@ export function userEmailLogin(email: string, password: string): Promise<any> {
           },
         })
         .then((res) => {
+          const accessToken = res.data.data.access_token;
+
+          if (accessToken) {
+            // Store accessToken into local storage, replacing any existing one.
+            localStorage.setItem('accessToken', accessToken);
+          }
           resolve(res.data);
         })
         .catch((err) => {

@@ -69,7 +69,7 @@ Without this process, it is cumbersome to test out platform changes. We would ha
       - Change `GENAI_KEY` to your Generative AI provider key, e.g. OpenAI key.
 
 
-11. If you are running this dev environment on a Mac, navigate to the `model_bazaar/router/nomad_jobs` directory and make sure any hcl or hcl.j2 file doesn't have a line that is in the form of `cores = x`. If those lines exist, change the lines to be `cpu = x * 2500` (put the actual value of the multiplication, not x * 2500). Doing this will fix any issues related to resource allocation of Nomad jobs on MacOS, because running Docker on MacOS does funky things when trying to reserve CPUs.
+11. If you are running this dev environment on a Mac, navigate to the `thirdai_platform/backend/nomad_jobs` directory and make sure any hcl or hcl.j2 file doesn't have a line that is in the form of `cores = x`. If those lines exist, change the lines to be `cpu = x * 2500` (put the actual value of the multiplication, not x * 2500). Doing this will fix any issues related to resource allocation of Nomad jobs on MacOS, because running Docker on MacOS does funky things when trying to reserve CPUs.
 
 12. **Launch Backend:**
     - Start the backend service using Uvicorn:

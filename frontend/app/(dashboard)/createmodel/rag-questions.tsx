@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import { SelectModel } from '@/lib/db';
-import NERQuestions from './ner-questions';
+import NERQuestions from './nlp-questions/ner-questions';
 
 const RAGQuestions = ({
   models,

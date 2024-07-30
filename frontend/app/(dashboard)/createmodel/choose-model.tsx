@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { SelectModel } from '@/lib/db';
 import RAGQuestions from './rag-questions';
-import NLPQuestions from './nlp-questions';
+import NLPQuestions from './nlp-questions/nlp-questions';
 import SemanticSearchQuestions from './semantic-search-questions';
 
 export default function ChooseProblem({

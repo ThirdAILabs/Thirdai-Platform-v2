@@ -10,7 +10,7 @@ from backend.routers.deploy import deploy_router as deploy
 from backend.routers.models import model_router as model
 from backend.routers.train import train_router as train
 from backend.routers.user import user_router as user
-from backend.utils import restart_generate_job
+from backend.utils import restart_generate_job, restart_neuraldb_deployment_ui
 from fastapi.middleware.cors import CORSMiddleware
 
 app = fastapi.FastAPI()
@@ -37,6 +37,13 @@ async def startup_event():
         print("Successfully started Generation Job!")
     except Exception as error:
         print(f"Failed to start the Generation Job : {error}", file=sys.stderr)
+        
+    try:
+        print("Starting search UI...")
+        await restart_neuraldb_deployment_ui()
+        print("Successfully started search UI!")
+    except Exception as error:
+        print(f"Failed to start the search UI : {error}", file=sys.stderr)
 
 
 if __name__ == "__main__":

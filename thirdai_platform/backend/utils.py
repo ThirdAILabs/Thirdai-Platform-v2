@@ -383,3 +383,27 @@ async def restart_generate_job():
         python_path=get_python_path(),
         generate_app_dir=str(get_root_absolute_path() / "llm_generation_job"),
     )
+    
+
+NEURALDB_DEPLOYMENT_ID = "neuraldb-deployment-ui"
+
+
+async def restart_neuraldb_deployment_ui():
+    nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
+    if nomad_job_exists(NEURALDB_DEPLOYMENT_ID, nomad_endpoint):
+        delete_nomad_job(NEURALDB_DEPLOYMENT_ID, nomad_endpoint)
+    cwd = Path(os.getcwd())
+    return submit_nomad_job(
+        nomad_endpoint=nomad_endpoint,
+        filepath=str(cwd / "backend" / "nomad_jobs" / "neuraldb_deployment_ui_job.hcl.j2"),
+        public_model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+        platform=get_platform(),
+        tag=os.getenv("TAG"),
+        registry=os.getenv("DOCKER_REGISTRY"),
+        docker_username=os.getenv("DOCKER_USERNAME"),
+        docker_password=os.getenv("DOCKER_PASSWORD"),
+        image_name=os.getenv("SEARCH_IMAGE_NAME"),
+        # Model bazaar dockerfile does not include neuraldb_frontend code,
+        # but app_dir is only used if platform == local.
+        app_dir=str(get_root_absolute_path() / "neuraldb_frontend"),
+    )

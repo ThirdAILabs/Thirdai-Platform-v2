@@ -131,9 +131,9 @@ export function ModelsTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {models.map((model) => (
+            {/* {models.map((model) => (
               <Model key={model.id} model={model} />
-            ))}
+            ))} */}
 
             {privateModels.map((model) => (
                 <Model key={model.id} model={model} />

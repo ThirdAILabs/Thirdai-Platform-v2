@@ -83,7 +83,7 @@ const SemanticSearchQuestions = () => {
         {
           <>
             <span className="block text-lg font-semibold mb-2">Choose source files</span>
-            <p className="mb-4">Please upload the necessary files for the RAG model.</p>
+            <p className="mb-4">Please upload the necessary files.</p>
 
             <div className="mb-4">
               <label htmlFor="newSourceType" className="block text-sm font-medium text-gray-700">Select Source Type</label>

@@ -1,4 +1,4 @@
-from typing import Annotated, Dict, Optional, Union
+from typing import Annotated, Dict, List, Optional, Union
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.utils import get_high_level_model_info, response
@@ -176,3 +176,42 @@ def save_deployed_model(
     session.commit()
 
     return {"message": "successfully added the model."}
+
+
+@model_router.get("/pending-train-models")
+def pending_train_models(
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Get a list of all in progress or not started training models for the logged-in user.
+
+    Returns models that are in progress or not started.
+    """
+    user: schema.User = authenticated_user.user
+
+    pending_model_train: List[schema.Model] = (
+        session.query(schema.Model)
+        .filter(
+            schema.Model.user_id == user.id,
+            schema.Model.train_status.in_(
+                [schema.Status.in_progress, schema.Status.not_started]
+            ),
+        )
+        .all()
+    )
+
+    results = [
+        {
+            "model_name": result.name,
+            "status": result.train_status,
+            "username": user.username,
+        }
+        for result in pending_model_train
+    ]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully fetched the pending list",
+        data=jsonable_encoder(results),
+    )

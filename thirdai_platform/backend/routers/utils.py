@@ -254,9 +254,9 @@ class NDBExtraOptions(BaseModel):
     hidden_bias: Optional[bool] = None
     retriever: Optional[str] = None  # This flag is for which retriever to use.
     unsupervised_train: Optional[bool] = None
-    disable_finetunable_retriever: Optional[
-        bool
-    ] = None  # This flag is to disable inverted index in supervised training.
+    disable_finetunable_retriever: Optional[bool] = (
+        None  # This flag is to disable inverted index in supervised training.
+    )
     checkpoint_interval: Optional[int] = None
     fast_approximation: Optional[bool] = None
     num_buckets_to_sample: Optional[int] = None

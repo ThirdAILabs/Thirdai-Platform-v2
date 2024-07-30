@@ -28,6 +28,10 @@ def download_from_s3_if_not_exists(s3_uri, local_dir):
         sys.exit(1)
 
 
+def normalize_s3_uri(s3_uri):
+    return s3_uri.rstrip("/")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run DAG-based test suite.")
     add_basic_args(parser)
@@ -56,7 +60,6 @@ def main():
         print("Error: LOCAL_TEST_DIR environment variable is not set.")
         sys.exit(1)
 
-    # Note(pratik): Make sure to not include '/' in the end.
     s3_uris = [
         "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/scifact",
         "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/clinc",
@@ -64,7 +67,8 @@ def main():
     ]
 
     for s3_uri in s3_uris:
-        folder_name = s3_uri.split("/")[-1]
+        normalized_uri = normalize_s3_uri(s3_uri)
+        folder_name = normalized_uri.split("/")[-1]
 
         download_from_s3_if_not_exists(
             s3_uri, os.path.join(local_test_dir, folder_name)

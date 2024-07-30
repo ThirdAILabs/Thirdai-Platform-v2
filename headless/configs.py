@@ -133,5 +133,5 @@ class Token(Config):
     id_column: str = "target"
     query_column: str = "source"
 
-    target_labels: list[str] = ["PER", "O"]
+    target_labels: list[str] = ["PER"]
     sub_type: str = "token"

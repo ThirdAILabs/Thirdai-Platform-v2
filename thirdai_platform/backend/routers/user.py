@@ -174,6 +174,7 @@ def add_global_admin(
     session.commit()
 
     return {
+        "status": "success",
         "message": f"User {email} has been successfully added as a global admin.",
     }
 

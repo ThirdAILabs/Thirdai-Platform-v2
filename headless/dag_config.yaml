@@ -1,44 +1,44 @@
-# NDB:
-#   config: scifact
-#   check_unsupervised_supervised:
-#     dependencies: []
-#     params:
-#       sharded: variable
-#       run_name: variable
-#       config: variable
+NDB:
+  config: scifact
+  check_unsupervised_supervised:
+    dependencies: []
+    params:
+      sharded: variable
+      run_name: variable
+      config: variable
 
-#   await_train:
-#     dependencies: [check_unsupervised_supervised]
-#     params:
-#       model: check_unsupervised_supervised
+  await_train:
+    dependencies: [check_unsupervised_supervised]
+    params:
+      model: check_unsupervised_supervised
 
-#   deploy_ndb:
-#     dependencies: [await_train]
-#     params:
-#       model: check_unsupervised_supervised
-#       run_name: variable
+  deploy_ndb:
+    dependencies: [await_train]
+    params:
+      model: check_unsupervised_supervised
+      run_name: variable
 
-#   await_deploy:
-#     dependencies: [deploy_ndb]
-#     params:
-#       deployment: deploy_ndb
+  await_deploy:
+    dependencies: [deploy_ndb]
+    params:
+      deployment: deploy_ndb
 
-#   check_search:
-#     dependencies: [await_deploy]
-#     params:
-#       deployment: deploy_ndb
+  check_search:
+    dependencies: [await_deploy]
+    params:
+      deployment: deploy_ndb
 
-#   check_deployment_ndb:
-#     dependencies: [check_search]
-#     params:
-#       deployment: deploy_ndb
-#       config: variable
-#       results: check_search
+  check_deployment_ndb:
+    dependencies: [check_search]
+    params:
+      deployment: deploy_ndb
+      config: variable
+      results: check_search
   
-#   undeploy:
-#     dependencies: [check_deployment_ndb]
-#     params:
-#       deployment: deploy_ndb
+  undeploy:
+    dependencies: [check_deployment_ndb]
+    params:
+      deployment: deploy_ndb
 
   check_unsupervised:
     dependencies: [await_train]
@@ -50,46 +50,46 @@
       file_num: 1
       test: True
 
-#   await_train_2:
-#     function: await_train
-#     dependencies: [check_unsupervised]
-#     params:
-#       model: check_unsupervised
+  await_train_2:
+    function: await_train
+    dependencies: [check_unsupervised]
+    params:
+      model: check_unsupervised
 
-# UDT:
-#   config: [token, text]
-#   check_udt_train:
-#     dependencies: []
-#     params:
-#       run_name: variable
-#       config: variable
+UDT:
+  config: [token, text]
+  check_udt_train:
+    dependencies: []
+    params:
+      run_name: variable
+      config: variable
 
-#   await_train:
-#     dependencies: [check_udt_train]
-#     params:
-#       model: check_udt_train
+  await_train:
+    dependencies: [check_udt_train]
+    params:
+      model: check_udt_train
   
-#   udt_deploy:
-#     dependencies: [await_train]
-#     params:
-#       model: check_udt_train
-#       run_name: variable
-#       config: variable
+  udt_deploy:
+    dependencies: [await_train]
+    params:
+      model: check_udt_train
+      run_name: variable
+      config: variable
 
-#   await_deploy:
-#     dependencies: [udt_deploy]
-#     params:
-#       deployment: udt_deploy
+  await_deploy:
+    dependencies: [udt_deploy]
+    params:
+      deployment: udt_deploy
 
-#   check_search:
-#     dependencies: [await_deploy]
-#     params:
-#       deployment: udt_deploy
+  check_search:
+    dependencies: [await_deploy]
+    params:
+      deployment: udt_deploy
 
-#   undeploy:
-#     dependencies: [check_search]
-#     params:
-#       deployment: udt_deploy
+  undeploy:
+    dependencies: [check_search]
+    params:
+      deployment: udt_deploy
 
 Admin:
   config: dummy
@@ -122,12 +122,6 @@ Admin:
     params:
       name: "New Team"
 
-  test_add_user_to_team:
-    dependencies: [add_new_users, test_create_team]
-    params:
-      user_email: test_team_admin@mail.com
-      team_name: "New Team"
-
   test_assign_team_admin:
     dependencies: [add_new_users, test_create_team]
     params:
@@ -135,12 +129,22 @@ Admin:
       team_name: "New Team"
   
   test_add_user_to_team:
-    dependencies: [add_new_users, test_create_team]
+    dependencies: [add_new_users, test_create_team, test_assign_team_admin]
     params:
       user_email: test_team_member@mail.com
       team_name: "New Team"
 
-  test_delete_team:
+  test_delete_team_admin:
     dependencies: [add_new_users, test_create_team, test_add_user_to_team, test_assign_team_admin]
+    params:
+      email: test_team_admin@mail.com
+
+  test_delete_team_member:
+    dependencies: [add_new_users, test_create_team, test_add_user_to_team, test_assign_team_admin]
+    params:
+      email: test_team_member@mail.com
+
+  test_delete_team:
+    dependencies: [add_new_users, test_create_team, test_add_user_to_team, test_assign_team_admin, test_delete_team_admin, test_delete_team_member]
     params:
       team_name: "New Team"

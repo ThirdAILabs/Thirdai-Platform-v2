@@ -311,7 +311,7 @@ class AdminFunctions:
             flow.bazaar_client.signup(
                 email="test_global_admin@mail.com",
                 password="password",
-                username="testuser",
+                username="test_global_admin",
             )
         except Exception as e:
             pass
@@ -320,7 +320,7 @@ class AdminFunctions:
             flow.bazaar_client.signup(
                 email="test_team_admin@mail.com",
                 password="password",
-                username="testuser",
+                username="test_team_admin",
             )
         except Exception as e:
             pass
@@ -329,7 +329,7 @@ class AdminFunctions:
             flow.bazaar_client.signup(
                 email="test_team_member@mail.com",
                 password="password",
-                username="testuser",
+                username="test_team_member",
             )
         except Exception as e:
             pass
@@ -407,6 +407,22 @@ class AdminFunctions:
         response = flow.bazaar_client.delete_team(inputs.get("team_name"))
         logging.info(
             f"Delete Team: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_delete_team_admin(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.delete_user(inputs.get("email"))
+        logging.info(
+            f"Test Delete User: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_delete_team_member(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.delete_user(inputs.get("email"))
+        logging.info(
+            f"Test Delete User: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
         )
 
 

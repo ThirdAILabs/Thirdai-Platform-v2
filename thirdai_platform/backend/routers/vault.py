@@ -44,7 +44,7 @@ async def add_secret(
 
 # Note(pratik): Any user can access the secrets, set by global admin
 # TODO(pratik): Add a way pass the vault secrets to nomad jobs as env
-# variable directly rather than accessing the endpoint
+# variable directly rather than accessing here
 @vault_router.get("/get-secret")
 async def get_secret(
     secret: SecretRequest, client: hvac.Client = Depends(get_vault_client)
@@ -56,7 +56,7 @@ async def get_secret(
     ]:
         raise HTTPException(
             status_code=400,
-            detail="Invalid key. Only 'AWS_ACCESS_TOKEN' and 'OPENAI_API_KEY' are allowed.",
+            detail="Invalid key. Only 'AWS_ACCESS_TOKEN', 'AWS_SECRET_ACCESS_TOKEN' and 'OPENAI_API_KEY' are allowed.",
         )
     secret_path = f"secret/data/{secret.key}"
     try:

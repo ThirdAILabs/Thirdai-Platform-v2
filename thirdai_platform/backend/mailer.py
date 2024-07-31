@@ -3,7 +3,7 @@ import os
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
-from thirdai_platform.backend.routers.utils import logger
+from backend.utils import logger
 
 # Mailer Object which can be used to send mails from our webserver.
 

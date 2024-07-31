@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from thirdai_platform.backend.routers.utils import hash_password, response
+from backend.utils import hash_password, response
 
 user_router = APIRouter()
 basic_security = HTTPBasic()

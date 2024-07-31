@@ -36,7 +36,7 @@ class Role(enum.Enum):
     global_admin = "global_admin"  # Global Admin won't be part of any team
 
 
-class AccessLevel(enum.Enum):
+class Access(enum.Enum):
     private = "private"
     protected = "protected"
     public = "public"
@@ -125,9 +125,7 @@ class Model(SQLDeclarativeBase):
     type = Column(String(256), nullable=False)
     sub_type = Column(String(256), nullable=True)
     downloads = Column(Integer, nullable=False, default=0)
-    access_level = Column(
-        ENUM(AccessLevel), nullable=False, default=AccessLevel.private
-    )
+    access_level = Column(ENUM(Access), nullable=False, default=Access.private)
     domain = Column(String, nullable=True)
     published_date = Column(
         DateTime, default=datetime.utcnow().isoformat(), nullable=True
@@ -189,7 +187,7 @@ class Model(SQLDeclarativeBase):
         if user.id == self.user_id or user.role == Role.global_admin:
             return Permission.write
 
-        if self.access_level == AccessLevel.protected:
+        if self.access_level == Access.protected:
             user_team = next(
                 (ut for ut in user.teams if ut.team_id == self.team_id), None
             )
@@ -198,7 +196,7 @@ class Model(SQLDeclarativeBase):
                     return Permission.write
                 return Permission.read
 
-        if self.access_level == AccessLevel.public:
+        if self.access_level == Access.public:
             return Permission.read
 
         return None

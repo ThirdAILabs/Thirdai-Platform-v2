@@ -14,7 +14,7 @@ from backend.routers.user import user_router as user
 from backend.routers.vault import vault_router as vault
 from fastapi.middleware.cors import CORSMiddleware
 
-from thirdai_platform.backend.routers.utils import restart_generate_job
+from backend.utils import restart_generate_job
 
 app = fastapi.FastAPI()
 

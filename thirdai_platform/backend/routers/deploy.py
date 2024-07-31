@@ -19,7 +19,7 @@ from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
-from thirdai_platform.backend.routers.utils import (
+from backend.utils import (
     delete_nomad_job,
     get_deployment,
     get_empty_port,

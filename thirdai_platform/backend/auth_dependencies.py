@@ -8,7 +8,7 @@ from database.session import get_session
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from thirdai_platform.backend.routers.utils import get_model_from_identifier, response
+from backend.utils import get_model_from_identifier, response
 
 
 def get_vault_client():

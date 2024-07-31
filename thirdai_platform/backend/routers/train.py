@@ -23,7 +23,7 @@ from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
-from thirdai_platform.backend.routers.utils import (
+from backend.utils import (
     NDBExtraOptions,
     UDTExtraOptions,
     get_model,
@@ -221,7 +221,7 @@ def train_ndb(
     if base_model_identifier:
         try:
             base_model = get_model_from_identifier(base_model_identifier, session)
-            if base_model.team_id not in user_teams:
+            if not base_model.get_user_permission(user):
                 return response(
                     status_code=status.HTTP_403_FORBIDDEN,
                     message="You do not have access to the specified base model.",
@@ -458,7 +458,7 @@ def train_udt(
     if base_model_identifier:
         try:
             base_model = get_model_from_identifier(base_model_identifier, session)
-            if base_model.team_id not in user_teams:
+            if not base_model.get_user_permission(user):
                 return response(
                     status_code=status.HTTP_403_FORBIDDEN,
                     message="You do not have access to the specified base model.",

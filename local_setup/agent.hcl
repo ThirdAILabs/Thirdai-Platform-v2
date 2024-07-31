@@ -16,11 +16,3 @@ plugin "docker" {
     }
   }
 }
-
-client {
-  enabled = true
-  host_volume "loki-config" {
-    path      = "../logging/docker-promtail-loki/config/loki"
-    read_only = false
-  }
-}

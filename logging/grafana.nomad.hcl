@@ -15,33 +15,38 @@ job "grafana" {
     task "grafana" {
       driver = "docker"
 
+      env {
+        GF_AUTH_ANONYMOUS_ENABLED = "true"
+        GF_AUTH_BASIC_ENABLED = "false"
+        GF_LOG_LEVEL = "DEBUG"
+        GF_LOG_MODE = "console"
+      }
+
       config {
         image = "grafana/grafana"
 
         ports = ["grafana_port"]
+
+        volumes = [
+          "/Users/kartiksarangmath/Documents/thirdai/ThirdAI-Platform/logging/grafana_datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml"
+        ]
+
       }
 
       resources {
         cpu    = 5000
-        memory = 32000
+        memory = 5000
       }
 
       service {
         name = "graphana"
         port = "grafana_port"
-
-        check {
-          type     = "http"
-          path     = "/health"
-          interval = "10s"
-          timeout  = "2s"
-        }
+        provider = "nomad"
       }
     }
 
     network {
           port  "grafana_port"{
-            static = 3000
             to = 3000
           }
         }

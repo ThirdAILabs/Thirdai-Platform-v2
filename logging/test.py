@@ -3,7 +3,7 @@ import logging_loki
 logging_loki.emitter.LokiEmitter.level_tag = "level"
 
 handler = logging_loki.LokiHandler(
-   url="http://localhost:3100/loki/api/v1/push",
+   url="http://127.0.0.1:27401/loki/api/v1/push",
    version="1",
 )
 logger = logging.getLogger("my-logger")
@@ -11,20 +11,20 @@ logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
 logger.error(
-   "logging: Model1-initiated",
+   "logging: Model3-initiated",
   
    extra={"tags": {"service": "my-service"}},
 )
 logger.warning(
-   "logging: Model1-trained",
+   "logging: Model3-trained",
    extra={"tags": {"service": "my-service"}},
 )
 
 logger.info(
-   "logging: Model2-trained",
+   "logging: Model4-trained",
    extra={"tags": {"service": "my-service"}},
 )
 logger.debug(
-   "logging: Model2-deployed",
+   "logging: Model4-deployed",
    extra={"tags": {"service": "my-service"}},
 )

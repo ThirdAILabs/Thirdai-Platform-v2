@@ -64,36 +64,23 @@ def verify_model_access(
     session: Session = Depends(get_session),
     current_user: schema.User = Depends(get_current_user),
 ):
-    try:
-        model: schema.Model = get_model_from_identifier(model_identifier, session)
-    except Exception as error:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=str(error),
+    model = get_model_from_identifier(model_identifier, session)
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model with identifier {model_identifier} not found",
         )
 
-    model_owner = (
-        session.query(schema.User).filter(schema.User.id == model.user_id).first()
+    permission = model.get_user_permission(current_user)
+    if permission is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to access this model",
+        )
+
+    if permission == schema.Permission.read or permission == schema.Permission.write:
+        return model
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to the model"
     )
-
-    if not model_owner:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Model owner not found"
-        )
-
-    if model.access_level == schema.Access.public:
-        if current_user.team_id != model_owner.team_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to the model",
-            )
-
-    elif model.user_id != current_user.id and (
-        current_user.role != schema.Role.team_admin
-        or current_user.team_id != model_owner.team_id
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to the model"
-        )
-
-    return model

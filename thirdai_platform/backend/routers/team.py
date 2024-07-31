@@ -20,6 +20,11 @@ class AddUserToTeamInput(BaseModel):
     )  # default role is user to a team if not specified
 
 
+class AssignTeamAdminInput(BaseModel):
+    user_email: str
+    team_name: str
+
+
 class DeleteTeamInput(BaseModel):
     team_name: str
 
@@ -74,6 +79,50 @@ def add_user_to_team(
     session.add(new_user_team)
     session.commit()
     return {"status": "success", "message": "User added to the team successfully"}
+
+
+@team_router.post("/assign-team-admin", dependencies=[Depends(global_admin_only)])
+def assign_team_admin(
+    input: AssignTeamAdminInput,
+    session: Session = Depends(get_session),
+):
+    user = (
+        session.query(schema.User).filter(schema.User.email == input.user_email).first()
+    )
+    team = (
+        session.query(schema.Team).filter(schema.Team.name == input.team_name).first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User not found, {input.user_email}",
+        )
+    if not team:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Team not found, {input.team_name}",
+        )
+
+    user_team = (
+        session.query(schema.UserTeam)
+        .filter_by(user_id=user.id, team_id=team.id)
+        .first()
+    )
+
+    if user_team:
+        user_team.role = schema.Role.team_admin
+    else:
+        new_user_team = schema.UserTeam(
+            user_id=user.id, team_id=team.id, role=schema.Role.team_admin
+        )
+        session.add(new_user_team)
+
+    session.commit()
+    return {
+        "status": "success",
+        "message": f"User {input.user_email} has been successfully assigned as team admin for {input.team_name}.",
+    }
 
 
 @team_router.delete("/delete-team", dependencies=[Depends(global_admin_only)])

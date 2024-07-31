@@ -89,8 +89,6 @@ class AdminAddition:
                     email=admin_mail,
                     password_hash=hash_password(admin_password),
                     verified=True,
-                    role=schema.Role.global_admin,
-                    team_id=global_admin_team.id,
                 )
                 session.add(user)
                 session.commit()

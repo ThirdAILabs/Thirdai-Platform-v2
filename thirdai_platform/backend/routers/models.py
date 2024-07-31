@@ -34,6 +34,12 @@ storage: interface.StorageInterface = local.LocalStorage(
 )
 
 
+class UpdateModelPermissionInput(BaseModel):
+    model_name: str
+    user_email: str
+    permission: schema.Permission
+
+
 @model_router.get("/public-list")
 def list_public_models(
     name: str,
@@ -676,3 +682,55 @@ def list_team_models(
         message="Successfully got the team models list",
         data=jsonable_encoder(results),
     )
+
+
+@model_router.post("/update-model-permission")
+def update_model_permission(
+    input: UpdateModelPermissionInput,
+    session: Session = Depends(get_session),
+    current_user: schema.User = Depends(team_admin_or_global_admin),
+):
+    model = (
+        session.query(schema.Model)
+        .filter(schema.Model.name == input.model_name)
+        .first()
+    )
+    user = (
+        session.query(schema.User).filter(schema.User.email == input.user_email).first()
+    )
+
+    if not model or not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Model or user not found."
+        )
+
+    if current_user.role == schema.Role.team_admin:
+        if (
+            model.team_id != current_user.team_id
+            or user.team_id != current_user.team_id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Team admins can only change permissions for users and models within their own team.",
+            )
+
+    model_permission = (
+        session.query(schema.ModelPermission)
+        .filter_by(model_id=model.id, user_id=user.id)
+        .first()
+    )
+
+    if model_permission:
+        model_permission.permission = input.permission
+    else:
+        new_permission = schema.ModelPermission(
+            model_id=model.id, user_id=user.id, permission=input.permission
+        )
+        session.add(new_permission)
+
+    session.commit()
+
+    return {
+        "status": "success",
+        "message": f"Permission updated to '{input.permission}' for user '{input.user_email}' on model '{input.model_id}'.",
+    }

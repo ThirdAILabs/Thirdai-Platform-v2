@@ -100,22 +100,26 @@ def email_signup(
         )
 
     try:
+        is_test_environment = os.getenv("TEST_ENVIRONMENT", "False") == "True"
+
         user = schema.User(
             username=body.username,
             email=body.email,
             password_hash=hash_password(body.password),
-            verified=False,
+            verified=is_test_environment,
         )
 
         session.add(user)
         session.commit()
         session.refresh(user)
 
-        send_verification_mail(
-            user.email,
-            str(user.verification_token),
-            user.username,
-        )
+        if not is_test_environment:
+            send_verification_mail(
+                user.email,
+                str(user.verification_token),
+                user.username,
+            )
+
     except Exception as err:
         return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(err))
 
@@ -146,29 +150,21 @@ def add_global_admin(
             detail="User is not registered yet.",
         )
 
-    if user.role == schema.Role.team_admin:
-        other_team_admin_count = (
-            session.query(schema.UserTeam)
-            .filter(
-                schema.UserTeam.team_id == user.team_id,
-                schema.UserTeam.role == schema.Role.team_admin,
-                schema.UserTeam.user_id != user.id,
-            )
-            .count()
-        )
-
-        if other_team_admin_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="There must be at least one other team admin before promoting this user to global admin.",
-            )
-
+    # update the user's role to global admin
     user.role = schema.Role.global_admin
+
+    # remove user from any team he/she is part of
+    user_teams = (
+        session.query(schema.UserTeam).filter(schema.UserTeam.user_id == user.id).all()
+    )
+    for user_team in user_teams:
+        session.delete(user_team)
+
     session.commit()
 
     return {
         "status": "success",
-        "message": f"User {email} has been successfully added as a global admin.",
+        "message": f"User {email} has been successfully added as a global admin and removed from all teams.",
     }
 
 
@@ -284,10 +280,10 @@ def email_login(
             status_code=status.HTTP_401_UNAUTHORIZED, message="Invalid password."
         )
 
-    # if not user.verified:
-    #     return response(
-    #         status_code=status.HTTP_400_BAD_REQUEST, message="User is not verified yet."
-    #     )
+    if not user.verified:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST, message="User is not verified yet."
+        )
 
     return response(
         status_code=status.HTTP_200_OK,

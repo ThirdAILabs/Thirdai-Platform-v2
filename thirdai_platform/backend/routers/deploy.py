@@ -43,6 +43,17 @@ def deployment_read_write_permissions(
     session: Session,
     authenticated_user: Union[AuthenticatedUser, HTTPException],
 ):
+    """
+    Determine read and write permissions for a deployment based on the user's access level.
+
+    Parameters:
+    - deployment_id: The ID of the deployment.
+    - session: The database session.
+    - authenticated_user: The authenticated user or HTTPException if authentication fails.
+
+    Returns:
+    - A tuple (read_permission: bool, write_permission: bool).
+    """
     deployment: schema.Deployment = (
         session.query(schema.Deployment)
         .options(joinedload(schema.Deployment.user))
@@ -76,6 +87,17 @@ def deployment_owner_permissions(
     session: Session,
     authenticated_user: Union[AuthenticatedUser, HTTPException],
 ):
+    """
+    Determine if the user has owner permissions for a deployment.
+
+    Parameters:
+    - deployment_id: The ID of the deployment.
+    - session: The database session.
+    - authenticated_user: The authenticated user or HTTPException if authentication fails.
+
+    Returns:
+    - A boolean indicating if the user has owner permissions.
+    """
     deployment: schema.Deployment = (
         session.query(schema.Deployment)
         .options(joinedload(schema.Deployment.user))
@@ -98,6 +120,17 @@ def get_deployment_permissions(
     session: Session = Depends(get_session),
     authenticated_user=Depends(verify_access_token_no_throw),
 ):
+    """
+    Get the permissions for a deployment.
+
+    Parameters:
+    - deployment_id: The ID of the deployment.
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Returns:
+    - A JSON response with the read, write, and override permissions and the token expiration time.
+    """
     read, write = deployment_read_write_permissions(
         deployment_id, session, authenticated_user
     )
@@ -126,6 +159,22 @@ def deploy_model(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Deploy a model.
+
+    Parameters:
+    - deployment_name: The name of the deployment.
+    - model_identifier: The identifier of the model to deploy.
+    - memory: Optional memory allocation for the deployment.
+    - autoscaling_enabled: Whether autoscaling is enabled.
+    - autoscaler_max_count: The maximum count for the autoscaler.
+    - genai_key: Optional GenAI key.
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Returns:
+    - A JSON response indicating the status of the deployment.
+    """
     user: schema.User = authenticated_user.user
 
     try:
@@ -267,6 +316,17 @@ def deployment_status(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Get the status of a deployment.
+
+    Parameters:
+    - deployment_identifier: The identifier of the deployment.
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Returns:
+    - A JSON response with the deployment status and ID.
+    """
     (
         model_username,
         model_name,
@@ -309,6 +369,17 @@ def deployment_status(
     status: schema.Status,
     session: Session = Depends(get_session),
 ):
+    """
+    Update the status of a deployment.
+
+    Parameters:
+    - deployment_id: The ID of the deployment.
+    - status: The new status for the deployment.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response indicating the update status.
+    """
     deployment: schema.Deployment = (
         session.query(schema.Deployment)
         .filter(schema.Deployment.id == deployment_id)
@@ -334,6 +405,17 @@ def undeploy_model(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Stop a running deployment.
+
+    Parameters:
+    - deployment_identifier: The identifier of the deployment to stop.
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Returns:
+    - A JSON response indicating the stop status of the deployment.
+    """
     (
         model_username,
         model_name,
@@ -402,6 +484,17 @@ def log_results(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Log training results for a deployment.
+
+    Parameters:
+    - log_data: The log data to save (body).
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Returns:
+    - A JSON response indicating the log entry status.
+    """
     user: schema.User = authenticated_user.user
     deployment: schema.Deployment = (
         session.query(schema.Deployment)

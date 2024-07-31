@@ -90,7 +90,7 @@ export function Model({ model }: { model: SelectModel }) {
       <TableCell className="hidden md:table-cell">
         <button type="button" 
                 onClick={()=>{
-                  const baseUrl = 'http://localhost:3000';
+                  const baseUrl = 'http://localhost:80';
                   const newUrl = `${baseUrl}/search?id=${deploymentId}`;
                   window.open(newUrl, '_blank');
                 }}

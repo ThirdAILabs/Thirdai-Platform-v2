@@ -52,6 +52,40 @@ export async function fetchPendingModel() {
   }
 }
 
+interface DeploymentData {
+  deployment_id: string;
+  deployment_name: string;
+  model_identifier: string;
+  status: string;
+}
+
+interface DeploymentResponse {
+  data: DeploymentData;
+  message: string;
+  status: string;
+}
+
+export function deployModel(values: { deployment_name: string; model_identifier: string }) : Promise<DeploymentResponse>  {
+  
+  const accessToken = getAccessToken()
+
+  // Set the default authorization header for axios
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(
+        `http://localhost:8000/api/deploy/run?deployment_name=${values.deployment_name}&model_identifier=${values.model_identifier}`
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
 interface TrainNdbParams {
     name: string;
     formData: FormData;

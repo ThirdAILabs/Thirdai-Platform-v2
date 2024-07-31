@@ -6,7 +6,6 @@ import bcrypt
 from auth.jwt import AuthenticatedUser, create_access_token, verify_access_token
 from backend.auth_dependencies import global_admin_only, team_admin_or_global_admin
 from backend.mailer import Mailer
-from thirdai_platform.backend.routers.utils import hash_password, response
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -14,6 +13,8 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
+from thirdai_platform.backend.routers.utils import hash_password, response
 
 user_router = APIRouter()
 basic_security = HTTPBasic()

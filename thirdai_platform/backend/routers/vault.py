@@ -1,4 +1,3 @@
-from fastapi import APIRouter, HTTPException, Depends, status, Header
 import hvac
 from auth.jwt import verify_access_token
 from backend.auth_dependencies import get_vault_client, global_admin_only

@@ -15,6 +15,14 @@ from backend.file_handler import (
     UDTFileDetailsList,
     get_files,
 )
+from database import schema
+from database.session import get_session
+from fastapi import APIRouter, Depends, Form, UploadFile, status
+from fastapi.encoders import jsonable_encoder
+from licensing.verify.verify_license import valid_job_allocation, verify_license
+from pydantic import BaseModel, ValidationError
+from sqlalchemy.orm import Session
+
 from thirdai_platform.backend.routers.utils import (
     NDBExtraOptions,
     UDTExtraOptions,
@@ -29,13 +37,6 @@ from thirdai_platform.backend.routers.utils import (
     update_json,
     validate_name,
 )
-from database import schema
-from database.session import get_session
-from fastapi import APIRouter, Depends, Form, UploadFile, status
-from fastapi.encoders import jsonable_encoder
-from licensing.verify.verify_license import valid_job_allocation, verify_license
-from pydantic import BaseModel, ValidationError
-from sqlalchemy.orm import Session
 
 train_router = APIRouter()
 

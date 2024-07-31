@@ -7,8 +7,8 @@ from database.schema import SQLDeclarativeBase as Base
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
-from thirdai_platform.backend.routers.utils import hash_password
 
+from thirdai_platform.backend.routers.utils import hash_password
 
 db_uri = os.getenv("DATABASE_URI")
 if db_uri is None:

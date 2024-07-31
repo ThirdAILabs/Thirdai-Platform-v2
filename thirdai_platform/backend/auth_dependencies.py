@@ -5,11 +5,8 @@ from database import schema
 from database.session import get_session
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from database.session import get_session
-from auth.jwt import AuthenticatedUser, verify_access_token
-from database import schema
+
 from thirdai_platform.backend.routers.utils import get_model_from_identifier, response
-import hvac
 
 
 def get_vault_client():

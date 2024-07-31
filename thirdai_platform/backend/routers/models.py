@@ -89,69 +89,54 @@ def list_models(
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
-    List models based on the given name, domain, username, and access level.
-
-    Parameters:
-    - name: The name to filter models.
-    - domain: Optional domain to filter models.
-    - username: Optional username to filter models.
-    - access_level: Optional access level to filter models.
-    - session: The database session (dependency).
-    - authenticated_user: The authenticated user (dependency).
-
-    Returns:
-    - A JSON response with the list of models.
+    The list requests gets all the models available based on the given name by doing a fuzzy search.
+    and models which are accessible for the user.
     """
     user: schema.User = authenticated_user.user
+    user_teams = [ut.team_id for ut in user.teams]
+
+    query = (
+        session.query(schema.Model)
+        .options(joinedload(schema.Model.user))
+        .filter(
+            schema.Model.name.ilike(f"%{name}%"),
+            schema.Model.train_status == schema.Status.complete,
+        )
+    )
 
     if user.role == schema.Role.global_admin:
-        results = (
-            session.query(schema.Model).options(joinedload(schema.Model.user)).all()
-        )
+        # Global admins see all models
+        results = query.all()
     else:
-        results = (
-            session.query(schema.Model)
-            .options(joinedload(schema.Model.user))
-            .filter(
-                schema.Model.name.ilike(f"%{name}%"),
-                or_(
-                    # public
-                    schema.Model.access_level == schema.Access.public,
-                    # protected and matching domain
-                    and_(
-                        schema.Model.access_level == schema.Access.protected,
-                        schema.Model.team_id == user.team_id,
-                    ),
-                    # private and matching user or admin
-                    and_(
-                        schema.Model.access_level == schema.Access.private,
-                        or_(schema.Model.user_id == user.id, schema.User.id == user.id),
-                        or_(user.role == schema.Role.team_admin),
-                    ),
-                ),
-                schema.Model.train_status == schema.Status.complete,
+        access_conditions = [schema.Model.access_level == schema.Access.public]
+        if schema.Access.protected in access_level:
+            access_conditions.append(
+                and_(
+                    schema.Model.access_level == schema.Access.protected,
+                    schema.Model.team_id.in_(user_teams),
+                )
             )
-        )
+        if schema.Access.private in access_level:
+            access_conditions.append(
+                and_(
+                    schema.Model.access_level == schema.Access.private,
+                    schema.Model.user_id == user.id,
+                )
+            )
+
+        query = query.filter(or_(*access_conditions))
 
     if domain:
-        results = results.filter(schema.Model.domain == domain)
+        query = query.filter(schema.Model.domain == domain)
 
     if username:
-        results = results.filter(schema.Model.user.username == username)
+        query = query.filter(schema.Model.user.username == username)
 
-    if access_level:
-        conditions = []
-        for access in access_level:
-            conditions.append(schema.Model.access_level == access)
-
-        # We have to unpack the conditions to be able to processed by `or_` function.
-        results = results.filter(or_(*conditions))
-
-    results = [get_high_level_model_info(result) for result in results]
+    results = [get_high_level_model_info(model) for model in query.all()]
 
     return response(
         status_code=status.HTTP_200_OK,
-        message="Successfully got the list",
+        message="Successfully retrieved model list",
         data=jsonable_encoder(results),
     )
 

@@ -30,16 +30,21 @@ class Status(str, enum.Enum):
     failed = "failed"
 
 
-class Access(str, enum.Enum):
-    public = "public"
-    protected = "protected"
-    private = "private"
-
-
 class Role(enum.Enum):
     user = "user"
     team_admin = "team_admin"
-    global_admin = "global_admin"  # Global Admin wont have be part of any team
+    global_admin = "global_admin"  # Global Admin won't be part of any team
+
+
+class AccessLevel(enum.Enum):
+    private = "private"
+    protected = "protected"
+    public = "public"
+
+
+class Permission(enum.Enum):
+    read = "read"
+    write = "write"
 
 
 class Team(SQLDeclarativeBase):
@@ -50,7 +55,9 @@ class Team(SQLDeclarativeBase):
     )
     name = Column(String(100), nullable=False, unique=True)
 
-    users = relationship("User", back_populates="team", cascade="all, delete-orphan")
+    users = relationship(
+        "UserTeam", back_populates="team", cascade="all, delete-orphan"
+    )
     models = relationship("Model", back_populates="team", cascade="all, delete-orphan")
 
 
@@ -64,22 +71,24 @@ class User(SQLDeclarativeBase):
     email = Column(String(254), nullable=False, unique=True)
     password_hash = Column(
         String, nullable=True
-    )  # If NULL then its verified from some of the OAuth providers.
+    )  # If NULL then it's verified from some of the OAuth providers.
     verified = Column(Boolean, default=False)
     verification_token = Column(
         UUID(as_uuid=True), unique=True, server_default=text("gen_random_uuid()")
     )
     role = Column(ENUM(Role), default=Role.user)
 
-    # nullable since global admin wont be part of any team
-    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"))
-
-    team = relationship("Team", back_populates="users")
+    teams = relationship(
+        "UserTeam", back_populates="user", cascade="all, delete-orphan"
+    )
     models = relationship("Model", back_populates="user", cascade="all, delete-orphan")
     deployments = relationship(
         "Deployment", back_populates="user", cascade="all, delete-orphan"
     )
     logs = relationship("Log", back_populates="user", cascade="all, delete-orphan")
+    model_permissions = relationship(
+        "ModelPermission", back_populates="user", cascade="all, delete-orphan"
+    )
 
     @validates("username")
     def validate_username(self, key, username):
@@ -94,6 +103,17 @@ class User(SQLDeclarativeBase):
         return self.email.split("@")[1]
 
 
+class UserTeam(SQLDeclarativeBase):
+    __tablename__ = "user_teams"
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True)
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), primary_key=True)
+    role = Column(ENUM(Role), nullable=False)
+
+    user = relationship("User", back_populates="teams")
+    team = relationship("Team", back_populates="users")
+
+
 class Model(SQLDeclarativeBase):
     __tablename__ = "models"
 
@@ -105,7 +125,9 @@ class Model(SQLDeclarativeBase):
     type = Column(String(256), nullable=False)
     sub_type = Column(String(256), nullable=True)
     downloads = Column(Integer, nullable=False, default=0)
-    access_level = Column(ENUM(Access), nullable=False, default=Access.private)
+    access_level = Column(
+        ENUM(AccessLevel), nullable=False, default=AccessLevel.private
+    )
     domain = Column(String, nullable=True)
     published_date = Column(
         DateTime, default=datetime.utcnow().isoformat(), nullable=True
@@ -144,6 +166,9 @@ class Model(SQLDeclarativeBase):
     model_shards = relationship(
         "ModelShard", back_populates="model", cascade="all, delete-orphan"
     )
+    model_permissions = relationship(
+        "ModelPermission", back_populates="model", cascade="all, delete-orphan"
+    )
 
     @validates("name")
     def validate_model_name(self, key, name):
@@ -153,11 +178,47 @@ class Model(SQLDeclarativeBase):
         ), "Model name should only contain alphanumeric characters, underscores, and hyphens"
         return name
 
+    def get_user_permission(self, user):
+        # check whether we can find permission in explicit permissions first
+        explicit_permission = next(
+            (mp for mp in self.model_permissions if mp.user_id == user.id), None
+        )
+        if explicit_permission:
+            return explicit_permission.permission
+
+        if user.id == self.user_id or user.role == Role.global_admin:
+            return Permission.write
+
+        if self.access_level == AccessLevel.protected:
+            user_team = next(
+                (ut for ut in user.teams if ut.team_id == self.team_id), None
+            )
+            if user_team:
+                if user_team.role in {Role.team_admin, Role.global_admin}:
+                    return Permission.write
+                return Permission.read
+
+        if self.access_level == AccessLevel.public:
+            return Permission.read
+
+        return None
+
     __table_args__ = (
         Index("train_status_index", "train_status"),
         Index("model_identifier_index", "user_id", "name"),
         UniqueConstraint("user_id", "name"),
     )
+
+
+class ModelPermission(SQLDeclarativeBase):
+    __tablename__ = "model_permissions"
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True)
+    model_id = Column(UUID(as_uuid=True), ForeignKey("models.id"), primary_key=True)
+    permission = Column(ENUM(Permission), nullable=False)
+
+    user = relationship("User", back_populates="model_permissions")
+    model = relationship("Model", back_populates="model_permissions")
 
 
 class MetaData(SQLDeclarativeBase):

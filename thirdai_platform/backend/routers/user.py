@@ -105,7 +105,6 @@ def email_signup(
             email=body.email,
             password_hash=hash_password(body.password),
             verified=False,
-            team_id=None,  # Only global admin can add a user to a team
         )
 
         session.add(user)
@@ -139,9 +138,7 @@ def add_global_admin(
     session: Session = Depends(get_session),
 ):
     email = admin_request.email
-    user: schema.User = (
-        session.query(schema.User).filter(schema.User.email == email).first()
-    )
+    user = session.query(schema.User).filter(schema.User.email == email).first()
 
     if not user:
         raise HTTPException(
@@ -150,13 +147,12 @@ def add_global_admin(
         )
 
     if user.role == schema.Role.team_admin:
-        # Check if there is another team admin in the same team
         other_team_admin_count = (
-            session.query(schema.User)
+            session.query(schema.UserTeam)
             .filter(
-                schema.User.team_id == user.team_id,
-                schema.User.role == schema.Role.team_admin,
-                schema.User.id != user.id,
+                schema.UserTeam.team_id == user.team_id,
+                schema.UserTeam.role == schema.Role.team_admin,
+                schema.UserTeam.user_id != user.id,
             )
             .count()
         )
@@ -168,13 +164,6 @@ def add_global_admin(
             )
 
     user.role = schema.Role.global_admin
-    global_admin_team = (
-        session.query(schema.Team)
-        .filter(schema.Team.name == "global_admin_team")
-        .first()
-    )
-
-    user.team_id = global_admin_team.id
     session.commit()
 
     return {

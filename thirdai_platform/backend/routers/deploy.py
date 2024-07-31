@@ -45,43 +45,23 @@ def deployment_read_write_permissions(
     session: Session,
     authenticated_user: Union[AuthenticatedUser, HTTPException],
 ):
-    """
-    Determine read and write permissions for a deployment based on the user's access level.
+    user = authenticated_user.user
+    deployment = session.query(schema.Deployment).get(deployment_id)
+    if not deployment:
+        return False, False  # No deployment found, no permissions
 
-    Parameters:
-    - deployment_id: The ID of the deployment.
-    - session: The database session.
-    - authenticated_user: The authenticated user or HTTPException if authentication fails.
+    model = session.query(schema.Model).get(deployment.model_id)
+    if not model:
+        return False, False  # No model found, no permissions
 
-    Returns:
-    - A tuple (read_permission: bool, write_permission: bool).
-    """
-    deployment: schema.Deployment = (
-        session.query(schema.Deployment)
-        .options(joinedload(schema.Deployment.user))
-        .get(deployment_id)
-    )
-    access_level = session.query(schema.Model).get(deployment.model_id).access_level
-    deployment_is_public = access_level == schema.Access.public
+    # Use the method from the Model class to determine permissions
+    permission = model.get_user_permission(user)
+    if permission == schema.Permission.write:
+        return True, True  # Full access
+    elif permission == schema.Permission.read:
+        return True, False  # Read-only access
 
-    if not isinstance(authenticated_user, AuthenticatedUser):
-        if deployment_is_public:
-            return True, False
-        return False, False
-
-    current_user: schema.User = authenticated_user.user
-    if deployment.user_id == current_user.id:
-        return True, True
-
-    if deployment_is_public:
-        return True, False
-
-    deployment_is_protected = access_level == schema.Access.protected
-    user_is_in_deployment_team = deployment.user.team_id == current_user.team_id
-    if deployment_is_protected and user_is_in_deployment_team:
-        return True, False
-
-    return False, False
+    return False, False  # No access
 
 
 def deployment_owner_permissions(

@@ -173,11 +173,17 @@ def train_ndb(
             message=f"{model_name} is not a valid model name.",
         )
 
-    duplicate_model = get_model(session, username=user.username, model_name=model_name)
+    # check for existing model name across all teams the user is a part of
+    user_teams = [ut.team_id for ut in user.teams]
+    duplicate_model = (
+        session.query(schema.Model)
+        .filter(schema.Model.name == model_name, schema.Model.team_id.in_(user_teams))
+        .first()
+    )
     if duplicate_model:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Model with name {model_name} already exists for user {user.username}.",
+            message=f"Model with name {model_name} already exists within your teams.",
         )
 
     model_id = uuid.uuid4()
@@ -210,11 +216,16 @@ def train_ndb(
             message="Duplicate filenames received, please ensure each filename is unique.",
         )
 
+    # Base model checks
+    base_model = None
     if base_model_identifier:
         try:
-            base_model: schema.Model = get_model_from_identifier(
-                base_model_identifier, session
-            )
+            base_model = get_model_from_identifier(base_model_identifier, session)
+            if base_model.team_id not in user_teams:
+                return response(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    message="You do not have access to the specified base model.",
+                )
         except Exception as error:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -229,17 +240,21 @@ def train_ndb(
     )
 
     try:
-        new_model: schema.Model = schema.Model(
+        new_model = schema.Model(
             id=model_id,
             user_id=user.id,
             train_status=schema.Status.not_started,
             name=model_name,
             type="ndb",
             sub_type="single" if not sharded else "sharded",
-            domain=user.email.split("@")[1],
+            domain=user.domain,
             access_level=schema.Access.private,
-            parent_id=base_model.id if base_model_identifier else None,
-            team_id=user.team_id,
+            parent_id=base_model.id if base_model else None,
+            team_id=(
+                base_model.team_id
+                if base_model
+                else user_teams[0] if user_teams else None
+            ),
         )
 
         session.add(new_model)
@@ -395,11 +410,17 @@ def train_udt(
             message=f"{model_name} is not a valid model name.",
         )
 
-    duplicate_model = get_model(session, username=user.username, model_name=model_name)
+    # check for existing model name across all teams the user is a part of
+    user_teams = [ut.team_id for ut in user.teams]
+    duplicate_model = (
+        session.query(schema.Model)
+        .filter(schema.Model.name == model_name, schema.Model.team_id.in_(user_teams))
+        .first()
+    )
     if duplicate_model:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Model with name {model_name} already exists for user {user.username}.",
+            message=f"Model with name {model_name} already exists within your teams.",
         )
 
     model_id = uuid.uuid4()
@@ -432,11 +453,16 @@ def train_udt(
             message="Duplicate filenames received, please ensure each filename is unique.",
         )
 
+    # Base model checks
+    base_model = None
     if base_model_identifier:
         try:
-            base_model: schema.Model = get_model_from_identifier(
-                base_model_identifier, session
-            )
+            base_model = get_model_from_identifier(base_model_identifier, session)
+            if base_model.team_id not in user_teams:
+                return response(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    message="You do not have access to the specified base model.",
+                )
         except Exception as error:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -453,8 +479,12 @@ def train_udt(
             sub_type=extra_options["sub_type"],
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
-            parent_id=base_model.id if base_model_identifier else None,
-            team_id=user.team_id,
+            parent_id=base_model.id if base_model else None,
+            team_id=(
+                base_model.team_id
+                if base_model
+                else user_teams[0] if user_teams else None
+            ),
         )
 
         session.add(new_model)
@@ -541,15 +571,13 @@ def train_complete(
     trained_model: schema.Model = (
         session.query(schema.Model).filter(schema.Model.id == body.model_id).first()
     )
-
     if not trained_model:
         return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND,
             message=f"No model with id {body.model_id}.",
         )
 
     trained_model.train_status = schema.Status.complete
-    trained_model.access_level = schema.Access.private
 
     metadata: schema.MetaData = trained_model.meta_data
     if metadata:
@@ -563,7 +591,7 @@ def train_complete(
 
     session.commit()
 
-    return {"message": "successfully updated"}
+    return {"message": "Successfully updated"}
 
 
 @train_router.post("/update-status")

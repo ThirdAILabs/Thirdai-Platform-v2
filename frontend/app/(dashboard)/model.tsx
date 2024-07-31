@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,9 +14,41 @@ import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { SelectModel } from '@/lib/db';
 import { deleteModel } from './actions';
-import { deployModel } from '@/lib/backend';
+import { deployModel, getDeployStatus } from '@/lib/backend';
+
+interface DeploymentData {
+  deployment_id: string;
+  deployment_name: string;
+  model_identifier: string;
+  status: string;
+}
+
+interface DeploymentResponse {
+  data: DeploymentData;
+  message: string;
+  status: string;
+}
+
 
 export function Model({ model }: { model: SelectModel }) {
+
+  useEffect(() => {
+    const username = 'peter'; // Retrieve the username dynamically if needed
+    const modelIdentifier = `${username}/${model.name}`;
+    console.log('model.name', model.name)
+    console.log('modelIdentifier', modelIdentifier)
+
+    const deployment_identifier = `${modelIdentifier}:peter/${model.name}`;
+    getDeployStatus({ deployment_identifier })
+      .then((response) => {
+        console.log('Deployment status response:', response);
+      })
+      .catch((error) => {
+        console.error('Error fetching deployment status:', error);
+      });
+
+  }, []);
+
   return (
     <TableRow>
       <TableCell className="hidden sm:table-cell">
@@ -46,11 +80,9 @@ export function Model({ model }: { model: SelectModel }) {
                   console.log('modelIdentifier', modelIdentifier)
 
                   deployModel({ deployment_name: model.name, model_identifier: modelIdentifier })
-                    .then((data) => {
-                      console.log('Deployment response:', data);
-
+                    .then((response) => {
                       const baseUrl = `${window.location.protocol}//${window.location.host}`;
-                      const newUrl = `${baseUrl}/search?id=${data.data.deployment_id}`;
+                      const newUrl = `${baseUrl}/search?id=${response.data.deployment_id}`;
                       window.open(newUrl, '_blank');
                     })
                     .catch((error) => {

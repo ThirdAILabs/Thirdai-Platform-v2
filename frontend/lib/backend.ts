@@ -52,6 +52,26 @@ export async function fetchPendingModel() {
   }
 }
 
+interface StatusResponse {
+  data: {
+    status: string;
+    message: string;
+  };
+}
+
+export function getDeployStatus(values: { deployment_identifier: string }): Promise<StatusResponse> {
+  return new Promise((resolve, reject) => {
+    axios
+      .get(`http://localhost:8000/api/deploy/status?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
 interface DeploymentData {
   deployment_id: string;
   deployment_name: string;

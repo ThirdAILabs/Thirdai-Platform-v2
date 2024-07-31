@@ -22,7 +22,8 @@ export default function LoginPage() {
     try {
       const data = await userEmailLogin(email, password);
       console.log('User logged in successfully:', data);
-      // Redirect or show success message
+      // Redirect to the home page
+      window.location.href = '/';
     } catch (err) {
       console.log(err);
     }
@@ -63,9 +64,7 @@ export default function LoginPage() {
             </div>
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
             
-            <Link href="/">
-              <Button type="submit" className="w-full">Login</Button>
-            </Link>
+            <Button type="submit" className="w-full">Login</Button>
           </form>
           <Link href="/signup">
             <button type="button">

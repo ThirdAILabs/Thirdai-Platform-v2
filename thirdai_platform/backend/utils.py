@@ -152,6 +152,7 @@ class NDBExtraOptions(BaseModel):
     fast_approximation: Optional[bool] = None
     num_buckets_to_sample: Optional[int] = None
     metrics: Optional[list[str]] = None
+    validation_metrics: Optional[list[str]] = None
     on_disk: Optional[bool] = None
     docs_on_disk: Optional[bool] = None
 

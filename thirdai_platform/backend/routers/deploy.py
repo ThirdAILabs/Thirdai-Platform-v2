@@ -32,10 +32,8 @@ from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
-import os
 import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
-from pathlib import Path
 
 deploy_router = APIRouter()
 

@@ -19,7 +19,7 @@ const RAGQuestions = ({
   const [sources, setSources] = useState<Array<{ type: string, value: string }>>([]);
 
   useEffect(() => {
-    setSemanticSearchModels(models.filter(model => model.modelType === 'semantic search model'));
+    setSemanticSearchModels(models.filter(model => model.type === 'semantic search model'));
   }, [models]);
 
   console.log('Filtered Semantic Search Models:', semanticSearchModels);
@@ -34,7 +34,7 @@ const RAGQuestions = ({
   const [nerModelToUse, setNerModelToUse] = useState<string|null>(null);
 
   useEffect(() => {
-    setNerModels(models.filter(model => model.modelType === 'ner model'));
+    setNerModels(models.filter(model => model.type === 'ner model'));
   }, [models]);
 
   console.log('Filtered NER Models:', nerModels);
@@ -83,7 +83,7 @@ const RAGQuestions = ({
             <option value="">-- Please choose a model --</option>
             {semanticSearchModels.map(model => (
               <option key={model.id} value={model.id}>
-                {`${model.name} (${model.description})`}
+                {`${model.model_name}`}
               </option>
             ))}
           </select>
@@ -156,7 +156,7 @@ const RAGQuestions = ({
             <option value="">-- Please choose a model --</option>
             {nerModels.map(model => (
               <option key={model.id} value={model.id}>
-                {`${model.name} (${model.description})`}
+                {`${model.model_name}`}
               </option>
             ))}
           </select>
@@ -211,65 +211,65 @@ const RAGQuestions = ({
           <button
             type="button"
             className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-            onClick={async () => {
+            // onClick={async () => {
 
-              let link = '', description = '';
-              let model_stats: 'training' | 'active' | 'inactive' | 'archived' = 'training';
+            //   let link = '', description = '';
+            //   let model_stats: 'training' | 'active' | 'inactive' | 'archived' = 'training';
 
-              if (llmGuardrail === 'No') {
-                link = 'http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=false'
-                description = 'This is an RAG model.'
-              } else {
-                link = 'http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=true'
-                description = 'This is an RAG model trained by composing a semantic search model and an NER model as LLM guardrail model.'
-              }
+            //   if (llmGuardrail === 'No') {
+            //     link = 'http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=false'
+            //     description = 'This is an RAG model.'
+            //   } else {
+            //     link = 'http://40.86.17.143/search?id=25fa3653-7fff-3366-ab44-532696fc6ae1&useGuardrail=true'
+            //     description = 'This is an RAG model trained by composing a semantic search model and an NER model as LLM guardrail model.'
+            //   }
 
-              if (ifUseExistingSemanticSearch === 'No' || (llmGuardrail === 'Yes' && ifUseExistingGuardrail === 'No')) {
-                model_stats = 'training'
-              } else {
-                model_stats = 'active'
-              }
+            //   if (ifUseExistingSemanticSearch === 'No' || (llmGuardrail === 'Yes' && ifUseExistingGuardrail === 'No')) {
+            //     model_stats = 'training'
+            //   } else {
+            //     model_stats = 'active'
+            //   }
 
-              const modelData: Omit<SelectModel, 'id'> = {
-                imageUrl: '/thirdai-small.png',
-                name: modelName,
-                status: model_stats,
-                trainedAt: new Date(), // Use current date and time
-                description: description,
-                deployEndpointUrl: link,
-                onDiskSizeKb: (300 * 1024).toString(),  // 300 MB converted to KB as string
-                ramSizeKb: (300 * 1024 * 2).toString(),  // 300 * 2 MB converted to KB as string
-                numberParameters: 51203077,
-                rlhfCounts: 0,
-                modelType: 'rag model'
-              };
+            //   const modelData: Omit<SelectModel, 'id'> = {
+            //     imageUrl: '/thirdai-small.png',
+            //     name: modelName,
+            //     status: model_stats,
+            //     trainedAt: new Date(), // Use current date and time
+            //     description: description,
+            //     deployEndpointUrl: link,
+            //     onDiskSizeKb: (300 * 1024).toString(),  // 300 MB converted to KB as string
+            //     ramSizeKb: (300 * 1024 * 2).toString(),  // 300 * 2 MB converted to KB as string
+            //     numberParameters: 51203077,
+            //     rlhfCounts: 0,
+            //     type: 'rag model'
+            //   };
 
-              try {
-                const response = await fetch('/api/insertModel', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify(modelData)
-                });
+            //   try {
+            //     const response = await fetch('/api/insertModel', {
+            //       method: 'POST',
+            //       headers: {
+            //         'Content-Type': 'application/json'
+            //       },
+            //       body: JSON.stringify(modelData)
+            //     });
           
-                if (response.ok) {
-                  const result = await response.json();
-                  console.log('Model inserted:', result);
+            //     if (response.ok) {
+            //       const result = await response.json();
+            //       console.log('Model inserted:', result);
 
-                  if (ifUseExistingSemanticSearch === 'No' || (llmGuardrail === 'Yes' && ifUseExistingGuardrail === 'No')) {
-                    // if training is going on, don't redirect
-                  } else {
-                    window.open(link, '_blank');
-                  }
-                } else {
-                  const error = await response.json();
-                  console.error('Failed to insert model:', error);
-                }
-              } catch (error) {
-                console.error('Error inserting model:', error);
-              }
-            }}
+            //       if (ifUseExistingSemanticSearch === 'No' || (llmGuardrail === 'Yes' && ifUseExistingGuardrail === 'No')) {
+            //         // if training is going on, don't redirect
+            //       } else {
+            //         window.open(link, '_blank');
+            //       }
+            //     } else {
+            //       const error = await response.json();
+            //       console.error('Failed to insert model:', error);
+            //     }
+            //   } catch (error) {
+            //     console.error('Error inserting model:', error);
+            //   }
+            // }}
           >
             {`${ifUseExistingSemanticSearch === 'No' || (llmGuardrail === 'Yes' && ifUseExistingGuardrail === 'No') ? 'Create' : 'Create and Deploy'}`}
           </button>

@@ -2,7 +2,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { File, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ModelsTable } from './models-table';
-import { getModels } from '@/lib/db';
 import CreateModelButton from '@/components/ui/create-model-button';
 
 export default async function ModelsPage({
@@ -12,14 +11,6 @@ export default async function ModelsPage({
 }) {
   const search = searchParams.q ?? '';
   const offset = searchParams.offset ?? 0;
-  const { models, newOffset, totalModels } = await getModels(
-    search,
-    Number(offset)
-  );
-
-  console.log('models', models)
-  console.log('newOffset', newOffset)
-  console.log('totalModels', totalModels)
 
   return (
     <Tabs defaultValue="all">
@@ -43,11 +34,7 @@ export default async function ModelsPage({
         </div>
       </div>
       <TabsContent value="all">
-        <ModelsTable
-          models={models}
-          offset={newOffset ?? 0}
-          totalModels={totalModels}
-        />
+        <ModelsTable/>
       </TabsContent>
     </Tabs>
   );

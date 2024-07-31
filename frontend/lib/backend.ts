@@ -36,7 +36,14 @@ export async function fetchPublicModels(name: string) {
     return response.json();
 }
 
-export async function fetchPendingModel() {
+// Define a type for the pending model data structure
+type PendingModel = {
+  model_name: string;
+  status: string;
+  username: string;
+};
+
+export async function fetchPendingModels(): Promise<PendingModel> {
   // Retrieve the access token from local storage
   const accessToken = getAccessToken()
 

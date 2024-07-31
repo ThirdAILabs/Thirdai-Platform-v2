@@ -16,29 +16,15 @@ import { SelectModel } from '@/lib/db';
 import { deleteModel } from './actions';
 import { deployModel, getDeployStatus } from '@/lib/backend';
 
-interface DeploymentData {
-  deployment_id: string;
-  deployment_name: string;
-  model_identifier: string;
-  status: string;
-}
-
-interface DeploymentResponse {
-  data: DeploymentData;
-  message: string;
-  status: string;
-}
-
-
 export function Model({ model }: { model: SelectModel }) {
   const [isDeployed, setIsDeployed] = useState<boolean>(false);
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
 
   useEffect(() => {
     const username = 'peter'; // Retrieve the username dynamically if needed
-    const modelIdentifier = `${username}/${model.name}`;
+    const modelIdentifier = `${username}/${model.model_name}`;
 
-    const deployment_identifier = `${modelIdentifier}:peter/${model.name}`;
+    const deployment_identifier = `${modelIdentifier}:peter/${model.model_name}`;
     getDeployStatus({ deployment_identifier })
       .then((response) => {
         console.log('Deployment status response:', response);
@@ -67,11 +53,11 @@ export function Model({ model }: { model: SelectModel }) {
           alt="Model image"
           className="aspect-square rounded-md object-cover"
           height="64"
-          src={model.imageUrl}
+          src={'/thirdai-small.png'}
           width="64"
         />
       </TableCell>
-      <TableCell className="font-medium">{model.name}</TableCell>
+      <TableCell className="font-medium">{model.model_name}</TableCell>
       <TableCell>
         <Badge variant="outline" className="capitalize">
           {
@@ -79,16 +65,24 @@ export function Model({ model }: { model: SelectModel }) {
           ?
           'Deployed'
           :
-          model.status
+          'Ready to Deploy'
           }
           
         </Badge>
       </TableCell>
-      <TableCell className="hidden md:table-cell">{model.modelType}</TableCell>
+      <TableCell className="hidden md:table-cell">{model.type}</TableCell>
       <TableCell className="hidden md:table-cell">
-        {model.trainedAt.toLocaleDateString()}
+        {
+          model.publish_date
+          ? new Date(model.publish_date).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })
+          : 'N/A'
+      }
       </TableCell>
-      <TableCell className="hidden md:table-cell">{model.description}</TableCell>
+      <TableCell className="hidden md:table-cell">'N\A'</TableCell>
       <TableCell className="hidden md:table-cell">
         <button type="button" 
                 onClick={()=>{
@@ -107,9 +101,9 @@ export function Model({ model }: { model: SelectModel }) {
         <button type="button" 
                 onClick={()=>{
                   const username = 'peter'; // Retrieve the username dynamically if needed
-                  const modelIdentifier = `${username}/${model.name}`;
+                  const modelIdentifier = `${username}/${model.model_name}`;
 
-                  deployModel({ deployment_name: model.name, model_identifier: modelIdentifier })
+                  deployModel({ deployment_name: model.model_name, model_identifier: modelIdentifier })
                     .then((response) => {
                       // const baseUrl = `${window.location.protocol}//${window.location.host}`;
                       // const newUrl = `${baseUrl}/search?id=${deploymentId}`;

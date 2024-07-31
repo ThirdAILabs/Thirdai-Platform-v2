@@ -3,7 +3,7 @@ import logging_loki
 logging_loki.emitter.LokiEmitter.level_tag = "level"
 
 handler = logging_loki.LokiHandler(
-   url="http://127.0.0.1:27401/loki/api/v1/push",
+   url="http://192.168.1.8/loki/api/v1/push",
    version="1",
 )
 logger = logging.getLogger("my-logger")

@@ -4,7 +4,7 @@ datasources:
   - name: Loki
     type: loki
     access: proxy
-    url: http://loki:3100
+    url: http://192.168.1.8 # this should be the private ip of the node running traefik
     version: 1
     editable: false
     isDefault: true

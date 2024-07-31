@@ -20,6 +20,10 @@ job "grafana" {
         GF_AUTH_BASIC_ENABLED = "false"
         GF_LOG_LEVEL = "DEBUG"
         GF_LOG_MODE = "console"
+        GF_AUTH_ANONYMOUS_ORG_ROLE = "Admin"
+        GF_AUTH_DISABLE_LOGIN_FORM = "true"
+        GF_SERVER_ROOT_URL = "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+        GF_SERVER_SERVE_FROM_SUB_PATH = "true"
       }
 
       config {
@@ -28,7 +32,7 @@ job "grafana" {
         ports = ["grafana_port"]
 
         volumes = [
-          "/Users/kartiksarangmath/Documents/thirdai/ThirdAI-Platform/logging/grafana_datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml"
+          "/home/kartik/ThirdAI-Platform/logging/grafana_datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml"
         ]
 
       }
@@ -39,9 +43,14 @@ job "grafana" {
       }
 
       service {
-        name = "graphana"
+        name = "grafana"
         port = "grafana_port"
         provider = "nomad"
+        tags = [
+          "traefik.enable=true",
+          "traefik.http.routers.grafana_port.rule=PathPrefix(`/grafana`)",
+          "traefik.http.routers.grafana_port.priority=10"
+        ]
       }
     }
 

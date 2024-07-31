@@ -20,11 +20,12 @@ job "loki" {
 
         args = [
           "-config.file",
-          "/etc/loki/loki.yaml",  // Adjusted to reflect the mounted path
+          "/etc/loki/loki.yaml",  // Adjusted to reflect the mounted path, you need to ensure that the user running this docker container has access to write to this directory
         ]
 
         volumes = [
-          "/Users/kartiksarangmath/Documents/thirdai/ThirdAI-Platform/logging/loki.yaml:/etc/loki/loki.yaml"
+          "/home/kartik/ThirdAI-Platform/logging/loki.yaml:/etc/loki/loki.yaml",
+          "/home/kartik/ThirdAI-Platform/logging/loki-data:/loki-data"  # make sure to create the directory "loki-data"
         ]
 
         ports = ["loki_port"]
@@ -39,6 +40,11 @@ job "loki" {
         name = "loki"
         port = "loki_port"
         provider = "nomad"
+        tags = [
+          "traefik.enable=true",
+          "traefik.http.routers.modelbazaar-http.rule=PathPrefix(`/loki`)",
+          "traefik.http.routers.modelbazaar-http.priority=10"
+        ]
       }
     }
   }

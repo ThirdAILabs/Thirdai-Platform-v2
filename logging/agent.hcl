@@ -1,46 +1,29 @@
-# nomad-agent.hcl
-
-# Specify the bind address for the agent
 bind_addr = "0.0.0.0"
+data_dir  = "/opt/nomad/data"
 
-# Configure the HTTP interface
-addresses {
-  http = "0.0.0.0"
+advertise {
+  http = "192.168.1.8"
+  rpc  = "192.168.1.8"
+  serf = "192.168.1.8"
 }
 
-# Set the HTTP port to 4777
-ports {
-  http = 4777
-  rpc  = 4778
-  serf = 4779
-}
-# Enable the client mode
 client {
-  enabled = true
-  host_volume "loki-data" {
-    path      = "/home/pratyush/ThirdAI-Platform/logging/docker-promtail-loki/loki-data"
-    read_only = false
+  enabled           = true
 }
 
-host_volume "grafana-data" {
-    path      = "/home/pratyush/ThirdAI-Platform/logging/docker-promtail-loki/grafana-data"
-    read_only = false
-}
-}
-
-# Enable the server mode (for dev setup, you might want both client and server)
 server {
-  enabled = true
-  bootstrap_expect = 1
+  enabled              = true
 }
 
-# Set the data directory
-data_dir = "/home/pratyush/ThirdAI-Platform/logging/docker-promtail-loki/data"
+plugin "docker" {
+  config {
+    volumes {
+      enabled = true
+    }
+  }
+}
 
-# Adjust log level if needed
-log_level = "INFO"
-
-# Enable the UI
-ui {
-  enabled = true
+limits {
+  http_max_conns_per_client = 0
+  rpc_max_conns_per_client = 0
 }

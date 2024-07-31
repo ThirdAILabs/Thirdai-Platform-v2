@@ -39,7 +39,7 @@ After building the documentation, you can view the generated HTML files:
 ### Adding a New `openapi.json` File
 
 1. **Generate the `openapi.json` file:**
-   - Run your FastAPI application and navigate to `http://127.0.0.1:8000/openapi.json` to download the `openapi.json` file.
+   - Run your FastAPI application and navigate to `{your_endpoint}/openapi.json` to download the `openapi.json` file.
 
 2. **Place the `openapi.json` file:**
    - Save the `openapi.json` file in the root directory of your documentation project. Look for already existing files in `docs/`
@@ -67,7 +67,7 @@ After building the documentation, you can view the generated HTML files:
 ### Modifying an Existing `openapi.json` File
 
 1. **Generate the updated `openapi.json` file:**
-   - Run your FastAPI application and navigate to `http://127.0.0.1:8000/openapi.json` to download the updated `openapi.json` file.
+   - Run your FastAPI application and navigate to `{your_endpoint}/openapi.json` to download the updated `openapi.json` file.
 
 2. **Replace the old `openapi.json` file:**
    - Save the updated `openapi.json` file, replacing the old file in the root directory of your documentation project.

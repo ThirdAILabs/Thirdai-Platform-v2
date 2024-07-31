@@ -32,8 +32,8 @@ from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
-import boto3
-from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+from backend.file_handler import S3StorageHandler
+import subprocess
 
 deploy_router = APIRouter()
 
@@ -559,6 +559,8 @@ def get_s3_client():
 
 
 def create_bucket_if_not_exists(s3_client, bucket_name):
+    import boto3
+
     try:
         s3_client.head_bucket(Bucket=bucket_name)
         print(f"Bucket {bucket_name} already exists.")
@@ -579,29 +581,42 @@ def create_bucket_if_not_exists(s3_client, bucket_name):
 
 
 def upload_files_to_s3(s3_client, bucket_name, local_dir):
+    base_dir_name = os.path.basename(os.path.normpath(local_dir))
+
     for root, _, files in os.walk(local_dir):
         for file in files:
             local_path = os.path.join(root, file)
             relative_path = os.path.relpath(local_path, local_dir)
+            s3_path = os.path.join(base_dir_name, relative_path)
+
             try:
-                s3_client.upload_file(local_path, bucket_name, relative_path)
-                print(f"Uploaded {local_path} to {bucket_name}/{relative_path}.")
+                s3_client.upload_file(local_path, bucket_name, s3_path)
+                print(f"Uploaded {local_path} to {bucket_name}/{s3_path}.")
             except Exception as e:
                 print(f"Failed to upload {local_path}. Error: {str(e)}")
 
 
-# TODO(pratik): Add tests using moto3
+def upload_file_to_s3(s3_client, file_path, bucket_name, object_name):
+    try:
+        s3_client.upload_file(file_path, bucket_name, object_name)
+        print(f"Uploaded {file_path} to {bucket_name}/{object_name}.")
+    except Exception as e:
+        print(f"Failed to upload {file_path}. Error: {str(e)}")
+
+
+def dump_postgres_db_to_file(db_uri, dump_file_path):
+    try:
+        subprocess.run(["pg_dump", db_uri, "-f", dump_file_path], check=True)
+        print(f"Database successfully dumped to {dump_file_path}")
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to dump the database: {str(e)}",
+        )
+
+
 @deploy_router.post("/backup-to-s3")
-def backup_to_s3(session: Session = Depends(get_session)):
-    """
-    This file backups the local NFS directory to a remote directory, right now, it just is aws.
-
-    Args:
-        session (Session, optional): _description_. Defaults to Depends(get_session).
-
-    Raises:
-        HTTPException: Throw when SHARE_DIR doesnnot exist.
-    """
+def backup_to_s3():
     local_dir = os.getenv("SHARE_DIR")
     if not local_dir:
         raise HTTPException(
@@ -610,8 +625,15 @@ def backup_to_s3(session: Session = Depends(get_session)):
         )
 
     bucket_name = "thirdai-recovery"
-    s3_client = get_s3_client()
+    s3_client = S3StorageHandler.create_s3_client()
     create_bucket_if_not_exists(s3_client, bucket_name)
+
+    db_uri = os.getenv("DATABASE_URI")
+    dump_file_path = os.path.join(local_dir, "db_backup.sql")
+    dump_postgres_db_to_file(db_uri, dump_file_path)
+
+    upload_file_to_s3(s3_client, dump_file_path, bucket_name, "db_backup.sql")
+
     upload_files_to_s3(s3_client, bucket_name, local_dir)
 
-    return {"message": "Backup to S3 completed successfully."}
+    return {"message": "Backup to S3 completed successfully, including the database."}

@@ -209,8 +209,6 @@ class NDBFunctions:
         base_model_identifier = base_model.model_identifier if base_model else None
 
         type = "single" if not sharded else "multiple"
-        print(config.unsupervised_paths)
-        print(file_num)
         return flow.train(
             model_name=f"{run_name}_{config.name}_{type}_unsupervised",
             unsupervised_docs=[

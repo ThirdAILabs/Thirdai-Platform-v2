@@ -220,7 +220,7 @@ class DAGExecutor:
                         future.result()
                     except Exception as exc:
                         logging.error(
-                            f"Task '{task_name}' in DAG '{dag_name}' generated an exception: {exc}",
+                            f"Task '{task_name}' in DAG '{dag_name}' generated an exception: {exc} for config {config_name}",
                             exc_info=True,
                         )
                     else:

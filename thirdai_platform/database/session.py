@@ -7,12 +7,7 @@ from database.schema import SQLDeclarativeBase as Base
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
-
-
-def hash_password(password: str):
-    byte_password = password.encode("utf-8")
-    salt = bcrypt.gensalt()
-    return bcrypt.hashpw(byte_password, salt).decode()
+from thirdai_platform.backend.routers.utils import hash_password
 
 
 db_uri = os.getenv("DATABASE_URI")
@@ -102,7 +97,7 @@ class AdminAddition:
                 session.refresh(user)
             else:
                 user.role = schema.Role.global_admin
-                user.team_id = None
+                user.team_id = global_admin_team.id
                 session.commit()
 
 

@@ -31,20 +31,31 @@ interface DeploymentResponse {
 
 
 export function Model({ model }: { model: SelectModel }) {
+  const [isDeployed, setIsDeployed] = useState<boolean>(false);
+  const [deploymentId, setDeploymentId] = useState<string | null>(null);
 
   useEffect(() => {
     const username = 'peter'; // Retrieve the username dynamically if needed
     const modelIdentifier = `${username}/${model.name}`;
-    console.log('model.name', model.name)
-    console.log('modelIdentifier', modelIdentifier)
 
     const deployment_identifier = `${modelIdentifier}:peter/${model.name}`;
     getDeployStatus({ deployment_identifier })
       .then((response) => {
         console.log('Deployment status response:', response);
+        if (response.data.deployment_id) {
+          setIsDeployed(true);
+          setDeploymentId(response.data.deployment_id);
+        } else {
+          setIsDeployed(false);
+        }
       })
       .catch((error) => {
-        console.error('Error fetching deployment status:', error);
+        if (error.response && error.response.status === 400) {
+          console.log('Model is not deployed.');
+          setIsDeployed(false);
+        } else {
+          console.error('Error fetching deployment status:', error);
+        }
       });
 
   }, []);
@@ -63,7 +74,14 @@ export function Model({ model }: { model: SelectModel }) {
       <TableCell className="font-medium">{model.name}</TableCell>
       <TableCell>
         <Badge variant="outline" className="capitalize">
-          {model.status}
+          {
+          isDeployed
+          ?
+          'Deployed'
+          :
+          model.status
+          }
+          
         </Badge>
       </TableCell>
       <TableCell className="hidden md:table-cell">{model.modelType}</TableCell>
@@ -74,16 +92,28 @@ export function Model({ model }: { model: SelectModel }) {
       <TableCell className="hidden md:table-cell">
         <button type="button" 
                 onClick={()=>{
+                  const baseUrl = 'http://localhost:3000';
+                  const newUrl = `${baseUrl}/search?id=${deploymentId}`;
+                  window.open(newUrl, '_blank');
+                }}
+                className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+          <svg className="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
+          <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M1 5h12m0 0L9 1m4 4L9 9"/>
+          </svg>
+          <span className="sr-only">Go to endpoint</span>
+        </button>
+      </TableCell>
+      <TableCell className="hidden md:table-cell">
+        <button type="button" 
+                onClick={()=>{
                   const username = 'peter'; // Retrieve the username dynamically if needed
                   const modelIdentifier = `${username}/${model.name}`;
-                  console.log('model.name', model.name)
-                  console.log('modelIdentifier', modelIdentifier)
 
                   deployModel({ deployment_name: model.name, model_identifier: modelIdentifier })
                     .then((response) => {
-                      const baseUrl = `${window.location.protocol}//${window.location.host}`;
-                      const newUrl = `${baseUrl}/search?id=${response.data.deployment_id}`;
-                      window.open(newUrl, '_blank');
+                      // const baseUrl = `${window.location.protocol}//${window.location.host}`;
+                      // const newUrl = `${baseUrl}/search?id=${deploymentId}`;
+                      // window.open(newUrl, '_blank');
                     })
                     .catch((error) => {
                       console.error('Error deploying model:', error);
@@ -94,7 +124,7 @@ export function Model({ model }: { model: SelectModel }) {
           <svg className="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
           <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M1 5h12m0 0L9 1m4 4L9 9"/>
           </svg>
-          <span className="sr-only">Go to endpoint</span>
+          <span className="sr-only">Deploy</span>
         </button>
       </TableCell>
       <TableCell>

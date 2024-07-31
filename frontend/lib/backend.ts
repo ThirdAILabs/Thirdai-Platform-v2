@@ -54,8 +54,8 @@ export async function fetchPendingModel() {
 
 interface StatusResponse {
   data: {
+    deployment_id: string;
     status: string;
-    message: string;
   };
 }
 

@@ -6,8 +6,9 @@ This project uses Sphinx to generate documentation from OpenAPI JSON files and o
 
 To generate the current documentation, follow these steps:
 
-1. Open a terminal in the root directory of the project and go to `docs/` directory
-2. Run the following command to build the documentation:
+1. Install the requirements present in `requirements.txt`.
+2. Open a terminal in the root directory of the project and go to `docs/` directory
+3. Run the following command to build the documentation:
 
    ```sh
    make html SPHINXOPTS="-v"

@@ -20,12 +20,12 @@ job "loki" {
 
         args = [
           "-config.file",
-          "/etc/loki/loki.yaml",  // Adjusted to reflect the mounted path, you need to ensure that the user running this docker container has access to write to this directory
+          "/etc/loki/loki.yaml",
         ]
 
         volumes = [
           "/home/kartik/ThirdAI-Platform/logging/loki.yaml:/etc/loki/loki.yaml",
-          "/home/kartik/ThirdAI-Platform/logging/loki-data:/loki-data"  # make sure to create the directory "loki-data"
+          "/home/kartik/ThirdAI-Platform/logging/loki_data:/loki_data"  # ensure that this directory has permissions for this docker container user to do everything
         ]
 
         ports = ["loki_port"]

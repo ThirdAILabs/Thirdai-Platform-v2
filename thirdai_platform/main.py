@@ -12,9 +12,8 @@ from backend.routers.team import team_router as team
 from backend.routers.train import train_router as train
 from backend.routers.user import user_router as user
 from backend.routers.vault import vault_router as vault
-from fastapi.middleware.cors import CORSMiddleware
-
 from backend.utils import restart_generate_job
+from fastapi.middleware.cors import CORSMiddleware
 
 app = fastapi.FastAPI()
 

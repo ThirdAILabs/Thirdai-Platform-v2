@@ -16,6 +16,7 @@ from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Header, Query, UploadFile, status, HTTPException
 from backend.auth_dependencies import team_admin_or_global_admin
+from backend.utils import get_high_level_model_info, response
 from database import schema
 from database.session import get_session
 from fastapi.encoders import jsonable_encoder
@@ -24,8 +25,6 @@ from pydantic import BaseModel
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
 from storage import interface, local
-
-from backend.utils import get_high_level_model_info, response
 
 model_router = APIRouter()
 

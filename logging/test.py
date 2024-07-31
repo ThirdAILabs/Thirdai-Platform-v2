@@ -11,20 +11,20 @@ logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
 logger.error(
-   "logging: NDBUDTModel1 Model1-initiated",
+   "logging: Model1-initiated",
   
    extra={"tags": {"service": "my-service"}},
 )
 logger.warning(
-   "logging: NDBUDTModel1-trained",
+   "logging: Model1-trained",
    extra={"tags": {"service": "my-service"}},
 )
 
 logger.info(
-   "logging: NDBUDTModel1-trained",
+   "logging: Model2-trained",
    extra={"tags": {"service": "my-service"}},
 )
 logger.debug(
-   "logging: NDBUDTModel1-deployed",
+   "logging: Model2-deployed",
    extra={"tags": {"service": "my-service"}},
 )

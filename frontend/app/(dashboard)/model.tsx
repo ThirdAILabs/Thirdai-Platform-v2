@@ -14,21 +14,25 @@ import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { SelectModel } from '@/lib/db';
 import { deleteModel } from './actions';
-import { deployModel, getDeployStatus } from '@/lib/backend';
+import { deployModel, getDeployStatus, stopDeploy } from '@/lib/backend';
 
 export function Model({ model }: { model: SelectModel }) {
   const [isDeployed, setIsDeployed] = useState<boolean>(false);
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
+  const [deploymentIdentifier, setDeploymentIdentifier] = useState<string | null>(null);
 
   useEffect(() => {
-    const username = 'peter'; // Retrieve the username dynamically if needed
+    const username = 'peter'; // TODO: Retrieve the username dynamically if needed
     const modelIdentifier = `${username}/${model.model_name}`;
+    setDeploymentIdentifier(`${modelIdentifier}:${username}/${model.model_name}`)
+  }, [])
 
-    const deployment_identifier = `${modelIdentifier}:peter/${model.model_name}`;
-    getDeployStatus({ deployment_identifier })
+  useEffect(() => {
+    if (deploymentIdentifier) {
+      getDeployStatus({ deployment_identifier: deploymentIdentifier })
       .then((response) => {
         console.log('Deployment status response:', response);
-        if (response.data.deployment_id) {
+        if (response.data.deployment_id && response.data.status === 'complete' ) {
           setIsDeployed(true);
           setDeploymentId(response.data.deployment_id);
         } else {
@@ -43,8 +47,8 @@ export function Model({ model }: { model: SelectModel }) {
           console.error('Error fetching deployment status:', error);
         }
       });
-
-  }, []);
+    }
+  }, [deploymentIdentifier]);
 
   return (
     <TableRow>
@@ -132,11 +136,19 @@ export function Model({ model }: { model: SelectModel }) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem>Edit</DropdownMenuItem>
-            <DropdownMenuItem>
-              <form action={deleteModel}>
-                <button type="submit">Delete</button>
-              </form>
-            </DropdownMenuItem>
+            {
+              isDeployed && deploymentIdentifier
+              &&
+              <DropdownMenuItem>
+                <form action={deleteModel}>
+                  <button type="button"
+                  onClick={()=>{
+                    stopDeploy( {deployment_identifier: deploymentIdentifier} )
+                  }}
+                  >Undeploy</button>
+                </form>
+              </DropdownMenuItem>
+            }
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

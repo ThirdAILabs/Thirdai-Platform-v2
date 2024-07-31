@@ -105,7 +105,7 @@ class TokenClassificationGenerateArgs(BaseModel):
 
 
 @data_router.post("/generate-token-data")
-def generate_text_data(
+def generate_token_data(
     task_prompt: str,
     form: str = Form(default="{}"),
     session: Session = Depends(get_session),

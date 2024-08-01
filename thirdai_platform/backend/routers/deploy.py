@@ -559,29 +559,54 @@ def get_s3_client():
 
 
 def create_bucket_if_not_exists(s3_client, bucket_name):
+    from botocore.exceptions import ClientError
     import boto3
 
     try:
         s3_client.head_bucket(Bucket=bucket_name)
         print(f"Bucket {bucket_name} already exists.")
-    except s3_client.exceptions.NoSuchBucket:
-        try:
-            s3_client.create_bucket(
-                Bucket=bucket_name,
-                CreateBucketConfiguration={
-                    "LocationConstraint": boto3.session.Session().region_name
-                },
-            )
-            print(f"Bucket {bucket_name} created successfully.")
-        except Exception as e:
+    except ClientError as e:
+        error_code = int(e.response["Error"]["Code"])
+        if error_code == 404:
+            try:
+                s3_client.create_bucket(
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration={
+                        "LocationConstraint": (
+                            boto3.session.Session().region_name
+                            if boto3.session.Session().region_name
+                            else "us-east-1"
+                        )
+                    },
+                )
+                print(f"Bucket {bucket_name} created successfully.")
+            except ClientError as e:
+                if e.response["Error"]["Code"] == "BucketAlreadyExists":
+                    print(f"Bucket {bucket_name} already exists globally.")
+                elif e.response["Error"]["Code"] == "AccessDenied":
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Access denied to create bucket {bucket_name}. Error: {str(e)}",
+                    )
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail=f"Failed to create bucket {bucket_name}. Error: {str(e)}",
+                    )
+        else:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create bucket {bucket_name}. Error: {str(e)}",
+                detail=f"Error checking bucket {bucket_name}. Error: {str(e)}",
             )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to access bucket {bucket_name}. Error: {str(e)}",
+        )
 
 
 def upload_files_to_s3(s3_client, bucket_name, local_dir):
-    base_dir_name = os.path.basename(os.path.normpath(local_dir))
+    base_dir_name = "model_and_data"
 
     for root, _, files in os.walk(local_dir):
         for file in files:
@@ -624,8 +649,9 @@ def backup_to_s3():
             detail="SHARE_DIR environment variable is not set.",
         )
 
-    bucket_name = "thirdai-recovery"
+    bucket_name = os.getenv("RECOVERY_BUCKET_NAME", "thirdai-enterprise-recovery")
     s3_client = S3StorageHandler.create_s3_client()
+
     create_bucket_if_not_exists(s3_client, bucket_name)
 
     db_uri = os.getenv("DATABASE_URI")

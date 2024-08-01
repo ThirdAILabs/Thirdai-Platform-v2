@@ -18,3 +18,4 @@ documentation for details.
    platform_backend
    ndb_deployment_backend
    udt_deployment_backend
+   generate_backend

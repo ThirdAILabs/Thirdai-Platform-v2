@@ -14,7 +14,7 @@ import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { SelectModel } from '@/lib/db';
 import { deleteModel } from './actions';
-import { deployModel, getDeployStatus, stopDeploy } from '@/lib/backend';
+import { deployModel, getDeployStatus, stopDeploy, getAccessToken } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
 export function Model({ model }: { model: SelectModel }) {
@@ -65,12 +65,13 @@ export function Model({ model }: { model: SelectModel }) {
 
   function goToEndpoint() {
     switch (model.type) {
-      case "semantic search model":
-        const baseUrl = 'http://localhost:3000';
-        const newUrl = `${baseUrl}/search?id=${deploymentId}`;
+      case "ndb":
+        const baseUrl = 'http://localhost:80';
+        const accessToken = getAccessToken();
+        const newUrl = `${baseUrl}/search?id=${deploymentId}&token=${accessToken}`;
         window.open(newUrl, '_blank');
         break;
-      case "ner model":
+      case "udt":
         router.push(`/token-classification/${deploymentId}`);
       default:
         throw new Error(`Invalid model type ${model.type}`);

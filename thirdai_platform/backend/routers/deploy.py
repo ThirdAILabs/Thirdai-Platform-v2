@@ -156,7 +156,7 @@ def deploy_model(
     autoscaling_enabled: bool = False,
     autoscaler_max_count: int = 1,
     genai_key: Optional[str] = None,
-    use_llm_guardrail: Optional[bool] = None,
+    use_llm_guardrail: bool = False,
     token_model_identifier: Optional[str] = None,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),

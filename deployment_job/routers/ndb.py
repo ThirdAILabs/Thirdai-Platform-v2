@@ -486,7 +486,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
     ):
         token_model = get_token_model()
 
-        results = token_model.predict(query=query)
+        results = token_model.predict(query=query, top_k=1)
 
         return response(
             status_code=status.HTTP_200_OK,

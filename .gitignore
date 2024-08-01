@@ -163,3 +163,4 @@ cython_debug/
 
 shared_dir/
 data/
+*.bolt

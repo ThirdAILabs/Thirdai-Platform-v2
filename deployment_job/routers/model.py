@@ -3,8 +3,10 @@ Main module to initialize and retrieve the appropriate model instance.
 """
 
 import os
+from pathlib import Path
 
 import thirdai
+from file_handler import S3FileHandler
 from models.classification_models import (
     TextClassificationModel,
     TokenClassificationModel,
@@ -74,9 +76,17 @@ class TokenModelManager:
                     model_id=ndb_token_variables.token_model_id
                 )
             else:
-                # TODO(YASH): Use default model for llm guardrail.
-                raise ValueError(
-                    "Token model ID is not provided, and no default model is set."
+                s3_handler = S3FileHandler()
+                current_file_path = Path(__file__).resolve()
+                parent_directory = current_file_path.parent.parent
+                model_file_path = parent_directory / "ner_pretrained.bolt"
+                if not model_file_path.exists():
+                    s3_handler.download_file(
+                        s3_url="s3://thirdai-corp-public/ner_pretrained.bolt",
+                        file_path=str(model_file_path),
+                    )
+                cls._token_model_instance = TokenClassificationModel(
+                    model_path=str(model_file_path)
                 )
         return cls._token_model_instance
 

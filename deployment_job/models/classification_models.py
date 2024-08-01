@@ -7,9 +7,14 @@ from thirdai import bolt
 
 
 class ClassificationModel(Model):
-    def __init__(self, model_id: Optional[str] = None):
+    def __init__(
+        self, model_id: Optional[str] = None, model_path: Optional[str] = None
+    ):
         super().__init__()
-        self.model_path = self.get_udt_path(model_id)
+        if model_path:
+            self.model_path = model_path
+        else:
+            self.model_path = self.get_udt_path(model_id)
         self.model: bolt.UniversalDeepTransformer = self.load_model()
 
     def get_udt_path(self, model_id: Optional[str] = None) -> str:
@@ -25,8 +30,10 @@ class ClassificationModel(Model):
 
 
 class TextClassificationModel(ClassificationModel):
-    def __init__(self, model_id: Optional[str] = None):
-        super().__init__(model_id)
+    def __init__(
+        self, model_id: Optional[str] = None, model_path: Optional[str] = None
+    ):
+        super().__init__(model_id, model_path)
 
     def predict(self, **kwargs):
         query = kwargs["query"]
@@ -41,8 +48,10 @@ class TextClassificationModel(ClassificationModel):
 
 
 class TokenClassificationModel(ClassificationModel):
-    def __init__(self, model_id: Optional[str] = None):
-        super().__init__(model_id)
+    def __init__(
+        self, model_id: Optional[str] = None, model_path: Optional[str] = None
+    ):
+        super().__init__(model_id, model_path)
 
     def predict(self, **kwargs):
         query = kwargs["query"]

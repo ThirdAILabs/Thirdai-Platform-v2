@@ -633,11 +633,9 @@ export class GlobalModelService implements ModelService {
 export class UserModelService extends GlobalModelService {
     authToken: string;
 
-    constructor(url: string, sessionId: string) {
+    constructor(url: string, sessionId: string, authToken: string) {
         super(url, sessionId);
-        this.authToken = window.localStorage.getItem(
-            "thirdai_model_bazaar_access_token",
-        );
+        this.authToken = authToken;
     }
 
     authHeader(): Record<string, string> {

@@ -14,7 +14,7 @@ import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { SelectModel } from '@/lib/db';
 import { deleteModel } from './actions';
-import { deployModel, getDeployStatus, stopDeploy } from '@/lib/backend';
+import { deployModel, getDeployStatus, stopDeploy, getAccessToken } from '@/lib/backend';
 
 export function Model({ model }: { model: SelectModel }) {
   const [deployStatus, setDeployStatus] = useState<string>('');
@@ -96,7 +96,8 @@ export function Model({ model }: { model: SelectModel }) {
         <button type="button" 
                 onClick={()=>{
                   const baseUrl = 'http://localhost:80';
-                  const newUrl = `${baseUrl}/search?id=${deploymentId}`;
+                  const accessToken = getAccessToken();
+                  const newUrl = `${baseUrl}/search?id=${deploymentId}&token=${accessToken}`;
                   window.open(newUrl, '_blank');
                 }}
                 className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">

@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-function getAccessToken(): string {
+export function getAccessToken(): string {
   const accessToken = localStorage.getItem('accessToken');
   if (!accessToken) {
     throw new Error('Access token is not available');

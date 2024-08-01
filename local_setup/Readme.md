@@ -32,7 +32,9 @@ Without this process, it is cumbersome to test out platform changes. We would ha
      bash launch_traefik.sh
      ```
 4. **Set Up PostgreSQL:**
-   - Install PostgreSQL([https://www.postgresql.org/download/](https://www.postgresql.org/download/)) if not already installed, then configure it to allow any inbound connections and run the following SQL commands:
+   - Install PostgreSQL([https://www.postgresql.org/download/](https://www.postgresql.org/download/)) if not already installed. On mac, you can just run `brew install postgresql`.
+   - Start the service. On mac, you can run `brew services start postgresql`.
+   - Run `psql postgresql` inside the command line, then run the following SQL commands to configure the service:
      ```
      CREATE ROLE postgres WITH LOGIN SUPERUSER;
      ALTER ROLE postgres WITH PASSWORD 'yourpassword';
@@ -69,7 +71,7 @@ Without this process, it is cumbersome to test out platform changes. We would ha
       - Change `GENAI_KEY` to your Generative AI provider key, e.g. OpenAI key.
 
 
-11. If you are running this dev environment on a Mac, navigate to the `model_bazaar/router/nomad_jobs` directory and make sure any hcl or hcl.j2 file doesn't have a line that is in the form of `cores = x`. If those lines exist, change the lines to be `cpu = x * 2500` (put the actual value of the multiplication, not x * 2500). Doing this will fix any issues related to resource allocation of Nomad jobs on MacOS, because running Docker on MacOS does funky things when trying to reserve CPUs.
+11. If you are running this dev environment on a Mac, navigate to the `thirdai_platform/backend/nomad_jobs` directory and make sure any hcl or hcl.j2 file doesn't have a line that is in the form of `cores = x`. If those lines exist, change the lines to be `cpu = x * 2500` (put the actual value of the multiplication, not x * 2500). Doing this will fix any issues related to resource allocation of Nomad jobs on MacOS, because running Docker on MacOS does funky things when trying to reserve CPUs.
 
 12. **Launch Backend:**
     - Start the backend service using Uvicorn:

@@ -166,6 +166,10 @@ class DAGExecutor:
         logging.info(
             f"Executing task '{task_name}' in DAG '{dag_name}' with config '{config_name}'"
         )
+        if not config_name:
+            config = self.dag_configs.get(dag_name)[0]
+            config_name = config.name
+            self.variables[dag_name][config_name]["config"] = config
         task_func = self.get_task_func(dag_name, task_name)
         task_params = self.get_task_params(dag_name, task_name)
         if task_func:

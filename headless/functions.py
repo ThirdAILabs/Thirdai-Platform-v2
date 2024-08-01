@@ -204,6 +204,7 @@ class NDBFunctions:
         config: Config = inputs.get("config")
         base_model = inputs.get("base_model", None)
         file_num = inputs.get("file_num", 0)
+        test = inputs.get("test", False)
 
         base_model_identifier = base_model.model_identifier if base_model else None
 
@@ -217,6 +218,9 @@ class NDBFunctions:
             doc_type=config.doc_type,
             nfs_base_path=config.nfs_original_base_path,
             base_model_identifier=base_model_identifier,
+            test_doc=(
+                os.path.join(config.base_path, config.test_paths[0]) if test else None
+            ),
         )
 
     @staticmethod
@@ -227,6 +231,7 @@ class NDBFunctions:
         config: Config = inputs.get("config")
         base_model = inputs.get("base_model", None)
         file_num = inputs.get("file_num", 0)
+        test = inputs.get("test", False)
 
         base_model_identifier = base_model.model_identifier if base_model else None
 
@@ -246,6 +251,9 @@ class NDBFunctions:
             doc_type=config.doc_type,
             nfs_base_path=config.nfs_original_base_path,
             base_model_identifier=base_model_identifier,
+            test_doc=(
+                os.path.join(config.base_path, config.test_paths[0]) if test else None
+            ),
         )
 
     @staticmethod

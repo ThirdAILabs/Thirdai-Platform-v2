@@ -1,5 +1,12 @@
+import os
+import sys
 from abc import ABC
 from typing import Optional
+
+base_path = os.getenv("LOCAL_TEST_DIR")
+if not base_path:
+    print("Error: LOCAL_TEST_DIR environment variable is not set.")
+    sys.exit(1)
 
 
 class Config(ABC):
@@ -38,9 +45,7 @@ class Config(ABC):
 
     name: str = None
 
-    base_path: str = (
-        "/Users/yashwanthadunukota/neuraldb-enterprise-services/headless/data"
-    )
+    base_path: str = base_path
     doc_type: str = "local"
     nfs_original_base_path: str = "/opt/neuraldb_enterprise/"
     unsupervised_paths: list[str] = []
@@ -81,21 +86,23 @@ class Scifact(Config):
     name: str = "scifact"
 
     unsupervised_paths: list[str] = [
-        "scifact/unsupervised_1.csv",
-        "scifact/unsupervised_2.csv",
+        "scifact/unsupervised_part1.csv",
+        "scifact/unsupervised_part2.csv",
     ]
     supervised_paths: list[str] = [
-        "scifact/supervised_1.csv",
-        "scifact/supervised_2.csv",
+        "scifact/trn_supervised_part1.csv",
+        "scifact/trn_supervised_part2.csv",
     ]
-    test_paths: list[str] = ["scifact/test_1.csv", "scifact/test_2.csv"]
-    insert_paths: list[str] = ["scifact/insert.pdf"]
+    test_paths: list[str] = [
+        "scifact/tst_supervised.csv",
+    ]
+    insert_paths: list[str] = ["scifact/sample_nda.pdf"]
 
     strong_columns: list[str] = ["TITLE"]
     weak_columns: list[str] = ["TEXT"]
     reference_columns: list[str] = ["TITLE", "TEXT"]
-    id_column: str = "id"
-    query_column: str = "query"
+    id_column: str = "DOC_ID"
+    query_column: str = "QUERY"
     id_delimiter: str = ":"
 
 

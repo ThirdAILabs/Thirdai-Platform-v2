@@ -68,7 +68,11 @@ export function Model({ model }: { model: SelectModel }) {
       case "ndb":
         const baseUrl = 'http://localhost:80';
         const accessToken = getAccessToken();
-        const newUrl = `${baseUrl}/search?id=${deploymentId}&token=${accessToken}`;
+        let ifGenerationOn = false; // false if semantic search, true if RAG
+        let ifGuardRailOn = false; // enable based on actual config
+        let guardRailEndpoint = '...' // change based on actual config
+        // const newUrl = `${baseUrl}/search?id=${deploymentId}&token=${accessToken}`;
+        const newUrl = `${baseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
         window.open(newUrl, '_blank');
         break;
       case "udt":

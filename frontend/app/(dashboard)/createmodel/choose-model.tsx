@@ -22,19 +22,11 @@ export default function ChooseProblem() {
 
           response = await fetchPrivateModels('');
           const privateModels: SelectModel[] = response.data;
-          console.log('privateModels', privateModels)
-
-          // const mappedModels = privateModels.map(mapPrivateModelToSelectModel);
-          // console.log('mappedModels', mappedModels)
-          // setPrivateModels(mappedModels)
+          setPrivateModels(privateModels)
 
           response = await fetchPendingModels();
           const pendingModels = response.data; // Extract the data field
           console.log('pendingModels', pendingModels)
-
-          // const mappedPendingModels = pendingModels.map(mapPendingModelToSelectModel);
-          // console.log('mappedPendingModels', mappedPendingModels);
-          // setPendingModels(mappedPendingModels);
 
         } catch (err) {
           if (err instanceof Error) {

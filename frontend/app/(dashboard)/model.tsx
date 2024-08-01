@@ -156,7 +156,6 @@ export function Model({ model }: { model: SelectModel }) {
                 <form action={deleteModel}>
                   <button type="button"
                   onClick={()=>{
-                    // stopDeploy( {deployment_identifier: deploymentIdentifier} )
                     stopDeploy({ deployment_identifier: deploymentIdentifier })
                       .then((response) => {
                         // Handle success, e.g., display a message or update the UI

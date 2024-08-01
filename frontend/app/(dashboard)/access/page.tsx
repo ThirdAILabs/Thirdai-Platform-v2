@@ -25,8 +25,8 @@ export default function AccessPage() {
       </CardHeader>
       <CardContent>
         <div className="mb-4">
-          <h2 className="text-xl font-semibold">{userRole}</h2>
-          <p>{roleDescription}</p>
+          <h2 className="text-xl font-semibold">Your role is: {userRole}</h2>
+          <p>Role description: {roleDescription}</p>
         </div>
         <table className="min-w-full bg-white">
           <thead>

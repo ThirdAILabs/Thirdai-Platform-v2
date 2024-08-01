@@ -3,6 +3,9 @@ from abc import abstractmethod
 from models.model import Model
 from pydantic_models import inputs
 from thirdai import bolt
+import logging_loki
+import logging
+logging_loki.emitter.LokiEmitter.level_tag = "level"
 
 
 class ClassificationModel(Model):
@@ -10,6 +13,16 @@ class ClassificationModel(Model):
         super().__init__()
         self.model_path = self.get_udt_path()
         self.model: bolt.UniversalDeepTransformer = self.load_model()
+
+        self.loki_handler = logging_loki.LokiHandler(
+            url="http://localhost:3100/loki/api/v1/push",
+            version="1",
+            )
+
+        self.db_logger = logging.getLogger("action-logger")
+        self.db_logger.addHandler(self.loki_handler)
+        self.db_logger.setLevel(logging.DEBUG)
+
 
     def get_udt_path(self):
         return str(self.get_model_dir(self.general_variables.model_id) / "model.udt")
@@ -32,6 +45,17 @@ class TextClassificationModel(ClassificationModel):
         prediction = self.model.predict({"text": query}, top_k=top_k)
         class_names = [self.model.class_name(x) for x in prediction[0]]
 
+        self.db_logger.info(
+            str(self.general_variables.deployment_id),
+            extra={"tags": {
+                    "deployment_id": str(self.general_variables.deployment_id),
+                    "service":"text_classification", 
+                    "type": "udt",
+                    "action": "predict",
+                    "labels": class_names, 
+                }}
+        )
+        
         return inputs.SearchResultsTextClassification(
             query_text=query,
             class_names=class_names,
@@ -50,7 +74,22 @@ class TokenClassificationModel(ClassificationModel):
         predictions = []
         for predicted_tag in predicted_tags:
             predictions.append([x[0] for x in predicted_tag])
-
+        
+        predictions_flattened = []
+        for x in predictions: 
+            predictions_flattened.extend([label for label in x if label != "O"])
+        
+        self.db_logger.info(
+            str(self.general_variables.deployment_id),
+            extra={"tags": {
+                    "deployment_id": str(self.general_variables.deployment_id),
+                    "service":"token_classification", 
+                    "type": "udt",
+                    "action": "predict",
+                    "labels": predictions_flattened, 
+                }}
+        )
+        
         return inputs.SearchResultsTokenClassification(
             query_text=query,
             predicted_tags=predictions,

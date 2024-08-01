@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-function getAccessToken(): string {
+export function getAccessToken(): string {
   const accessToken = localStorage.getItem('accessToken');
   if (!accessToken) {
     throw new Error('Access token is not available');
@@ -36,7 +36,14 @@ export async function fetchPublicModels(name: string) {
     return response.json();
 }
 
-export async function fetchPendingModel() {
+// Define a type for the pending model data structure
+type PendingModel = {
+  model_name: string;
+  status: string;
+  username: string;
+};
+
+export async function fetchPendingModels(): Promise<PendingModel> {
   // Retrieve the access token from local storage
   const accessToken = getAccessToken()
 
@@ -60,9 +67,41 @@ interface StatusResponse {
 }
 
 export function getDeployStatus(values: { deployment_identifier: string }): Promise<StatusResponse> {
+  // Retrieve the access token from local storage
+  const accessToken = getAccessToken()
+
+  // Set the default authorization header for axios
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
   return new Promise((resolve, reject) => {
     axios
       .get(`http://localhost:8000/api/deploy/status?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+interface StopResponse {
+  data: {
+    deployment_id: string;
+  };
+  status: string;
+}
+
+export function stopDeploy(values: { deployment_identifier: string }): Promise<StopResponse> {
+  // Retrieve the access token from local storage
+  const accessToken = getAccessToken()
+
+  // Set the default authorization header for axios
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`http://localhost:8000/api/deploy/stop?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}`)
       .then((res) => {
         resolve(res.data);
       })

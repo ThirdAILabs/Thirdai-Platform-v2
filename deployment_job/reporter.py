@@ -2,6 +2,9 @@ import json
 from urllib.parse import urljoin
 
 import requests
+import logging
+import logging_loki
+logging_loki.emitter.LokiEmitter.level_tag = "level"
 
 
 class Reporter:
@@ -13,6 +16,17 @@ class Reporter:
             api_url (str): The base URL for the API.
         """
         self._api = api_url
+        self.loki_handler = logging_loki.LokiHandler(
+            url="http://localhost:3100/loki/api/v1/push",
+            version="1",
+            )
+
+        self.db_logger = logging.getLogger("action-logger")
+        self.db_logger.addHandler(self.loki_handler)
+        self.db_logger.setLevel(logging.DEBUG)
+
+
+                            
 
     def _request(self, method: str, suffix: str, *args, **kwargs) -> dict:
         """
@@ -166,6 +180,16 @@ class Reporter:
             access_token (str): The access token for authentication.
             used (bool): Whether the action was used. Defaults to False.
         """
+
+        self.db_logger.info(
+            str(deployment_id),
+            extra={"tags": {
+                    "deployment_id": str(self.general_variables.deployment_id),
+                    "type": "ndb",
+                    "action": action,
+                    "train_samples": train_samples,
+                }}
+        )
         content = self._request(
             "post",
             "api/deploy/log",

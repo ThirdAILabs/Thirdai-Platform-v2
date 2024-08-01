@@ -90,6 +90,10 @@ class TokenModelManager:
                 )
         return cls._token_model_instance
 
+    @classmethod
+    def update_instance(cls, token_model_id):
+        cls._token_model_instance = TokenClassificationModel(model_id=token_model_id)
+
 
 def get_model():
     return ModelManager.get_instance()

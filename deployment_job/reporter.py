@@ -178,3 +178,17 @@ class Reporter:
             headers=self.auth_header(access_token=access_token),
         )
         print(content)
+
+    def pii_models(
+        self,
+        access_token: str,
+    ):
+        content = self._request(
+            "post",
+            "api/models/list",
+            json={"name": "", "type": "udt", "sub_type": "token"},
+            headers=self.auth_header(access_token=access_token),
+        )
+        print(content)
+
+        return content["data"]

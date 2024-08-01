@@ -18,6 +18,8 @@ def list_public_models(
     name: str,
     domain: Optional[str] = None,
     username: Optional[str] = None,
+    type: Optional[str] = None,
+    sub_type: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     """
@@ -49,6 +51,12 @@ def list_public_models(
     if username:
         results = results.filter(schema.Model.user.username == username)
 
+    if type:
+        results = results.filter(schema.Model.type == type)
+
+    if sub_type:
+        results = results.filter(schema.Model.sub_type == sub_type)
+
     results = [get_high_level_model_info(result) for result in results]
 
     return response(
@@ -63,6 +71,8 @@ def list_models(
     name: str,
     domain: Optional[str] = None,
     username: Optional[str] = None,
+    type: Optional[str] = None,
+    sub_type: Optional[str] = None,
     access_level: Annotated[Union[list[str], None], Query()] = None,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
@@ -114,6 +124,12 @@ def list_models(
 
     if username:
         results = results.filter(schema.Model.user.username == username)
+
+    if type:
+        results = results.filter(schema.Model.type == type)
+
+    if sub_type:
+        results = results.filter(schema.Model.sub_type == sub_type)
 
     if access_level:
         conditions = []

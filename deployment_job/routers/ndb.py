@@ -1,4 +1,5 @@
 import logging
+import os
 import traceback
 import uuid
 from typing import List, Optional
@@ -12,7 +13,7 @@ from pydantic import ValidationError
 from pydantic_models import inputs
 from pydantic_models.documents import DocumentList
 from pydantic_models.inputs import BaseQueryParams, NDBExtraParams
-from routers.model import get_model, get_token_model
+from routers.model import TokenModelManager, get_model, get_token_model
 from utils import Status, now, propagate_error, response, validate_name
 from variables import GeneralVariables, TypeEnum
 
@@ -482,7 +483,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
     @propagate_error
     def pii_detection(
         query: str,
-        _: str = Depends(permissions.verify_read_permission),
+        _: str = Depends(permissions.verify_write_permission),
     ):
         token_model = get_token_model()
 
@@ -492,6 +493,39 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
             status_code=status.HTTP_200_OK,
             message="Successfully detected PII.",
             data=jsonable_encoder(results),
+        )
+
+    @ndb_router.post("/pii-models")
+    @propagate_error
+    def pii_models(
+        token: str = Depends(permissions.verify_read_permission),
+    ):
+        model = get_model()
+
+        results = model.reporter.pii_models(access_token=token)
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully got PII models.",
+            data=jsonable_encoder(results),
+        )
+
+    @ndb_router.post("/update-pii-settings")
+    @propagate_error
+    def update_pii_model(
+        token_model_id: Optional[str] = None,
+        llm_guardrail: Optional[bool] = None,
+        _: str = Depends(permissions.verify_write_permission),
+    ):
+        if token_model_id:
+            TokenModelManager().update_instance(token_model_id=token_model_id)
+
+        if llm_guardrail is not None:
+            os.environ["LLM_GUARDRAIL"] = str(llm_guardrail)
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully Updated the PII settings.",
         )
 
     return ndb_router

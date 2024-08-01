@@ -17,7 +17,7 @@ import { deleteModel } from './actions';
 import { deployModel, getDeployStatus, stopDeploy } from '@/lib/backend';
 
 export function Model({ model }: { model: SelectModel }) {
-  const [isDeployed, setIsDeployed] = useState<boolean>(false);
+  const [deployStatus, setDeployStatus] = useState<string>('');
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
   const [deploymentIdentifier, setDeploymentIdentifier] = useState<string | null>(null);
 
@@ -29,24 +29,35 @@ export function Model({ model }: { model: SelectModel }) {
 
   useEffect(() => {
     if (deploymentIdentifier) {
-      getDeployStatus({ deployment_identifier: deploymentIdentifier })
-      .then((response) => {
-        console.log('Deployment status response:', response);
-        if (response.data.deployment_id && response.data.status === 'complete' ) {
-          setIsDeployed(true);
-          setDeploymentId(response.data.deployment_id);
-        } else {
-          setIsDeployed(false);
-        }
-      })
-      .catch((error) => {
-        if (error.response && error.response.status === 400) {
-          console.log('Model is not deployed.');
-          setIsDeployed(false);
-        } else {
-          console.error('Error fetching deployment status:', error);
-        }
-      });
+      const fetchDeployStatus = () => {
+        getDeployStatus({ deployment_identifier: deploymentIdentifier })
+          .then((response) => {
+            console.log('Deployment status response:', response);
+            if (response.data.deployment_id && response.data.status === 'complete') {
+              setDeployStatus('Deployed');
+              setDeploymentId(response.data.deployment_id);
+            } else if (response.data.status === 'in_progress') {
+              setDeployStatus('Deploying');
+            } else {
+              setDeployStatus('Ready to Deploy');
+            }
+          })
+          .catch((error) => {
+            if (error.response && error.response.status === 400) {
+              console.log('Model is not deployed.');
+              setDeployStatus('Ready to Deploy');
+            } else {
+              console.error('Error fetching deployment status:', error);
+            }
+          });
+      };
+
+      fetchDeployStatus(); // Initial fetch
+
+      const intervalId = setInterval(fetchDeployStatus, 2000); // Fetch every 2 seconds
+
+      // Cleanup interval on component unmount
+      return () => clearInterval(intervalId);
     }
   }, [deploymentIdentifier]);
 
@@ -64,13 +75,7 @@ export function Model({ model }: { model: SelectModel }) {
       <TableCell className="font-medium">{model.model_name}</TableCell>
       <TableCell>
         <Badge variant="outline" className="capitalize">
-          {
-          isDeployed
-          ?
-          'Deployed'
-          :
-          'Ready to Deploy'
-          }
+          {deployStatus}
           
         </Badge>
       </TableCell>
@@ -109,9 +114,17 @@ export function Model({ model }: { model: SelectModel }) {
 
                   deployModel({ deployment_name: model.model_name, model_identifier: modelIdentifier })
                     .then((response) => {
-                      // const baseUrl = `${window.location.protocol}//${window.location.host}`;
-                      // const newUrl = `${baseUrl}/search?id=${deploymentId}`;
-                      // window.open(newUrl, '_blank');
+                      if(response.status === 'success') {
+                        console.log('deployment success')
+
+                        setDeployStatus('Deployed')
+                        setDeploymentId(response.data.deployment_id)
+  
+                        const username = 'peter'; // TODO: Retrieve the username dynamically if needed
+                        const modelIdentifier = `${username}/${model.model_name}`;
+                        setDeploymentIdentifier(`${modelIdentifier}:${username}/${model.model_name}`)
+                      }
+
                     })
                     .catch((error) => {
                       console.error('Error deploying model:', error);
@@ -137,7 +150,7 @@ export function Model({ model }: { model: SelectModel }) {
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem>Edit</DropdownMenuItem>
             {
-              isDeployed && deploymentIdentifier
+              deployStatus === 'Deployed' && deploymentIdentifier
               &&
               <DropdownMenuItem>
                 <form action={deleteModel}>
@@ -150,7 +163,7 @@ export function Model({ model }: { model: SelectModel }) {
                         console.log("Deployment stopped successfully:", response);
                         // Add any additional success handling logic here
                         if (response.status === 'success') {
-                          setIsDeployed(false)
+                          setDeployStatus('Read to Deploy')
                           setDeploymentId(null)
                           setDeploymentIdentifier(null)
                         }

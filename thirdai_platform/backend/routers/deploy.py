@@ -268,6 +268,12 @@ def deploy_model(
                 message=str(error),
             )
 
+        if token_model.type != "udt" or token_model.sub_type != "token":
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"You cannot use this model for PII detection.",
+            )
+
     try:
         work_dir = os.getcwd()
         platform = get_platform()

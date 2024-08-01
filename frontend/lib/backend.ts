@@ -85,7 +85,14 @@ export function getDeployStatus(values: { deployment_identifier: string }): Prom
   });
 }
 
-export function stopDeploy(values: { deployment_identifier: string }): Promise<StatusResponse> {
+interface StopResponse {
+  data: {
+    deployment_id: string;
+  };
+  status: string;
+}
+
+export function stopDeploy(values: { deployment_identifier: string }): Promise<StopResponse> {
   // Retrieve the access token from local storage
   const accessToken = getAccessToken()
 

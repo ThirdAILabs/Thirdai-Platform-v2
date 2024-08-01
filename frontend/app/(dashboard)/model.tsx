@@ -143,7 +143,23 @@ export function Model({ model }: { model: SelectModel }) {
                 <form action={deleteModel}>
                   <button type="button"
                   onClick={()=>{
-                    stopDeploy( {deployment_identifier: deploymentIdentifier} )
+                    // stopDeploy( {deployment_identifier: deploymentIdentifier} )
+                    stopDeploy({ deployment_identifier: deploymentIdentifier })
+                      .then((response) => {
+                        // Handle success, e.g., display a message or update the UI
+                        console.log("Deployment stopped successfully:", response);
+                        // Add any additional success handling logic here
+                        if (response.status === 'success') {
+                          setIsDeployed(false)
+                          setDeploymentId(null)
+                          setDeploymentIdentifier(null)
+                        }
+                      })
+                      .catch((error) => {
+                        // Handle error, e.g., display an error message
+                        console.error("Failed to stop deployment:", error);
+                        // Add any additional error handling logic here
+                      });
                   }}
                   >Undeploy</button>
                 </form>

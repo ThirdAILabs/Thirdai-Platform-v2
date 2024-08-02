@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import re
 import socket
@@ -691,3 +692,12 @@ async def restart_neuraldb_deployment_ui():
         # but app_dir is only used if platform == local.
         app_dir=str(get_root_absolute_path() / "neuraldb_frontend"),
     )
+
+
+def get_expiry_min(size: int):
+    """
+    This is a helper function to calculate the expiry time for the signed
+    url for azure blob, which is required to push a model to model bazaar.
+    Taking an average speed of 300 to 400 KB/s we give an extra 60 min for every 1.5GB.
+    """
+    return 60 * (1 + math.floor(size / 1500))

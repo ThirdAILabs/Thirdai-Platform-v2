@@ -1,10 +1,13 @@
+import io
 import logging
 import traceback
 import uuid
+from pathlib import Path
 from typing import List, Optional
 
+import fitz
 import thirdai
-from fastapi import APIRouter, Depends, Form, UploadFile, status
+from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from file_handler import validate_files
 from permissions import Permissions
@@ -13,7 +16,16 @@ from pydantic_models import inputs
 from pydantic_models.documents import DocumentList
 from pydantic_models.inputs import BaseQueryParams, NDBExtraParams
 from routers.model import get_model, get_token_model
-from utils import Status, now, propagate_error, response, validate_name
+from utils import (
+    Status,
+    highlighted_pdf_bytes,
+    new_pdf_chunks,
+    now,
+    old_pdf_chunks,
+    propagate_error,
+    response,
+    validate_name,
+)
 from variables import GeneralVariables, TypeEnum
 
 permissions = Permissions()
@@ -492,6 +504,49 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
             status_code=status.HTTP_200_OK,
             message="Successfully detected PII.",
             data=jsonable_encoder(results),
+        )
+
+    @ndb_router.get("/highlighted-pdf", include_in_schema=False)
+    @propagate_error
+    def highlighted_pdf(
+        reference_id: int, _=Depends(permissions.verify_read_permission)
+    ):
+        model = get_model()
+        reference = model.db._savable_state.documents.reference(reference_id)
+        buffer = io.BytesIO(highlighted_pdf_bytes(reference))
+        headers = {
+            "Content-Disposition": f'inline; filename="{Path(reference.source).name}"'
+        }
+        return Response(
+            buffer.getvalue(), headers=headers, media_type="application/pdf"
+        )
+
+    @ndb_router.get("/pdf-blob", include_in_schema=False)
+    @propagate_error
+    def pdf_blob(source: str, _=Depends(permissions.verify_read_permission)):
+        buffer = io.BytesIO(fitz.open(source).tobytes())
+        headers = {"Content-Disposition": f'inline; filename="{Path(source).name}"'}
+        return Response(
+            buffer.getvalue(), headers=headers, media_type="application/pdf"
+        )
+
+    @ndb_router.get("/pdf-chunks", include_in_schema=False)
+    def pdf_chunks(reference_id: int, _=Depends(permissions.verify_read_permission)):
+        model = get_model()
+        reference = model.db.reference(reference_id)
+        chunks = new_pdf_chunks(model.db, reference)
+        if not chunks:
+            chunks = old_pdf_chunks(model.db, reference)
+        if chunks:
+            return response(
+                status_code=status.HTTP_200_OK,
+                message="Successful",
+                data=chunks,
+            )
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Reference with id ${reference_id} is not a PDF.",
+            data={},
         )
 
     return ndb_router

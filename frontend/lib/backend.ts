@@ -5,6 +5,9 @@ import _ from 'lodash';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+export const thirdaiPlatformBaseUrl = _.trim(process.env.THIRDAI_PLATFORM_BASE_URL!, '/');
+export const deploymentBaseUrl = _.trim(process.env.DEPLOYMENT_BASE_URL!, '/');
+
 export function getAccessToken(): string {
   const accessToken = localStorage.getItem('accessToken');
   if (!accessToken) {
@@ -221,6 +224,59 @@ export function userRegister(email: string, password: string, username: string) 
     });
 }
 
+interface TokenClassificationSample {
+  nerData: string[];
+  sentence: string;
+}
+
+function samplesToFile(samples: TokenClassificationSample[], sourceColumn: string, targetColumn: string) {
+  const rows: string[] = [`${sourceColumn},${targetColumn}`];
+  for (const { nerData, sentence } of samples) {
+    rows.push('"' + sentence.replace('"', '""') + '",' + nerData.join(' '));
+  }
+  const csvContent = rows.join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv" });
+  return new File([blob], "data.csv", { type: "text/csv" });
+}
+
+export function trainTokenClassifier(modelName: string, samples: TokenClassificationSample[], tags: string[]) {
+  // Retrieve the access token from local storage
+  const accessToken = getAccessToken()
+
+  // Set the default authorization header for axios
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const sourceColumn = "source";
+  const targetColumn = "target";
+
+  const formData = new FormData();
+  formData.append("files", samplesToFile(samples, sourceColumn, targetColumn));
+  formData.append("files_details_list", JSON.stringify({
+    file_details: [{ mode: 'supervised', location: 'local', is_folder: false }]
+  }));
+  formData.append("extra_options_form", JSON.stringify({
+    sub_type: "token",
+    source_column: sourceColumn, 
+    target_column: targetColumn,
+    target_labels: tags,
+  }))
+
+  return new Promise((resolve, reject) => {
+      axios
+          .post(`http://localhost:8000/api/train/udt?model_name=${modelName}`, formData)
+          .then((res) => {
+              resolve(res.data);
+          })
+          .catch((err) => {
+              if (err.response && err.response.data) {
+                  reject(new Error(err.response.data.detail || 'Failed to run model'));
+              } else {
+                  reject(new Error('Failed to run model'));
+              }
+          });
+  });
+};
+
 function useAccessToken() {
   const [accessToken, setAccessToken] = useState<string | undefined>();
   useEffect(() => {
@@ -233,9 +289,6 @@ function useAccessToken() {
 
   return accessToken;
 }
-
-const thirdaiPlatformBaseUrl = _.trim(process.env.THIRDAI_PLATFORM_BASE_URL!, '/');
-const deploymentBaseUrl = _.trim(process.env.DEPLOYMENT_BASE_URL!, '/');
 
 export interface TokenClassificationResult {
   query_text: string;
@@ -267,26 +320,81 @@ export function useTokenClassificationEndpoints() {
   const predict = async (query: string): Promise<TokenClassificationResult> => {
     // Set the default authorization header for axios
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
     try {
-      const response = await axios.get(`${currentDeploymentBaseUrl}/predict`, {
-        params: { query, top_k: 1 },
+      const response = await axios.post(`${currentDeploymentBaseUrl}/predict`, {
+        query, top_k: 1
       });
-      return response.data;
+      return response.data.data;
     } catch (error) {
       console.error('Error predicting tokens:', error);
       throw new Error('Failed to predict tokens');
     }
   };
 
-  const getAvailableTags = async (): Promise<string[]> => {
-    // TODO: Create backend endpoint + connect.
-    return ["NAME", "CREDITCARDNUMBER", "SSN", "PHONENUMBER", "LOCATION"];
-  };
-
   return {
     getName,
-    predict,
-    getAvailableTags
+    predict
   };
 }
+
+
+export interface DeploymentStatsTable {
+  header: string[];
+  rows: string[][];
+}
+
+export interface DeploymentStats {
+  system: DeploymentStatsTable;
+  throughput: DeploymentStatsTable;
+}
+
+export function useDeploymentStats() {
+  const accessToken = useAccessToken();
+  const params = useParams();
+  const deploymentId = params.deploymentId as string;
+  const currentDeploymentBaseUrl = `${deploymentBaseUrl}/${deploymentId}`;
+
+  const getStats = async (): Promise<DeploymentStats> => {
+    try {
+      // TODO: Build stats endpoint for nomad jobs and use it
+      const response = await axios.get("http://localhost:8001/stats");
+      console.log(response.data);
+      const data = response.data;
+
+      return {
+        system: {
+          header: ['Component', 'Description'],
+          rows: [
+            ['CPU', '12 vCPUs'],
+            ['CPU Model', 'Intel(R) Xeon(R) CPU E5-2680 v3 @ 2.50GHz'],
+            ['Memory', '64 GB RAM'],
+            ['System Uptime', '0 hours 0 minutes 0 seconds'],
+          ]
+        },
+        throughput: {
+          header: ["Time Period", "Tokens Identified (million)", "Chunks Parsed (million)", "Files Processed (GB)"],
+          rows: [
+            [
+              'Past hour',
+              Math.floor(data.tokens_per_hour / 1000000).toLocaleString() + ' M',
+              Math.floor(data.lines_per_hour / 1000000).toLocaleString() + ' M',
+              data.throughput_gb_per_hour.toLocaleString() + ' GB'
+            ],
+            [
+              'Total',
+              Math.floor(data.total_tokens_parsed / 1000000).toLocaleString() + ' M',
+              Math.floor(data.lines_parsed / 1000000).toLocaleString() + ' M',
+              data.total_text_size_gb.toLocaleString() + ' GB'
+            ],
+          ]
+        }
+      };
+
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      throw new Error("Error fetching stats.");
+    }
+  };
+
+  return { getStats };
+};

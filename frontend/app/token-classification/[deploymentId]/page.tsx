@@ -54,39 +54,8 @@ function Highlight({ currentToken, nextToken, tagColors }: HighlightProps) {
   );
 }
 
-function generateColors(N: number) {
-  const pastels = [
-    '#E5A49C',
-    '#F6C886',
-    '#FBE7AA',
-    '#99E3B5',
-    '#A6E6E7',
-    '#A5A1E1',
-    '#D8A4E2'
-  ];
-  const darkers = [
-    '#D34F3E',
-    '#F09336',
-    '#F7CF5F',
-    '#5CC96E',
-    '#65CFD0',
-    '#597CE2',
-    '#B64DC8'
-  ];
-  const colors = [];
-
-  for (let i = 0; i < N; i++) {
-    colors.push({
-      pastelColor: pastels[i % pastels.length],
-      darkerColor: darkers[i % darkers.length]
-    });
-  }
-
-  return colors;
-}
-
 export default function Page() {
-  const { getName, predict, getAvailableTags } = useTokenClassificationEndpoints();
+  const { getName, predict } = useTokenClassificationEndpoints();
 
   const [deploymentName, setDeploymentName] = useState("");
   const [inputText, setInputText] = useState<string>('');
@@ -97,26 +66,49 @@ export default function Page() {
 
   useEffect(() => {
     getName().then(setDeploymentName);
-    
-    getAvailableTags().then((tags) => {
-      const colors = generateColors(tags.length);
-      setTagColors(
-        Object.fromEntries(
-          tags.map((tag, index) => [
-            tag,
-            { text: colors[index].pastelColor, tag: colors[index].darkerColor }
-          ])
-        )
-      );
-    });
   }, []);
 
   const handleInputChange = (event: any) => {
     setInputText(event.target.value);
   };
 
+  const updateTagColors = (tags: string[][]) => {
+    const pastels = [
+      '#E5A49C',
+      '#F6C886',
+      '#FBE7AA',
+      '#99E3B5',
+      '#A6E6E7',
+      '#A5A1E1',
+      '#D8A4E2'
+    ];
+    const darkers = [
+      '#D34F3E',
+      '#F09336',
+      '#F7CF5F',
+      '#5CC96E',
+      '#65CFD0',
+      '#597CE2',
+      '#B64DC8'
+    ];
+    
+    setTagColors(existingColors => {
+      const colors = {...existingColors};
+      const newTags = Array.from(new Set(tags.flatMap(tokenTags => tokenTags))).filter(tag => !existingColors[tag] && tag !== "O");
+      newTags.forEach((tag, index) => {
+        const i = Object.keys(existingColors).length + index;
+        colors[tag] = {
+          text: pastels[i % pastels.length],
+          tag: darkers[i % darkers.length]
+        }
+      })
+      return colors;
+    })
+  };
+
   const handleRun = () => {
     predict(inputText).then((result) => {
+      updateTagColors(result.predicted_tags);
       setAnnotations(
         _.zip(result.tokens, result.predicted_tags).map(([text, tag]) => ({
           text: text as string,
@@ -127,9 +119,10 @@ export default function Page() {
   };
 
   return (
-    <>
-      <div style={{position: 'fixed', top: '20px', left: '20px', fontWeight: 'bold', fontSize: '20px'}}>
-        {deploymentName}
+    <div className="bg-muted" style={{width: "100%", display: "flex", justifyContent: "center", height: "100vh"}}>
+      <div style={{position: 'fixed', top: '20px', left: '20px'}}>
+        <div className='text-muted-foreground' style={{fontSize: '16px'}}>Token Classification</div>
+        <div style={{fontWeight: 'bold', fontSize: '24px'}}>{deploymentName}</div>
       </div>
       <Container
         style={{
@@ -150,9 +143,9 @@ export default function Page() {
             variant="outlined"
             value={inputText}
             onChange={handleInputChange}
-            style={{ width: '100%' }}
+            style={{ width: '100%', backgroundColor: "white", borderRadius: "5px", border: "none" }}
             placeholder="Enter your text"
-            InputProps={{ style: { height: '3rem' } }} // Adjust the height as needed
+            InputProps={{ style: { height: '3rem' }, disableUnderline: true }} // Adjust the height as needed
           />
           <Button
             variant="contained"
@@ -188,6 +181,6 @@ export default function Page() {
           </Box>
         )}
       </Container>
-    </>
+    </div>
   );
 }

@@ -14,7 +14,7 @@ import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { SelectModel } from '@/lib/db';
 import { deleteModel } from './actions';
-import { deployModel, getDeployStatus, stopDeploy, getAccessToken } from '@/lib/backend';
+import { deployModel, getDeployStatus, stopDeploy, getAccessToken, deploymentBaseUrl } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
 export function Model({ model }: { model: SelectModel }) {
@@ -66,18 +66,19 @@ export function Model({ model }: { model: SelectModel }) {
   function goToEndpoint() {
     switch (model.type) {
       case "ndb":
-        const baseUrl = 'http://localhost:80';
         const accessToken = getAccessToken();
         let ifGenerationOn = false; // false if semantic search, true if RAG
         let ifGuardRailOn = false; // enable based on actual config
         let guardRailEndpoint = '...' // change based on actual config
-        const newUrl = `${baseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+        const newUrl = `${deploymentBaseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
         window.open(newUrl, '_blank');
         break;
       case "udt":
         router.push(`/token-classification/${deploymentId}`);
+        break;
       default:
         throw new Error(`Invalid model type ${model.type}`);
+        break;
     }
   }
 

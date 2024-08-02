@@ -537,7 +537,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
     def update_pii_model(
         token_model_id: Optional[str] = None,
         llm_guardrail: Optional[bool] = None,
-        _: str = Depends(permissions.verify_write_permission),
+        token: str = Depends(permissions.verify_write_permission),
     ):
         """
         Update the PII model settings.
@@ -557,11 +557,26 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         }
         ```
         """
+        metadata_updated = False
+        metadata = {}
+
         if token_model_id:
             TokenModelManager().update_instance(token_model_id=token_model_id)
+            metadata["token_model_id"] = token_model_id
+            metadata_updated = True
 
         if llm_guardrail is not None:
             os.environ["LLM_GUARDRAIL"] = str(llm_guardrail)
+            metadata["llm_guardrail"] = llm_guardrail
+            metadata_updated = True
+
+        if metadata_updated:
+            model = get_model()
+            model.reporter.update_pii_metadata(
+                deployment_id=general_variables.deployment_id,
+                metadata=metadata,
+                access_token=token,
+            )
 
         return response(
             status_code=status.HTTP_200_OK,

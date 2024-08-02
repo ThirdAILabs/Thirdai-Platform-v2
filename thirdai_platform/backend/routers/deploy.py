@@ -281,7 +281,7 @@ def deploy_model(
             )
 
     # Update or retain metadata fields with defaults
-    metadata = deployment.metadata or {}
+    metadata = deployment.metadata_json or {}
     metadata["type"] = type if type is not None else metadata.get("type", "")
     metadata["use_llm_guardrail"] = (
         use_llm_guardrail
@@ -294,7 +294,7 @@ def deploy_model(
     elif "token_model_id" not in metadata:
         metadata["token_model_id"] = None
 
-    deployment.metadata = metadata
+    deployment.metadata_json = metadata
 
     model_metadata: schema.MetaData = model.meta_data
     if model_metadata:
@@ -660,7 +660,7 @@ def list_deployments(
                 "model_name": deployment.model.name,
                 "model_username": deployment.model.user.username,
                 "status": deployment.status,
-                "metadata": deployment.metadata,
+                "metadata": deployment.metadata_json,
             }
         ]
     else:
@@ -678,7 +678,7 @@ def list_deployments(
                 "model_name": deployment.model.name,
                 "model_username": deployment.model.user.username,
                 "status": deployment.status,
-                "metadata": deployment.metadata,
+                "metadata": deployment.metadata_json,
             }
             for deployment in deployments
         ]
@@ -718,11 +718,11 @@ def update_metadata(
             status_code=status.HTTP_404_NOT_FOUND, message="Deployment not found."
         )
 
-    deployment.metadata = update_json(deployment.metadata, metadata)
+    deployment.metadata_json = update_json(deployment.metadata_json, metadata)
     session.commit()
 
     return response(
         status_code=status.HTTP_200_OK,
         message="Deployment metadata updated successfully.",
-        data={"deployment_id": deployment_id, "metadata": deployment.metadata},
+        data={"deployment_id": deployment_id, "metadata": deployment.metadata_json},
     )

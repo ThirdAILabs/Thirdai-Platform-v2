@@ -184,7 +184,7 @@ class Deployment(SQLDeclarativeBase):
         nullable=False,
     )
 
-    metadata = Column(JSON, nullable=True)
+    metadata_json = Column(JSON, nullable=True)
 
     child_models = relationship(
         "Model",

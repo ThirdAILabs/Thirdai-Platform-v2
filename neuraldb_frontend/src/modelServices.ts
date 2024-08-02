@@ -139,7 +139,7 @@ export class GlobalModelService implements ModelService {
 
     constructor(url: string, sessionId: string) {
         this.url = url;
-        this.wsUrl = url.replace("http", "ws");
+        this.wsUrl = `${window.location.protocol}//${window.location.host}`.replace("http", "ws");
         this.sessionId = sessionId;
     }
 
@@ -592,6 +592,7 @@ export class GlobalModelService implements ModelService {
     ) {
         const args = {
             query: genaiQuery(question, references, genaiPrompt),
+            key: '' // fill in openai key
         };
 
         const uri = this.wsUrl + "/generate";

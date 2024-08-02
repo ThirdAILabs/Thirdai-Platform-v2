@@ -98,6 +98,7 @@ def get_high_level_model_info(result: schema.Model):
         "access_level": result.access_level,
         "domain": result.domain,
         "type": result.type,
+        "id": str(result.id),
     }
 
     # Include metadata if it exists

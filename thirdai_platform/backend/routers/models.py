@@ -34,19 +34,23 @@ def list_public_models(
     name: str,
     domain: Optional[str] = None,
     username: Optional[str] = None,
+    type: Optional[str] = None,
+    sub_type: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     """
     List public models.
 
     Parameters:
-    - name: The name to filter models.
-    - domain: Optional domain to filter models.
-    - username: Optional username to filter models.
-    - session: The database session (dependency).
+    - name: str - The name to filter models.
+    - domain: Optional[str] - Optional domain to filter models.
+    - username: Optional[str] - Optional username to filter models.
+    - type: Optional[str] - Optional type to filter models.
+    - sub_type: Optional[str] - Optional sub-type to filter models.
+    - session: Session - The database session (dependency).
 
     Returns:
-    - A JSON response with the list of public models.
+    - JSONResponse - A JSON response with the list of public models.
     """
     results = (
         session.query(schema.Model)
@@ -65,6 +69,12 @@ def list_public_models(
     if username:
         results = results.filter(schema.Model.user.username == username)
 
+    if type:
+        results = results.filter(schema.Model.type == type)
+
+    if sub_type:
+        results = results.filter(schema.Model.sub_type == sub_type)
+
     results = [get_high_level_model_info(result) for result in results]
 
     return response(
@@ -79,23 +89,27 @@ def list_models(
     name: str,
     domain: Optional[str] = None,
     username: Optional[str] = None,
+    type: Optional[str] = None,
+    sub_type: Optional[str] = None,
     access_level: Annotated[Union[list[str], None], Query()] = None,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
-    List models based on the given name, domain, username, and access level.
+    List models based on the given name, domain, username, type, sub-type, and access level.
 
     Parameters:
-    - name: The name to filter models.
-    - domain: Optional domain to filter models.
-    - username: Optional username to filter models.
-    - access_level: Optional access level to filter models.
-    - session: The database session (dependency).
-    - authenticated_user: The authenticated user (dependency).
+    - name: str - The name to filter models.
+    - domain: Optional[str] - Optional domain to filter models.
+    - username: Optional[str] - Optional username to filter models.
+    - type: Optional[str] - Optional type to filter models.
+    - sub_type: Optional[str] - Optional sub-type to filter models.
+    - access_level: Annotated[Union[list[str], None], Query()] - Optional access level to filter models.
+    - session: Session - The database session (dependency).
+    - authenticated_user: AuthenticatedUser - The authenticated user (dependency).
 
     Returns:
-    - A JSON response with the list of models.
+    - JSONResponse - A JSON response with the list of models.
     """
     user: schema.User = authenticated_user.user
 
@@ -130,6 +144,12 @@ def list_models(
 
     if username:
         results = results.filter(schema.Model.user.username == username)
+
+    if type:
+        results = results.filter(schema.Model.type == type)
+
+    if sub_type:
+        results = results.filter(schema.Model.sub_type == sub_type)
 
     if access_level:
         conditions = []
@@ -551,6 +571,59 @@ def download_public_model(
     return StreamingResponse(iterfile(), headers=headers, media_type=media_type)
 
 
+@model_router.post("/rag-entry")
+def add_rag_entry(
+    model_name: str,
+    ndb_model_id: Optional[str] = None,
+    use_llm_guardrail: Optional[bool] = False,
+    token_model_id: Optional[str] = None,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    user: schema.User = authenticated_user.user
+
+    # Create new model entry
+    new_model = schema.Model(
+        user_id=user.id,
+        train_status=schema.Status.complete,
+        name=model_name,
+        type="rag",
+        domain=user.email.split("@")[1],
+        access_level=schema.Access.private,
+    )
+
+    session.add(new_model)
+    session.commit()
+    session.refresh(new_model)
+
+    # Prepare the general metadata dictionary
+    general_metadata = {}
+
+    if ndb_model_id is not None:
+        general_metadata["ndb_model_id"] = ndb_model_id
+
+    if use_llm_guardrail is not None:
+        general_metadata["use_llm_guardrail"] = use_llm_guardrail
+
+    if token_model_id is not None:
+        general_metadata["token_model_id"] = token_model_id
+
+    # Create new metadata entry
+    new_metadata = schema.MetaData(model_id=new_model.id, general=general_metadata)
+
+    session.add(new_metadata)
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_201_CREATED,
+        message="Successfully added new RAG entry.",
+        data={
+            "model_id": new_model.id,
+            "model_name": new_model.name,
+            "metadata": general_metadata,
+        },
+    )
+
 @model_router.get("/download")
 def download_model(
     model_identifier: str,
@@ -602,3 +675,36 @@ def download_model(
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
 
     return StreamingResponse(iterfile(), headers=headers, media_type=media_type)
+
+@model_router.get("/info")
+def get_model_info(
+    model_id: str,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Get the model information.
+
+    Parameters:
+    - model_id: str - The ID of the model to retrieve.
+    - session: Session - The database session (dependency).
+    - authenticated_user: AuthenticatedUser - The authenticated user (dependency).
+
+    Returns:
+    - JSONResponse: Model information.
+    """
+    # Fetch the model by ID
+    model = session.query(schema.Model).filter_by(id=model_id).first()
+
+    # Check if the model exists
+    if not model:
+        return response(
+            status_code=status.HTTP_404_NOT_FOUND, message="Model not found."
+        )
+
+    result = get_high_level_model_info(model)
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Model information retrieved successfully.",
+        data=jsonable_encoder(result),
+    )

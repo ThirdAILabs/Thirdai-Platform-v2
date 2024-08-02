@@ -485,6 +485,22 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         query: str,
         _: str = Depends(permissions.verify_write_permission),
     ):
+        """
+        Detect PII in the given query.
+
+        Parameters:
+        - query: str - The query text for PII detection.
+
+        Returns:
+        - JSONResponse: The PII detection results.
+
+        Example Request Body:
+        ```
+        {
+            "query": "My credit card number is 1234-5678-9101-1121."
+        }
+        ```
+        """
         token_model = get_token_model()
 
         results = token_model.predict(query=query, top_k=1)
@@ -500,6 +516,12 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
     def pii_models(
         token: str = Depends(permissions.verify_read_permission),
     ):
+        """
+        Get the list of available PII models.
+
+        Returns:
+        - JSONResponse: The list of PII models.
+        """
         model = get_model()
 
         results = model.reporter.pii_models(access_token=token)
@@ -517,6 +539,24 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         llm_guardrail: Optional[bool] = None,
         _: str = Depends(permissions.verify_write_permission),
     ):
+        """
+        Update the PII model settings.
+
+        Parameters:
+        - token_model_id: Optional[str] - The ID of the token model to update.
+        - llm_guardrail: Optional[bool] - Whether to enable or disable LLM guardrail.
+
+        Returns:
+        - JSONResponse: Update success message.
+
+        Example Request Body:
+        ```
+        {
+            "token_model_id": "model_id",
+            "llm_guardrail": true
+        }
+        ```
+        """
         if token_model_id:
             TokenModelManager().update_instance(token_model_id=token_model_id)
 

@@ -165,17 +165,19 @@ def deploy_model(
     Deploy a model.
 
     Parameters:
-    - deployment_name: The name of the deployment.
-    - model_identifier: The identifier of the model to deploy.
-    - memory: Optional memory allocation for the deployment.
-    - autoscaling_enabled: Whether autoscaling is enabled.
-    - autoscaler_max_count: The maximum count for the autoscaler.
-    - genai_key: Optional GenAI key.
-    - session: The database session (dependency).
-    - authenticated_user: The authenticated user (dependency).
+    - deployment_name: str - The name of the deployment.
+    - model_identifier: str - The identifier of the model to deploy.
+    - memory: Optional[int] - Optional memory allocation for the deployment.
+    - autoscaling_enabled: bool - Whether autoscaling is enabled.
+    - autoscaler_max_count: int - The maximum count for the autoscaler.
+    - genai_key: Optional[str] - Optional GenAI key.
+    - use_llm_guardrail: bool - Whether to enable or disable LLM guardrail.
+    - token_model_identifier: Optional[str] - The identifier of the token model to use for PII detection.
+    - session: Session - The database session (dependency).
+    - authenticated_user: AuthenticatedUser - The authenticated user (dependency).
 
     Returns:
-    - A JSON response indicating the status of the deployment.
+    - JSONResponse: A JSON response indicating the status of the deployment.
     """
     user: schema.User = authenticated_user.user
 
@@ -271,7 +273,7 @@ def deploy_model(
         if token_model.type != "udt" or token_model.sub_type != "token":
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"You cannot use this model for PII detection.",
+                message="You cannot use this model for PII detection.",
             )
 
     try:

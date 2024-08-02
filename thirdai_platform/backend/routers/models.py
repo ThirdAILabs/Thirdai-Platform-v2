@@ -26,13 +26,15 @@ def list_public_models(
     List public models.
 
     Parameters:
-    - name: The name to filter models.
-    - domain: Optional domain to filter models.
-    - username: Optional username to filter models.
-    - session: The database session (dependency).
+    - name: str - The name to filter models.
+    - domain: Optional[str] - Optional domain to filter models.
+    - username: Optional[str] - Optional username to filter models.
+    - type: Optional[str] - Optional type to filter models.
+    - sub_type: Optional[str] - Optional sub-type to filter models.
+    - session: Session - The database session (dependency).
 
     Returns:
-    - A JSON response with the list of public models.
+    - JSONResponse - A JSON response with the list of public models.
     """
     results = (
         session.query(schema.Model)
@@ -78,18 +80,20 @@ def list_models(
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
-    List models based on the given name, domain, username, and access level.
+    List models based on the given name, domain, username, type, sub-type, and access level.
 
     Parameters:
-    - name: The name to filter models.
-    - domain: Optional domain to filter models.
-    - username: Optional username to filter models.
-    - access_level: Optional access level to filter models.
-    - session: The database session (dependency).
-    - authenticated_user: The authenticated user (dependency).
+    - name: str - The name to filter models.
+    - domain: Optional[str] - Optional domain to filter models.
+    - username: Optional[str] - Optional username to filter models.
+    - type: Optional[str] - Optional type to filter models.
+    - sub_type: Optional[str] - Optional sub-type to filter models.
+    - access_level: Annotated[Union[list[str], None], Query()] - Optional access level to filter models.
+    - session: Session - The database session (dependency).
+    - authenticated_user: AuthenticatedUser - The authenticated user (dependency).
 
     Returns:
-    - A JSON response with the list of models.
+    - JSONResponse - A JSON response with the list of models.
     """
     user: schema.User = authenticated_user.user
 

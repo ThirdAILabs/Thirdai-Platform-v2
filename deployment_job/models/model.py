@@ -1,3 +1,7 @@
+"""
+Defines the abstract base class for models.
+"""
+
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -6,13 +10,20 @@ from variables import GeneralVariables
 
 
 class Model(ABC):
-    def __init__(self):
-        self.general_variables = GeneralVariables.load_from_env()
-        self.reporter = Reporter(self.general_variables.model_bazaar_endpoint)
+    """
+    Abstract base class for all models.
+    """
 
-        self.model_dir = self.get_model_dir(model_id=self.general_variables.model_id)
-
-        self.data_dir = (
+    def __init__(self) -> None:
+        """
+        Initializes model directories and reporter.
+        """
+        self.general_variables: GeneralVariables = GeneralVariables.load_from_env()
+        self.reporter: Reporter = Reporter(self.general_variables.model_bazaar_endpoint)
+        self.model_dir: Path = self.get_model_dir(
+            model_id=self.general_variables.model_id
+        )
+        self.data_dir: Path = (
             self.model_dir
             / "deployments"
             / self.general_variables.deployment_id
@@ -22,7 +33,13 @@ class Model(ABC):
 
     @abstractmethod
     def predict(self, **kwargs):
+        """
+        Abstract method for prediction.
+        """
         pass
 
-    def get_model_dir(self, model_id) -> Path:
+    def get_model_dir(self, model_id: str) -> Path:
+        """
+        Returns the directory path for the given model ID.
+        """
         return Path(self.general_variables.model_bazaar_dir) / "models" / model_id

@@ -65,8 +65,8 @@ class ShardMach(NDBModel):
         Returns:
             Mach: The Mach model instance.
         """
-        if self.ndb_variables.base_model_id:
-            base_model_path = self.get_model_path(self.ndb_variables.base_model_id)
+        if self.general_variables.base_model_id:
+            base_model_path = self.get_model_path(self.general_variables.base_model_id)
             self.logger.info(f"Loading model from {base_model_path}")
 
             with base_model_path.open("rb") as pkl:
@@ -363,7 +363,7 @@ class ShardMach(NDBModel):
         """
         self.logger.info(f"Evaluating model with file {file}")
         metrics = model.model.evaluate(
-            file,
+            str(file),
             metrics=self.train_variables.metrics,
         )
         self.logger.info(f"For file {file} the metrics are {metrics}")

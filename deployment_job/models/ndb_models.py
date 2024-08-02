@@ -1,3 +1,7 @@
+"""
+Defines NDB model classes for the application.
+"""
+
 import copy
 import logging
 import pickle
@@ -7,31 +11,51 @@ import traceback
 import uuid
 from abc import abstractmethod
 from pathlib import Path
+from typing import Any, Dict, List
 
+from file_handler import create_ndb_docs
 from models.model import Model
 from pydantic_models import inputs
 from thirdai import neural_db as ndb
-from utils import create_ndb_docs
 
 
 class NDBModel(Model):
-    def __init__(self):
+    """
+    Base class for NeuralDB (NDB) models.
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes NDB model with paths and NeuralDB.
+        """
         super().__init__()
-        self.model_path = self.model_dir / "model.ndb"
+        self.model_path: Path = self.model_dir / "model.ndb"
         self.db: ndb.NeuralDB = self.load_ndb()
 
     @abstractmethod
-    def load_ndb(self):
+    def load_ndb(self) -> ndb.NeuralDB:
+        """
+        Loads the NDB model.
+        """
         pass
 
     @abstractmethod
-    def save_ndb(self, **kwargs):
+    def save_ndb(self, **kwargs: Any) -> None:
+        """
+        Saves the NDB model.
+        """
         pass
 
-    def get_ndb_path(self, model_id):
+    def get_ndb_path(self, model_id: str) -> Path:
+        """
+        Returns the NDB model path for the given model ID.
+        """
         return self.get_model_dir(model_id) / "model.ndb"
 
-    def upvote(self, **kwargs):
+    def upvote(self, **kwargs: Any) -> None:
+        """
+        Upvotes entries in the NDB model.
+        """
         text_id_pairs = kwargs.get("text_id_pairs")
 
         self.db.text_to_result_batch(
@@ -57,18 +81,15 @@ class NDBModel(Model):
             access_token=kwargs.get("token"),
         )
 
-    def predict(self, **kwargs):
-        constraints = kwargs.get("constraints")
+    def predict(self, **kwargs: Any) -> inputs.SearchResultsNDB:
+        """
+        Makes a prediction using the NDB model.
+        """
+        constraints: Dict[str, Dict[str, Any]] = kwargs.get("constraints")
 
         ndb_constraints = {
             key: getattr(ndb, constraints[key]["constraint_type"])(
-                **(
-                    {
-                        key: value
-                        for key, value in constraints[key].items()
-                        if key != "constraint_type"
-                    }
-                )
+                **{k: v for k, v in constraints[key].items() if k != "constraint_type"}
             )
             for key in constraints.keys()
         }
@@ -85,12 +106,23 @@ class NDBModel(Model):
             inputs.convert_reference_to_pydantic(ref, kwargs.get("context_radius", 1))
             for ref in references
         ]
-        return inputs.SearchResults(
+
+        self.reporter.log(
+            action="predict",
+            deployment_id=self.general_variables.deployment_id,
+            access_token=kwargs.get("token"),
+            train_samples=[{"query": kwargs["query"]}],
+        )
+
+        return inputs.SearchResultsNDB(
             query_text=kwargs["query"],
             references=pydantic_references,
         )
 
-    def associate(self, **kwargs):
+    def associate(self, **kwargs: Any) -> None:
+        """
+        Associates entries in the NDB model.
+        """
         text_pairs = kwargs.get("text_pairs")
         self.db.associate_batch(
             text_pairs=[
@@ -106,7 +138,10 @@ class NDBModel(Model):
             access_token=kwargs.get("token"),
         )
 
-    def sources(self):
+    def sources(self) -> List[Dict[str, str]]:
+        """
+        Retrieves sources from the NDB model.
+        """
         return sorted(
             [
                 {
@@ -118,15 +153,35 @@ class NDBModel(Model):
             key=lambda source: source["source"],
         )
 
-    def delete(self, **kwargs):
-        source_ids = kwargs.get("source_ids")
+    def delete(self, **kwargs: Any) -> None:
+        """
+        Deletes entries from the NDB model.
+        """
+        source_ids: List[str] = kwargs.get("source_ids")
         self.db.delete(source_ids=source_ids)
 
-    def insert(self, **kwargs):
+        self.reporter.log(
+            action="delete",
+            deployment_id=self.general_variables.deployment_id,
+            access_token=kwargs.get("token"),
+            train_samples=[{"source_ids": " ".join(source_ids)}],
+        )
+
+    def insert(self, **kwargs: Any) -> List[Dict[str, str]]:
+        """
+        Inserts documents into the NDB model.
+        """
         documents = kwargs.get("documents")
         ndb_docs = create_ndb_docs(documents, self.data_dir)
 
-        self.db.insert(sources=ndb_docs)
+        source_ids = self.db.insert(sources=ndb_docs)
+
+        self.reporter.log(
+            action="insert",
+            deployment_id=self.general_variables.deployment_id,
+            access_token=kwargs.get("token"),
+            train_samples=[{"sources_ids": " ".join(source_ids)}],
+        )
 
         return [
             {
@@ -138,13 +193,26 @@ class NDBModel(Model):
 
 
 class SingleNDB(NDBModel):
-    def __init__(self):
+    """
+    Single instance of the NDB model.
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes a single NDB model.
+        """
         super().__init__()
 
-    def load_ndb(self):
+    def load_ndb(self) -> ndb.NeuralDB:
+        """
+        Loads the NDB model from a model path.
+        """
         return ndb.NeuralDB.from_checkpoint(self.model_path)
 
-    def save_ndb(self, **kwargs):
+    def save_ndb(self, **kwargs: Any) -> None:
+        """
+        Saves the NDB model to a model path.
+        """
         model_path = self.get_ndb_path(kwargs.get("model_id"))
         temp_dir = None
 
@@ -179,10 +247,20 @@ class SingleNDB(NDBModel):
 
 
 class ShardedNDB(NDBModel):
-    def __init__(self):
+    """
+    Sharded instance of the NDB model.
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes a sharded NDB model.
+        """
         super().__init__()
 
-    def load_ndb(self):
+    def load_ndb(self) -> ndb.NeuralDB:
+        """
+        Loads the sharded NDB model from model path.
+        """
         db = ndb.NeuralDB.from_checkpoint(self.model_path)
 
         for i in range(db._savable_state.model.num_shards):
@@ -205,7 +283,10 @@ class ShardedNDB(NDBModel):
 
         return db
 
-    def save_ndb(self, **kwargs):
+    def save_ndb(self, **kwargs: Any) -> None:
+        """
+        Saves the sharded NDB model to model path.
+        """
         model_dir = self.get_model_dir(kwargs.get("model_id"))
         num_shards = self.db._savable_state.model.num_shards
         backup_dir = None

@@ -1,18 +1,21 @@
 import asyncio
 import time
 from functools import wraps
-from multiprocessing import Process
+from multiprocessing import Lock, Manager, Process, Queue
+from typing import Any
 
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from reporter import Reporter
-from routers.ndb import ndb_router, process_tasks
+from routers.ndb import create_ndb_router, process_tasks
+from routers.udt import udt_router
 from utils import delete_job
 from variables import GeneralVariables, TypeEnum
 
 general_variables = GeneralVariables.load_from_env()
+reporter = Reporter(general_variables.model_bazaar_endpoint)
 
 app = FastAPI(
     docs_url=f"/{general_variables.deployment_id}/docs",
@@ -34,6 +37,10 @@ reset_event = asyncio.Event()
 
 
 def reset_timer(endpoint_func):
+    """
+    Decorator to reset the shutdown timer on endpoint access.
+    """
+
     @wraps(endpoint_func)
     def wrapper(*args, **kwargs):
         response = endpoint_func(*args, **kwargs)
@@ -43,15 +50,17 @@ def reset_timer(endpoint_func):
     return wrapper
 
 
-async def async_timer():
+async def async_timer() -> None:
+    """
+    Async function to start a shutdown timer and reset it upon endpoint access.
+    """
     while True:
         try:
             await asyncio.wait_for(
-                reset_event.wait(), timeout=900
-            )  # 15 minutes = 900 seconds
+                reset_event.wait(), timeout=900  # 15 minutes = 900 seconds
+            )
             reset_event.clear()  # clear the event if the endpoint was hit within the timeout period
         except asyncio.TimeoutError:
-            # insert logic to cancel inference session
             response, job_id = delete_job(
                 general_variables.deployment_id, general_variables.task_runner_token
             )
@@ -61,16 +70,24 @@ async def async_timer():
                 print(
                     f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
                 )
-
             reset_event.clear()
 
 
+task_queue = Queue()
+manager = Manager()
+tasks = manager.dict()
+task_lock = Lock()
+
+
 if general_variables.type == TypeEnum.NDB:
+    ndb_router = create_ndb_router(task_queue, task_lock, tasks)
     app.include_router(ndb_router, prefix=f"/{general_variables.deployment_id}")
+elif general_variables.type == TypeEnum.UDT:
+    app.include_router(udt_router, prefix=f"/{general_variables.deployment_id}")
 
 
 @app.exception_handler(404)
-async def custom_404_handler(request: Request, exc):
+async def custom_404_handler(request: Request, exc: Any) -> JSONResponse:
     return JSONResponse(
         status_code=404,
         content={"message": f"Request path '{request.url.path}' doesn't exist"},
@@ -78,19 +95,31 @@ async def custom_404_handler(request: Request, exc):
 
 
 @app.get("/")
-async def homepage(request: Request):
+async def homepage(request: Request) -> dict:
     return {"Deployment"}
 
 
 @app.on_event("startup")
-async def startup_event():
-    time.sleep(10)
-    reporter = Reporter(general_variables.model_bazaar_endpoint)
-    reporter.deploy_complete(general_variables.deployment_id)
-
-    if general_variables.type == TypeEnum.NDB:
-        Process(target=process_tasks, daemon=True).start()
+async def startup_event() -> None:
+    """
+    Event handler for application startup.
+    """
+    try:
+        time.sleep(10)
+        reporter.update_deploy_status(general_variables.deployment_id, "complete")
+        if general_variables.type == TypeEnum.NDB:
+            process = Process(
+                target=process_tasks, args=(task_queue, task_lock, tasks), daemon=True
+            )
+            process.start()
+    except Exception as e:
+        reporter.update_deploy_status(general_variables.deployment_id, "failed")
+        raise e  # Re-raise the exception to propagate it to the main block
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="localhost", port=8000)
+    try:
+        uvicorn.run(app, host="localhost", port=8000)
+    except Exception as e:
+        print(f"Uvicorn failed to start: {str(e)}")
+        reporter.update_deploy_status(general_variables.deployment_id, "failed")

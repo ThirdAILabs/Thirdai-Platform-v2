@@ -1,6 +1,10 @@
 import os
 
 import thirdai
+from models.classification_models import (
+    TextClassificationModel,
+    TokenClassificationModel,
+)
 from models.finetunable_retriever import FinetunableRetriever
 from models.multiple_mach import MultipleMach
 from models.shard_mach import ShardMach
@@ -11,6 +15,7 @@ from variables import (
     NeuralDBVariables,
     RetrieverEnum,
     TypeEnum,
+    UDTSubType,
 )
 
 # Load general variables from environment
@@ -23,7 +28,7 @@ def main():
     """
     if general_variables.type == TypeEnum.NDB:
         ndb_variables: NeuralDBVariables = NeuralDBVariables.load_from_env()
-        if general_variables.sub_type == NDBSubType.normal:
+        if general_variables.sub_type == NDBSubType.single:
             if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
                 model = FinetunableRetriever()
                 model.train()
@@ -39,6 +44,15 @@ def main():
         else:
             model = ShardMach()
             model.train()
+    elif general_variables.type == TypeEnum.UDT:
+        if general_variables.sub_type == UDTSubType.text:
+            model = TextClassificationModel()
+            model.train()
+        elif general_variables.sub_type == UDTSubType.token:
+            model = TokenClassificationModel()
+            model.train()
+        else:
+            raise ValueError("Currently Not supported")
 
 
 if __name__ == "__main__":

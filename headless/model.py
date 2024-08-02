@@ -95,24 +95,3 @@ class Flow:
             is_async=is_async,
             metadata=metadata,
         )
-
-    def deploy(
-        self,
-        model_identifier: str,
-        deployment_name: str,
-        is_async: bool = True,
-    ):
-        """
-        Deploys a model.
-
-        Parameters:
-        model_identifier (str): Identifier of the model to be deployed.
-        deployment_name (str): Name of the deployment.
-        is_async (bool, optional): Whether the deployment should be asynchronous.
-        """
-        print("*" * 50 + f" Deploying the model {model_identifier} " + "*" * 50)
-        return self._bazaar_client.deploy(
-            model_identifier=model_identifier,
-            deployment_name=deployment_name,
-            is_async=is_async,
-        )

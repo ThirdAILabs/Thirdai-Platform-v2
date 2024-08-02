@@ -2,20 +2,47 @@ import argparse
 import os
 import sys
 
+import boto3
+from botocore import UNSIGNED
+from botocore.client import Config
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+
 from headless import add_basic_args
-from headless.configs import Config
 from headless.dag_executor import DAGExecutor
 from headless.functions import functions_registry, initialize_flow
-from headless.utils import get_configs
+
+
+def download_from_s3_if_not_exists(s3_uri, local_dir):
+    if not os.path.exists(local_dir):
+        os.makedirs(local_dir)
+
+    config = Config(
+        signature_version=UNSIGNED,
+        retries={"max_attempts": 10, "mode": "standard"},
+        connect_timeout=5,
+        read_timeout=60,
+    )
+
+    s3 = boto3.client("s3", config=config)
+    bucket_name = s3_uri.split("/")[2]
+    s3_path = "/".join(s3_uri.split("/")[3:])
+
+    try:
+        for key in s3.list_objects_v2(Bucket=bucket_name, Prefix=s3_path)["Contents"]:
+            local_file_path = os.path.join(local_dir, key["Key"].split("/")[-1])
+            if not os.path.exists(local_file_path):
+                s3.download_file(bucket_name, key["Key"], local_file_path)
+                print(f"Downloaded {local_file_path}")
+    except (NoCredentialsError, PartialCredentialsError) as e:
+        print(f"Error in downloading from S3: {str(e)}")
+        sys.exit(1)
+
+
+def normalize_s3_uri(s3_uri):
+    return s3_uri.rstrip("/")
 
 
 def main():
-    """
-    Main function to run the DAG-based test suite.
-
-    Parses command-line arguments, loads configurations, initializes the DAG executor,
-    and runs the specified DAGs or tasks.
-    """
     parser = argparse.ArgumentParser(description="Run DAG-based test suite.")
     add_basic_args(parser)
     parser.add_argument(
@@ -31,30 +58,36 @@ def main():
     parser.add_argument("--all", action="store_true", help="Run all DAGs")
     parser.add_argument("--run-name", type=str, required=True, help="Name of the run")
     parser.add_argument("--sharded", action="store_true", help="Run sharded training")
-    parser.add_argument(
-        "--config",
-        type=str,
-        default="",
-        help="Regular expression indicating which configs to run. (Empty string returns all configs)",
-    )
 
     args = parser.parse_args()
+    additional_variables = {
+        "sharded": args.sharded,
+        "run_name": args.run_name,
+    }
 
-    configs = get_configs(
-        config_type=Config,  # since we only have one Runner
-        config_regex=args.config,
+    local_test_dir = os.getenv("LOCAL_TEST_DIR")
+    if not local_test_dir:
+        print("Error: LOCAL_TEST_DIR environment variable is not set.")
+        sys.exit(1)
+
+    s3_uris = [
+        "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/scifact",
+        "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/clinc",
+        "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/token",
+    ]
+
+    for s3_uri in s3_uris:
+        normalized_uri = normalize_s3_uri(s3_uri)
+        folder_name = normalized_uri.split("/")[-1]
+
+        download_from_s3_if_not_exists(
+            s3_uri, os.path.join(local_test_dir, folder_name)
+        )
+
+    dag_executor = DAGExecutor(
+        function_registry=functions_registry, global_vars=additional_variables
     )
-
-    dag_executor = DAGExecutor(function_registry=functions_registry)
     dag_executor.load_dags_from_file(args.dag_file)
-
-    dag_executor.update_variables(
-        {
-            "sharded": args.sharded,
-            "run_name": args.run_name,
-            "config": configs[0],
-        }  # Way to pass all configs and run on them.
-    )
 
     initialize_flow(args.base_url, args.email, args.password)
 

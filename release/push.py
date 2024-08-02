@@ -10,7 +10,12 @@ from docker_constants import image_base_names
 from utils import Credentials, image_name_for_branch
 
 
-def get_args():
+def get_args() -> argparse.Namespace:
+    """
+    Parse and return command-line arguments.
+
+    :return: Parsed arguments
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-b",
@@ -41,11 +46,23 @@ def get_args():
     return parser.parse_args()
 
 
-def get_tag(branch: str, config: dict):
+def get_tag(branch: str, config: dict) -> str:
+    """
+    Get the version tag for a specific branch from the configuration.
+
+    :param branch: Branch name
+    :param config: Configuration dictionary
+    :return: Version tag
+    """
     return "v" + config[config["provider"]]["branches"][branch]["version"]
 
 
-def get_root_absolute_path():
+def get_root_absolute_path() -> Path:
+    """
+    Get the absolute path to the project root.
+
+    :return: Absolute path to the project root
+    """
     current_path = Path(__file__).resolve()
     while current_path.name != "ThirdAI-Platform":
         current_path = current_path.parent
@@ -61,7 +78,18 @@ def build_image(
     tag: str,
     buildargs: Dict[str, str],
     nocache: bool,
-):
+) -> Dict[str, str]:
+    """
+    Build a Docker image.
+
+    :param provider: Cloud provider interface
+    :param name: Name of the image
+    :param branch: Branch name
+    :param tag: Version tag
+    :param buildargs: Build arguments for Docker
+    :param nocache: Whether to use cache during build
+    :return: Dictionary with image name and image ID
+    """
     path = get_root_absolute_path() / name
     full_name = provider.get_full_image_name(name, branch, tag)
     image_id = provider.build_image(str(path), full_name, nocache, buildargs)
@@ -75,7 +103,18 @@ def build_images(
     username: str,
     password: str,
     nocache: bool,
-):
+) -> Dict[str, str]:
+    """
+    Build all Docker images.
+
+    :param provider: Cloud provider interface
+    :param branch: Branch name
+    :param tag: Version tag
+    :param username: Docker username
+    :param password: Docker password
+    :param nocache: Whether to use cache during build
+    :return: Dictionary of image names and their IDs
+    """
     image_ids = {}
 
     # Build ThirdAI platform image with specific buildargs
@@ -113,7 +152,16 @@ def build_images(
 
 def verify_tag(
     provider: CloudProviderInterface, image_ids: Dict[str, str], tag: str, branch: str
-):
+) -> None:
+    """
+    Verify that the Docker image tag matches the checksum of the built image.
+
+    :param provider: Cloud provider interface
+    :param image_ids: Dictionary of image names and their IDs
+    :param tag: Version tag
+    :param branch: Branch name
+    :raises RuntimeError: If an image with the same tag but different checksum exists
+    """
     for name, image_id in image_ids.items():
         existing = provider.get_image_digest(
             name=image_name_for_branch(name, branch), tag=tag
@@ -121,7 +169,7 @@ def verify_tag(
         new = provider.get_local_image_digest(image_id=image_id)
         if existing and existing != new:
             raise RuntimeError(
-                f"A docker image with name '{name}' and tag '{tag}' with "
+                f"A docker image with name '{name}' and branch '{branch}' and tag '{tag}' with "
                 "a different checksum exists in the registry."
             )
 
@@ -132,7 +180,16 @@ def push_images(
     tag: str,
     branch: str,
     dont_update_latest: bool,
-):
+) -> None:
+    """
+    Push Docker images to the registry.
+
+    :param provider: Cloud provider interface
+    :param image_ids: Dictionary of image names and their IDs
+    :param tag: Version tag
+    :param branch: Branch name
+    :param dont_update_latest: Whether to update the 'latest' tag
+    """
     for name, image_id in image_ids.items():
         provider.push_image(image_id, provider.get_full_image_name(name, branch, tag))
         if not dont_update_latest:
@@ -141,7 +198,13 @@ def push_images(
             )
 
 
-def load_config(config_path: str):
+def load_config(config_path: str) -> dict:
+    """
+    Load the YAML configuration file.
+
+    :param config_path: Path to the configuration file
+    :return: Configuration dictionary
+    """
     if os.path.exists(config_path):
         with open(config_path, "r") as file:
             return yaml.safe_load(file)
@@ -149,12 +212,21 @@ def load_config(config_path: str):
         return {"provider": "azure", "azure": {"registry": "", "branches": {}}}
 
 
-def save_config(config_path: str, config: dict):
+def save_config(config_path: str, config: dict) -> None:
+    """
+    Save the configuration dictionary to a YAML file.
+
+    :param config_path: Path to the configuration file
+    :param config: Configuration dictionary
+    """
     with open(config_path, "w") as file:
         yaml.dump(config, file, default_flow_style=False)
 
 
-def main():
+def main() -> None:
+    """
+    Main function to build and push Docker images.
+    """
     args = get_args()
     config = load_config(args.config)
 

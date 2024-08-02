@@ -3,18 +3,16 @@ import logging
 import os
 import re
 import socket
-from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 from urllib.parse import urljoin
 
 import bcrypt
 import requests
 from database import schema
-from fastapi import UploadFile
 from fastapi.responses import JSONResponse
 from jinja2 import Template
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, root_validator
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger("ThirdAI_Platform")
@@ -23,6 +21,13 @@ logger = logging.getLogger("ThirdAI_Platform")
 def setup_logger(
     level=logging.DEBUG, format="%(asctime)s | [%(name)s] [%(levelname)s] %(message)s"
 ):
+    """
+    Set up the logger with the specified logging level and format.
+
+    Parameters:
+    - level: Logging level (e.g., logging.DEBUG).
+    - format: Logging format string.
+    """
     console_handler = logging.StreamHandler()
     console_handler.setLevel(level)
 
@@ -37,6 +42,18 @@ def setup_logger(
 
 
 def response(status_code: int, message: str, data={}, success: bool = None):
+    """
+    Create a JSON response.
+
+    Parameters:
+    - status_code: HTTP status code for the response.
+    - message: Message to include in the response.
+    - data: Optional data to include in the response (default is an empty dictionary).
+    - success: Optional boolean indicating success or failure (default is None).
+
+    Returns:
+    - JSONResponse: FastAPI JSONResponse object.
+    """
     if success is not None:
         status = "success" if success else "failed"
     else:
@@ -48,12 +65,30 @@ def response(status_code: int, message: str, data={}, success: bool = None):
 
 
 def hash_password(password: str):
+    """
+    Hash a password using bcrypt.
+
+    Parameters:
+    - password: The plaintext password to hash.
+
+    Returns:
+    - str: The hashed password.
+    """
     byte_password = password.encode("utf-8")
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(byte_password, salt).decode()
 
 
 def get_high_level_model_info(result: schema.Model):
+    """
+    Get high-level information about a model.
+
+    Parameters:
+    - result: The model object.
+
+    Returns:
+    - dict: Dictionary containing high-level model information.
+    """
     info = {
         "model_name": result.name,
         "publish_date": str(result.published_date),
@@ -61,6 +96,7 @@ def get_high_level_model_info(result: schema.Model):
         "username": result.user.username,
         "access_level": result.access_level,
         "domain": result.domain,
+        "type": result.type,
     }
 
     # Include metadata if it exists
@@ -75,12 +111,115 @@ def get_high_level_model_info(result: schema.Model):
 
 
 def validate_name(name):
+    """
+    Validate a name using a regex pattern.
+
+    Parameters:
+    - name: The name to validate.
+
+    Raises:
+    - ValueError: If the name is not valid.
+    """
     regex_pattern = "^[\w-]+$"
     if not re.match(regex_pattern, name):
         raise ValueError("name is not valid")
 
 
+class UDTExtraOptions(BaseModel):
+    """
+    Model for User Defined Type (UDT) extra options.
+
+    Attributes:
+    - allocation_cores: Optional number of cores to allocate.
+    - allocation_memory: Optional amount of memory to allocate.
+    - sub_type: Optional subtype of the UDT.
+    - target_labels: List of target labels.
+    - source_column: Optional source column name.
+    - target_column: Optional target column name.
+    - default_tag: Optional default tag.
+    - delimiter: Optional delimiter (default is ',').
+    - text_column: Optional text column name (default is 'text').
+    - label_column: Optional label column name (default is 'label').
+    - n_target_classes: Optional number of target classes.
+
+    Validators:
+    - set_fields_based_on_type: Sets default values based on the subtype.
+    """
+
+    allocation_cores: Optional[int] = None
+    allocation_memory: Optional[int] = None
+
+    sub_type: Optional[str] = None
+    target_labels: List[str] = None
+    source_column: Optional[str] = None
+    target_column: Optional[str] = None
+    default_tag: Optional[str] = None
+    delimiter: Optional[str] = None
+    text_column: Optional[str] = None
+    label_column: Optional[str] = None
+    n_target_classes: Optional[int] = None
+
+    @root_validator(pre=True)
+    def set_fields_based_on_type(cls, values):
+        sub_type = values.get("sub_type")
+        if sub_type == "text":
+            values["delimiter"] = values.get("delimiter", ",")
+            values["text_column"] = values.get("text_column", "text")
+            values["label_column"] = values.get("label_column", "label")
+            values["n_target_classes"] = values.get("n_target_classes", None)
+        elif sub_type == "token":
+            values["target_labels"] = values.get("target_labels", [])
+            values["source_column"] = values.get("source_column", "source")
+            values["target_column"] = values.get("target_column", "target")
+            values["default_tag"] = values.get("default_tag", "O")
+        return values
+
+
 class NDBExtraOptions(BaseModel):
+    """
+    Model for Neural Database (NDB) extra options.
+
+    Attributes:
+    - num_models_per_shard: Optional number of models per shard (default is 1).
+    - num_shards: Optional number of shards (default is 1).
+    - allocation_cores: Optional number of cores to allocate.
+    - allocation_memory: Optional amount of memory to allocate.
+    - model_cores: Optional number of cores for the model.
+    - model_memory: Optional amount of memory for the model.
+    - priority: Optional priority of the job.
+    - csv_id_column: Optional CSV ID column name.
+    - csv_strong_columns: Optional list of strong columns.
+    - csv_weak_columns: Optional list of weak columns.
+    - csv_reference_columns: Optional list of reference columns.
+    - fhr: Optional FHR value.
+    - embedding_dim: Optional embedding dimension.
+    - output_dim: Optional output dimension.
+    - max_in_memory_batches: Optional maximum number of in-memory batches.
+    - extreme_num_hashes: Optional number of extreme hashes.
+    - num_classes: Optional number of classes.
+    - csv_query_column: Optional CSV query column name.
+    - csv_id_delimiter: Optional CSV ID delimiter.
+    - learning_rate: Optional learning rate.
+    - batch_size: Optional batch size.
+    - unsupervised_epochs: Optional number of unsupervised epochs.
+    - supervised_epochs: Optional number of supervised epochs.
+    - tokenizer: Optional tokenizer.
+    - hidden_bias: Optional boolean indicating hidden bias.
+    - retriever: Optional retriever to use.
+    - unsupervised_train: Optional boolean indicating unsupervised training.
+    - disable_finetunable_retriever: Optional boolean to disable finetunable retriever.
+    - checkpoint_interval: Optional checkpoint interval.
+    - fast_approximation: Optional boolean indicating fast approximation.
+    - num_buckets_to_sample: Optional number of buckets to sample.
+    - metrics: Optional list of metrics.
+    - validation_metrics: Optional list of validation metrics.
+    - on_disk: Optional boolean indicating on-disk storage.
+    - docs_on_disk: Optional boolean indicating documents on-disk storage.
+
+    Config:
+    - extra: Forbid extra attributes.
+    """
+
     # ----shard specific training params----
     num_models_per_shard: Optional[int] = Field(1, gt=0)
     num_shards: Optional[int] = Field(1, gt=0)
@@ -92,9 +231,9 @@ class NDBExtraOptions(BaseModel):
     model_memory: Optional[int] = None
     priority: Optional[int] = None
     csv_id_column: Optional[str] = None
-    csv_strong_columns: Optional[list[str]] = None
-    csv_weak_columns: Optional[list[str]] = None
-    csv_reference_columns: Optional[list[str]] = None
+    csv_strong_columns: Optional[List[str]] = None
+    csv_weak_columns: Optional[List[str]] = None
+    csv_reference_columns: Optional[List[str]] = None
     fhr: Optional[int] = None
     embedding_dim: Optional[int] = None
     output_dim: Optional[int] = None
@@ -120,7 +259,8 @@ class NDBExtraOptions(BaseModel):
     checkpoint_interval: Optional[int] = None
     fast_approximation: Optional[bool] = None
     num_buckets_to_sample: Optional[int] = None
-    metrics: Optional[list[str]] = None
+    metrics: Optional[List[str]] = None
+    validation_metrics: Optional[List[str]] = None
     on_disk: Optional[bool] = None
     docs_on_disk: Optional[bool] = None
 
@@ -128,108 +268,18 @@ class NDBExtraOptions(BaseModel):
         extra = "forbid"
 
 
-class FileType(str, Enum):
-    unsupervised = "unsupervised"
-    supervised = "supervised"
-    test = "test"
-
-
-class FileLocation(str, Enum):
-    local = "local"
-    nfs = "nfs"
-    s3 = "s3"
-
-
-class FileDetails(BaseModel):
-    mode: FileType
-    location: FileLocation
-    source_id: Optional[str] = None
-    metadata: Optional[Dict[str, str]] = None
-
-    is_folder: Optional[bool] = False
-
-    @validator("location")
-    def check_location(cls, v):
-        if v not in FileLocation.__members__.values():
-            raise ValueError(
-                f"Invalid location value. Supported locations are {list(FileLocation)}"
-            )
-        return v
-
-    @validator("source_id", always=True)
-    def check_source_id(cls, v, values):
-        if values.get("mode") == FileType.supervised and not v:
-            raise ValueError("source_id is required for supervised files.")
-        if values.get("mode") != FileType.supervised and v:
-            raise ValueError("source_id is only allowed for supervised files.")
-        if values.get("source_id") and v is not None:
-            raise ValueError("source_id should not be provided when is_folder is True")
-        return v
-
-    @validator("metadata", always=True)
-    def check_metadata(cls, v, values):
-        if values.get("is_folder") and v is not None:
-            raise ValueError("metadata should not be provided when is_folder is True")
-        if values.get("mode") == FileType.supervised and v is not None:
-            raise ValueError(
-                "metadata is not required for supervised files, it is only for unsupervised files."
-            )
-        return v
-
-    @validator("mode", always=True)
-    def check_unsupervised_metadata(cls, v, values):
-        if v == FileType.unsupervised and values.get("metadata") is not None:
-            if values.get("is_folder"):
-                raise ValueError(
-                    "metadata should not be provided when is_folder is True"
-                )
-        if values.get("is_folder") and v != FileType.unsupervised:
-            raise ValueError("is_folder can only be True for unsupervised files.")
-        return v
-
-    @validator("is_folder", always=True)
-    def check_is_folder(cls, v, values):
-        if v and values.get("location") == FileLocation.local:
-            raise ValueError("is_folder can only be True for nfs and s3 locations.")
-        if v and values.get("mode") != FileType.unsupervised:
-            raise ValueError("is_folder can only be True for unsupervised files.")
-        return v
-
-    def validate_csv_extension(self, filename: str):
-        if self.mode in {FileType.supervised, FileType.test}:
-            _, ext = os.path.splitext(filename)
-            if ext != ".csv":
-                raise ValueError(
-                    f"{filename} file has to be a csv file but given {ext} file."
-                )
-        return True
-
-
-class FileDetailsList(BaseModel):
-    file_details: List[FileDetails]
-
-    @validator("file_details")
-    def check_file_counts(cls, v):
-        test_count = sum(1 for file in v if file.mode == FileType.test)
-        unsupervised_count = sum(1 for file in v if file.mode == FileType.unsupervised)
-        unsupervised_metadata_count = sum(
-            1
-            for file in v
-            if file.mode == FileType.unsupervised and file.metadata is not None
-        )
-
-        if test_count > 1:
-            raise ValueError("Currently supports a single test file")
-
-        if 0 < unsupervised_metadata_count < unsupervised_count:
-            raise ValueError(
-                "Either all unsupervised files must have metadata or none should have metadata."
-            )
-
-        return v
-
-
 def get_model(session: Session, username: str, model_name: str):
+    """
+    Get a model by username and model name.
+
+    Parameters:
+    - session: SQLAlchemy session.
+    - username: Username of the model owner.
+    - model_name: Name of the model.
+
+    Returns:
+    - schema.Model: The model object if found, otherwise None.
+    """
     return (
         session.query(schema.Model)
         .join(schema.User)
@@ -238,191 +288,19 @@ def get_model(session: Session, username: str, model_name: str):
     )
 
 
-def create_s3_client():
-    import boto3
-    from botocore import UNSIGNED
-    from botocore.client import Config
-
-    aws_access_key = os.getenv("AWS_ACCESS_KEY")
-    aws_secret_access_key = os.getenv("AWS_ACCESS_SECRET")
-    if not aws_access_key or not aws_secret_access_key:
-        config = Config(
-            signature_version=UNSIGNED,
-            retries={"max_attempts": 10, "mode": "standard"},
-            connect_timeout=5,
-            read_timeout=60,
-        )
-        s3_client = boto3.client(
-            "s3",
-            config=config,
-        )
-    else:
-        config = Config(
-            retries={"max_attempts": 10, "mode": "standard"},
-            connect_timeout=5,
-            read_timeout=60,
-        )
-        s3_client = boto3.client(
-            "s3",
-            aws_access_key_id=os.getenv("AWS_ACCESS_KEY"),
-            aws_secret_access_key=os.getenv("AWS_ACCESS_SECRET"),
-            config=config,
-        )
-    return s3_client
-
-
-def list_files_in_s3(bucket_name, prefix):
-    s3 = create_s3_client()
-
-    paginator = s3.get_paginator("list_objects_v2")
-    pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
-
-    file_keys = []
-
-    for page in pages:
-        if "Contents" in page:
-            for obj in page["Contents"]:
-                file_keys.append(obj["Key"])
-
-    return file_keys
-
-
-def list_s3_files(filename):
-    s3_urls = []
-    bucket_name, prefix = filename.replace("s3://", "").split("/", 1)
-    file_keys = list_files_in_s3(bucket_name, prefix)
-    s3_urls.extend([f"s3://{bucket_name}/{key}" for key in file_keys])
-
-    return s3_urls
-
-
-def get_files(
-    files: List[UploadFile],
-    data_id,
-    files_info: List[FileDetails],
-):
-    filenames = []
-    supervised_filenames = []
-    source_ids = []
-
-    for i, file in enumerate(files):
-        file_info = files_info[i]
-        destination_dir = os.path.join(
-            os.getenv("LOCAL_TEST_DIR", "/model_bazaar"),
-            "data",
-            str(data_id),
-            file_info.mode,
-        )
-        os.makedirs(destination_dir, exist_ok=True)
-
-        if file_info.mode == FileType.supervised:
-            supervised_filenames.append(file.filename)
-            source_ids.append(file_info.source_id)
-
-        if file_info.location == FileLocation.nfs:
-            nfs_file_path = os.path.join(destination_dir, "nfs_files.txt")
-            try:
-                if file_info.is_folder:
-                    for root, _, files_in_dir in os.walk(file.filename):
-                        for filename in files_in_dir:
-                            src_file_path = os.path.join(root, filename)
-                            with open(nfs_file_path, "a") as nfs_file:
-                                nfs_file.write(src_file_path + "\n")
-                            filenames.append(src_file_path)
-                            file_info.validate_csv_extension(src_file_path)
-                else:
-                    with open(nfs_file_path, "a") as nfs_file:
-                        nfs_file.write(file.filename + "\n")
-                    filenames.append(file.filename)
-                    file_info.validate_csv_extension(file.filename)
-                    if files_info[i].metadata:
-                        metadata_file_path = (
-                            f"{os.path.splitext(file.filename)[0]}_metadata.json"
-                        )
-                        with open(metadata_file_path, "w") as json_file:
-                            json.dump(files_info[i].metadata, json_file)
-            except Exception as error:
-                return f"There was an error reading the file from nfs : {error}"
-        elif file_info.location == FileLocation.s3:
-            s3_file_path = os.path.join(destination_dir, "s3_files.txt")
-            try:
-                s3_files = list_s3_files(file.filename)
-                for s3_file in s3_files:
-                    with open(s3_file_path, "a") as s3_file_local:
-                        s3_file_local.write(s3_file + "\n")
-                    filenames.append(s3_file)
-                    file_info.validate_csv_extension(s3_file)
-            except Exception as error:
-                return f"There was an error writing the S3 URL to the file: {error}"
-        else:
-            destination_path = os.path.join(
-                destination_dir, str(os.path.basename(file.filename))
-            )
-            os.makedirs(os.path.dirname(destination_path), exist_ok=True)
-
-            if file_info.metadata:
-                metadata_file_path = (
-                    f"{os.path.splitext(destination_path)[0]}_metadata.json"
-                )
-                with open(metadata_file_path, "w") as json_file:
-                    json.dump(file_info.metadata, json_file)
-
-            file_info.validate_csv_extension(file.filename)
-
-            try:
-                contents = file.file.read()
-                with open(destination_path, "wb") as f:
-                    f.write(contents)
-            except Exception as error:
-                return f"There was an error uploading the file from local: {error}"
-            finally:
-                file.file.close()
-
-            filenames.append(file.filename)
-
-    if len(supervised_filenames) > 0:
-        save_file_relations(
-            supervised_file_names=supervised_filenames,
-            data_id=data_id,
-            source_ids=source_ids,
-        )
-
-    return filenames
-
-
-def save_file_relations(
-    supervised_file_names,
-    data_id,
-    source_ids,
-):
-    if len(supervised_file_names) != len(source_ids):
-        return {
-            "status_code": 400,
-            "message": "Source ids have not been given for all supervised files.",
-        }
-
-    relations_dict_list = [
-        {
-            "supervised_file": os.path.basename(file_name),
-            "source_id": source_ids[i],
-        }
-        for i, file_name in enumerate(supervised_file_names)
-    ]
-
-    destination_path = os.path.join(
-        os.getenv("LOCAL_TEST_DIR", "/model_bazaar"),
-        "data",
-        str(data_id),
-        "relations.json",
-    )
-
-    os.makedirs(os.path.dirname(destination_path), exist_ok=True)
-
-    with open(destination_path, "w") as file:
-        json.dump(relations_dict_list, file, indent=4)
-
-
 def parse_model_identifier(model_identifier):
+    """
+    Parse a model identifier into username and model name.
+
+    Parameters:
+    - model_identifier: The model identifier in the format 'username/model_name'.
+
+    Returns:
+    - tuple: A tuple containing the username and model name.
+
+    Raises:
+    - ValueError: If the model identifier is not valid.
+    """
     regex_pattern = "^[\w-]+\/[\w-]+$"
     if re.match(regex_pattern, model_identifier):
         username, model_name = model_identifier.split("/")
@@ -432,6 +310,19 @@ def parse_model_identifier(model_identifier):
 
 
 def get_model_from_identifier(model_identifier, session):
+    """
+    Get a model from a model identifier.
+
+    Parameters:
+    - model_identifier: The model identifier in the format 'username/model_name'.
+    - session: SQLAlchemy session.
+
+    Returns:
+    - schema.Model: The model object.
+
+    Raises:
+    - ValueError: If there is no model with the given name.
+    """
     try:
         model_username, model_name = parse_model_identifier(model_identifier)
     except Exception as error:
@@ -448,6 +339,17 @@ TASK_RUNNER_TOKEN = os.getenv("TASK_RUNNER_TOKEN")
 
 
 def get_hcl_payload(filepath, is_jinja, **kwargs):
+    """
+    Get the HCL payload from a file.
+
+    Parameters:
+    - filepath: Path to the HCL file.
+    - is_jinja: Boolean indicating if the file is a Jinja template.
+    - kwargs: Additional keyword arguments to render the Jinja template.
+
+    Returns:
+    - dict: Dictionary containing the HCL payload.
+    """
     with open(filepath, "r") as file:
         content = file.read()
 
@@ -463,6 +365,16 @@ def get_hcl_payload(filepath, is_jinja, **kwargs):
 
 
 def nomad_job_exists(job_id, nomad_endpoint):
+    """
+    Check if a Nomad job exists.
+
+    Parameters:
+    - job_id: The ID of the Nomad job.
+    - nomad_endpoint: The Nomad endpoint.
+
+    Returns:
+    - bool: True if the job exists, otherwise False.
+    """
     headers = {"X-Nomad-Token": TASK_RUNNER_TOKEN}
     response = requests.get(
         urljoin(nomad_endpoint, f"v1/job/{job_id}"), headers=headers
@@ -472,9 +384,16 @@ def nomad_job_exists(job_id, nomad_endpoint):
 
 def submit_nomad_job(filepath, nomad_endpoint, **kwargs):
     """
-    This function submits an generated HCL job file from a jinja file to nomad
-    """
+    Submit a generated HCL job file from a Jinja file to Nomad.
 
+    Parameters:
+    - filepath: Path to the HCL or Jinja file.
+    - nomad_endpoint: The Nomad endpoint.
+    - kwargs: Additional keyword arguments for rendering the Jinja template.
+
+    Returns:
+    - Response: The response from the Nomad API.
+    """
     json_payload_url = urljoin(nomad_endpoint, "v1/jobs/parse")
     submit_url = urljoin(nomad_endpoint, "v1/jobs")
     headers = {"Content-Type": "application/json", "X-Nomad-Token": TASK_RUNNER_TOKEN}
@@ -496,6 +415,16 @@ def submit_nomad_job(filepath, nomad_endpoint, **kwargs):
 
 
 def delete_nomad_job(job_id, nomad_endpoint):
+    """
+    Delete a Nomad job.
+
+    Parameters:
+    - job_id: The ID of the Nomad job.
+    - nomad_endpoint: The Nomad endpoint.
+
+    Returns:
+    - Response: The response from the Nomad API.
+    """
     job_url = urljoin(nomad_endpoint, f"v1/job/{job_id}")
     headers = {"X-Nomad-Token": TASK_RUNNER_TOKEN}
     response = requests.delete(job_url, headers=headers)
@@ -511,6 +440,16 @@ def delete_nomad_job(job_id, nomad_endpoint):
 
 
 def get_platform():
+    """
+    Get the platform identifier.
+
+    Returns:
+    - str: The platform identifier (default is 'docker').
+
+    Options:
+    - docker: Docker platform.
+    - local: Local platform.
+    """
     platform = os.getenv("PLATFORM", "docker")
     options = ["docker", "local"]
     if platform not in options:
@@ -521,6 +460,15 @@ def get_platform():
 
 
 def get_python_path():
+    """
+    Get the Python path based on the platform.
+
+    Returns:
+    - str: The Python path.
+
+    Raises:
+    - ValueError: If the PYTHON_PATH environment variable is not set for local development.
+    """
     python_path = "python3"
     if get_platform() == "local":
         python_path = os.getenv("PYTHON_PATH")
@@ -533,10 +481,26 @@ def get_python_path():
 
 
 def get_root_absolute_path():
+    """
+    Get the absolute path to the root directory.
+
+    Returns:
+    - Path: The absolute path to the root directory.
+    """
     return Path(__file__).parent.parent.parent.absolute()
 
 
 def update_json(current_json, new_dict):
+    """
+    Update a JSON object with a new dictionary.
+
+    Parameters:
+    - current_json: The current JSON object (as a string).
+    - new_dict: The new dictionary to update the JSON object with.
+
+    Returns:
+    - str: The updated JSON object (as a string).
+    """
     if current_json is None:
         current_dict = {}
     else:
@@ -546,6 +510,16 @@ def update_json(current_json, new_dict):
 
 
 def update_json_list(current_list, new_dict):
+    """
+    Update a JSON list with a new dictionary.
+
+    Parameters:
+    - current_list: The current JSON list (as a string).
+    - new_dict: The new dictionary to add to the list.
+
+    Returns:
+    - str: The updated JSON list (as a string).
+    """
     if current_list is None:
         current_list = []
     else:
@@ -556,6 +530,18 @@ def update_json_list(current_list, new_dict):
 
 
 def get_deployment(session: Session, deployment_name, deployment_user_id, model_id):
+    """
+    Get a deployment by name, user ID, and model ID.
+
+    Parameters:
+    - session: SQLAlchemy session.
+    - deployment_name: The name of the deployment.
+    - deployment_user_id: The user ID of the deployment owner.
+    - model_id: The model ID.
+
+    Returns:
+    - schema.Deployment: The deployment object if found, otherwise None.
+    """
     return (
         session.query(schema.Deployment)
         .filter(
@@ -568,6 +554,16 @@ def get_deployment(session: Session, deployment_name, deployment_user_id, model_
 
 
 def model_accessible(model: schema.Model, user: schema.User) -> bool:
+    """
+    Check if a model is accessible to a user.
+
+    Parameters:
+    - model: The model object.
+    - user: The user object.
+
+    Returns:
+    - bool: True if the model is accessible, otherwise False.
+    """
     if model.access_level == "private":
         if model.user.id == user.id:
             return True
@@ -582,6 +578,12 @@ def model_accessible(model: schema.Model, user: schema.User) -> bool:
 
 
 def get_empty_port():
+    """
+    Get an empty port.
+
+    Returns:
+    - int: The empty port number.
+    """
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind(("", 0))  # Bind to an empty
     port = sock.getsockname()[1]
@@ -590,6 +592,18 @@ def get_empty_port():
 
 
 def parse_deployment_identifier(deployment_identifier):
+    """
+    Parse a deployment identifier.
+
+    Parameters:
+    - deployment_identifier: The deployment identifier in the format 'username/model_name:username/deployment_name'.
+
+    Returns:
+    - tuple: A tuple containing model username, model name, deployment username, and deployment name.
+
+    Raises:
+    - ValueError: If the deployment identifier is not valid.
+    """
     regex_pattern = "^[\w-]+\/[\w-]+\:[\w-]+\/[\w-]+$"
     if re.match(regex_pattern, deployment_identifier):
         model_identifier, deployment_tag = deployment_identifier.split(":")
@@ -601,6 +615,16 @@ def parse_deployment_identifier(deployment_identifier):
 
 
 def delete_nomad_job(job_id, nomad_endpoint):
+    """
+    Delete a Nomad job.
+
+    Parameters:
+    - job_id: The ID of the Nomad job.
+    - nomad_endpoint: The Nomad endpoint.
+
+    Returns:
+    - Response: The response from the Nomad API.
+    """
     job_url = urljoin(nomad_endpoint, f"v1/job/{job_id}")
     headers = {"X-Nomad-Token": TASK_RUNNER_TOKEN}
     response = requests.delete(job_url, headers=headers)
@@ -613,3 +637,33 @@ def delete_nomad_job(job_id, nomad_endpoint):
         )
 
     return response
+
+
+GENERATE_JOB_ID = "llm-generation"
+
+
+async def restart_generate_job():
+    """
+    Restart the LLM generation job.
+
+    Returns:
+    - Response: The response from the Nomad API.
+    """
+    nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
+    if nomad_job_exists(GENERATE_JOB_ID, nomad_endpoint):
+        delete_nomad_job(GENERATE_JOB_ID, nomad_endpoint)
+    cwd = Path(os.getcwd())
+    platform = get_platform()
+    return submit_nomad_job(
+        nomad_endpoint=nomad_endpoint,
+        filepath=str(cwd / "backend" / "nomad_jobs" / "generation_job.hcl.j2"),
+        platform=platform,
+        port=None if platform == "docker" else get_empty_port(),
+        tag=os.getenv("TAG"),
+        registry=os.getenv("DOCKER_REGISTRY"),
+        docker_username=os.getenv("DOCKER_USERNAME"),
+        docker_password=os.getenv("DOCKER_PASSWORD"),
+        image_name=os.getenv("GENERATION_IMAGE_NAME"),
+        python_path=get_python_path(),
+        generate_app_dir=str(get_root_absolute_path() / "llm_generation_job"),
+    )

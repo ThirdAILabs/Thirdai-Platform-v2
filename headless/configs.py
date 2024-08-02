@@ -1,5 +1,12 @@
+import os
+import sys
 from abc import ABC
 from typing import Optional
+
+base_path = os.getenv("LOCAL_TEST_DIR")
+if not base_path:
+    print("Error: LOCAL_TEST_DIR environment variable is not set.")
+    sys.exit(1)
 
 
 class Config(ABC):
@@ -21,7 +28,7 @@ class Config(ABC):
     reference_columns (list[str]): List of reference columns for data.
     query_column (str): Column name for queries.
     id_delimiter (str): Delimiter used in IDs.
-    model_cores (int): Number of cores used for single model( Used for sharded training).
+    model_cores (int): Number of cores used for single model (Used for sharded training).
     model_memory (int): Amount of memory allocated for the model (in MB) (Used for sharded training).
     input_dim (int): Input dimension for the model.
     hidden_dim (int): Hidden dimension for the model.
@@ -30,13 +37,15 @@ class Config(ABC):
     allocation_cores (int): Number of cores allocated for model training (Used for shard allocation or single training).
     epochs (int): Number of training epochs.
     retriever (str): Type of retriever used (e.g., hybrid, mach).
+    checkpoint_interval (int): Interval for saving model checkpoints.
+    sub_type (str): Sub-type of the configuration.
+    n_classes (Optional[int]): Number of classes for classification tasks.
+    target_labels (Optional[list[str]]): List of target labels for token classification.
     """
 
     name: str = None
 
-    base_path: str = (
-        "/Users/yashwanthadunukota/neuraldb-enterprise-services/headless/data"
-    )
+    base_path: str = base_path
     doc_type: str = "local"
     nfs_original_base_path: str = "/opt/neuraldb_enterprise/"
     unsupervised_paths: list[str] = []
@@ -64,6 +73,10 @@ class Config(ABC):
 
     retriever: str = "mach"
 
+    sub_type: str = "text"
+    n_classes: Optional[int] = None
+    target_labels: list[str] = None
+
 
 class Scifact(Config):
     """
@@ -73,19 +86,51 @@ class Scifact(Config):
     name: str = "scifact"
 
     unsupervised_paths: list[str] = [
-        "scifact/unsupervised_1.csv",
-        "scifact/unsupervised_2.csv",
+        "scifact/unsupervised_part1.csv",
+        "scifact/unsupervised_part2.csv",
     ]
     supervised_paths: list[str] = [
-        "scifact/supervised_1.csv",
-        "scifact/supervised_2.csv",
+        "scifact/trn_supervised_part1.csv",
+        "scifact/trn_supervised_part2.csv",
     ]
-    test_paths: list[str] = ["scifact/test_1.csv", "scifact/test_2.csv"]
-    insert_paths: list[str] = ["scifact/insert.pdf"]
+    test_paths: list[str] = [
+        "scifact/tst_supervised.csv",
+    ]
+    insert_paths: list[str] = ["scifact/sample_nda.pdf"]
 
     strong_columns: list[str] = ["TITLE"]
     weak_columns: list[str] = ["TEXT"]
     reference_columns: list[str] = ["TITLE", "TEXT"]
-    id_column: str = "id"
-    query_column: str = "query"
+    id_column: str = "DOC_ID"
+    query_column: str = "QUERY"
     id_delimiter: str = ":"
+
+
+class Text(Config):
+    """
+    Configuration settings for text data.
+    """
+
+    name: str = "text"
+
+    unsupervised_paths: list[str] = ["clinc/train.csv"]
+    id_column: str = "category"
+    query_column: str = "text"
+    n_classes: int = 150
+
+    sub_type: str = "text"
+
+
+class Token(Config):
+    """
+    Configuration settings for token data.
+    """
+
+    name: str = "token"
+
+    unsupervised_paths: list[str] = ["token/ner.csv"]
+    id_column: str = "target"
+    query_column: str = "source"
+
+    target_labels: list[str] = ["PER", "ORG"]
+    sub_type: str = "token"

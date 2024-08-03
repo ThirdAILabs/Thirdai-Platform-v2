@@ -475,6 +475,8 @@ function App() {
                                                                 checkedIds
                                                             }
                                                             onCheck={onCheck}
+                                                            modelService = {modelService}
+                                                            ifGuardRailOn = {ifGuardRailOn}
                                                         />
                                                     </Pad>
                                                 </Pad>

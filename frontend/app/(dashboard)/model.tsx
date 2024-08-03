@@ -22,6 +22,7 @@ export function Model({ model }: { model: SelectModel }) {
   const [deployStatus, setDeployStatus] = useState<string>('');
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
   const [deploymentIdentifier, setDeploymentIdentifier] = useState<string | null>(null);
+  const [nerRAGEndpoint, setNerRAGEndpoint] = useState<string | null>(null);
 
   useEffect(() => {
     const username = model.username;
@@ -35,6 +36,8 @@ export function Model({ model }: { model: SelectModel }) {
 
         if (model.type === 'rag') {
           let ndbModelId = model.ndb_model_id
+          let tokenModelId = model.token_model_id
+
           if (ndbModelId) {
             getDeployStatus({ deployment_identifier: `${ndbModelId}:${ndbModelId}` })
             .then((response) => {
@@ -42,8 +45,42 @@ export function Model({ model }: { model: SelectModel }) {
               if (response.data.deployment_id && response.data.status === 'complete') {
                 
                 // console.log('The NDB model is already deployed, and deployment ID is: ', response.data.deployment_id)
-                setDeployStatus('Deployed')
                 setDeploymentId(response.data.deployment_id)
+
+                // check if 
+                if (! tokenModelId) {
+                  setDeployStatus('Deployed')
+                } else {
+                  getDeployStatus({ deployment_identifier: `${tokenModelId}:${tokenModelId}` })
+                  .then((response) => {
+                    console.log('Deployment status response:', response);
+                    if (response.data.deployment_id && response.data.status === 'complete') {
+                      
+                      // console.log('The NDB model is already deployed, and deployment ID is: ', response.data.deployment_id)
+                      setDeployStatus('Deployed')
+                      setNerRAGEndpoint(response.data.deployment_id)
+
+                    } else if (response.data.status === 'in_progress') {
+      
+                      // console.log('The NDB model is still deploying')
+                      setDeployStatus('Deploying')
+
+                    } else {
+      
+                      // console.log('The NDB model is not yet deployed and ready to deploy')
+                      setDeployStatus('Ready to Deploy')
+
+                    }
+                  })
+                  .catch((error) => {
+                    if (error.response && error.response.status === 400) {
+                      // console.log('The NDB model is not yet deployed and ready to deploy');
+                      setDeployStatus('Ready to Deploy')
+                    } else {
+                      console.error('Error fetching deployment status:', error);
+                    }
+                  });
+                }
 
               } else if (response.data.status === 'in_progress') {
 
@@ -114,12 +151,21 @@ export function Model({ model }: { model: SelectModel }) {
         router.push(`/token-classification/${deploymentId}`);
         break;
       case "rag": {
-        const accessToken = getAccessToken();
-        let ifGenerationOn = true; // false if semantic search, true if RAG
-        let ifGuardRailOn = false; // enable based on actual config
-        let guardRailEndpoint = '...' // change based on actual config
-        const newUrl = `${deploymentBaseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
-        window.open(newUrl, '_blank');
+        if (model.use_llm_guardrail && nerRAGEndpoint) {
+          const accessToken = getAccessToken();
+          let ifGenerationOn = true; // false if semantic search, true if RAG
+          let ifGuardRailOn = true; // enable based on actual config
+          let guardRailEndpoint = nerRAGEndpoint // change based on actual config
+          const newUrl = `${deploymentBaseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+          window.open(newUrl, '_blank');
+        } else {
+          const accessToken = getAccessToken();
+          let ifGenerationOn = true; // false if semantic search, true if RAG
+          let ifGuardRailOn = false; // enable based on actual config
+          let guardRailEndpoint = '...' // change based on actual config
+          const newUrl = `${deploymentBaseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+          window.open(newUrl, '_blank');
+        }
         break
       }
       default:

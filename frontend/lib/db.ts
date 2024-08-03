@@ -16,4 +16,5 @@ export type SelectModel = {
   username: string;
   ndb_model_id?: string;
   use_llm_guardrail?: boolean;
+  token_model_id?: string;
 };

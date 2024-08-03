@@ -43,6 +43,11 @@ export interface Source {
     source_id: string;
 }
 
+export interface PIIDetectionResult {
+    tokens: string[];
+    predicted_tags: string[];
+}
+
 export interface ModelService {
     isUserModel: () => boolean;
     sources: () => Promise<Source[]>;
@@ -82,7 +87,7 @@ export interface ModelService {
     handleInvalidAuth: () => void;
     getChatHistory: () => Promise<ChatMessage[]>;
     chat: (textInput: string) => Promise<ChatResponse>;
-    piiDetect(query: string): Promise<any>;
+    piiDetect(query: string): Promise<PIIDetectionResult>;
 }
 
 function sourceName(ref: ReferenceJson) {
@@ -195,11 +200,11 @@ export class GlobalModelService implements ModelService {
             })
             .then(({ data }) => {
                 console.log(data);
-                return data;
+                return data as PIIDetectionResult;
             })
             .catch((e) => {
                 console.error(e);
-                return [];
+                throw new Error('Failed to detect PII');
             });
     }
 

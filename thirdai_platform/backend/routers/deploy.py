@@ -282,7 +282,7 @@ def deploy_model(
 
     # Update or retain metadata fields with defaults
     metadata = deployment.metadata_json or {}
-    metadata["type"] = type if type is not None else metadata.get("type", "")
+    metadata["deploy_type"] = type if type is not None else metadata.get("type", "")
     metadata["use_llm_guardrail"] = (
         use_llm_guardrail
         if use_llm_guardrail is not None

@@ -618,9 +618,9 @@ def add_rag_entry(
         status_code=status.HTTP_201_CREATED,
         message="Successfully added new RAG entry.",
         data={
-            "model_id": new_model.id,
+            "model_id": str(new_model.id),
             "model_name": new_model.name,
-            "metadata": general_metadata,
+            "metadata": jsonable_encoder(general_metadata),
         },
     )
 

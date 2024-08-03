@@ -53,26 +53,32 @@ const RAGQuestions = ({
 
   const handleSubmit = async () => {
     if (existingSSModelToUse && ifUseLGR === 'No') {
-      // Find the model with the name existingSSModelToUse
-    const model = existingSSmodels.find(m => m.model_name === existingSSModelToUse);
-    const ndb_model_id = model ? model.id : undefined;
+        // Find the model with the name existingSSModelToUse
+      const model = existingSSmodels.find(m => m.model_name === existingSSModelToUse);
+      const ndb_model_id = model ? model.id : undefined;
 
-    const values: RagEntryValues = {
-      model_name: modelName,
-      use_llm_guardrail: false,
-    };
+      const values: RagEntryValues = {
+        model_name: modelName,
+        use_llm_guardrail: false,
+      };
 
-    // Conditionally add ndb_model_id if it exists
-    if (ndb_model_id) {
-      values.ndb_model_id = ndb_model_id;
-    }
+      console.log('existingSSModelToUse', existingSSModelToUse)
+      console.log('existingSSmodels', existingSSmodels)
+      console.log('model', model)
+      console.log('ndb_model_id', ndb_model_id)
+      console.log('values', values)
 
-    try {
-      const response = await addRagEntry(values);
-      console.log('Success:', response);
-    } catch (error) {
-      console.error('Error:', error);
-    }
+      // Conditionally add ndb_model_id if it exists
+      if (ndb_model_id) {
+        values.ndb_model_id = ndb_model_id;
+      }
+
+      try {
+        const response = await addRagEntry(values);
+        console.log('Success:', response);
+      } catch (error) {
+        console.error('Error:', error);
+      }
     }
   };
 
@@ -110,7 +116,7 @@ const RAGQuestions = ({
                 >
                   <option value="">-- Please choose a model --</option>
                   {existingSSmodels.map((model, index) => (
-                    <option key={index} value={index}>
+                    <option key={index} value={`${model.model_name}`}>
                       {`${model.model_name}`}
                     </option>
                   ))}
@@ -257,7 +263,7 @@ const RAGQuestions = ({
               modelName 
               &&
               <div className="flex justify-center">
-                <Link href="/">
+                {/* <Link href="/"> */}
                 <button
                   type="button"
                   className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
@@ -265,7 +271,7 @@ const RAGQuestions = ({
                 >
                   {`${ifUseExistingSS === 'No' || (ifUseLGR === 'Yes' && ifUseExistingLGR === 'No') ? 'Create' : 'Create and Deploy'}`}
                 </button>
-                </Link>
+                {/* </Link> */}
               </div>
             }
       {/* End create and deploy */}

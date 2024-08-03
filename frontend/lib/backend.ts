@@ -170,7 +170,7 @@ export function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
 
     return new Promise((resolve, reject) => {
         axios
-            .post(`http://localhost:8000/api/train/ndb?model_name=${name}&sharded=${false}`, formData)
+            .post(`http://localhost:8000/api/train/ndb?model_name=${name}`, formData)
             .then((res) => {
                 resolve(res.data);
             })
@@ -206,17 +206,22 @@ export function addRagEntry(values: RagEntryValues): Promise<RagEntryResponse> {
   // Set the default authorization header for axios
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
-  // Prepare the request body
-  const requestBody = {
-    model_name: values.model_name,
-    ndb_model_id: values.ndb_model_id || null,
-    use_llm_guardrail: values.use_llm_guardrail || false,
-    token_model_id: values.token_model_id || null
-  };
+  // Prepare the query parameters
+  const params = new URLSearchParams();
+  params.append('model_name', values.model_name);
+  if (values.ndb_model_id) {
+    params.append('ndb_model_id', values.ndb_model_id);
+  }
+  if (values.use_llm_guardrail !== undefined) {
+    params.append('use_llm_guardrail', values.use_llm_guardrail.toString());
+  }
+  if (values.token_model_id) {
+    params.append('token_model_id', values.token_model_id);
+  }
 
   return new Promise((resolve, reject) => {
     axios
-      .post('http://localhost:8000/api/model/rag-entry', requestBody)
+      .post(`http://localhost:8000/api/model/rag-entry?${params.toString()}`)
       .then((res) => {
         resolve(res.data);
       })

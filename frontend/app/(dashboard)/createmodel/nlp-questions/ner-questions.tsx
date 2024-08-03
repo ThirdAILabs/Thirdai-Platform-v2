@@ -17,7 +17,11 @@ const predefinedChoices = [
   'NAME'
 ];
 
-const NERQuestions = () => {
+interface NERQuestionsProps {
+  onCreateModel?: (userName: string, modelName: string) => void;
+};
+
+const NERQuestions = ({ onCreateModel }: NERQuestionsProps) => {
   const [modelName, setModelName] = useState("");
   const [categories, setCategories] = useState([{ name: '', example: '', description: '' }]);
   const [showReview, setShowReview] = useState(false);
@@ -204,6 +208,10 @@ const NERQuestions = () => {
                 }
                 const tags = Array.from(new Set(categories.map(cat => cat.name)));
                 // TODO: We need a better naming scheme, or add a place to enter the model name.
+                if (onCreateModel) {
+                  // TODO: SOMEHOW GET USERNAME
+                  onCreateModel('peter', modelName);
+                }
                 trainTokenClassifier(modelName, generatedData, tags).then(() => {
                   router.push("/");
                 }).catch(e => {

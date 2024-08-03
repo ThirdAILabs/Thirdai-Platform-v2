@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { SelectModel } from '@/lib/db';
 import NERQuestions from './nlp-questions/ner-questions';
 import SemanticSearchQuestions from './semantic-search-questions';
+import { addRagEntry, RagEntryValues } from '@/lib/backend';
 
 const RAGQuestions = ({
   models,
@@ -49,6 +50,31 @@ const RAGQuestions = ({
   const [llmType, setLlmType] = useState<string|null>(null);
 
   // End state variables & func for LLM
+
+  const handleSubmit = async () => {
+    if (existingSSModelToUse && ifUseLGR === 'No') {
+      // Find the model with the name existingSSModelToUse
+    const model = existingSSmodels.find(m => m.model_name === existingSSModelToUse);
+    const ndb_model_id = model ? model.id : undefined;
+
+    const values: RagEntryValues = {
+      model_name: modelName,
+      use_llm_guardrail: false,
+    };
+
+    // Conditionally add ndb_model_id if it exists
+    if (ndb_model_id) {
+      values.ndb_model_id = ndb_model_id;
+    }
+
+    try {
+      const response = await addRagEntry(values);
+      console.log('Success:', response);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+    }
+  };
 
   return (
     <div>
@@ -235,6 +261,7 @@ const RAGQuestions = ({
                 <button
                   type="button"
                   className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
+                  onClick={handleSubmit}
                 >
                   {`${ifUseExistingSS === 'No' || (ifUseLGR === 'Yes' && ifUseExistingLGR === 'No') ? 'Create' : 'Create and Deploy'}`}
                 </button>

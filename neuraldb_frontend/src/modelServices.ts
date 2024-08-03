@@ -592,7 +592,7 @@ export class GlobalModelService implements ModelService {
     ) {
         const args = {
             query: genaiQuery(question, references, genaiPrompt),
-            key: '' // fill in openai key
+            key: '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' // fill in openai key
         };
 
         const uri = this.wsUrl + "/generate";

@@ -184,6 +184,49 @@ export function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
     });
 }
 
+// Define the interface for the expected response
+interface RagEntryResponse {
+  // Define the structure of your response here
+  success: boolean;
+  message: string;
+  data?: any;
+}
+
+// Define the interface for the input values
+export interface RagEntryValues {
+  model_name: string;
+  ndb_model_id?: string;
+  use_llm_guardrail?: boolean;
+  token_model_id?: string;
+}
+
+export function addRagEntry(values: RagEntryValues): Promise<RagEntryResponse> {
+  const accessToken = getAccessToken(); // Make sure you have a function to get the access token
+
+  // Set the default authorization header for axios
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  // Prepare the request body
+  const requestBody = {
+    model_name: values.model_name,
+    ndb_model_id: values.ndb_model_id || null,
+    use_llm_guardrail: values.use_llm_guardrail || false,
+    token_model_id: values.token_model_id || null
+  };
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post('http://localhost:8000/api/model/rag-entry', requestBody)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+
 export function userEmailLogin(email: string, password: string): Promise<any> {
     return new Promise((resolve, reject) => {
       axios

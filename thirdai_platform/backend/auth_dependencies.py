@@ -47,19 +47,14 @@ def global_admin_only(current_user: schema.User = Depends(get_current_user)):
     return current_user
 
 
+# Note: Following make sure the user is a global admin or a user is an admin to one team,
+# However, this doesnot qurantees that the user is an admin to a particular team. That should
+# be handled in the required function depending upon access.
 def team_admin_or_global_admin(current_user: schema.User = Depends(get_current_user)):
     if current_user.role not in [schema.Role.team_admin, schema.Role.global_admin]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="The user doesn't have enough privileges",
-        )
-    return current_user
-
-
-def team_admin_only(current_user: schema.User = Depends(get_current_user)):
-    if current_user.role != schema.Role.team_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required"
         )
     return current_user
 

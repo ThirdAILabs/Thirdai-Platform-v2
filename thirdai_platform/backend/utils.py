@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import re
 import socket
@@ -682,3 +683,12 @@ async def restart_generate_job():
         python_path=get_python_path(),
         generate_app_dir=str(get_root_absolute_path() / "llm_generation_job"),
     )
+
+
+def get_expiry_min(size: int):
+    """
+    This is a helper function to calculate the expiry time for the signed
+    url for azure blob, which is required to push a model to model bazaar.
+    Taking an average speed of 300 to 400 KB/s we give an extra 60 min for every 1.5GB.
+    """
+    return 60 * (1 + math.floor(size / 1500))

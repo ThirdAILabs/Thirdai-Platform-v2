@@ -65,7 +65,7 @@ export function Model({ model }: { model: SelectModel }) {
               }
             });
           }
-        } else if (model.type === 'ndb') {
+        } else if (model.type === 'ndb' || model.type === 'udt') {
         
           getDeployStatus({ deployment_identifier: deploymentIdentifier })
             .then((response) => {
@@ -175,7 +175,7 @@ export function Model({ model }: { model: SelectModel }) {
                   const username = model.username;
                   const modelIdentifier = `${username}/${model.model_name}`;
 
-                    if (model.type === 'ndb') {
+                    if (model.type === 'ndb' || model.type === 'udt') {
                         console.log('deployment_name', model.model_name)
                         console.log('modelIdentifier', modelIdentifier)
 

@@ -36,7 +36,7 @@ export function Model({ model }: { model: SelectModel }) {
         if (model.type === 'rag') {
           let ndbModelId = model.ndb_model_id
           if (ndbModelId) {
-            getDeployStatus({ deployment_identifier: ndbModelId })
+            getDeployStatus({ deployment_identifier: `${ndbModelId}:${ndbModelId}` })
             .then((response) => {
               console.log('Deployment status response:', response);
               if (response.data.deployment_id && response.data.status === 'complete') {
@@ -65,7 +65,7 @@ export function Model({ model }: { model: SelectModel }) {
               }
             });
           }
-        } else {
+        } else if (model.type === 'ndb') {
         
           getDeployStatus({ deployment_identifier: deploymentIdentifier })
             .then((response) => {
@@ -207,7 +207,7 @@ export function Model({ model }: { model: SelectModel }) {
 
                         if (ndbModelId) {
                             // Check if ndb is deployed, if not deploy it
-                            getDeployStatus({ deployment_identifier: ndbModelId })
+                            getDeployStatus({ deployment_identifier: `${ndbModelId}:${ndbModelId}` })
                             .then((response) => {
                               console.log('Deployment status response:', response);
                               if (response.data.deployment_id && response.data.status === 'complete') {
@@ -222,15 +222,13 @@ export function Model({ model }: { model: SelectModel }) {
     
                                 console.log('The NDB model is not yet deployed and ready to deploy')
 
-                                const [modelIdentifier, usernameAndModel] = ndbModelId.split(':');
-                                const [username, modelName] = usernameAndModel.split('/');
+                                const [username, modelName] = ndbModelId.split('/');
 
                                 console.log('Model Identifier:', modelIdentifier);
-                                console.log('Username and Model:', usernameAndModel);
                                 console.log('modelName', modelName)
 
                                 // deploy the model
-                                deployModel({ deployment_name:modelName, model_identifier: modelIdentifier, use_llm_guardrail: true,})
+                                deployModel({ deployment_name:modelName, model_identifier: ndbModelId, use_llm_guardrail: true,})
                                   .then((response) => {
                                     if(response.status === 'success') {
                                       console.log('deployment success')
@@ -255,15 +253,13 @@ export function Model({ model }: { model: SelectModel }) {
                               if (error.response && error.response.status === 400) {
                                 console.log('The NDB model is not yet deployed and ready to deploy');
                                 
-                                const [modelIdentifier, usernameAndModel] = ndbModelId.split(':');
-                                const [username, modelName] = usernameAndModel.split('/');
+                                const [username, modelName] = ndbModelId.split('/');
 
                                 console.log('Model Identifier:', modelIdentifier);
-                                console.log('Username and Model:', usernameAndModel);
                                 console.log('modelName', modelName)
 
                                 // deploy the model
-                                deployModel({ deployment_name:modelName, model_identifier: modelIdentifier, use_llm_guardrail: true,})
+                                deployModel({ deployment_name:modelName, model_identifier: ndbModelId, use_llm_guardrail: true,})
                                   .then((response) => {
                                     if(response.status === 'success') {
                                       console.log('deployment success')

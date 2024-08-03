@@ -3,7 +3,11 @@ import React, { useState } from 'react';
 import { SelectModel } from '@/lib/db';
 import { train_ndb } from '@/lib/backend';
 
-const SemanticSearchQuestions = () => {
+interface SemanticSearchQuestionsProps {
+  onCreateModel?: (userName: string, modelName: string) => void;
+};
+
+const SemanticSearchQuestions = ({ onCreateModel }: SemanticSearchQuestionsProps) => {
     // Begin state variables & func for source
     const [sources, setSources] = useState<Array<{ type: string, value: File | null }>>([]);
     const [newSourceType, setNewSourceType] = useState<string>('');
@@ -61,6 +65,10 @@ const SemanticSearchQuestions = () => {
     const handleSubmit = async () => {
       setIsLoading(true);
       try {
+        if (onCreateModel) {
+          onCreateModel('peter', modelName);
+        }
+
         const formData = await handleFileFormdata();
 
         // Print out all the FormData entries

@@ -5,9 +5,10 @@ import { train_ndb } from '@/lib/backend';
 
 interface SemanticSearchQuestionsProps {
   onCreateModel?: (userName: string, modelName: string) => void;
+  stayOnPage?: boolean;
 };
 
-const SemanticSearchQuestions = ({ onCreateModel }: SemanticSearchQuestionsProps) => {
+const SemanticSearchQuestions = ({ onCreateModel, stayOnPage }: SemanticSearchQuestionsProps) => {
     // Begin state variables & func for source
     const [sources, setSources] = useState<Array<{ type: string, value: File | null }>>([]);
     const [newSourceType, setNewSourceType] = useState<string>('');
@@ -85,6 +86,16 @@ const SemanticSearchQuestions = ({ onCreateModel }: SemanticSearchQuestionsProps
         setIsLoading(false);
       }
     };
+
+    const createButton = (
+      <button
+        type="button"
+        className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
+        onClick={handleSubmit}
+      >
+        Create
+      </button>
+    );
 
     return (
       <div>
@@ -183,15 +194,9 @@ const SemanticSearchQuestions = ({ onCreateModel }: SemanticSearchQuestionsProps
         </div>
 
         <div className="flex justify-center">
-          <Link href="/">
-          <button
-            type="button"
-            className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-            onClick={handleSubmit}
-          >
-            Create
-          </button>
-          </Link>
+          {
+            stayOnPage ? createButton : <Link href="/"> {createButton} </Link>
+          }
         </div>
       </div>
     );

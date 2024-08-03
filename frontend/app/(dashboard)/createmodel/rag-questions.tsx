@@ -115,10 +115,13 @@ const RAGQuestions = ({
 
       {
         ifUseExistingSS === 'No' &&
-        <SemanticSearchQuestions onCreateModel={(username, modelName) => {
-          // TODO: SOMEHOW GET CURRENT USERNAME
-          setSsIdentifier(`${username}/${modelName}`);
-        }}/>
+        <SemanticSearchQuestions 
+          onCreateModel={(username, modelName) => {
+            // TODO: SOMEHOW GET CURRENT USERNAME
+            setSsIdentifier(`${username}/${modelName}`);
+          }}
+          stayOnPage
+        />
       }
               {/* End Create new Semantic Search Model */}
 
@@ -172,10 +175,13 @@ const RAGQuestions = ({
             {/* Begin creating a new NER model */}
 
             {ifUseLGR === 'Yes' && ifUseExistingLGR === 'No' && (
-              <NERQuestions onCreateModel={(username, modelName) => {
-                // TODO: SOMEHOW GET USERNAME
-                setGrIdentifier(`${username}/${modelName}`)
-              }} />
+              <NERQuestions 
+                onCreateModel={(username, modelName) => {
+                  // TODO: SOMEHOW GET USERNAME
+                  setGrIdentifier(`${username}/${modelName}`)
+                }} 
+                stayOnPage
+              />
             )}
 
             {/* Begin creating a new NER model */}

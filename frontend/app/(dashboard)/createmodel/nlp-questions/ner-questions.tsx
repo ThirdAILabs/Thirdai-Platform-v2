@@ -19,9 +19,10 @@ const predefinedChoices = [
 
 interface NERQuestionsProps {
   onCreateModel?: (userName: string, modelName: string) => void;
+  stayOnPage?: boolean;
 };
 
-const NERQuestions = ({ onCreateModel }: NERQuestionsProps) => {
+const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
   const [modelName, setModelName] = useState("");
   const [categories, setCategories] = useState([{ name: '', example: '', description: '' }]);
   const [showReview, setShowReview] = useState(false);
@@ -213,7 +214,9 @@ const NERQuestions = ({ onCreateModel }: NERQuestionsProps) => {
                   onCreateModel('peter', modelName);
                 }
                 trainTokenClassifier(modelName, generatedData, tags).then(() => {
-                  router.push("/");
+                  if (!stayOnPage) {
+                    router.push("/");
+                  }
                 }).catch(e => {
                   alert(e);
                 });

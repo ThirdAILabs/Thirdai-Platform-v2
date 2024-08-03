@@ -259,7 +259,7 @@ const RAGQuestions = ({
               modelName 
               &&
               <div className="flex justify-center">
-                {/* <Link href="/"> */}
+                <Link href="/">
                 <button
                   type="button"
                   className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
@@ -267,7 +267,7 @@ const RAGQuestions = ({
                 >
                   {`${ifUseExistingSS === 'No' || (ifUseLGR === 'Yes' && ifUseExistingLGR === 'No') ? 'Create' : 'Create and Deploy'}`}
                 </button>
-                {/* </Link> */}
+                </Link>
               </div>
             }
       {/* End create and deploy */}

@@ -17,9 +17,9 @@ import { deleteModel } from './actions';
 import { deployModel, getDeployStatus, stopDeploy, getAccessToken, deploymentBaseUrl, listDeployments } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
-export function Model({ model }: { model: SelectModel }) {
+export function Model({ model, pending }: { model: SelectModel, pending?: boolean }) {
   const router = useRouter();
-  const [deployStatus, setDeployStatus] = useState<string>('');
+  const [deployStatus, setDeployStatus] = useState<string>(pending ? 'in queue' :'');
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
   const [deploymentIdentifier, setDeploymentIdentifier] = useState<string | null>(null);
   const [nerRAGEndpoint, setNerRAGEndpoint] = useState<string | null>(null);

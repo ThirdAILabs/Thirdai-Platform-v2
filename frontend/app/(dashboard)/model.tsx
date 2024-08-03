@@ -32,26 +32,62 @@ export function Model({ model }: { model: SelectModel }) {
   useEffect(() => {
     if (deploymentIdentifier) {
       const fetchDeployStatus = () => {
-        getDeployStatus({ deployment_identifier: deploymentIdentifier })
-          .then((response) => {
-            console.log('Deployment status response:', response);
-            if (response.data.deployment_id && response.data.status === 'complete') {
-              setDeployStatus('Deployed');
-              setDeploymentId(response.data.deployment_id);
-            } else if (response.data.status === 'in_progress') {
-              setDeployStatus('Deploying');
-            } else {
-              setDeployStatus('Ready to Deploy');
-            }
-          })
-          .catch((error) => {
-            if (error.response && error.response.status === 400) {
-              console.log('Model is not deployed.');
-              setDeployStatus('Ready to Deploy');
-            } else {
-              console.error('Error fetching deployment status:', error);
-            }
-          });
+
+        if (model.type === 'rag') {
+          let ndbModelId = model.ndb_model_id
+          if (ndbModelId) {
+            getDeployStatus({ deployment_identifier: ndbModelId })
+            .then((response) => {
+              console.log('Deployment status response:', response);
+              if (response.data.deployment_id && response.data.status === 'complete') {
+                
+                // console.log('The NDB model is already deployed, and deployment ID is: ', response.data.deployment_id)
+                setDeployStatus('Deployed')
+                setDeploymentId(response.data.deployment_id)
+
+              } else if (response.data.status === 'in_progress') {
+
+                // console.log('The NDB model is still deploying')
+                setDeployStatus('Deploying')
+
+              } else {
+
+                // console.log('The NDB model is not yet deployed and ready to deploy')
+                setDeployStatus('Ready to Deploy')
+              }
+            })
+            .catch((error) => {
+              if (error.response && error.response.status === 400) {
+                // console.log('The NDB model is not yet deployed and ready to deploy');
+                setDeployStatus('Ready to Deploy')
+              } else {
+                console.error('Error fetching deployment status:', error);
+              }
+            });
+          }
+        } else {
+        
+          getDeployStatus({ deployment_identifier: deploymentIdentifier })
+            .then((response) => {
+              // console.log('Deployment status response:', response);
+              if (response.data.deployment_id && response.data.status === 'complete') {
+                setDeployStatus('Deployed');
+                setDeploymentId(response.data.deployment_id);
+              } else if (response.data.status === 'in_progress') {
+                setDeployStatus('Deploying');
+              } else {
+                setDeployStatus('Ready to Deploy');
+              }
+            })
+            .catch((error) => {
+              if (error.response && error.response.status === 400) {
+                // console.log('Model is not deployed.');
+                setDeployStatus('Ready to Deploy');
+              } else {
+                console.error('Error fetching deployment status:', error);
+              }
+            });
+          }
       };
 
       fetchDeployStatus(); // Initial fetch
@@ -61,11 +97,11 @@ export function Model({ model }: { model: SelectModel }) {
       // Cleanup interval on component unmount
       return () => clearInterval(intervalId);
     }
-  }, [deploymentIdentifier]);
+  }, [deploymentIdentifier, model]);
 
   function goToEndpoint() {
     switch (model.type) {
-      case "ndb":
+      case "ndb": {
         const accessToken = getAccessToken();
         let ifGenerationOn = false; // false if semantic search, true if RAG
         let ifGuardRailOn = false; // enable based on actual config
@@ -73,9 +109,19 @@ export function Model({ model }: { model: SelectModel }) {
         const newUrl = `${deploymentBaseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
         window.open(newUrl, '_blank');
         break;
+      }
       case "udt":
         router.push(`/token-classification/${deploymentId}`);
         break;
+      case "rag": {
+        const accessToken = getAccessToken();
+        let ifGenerationOn = true; // false if semantic search, true if RAG
+        let ifGuardRailOn = false; // enable based on actual config
+        let guardRailEndpoint = '...' // change based on actual config
+        const newUrl = `${deploymentBaseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+        window.open(newUrl, '_blank');
+        break
+      }
       default:
         throw new Error(`Invalid model type ${model.type}`);
         break;
@@ -129,24 +175,122 @@ export function Model({ model }: { model: SelectModel }) {
                   const username = model.username;
                   const modelIdentifier = `${username}/${model.model_name}`;
 
-                  deployModel({ deployment_name: model.model_name, model_identifier: modelIdentifier, 
-                    use_llm_guardrail: true,
-                   })
-                    .then((response) => {
-                      if(response.status === 'success') {
-                        console.log('deployment success')
+                    if (model.type === 'ndb') {
+                        console.log('deployment_name', model.model_name)
+                        console.log('modelIdentifier', modelIdentifier)
 
-                        setDeployStatus('Deployed')
-                        setDeploymentId(response.data.deployment_id)
-  
-                        const modelIdentifier = `${username}/${model.model_name}`;
-                        setDeploymentIdentifier(`${modelIdentifier}:${username}/${model.model_name}`)
-                      }
 
-                    })
-                    .catch((error) => {
-                      console.error('Error deploying model:', error);
-                    });
+                        deployModel({ deployment_name: model.model_name, model_identifier: modelIdentifier, 
+                            use_llm_guardrail: true,
+                          })
+                            .then((response) => {
+                              if(response.status === 'success') {
+                                console.log('deployment success')
+
+                                setDeployStatus('Deployed')
+                                setDeploymentId(response.data.deployment_id)
+          
+                                const modelIdentifier = `${username}/${model.model_name}`;
+                                setDeploymentIdentifier(`${modelIdentifier}:${username}/${model.model_name}`)
+                              }
+
+                            })
+                            .catch((error) => {
+                              console.error('Error deploying model:', error);
+                            });
+                    }
+
+                    if (model.type === 'rag') {
+                        let ndbModelId = model.ndb_model_id
+                      
+                        console.log('ndbModelId', ndbModelId)
+
+                        if (ndbModelId) {
+                            // Check if ndb is deployed, if not deploy it
+                            getDeployStatus({ deployment_identifier: ndbModelId })
+                            .then((response) => {
+                              console.log('Deployment status response:', response);
+                              if (response.data.deployment_id && response.data.status === 'complete') {
+                                
+                                console.log('The NDB model is already deployed, and deployment ID is: ', response.data.deployment_id)
+    
+                              } else if (response.data.status === 'in_progress') {
+    
+                                console.log('The NDB model is still deploying')
+    
+                              } else {
+    
+                                console.log('The NDB model is not yet deployed and ready to deploy')
+
+                                const [modelIdentifier, usernameAndModel] = ndbModelId.split(':');
+                                const [username, modelName] = usernameAndModel.split('/');
+
+                                console.log('Model Identifier:', modelIdentifier);
+                                console.log('Username and Model:', usernameAndModel);
+                                console.log('modelName', modelName)
+
+                                // deploy the model
+                                deployModel({ deployment_name:modelName, model_identifier: modelIdentifier, use_llm_guardrail: true,})
+                                  .then((response) => {
+                                    if(response.status === 'success') {
+                                      console.log('deployment success')
+
+                                      setDeployStatus('Deployed')
+
+                                      // const modelIdentifier = `${username}/${model.model_name}`;
+
+                                      // console.log('ndb model is now deployed, deploymend id is: ', response.data.deployment_id)
+                                      // console.log('deployment identifier is ', `${modelIdentifier}:${username}/${model.model_name}`)
+
+                                    }
+              
+                                  })
+                                  .catch((error) => {
+                                    console.error('Error deploying model:', error);
+                                  });
+    
+                              }
+                            })
+                            .catch((error) => {
+                              if (error.response && error.response.status === 400) {
+                                console.log('The NDB model is not yet deployed and ready to deploy');
+                                
+                                const [modelIdentifier, usernameAndModel] = ndbModelId.split(':');
+                                const [username, modelName] = usernameAndModel.split('/');
+
+                                console.log('Model Identifier:', modelIdentifier);
+                                console.log('Username and Model:', usernameAndModel);
+                                console.log('modelName', modelName)
+
+                                // deploy the model
+                                deployModel({ deployment_name:modelName, model_identifier: modelIdentifier, use_llm_guardrail: true,})
+                                  .then((response) => {
+                                    if(response.status === 'success') {
+                                      console.log('deployment success')
+
+                                      setDeployStatus('Deployed')
+
+                                      // const modelIdentifier = `${username}/${model.model_name}`;
+
+                                      // console.log('ndb model is now deployed, deploymend id is: ', response.data.deployment_id)
+                                      // console.log('deployment identifier is ', `${modelIdentifier}:${username}/${model.model_name}`)
+
+                                    }
+              
+                                  })
+                                  .catch((error) => {
+                                    console.error('Error deploying model:', error);
+                                  });
+    
+    
+                              } else {
+                                console.error('Error fetching deployment status:', error);
+                              }
+                            });
+                        }
+
+                        let use_llm_guardrail = model.use_llm_guardrail
+                    }
 
                 }}
                 className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">

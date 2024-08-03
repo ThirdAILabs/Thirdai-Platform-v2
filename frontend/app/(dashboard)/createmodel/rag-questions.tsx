@@ -55,22 +55,17 @@ const RAGQuestions = ({
     if (existingSSModelToUse && ifUseLGR === 'No') {
         // Find the model with the name existingSSModelToUse
       const model = existingSSmodels.find(m => m.model_name === existingSSModelToUse);
-      const ndb_model_id = model ? model.id : undefined;
 
       const values: RagEntryValues = {
         model_name: modelName,
         use_llm_guardrail: false,
       };
 
-      console.log('existingSSModelToUse', existingSSModelToUse)
-      console.log('existingSSmodels', existingSSmodels)
-      console.log('model', model)
-      console.log('ndb_model_id', ndb_model_id)
-      console.log('values', values)
-
       // Conditionally add ndb_model_id if it exists
-      if (ndb_model_id) {
-        values.ndb_model_id = ndb_model_id;
+      if (model) {
+        const username = model.username;
+        const modelIdentifier = `${username}/${model.model_name}`;
+        values.ndb_model_id = `${modelIdentifier}:${username}/${model.model_name}`;
       }
 
       try {

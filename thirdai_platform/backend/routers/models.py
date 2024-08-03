@@ -235,6 +235,13 @@ def save_deployed_model(
     return {"message": "successfully added the model."}
 
 
+class ModelInfo(BaseModel):
+    type: str
+    sub_type: Optional[str] = None
+    access_level: schema.Access = "public"
+    metadata: Optional[Dict[str, str]] = None
+
+
 @model_router.get("/pending-train-models")
 def pending_train_models(
     session: Session = Depends(get_session),
@@ -243,7 +250,8 @@ def pending_train_models(
     """
     Get a list of all in progress or not started training models for the logged-in user.
 
-    Returns models that are in progress or not started.
+    Returns:
+    - JSONResponse: A list of models that are in progress or not started.
     """
     user: schema.User = authenticated_user.user
 
@@ -282,12 +290,16 @@ def upload_token(
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
-    Generates a token for uploading a model to the Model Bazaar.
+    Generates a token for uploading a model to the platform.
 
-    - **model_name**: name that the uploaded model will take in the Model Bazaar.
-    - **size**: size of model to be uploaded.
+    Parameters:
+    - model_name: str - The name that the uploaded model will take in the platform.
+        Example: "my_new_model"
+    - size: int - The size of the model to be uploaded.
+        Example: 150
 
-    Returns a token, which is used to upload chunks of a model.
+    Returns:
+    - JSONResponse: A token, which is used to upload chunks of a model.
     """
     user: schema.User = authenticated_user.user
     try:
@@ -319,7 +331,7 @@ def upload_token(
 
     return response(
         status_code=status.HTTP_200_OK,
-        message="Sucessfully got the upload url",
+        message="Successfully got the upload token",
         data={"token": token},
     )
 
@@ -335,10 +347,20 @@ def upload_chunk(
     """
     Uploads a chunk of a zipped NeuralDB model.
 
-    - **chunk**: the raw bytes of the chunk.
-    - **chunk_number**: the position of the chunk of the zipped NeuralDB that is being uploaded.
-    - **authorization**: Bearer token that contains the token generated from /upload-token.
+    Parameters:
+    - chunk: UploadFile - The raw bytes of the chunk.
+        Example: UploadFile(file=BytesIO(b"chunk data"), filename="chunk1.zip")
+    - chunk_number: int - The position of the chunk of the zipped NeuralDB that is being uploaded.
+        Example: 1
+    - model_type: str - The type of model being uploaded (default: "ndb").
+        Example: "ndb"
+    - compressed: bool - Whether the chunk is compressed (default: True).
+        Example: True
+    - authorization: str - Bearer token that contains the token generated from /upload-token.
+        Example: "Bearer <token>"
 
+    Returns:
+    - JSONResponse: Success message if the chunk is uploaded successfully.
     """
     if authorization is None:
         return response(
@@ -390,13 +412,6 @@ def upload_chunk(
     )
 
 
-class ModelInfo(BaseModel):
-    type: str
-    sub_type: Optional[str] = None
-    access_level: schema.Access = "public"
-    metadata: Optional[Dict[str, str]] = None
-
-
 @model_router.post("/upload-commit")
 def upload_commit(
     total_chunks: int,
@@ -404,6 +419,31 @@ def upload_commit(
     authorization: str = Header(None),
     session: Session = Depends(get_session),
 ):
+    """
+    Commits the upload of a model after all chunks have been uploaded.
+
+    Parameters:
+    - total_chunks: int - The total number of chunks uploaded.
+        Example: 10
+    - body: ModelInfo - The information about the model being uploaded.
+        Example:
+        ```
+        {
+            "type": "ndb",
+            "sub_type": "subtype_example",
+            "access_level": "public",
+            "metadata": {
+                "key1": "value1",
+                "key2": "value2"
+            }
+        }
+        ```
+    - authorization: str - Bearer token that contains the token generated from /upload-token.
+        Example: "Bearer <token>"
+
+    Returns:
+    - JSONResponse: Success message if the model upload is committed successfully.
+    """
     if authorization is None:
         return response(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -507,9 +547,12 @@ def download_public_model(
     """
     Downloads specified public model. No login required.
 
-    - **model_identifier**: model identifier of model to be downloaded.
+    Parameters:
+    - model_identifier: str - The model identifier of the model to be downloaded.
+        Example: "user123/my_model"
 
-    Streams download of the model to the caller.
+    Returns:
+    - StreamingResponse: Streams the download of the model to the caller.
     """
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
@@ -560,9 +603,12 @@ def download_model(
     """
     Downloads specified model.
 
-    - **model_identifier**: model identifier of model to be downloaded.
+    Parameters:
+    - model_identifier: str - The model identifier of the model to be downloaded.
+        Example: "user123/my_model"
 
-    Streams download of the model to the caller.
+    Returns:
+    - StreamingResponse: Streams the download of the model to the caller.
     """
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)

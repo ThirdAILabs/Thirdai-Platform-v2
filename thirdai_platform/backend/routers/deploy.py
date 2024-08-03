@@ -661,6 +661,7 @@ def list_deployments(
                 "model_username": deployment.model.user.username,
                 "status": deployment.status,
                 "metadata": deployment.metadata_json,
+                "modelID": str(deployment.model_id),
             }
         ]
     else:

@@ -627,11 +627,11 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
 
         if metadata_updated:
             model = get_model()
-            model.reporter.update_pii_metadata(
-                deployment_id=general_variables.deployment_id,
-                metadata=metadata,
-                access_token=token,
-            )
+            # model.reporter.update_pii_metadata(
+            #     deployment_id=general_variables.deployment_id,
+            #     metadata=metadata,
+            #     access_token=token,
+            # )
 
         return response(
             status_code=status.HTTP_200_OK,

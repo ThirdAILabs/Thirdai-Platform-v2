@@ -88,6 +88,7 @@ export interface ModelService {
     getChatHistory: () => Promise<ChatMessage[]>;
     chat: (textInput: string) => Promise<ChatResponse>;
     piiDetect(query: string): Promise<PIIDetectionResult>;
+    updatePiiSettings(token_model_id: string, llm_guardrail: boolean): Promise<any>
 }
 
 function sourceName(ref: ReferenceJson) {
@@ -174,6 +175,27 @@ export class GlobalModelService implements ModelService {
             .catch((e) => {
                 return [];
             });
+    }
+
+    async updatePiiSettings( token_model_id: string, llm_guardrail: boolean ): Promise<any> {
+        const url = new URL(this.url + "/update-pii-settings");
+        url.searchParams.append('token_model_id', token_model_id);
+        url.searchParams.append('llm_guardrail', String(llm_guardrail));
+
+        const response = await fetch(url.toString(), {
+            method: "POST",
+            headers: {
+                ...this.authHeader(),
+                "Content-Type": "application/json",
+            }
+        });
+    
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || "Unknown error occurred");
+        }
+    
+        return response.json();
     }
 
     async piiDetect(query: string): Promise<any> {

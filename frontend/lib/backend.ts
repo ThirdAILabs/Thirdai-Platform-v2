@@ -65,6 +65,38 @@ export async function fetchPendingModels(): Promise<PendingModel> {
   }
 }
 
+
+export interface Deployment {
+  name: string;
+  deployment_username: string;
+  model_name: string;
+  model_username: string;
+  status: string;
+  metadata: any;
+  modelID: string;
+}
+
+export interface ApiResponse {
+  status_code: number;
+  message: string;
+  data: Deployment[];
+}
+
+export async function listDeployments(deployment_id: string): Promise<Deployment[]> {
+  const accessToken = getAccessToken(); // Ensure this function is implemented to get the access token
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  try {
+      const response = await axios.get<ApiResponse>('http://localhost:8000/api/deploy/list-deployments', {
+          params: { deployment_id },
+      });
+      return response.data.data;
+  } catch (error) {
+      console.error('Error listing deployments:', error);
+      throw new Error('Failed to list deployments');
+  }
+}
+
 interface StatusResponse {
   data: {
     deployment_id: string;

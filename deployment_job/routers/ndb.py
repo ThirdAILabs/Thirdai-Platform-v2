@@ -490,7 +490,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
                     message="Task ID not found",
                 )
 
-    @ndb_router.get("/highlighted-pdf", include_in_schema=False)
+    @ndb_router.get("/highlighted-pdf")
     @propagate_error
     def highlighted_pdf(
         reference_id: int, _=Depends(permissions.verify_read_permission)
@@ -519,7 +519,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
             buffer.getvalue(), headers=headers, media_type="application/pdf"
         )
 
-    @ndb_router.get("/pdf-blob", include_in_schema=False)
+    @ndb_router.get("/pdf-blob")
     @propagate_error
     def pdf_blob(source: str, _=Depends(permissions.verify_read_permission)):
         """
@@ -542,7 +542,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
             buffer.getvalue(), headers=headers, media_type="application/pdf"
         )
 
-    @ndb_router.get("/pdf-chunks", include_in_schema=False)
+    @ndb_router.get("/pdf-chunks")
     @propagate_error
     def pdf_chunks(reference_id: int, _=Depends(permissions.verify_read_permission)):
         """

@@ -345,12 +345,12 @@ def upload_chunk(
     authorization: str = Header(None),
 ):
     """
-    Uploads a chunk of a zipped NeuralDB model.
+    Uploads a chunk of a model.
 
     Parameters:
     - chunk: UploadFile - The raw bytes of the chunk.
         Example: UploadFile(file=BytesIO(b"chunk data"), filename="chunk1.zip")
-    - chunk_number: int - The position of the chunk of the zipped NeuralDB that is being uploaded.
+    - chunk_number: int - The position of the chunk of the model that is being uploaded.
         Example: 1
     - model_type: str - The type of model being uploaded (default: "ndb").
         Example: "ndb"

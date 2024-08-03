@@ -130,7 +130,8 @@ interface DeploymentResponse {
   status: string;
 }
 
-export function deployModel(values: { deployment_name: string; model_identifier: string, use_llm_guardrail?: boolean }) : 
+export function deployModel(values: { deployment_name: string; model_identifier: string, use_llm_guardrail?: boolean, token_model_identifier?: string;
+ }) : 
   Promise<DeploymentResponse>  {
   
   const accessToken = getAccessToken()
@@ -138,11 +139,22 @@ export function deployModel(values: { deployment_name: string; model_identifier:
   // Set the default authorization header for axios
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
-  const params = new URLSearchParams({
-    deployment_name: values.deployment_name,
-    model_identifier: values.model_identifier,
-    use_llm_guardrail: values.use_llm_guardrail ? 'true' : 'false'
-  });
+  let params;
+
+  if (values.token_model_identifier) {
+    params = new URLSearchParams({
+      deployment_name: values.deployment_name,
+      model_identifier: values.model_identifier,
+      use_llm_guardrail: values.use_llm_guardrail ? 'true' : 'false',
+      token_model_identifier: values.token_model_identifier
+    }); 
+  } else {
+    params = new URLSearchParams({
+      deployment_name: values.deployment_name,
+      model_identifier: values.model_identifier,
+      use_llm_guardrail: values.use_llm_guardrail ? 'true' : 'false'
+    }); 
+  }
 
   return new Promise((resolve, reject) => {
     axios

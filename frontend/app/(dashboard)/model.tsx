@@ -41,40 +41,40 @@ export function Model({ model }: { model: SelectModel }) {
           if (ndbModelId) {
             getDeployStatus({ deployment_identifier: `${ndbModelId}:${ndbModelId}` })
             .then((response) => {
-              console.log('Deployment status response:', response);
+              // console.log('Deployment status response:', response);
               if (response.data.deployment_id && response.data.status === 'complete') {
                 
                 // console.log('The NDB model is already deployed, and deployment ID is: ', response.data.deployment_id)
                 setDeploymentId(response.data.deployment_id)
 
-                // check if 
+                // check if NER model is deployed
                 if (! tokenModelId) {
                   setDeployStatus('Deployed')
                 } else {
                   getDeployStatus({ deployment_identifier: `${tokenModelId}:${tokenModelId}` })
                   .then((response) => {
-                    console.log('Deployment status response:', response);
+                    // console.log('Deployment status response:', response);
                     if (response.data.deployment_id && response.data.status === 'complete') {
                       
-                      // console.log('The NDB model is already deployed, and deployment ID is: ', response.data.deployment_id)
+                      // console.log('The NER model is already deployed, and deployment ID is: ', response.data.deployment_id)
                       setDeployStatus('Deployed')
                       setNerRAGEndpoint(response.data.deployment_id)
 
                     } else if (response.data.status === 'in_progress') {
       
-                      // console.log('The NDB model is still deploying')
+                      // console.log('The NER model is still deploying')
                       setDeployStatus('Deploying')
 
                     } else {
       
-                      // console.log('The NDB model is not yet deployed and ready to deploy')
+                      // console.log('The NER model is not yet deployed and ready to deploy')
                       setDeployStatus('Ready to Deploy')
 
                     }
                   })
                   .catch((error) => {
                     if (error.response && error.response.status === 400) {
-                      // console.log('The NDB model is not yet deployed and ready to deploy');
+                      // console.log('The NER model is not yet deployed and ready to deploy');
                       setDeployStatus('Ready to Deploy')
                     } else {
                       console.error('Error fetching deployment status:', error);
@@ -151,6 +151,9 @@ export function Model({ model }: { model: SelectModel }) {
         router.push(`/token-classification/${deploymentId}`);
         break;
       case "rag": {
+        console.log('model.use_llm_guardrail', model.use_llm_guardrail)
+        console.log('nerRAGEndpoint', nerRAGEndpoint)
+
         if (model.use_llm_guardrail && nerRAGEndpoint) {
           const accessToken = getAccessToken();
           let ifGenerationOn = true; // false if semantic search, true if RAG
@@ -172,6 +175,72 @@ export function Model({ model }: { model: SelectModel }) {
         throw new Error(`Invalid model type ${model.type}`);
         break;
     }
+  }
+
+  const checkAndDeployNERModel = (tokenModelId: string | undefined) => {
+
+      // Check and deploy NER model
+      if (! tokenModelId) {
+        setDeployStatus('Deployed')
+      } else {
+        const [tokenUsername, modelName] = tokenModelId.split('/');
+
+        getDeployStatus({ deployment_identifier: `${tokenModelId}:${tokenModelId}` })
+        .then((response) => {
+          console.log('Deployment status response:', response);
+          if (response.data.deployment_id && response.data.status === 'complete') {
+            
+            console.log('The NER model is already deployed, and deployment ID is: ', response.data.deployment_id)
+            setDeployStatus('Deployed')
+            setNerRAGEndpoint(response.data.deployment_id)
+
+          } else if (response.data.status === 'in_progress') {
+
+            console.log('The NER model is still deploying')
+            setDeployStatus('Deploying')
+
+          } else {
+
+            console.log('The NER model is not yet deployed and ready to deploy')
+            setDeployStatus('Ready to Deploy')
+
+            deployModel({ deployment_name: modelName, model_identifier: tokenModelId })
+              .then((response) => {
+                if(response.status === 'success') {
+                  console.log('deployment success')
+
+                  setDeployStatus('Deployed')
+                }
+
+              })
+              .catch((error) => {
+                console.error('Error deploying model:', error);
+              });
+
+          }
+        })
+        .catch((error) => {
+          if (error.response && error.response.status === 400) {
+            console.log('The NER model is not yet deployed and ready to deploy');
+            setDeployStatus('Deploying')
+
+            deployModel({ deployment_name: modelName, model_identifier: tokenModelId })
+              .then((response) => {
+                if(response.status === 'success') {
+                  console.log('deployment success')
+
+                  setDeployStatus('Deployed')
+                }
+
+              })
+              .catch((error) => {
+                console.error('Error deploying model:', error);
+              });
+          } else {
+            console.error('Error fetching deployment status:', error);
+          }
+        });
+      }
   }
 
   return (
@@ -252,6 +321,8 @@ export function Model({ model }: { model: SelectModel }) {
                         console.log('ndbModelId', ndbModelId)
 
                         if (ndbModelId) {
+                          let tokenModelId = model.token_model_id
+
                             // Check if ndb is deployed, if not deploy it
                             getDeployStatus({ deployment_identifier: `${ndbModelId}:${ndbModelId}` })
                             .then((response) => {
@@ -259,7 +330,10 @@ export function Model({ model }: { model: SelectModel }) {
                               if (response.data.deployment_id && response.data.status === 'complete') {
                                 
                                 console.log('The NDB model is already deployed, and deployment ID is: ', response.data.deployment_id)
-    
+                                checkAndDeployNERModel(tokenModelId)
+
+                                // TODO: change existing NDB model's NER model endpoint
+
                               } else if (response.data.status === 'in_progress') {
     
                                 console.log('The NDB model is still deploying')
@@ -273,19 +347,15 @@ export function Model({ model }: { model: SelectModel }) {
                                 console.log('Model Identifier:', modelIdentifier);
                                 console.log('modelName', modelName)
 
-                                // deploy the model
-                                deployModel({ deployment_name:modelName, model_identifier: ndbModelId, use_llm_guardrail: true,})
+                                // deploy the ndb model
+                                console.log('deploy 1', { deployment_name: modelName, model_identifier: ndbModelId, use_llm_guardrail: tokenModelId ? true : false, token_model_identifier: tokenModelId })
+                                deployModel({ deployment_name: modelName, model_identifier: ndbModelId, use_llm_guardrail: tokenModelId ? true : false, token_model_identifier: tokenModelId })
                                   .then((response) => {
                                     if(response.status === 'success') {
-                                      console.log('deployment success')
+                                      // console.log('deployment success')
+                                      // setDeployStatus('Deployed')
 
-                                      setDeployStatus('Deployed')
-
-                                      // const modelIdentifier = `${username}/${model.model_name}`;
-
-                                      // console.log('ndb model is now deployed, deploymend id is: ', response.data.deployment_id)
-                                      // console.log('deployment identifier is ', `${modelIdentifier}:${username}/${model.model_name}`)
-
+                                      checkAndDeployNERModel(tokenModelId)
                                     }
               
                                   })
@@ -305,17 +375,15 @@ export function Model({ model }: { model: SelectModel }) {
                                 console.log('modelName', modelName)
 
                                 // deploy the model
-                                deployModel({ deployment_name:modelName, model_identifier: ndbModelId, use_llm_guardrail: true,})
+                                console.log('deploy 2', { deployment_name: modelName, model_identifier: ndbModelId, use_llm_guardrail: tokenModelId ? true : false, token_model_identifier: tokenModelId })
+
+                                deployModel({ deployment_name:modelName, model_identifier: ndbModelId, use_llm_guardrail: tokenModelId ? true : false, token_model_identifier: tokenModelId })
                                   .then((response) => {
                                     if(response.status === 'success') {
-                                      console.log('deployment success')
+                                      // console.log('deployment success')
+                                      // setDeployStatus('Deployed')
 
-                                      setDeployStatus('Deployed')
-
-                                      // const modelIdentifier = `${username}/${model.model_name}`;
-
-                                      // console.log('ndb model is now deployed, deploymend id is: ', response.data.deployment_id)
-                                      // console.log('deployment identifier is ', `${modelIdentifier}:${username}/${model.model_name}`)
+                                      checkAndDeployNERModel(tokenModelId)
 
                                     }
               
@@ -331,7 +399,6 @@ export function Model({ model }: { model: SelectModel }) {
                             });
                         }
 
-                        let use_llm_guardrail = model.use_llm_guardrail
                     }
 
                 }}

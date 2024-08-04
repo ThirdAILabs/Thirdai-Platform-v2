@@ -17,21 +17,23 @@ const RAGQuestions = ({
   const [ifUseExistingSS, setUseExistingSS] = useState<string|null>(null);
   const [existingSSmodels, setExistingSSmodels] = useState<SelectModel[]>([]);
   const [ssIdentifier, setSsIdentifier] = useState<string | null>(null);
-
+  const [createdSS, setCreatedSS] = useState<boolean>(false);
+  
   useEffect(() => {
     setExistingSSmodels(models.filter(model => model.type === 'ndb'));
   }, [models]);
-
+  
   console.log('Existing Semantic Search Models:', existingSSmodels);
-
+  
   // End state variables & func for source
-
+  
   // Begin state variables & func for LLM guardrail
-
+  
   const [ifUseLGR, setIfUseLGR] = useState('');
   const [ifUseExistingLGR, setIfUseExistingLGR] = useState<string|null>(null);
   const [existingNERModels, setExistingNERModels] = useState<SelectModel[]>([]);
   const [grIdentifier, setGrIdentifier] = useState<string | null>(null);
+  const [createdGR, setCreatedGR] = useState<boolean>(false);
 
   useEffect(() => {
     setExistingNERModels(models.filter(model => model.type === 'udt'));
@@ -76,7 +78,10 @@ const RAGQuestions = ({
                 id="useExistingSemanticSearch"
                 className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 value={ifUseExistingSS ? ifUseExistingSS : ''}
-                onChange={(e) => setUseExistingSS(e.target.value)}
+                onChange={(e) => {
+                  setUseExistingSS(e.target.value);
+                  setCreatedSS(false);
+                }}
               >
                 <option value="">-- Please choose an option --</option>
                 <option value="Yes">Yes</option>
@@ -115,13 +120,21 @@ const RAGQuestions = ({
 
       {
         ifUseExistingSS === 'No' &&
-        <SemanticSearchQuestions 
-          onCreateModel={(username, modelName) => {
-            // TODO: SOMEHOW GET CURRENT USERNAME
-            setSsIdentifier(`${username}/${modelName}`);
-          }}
-          stayOnPage
-        />
+        <>
+          <div style={{visibility: createdSS ? 'hidden' : 'visible'}}>
+            <SemanticSearchQuestions 
+              onCreateModel={(username, modelName) => {
+                // TODO: SOMEHOW GET CURRENT USERNAME
+                setSsIdentifier(`${username}/${modelName}`);
+                setCreatedSS(true);
+              }}
+              stayOnPage
+              />
+          </div>
+          <div style={{visibility: createdSS ? 'visible' : 'hidden'}}>
+            Semantic search model created.
+          </div>
+        </>
       }
               {/* End Create new Semantic Search Model */}
 
@@ -144,6 +157,7 @@ const RAGQuestions = ({
                     setGrIdentifier(null);
                   }
                   setIfUseLGR(e.target.value);
+                  setCreatedGR(false);
                 }}
               >
                 <option value="">-- Please choose an option --</option>
@@ -161,7 +175,10 @@ const RAGQuestions = ({
                   id="useExistingGuardrail"
                   className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                   value={ifUseExistingLGR ? ifUseExistingLGR : ''}
-                  onChange={(e) => setIfUseExistingLGR(e.target.value)}
+                  onChange={(e) => {
+                    setIfUseExistingLGR(e.target.value);
+                    setCreatedGR(false);
+                  }}
                 >
                   <option value="">-- Please choose an option --</option>
                   <option value="Yes">Yes</option>
@@ -175,13 +192,21 @@ const RAGQuestions = ({
             {/* Begin creating a new NER model */}
 
             {ifUseLGR === 'Yes' && ifUseExistingLGR === 'No' && (
-              <NERQuestions 
-                onCreateModel={(username, modelName) => {
-                  // TODO: SOMEHOW GET USERNAME
-                  setGrIdentifier(`${username}/${modelName}`)
-                }} 
-                stayOnPage
-              />
+              <>
+                <div style={{visibility: createdGR ? 'hidden' : 'visible'}}>
+                  <NERQuestions 
+                    onCreateModel={(username, modelName) => {
+                      // TODO: SOMEHOW GET USERNAME
+                      setGrIdentifier(`${username}/${modelName}`);
+                      setCreatedGR(true);
+                    }} 
+                    stayOnPage
+                  />
+                </div>
+                <div style={{visibility: createdGR ? 'visible' : 'hidden'}}>
+                  Guardrail model created.
+                </div>
+              </>
             )}
 
             {/* Begin creating a new NER model */}

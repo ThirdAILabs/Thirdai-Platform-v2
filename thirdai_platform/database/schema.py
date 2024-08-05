@@ -55,6 +55,9 @@ class User(SQLDeclarativeBase):
 
     models = relationship("Model", back_populates="user", cascade="all, delete-orphan")
     logs = relationship("Log", back_populates="user", cascade="all, delete-orphan")
+    workflows = relationship(
+        "Workflow", back_populates="user", cascade="all, delete-orphan"
+    )
 
     @validates("username")
     def validate_username(self, key, username):
@@ -173,4 +176,51 @@ class Log(SQLDeclarativeBase):
         UniqueConstraint(
             "model_id", "user_id", "action", name="unique_model_user_action"
         ),
+    )
+
+
+class Workflow(SQLDeclarativeBase):
+    __tablename__ = "workflows"
+
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    name = Column(String(256), nullable=False)
+    type = Column(String(256), nullable=False)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+
+    user = relationship("User", back_populates="workflows")
+    workflow_models = relationship(
+        "WorkflowModel", back_populates="workflow", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("name", "user_id", name="unique_workflow_name_user"),
+    )
+
+
+# Many to Many relationship for workflow and models.
+class WorkflowModel(SQLDeclarativeBase):
+    __tablename__ = "workflow_models"
+
+    workflow_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("workflows.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    model_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("models.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    workflow = relationship("Workflow", back_populates="workflow_models")
+    model = relationship("Model")
+
+    __table_args__ = (
+        Index("workflow_model_index", "workflow_id"),
+        Index("model_workflow_index", "model_id"),
+        UniqueConstraint("workflow_id", "model_id", name="unique_workflow_model"),
     )

@@ -3,6 +3,7 @@ import styled from "styled-components";
 import { color, fontSizes } from "../stylingConstants";
 import { Spacer } from "./Layout";
 import MoreInfo from "./MoreInfo";
+// import { ReactMarkdown } from "react-markdown/lib/react-markdown";
 import ReactMarkdown from "react-markdown";
 import TypingAnimation from "./TypingAnimation";
 

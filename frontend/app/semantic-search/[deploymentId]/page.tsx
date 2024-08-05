@@ -22,14 +22,14 @@ import {
     UserModelService,
 } from "./modelServices";
 import InvalidModelMessage from "./components/InvalidModelMessage";
-// import PdfViewer from "./components/pdf_viewer/PdfViewer";
+import PdfViewer from "./components/pdf_viewer/PdfViewer";
 import { Chunk } from "./components/pdf_viewer/interfaces";
 import UpvoteModal from "./components/pdf_viewer/UpvoteModal";
 import Chat from "./components/chat/Chat";
 import ChatToggle from "./components/chat/ChatToggle";
 import { createDeploymentUrl } from "./components/DeploymentURL";
 import PillButton from "./components/buttons/PillButton";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 
 const Frame = styled.section<{ $opacity: string }>`
     position: absolute;
@@ -115,7 +115,6 @@ const defaultPrompt =
     "simply summarize the given context as coherently as possible.";
 
 function App() {
-    const params = useParams();
     const [modelService, setModelService] = useState<ModelService | null>(null);
     const [results, setResults] = useState<SearchResult | null>(null);
     const [prompt, setPrompt] = useState(defaultPrompt);
@@ -142,13 +141,50 @@ function App() {
             return newCheckedIds;
         });
 
+    const searchParams = useSearchParams();
+    const params = useParams();
+    const [ifGenerationOn, setIfGenerationOn] = useState(false);
+    const [ifGuardRailOn, setIfGuardRailOn] = useState(false);
+    const [guardRailEndpoint, setGuardRailEndpoint] = useState('');
+
     useEffect(() => {
+        const generationOn = searchParams.get('ifGenerationOn') === 'true';
+        const guardRailOn = searchParams.get('ifGuardRailOn') === 'true';
+        const guardRailEp = searchParams.get('guardRailEndpoint');
+
+        console.log('ifGenerationOn', ifGenerationOn)
+        console.log('ifGuardRailOn', ifGuardRailOn)
+        console.log('guardRailEndpoint', guardRailEndpoint)
+
+        setIfGenerationOn(generationOn);
+        setIfGuardRailOn(guardRailOn);
+        setGuardRailEndpoint(guardRailEp || '');
+
         const serviceUrl = createDeploymentUrl(params.deploymentId as string);
-        console.log(serviceUrl);
         const newModelService = new UserModelService(serviceUrl, uuidv4());
         setModelService(newModelService);
         newModelService.sources().then(setSources);
     }, []);
+
+    useEffect(() => {
+
+        const updateSettings = async () => {
+            if (ifGuardRailOn && guardRailEndpoint && modelService) {
+                try {
+                    console.log('passing guardRailEndpoint', guardRailEndpoint)
+                    console.log('passing ifGuardRailOn', ifGuardRailOn)
+
+                    await modelService.updatePiiSettings(guardRailEndpoint, ifGuardRailOn);
+                    console.log('PII settings updated successfully');
+                    modelService.piiDetect('hi Peter');
+                } catch (error) {
+                    console.error('Error updating PII settings:', error);
+                }
+            }
+        };
+
+        updateSettings()
+      }, [modelService, guardRailEndpoint, ifGuardRailOn]);
 
     useEffect(() => {
         if (modelService) {
@@ -163,11 +199,8 @@ function App() {
         topK: number,
         queryId?: string,
     ): Promise<SearchResult | null> {
-        if (!modelService) {
-            return null;
-        }
         setFailed(false);
-        return modelService
+        return modelService!
             .predict(
                 /* queryText= */ query,
                 /* topK= */ topK,
@@ -192,9 +225,6 @@ function App() {
     }
 
     function submit(query: string, genaiPrompt: string) {
-        if (!modelService) {
-            return null;
-        }
         if (websocketRef.current) {
             websocketRef.current.close();
         }
@@ -210,7 +240,7 @@ function App() {
                 c.numReferencesFirstLoad + 1 * c.numReferencesLoadMore,
             ).then((results) => {
                 if (results) {
-                    modelService.generateAnswer(
+                    modelService!.generateAnswer(
                         query,
                         genaiPrompt,
                         results.references,
@@ -226,14 +256,11 @@ function App() {
     }
 
     function regenerateWithSelectedReferences() {
-        if (!modelService || !results) {
-            return;
-        }
         setAnswer("");
-        modelService.generateAnswer(
+        modelService!.generateAnswer(
             query,
             prompt,
-            results.references.filter((ref) => checkedIds.has(ref.id)),
+            results!.references.filter((ref) => checkedIds.has(ref.id)),
             websocketRef,
             (next) => setAnswer((prev) => prev + next),
         );
@@ -245,14 +272,11 @@ function App() {
     }
 
     function openSource(ref: ReferenceInfo) {
-        if (!modelService) {
-            return;
-        }
         if (!ref.sourceName.toLowerCase().endsWith(".pdf")) {
-            modelService.openReferenceSource(ref);
+            modelService!.openReferenceSource(ref);
             return;
         }
-        modelService
+        modelService!
             .getPdfInfo(ref)
             .then((pdf) => {
                 setPdfInfo(pdf);
@@ -265,24 +289,18 @@ function App() {
     }
 
     function upvote(refId: number, content: string) {
-        if (!modelService || !results) {
-            return;
-        }
-        modelService.upvote(
-            /* queryId= */ results.queryId,
-            /* queryText= */ results.query,
+        modelService!.upvote(
+            /* queryId= */ results!.queryId,
+            /* queryText= */ results!.query,
             /* referenceId= */ refId,
             /* referenceText= */ content,
         );
     }
 
     function downvote(refId: number, content: string) {
-        if (!modelService || !results) {
-            return;
-        }
-        modelService.downvote(
-            /* queryId= */ results.queryId,
-            /* queryText= */ results.query,
+        modelService!.downvote(
+            /* queryId= */ results!.queryId,
+            /* queryText= */ results!.query,
             /* referenceId= */ refId,
             /* referenceText= */ content,
         );
@@ -312,7 +330,7 @@ function App() {
         <ModelServiceContext.Provider value={modelService}>
             {modelService && (
                 <Frame $opacity={opacity}>
-                    {/* {pdfInfo && (
+                    {pdfInfo && (
                         <PdfViewerWrapper>
                             <PdfViewer
                                 name={pdfInfo.filename}
@@ -328,7 +346,7 @@ function App() {
                                 }}
                             />
                         </PdfViewerWrapper>
-                    )} */}
+                    )}
                     {selectedPdfChunk && (
                         <UpvoteModalWrapper>
                             <UpvoteModal
@@ -338,11 +356,8 @@ function App() {
                                     selectedPdfChunk.text
                                 }
                                 onSubmit={() => {
-                                    if (!results) {
-                                        return;
-                                    }
                                     modelService.upvote(
-                                        results.queryId,
+                                        results!.queryId,
                                         upvoteQuery,
                                         selectedPdfChunk.id,
                                         selectedPdfChunk.text,
@@ -423,10 +438,15 @@ function App() {
                                     $right="30%"
                                 >
                                     <Pad $left="5px">
-                                        <Spacer $height="30px" />
-                                        <GeneratedAnswer
-                                            answer={answer}
-                                        />
+                                        {
+                                            ifGenerationOn &&
+                                            <>
+                                                <Spacer $height="30px" />
+                                                <GeneratedAnswer
+                                                    answer={answer}
+                                                />
+                                            </>
+                                        }
                                         <Spacer $height="50px" />
                                         {checkedIds.size >
                                             0 && (
@@ -453,12 +473,14 @@ function App() {
                                             }
                                             onMore={more}
                                             showMoreButton={
-                                                showMoreButton !== null ? showMoreButton : false
+                                                !!showMoreButton
                                             }
                                             checkedIds={
                                                 checkedIds
                                             }
                                             onCheck={onCheck}
+                                            modelService = {modelService}
+                                            ifGuardRailOn = {ifGuardRailOn}
                                         />
                                     </Pad>
                                 </Pad>

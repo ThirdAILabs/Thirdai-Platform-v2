@@ -151,11 +151,10 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
   function goToEndpoint() {
     switch (model.type) {
       case "ndb": {
-        const accessToken = getAccessToken();
         let ifGenerationOn = false; // false if semantic search, true if RAG
         let ifGuardRailOn = false; // enable based on actual config
         let guardRailEndpoint = '...' // change based on actual config
-        const newUrl = `/semantic-search/${deploymentId}`;
+        const newUrl = `/semantic-search/${deploymentId}?ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
         window.open(newUrl, '_blank');
         break;
       }
@@ -167,18 +166,16 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
         console.log('nerRAGEndpoint', nerRAGEndpoint)
 
         if (model.use_llm_guardrail && nerRAGEndpoint) {
-          const accessToken = getAccessToken();
           let ifGenerationOn = true; // false if semantic search, true if RAG
           let ifGuardRailOn = true; // enable based on actual config
           let guardRailEndpoint = nerRAGEndpoint // change based on actual config
-          const newUrl = `/semantic-search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+          const newUrl = `/semantic-search/${deploymentId}?ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
           window.open(newUrl, '_blank');
         } else {
-          const accessToken = getAccessToken();
           let ifGenerationOn = true; // false if semantic search, true if RAG
           let ifGuardRailOn = false; // enable based on actual config
           let guardRailEndpoint = '...' // change based on actual config
-          const newUrl = `/semantic-search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+          const newUrl = `/semantic-search/${deploymentId}?ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
           window.open(newUrl, '_blank');
         }
         break

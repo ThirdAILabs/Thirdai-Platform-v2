@@ -42,15 +42,13 @@ function makeVoteButton(svg: React.FunctionComponent) {
                 text="Feedback received!"
                 onDismiss={handleDismiss}
             >
-                <div>Hello</div>
-                {/* <StyledSVG $active={active} /> */}
+                <StyledSVG $active={active} />
             </NotifyingClickable>
         );
     }
 
     return VoteButton;
 }
-
 
 export const UpvoteButton = makeVoteButton(UpvoteSVG);
 

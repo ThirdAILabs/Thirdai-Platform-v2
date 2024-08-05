@@ -44,6 +44,17 @@ def deployment_read_write_permissions(
     session: Session,
     authenticated_user: Union[AuthenticatedUser, HTTPException],
 ):
+    """
+    Determine read and write permissions for a deployment based on the user's access level.
+
+    Parameters:
+    - deployment_id: The ID of the deployment.
+    - session: The database session.
+    - authenticated_user: The authenticated user or HTTPException if authentication fails.
+
+    Returns:
+    - A tuple (read_permission: bool, write_permission: bool).
+    """
 
     deployment = session.query(schema.Deployment).get(deployment_id)
     model = session.query(schema.Model).get(deployment.model_id)

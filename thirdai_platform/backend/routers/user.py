@@ -4,10 +4,7 @@ from urllib.parse import urlencode, urljoin
 
 import bcrypt
 from auth.jwt import AuthenticatedUser, create_access_token, verify_access_token
-from backend.auth_dependencies import (
-    global_admin_only,
-    team_admin_or_global_admin,
-)
+from backend.auth_dependencies import global_admin_only, team_admin_or_global_admin
 from backend.mailer import Mailer
 from backend.utils import hash_password, response
 from database import schema

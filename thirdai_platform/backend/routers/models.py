@@ -94,8 +94,18 @@ def list_models(
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
-    The list requests gets all the models available based on the given name by doing a fuzzy search.
-    and models which are accessible for the user.
+    List models based on the given name, domain, username, and access level.
+
+    Parameters:
+    - name: The name to filter models.
+    - domain: Optional domain to filter models.
+    - username: Optional username to filter models.
+    - access_level: Optional access level to filter models.
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Returns:
+    - A JSON response with the list of models.
     """
     user: schema.User = authenticated_user.user
     user_teams = [ut.team_id for ut in user.teams]
@@ -110,7 +120,6 @@ def list_models(
     )
 
     if user.is_global_admin():
-        # Global admins see all models
         results = query.all()
     else:
         access_conditions = [schema.Model.access_level == schema.Access.public]

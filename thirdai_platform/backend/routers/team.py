@@ -1,15 +1,15 @@
 from backend.auth_dependencies import (
+    get_current_user,
     global_admin_only,
     team_admin_or_global_admin,
-    get_current_user,
 )
+from backend.utils import response
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import null
-from backend.utils import response
 
 team_router = APIRouter()
 

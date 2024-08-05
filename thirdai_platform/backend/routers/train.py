@@ -173,6 +173,13 @@ def train_ndb(
             message=f"{model_name} is not a valid model name.",
         )
 
+    duplicate_model = get_model(session, username=user.username, model_name=model_name)
+    if duplicate_model:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Model with name {model_name} already exists for user {user.username}.",
+        )
+
     model_id = uuid.uuid4()
     data_id = model_id
 
@@ -391,6 +398,13 @@ def train_udt(
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"{model_name} is not a valid model name.",
+        )
+
+    duplicate_model = get_model(session, username=user.username, model_name=model_name)
+    if duplicate_model:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Model with name {model_name} already exists for user {user.username}.",
         )
 
     model_id = uuid.uuid4()

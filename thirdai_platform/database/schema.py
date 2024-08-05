@@ -76,7 +76,9 @@ class User(SQLDeclarativeBase):
     verification_token = Column(
         UUID(as_uuid=True), unique=True, server_default=text("gen_random_uuid()")
     )
-    role = Column(ENUM(Role), default=Role.user)
+
+    # this defines a highest role user is taking in an org, i.e., he can be a global_admin, a team_admin for one of the teams or just an user
+    highest_role = Column(ENUM(Role), default=Role.user)
 
     teams = relationship(
         "UserTeam", back_populates="user", cascade="all, delete-orphan"
@@ -90,6 +92,8 @@ class User(SQLDeclarativeBase):
         "ModelPermission", back_populates="user", cascade="all, delete-orphan"
     )
 
+    reset_password_code = Column(Integer, nullable=True)
+
     @validates("username")
     def validate_username(self, key, username):
         # allow only alphanumeric characters, underscores, and hyphens
@@ -101,6 +105,13 @@ class User(SQLDeclarativeBase):
     @property
     def domain(self) -> str:
         return self.email.split("@")[1]
+
+    def get_team_roles(self):
+        team_roles = [
+            {"team_id": user_team.team_id, "role": user_team.role}
+            for user_team in self.teams
+        ]
+        return team_roles
 
 
 class UserTeam(SQLDeclarativeBase):
@@ -144,7 +155,7 @@ class Model(SQLDeclarativeBase):
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"))
+    team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=True)
 
     user = relationship("User", back_populates="models")
     team = relationship("Team", back_populates="models")
@@ -168,6 +179,9 @@ class Model(SQLDeclarativeBase):
         "ModelPermission", back_populates="model", cascade="all, delete-orphan"
     )
 
+    def get_default_permission(self):
+        return Permission.read
+
     @validates("name")
     def validate_model_name(self, key, name):
         # allow only alphanumeric characters, underscores, and hyphens
@@ -184,7 +198,7 @@ class Model(SQLDeclarativeBase):
         if explicit_permission:
             return explicit_permission.permission
 
-        if user.id == self.user_id or user.role == Role.global_admin:
+        if user.id == self.user_id or user.highest_role == Role.global_admin:
             return Permission.write
 
         if self.access_level == Access.protected:
@@ -194,10 +208,10 @@ class Model(SQLDeclarativeBase):
             if user_team:
                 if user_team.role in {Role.team_admin, Role.global_admin}:
                     return Permission.write
-                return Permission.read
+                return self.get_default_permission()
 
         if self.access_level == Access.public:
-            return Permission.read
+            return self.get_default_permission()
 
         return None
 

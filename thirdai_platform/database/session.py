@@ -69,19 +69,6 @@ class AdminAddition:
                 .first()
             )
 
-            global_admin_team = (
-                session.query(schema.Team)
-                .filter(schema.Team.name == "global_admin_team")
-                .first()
-            )
-
-            # Here we create a specific team named `global_admin_team` just for storing global_admins
-            if not global_admin_team:
-                global_admin_team = schema.Team(name="global_admin_team")
-                session.add(global_admin_team)
-                session.commit()
-                session.refresh(global_admin_team)
-
             if not user:
                 user = schema.User(
                     username=admin_username,
@@ -93,8 +80,7 @@ class AdminAddition:
                 session.commit()
                 session.refresh(user)
             else:
-                user.role = schema.Role.global_admin
-                user.team_id = global_admin_team.id
+                user.highest_role = schema.Role.global_admin
                 session.commit()
 
 

@@ -4,7 +4,10 @@ from urllib.parse import urlencode, urljoin
 
 import bcrypt
 from auth.jwt import AuthenticatedUser, create_access_token, verify_access_token
-from backend.auth_dependencies import global_admin_only, team_admin_or_global_admin
+from backend.auth_dependencies import (
+    global_admin_only,
+    team_admin_or_global_admin,
+)
 from backend.mailer import Mailer
 from backend.utils import hash_password, response
 from database import schema
@@ -150,24 +153,16 @@ def add_global_admin(
         )
 
     # update the user's role to global admin
-    user.role = schema.Role.global_admin
-
-    # remove user from any team he/she is part of
-    user_teams = (
-        session.query(schema.UserTeam).filter(schema.UserTeam.user_id == user.id).all()
-    )
-    for user_team in user_teams:
-        session.delete(user_team)
+    user.highest_role = schema.Role.global_admin
 
     session.commit()
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"User {email} has been successfully added as a global admin and removed from all teams.",
+    )
 
-    return {
-        "status": "success",
-        "message": f"User {email} has been successfully added as a global admin and removed from all teams.",
-    }
 
-
-@user_router.delete("/delete-user", dependencies=[Depends(team_admin_or_global_admin)])
+@user_router.delete("/delete-user", dependencies=[Depends(global_admin_only)])
 def delete_user(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),

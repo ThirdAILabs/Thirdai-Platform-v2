@@ -36,6 +36,7 @@ from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.expression import null
 
 train_router = APIRouter()
 
@@ -172,19 +173,6 @@ def train_ndb(
             message=f"{model_name} is not a valid model name.",
         )
 
-    # check for existing model name across all teams the user is a part of
-    user_teams = [ut.team_id for ut in user.teams]
-    duplicate_model = (
-        session.query(schema.Model)
-        .filter(schema.Model.name == model_name, schema.Model.team_id.in_(user_teams))
-        .first()
-    )
-    if duplicate_model:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Model with name {model_name} already exists within your teams.",
-        )
-
     model_id = uuid.uuid4()
     data_id = model_id
 
@@ -249,11 +237,7 @@ def train_ndb(
             domain=user.domain,
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model else None,
-            team_id=(
-                base_model.team_id
-                if base_model
-                else user_teams[0] if user_teams else None
-            ),
+            team_id=null(),
         )
 
         session.add(new_model)
@@ -409,19 +393,6 @@ def train_udt(
             message=f"{model_name} is not a valid model name.",
         )
 
-    # check for existing model name across all teams the user is a part of
-    user_teams = [ut.team_id for ut in user.teams]
-    duplicate_model = (
-        session.query(schema.Model)
-        .filter(schema.Model.name == model_name, schema.Model.team_id.in_(user_teams))
-        .first()
-    )
-    if duplicate_model:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Model with name {model_name} already exists within your teams.",
-        )
-
     model_id = uuid.uuid4()
     data_id = model_id
 
@@ -479,11 +450,7 @@ def train_udt(
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model else None,
-            team_id=(
-                base_model.team_id
-                if base_model
-                else user_teams[0] if user_teams else None
-            ),
+            team_id=null(),
         )
 
         session.add(new_model)

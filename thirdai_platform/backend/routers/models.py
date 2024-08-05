@@ -15,7 +15,7 @@ from backend.routers.utils import (
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Header, Query, UploadFile, status, HTTPException
-from backend.auth_dependencies import team_admin_or_global_admin
+from backend.auth_dependencies import team_admin_or_global_admin, get_current_user
 from backend.utils import get_high_level_model_info, response
 from database import schema
 from database.session import get_session
@@ -109,7 +109,7 @@ def list_models(
         )
     )
 
-    if user.role == schema.Role.global_admin:
+    if user.highest_role == schema.Role.global_admin:
         # Global admins see all models
         results = query.all()
     else:
@@ -212,6 +212,7 @@ def save_deployed_model(
         train_status=schema.Status.complete,
         access_level=schema.Access.private,
         domain=user.email.split("@")[1],
+        user_id=user.id,
         parent_deployment_id=body.deployment_id,
         parent_id=base_model.id,
         type=base_model.type,
@@ -687,7 +688,7 @@ def list_team_models(
 def update_model_permission(
     input: UpdateModelPermissionInput,
     session: Session = Depends(get_session),
-    current_user: schema.User = Depends(team_admin_or_global_admin),
+    current_user: schema.User = Depends(get_current_user),
 ):
     model = (
         session.query(schema.Model)
@@ -698,20 +699,41 @@ def update_model_permission(
         session.query(schema.User).filter(schema.User.email == input.user_email).first()
     )
 
-    if not model or not user:
+    if not model:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Model or user not found."
+            status_code=status.HTTP_404_NOT_FOUND, detail="Model not found."
         )
 
-    if current_user.role == schema.Role.team_admin:
-        if (
-            model.team_id != current_user.team_id
-            or user.team_id != current_user.team_id
-        ):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Team admins can only change permissions for users and models within their own team.",
-            )
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
+        )
+
+    if current_user.role != schema.Role.global_admin:
+        if model.user_id != current_user.id:
+            if model.team_id:
+                current_user_teams = (
+                    session.query(schema.UserTeam)
+                    .filter_by(user_id=current_user.id, team_id=model.team_id)
+                    .all()
+                )
+                current_user_team_ids = {
+                    user_team.team_id for user_team in current_user_teams
+                }
+
+                if (
+                    model.team_id not in current_user_team_ids
+                    or current_user.role != schema.Role.team_admin
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Only the creator, team admin of the model's team, or global admin can update model permissions.",
+                    )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only the creator, team admin of the model's team, or global admin can update model permissions.",
+                )
 
     model_permission = (
         session.query(schema.ModelPermission)
@@ -729,7 +751,8 @@ def update_model_permission(
 
     session.commit()
 
-    return {
-        "status": "success",
-        "message": f"Permission updated to '{input.permission}' for user '{input.user_email}' on model '{input.model_id}'.",
-    }
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"Permission updated to '{input.permission}' for user '{input.user_email}' on model '{input.model_name}'.",
+        data={"model_id": str(model.id), "user_id": str(user.id)},
+    )

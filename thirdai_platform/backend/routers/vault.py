@@ -3,6 +3,8 @@ from auth.jwt import verify_access_token
 from backend.auth_dependencies import get_vault_client, global_admin_only
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel
+from backend.utils import response
+
 
 vault_router = APIRouter()
 
@@ -34,11 +36,11 @@ async def add_secret(
     client.secrets.kv.v2.create_or_update_secret(
         path=secret_path, secret={"value": secret.value}
     )
-    return {
-        "key": secret.key,
-        "value": secret.value,
-        "status": "success",
-    }
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Secret retrieved successfully",
+        data={"key": secret.key, "value": secret.value},
+    )
 
 
 # Note(pratik): Any user can access the secrets, set by global admin
@@ -64,11 +66,11 @@ async def get_secret(
         return HTTPException(status_code=404, detail="Secret not found")
 
     secret_value = read_response["data"]["data"]["value"]
-    return {
-        "key": secret.key,
-        "value": secret_value,
-        "status": "success",
-    }
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Secret value retrieved successfully",
+        data={"key": secret.key, "value": secret_value},
+    )
 
 
 @vault_router.get("/list-keys", dependencies=[Depends(verify_access_token)])
@@ -78,7 +80,11 @@ async def list_vault_keys(
     try:
         list_response = client.secrets.kv.v2.list_secrets(path="secret/data/")
         keys = list_response["data"]["keys"]
-        return keys
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Keys retrieved successfully",
+            data={"keys": keys},
+        )
     except hvac.exceptions.InvalidPath:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="No keys found in the vault."

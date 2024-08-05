@@ -27,19 +27,13 @@ def get_vault_client():
 
 
 def get_current_user(
-    session: Session = Depends(get_session),
-    token: str = Depends(verify_access_token),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    user = session.query(schema.User).filter(schema.User.id == token.user.id).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user"
-        )
-    return user
+    return authenticated_user.user
 
 
 def global_admin_only(current_user: schema.User = Depends(get_current_user)):
-    if current_user.role != schema.Role.global_admin:
+    if current_user.highest_role != schema.Role.global_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="The user doesn't have enough privileges",
@@ -49,9 +43,12 @@ def global_admin_only(current_user: schema.User = Depends(get_current_user)):
 
 # Note: Following make sure the user is a global admin or a user is an admin to one team,
 # However, this doesnot qurantees that the user is an admin to a particular team. That should
-# be handled in the required function depending upon access.
+# be handled in the required function depending upon access depending upon the case.
 def team_admin_or_global_admin(current_user: schema.User = Depends(get_current_user)):
-    if current_user.role not in [schema.Role.team_admin, schema.Role.global_admin]:
+    if current_user.highest_role not in [
+        schema.Role.team_admin,
+        schema.Role.global_admin,
+    ]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="The user doesn't have enough privileges",

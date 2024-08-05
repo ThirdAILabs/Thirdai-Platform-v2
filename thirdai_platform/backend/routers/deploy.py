@@ -44,16 +44,23 @@ def deployment_read_write_permissions(
     session: Session,
     authenticated_user: Union[AuthenticatedUser, HTTPException],
 ):
-    user = authenticated_user.user
+
     deployment = session.query(schema.Deployment).get(deployment_id)
-    if not deployment:
-        return False, False  # No deployment found, no permissions
-
     model = session.query(schema.Model).get(deployment.model_id)
-    if not model:
-        return False, False  # No model found, no permissions
 
-    # Use the method from the Model class to determine permissions
+    if not deployment:
+        return False, False
+
+    if not model:
+        return False, False
+
+    if not isinstance(authenticated_user, AuthenticatedUser):
+        if model.access_level == schema.Access.public:
+            return True, False
+        return False, False
+
+    user = authenticated_user.user
+
     permission = model.get_user_permission(user)
     if permission == schema.Permission.write:
         return True, True  # Full access
@@ -183,13 +190,7 @@ def deploy_model(
             message="Deployment name is not valid.",
         )
 
-    try:
-        model: schema.Model = get_model_from_identifier(model_identifier, session)
-    except Exception as error:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=str(error),
-        )
+    model: schema.Model = get_model_from_identifier(model_identifier, session)
 
     if model.train_status != schema.Status.complete:
         return response(

@@ -200,7 +200,7 @@ def delete_team(input: DeleteTeamInput, session: Session = Depends(get_session))
     )
 
 
-@team_router.post("/add-model-to-team", dependencies=[Depends(global_admin_only)])
+@team_router.post("/add-model-to-team")
 def add_model_to_team(
     input: AddModelInput,
     session: Session = Depends(get_session),
@@ -223,16 +223,10 @@ def add_model_to_team(
             status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
         )
 
-    # check if the current user belongs to the team
-    user_team = (
-        session.query(schema.UserTeam)
-        .filter_by(user_id=current_user.id, team_id=team.id)
-        .first()
-    )
-    if not user_team:
+    if model.get_user_permission(current_user) != schema.Permission.write:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not belong to the specified team",
+            detail="User does not have enough access to the model.",
         )
 
     model.team_id = team.id
@@ -248,7 +242,7 @@ def add_model_to_team(
     )
 
 
-@team_router.post("/remove-model-from-team", dependencies=[Depends(global_admin_only)])
+@team_router.post("/remove-model-from-team")
 def remove_model_from_team(
     input: RemoveModelInput,
     session: Session = Depends(get_session),
@@ -262,15 +256,10 @@ def remove_model_from_team(
 
     # check if the current user belongs to the team the model is associated with
     if model.team_id:
-        user_team = (
-            session.query(schema.UserTeam)
-            .filter_by(user_id=current_user.id, team_id=model.team_id)
-            .first()
-        )
-        if not user_team:
+        if model.get_user_permission(current_user) != schema.Permission.write:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="User does not belong to the team associated with the model",
+                detail="User does not have enough access to the model.",
             )
 
     model.team_id = null()

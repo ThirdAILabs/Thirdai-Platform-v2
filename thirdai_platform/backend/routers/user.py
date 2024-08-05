@@ -153,7 +153,7 @@ def add_global_admin(
         )
 
     # update the user's role to global admin
-    user.is_global_admin = True
+    user.global_admin = True
 
     session.commit()
     return response(

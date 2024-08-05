@@ -78,7 +78,7 @@ class User(SQLDeclarativeBase):
     )
 
     # checks whether this user is global_admin or not
-    is_global_admin = Column(Boolean, default=False, nullable=False)
+    global_admin = Column(Boolean, default=False, nullable=False)
 
     teams = relationship(
         "UserTeam", back_populates="user", cascade="all, delete-orphan"
@@ -112,6 +112,9 @@ class User(SQLDeclarativeBase):
             for user_team in self.teams
         ]
         return team_roles
+
+    def is_global_admin(self):
+        return self.global_admin
 
     def is_team_admin_of_any_team(self):
         return any(role["role"] == Role.team_admin for role in self.get_team_roles())
@@ -207,7 +210,7 @@ class Model(SQLDeclarativeBase):
         if explicit_permission:
             return explicit_permission.permission
 
-        if user.id == self.user_id or user.is_global_admin:
+        if user.id == self.user_id or user.is_global_admin():
             return Permission.write
 
         if self.access_level == Access.protected:
@@ -215,7 +218,7 @@ class Model(SQLDeclarativeBase):
                 (ut for ut in user.teams if ut.team_id == self.team_id), None
             )
             if user_team:
-                if user_team.role in {Role.team_admin, Role.global_admin}:
+                if user_team.role == Role.team_admin:
                     return Permission.write
                 return self.get_default_permission()
 

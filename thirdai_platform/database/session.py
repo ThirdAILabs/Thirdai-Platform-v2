@@ -80,7 +80,7 @@ class AdminAddition:
                 session.commit()
                 session.refresh(user)
             else:
-                user.is_global_admin = True
+                user.global_admin = True
                 session.commit()
 
 

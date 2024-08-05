@@ -55,19 +55,6 @@ def subsample_dictionary(data, k=2):
     }
 
 
-def load_random_prompts(filepath: str):
-    resource_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resource")
-    with open(os.path.join(resource_dir, filepath), "r") as file:
-        data = json.load(file)
-    prompts_json = {}
-    for k, v in data.items():
-        prompts_json[k] = {
-            "prompts": [item["transformation"] for item in v],
-            "scores": [item["score"] for item in v],
-        }
-    return prompts_json
-
-
 def convert_template_to_json(allowed_tags, data_strings):
     data = []
     for data_string in data_strings:

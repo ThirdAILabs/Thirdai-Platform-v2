@@ -3,11 +3,16 @@ import json
 import os
 import random
 import traceback
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from resource.util_data import vocab
 from typing import Dict, List, Optional
 
 from data_factory_interface import DataFactory
+from tqdm import tqdm
 from utils import datagen_prompt
+
+TEXT_COLUMN = "text"
+TARGET_LABEL_COLUMN = "label"
 
 
 def assert_sufficient_examples(
@@ -55,16 +60,15 @@ class TextDataFactory(DataFactory):
         total_expected_sentences = samples_per_label * len(target_labels)
         assert sentences_generated < total_expected_sentences
 
-        def process_task(prompt):
-            try:
-                response = self.llm_completion(
-                    prompt,
-                )
-                return response, None
-            except Exception as e:
-                print(f"An error occurred while generation: {str(e)}")
-                print(traceback.format_exc())
-                return None, error_msg
+        def process_task(prompt: str, target_label: str):
+            text_response = self.llm_completion(
+                prompt,
+            )
+            return [
+                (text, target_label)
+                for text in text_response.replace("\n\n", "\n").split("\n")
+                if text.strip()
+            ]
 
         assert_sufficient_examples(target_labels, examples)
         assert_sufficient_descriptions(target_labels, labels_description)
@@ -72,9 +76,9 @@ class TextDataFactory(DataFactory):
         vocabulary = self.vocab + (user_vocab if user_vocab is not None else [])
         user_prompts = ("\n".join(user_prompts) + "\n\n") if user_prompts else ""
 
-        tasks = []
+        input_data = []
 
-        for label_to_generate in target_labels:
+        for target_label in target_labels:
             for batch_offset in range(0, samples_per_label, batch_size):
                 samples_to_generate = min(batch_size, samples_per_label - batch_offset)
                 random_vocab = random.sample(
@@ -88,72 +92,78 @@ class TextDataFactory(DataFactory):
 
                 label_examples = "\n".join(
                     random.sample(
-                        examples[label_to_generate],
-                        min(2, len(examples[label_to_generate])),
+                        examples[target_label],
+                        min(2, len(examples[target_label])),
                     )
                 )
 
                 prompt = datagen_prompt.format(
                     task_prompt=task_prompt,
                     samples_to_generate=samples_to_generate,
-                    label_to_generate=label_to_generate,
-                    label_description=labels_description[label_to_generate],
+                    target_label=target_label,
+                    label_description=labels_description[target_label],
                     examples=label_examples,
                     user_prompts=user_prompts,
                     random_prompts="\n".join(sampled_random_prompts),
                     random_vocab=str(random_vocab),
                 )
 
-                tasks.append([prompt, label_to_generate])
+                input_data.append((prompt, target_label))
 
-        random.shuffle(tasks)
-        tasks = tasks[: total_expected_sentences - sentences_generated]
+        random.shuffle(input_data)
+        input_data = input_data[: total_expected_sentences - sentences_generated]
         file_mode = "w" if sentences_generated == 0 else "a"
         train_file_location = os.path.join(self.save_dir, "train.csv")
+        errored_file_location = os.path.join(self.save_dir, "traceback.err")
 
-        error_logs = set()
         with open(
             train_file_location, file_mode, newline="", encoding="utf-8"
         ) as csvfile:
             csv_writer = csv.writer(csvfile)
             if sentences_generated == 0:
-                csv_writer.writerow(["text", "label"])
+                csv_writer.writerow([TEXT_COLUMN, TARGET_LABEL_COLUMN])
 
-            for task_batch_id in range(0, len(tasks), 20):
-                task_batch = tasks[task_batch_id : task_batch_id + 20]
-                generated_results = {}
+            write_chunk_size = 20
+            total_chunks = len(input_data) // write_chunk_size + 1
+            for idx in range(0, len(input_data), write_chunk_size):
+                chunk = input_data[idx : idx + write_chunk_size]
+                with ProcessPoolExecutor() as executor, tqdm(
+                    total=len(chunk),
+                    desc=f"Generating text data {(idx // write_chunk_size)}/{total_chunks}",
+                ) as pbar:
+                    futures = []
+                    text_with_target_label = []
 
-                results = [
-                    (process_task(prompt), label_to_generate)
-                    for (prompt, label_to_generate) in task_batch
-                ]
-                for (response, error_msg), label_to_generate in results:
-                    if error_msg:
-                        error_logs.add(error_msg)
-                    else:
-                        generated_result = generated_results.setdefault(
-                            label_to_generate, ""
-                        )
-                        generated_results[label_to_generate] = (
-                            generated_result + response.replace("\n\n", "\n") + "\n"
-                        )
+                    # Submit input_data to the executor
+                    for task in chunk:
+                        future = executor.submit(process_task, task)
+                        future.add_done_callback(lambda p: pbar.update())
+                        futures.append(future)
 
-                data_list = []
-                for label, texts in generated_results.items():
-                    cleaned_texts = [text for text in texts.split("\n") if text.strip()]
-                    data_list.extend((text, label) for text in cleaned_texts)
-                sentences_generated += len(data_list)
+                    # Wait for all input_data to complete and handle exceptions
+                    for future in as_completed(futures):
+                        try:
+                            response = future.result()
+                            if response:
+                                text_with_target_label.append(response)
 
-                # throw error for testing
-                random.shuffle(data_list)
-                for text, label in data_list:
-                    csv_writer.writerow([text, label])
+                        except Exception as e:
+                            with open(errored_file_location, mode="a") as errored_fp:
+                                traceback.print_exc(file=errored_fp)
+                                errored_fp.write("\n" + "=" * 100 + "\n")
+
+                random.shuffle(text_with_target_label)
+
+                # Writing to the csv
+                csv_writer.writerows(text_with_target_label)
+                sentences_generated += len(text_with_target_label)
 
         dataset_config = {
             "filepath": train_file_location,
+            "error_file": errored_file_location,
             "task": "TEXT_CLASSIFICATION",
-            "input_feature": "text",
-            "target_feature": "label",
+            "input_feature": TEXT_COLUMN,
+            "target_feature": TARGET_LABEL_COLUMN,
             "target_labels": target_labels,
             "num_samples": sentences_generated,
         }

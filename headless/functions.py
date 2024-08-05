@@ -51,9 +51,7 @@ class UDTFunctions:
             f"Deploying the model {model.model_identifier} and id {model.model_id}"
         )
 
-        return flow.bazaar_client.deploy_udt(
-            model.model_identifier, f"{run_name}_deployment_{config.sub_type}"
-        )
+        return flow.bazaar_client.deploy_udt(model.model_identifier)
 
     def build_extra_options(config: Config) -> Dict[str, Any]:
         if config.sub_type == "text":
@@ -266,9 +264,7 @@ class NDBFunctions:
             f"Deploying the model {model.model_identifier} and id {model.model_id}"
         )
 
-        return flow.bazaar_client.deploy(
-            model.model_identifier, f"{run_name}_deployment"
-        )
+        return flow.bazaar_client.deploy(model.model_identifier)
 
     def build_extra_options(config: Config, sharded: bool = False) -> Dict[str, Any]:
         """

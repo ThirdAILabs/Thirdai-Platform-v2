@@ -155,7 +155,7 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
         let ifGenerationOn = false; // false if semantic search, true if RAG
         let ifGuardRailOn = false; // enable based on actual config
         let guardRailEndpoint = '...' // change based on actual config
-        const newUrl = `${deploymentBaseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+        const newUrl = `/semantic-search/${deploymentId}`;
         window.open(newUrl, '_blank');
         break;
       }
@@ -171,14 +171,14 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
           let ifGenerationOn = true; // false if semantic search, true if RAG
           let ifGuardRailOn = true; // enable based on actual config
           let guardRailEndpoint = nerRAGEndpoint // change based on actual config
-          const newUrl = `${deploymentBaseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+          const newUrl = `/semantic-search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
           window.open(newUrl, '_blank');
         } else {
           const accessToken = getAccessToken();
           let ifGenerationOn = true; // false if semantic search, true if RAG
           let ifGuardRailOn = false; // enable based on actual config
           let guardRailEndpoint = '...' // change based on actual config
-          const newUrl = `${deploymentBaseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+          const newUrl = `/semantic-search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
           window.open(newUrl, '_blank');
         }
         break

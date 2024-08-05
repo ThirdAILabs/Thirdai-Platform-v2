@@ -385,6 +385,15 @@ class NFSStorageHandler(StorageHandler):
 
 
 class S3StorageHandler(StorageHandler):
+    """
+    S3 storage handler for processing and validating S3 files.
+    Methods:
+    - create_s3_client: Creates an S3 client.
+    - process_files: Processes and saves the S3 file.
+    - list_s3_files: Lists files in the specified S3 location.
+    - validate_file: Validates the S3 file.
+    """
+
     @staticmethod
     def create_s3_client():
         from botocore import UNSIGNED

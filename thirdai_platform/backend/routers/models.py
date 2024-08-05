@@ -119,9 +119,7 @@ def list_models(
         )
     )
 
-    if user.is_global_admin():
-        results = query.all()
-    else:
+    if not user.is_global_admin():
         access_conditions = [schema.Model.access_level == schema.Access.public]
         if schema.Access.protected in access_level:
             access_conditions.append(
@@ -240,7 +238,7 @@ def save_deployed_model(
     session.add(metadata)
     session.commit()
 
-    return {"message": "successfully added the model."}
+    return {"message": "Successfully added the model."}
 
 
 class ModelInfo(BaseModel):

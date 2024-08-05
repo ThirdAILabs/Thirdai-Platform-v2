@@ -1,4 +1,4 @@
-job "deployment-{{ deployment_id }}" {
+job "deployment-{{ model_id }}" {
   datacenters = ["dc1"]
 
   type = "service"
@@ -25,7 +25,7 @@ job "deployment-{{ deployment_id }}" {
     }
 
     network {
-      port "{{ deployment_id }}-http" {
+      port "{{ model_id }}-http" {
         {% if platform == "docker" %}
           to = 80
         {% elif platform == "local" %}
@@ -35,14 +35,14 @@ job "deployment-{{ deployment_id }}" {
     }
 
     service {
-      name = "{{ deployment_id }}"
-      port = "{{ deployment_id }}-http"
+      name = "{{ model_id }}"
+      port = "{{ model_id }}-http"
       provider = "nomad"
 
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.{{ deployment_id }}-http.rule=PathPrefix(`/{{ deployment_id }}/`)",
-        "traefik.http.routers.{{ deployment_id }}-http.priority=10"
+        "traefik.http.routers.{{ model_id }}-http.rule=PathPrefix(`/{{ model_id }}/`)",
+        "traefik.http.routers.{{ model_id }}-http.priority=10"
       ]
     }
 
@@ -69,7 +69,6 @@ EOF
 
       env {
         MODEL_ID = "{{ model_id }}"
-        DEPLOYMENT_ID = "{{ deployment_id }}"
         MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
         LICENSE_KEY = "{{ license_key }}"
         GENAI_KEY = "{{ genai_key }}"
@@ -90,7 +89,7 @@ EOF
         {% if platform == "docker" %}  
           image = "{{ registry }}/{{ image_name }}:{{ tag }}"
           image_pull_timeout = "15m"
-          ports = ["{{ deployment_id }}-http"]
+          ports = ["{{ model_id }}-http"]
           group_add = ["4646"]
           auth {
             username = "{{ docker_username }}"

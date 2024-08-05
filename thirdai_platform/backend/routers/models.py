@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 from typing import Annotated, Dict, List, Optional, Union
@@ -180,7 +181,6 @@ def check_model(
 
 
 class SaveNDBDeployedModel(BaseModel):
-    deployment_id: str
     model_id: str
     base_model_id: str
     model_name: str
@@ -212,10 +212,10 @@ def save_deployed_model(
         id=body.model_id,
         name=body.model_name,
         train_status=schema.Status.complete,
+        deploy_status=schema.Status.not_started,
         access_level=schema.Access.private,
-        domain=user.email.split("@")[1],
+        domain=user.domain,
         user_id=user.id,
-        parent_deployment_id=body.deployment_id,
         parent_id=base_model.id,
         type=base_model.type,
         sub_type=base_model.sub_type,
@@ -226,7 +226,7 @@ def save_deployed_model(
     session.refresh(new_model)
 
     metadata: schema.MetaData = schema.MetaData(
-        model_id=body.model_id, deployment=body.metadata
+        model_id=body.model_id, general=body.metadata
     )
 
     session.add(metadata)
@@ -269,15 +269,16 @@ def pending_train_models(
     results = [
         {
             "model_name": result.name,
-            "status": result.train_status,
+            "train_status": result.train_status,
             "username": user.username,
+            "deploy_status": result.deploy_status,
         }
         for result in pending_model_train
     ]
 
     return response(
         status_code=status.HTTP_200_OK,
-        message="Successfully fetched the pending list",
+        message="Successfully fetched the pending list models",
         data=jsonable_encoder(results),
     )
 
@@ -501,7 +502,6 @@ def upload_commit(
         )
 
     user: schema.User = session.query(schema.User).get(payload["user_id"])
-    domain = user.email.split("@")[1]
 
     try:
         new_model = schema.Model(
@@ -510,9 +510,10 @@ def upload_commit(
             access_level=body.access_level,
             type=body.type,
             sub_type=body.sub_type,
-            domain=domain,
+            domain=user.domain,
             user_id=payload["user_id"],
             train_status=schema.Status.complete,
+            deploy_status=schema.Status.not_started,
         )
 
         session.add(new_model)
@@ -527,7 +528,7 @@ def upload_commit(
     if body.metadata:
         new_metadata = schema.MetaData(
             model_id=payload["model_id"],
-            general=body.metadata,
+            general=json.dumps(body.metadata),
         )
 
         session.add(new_metadata)

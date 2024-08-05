@@ -88,7 +88,7 @@ class CommonFunctions:
         logging.info(f"inputs: {inputs}")
         deployment = inputs.get("deployment")
 
-        logging.info(f"stopping the deployment for {deployment.deployment_identifier}")
+        logging.info(f"stopping the deployment for {deployment.model_identifier}")
 
         flow.bazaar_client.undeploy(deployment)
 
@@ -97,7 +97,7 @@ class CommonFunctions:
         logging.info(f"inputs: {inputs}")
         deployment = inputs.get("deployment")
 
-        logging.info(f"checking the deployment for {deployment.deployment_identifier}")
+        logging.info(f"checking the deployment for {deployment.model_identifier}")
 
         logging.info("Searching the deployment")
         return deployment.search(
@@ -116,7 +116,7 @@ class CommonFunctions:
         logging.info(f"inputs: {inputs}")
         deployment = inputs.get("deployment")
         logging.info(
-            f"Waiting for Deployment to finish for deployment {deployment.deployment_identifier}"
+            f"Waiting for Deployment to finish for deployment {deployment.model_identifier}"
         )
         flow.bazaar_client.await_deploy(deployment)
 

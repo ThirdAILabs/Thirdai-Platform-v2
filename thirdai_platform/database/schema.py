@@ -54,13 +54,7 @@ class User(SQLDeclarativeBase):
     )
 
     models = relationship("Model", back_populates="user", cascade="all, delete-orphan")
-    deployments = relationship(
-        "Deployment", back_populates="user", cascade="all, delete-orphan"
-    )
     logs = relationship("Log", back_populates="user", cascade="all, delete-orphan")
-    workflows = relationship(
-        "Workflow", back_populates="user", cascade="all, delete-orphan"
-    )
 
     @validates("username")
     def validate_username(self, key, username):
@@ -83,6 +77,7 @@ class Model(SQLDeclarativeBase):
     )
     name = Column(String, nullable=False)
     train_status = Column(ENUM(Status), nullable=False, default=Status.not_started)
+    deploy_status = Column(ENUM(Status), nullable=False, default=Status.not_started)
     type = Column(String(256), nullable=False)
     sub_type = Column(String(256), nullable=True)
     downloads = Column(Integer, nullable=False, default=0)
@@ -95,12 +90,6 @@ class Model(SQLDeclarativeBase):
     parent_id = Column(
         UUID(as_uuid=True), ForeignKey("models.id", ondelete="SET NULL"), nullable=True
     )  # Not null if this model comes from starting training from a base model
-
-    parent_deployment_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("deployments.model_id", ondelete="SET NULL"),
-        nullable=True,
-    )  # Not null if this model comes from saving a deployment session
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
@@ -161,34 +150,6 @@ class ModelShard(SQLDeclarativeBase):
     model = relationship("Model", back_populates="model_shards")
 
 
-class Deployment(SQLDeclarativeBase):
-    __tablename__ = "deployments"
-
-    model_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("models.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    name = Column(String(256), nullable=False)
-    status = Column(ENUM(Status), nullable=False)
-
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-
-    user = relationship("User", back_populates="deployments")
-
-    @validates("name")
-    def validate_deployment_name(self, key, name):
-        # allow only alphanumeric characters, underscores, and hyphens
-        assert re.match(
-            r"^[\w-]+$", name
-        ), "Deployment name should only contain alphanumeric characters, underscores, and hyphens"
-        return name
-
-    __table_args__ = (UniqueConstraint("model_id", "user_id", "name"),)
-
-
 class Log(SQLDeclarativeBase):
     __tablename__ = "logs"
 
@@ -212,46 +173,4 @@ class Log(SQLDeclarativeBase):
         UniqueConstraint(
             "model_id", "user_id", "action", name="unique_model_user_action"
         ),
-    )
-
-
-class Workflow(SQLDeclarativeBase):
-    __tablename__ = "workflows"
-
-    id = Column(
-        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
-    )
-    name = Column(String(256), nullable=False)
-    type = Column(String(256), nullable=False)
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-
-    user = relationship("User", back_populates="workflows")
-    workflow_models = relationship(
-        "WorkflowModel", back_populates="workflow", cascade="all, delete-orphan"
-    )
-
-
-class WorkflowModel(SQLDeclarativeBase):
-    __tablename__ = "workflow_models"
-
-    workflow_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("workflows.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    model_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("models.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    train_status = Column(ENUM(Status), nullable=False, default=Status.not_started)
-    deployment_status = Column(ENUM(Status), nullable=True)
-
-    workflow = relationship("Workflow", back_populates="workflow_models")
-
-    __table_args__ = (
-        Index("workflow_model_index", "workflow_id"),
-        Index("model_workflow_index", "model_id"),
     )

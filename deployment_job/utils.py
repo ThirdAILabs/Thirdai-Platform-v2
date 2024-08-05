@@ -49,20 +49,18 @@ def now() -> datetime.datetime:
     return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
 
 
-def delete_job(
-    deployment_id: str, task_runner_token: str
-) -> Tuple[requests.Response, str]:
+def delete_job(model_id: str, task_runner_token: str) -> Tuple[requests.Response, str]:
     """
     Deletes a job from Nomad.
 
     Args:
-        deployment_id (str): The deployment ID.
+        model_id (str): The model ID.
         task_runner_token (str): The task runner token.
 
     Returns:
         Tuple[requests.Response, str]: The response from the delete request and the job ID.
     """
-    job_id = f"deployment-{deployment_id}"
+    job_id = f"deployment-{model_id}"
     job_url = f"http://172.17.0.1:4646/v1/jobs/{job_id}"
     headers = {"X-Nomad-Token": task_runner_token}
     response = requests.delete(job_url, headers=headers)

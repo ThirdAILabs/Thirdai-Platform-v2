@@ -1,3 +1,4 @@
+import axios from 'axios';
 import "./App.css";
 import styled from "styled-components";
 import React, { useEffect, useRef, useState } from "react";
@@ -138,16 +139,57 @@ function App() {
             return newCheckedIds;
         });
 
+    const [deploymentId, setDeploymentId] = useState('');
+    const [accessToken, setAccessToken] = useState('');
+    const [ifGenerationOn, setIfGenerationOn] = useState(false);
+    const [ifGuardRailOn, setIfGuardRailOn] = useState(false);
+    const [guardRailEndpoint, setGuardRailEndpoint] = useState('');
+
     useEffect(() => {
         const queryParameters = new URLSearchParams(window.location.search);
         const userModelUrl = queryParameters.get("id");
-        if (userModelUrl) {
+        const accessToken = queryParameters.get("token");
+        const generationOn = queryParameters.get('ifGenerationOn') === 'true';
+        const guardRailOn = queryParameters.get('ifGuardRailOn') === 'true';
+        const guardRailEp = queryParameters.get('guardRailEndpoint');
+
+        console.log('ifGenerationOn', ifGenerationOn)
+        console.log('ifGuardRailOn', ifGuardRailOn)
+        console.log('guardRailEndpoint', guardRailEndpoint)
+
+        setAccessToken(accessToken)
+        setDeploymentId(userModelUrl)
+        setIfGenerationOn(generationOn);
+        setIfGuardRailOn(guardRailOn);
+        setGuardRailEndpoint(guardRailEp || '');
+
+        if (userModelUrl && accessToken) {
             const serviceUrl = createDeploymentUrl(userModelUrl);
-            const newModelService = new UserModelService(serviceUrl, uuidv4());
+            const newModelService = new UserModelService(serviceUrl, uuidv4(), accessToken);
             setModelService(newModelService);
             newModelService.sources().then(setSources);
         }
     }, []);
+
+    useEffect(() => {
+
+        const updateSettings = async () => {
+            if (ifGuardRailOn && guardRailEndpoint && modelService) {
+                try {
+                    console.log('passing guardRailEndpoint', guardRailEndpoint)
+                    console.log('passing ifGuardRailOn', ifGuardRailOn)
+
+                    await modelService.updatePiiSettings(guardRailEndpoint, ifGuardRailOn);
+                    console.log('PII settings updated successfully');
+                    modelService.piiDetect('hi Peter');
+                } catch (error) {
+                    console.error('Error updating PII settings:', error);
+                }
+            }
+        };
+
+        updateSettings()
+      }, [modelService, guardRailEndpoint, ifGuardRailOn]);
 
     useEffect(() => {
         if (modelService) {
@@ -406,10 +448,15 @@ function App() {
                                                     $right="30%"
                                                 >
                                                     <Pad $left="5px">
-                                                        <Spacer $height="30px" />
-                                                        <GeneratedAnswer
-                                                            answer={answer}
-                                                        />
+                                                        {
+                                                            ifGenerationOn &&
+                                                            <>
+                                                                <Spacer $height="30px" />
+                                                                <GeneratedAnswer
+                                                                    answer={answer}
+                                                                />
+                                                            </>
+                                                        }
                                                         <Spacer $height="50px" />
                                                         {checkedIds.size >
                                                             0 && (
@@ -442,6 +489,8 @@ function App() {
                                                                 checkedIds
                                                             }
                                                             onCheck={onCheck}
+                                                            modelService = {modelService}
+                                                            ifGuardRailOn = {ifGuardRailOn}
                                                         />
                                                     </Pad>
                                                 </Pad>

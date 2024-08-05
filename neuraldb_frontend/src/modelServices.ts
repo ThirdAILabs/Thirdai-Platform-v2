@@ -43,6 +43,11 @@ export interface Source {
     source_id: string;
 }
 
+export interface PIIDetectionResult {
+    tokens: string[];
+    predicted_tags: string[];
+}
+
 export interface ModelService {
     isUserModel: () => boolean;
     sources: () => Promise<Source[]>;
@@ -82,6 +87,8 @@ export interface ModelService {
     handleInvalidAuth: () => void;
     getChatHistory: () => Promise<ChatMessage[]>;
     chat: (textInput: string) => Promise<ChatResponse>;
+    piiDetect(query: string): Promise<PIIDetectionResult>;
+    updatePiiSettings(token_model_id: string, llm_guardrail: boolean): Promise<any>
 }
 
 function sourceName(ref: ReferenceJson) {
@@ -138,7 +145,7 @@ export class GlobalModelService implements ModelService {
 
     constructor(url: string, sessionId: string) {
         this.url = url;
-        this.wsUrl = url.replace("http", "ws");
+        this.wsUrl = `${window.location.protocol}//${window.location.host}`.replace("http", "ws");
         this.sessionId = sessionId;
     }
 
@@ -167,6 +174,59 @@ export class GlobalModelService implements ModelService {
             })
             .catch((e) => {
                 return [];
+            });
+    }
+
+    async updatePiiSettings( token_model_id: string, llm_guardrail: boolean ): Promise<any> {
+        const url = new URL(this.url + "/update-pii-settings");
+        url.searchParams.append('token_model_id', token_model_id);
+        url.searchParams.append('llm_guardrail', String(llm_guardrail));
+
+        const response = await fetch(url.toString(), {
+            method: "POST",
+            headers: {
+                ...this.authHeader(),
+                "Content-Type": "application/json",
+            }
+        });
+    
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || "Unknown error occurred");
+        }
+    
+        return response.json();
+    }
+
+    async piiDetect(query: string): Promise<any> {
+        const url = new URL(this.url + "/pii-detect");
+        url.searchParams.append('query', query);
+        
+        return fetch(url, {
+            method: "POST",
+            headers: {
+                ...this.authHeader(),
+                "Content-Type": "application/json",
+            }
+        })
+            .then(handleInvalidAuth(this))
+            .then((response) => {
+                console.log('response', response)
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.json().then((err) => {
+                        throw new Error(err.detail || "Unknown error occurred");
+                    });
+                }
+            })
+            .then(({ data }) => {
+                console.log(data);
+                return data as PIIDetectionResult;
+            })
+            .catch((e) => {
+                console.error(e);
+                throw new Error('Failed to detect PII');
             });
     }
 
@@ -289,14 +349,23 @@ export class GlobalModelService implements ModelService {
         queryId?: string,
     ): Promise<SearchResult | null> {
         const url = new URL(this.url + "/predict");
-        url.searchParams.append("query_text", queryText);
-        url.searchParams.append("top_k", topK.toString());
 
         // TODO(Geordie): Accept a "timeout" / "longer than expected" callback.
         // E.g. if the query takes too long, then we can display a message
         // saying that they should check the url, or maybe it's just taking a
         // while.
-        return fetch(url, { method: "POST", headers: this.authHeader() })
+
+        const baseParams = { query: queryText, top_k: topK };
+        const ndbParams = { constraints: {} };
+
+        return fetch(url, { 
+                method: "POST", 
+                headers: {
+                    ...this.authHeader(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ base_params: baseParams, ndb_params: ndbParams })
+            })
             .then(handleInvalidAuth(this))
             .then((response) => {
                 if (response.ok) {
@@ -550,6 +619,7 @@ export class GlobalModelService implements ModelService {
     ) {
         const args = {
             query: genaiQuery(question, references, genaiPrompt),
+            key: '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' // fill in openai key
         };
 
         const uri = this.wsUrl + "/generate";
@@ -624,11 +694,9 @@ export class GlobalModelService implements ModelService {
 export class UserModelService extends GlobalModelService {
     authToken: string;
 
-    constructor(url: string, sessionId: string) {
+    constructor(url: string, sessionId: string, authToken: string) {
         super(url, sessionId);
-        this.authToken = window.localStorage.getItem(
-            "thirdai_model_bazaar_access_token",
-        );
+        this.authToken = authToken;
     }
 
     authHeader(): Record<string, string> {

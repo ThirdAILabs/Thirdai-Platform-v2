@@ -77,8 +77,8 @@ class User(SQLDeclarativeBase):
         UUID(as_uuid=True), unique=True, server_default=text("gen_random_uuid()")
     )
 
-    # this defines a highest role user is taking in an org, i.e., he can be a global_admin, a team_admin for one of the teams or just an user
-    highest_role = Column(ENUM(Role), default=Role.user)
+    # checks whether this user is global_admin or not
+    is_global_admin = Column(Boolean, default=False, nullable=False)
 
     teams = relationship(
         "UserTeam", back_populates="user", cascade="all, delete-orphan"
@@ -112,6 +112,15 @@ class User(SQLDeclarativeBase):
             for user_team in self.teams
         ]
         return team_roles
+
+    def is_team_admin_of_any_team(self):
+        return any(role["role"] == Role.team_admin for role in self.get_team_roles())
+
+    def is_team_admin_of_team(self, team_id: UUID):
+        return any(
+            role["role"] == Role.team_admin and role["team_id"] == team_id
+            for role in self.get_team_roles()
+        )
 
 
 class UserTeam(SQLDeclarativeBase):
@@ -198,7 +207,7 @@ class Model(SQLDeclarativeBase):
         if explicit_permission:
             return explicit_permission.permission
 
-        if user.id == self.user_id or user.highest_role == Role.global_admin:
+        if user.id == self.user_id or user.is_global_admin:
             return Permission.write
 
         if self.access_level == Access.protected:

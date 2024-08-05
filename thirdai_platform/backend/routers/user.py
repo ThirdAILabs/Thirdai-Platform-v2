@@ -153,7 +153,7 @@ def add_global_admin(
         )
 
     # update the user's role to global admin
-    user.highest_role = schema.Role.global_admin
+    user.is_global_admin = True
 
     session.commit()
     return response(

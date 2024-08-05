@@ -80,7 +80,7 @@ class AdminAddition:
                 session.commit()
                 session.refresh(user)
             else:
-                user.highest_role = schema.Role.global_admin
+                user.is_global_admin = True
                 session.commit()
 
 

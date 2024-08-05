@@ -83,17 +83,11 @@ def add_user_to_team(
         )
 
     # check if the current user is a team admin of the same team
-    if current_user.role == schema.Role.team_admin:
-        current_user_team = (
-            session.query(schema.UserTeam)
-            .filter_by(user_id=current_user.id, team_id=team.id)
-            .first()
+    if not current_user.is_team_admin_of_team(team.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not have permission to add members to this team",
         )
-        if not current_user_team:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User does not have permission to add members to this team",
-            )
 
     user_team = (
         session.query(schema.UserTeam)
@@ -144,17 +138,11 @@ def assign_team_admin(
         )
 
     # check if the current user is a team admin of the same team
-    if current_user.role == schema.Role.team_admin:
-        current_user_team = (
-            session.query(schema.UserTeam)
-            .filter_by(user_id=current_user.id, team_id=team.id)
-            .first()
+    if not current_user.is_team_admin_of_team(team.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not have permission to assign team admin for this team",
         )
-        if not current_user_team:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User does not have permission to assign team admin for this team",
-            )
 
     user_team = (
         session.query(schema.UserTeam)

@@ -109,7 +109,7 @@ def list_models(
         )
     )
 
-    if user.highest_role == schema.Role.global_admin:
+    if user.is_global_admin:
         # Global admins see all models
         results = query.all()
     else:
@@ -709,7 +709,7 @@ def update_model_permission(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
         )
 
-    if current_user.role != schema.Role.global_admin:
+    if not current_user.is_global_admin:
         if model.user_id != current_user.id:
             if model.team_id:
                 current_user_teams = (
@@ -723,7 +723,7 @@ def update_model_permission(
 
                 if (
                     model.team_id not in current_user_team_ids
-                    or current_user.role != schema.Role.team_admin
+                    and current_user.is_team_admin_of_team(model.team_id)
                 ):
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,

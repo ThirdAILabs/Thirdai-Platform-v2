@@ -33,7 +33,7 @@ def get_current_user(
 
 
 def global_admin_only(current_user: schema.User = Depends(get_current_user)):
-    if current_user.highest_role != schema.Role.global_admin:
+    if not current_user.is_global_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="The user doesn't have enough privileges",
@@ -45,15 +45,13 @@ def global_admin_only(current_user: schema.User = Depends(get_current_user)):
 # However, this doesnot qurantees that the user is an admin to a particular team. That should
 # be handled in the required function depending upon access depending upon the case.
 def team_admin_or_global_admin(current_user: schema.User = Depends(get_current_user)):
-    if current_user.highest_role not in [
-        schema.Role.team_admin,
-        schema.Role.global_admin,
-    ]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="The user doesn't have enough privileges",
-        )
-    return current_user
+    if current_user.is_global_admin or current_user.is_team_admin_of_any_team():
+        return current_user
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="The user doesn't have enough privileges",
+    )
 
 
 def verify_model_access(

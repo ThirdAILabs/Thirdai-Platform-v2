@@ -141,6 +141,13 @@ def generate_token_data(
 
     data_id = uuid.uuid4()
 
+    genai_key = os.getenv("GENAI_KEY")
+    if genai_key is None:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Need gen_ai key for data-generation",
+        )
+
     submit_nomad_job(
         str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
         nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -156,7 +163,7 @@ def generate_token_data(
         data_category="token",
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
         share_dir=os.getenv("SHARE_DIR", None),
-        genai_key=os.getenv("GENAI_KEY", None),
+        genai_key=genai_key,
         license_key=license_info["boltLicenseKey"],
         extra_options=extra_options,
         python_path=get_python_path(),

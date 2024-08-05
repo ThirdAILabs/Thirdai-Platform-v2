@@ -109,7 +109,7 @@ async def generate(websocket: WebSocket):
     while True:
         data = await websocket.receive_text()
         try:
-            generate_args = GenerateArgs.parse_raw(data)
+            generate_args = GenerateArgs.model_validate_json(data).model_dump()
             break
         except ValidationError as e:
             await websocket.send_json(

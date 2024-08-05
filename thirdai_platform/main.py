@@ -6,12 +6,11 @@ load_dotenv()
 
 import fastapi
 import uvicorn
-
+from backend.routers.data import data_router as data
 from backend.routers.deploy import deploy_router as deploy
 from backend.routers.models import model_router as model
 from backend.routers.train import train_router as train
 from backend.routers.user import user_router as user
-from backend.routers.data import data_router as data
 from backend.utils import restart_generate_job
 from fastapi.middleware.cors import CORSMiddleware
 

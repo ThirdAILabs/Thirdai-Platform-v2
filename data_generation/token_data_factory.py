@@ -11,7 +11,6 @@ from utils import (
     fill_and_transform_templates,
     get_faker_entities,
     load_and_write_csv,
-    load_random_prompts,
     subsample_dictionary,
 )
 
@@ -20,12 +19,10 @@ class TokenDataFactory(DataFactory):
     def __init__(
         self,
         api_key: str,
-        random_prompts_file: str = "random_prompts.json",
     ):
         super().__init__(api_key)
 
         self.fake = Faker()
-        self.random_prompts = load_random_prompts(random_prompts_file)
         providers = self.fake.providers
         self.faker_attributes = []
 
@@ -41,7 +38,7 @@ class TokenDataFactory(DataFactory):
                 self.faker_attributes.append(method)
         self.faker_attributes = sorted(self.faker_attributes, key=len)
 
-    def generate(
+    def generate_data(
         self,
         domain_prompt: str,
         tags: List[str],
@@ -55,7 +52,7 @@ class TokenDataFactory(DataFactory):
 
         def process_task(prompt):
             try:
-                response = self.openai.generate_output(
+                response = self.llm_completion(
                     prompt,
                     system_prompt=f"You are a helpful assistant designed to generate synthetic data for domain {domain_prompt}.",
                 )

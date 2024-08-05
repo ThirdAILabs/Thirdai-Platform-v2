@@ -3,28 +3,43 @@ import json
 import os
 import random
 import traceback
+from resource.util_data import vocab
 from typing import Dict, List, Optional
 
 from data_factory_interface import DataFactory
-from utils import datagen_prompt, load_random_prompts, load_vocab
+from utils import datagen_prompt
+
+
+def assert_sufficient_examples(
+    target_labels: List[str], examples: Dict[str, List[str]]
+):
+    missing_examples = [
+        label for label in examples.keys() if label not in target_labels
+    ]
+    if missing_examples:
+        raise ValueError(
+            f"Examples are not given for all labels. Labels with missing examples: {', '.join(missing_examples)}"
+        )
+
+
+def assert_sufficient_descriptions(
+    target_labels: List[str], labels_description: Dict[str, str]
+):
+    missing_description = [
+        label for label in labels_description.keys() if label not in target_labels
+    ]
+    if missing_description:
+        raise ValueError(
+            f"Descriptions are not given for all labels. Labels with missing descriptions: {', '.join(missing_description)}"
+        )
 
 
 class TextDataFactory(DataFactory):
-    def __init__(
-        self,
-        api_key: str,
-        random_prompts_file: str = "random_prompts.json",
-        vocab: str = "general",
-    ):
+    def __init__(self, api_key: str):
         super().__init__(api_key)
-        vocab_paths = []
-        if vocab == "general":
-            general_vocab_path = "general_vocab.txt"
-            vocab_paths.append(general_vocab_path)
-        self.vocab = load_vocab(vocab_paths)
-        self.random_prompts = load_random_prompts(random_prompts_file)
+        self.vocab = vocab
 
-    def generate(
+    def generate_data(
         self,
         task_prompt: str,
         samples_per_label: int,
@@ -42,7 +57,7 @@ class TextDataFactory(DataFactory):
 
         def process_task(prompt):
             try:
-                response = self.openai.generate_output(
+                response = self.llm_completion(
                     prompt,
                 )
                 return response, None
@@ -51,59 +66,46 @@ class TextDataFactory(DataFactory):
                 print(traceback.format_exc())
                 return None, error_msg
 
-        assert all(label in target_labels for label in list(examples.keys()))
+        assert_sufficient_examples(target_labels, examples)
+        assert_sufficient_descriptions(target_labels, labels_description)
 
-        user_vocab = self.vocab + (user_vocab if user_vocab is not None else [])
+        vocabulary = self.vocab + (user_vocab if user_vocab is not None else [])
+        user_prompts = ("\n".join(user_prompts) + "\n\n") if user_prompts else ""
+
         tasks = []
-        if user_prompts:
-            user_prompts_combined = "\n".join(user_prompts)
-            user_prompts_combined = f"{user_prompts_combined}\n\n"
-        else:
-            user_prompts_combined = ""
 
         for label_to_generate in target_labels:
-            for batch_id in range(0, samples_per_label, batch_size):
-                samples_to_generate = min(batch_size, samples_per_label - batch_id)
+            for batch_offset in range(0, samples_per_label, batch_size):
+                samples_to_generate = min(batch_size, samples_per_label - batch_offset)
                 random_vocab = random.sample(
-                    user_vocab, vocab_per_sentence * samples_to_generate
+                    population=vocabulary, k=vocab_per_sentence * samples_to_generate
                 )
 
-                rnd_prompts = [
+                sampled_random_prompts = [
                     random.choices(items["prompts"], weights=items["scores"], k=1)[0]
                     for __annotations__, items in self.random_prompts.items()
                 ]
-                rnd_prompts_str = "\n".join(rnd_prompts)
 
-                if label_to_generate in examples:
-                    examples_combined = "\n".join(
-                        random.sample(
-                            examples[label_to_generate],
-                            min(2, len(examples[label_to_generate])),
-                        )
+                label_examples = "\n".join(
+                    random.sample(
+                        examples[label_to_generate],
+                        min(2, len(examples[label_to_generate])),
                     )
-                    example_prompt = (
-                        f"Following are some of the sample data points for reference:\n{examples_combined}"
-                        f"GENERATED SAMPLES MUST BE VERY DIFFERENT FROM THE ABOVE SAMPLES\n\n"
-                    )
-                else:
-                    example_prompt = ""
+                )
 
                 prompt = datagen_prompt.format(
                     task_prompt=task_prompt,
                     samples_to_generate=samples_to_generate,
                     label_to_generate=label_to_generate,
-                    label_description_prompt=(
-                        f"The data generated should strictly follow the description: {labels_description[label_to_generate]}\n\n"
-                        if label_to_generate in labels_description
-                        else ""
-                    ),
-                    example_prompt=example_prompt,
-                    user_prompts_combined=user_prompts_combined,
-                    rnd_prompts_str=rnd_prompts_str,
-                    random_vocab_str=str(random_vocab),
+                    label_description=labels_description[label_to_generate],
+                    examples=label_examples,
+                    user_prompts=user_prompts,
+                    random_prompts="\n".join(sampled_random_prompts),
+                    random_vocab=str(random_vocab),
                 )
 
                 tasks.append([prompt, label_to_generate])
+
         random.shuffle(tasks)
         tasks = tasks[: total_expected_sentences - sentences_generated]
         file_mode = "w" if sentences_generated == 0 else "a"

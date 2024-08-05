@@ -7,7 +7,9 @@ from typing import List
 datagen_prompt = """This is the description of the task user wants to perform: ```{task_prompt}```
 Generate {samples_to_generate} training samples for above task for the label "{label_to_generate}".
 
+The data generated should strictly follow the description: 
 {label_description_prompt}
+
 DO NOT include any bulleting or prefix at start of each sentence and each. Do not include any quotes or emojis.
 
 
@@ -17,36 +19,18 @@ VERY IMPORTANT POINT: Give only the sentences in output and make sure each sente
 Ensure that the data is diverse enough to capture different genres and dialects.
 Do not include the label in sentences.
 
-{example_prompt}{user_prompts_combined}
+Following are some of the sample data points for reference:
+{examples}
+
+GENERATED SAMPLES MUST BE VERY DIFFERENT FROM THE ABOVE SAMPLES
+
+{user_prompts}
 You can refer to these prompt to include diversity:
-{rnd_prompts_str}
+{random_prompts}
 
 Sentences should have following words to generate diverse examples:
-{random_vocab_str}
+{random_vocab}
 """
-
-
-def load_vocab(vocab_paths: List[str]):
-    vocab = set()
-    resource_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resource")
-    for vocab_path in vocab_paths:
-        with open(os.path.join(resource_dir, vocab_path), "r") as file:
-            for line in file:
-                vocab.add(line.strip())
-    return list(vocab)
-
-
-def load_random_prompts(filepath: str):
-    resource_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resource")
-    with open(os.path.join(resource_dir, filepath), "r") as file:
-        data = json.load(file)
-    prompts_json = {}
-    for k, v in data.items():
-        prompts_json[k] = {
-            "prompts": [item["transformation"] for item in v],
-            "scores": [item["score"] for item in v],
-        }
-    return prompts_json
 
 
 def get_faker_entities(tag: str, fake, faker_attributes: List[str], num_samples: int):
@@ -66,11 +50,22 @@ def get_faker_entities(tag: str, fake, faker_attributes: List[str], num_samples:
 
 
 def subsample_dictionary(data, k=2):
-    new_dict = {}
-    for key, values in data.items():
-        subsampled_values = random.sample(values, min(k, len(values)))
-        new_dict[key] = subsampled_values
-    return new_dict
+    return {
+        key: random.sample(values, min(k, len(values))) for key, values in data.items()
+    }
+
+
+def load_random_prompts(filepath: str):
+    resource_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resource")
+    with open(os.path.join(resource_dir, filepath), "r") as file:
+        data = json.load(file)
+    prompts_json = {}
+    for k, v in data.items():
+        prompts_json[k] = {
+            "prompts": [item["transformation"] for item in v],
+            "scores": [item["score"] for item in v],
+        }
+    return prompts_json
 
 
 def convert_template_to_json(allowed_tags, data_strings):
@@ -151,7 +146,6 @@ def load_and_write_csv(allowed_tags, data_strings, filename, file_mode, fieldnam
                             if s != '"'
                         ]
                     )
-                    # file.write(json.dumps(json_object) + "\n")
                     writer.writerow({"source": " ".join(src), "target": " ".join(tar)})
                     num_sentences += 1
             except Exception as e:

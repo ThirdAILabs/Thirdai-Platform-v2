@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
+import google.generativeai as genai
 from openai import OpenAI
 
 
@@ -17,7 +18,9 @@ class GenerativeBaseModel(ABC):
         pass
 
 
-class OpenAIClient:
+class OpenAIClient(GenerativeBaseModel):
+    """Uses OpenAI gpt-4o"""
+
     def __init__(self, api_key: str):
         super().__init__()
         self.client = OpenAI(api_key=api_key)
@@ -41,3 +44,22 @@ class OpenAIClient:
         )
 
         return response.choices[0].message.content
+
+
+class gemini(GenerativeBaseModel):
+    """Uses gemini 1.0 pro"""
+
+    def __init__(self, api_key: str):
+        super().__init__()
+        genai.configure(api_key=api_key)
+        self.model = genai.GenerativeModel("gemini-1.0-pro-latest")
+
+    def generate_output(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+    ) -> str:
+
+        response = self.model.generate_content(contents=prompt)
+
+        return response.text

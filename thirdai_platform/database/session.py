@@ -75,6 +75,7 @@ class AdminAddition:
                     email=admin_mail,
                     password_hash=hash_password(admin_password),
                     verified=True,
+                    global_admin=True,
                 )
                 session.add(user)
                 session.commit()

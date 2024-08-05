@@ -4,7 +4,7 @@ from typing import Annotated, Dict, List, Optional, Union
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import get_current_user, team_admin_or_global_admin
-from backend.routers.utils import (
+from backend.utils import (
     get_expiry_min,
     get_high_level_model_info,
     get_model,

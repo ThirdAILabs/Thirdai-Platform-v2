@@ -105,8 +105,22 @@ def get_high_level_model_info(result: schema.Model):
     if result.meta_data:
         metadata = result.meta_data
         if metadata.train:
+            # Ensure metadata.train is a dictionary
+            if isinstance(metadata.train, str):
+                try:
+                    metadata.train = json.loads(metadata.train)
+                except json.JSONDecodeError as e:
+                    print(f"Error decoding JSON for train: {e}")
+                    metadata.train = {}
             info.update(metadata.train)
         if metadata.general:
+            # Ensure metadata.general is a dictionary
+            if isinstance(metadata.general, str):
+                try:
+                    metadata.general = json.loads(metadata.general)
+                except json.JSONDecodeError as e:
+                    print(f"Error decoding JSON for general: {e}")
+                    metadata.general = {}
             info.update(metadata.general)
 
     return info

@@ -1,5 +1,6 @@
 import json
 import os
+from collections import defaultdict
 from pathlib import Path
 from typing import List
 
@@ -19,9 +20,9 @@ from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, status
 from fastapi.encoders import jsonable_encoder
+from licensing.verify.verify_license import verify_license
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
-
-from thirdai_platform.licensing.verify.verify_license import verify_license
 
 workflow_router = APIRouter()
 
@@ -60,14 +61,18 @@ def create_workflow(
     )
 
 
+class WorkflowParams(BaseModel):
+    workflow_id: str
+    model_identifiers: List[str]
+
+
 @workflow_router.post("/add-models")
 def add_models(
-    workflow_id: str,
-    model_identifiers: List[str],
+    body: WorkflowParams,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
+    workflow: schema.Workflow = session.query(schema.Workflow).get(body.workflow_id)
 
     if not workflow:
         return response(
@@ -75,7 +80,7 @@ def add_models(
             message="Workflow not found.",
         )
 
-    for model_identifier in model_identifiers:
+    for model_identifier in body.model_identifiers:
         try:
             model: schema.Model = get_model_from_identifier(model_identifier, session)
         except Exception as error:
@@ -83,6 +88,22 @@ def add_models(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message=str(error),
             )
+
+        workflow_model: schema.WorkflowModel = (
+            session.query(schema.WorkflowModel)
+            .filter(
+                schema.WorkflowModel.workflow_id == body.workflow_id,
+                schema.WorkflowModel.model_id == model.id,
+            )
+            .first()
+        )
+
+        if workflow_model:
+            return response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message=f"Model {model.id} already found in workflow.",
+            )
+
         workflow_model = schema.WorkflowModel(
             workflow_id=workflow.id, model_id=model.id
         )
@@ -99,12 +120,11 @@ def add_models(
 
 @workflow_router.post("/delete-models")
 def delete_models(
-    workflow_id: str,
-    model_identifiers: List[str],
+    body: WorkflowParams,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
+    workflow: schema.Workflow = session.query(schema.Workflow).get(body.workflow_id)
 
     if not workflow:
         return response(
@@ -112,7 +132,7 @@ def delete_models(
             message="Workflow not found.",
         )
 
-    for model_identifier in model_identifiers:
+    for model_identifier in body.model_identifiers:
         try:
             model: schema.Model = get_model_from_identifier(model_identifier, session)
         except Exception as error:
@@ -124,7 +144,7 @@ def delete_models(
         workflow_model: schema.WorkflowModel = (
             session.query(schema.WorkflowModel)
             .filter(
-                schema.WorkflowModel.workflow_id == workflow_id,
+                schema.WorkflowModel.workflow_id == body.workflow_id,
                 schema.WorkflowModel.model_id == model.id,
             )
             .first()
@@ -169,28 +189,28 @@ def validate_workflow(
             message="No models found in the workflow.",
         )
 
-    issues = []
+    issues = defaultdict(list)
 
     for workflow_model in workflow_models:
         model: schema.Model = workflow_model.model
 
         if model.train_status != schema.Status.complete:
-            issues.append("Training is not complete.")
+            issues[model.name].append("Training is not complete.")
 
         if model.deploy_status != schema.Status.complete:
-            issues.append("Deployment is not complete.")
+            issues[model.name].append("Deployment is not complete.")
 
     if issues:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Validation failed. Some models have issues.",
-            data={"models": list_workflow_models(workflow)},
+            data={"models": jsonable_encoder(issues)},
         )
 
     return response(
         status_code=status.HTTP_200_OK,
         message="All models are properly trained and deployed.",
-        data={"models": list_workflow_models(workflow)},
+        data={"models": jsonable_encoder(list_workflow_models(workflow))},
     )
 
 
@@ -292,7 +312,7 @@ def start_workflow(
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Cannot start workflow. Some models are not ready.",
-            data={"models": list_workflow_models(workflow)},
+            data={"models": jsonable_encoder(list_workflow_models(workflow))},
         )
 
     for workflow_model in workflow_models:
@@ -353,6 +373,9 @@ def start_workflow(
                     aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
                 )
 
+                model.deploy_status = schema.Status.in_progress
+                session.commit()
+
             except Exception as err:
                 model.deploy_status = schema.Status.failed
                 workflow.status = schema.Status.stopped
@@ -362,5 +385,5 @@ def start_workflow(
     return response(
         status_code=status.HTTP_202_ACCEPTED,
         message="Workflow started successfully.",
-        data={"models": list_workflow_models(workflow)},
+        data={"models": jsonable_encoder(list_workflow_models(workflow))},
     )

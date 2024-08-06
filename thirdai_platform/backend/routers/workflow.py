@@ -39,7 +39,7 @@ def create_workflow(
     session.refresh(new_workflow)
 
     return response(
-        status_code=status.HTTP_400_BAD_REQUEST,
+        status_code=status.HTTP_200_OK,
         message="Successfully added the workflow",
         data={"workflow_id": str(new_workflow.id)},
     )

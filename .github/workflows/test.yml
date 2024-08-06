@@ -1,13 +1,16 @@
-name: Run ThirdAI Platform Tests
+name: Setup ThirdAI Platform
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
 
 jobs:
   setup_thirdai:
-    runs-on: macos-latest
+    runs-on: macos-latest-xlarge
 
     steps:
     - name: Checkout repository
@@ -91,11 +94,14 @@ jobs:
         EOF
 
     - name: Launch Backend
-      run: nohup uvicorn main:app --reload --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+      run: |
+        source .env
+        nohup uvicorn main:app --reload --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
       working-directory: ./thirdai_platform
 
     - name: Run Tests
       run: |
+        source .env
         echo "Running tests..."
         python3 -m headless.test --base-url http://localhost:80/api/ --email admin@mail.com --password password --dag-file headless/dag_config.yaml --all --run-name 1
 

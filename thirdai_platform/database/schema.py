@@ -190,6 +190,7 @@ class Workflow(SQLDeclarativeBase):
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    status = Column(ENUM(Status), nullable=False, default=Status.not_started)
 
     user = relationship("User", back_populates="workflows")
     workflow_models = relationship(

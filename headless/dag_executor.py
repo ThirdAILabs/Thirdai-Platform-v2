@@ -172,6 +172,7 @@ class DAGExecutor:
             self.variables[dag_name][config_name]["config"] = config
         task_func = self.get_task_func(dag_name, task_name)
         task_params = self.get_task_params(dag_name, task_name)
+        logging.info(f"Executing func {task_func} with parameter {task_params}")
         if task_func:
             inputs = {}
             for param, source in task_params.items():
@@ -183,7 +184,7 @@ class DAGExecutor:
                     inputs[param] = source
             self.outputs[dag_name][config_name][task_name] = task_func(inputs)
         logging.info(
-            f"Finished executing task '{task_name}' in DAG '{dag_name}' with config '{config_name}'"
+            f"Finished executing task '{task_name}' in DAG '{dag_name}' with config '{config_name}', with output {self.outputs[dag_name][config_name][task_name]}."
         )
 
     def execute_dag_with_config(self, dag_name: str, config: Config):
@@ -219,7 +220,12 @@ class DAGExecutor:
                         future.result()
                     except Exception as exc:
                         logging.error(
-                            f"Task '{task_name}' in DAG '{dag_name}' generated an exception: {exc}"
+                            f"Task '{task_name}' in DAG '{dag_name}' generated an exception: {exc} for config {config_name}",
+                            exc_info=True,
+                        )
+                    else:
+                        logging.info(
+                            f"Task '{task_name}' in DAG '{dag_name}' completed successfully"
                         )
 
                     for succ in graph.successors(task_name):

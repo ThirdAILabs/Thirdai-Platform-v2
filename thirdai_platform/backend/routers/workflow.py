@@ -207,6 +207,9 @@ def validate_workflow(
             data={"models": jsonable_encoder(issues)},
         )
 
+    workflow.status = schema.Status.complete
+    session.commit()
+
     return response(
         status_code=status.HTTP_200_OK,
         message="All models are properly trained and deployed.",

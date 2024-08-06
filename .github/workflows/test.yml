@@ -50,10 +50,12 @@ jobs:
     - name: Setup PostgreSQL Database
       run: |
         sleep 10
-        psql -U postgres -c "CREATE ROLE postgres WITH LOGIN SUPERUSER;" || true
+        psql -U $USER -d postgres -c "SELECT 1"  # Check if PostgreSQL is accessible
+        psql -U $USER -d postgres -c "CREATE ROLE postgres WITH LOGIN SUPERUSER;" || true
         psql -U postgres -c "ALTER ROLE postgres WITH PASSWORD 'yourpassword';"
         psql -U postgres -c "CREATE DATABASE model_bazaar;"
         psql -U postgres -d model_bazaar -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+
 
     - name: Install Vault
       run: |

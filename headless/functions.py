@@ -378,7 +378,7 @@ class AdminFunctions:
         logging.info(f"inputs: {inputs}")
         response = flow.bazaar_client.create_team(inputs.get("name"))
         logging.info(
-            f"Create Team: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+            f"Create Team: {'Passed' if response.status_code == 201 else 'Failed'} - {response.json()}"
         )
 
     @staticmethod

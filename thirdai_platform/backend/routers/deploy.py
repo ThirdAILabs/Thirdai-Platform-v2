@@ -11,6 +11,7 @@ from auth.jwt import (
     verify_access_token,
     verify_access_token_no_throw,
 )
+from backend.auth_dependencies import verify_model_access
 from backend.utils import (
     delete_nomad_job,
     get_deployment,
@@ -54,32 +55,30 @@ def deployment_read_write_permissions(
     Returns:
     - A tuple (read_permission: bool, write_permission: bool).
     """
-    deployment: schema.Deployment = (
-        session.query(schema.Deployment)
-        .options(joinedload(schema.Deployment.user))
-        .get(deployment_id)
-    )
-    access_level = session.query(schema.Model).get(deployment.model_id).access_level
-    deployment_is_public = access_level == schema.Access.public
+
+    deployment = session.query(schema.Deployment).get(deployment_id)
+    model = session.query(schema.Model).get(deployment.model_id)
+
+    if not deployment:
+        return False, False
+
+    if not model:
+        return False, False
 
     if not isinstance(authenticated_user, AuthenticatedUser):
-        if deployment_is_public:
+        if model.access_level == schema.Access.public:
             return True, False
         return False, False
 
-    current_user: schema.User = authenticated_user.user
-    if deployment.user_id == current_user.id:
-        return True, True
+    user = authenticated_user.user
 
-    if deployment_is_public:
-        return True, False
+    permission = model.get_user_permission(user)
+    if permission == schema.Permission.write:
+        return True, True  # Full access
+    elif permission == schema.Permission.read:
+        return True, False  # Read-only access
 
-    deployment_is_protected = access_level == schema.Access.protected
-    user_is_in_deployment_domain = deployment.user.domain == current_user.domain
-    if deployment_is_protected and user_is_in_deployment_domain:
-        return True, False
-
-    return False, False
+    return False, False  # No access
 
 
 def deployment_owner_permissions(
@@ -148,7 +147,7 @@ def get_deployment_permissions(
     )
 
 
-@deploy_router.post("/run")
+@deploy_router.post("/run", dependencies=[Depends(verify_model_access)])
 def deploy_model(
     deployment_name: str,
     model_identifier: str,
@@ -202,13 +201,7 @@ def deploy_model(
             message="Deployment name is not valid.",
         )
 
-    try:
-        model: schema.Model = get_model_from_identifier(model_identifier, session)
-    except Exception as error:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=str(error),
-        )
+    model: schema.Model = get_model_from_identifier(model_identifier, session)
 
     if model.train_status != schema.Status.complete:
         return response(

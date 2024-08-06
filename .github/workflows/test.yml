@@ -110,8 +110,10 @@ jobs:
 
     - name: Run Tests
       run: |
+        cd $GITHUB_WORKSPACE/thirdai_platform
+        ls -la 
+        cat .env
         source .env
-        echo "Running tests..."
         curl -X GET http://localhost:80/signup # Example endpoint check
 
     - name: Stop Services

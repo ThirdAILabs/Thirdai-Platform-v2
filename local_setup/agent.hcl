@@ -1,6 +1,12 @@
 bind_addr = "0.0.0.0"
 data_dir  = "/opt/nomad/data"
 
+advertise {
+  http = "192.168.1.6"
+  rpc  = "192.168.1.6"
+  serf = "192.168.1.6"
+}
+
 client {
   enabled                     = true
 

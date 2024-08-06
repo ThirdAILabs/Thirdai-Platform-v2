@@ -56,6 +56,7 @@ jobs:
 
     - name: Create PostgreSQL Superuser and Database
       run: |
+        export PATH="/usr/local/opt/postgresql@15/bin:$PATH"
         createuser -s postgres || true
         psql -U postgres -c "ALTER ROLE postgres WITH PASSWORD 'yourpassword';"
         psql -U postgres -c "CREATE DATABASE model_bazaar;"

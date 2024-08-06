@@ -75,28 +75,28 @@ jobs:
         mkdir -p $HOME/local/test/dir
 
     - name: Setup Environment File
-        run: |
-          cat <<EOF > $GITHUB_WORKSPACE/thirdai_platform/.env
-          DATABASE_URI="postgresql://postgres:yourpassword@localhost:5432/model_bazaar"
-          PUBLIC_MODEL_BAZAAR_ENDPOINT="http://localhost:80/"
-          PRIVATE_MODEL_BAZAAR_ENDPOINT="http://localhost:80/"
-          NOMAD_ENDPOINT="http://localhost:4646/"
-          LICENSE_PATH="$GITHUB_WORKSPACE/local_setup/ndb_enterprise_license.json"
-          GENAI_KEY="your-openai-key"
-          SHARE_DIR="$HOME/nfs/dir"
-          LOCAL_TEST_DIR="$HOME/local/test/dir"
-          JWT_SECRET="CsnCr3lebs9eJQ"
-          SENDGRID_KEY="sendgrid-key"
-          PLATFORM="local"
-          PYTHON_PATH="$(which python3)"
-          ADMIN_USERNAME="admin"
-          ADMIN_MAIL="admin@mail.com"
-          ADMIN_PASSWORD="password"
-          HASHICORP_VAULT_ENDPOINT="http://127.0.0.1:8200"
-          HASHICORP_VAULT_TOKEN="00000000-0000-0000-0000-000000000000"
-          TEST_ENVIRONMENT=True
-          EOF
-          ls -la  # List files in the specified directory
+      run: |
+        cat <<EOF > $GITHUB_WORKSPACE/thirdai_platform/.env
+        DATABASE_URI="postgresql://postgres:yourpassword@localhost:5432/model_bazaar"
+        PUBLIC_MODEL_BAZAAR_ENDPOINT="http://localhost:80/"
+        PRIVATE_MODEL_BAZAAR_ENDPOINT="http://localhost:80/"
+        NOMAD_ENDPOINT="http://localhost:4646/"
+        LICENSE_PATH="$GITHUB_WORKSPACE/local_setup/ndb_enterprise_license.json"
+        GENAI_KEY="your-openai-key"
+        SHARE_DIR="$HOME/nfs/dir"
+        LOCAL_TEST_DIR="$HOME/local/test/dir"
+        JWT_SECRET="CsnCr3lebs9eJQ"
+        SENDGRID_KEY="sendgrid-key"
+        PLATFORM="local"
+        PYTHON_PATH="$(which python3)"
+        ADMIN_USERNAME="admin"
+        ADMIN_MAIL="admin@mail.com"
+        ADMIN_PASSWORD="password"
+        HASHICORP_VAULT_ENDPOINT="http://127.0.0.1:8200"
+        HASHICORP_VAULT_TOKEN="00000000-0000-0000-0000-000000000000"
+        TEST_ENVIRONMENT=True
+        EOF
+        ls -la  # List files in the specified directory
 
 
     - name: Launch Backend

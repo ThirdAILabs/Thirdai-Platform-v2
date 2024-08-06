@@ -4,6 +4,7 @@ import uuid
 from typing import Annotated, Dict, List, Optional, Union
 
 from auth.jwt import AuthenticatedUser, verify_access_token
+from backend.auth_dependencies import get_current_user, team_admin_or_global_admin
 from backend.utils import (
     get_expiry_min,
     get_high_level_model_info,
@@ -15,7 +16,7 @@ from backend.utils import (
 )
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, Header, Query, UploadFile, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -28,6 +29,12 @@ model_router = APIRouter()
 storage: interface.StorageInterface = local.LocalStorage(
     os.getenv("LOCAL_TEST_DIR", "/model_bazaar")
 )
+
+
+class UpdateModelPermissionInput(BaseModel):
+    model_name: str
+    user_email: str
+    permission: schema.Permission
 
 
 @model_router.get("/public-list")
@@ -99,52 +106,47 @@ def list_models(
     - A JSON response with the list of models.
     """
     user: schema.User = authenticated_user.user
+    user_teams = [ut.team_id for ut in user.teams]
 
-    results = (
+    query = (
         session.query(schema.Model)
         .options(joinedload(schema.Model.user))
         .filter(
             schema.Model.name.ilike(f"%{name}%"),
-            or_(
-                # public
-                schema.Model.access_level == schema.Access.public,
-                # protected and matching domain
-                and_(
-                    schema.Model.access_level == schema.Access.protected,
-                    schema.Model.domain == user.domain,
-                ),
-                # private and matching user or admin
-                and_(
-                    schema.Model.access_level == schema.Access.private,
-                    or_(
-                        schema.Model.user_id == user.id,
-                        schema.User.id == user.id,
-                    ),
-                ),
-            ),
             schema.Model.train_status == schema.Status.complete,
         )
     )
 
+    if not user.is_global_admin():
+        access_conditions = [schema.Model.access_level == schema.Access.public]
+        if schema.Access.protected in access_level:
+            access_conditions.append(
+                and_(
+                    schema.Model.access_level == schema.Access.protected,
+                    schema.Model.team_id.in_(user_teams),
+                )
+            )
+        if schema.Access.private in access_level:
+            access_conditions.append(
+                and_(
+                    schema.Model.access_level == schema.Access.private,
+                    schema.Model.user_id == user.id,
+                )
+            )
+
+        query = query.filter(or_(*access_conditions))
+
     if domain:
-        results = results.filter(schema.Model.domain == domain)
+        query = query.filter(schema.Model.domain == domain)
 
     if username:
-        results = results.filter(schema.Model.user.username == username)
+        query = query.filter(schema.Model.user.username == username)
 
-    if access_level:
-        conditions = []
-        for access in access_level:
-            conditions.append(schema.Model.access_level == access)
-
-        # We have to unpack the conditions to be able to processed by `or_` function.
-        results = results.filter(or_(*conditions))
-
-    results = [get_high_level_model_info(result) for result in results]
+    results = [get_high_level_model_info(model) for model in query.all()]
 
     return response(
         status_code=status.HTTP_200_OK,
-        message="Successfully got the list",
+        message="Successfully retrieved model list",
         data=jsonable_encoder(results),
     )
 
@@ -219,6 +221,7 @@ def save_deployed_model(
         parent_id=base_model.id,
         type=base_model.type,
         sub_type=base_model.sub_type,
+        team_id=user.team_id,
     )
 
     session.add(new_model)
@@ -232,7 +235,7 @@ def save_deployed_model(
     session.add(metadata)
     session.commit()
 
-    return {"message": "successfully added the model."}
+    return {"message": "Successfully added the model."}
 
 
 class ModelInfo(BaseModel):
@@ -649,3 +652,100 @@ def download_model(
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
 
     return StreamingResponse(iterfile(), headers=headers, media_type=media_type)
+
+
+@model_router.get("/team-models", dependencies=[Depends(team_admin_or_global_admin)])
+def list_team_models(
+    team_name: str,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    user: schema.User = authenticated_user.user
+    if user.role not in [schema.Role.team_admin, schema.Role.global_admin]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have the required permissions.",
+        )
+
+    team = session.query(schema.Team).filter(schema.Team.name == team_name).first()
+    if not team:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
+        )
+
+    results = (
+        session.query(schema.Model)
+        .filter(schema.Model.team_id == team.id)
+        .options(joinedload(schema.Model.user))
+        .all()
+    )
+
+    results = [get_high_level_model_info(result) for result in results]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the team models list",
+        data=jsonable_encoder(results),
+    )
+
+
+@model_router.post("/update-model-permission")
+def update_model_permission(
+    input: UpdateModelPermissionInput,
+    session: Session = Depends(get_session),
+    current_user: schema.User = Depends(get_current_user),
+):
+    model = (
+        session.query(schema.Model)
+        .filter(schema.Model.name == input.model_name)
+        .first()
+    )
+    user = (
+        session.query(schema.User).filter(schema.User.email == input.user_email).first()
+    )
+
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Model not found."
+        )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
+        )
+
+    if not current_user.is_global_admin():
+        if model.user_id != current_user.id:
+            if model.team_id:
+                if current_user.is_team_admin_of_team(model.team_id):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Only the creator, team admin of the model's team, or global admin can update model permissions.",
+                    )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only the creator, team admin of the model's team, or global admin can update model permissions.",
+                )
+
+    model_permission = (
+        session.query(schema.ModelPermission)
+        .filter_by(model_id=model.id, user_id=user.id)
+        .first()
+    )
+
+    if model_permission:
+        model_permission.permission = input.permission
+    else:
+        new_permission = schema.ModelPermission(
+            model_id=model.id, user_id=user.id, permission=input.permission
+        )
+        session.add(new_permission)
+
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"Permission updated to '{input.permission}' for user '{input.user_email}' on model '{input.model_name}'.",
+        data={"model_id": str(model.id), "user_id": str(user.id)},
+    )

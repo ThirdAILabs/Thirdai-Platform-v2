@@ -11,6 +11,7 @@ from auth.jwt import (
     verify_access_token,
     verify_access_token_no_throw,
 )
+from backend.auth_dependencies import verify_model_access
 from backend.utils import (
     delete_nomad_job,
     get_empty_port,
@@ -50,30 +51,26 @@ def model_read_write_permissions(
     Returns:
     - A tuple (read_permission: bool, write_permission: bool).
     """
-    model: schema.Model = (
-        session.query(schema.Model).options(joinedload(schema.Model.user)).get(model_id)
-    )
-    access_level = model.access_level
-    model_is_public = access_level == schema.Access.public
+
+    model: schema.Model = session.query(schema.Model).get(model_id)
+
+    if not model:
+        return False, False
 
     if not isinstance(authenticated_user, AuthenticatedUser):
-        if model_is_public:
+        if model.access_level == schema.Access.public:
             return True, False
         return False, False
 
-    current_user: schema.User = authenticated_user.user
-    if model.user_id == current_user.id:
-        return True, True
+    user = authenticated_user.user
 
-    if model_is_public:
-        return True, False
+    permission = model.get_user_permission(user)
+    if permission == schema.Permission.write:
+        return True, True  # Full access
+    elif permission == schema.Permission.read:
+        return True, False  # Read-only access
 
-    model_is_protected = access_level == schema.Access.protected
-    user_is_in_model_domain = model.user.domain == current_user.domain
-    if model_is_protected and user_is_in_model_domain:
-        return True, False
-
-    return False, False
+    return False, False  # No access
 
 
 def model_owner_permissions(
@@ -136,7 +133,7 @@ def get_model_permissions(
     )
 
 
-@deploy_router.post("/run")
+@deploy_router.post("/run", dependencies=[Depends(verify_model_access)])
 def deploy_model(
     model_identifier: str,
     memory: Optional[int] = None,

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
+from backend.auth_dependencies import verify_model_access
 from backend.file_handler import (
     FileLocation,
     FileType,
@@ -35,6 +36,7 @@ from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.expression import null
 
 train_router = APIRouter()
 
@@ -208,11 +210,16 @@ def train_ndb(
             message="Duplicate filenames received, please ensure each filename is unique.",
         )
 
+    # Base model checks
+    base_model = None
     if base_model_identifier:
         try:
-            base_model: schema.Model = get_model_from_identifier(
-                base_model_identifier, session
-            )
+            base_model = get_model_from_identifier(base_model_identifier, session)
+            if not base_model.get_user_permission(user):
+                return response(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    message="You do not have access to the specified base model.",
+                )
         except Exception as error:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -227,7 +234,7 @@ def train_ndb(
     )
 
     try:
-        new_model: schema.Model = schema.Model(
+        new_model = schema.Model(
             id=model_id,
             user_id=user.id,
             train_status=schema.Status.not_started,
@@ -235,9 +242,10 @@ def train_ndb(
             name=model_name,
             type="ndb",
             sub_type="single" if not sharded else "sharded",
-            domain=user.email.split("@")[1],
+            domain=user.domain,
             access_level=schema.Access.private,
-            parent_id=base_model.id if base_model_identifier else None,
+            parent_id=base_model.id if base_model else None,
+            team_id=null(),
         )
 
         session.add(new_model)
@@ -430,11 +438,16 @@ def train_udt(
             message="Duplicate filenames received, please ensure each filename is unique.",
         )
 
+    # Base model checks
+    base_model = None
     if base_model_identifier:
         try:
-            base_model: schema.Model = get_model_from_identifier(
-                base_model_identifier, session
-            )
+            base_model = get_model_from_identifier(base_model_identifier, session)
+            if not base_model.get_user_permission(user):
+                return response(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    message="You do not have access to the specified base model.",
+                )
         except Exception as error:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -452,7 +465,8 @@ def train_udt(
             sub_type=extra_options["sub_type"],
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
-            parent_id=base_model.id if base_model_identifier else None,
+            parent_id=base_model.id if base_model else None,
+            team_id=null(),
         )
 
         session.add(new_model)
@@ -539,15 +553,13 @@ def train_complete(
     trained_model: schema.Model = (
         session.query(schema.Model).filter(schema.Model.id == body.model_id).first()
     )
-
     if not trained_model:
         return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND,
             message=f"No model with id {body.model_id}.",
         )
 
     trained_model.train_status = schema.Status.complete
-    trained_model.access_level = schema.Access.private
 
     metadata: schema.MetaData = trained_model.meta_data
     if metadata:
@@ -561,7 +573,7 @@ def train_complete(
 
     session.commit()
 
-    return {"message": "successfully updated"}
+    return {"message": "Successfully updated"}
 
 
 @train_router.post("/update-status")
@@ -784,11 +796,10 @@ def update_shard_train_status(
     return {"message": f"Successfully updated shard with message: {message}"}
 
 
-@train_router.get("/status")
+@train_router.get("/status", dependencies=[Depends(verify_model_access)])
 def train_status(
     model_identifier: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Get the status of a NeuralDB.
@@ -819,7 +830,9 @@ def train_status(
     )
 
 
-@train_router.get("/model-shard-train-status")
+@train_router.get(
+    "/model-shard-train-status", dependencies=[Depends(verify_model_access)]
+)
 def model_shard_train_status(
     model_id: str,
     session: Session = Depends(get_session),

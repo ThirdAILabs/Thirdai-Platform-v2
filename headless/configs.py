@@ -134,3 +134,11 @@ class Token(Config):
 
     target_labels: list[str] = ["PER", "ORG"]
     sub_type: str = "token"
+
+
+class Dummy(Config):
+    """
+    Config for tests which doesnot needs a training config
+    """
+
+    name: str = "dummy"

@@ -90,3 +90,107 @@ UDT:
     dependencies: [check_search]
     params:
       deployment: udt_deploy
+
+GlobalAdmin:
+  config: dummy
+  add_new_users:
+    dependencies: []
+
+  test_add_global_admin:
+    dependencies: [add_new_users]
+    params:
+      email: ga_test_global_admin@mail.com
+
+  test_add_key:
+    dependencies: [add_new_users]
+    params:
+      key: "AWS_ACCESS_TOKEN"
+      value: "aws_secret_value"
+
+  test_get_key:
+    dependencies: [test_add_key]
+    params:
+      key: "AWS_ACCESS_TOKEN"
+  
+  test_delete_user:
+    dependencies: [test_get_key]
+    params:
+      email: ga_test_global_admin@mail.com
+
+  test_create_team:
+    dependencies: [add_new_users]
+    params:
+      name: "New Team"
+
+  test_assign_team_admin:
+    dependencies: [test_create_team]
+    params:
+      user_email: ga_test_team_admin@mail.com
+      team_name: "New Team"
+  
+  test_add_user_to_team:
+    dependencies: [test_assign_team_admin]
+    params:
+      user_email: ga_test_team_member@mail.com
+      team_name: "New Team"
+
+  test_delete_team_admin:
+    dependencies: [test_add_user_to_team]
+    params:
+      email: ga_test_team_admin@mail.com
+
+  test_delete_team_member:
+    dependencies: [test_delete_team_admin]
+    params:
+      email: ga_test_team_member@mail.com
+
+  test_delete_team:
+    dependencies: [test_delete_team_member]
+    params:
+      team_name: "New Team"
+
+TeamAdmin:
+  config: dummy
+  ta_setup:
+    dependencies: []
+    params:
+      team_name: "TA-Test-Team"
+      key: "OPENAI_API_KEY"
+      value: "openai_api_key"
+
+  test_ta_add_user_to_team:
+    dependencies: [ta_setup]
+    params:
+      user_email: ta_test_team_member@mail.com
+      team_name: "TA-Test-Team"
+
+  test_ta_assign_team_admin:
+    dependencies: [ta_setup]
+    params:
+      user_email: ta_another_team_admin@mail.com
+      team_name: "TA-Test-Team"
+
+  test_ta_delete_team_member:
+    dependencies: [test_ta_add_user_to_team]
+    params:
+      email: ta_test_team_member@mail.com
+
+  test_ta_delete_team:
+    dependencies: [test_ta_delete_team_member, test_ta_assign_team_admin]
+    params:
+      team_name: "TA-Test-Team"
+
+  test_ta_add_key:
+    dependencies: [ta_setup]
+    params:
+      key: "AWS_ACCESS_TOKEN"
+      value: "aws_secret_value"
+
+  test_ta_get_key:
+    dependencies: [test_ta_add_key]
+    params:
+      key: "OPENAI_API_KEY"
+
+  ta_cleanup:
+    dependencies: [test_ta_delete_team]
+    params: {}

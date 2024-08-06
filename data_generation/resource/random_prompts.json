@@ -1,0 +1,508 @@
+{
+    "sentence_structure": [
+        {
+            "transformation": "convert to future tense",
+            "score": 0.10
+        },
+        {
+            "transformation": "convert to past tense",
+            "score": 0.25
+        },
+        {
+            "transformation": "convert to active voice",
+            "score": 0.20
+        },
+        {
+            "transformation": "convert to passive voice",
+            "score": 0.15
+        },
+        {
+            "transformation": "rewrite in a formal tone",
+            "score": 0.15
+        },
+        {
+            "transformation": "rewrite in an informal tone",
+            "score": 0.15
+        }
+    ],
+    "length_conversion": [
+        {
+            "transformation": "reduce/expand the length up to 20 words",
+            "score": 0.05
+        },
+        {
+            "transformation": "reduce/expand the length up to 40 words",
+            "score": 0.25
+        },
+        {
+            "transformation": "reduce/expand the length up to 50 words",
+            "score": 0.35
+        },
+        {
+            "transformation": "reduce/expand the length up to 60 words",
+            "score": 0.35
+        }
+    ],
+    "dialects": [
+        {
+            "transformation": "convert to Southern American English",
+            "score": 0.03
+        },
+        {
+            "transformation": "convert to British English",
+            "score": 0.08
+        },
+        {
+            "transformation": "convert to Australian English",
+            "score": 0.05
+        },
+        {
+            "transformation": "convert to African English",
+            "score": 0.04
+        },
+        {
+            "transformation": "convert to European English",
+            "score": 0.03
+        },
+        {
+            "transformation": "convert to Cockney English",
+            "score": 0.02
+        },
+        {
+            "transformation": "convert to Scottish English",
+            "score": 0.03
+        },
+        {
+            "transformation": "convert to Irish English",
+            "score": 0.02
+        },
+        {
+            "transformation": "convert to Canadian English",
+            "score": 0.04
+        },
+        {
+            "transformation": "convert to New Zealand English",
+            "score": 0.03
+        },
+        {
+            "transformation": "convert to Indian English",
+            "score": 0.06
+        },
+        {
+            "transformation": "convert to Nigerian English",
+            "score": 0.03
+        },
+        {
+            "transformation": "convert to Singaporean English",
+            "score": 0.02
+        },
+        {
+            "transformation": "convert to Jamaican English",
+            "score": 0.02
+        },
+        {
+            "transformation": "convert to South African English",
+            "score": 0.03
+        },
+        {
+            "transformation": "convert to Yorkshire English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Australian outback slang",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to American Midwest English",
+            "score": 0.03
+        },
+        {
+            "transformation": "convert to Caribbean English",
+            "score": 0.02
+        },
+        {
+            "transformation": "convert to Liverpool English (Scouse)",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to West Country English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Texan English",
+            "score": 0.02
+        },
+        {
+            "transformation": "convert to Californian English",
+            "score": 0.03
+        },
+        {
+            "transformation": "convert to Appalachian English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Black Country English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Mancunian English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Welsh English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to London Multicultural English",
+            "score": 0.03
+        },
+        {
+            "transformation": "convert to East Anglian English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Newfoundland English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Hong Kong English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Filipino English",
+            "score": 0.02
+        },
+        {
+            "transformation": "convert to Malaysian English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Scottish Gaelic English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Welsh Gaelic English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Aboriginal Australian English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Cape Flats English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Chicano English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Hawaiian Pidgin English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Alaskan English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Hiberno-English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Glaswegian English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Brummie English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Somerset English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Norfolk English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Cornish English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Lancashire English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Midlands English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to Sussex English",
+            "score": 0.01
+        },
+        {
+            "transformation": "convert to American New England English",
+            "score": 0.02
+        },
+        {
+            "transformation": "convert to American Deep South English",
+            "score": 0.02
+        },
+        {
+            "transformation": "convert to American Pacific Northwest English",
+            "score": 0.02
+        },
+        {
+            "transformation": "convert to Canadian Maritimes English",
+            "score": 0.01
+        }
+    ],
+    "speaker": [
+        {
+            "transformation": "Rewrite it as a historian",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a teacher",
+            "score": 0.03
+        },
+        {
+            "transformation": "Rewrite it as a journalist",
+            "score": 0.03
+        },
+        {
+            "transformation": "Rewrite it as a scientist",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a doctor",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a lawyer",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a politician",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as an engineer",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as an artist",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a musician",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as an economist",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a marketer",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a psychologist",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as an environmentalist",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a chef",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a novelist",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a filmmaker",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a detective",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a sports commentator",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a financial analyst",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it in a neutral tone",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it in an angry tone",
+            "score": 0.01
+        },
+        {
+            "transformation": "Rewrite it in a happy tone",
+            "score": 0.01
+        },
+        {
+            "transformation": "Rewrite it in a sad tone",
+            "score": 0.01
+        },
+        {
+            "transformation": "Rewrite it in an excited tone",
+            "score": 0.01
+        },
+        {
+            "transformation": "Rewrite it as a blogger",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a Gen Z",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a Gen X",
+            "score": 0.01
+        },
+        {
+            "transformation": "Rewrite it as a Millennial",
+            "score": 0.01
+        },
+        {
+            "transformation": "Rewrite it as a Boomer",
+            "score": 0.01
+        },
+        {
+            "transformation": "Rewrite it as a tech enthusiast",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a minimalist",
+            "score": 0.01
+        },
+        {
+            "transformation": "Rewrite it as a maximalist",
+            "score": 0.01
+        },
+        {
+            "transformation": "Rewrite it as a travel enthusiast",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a foodie",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a fitness guru",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a fashionista",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a gamer",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as an entrepreneur",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as an influencer",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a parent",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it as a child",
+            "score": 0.01
+        },
+        {
+            "transformation": "Rewrite it as an introvert",
+            "score": 0.01
+        },
+        {
+            "transformation": "Rewrite it as an extrovert",
+            "score": 0.01
+        },
+        {
+            "transformation": "Rewrite it as a philosopher",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it ensuring the most frequent words are used sparingly",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it to maximize the use of unique words",
+            "score": 0.02
+        },
+        {
+            "transformation": "Rewrite it focusing on diverse vocabulary, avoiding repetition of any word more than once",
+            "score": 0.02
+        }
+    ],
+    "others": [
+        {
+            "transformation": "be specific on dates and numbers",
+            "score": 0.2
+        },
+        {
+            "transformation": "change the perspective (e.g., first person to third person)",
+            "score": 0.02
+        },
+        {
+            "transformation": "replace words with synonyms (nouns, adjectives, verbs)",
+            "score": 0.10
+        },
+        {
+            "transformation": "enhance descriptions (add adjectives, adverbs)",
+            "score": 0.05
+        },
+        {
+            "transformation": "remove redundant words",
+            "score": 0.05
+        },
+        {
+            "transformation": "modify sentence structure (change, invert, rearrange, add clauses)",
+            "score": 0.15
+        },
+        {
+            "transformation": "change sentence mood or rhythm",
+            "score": 0.05
+        },
+        {
+            "transformation": "add stylistic elements (figurative language, literary devices, sensory details, dialogue)",
+            "score": 0.10
+        },
+        {
+            "transformation": "change register or tone",
+            "score": 0.05
+        },
+        {
+            "transformation": "add contextual or background information",
+            "score": 0.05
+        },
+        {
+            "transformation": "incorporate specific elements (mystery, suspense, surprise, humor, jargon, rhetorical devices)",
+            "score": 0.12
+        },
+        {
+            "transformation": "rewrite for specific purposes or audiences",
+            "score": 0.10
+        },
+        {
+            "transformation": "change settings or perspectives (time, location, age, profession)",
+            "score": 0.06
+        }
+    ]
+}

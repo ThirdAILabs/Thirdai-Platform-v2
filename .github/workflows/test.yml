@@ -41,15 +41,22 @@ jobs:
         cd ..
 
     - name: Install PostgreSQL
-      run: brew install postgresql
+      run: brew install postgresql@15
+
+    - name: Add PostgreSQL to PATH
+      run: echo 'export PATH="/usr/local/opt/postgresql@15/bin:$PATH"' >> $GITHUB_ENV
 
     - name: Start PostgreSQL Service
-      run: brew services start postgresql
+      run: brew services start postgresql@15
 
-    - name: Setup PostgreSQL Database
+    - name: Wait for PostgreSQL to Start
       run: |
-        sleep 30  # Give PostgreSQL some time to start
-        psql -U postgres -c "CREATE ROLE postgres WITH LOGIN SUPERUSER;" || true
+        echo "Waiting for PostgreSQL to start..."
+        sleep 10
+
+    - name: Create PostgreSQL Superuser and Database
+      run: |
+        createuser -s postgres || true
         psql -U postgres -c "ALTER ROLE postgres WITH PASSWORD 'yourpassword';"
         psql -U postgres -c "CREATE DATABASE model_bazaar;"
         psql -U postgres -d model_bazaar -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
@@ -104,12 +111,12 @@ jobs:
       run: |
         source .env
         echo "Running tests..."
-        curl -X GET http://localhost:8000/health_check # Example endpoint check
+        curl -X GET http://localhost:80/signup
 
     - name: Stop Services
       if: always()
       run: |
-        brew services stop postgresql
+        brew services stop postgresql@15
         pkill nomad
         pkill traefik
         pkill uvicorn

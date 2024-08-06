@@ -13,7 +13,6 @@ from backend.utils import (
     response,
     validate_name,
 )
-from backend.utils import get_high_level_model_info, response
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, UploadFile, status

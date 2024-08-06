@@ -26,7 +26,7 @@ job "deployment-{{ deployment_id }}" {
 
     network {
       port "{{ deployment_id }}-http" {
-        {% if platform == "docker" %}
+        {% if platform == "docker" %}        
           to = 80
         {% elif platform == "local" %}
           static = {{ port }}

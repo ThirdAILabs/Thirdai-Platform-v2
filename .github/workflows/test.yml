@@ -1,0 +1,109 @@
+name: Run ThirdAI Platform Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  setup_thirdai:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Install Homebrew
+      run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    
+    - name: Install Nomad
+      run: brew install nomad
+
+    - name: Start Nomad in Development Mode
+      run: |
+        nohup sudo nomad agent -dev -config="local_setup/agent.hcl" > nomad.log 2>&1 &
+    
+    - name: Verify Nomad Cluster
+      run: |
+        sleep 10  # Give Nomad some time to start
+        nomad node status
+
+    - name: Install Traefik
+      run: brew install traefik
+
+    - name: Run Traefik
+      run: |
+        cd local_setup
+        nohup bash launch_traefik.sh > traefik.log 2>&1 &
+        cd ..
+
+    - name: Install PostgreSQL
+      run: brew install postgresql
+
+    - name: Start PostgreSQL Service
+      run: brew services start postgresql
+
+    - name: Setup PostgreSQL Database
+      run: |
+        psql -U postgres -c "CREATE ROLE postgres WITH LOGIN SUPERUSER;"
+        psql -U postgres -c "ALTER ROLE postgres WITH PASSWORD 'yourpassword';"
+        psql -U postgres -c "CREATE DATABASE model_bazaar;"
+        psql -U postgres -d model_bazaar -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+
+    - name: Install Vault
+      run: |
+        brew tap hashicorp/tap
+        brew install hashicorp/tap/vault
+
+    - name: Start Vault Server
+      run: |
+        nohup vault server --dev --dev-root-token-id="00000000-0000-0000-0000-000000000000" > vault.log 2>&1 &
+    
+    - name: Set Vault Environment Variable
+      run: echo "VAULT_ADDR='http://127.0.0.1:8200'" >> $GITHUB_ENV
+
+    - name: Create Directories for Share and Test
+      run: |
+        mkdir -p $HOME/nfs/dir
+        mkdir -p $HOME/local/test/dir
+
+    - name: Setup Environment File
+      run: |
+        cat <<EOF > .env
+        DATABASE_URI="postgresql://postgres:yourpassword@localhost:5432/model_bazaar"
+        PUBLIC_MODEL_BAZAAR_ENDPOINT="http://localhost:80/"
+        PRIVATE_MODEL_BAZAAR_ENDPOINT="http://localhost:80/"
+        NOMAD_ENDPOINT="http://localhost:4646/"
+        LICENSE_PATH="$GITHUB_WORKSPACE/local_setup/ndb_enterprise_license.json"
+        GENAI_KEY="your-openai-key"
+        SHARE_DIR="$HOME/nfs/dir"
+        LOCAL_TEST_DIR="$HOME/local/test/dir"
+        JWT_SECRET="CsnCr3lebs9eJQ"
+        SENDGRID_KEY="sendgrid-key"
+        PLATFORM="local"
+        PYTHON_PATH="$(which python3)"
+        ADMIN_USERNAME="admin"
+        ADMIN_MAIL="admin@mail.com"
+        ADMIN_PASSWORD="password"
+        HASHICORP_VAULT_ENDPOINT="http://127.0.0.1:8200"
+        HASHICORP_VAULT_TOKEN="00000000-0000-0000-0000-000000000000"
+        TEST_ENVIRONMENT=True
+        EOF
+
+    - name: Launch Backend
+      run: nohup uvicorn main:app --reload --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+      working-directory: ./thirdai_platform
+
+    - name: Run Tests
+      run: |
+        echo "Running tests..."
+        python3 -m headless.test --base-url http://localhost:80/api/ --email admin@mail.com --password password --dag-file headless/dag_config.yaml --all --run-name 1
+
+    - name: Stop Services
+      if: always()
+      run: |
+        brew services stop postgresql
+        pkill nomad
+        pkill traefik
+        pkill uvicorn
+        pkill vault

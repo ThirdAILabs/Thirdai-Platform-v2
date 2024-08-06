@@ -41,26 +41,18 @@ jobs:
         cd ..
 
     - name: Install PostgreSQL
-      run: brew install postgresql@15
-
-    - name: Add PostgreSQL to PATH
-      run: echo 'export PATH="/usr/local/opt/postgresql@15/bin:$PATH"' >> $GITHUB_ENV
+      run: brew install postgresql@14
 
     - name: Start PostgreSQL Service
-      run: brew services start postgresql@15
+      run: brew services start postgresql@14
 
-    - name: Wait for PostgreSQL to Start
+    - name: Setup PostgreSQL Database
       run: |
-        echo "Waiting for PostgreSQL to start..."
-        sleep 10
-
-    - name: Create PostgreSQL Superuser and Database
-      run: |
-        export PATH="/usr/local/opt/postgresql@15/bin:$PATH"
-        createuser -s postgres || true
-        psql -U postgres -c "ALTER ROLE postgres WITH PASSWORD 'yourpassword';"
-        psql -U postgres -c "CREATE DATABASE model_bazaar;"
-        psql -U postgres -d model_bazaar -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+        sleep 10  # Give PostgreSQL some time to start
+        sudo -u postgres psql -U postgres -c "CREATE ROLE postgres WITH LOGIN SUPERUSER;" || true
+        sudo -u postgres psql -U postgres -c "ALTER ROLE postgres WITH PASSWORD 'yourpassword';"
+        sudo -u postgres psql -U postgres -c "CREATE DATABASE model_bazaar;"
+        sudo -u postgres psql -U postgres -d model_bazaar -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
 
     - name: Install Vault
       run: |
@@ -112,12 +104,12 @@ jobs:
       run: |
         source .env
         echo "Running tests..."
-        curl -X GET http://localhost:80/signup
+        curl -X GET http://localhost:8000/health_check # Example endpoint check
 
     - name: Stop Services
       if: always()
       run: |
-        brew services stop postgresql@15
+        brew services stop postgresql
         pkill nomad
         pkill traefik
         pkill uvicorn

@@ -33,6 +33,9 @@ def get_current_user(
 
 
 def global_admin_only(current_user: schema.User = Depends(get_current_user)):
+    print(
+        f"Checking Global Admin: {current_user.is_global_admin()}, {current_user.email}"
+    )
     if not current_user.is_global_admin():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

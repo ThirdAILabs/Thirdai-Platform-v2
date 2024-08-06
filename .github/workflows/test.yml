@@ -43,8 +43,6 @@ jobs:
     - name: Install PostgreSQL
       run: |
         brew install postgresql@14
-        pg_ctl -D /usr/local/var/postgres start
-      shell: bash
 
     - name: Start PostgreSQL Service
       run: brew services start postgresql@14

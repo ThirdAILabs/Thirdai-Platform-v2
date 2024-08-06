@@ -40,7 +40,20 @@ Without this process, it is cumbersome to test out platform changes. We would ha
      ```
      bash launch_traefik.sh
      ```
-4. **Set Up PostgreSQL:**
+4. **Start the nomad-monitoring tasks:**
+   - Clear the data directory of the nomad-monitoring jobs.
+      ```bash
+      sudo rm -rf /opt/nomad/nomad-monitoring/data/*/*
+      ```
+   - Change the directory
+      ```bash
+      cd nomad-monitoring
+      ```
+   - Start the monitoring jobs
+      ```bash
+      make monitors
+      ```
+5. **Set Up PostgreSQL:**
    - Install PostgreSQL([https://www.postgresql.org/download/](https://www.postgresql.org/download/)) if not already installed. On mac, you can just run `brew install postgresql`.
    - Start the service. On mac, you can run `brew services start postgresql`.
    - Run `psql postgres` inside the command line, then run the following SQL commands to configure the service:
@@ -67,7 +80,7 @@ Without this process, it is cumbersome to test out platform changes. We would ha
 
 ### Step 3: Build and Deploy NeuralDB
 
-10. **Configure Environment:**
+6. **Configure Environment:**
    - Navigate back to the `thirdai_platform` directory. Modify `.env.example` to match your local setup for the   following values and save it as `.env`.
       - Change `DATABASE_URI` to be your local postgresql database connection string
       - Change `PUBLIC_MODEL_BAZAAR_ENDPOINT` and `PRIVATE_MODEL_BAZAAR_ENDPOINT` to be "http://localhost:8000/" (make sure to include the trailing /)
@@ -80,9 +93,9 @@ Without this process, it is cumbersome to test out platform changes. We would ha
       - Change `GENAI_KEY` to your Generative AI provider key, e.g. OpenAI key.
 
 
-11. If you are running this dev environment on a Mac, navigate to the `thirdai_platform/backend/nomad_jobs` directory and make sure any hcl or hcl.j2 file doesn't have a line that is in the form of `cores = x`. If those lines exist, change the lines to be `cpu = x * 2500` (put the actual value of the multiplication, not x * 2500). Doing this will fix any issues related to resource allocation of Nomad jobs on MacOS, because running Docker on MacOS does funky things when trying to reserve CPUs.
+7. If you are running this dev environment on a Mac, navigate to the `thirdai_platform/backend/nomad_jobs` directory and make sure any hcl or hcl.j2 file doesn't have a line that is in the form of `cores = x`. If those lines exist, change the lines to be `cpu = x * 2500` (put the actual value of the multiplication, not x * 2500). Doing this will fix any issues related to resource allocation of Nomad jobs on MacOS, because running Docker on MacOS does funky things when trying to reserve CPUs.
 
-12. **Launch Backend:**
+8. **Launch Backend:**
     - Start the backend service using Uvicorn:
       ```
       uvicorn main:app --reload --host 0.0.0.0 --port 8000

@@ -2,12 +2,11 @@ import logging
 import os
 from typing import Any, Callable, Dict
 
+from requests.exceptions import HTTPError
+
 from headless.configs import Config
 from headless.model import Flow
 from headless.utils import create_doc_dict, extract_static_methods
-
-from requests.exceptions import HTTPError
-
 
 logging.basicConfig(level=logging.INFO)
 

@@ -23,6 +23,17 @@ export default function AccessPage() {
     { name: 'Team B', admin: 'Dave', members: ['Eve', 'Frank', 'Grace'] },
   ];
 
+  // Sample data for the users
+  const users = [
+    { name: 'Alice', role: 'Member', adminTeams: [], ownedModels: ['Model A', 'Model B'] },
+    { name: 'Bob', role: 'Member', adminTeams: [], ownedModels: ['Model C'] },
+    { name: 'Charlie', role: 'Admin', adminTeams: ['Team A'], ownedModels: [] },
+    { name: 'Dave', role: 'Admin', adminTeams: ['Team B'], ownedModels: [] },
+    { name: 'Eve', role: 'Member', adminTeams: [], ownedModels: [] },
+    { name: 'Frank', role: 'Member', adminTeams: [], ownedModels: [] },
+    { name: 'Grace', role: 'Member', adminTeams: [], ownedModels: [] },
+  ];
+
   return (
     <Card>
       <CardHeader>
@@ -78,7 +89,7 @@ export default function AccessPage() {
         </div>
 
         {/* Teams Section */}
-        <div>
+        <div className="mb-8">
           <h3 className="text-lg font-semibold">Teams</h3>
           {teams.map((team, index) => (
             <div key={index} className="mb-8">
@@ -95,6 +106,23 @@ export default function AccessPage() {
                     ))}
                 </ul>
               </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Users Section */}
+        <div>
+          <h3 className="text-lg font-semibold">Users</h3>
+          {users.map((user, index) => (
+            <div key={index} className="mb-8">
+              <h4 className="text-md font-semibold">{user.name}</h4>
+              <div className="mb-2">Role: {user.role}</div>
+              {user.adminTeams.length > 0 && (
+                <div className="mb-2">Admin Teams: {user.adminTeams.join(', ')}</div>
+              )}
+              {user.ownedModels.length > 0 && (
+                <div>Owned Models: {user.ownedModels.join(', ')}</div>
+              )}
             </div>
           ))}
         </div>

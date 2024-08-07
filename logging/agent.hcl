@@ -2,9 +2,9 @@ bind_addr = "0.0.0.0"
 data_dir  = "/opt/nomad/data"
 
 advertise {
-  http = "192.168.1.8"
-  rpc  = "192.168.1.8"
-  serf = "192.168.1.8"
+  http = "192.168.1.11"
+  rpc  = "192.168.1.11"
+  serf = "192.168.1.11"
 }
 
 client {

@@ -192,28 +192,6 @@ function App() {
     }, [modelService, guardRailEndpoint, ifGuardRailOn]);
 
     useEffect(() => {
-        // Example usage
-        const event = {
-            UserAction: 'Click',
-            UIComponent: 'feedbackType',
-            UI: 'ChatBot',
-            data: {
-                'ai_answer': 'message',
-            }
-        };
-
-        if (modelService) {
-            modelService.recordEvent(event)
-            .then(data => {
-                console.log("Event recorded successfully:", data);
-            })
-            .catch(error => {
-                console.error("Error recording event:", error);
-            });
-        }
-    }, [modelService])
-
-    useEffect(() => {
         if (modelService) {
             setOpacity("100%");
         }

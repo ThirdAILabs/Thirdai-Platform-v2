@@ -50,7 +50,7 @@ export default function AccessPage() {
   ];
 
   // Sample data for the users
-  const users: User[] = [
+  const initialUsers: User[] = [
     { name: 'Alice', role: 'Member', adminTeams: [], ownedModels: ['Model A', 'Model B'] },
     { name: 'Bob', role: 'Member', adminTeams: [], ownedModels: ['Model C'] },
     { name: 'Charlie', role: 'Admin', adminTeams: ['Team A'], ownedModels: [] },
@@ -60,9 +60,10 @@ export default function AccessPage() {
     { name: 'Grace', role: 'Member', adminTeams: [], ownedModels: [] },
   ];
 
-  // State to manage models and teams
+  // State to manage models, teams, and users
   const [models, setModels] = useState<Model[]>(initialModels);
   const [teams, setTeams] = useState<Team[]>(initialTeams);
+  const [users, setUsers] = useState<User[]>(initialUsers);
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [newTeamAdmin, setNewTeamAdmin] = useState<string>('');
   const [newTeamMembers, setNewTeamMembers] = useState<string[]>([]);
@@ -101,6 +102,15 @@ export default function AccessPage() {
     setTeams(teams.filter(team => team.name !== teamName));
     const updatedModels = models.map(model =>
       model.team === teamName ? { ...model, type: 'Private Model', team: undefined, teamAdmin: undefined } : model
+    ) as Model[];
+    setModels(updatedModels);
+  };
+
+  // Delete a user account and update owned models
+  const deleteUser = (userName: string) => {
+    setUsers(users.filter(user => user.name !== userName));
+    const updatedModels = models.map(model =>
+      model.owner === userName ? { ...model, type: 'Private Model', owner: 'None' } : model
     ) as Model[];
     setModels(updatedModels);
   };
@@ -276,6 +286,12 @@ export default function AccessPage() {
               {user.ownedModels.length > 0 && (
                 <div>Owned Models: {user.ownedModels.join(', ')}</div>
               )}
+              <button
+                onClick={() => deleteUser(user.name)}
+                className="mt-2 bg-red-500 text-white px-2 py-1 rounded"
+              >
+                Delete User
+              </button>
             </div>
           ))}
         </div>

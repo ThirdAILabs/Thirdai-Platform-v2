@@ -42,7 +42,6 @@ jobs:
         # Start Docker
         open /Applications/Docker.app
         # Wait for Docker to start
-        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
         open -a /Applications/Docker.app --args --unattended --accept-license
         while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
         docker --version

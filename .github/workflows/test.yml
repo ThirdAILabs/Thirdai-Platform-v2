@@ -42,10 +42,10 @@ jobs:
         # Start Docker
         open /Applications/Docker.app
         # Wait for Docker to start
-        until docker info; do
-          echo "Waiting for Docker to start..."
-          sleep 5
-        done
+        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+        open -a /Applications/Docker.app --args --unattended --accept-license
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+        docker --version
 
     - name: Install Nomad
       run: brew install nomad

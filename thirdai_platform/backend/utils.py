@@ -10,11 +10,13 @@ from urllib.parse import urljoin
 
 import bcrypt
 import requests
+from enum import Enum
 from database import schema
 from fastapi.responses import JSONResponse
 from jinja2 import Template
 from pydantic import BaseModel, Field, root_validator
 from sqlalchemy.orm import Session
+import websockets
 
 logger = logging.getLogger("ThirdAI_Platform")
 
@@ -677,3 +679,71 @@ def get_expiry_min(size: int):
     Taking an average speed of 300 to 400 KB/s we give an extra 60 min for every 1.5GB.
     """
     return 60 * (1 + math.floor(size / 1500))
+
+
+class State(str, Enum):
+    NOT_STARTED = "not-started"
+    RUNNING = "running"
+    FAILED = "failed"
+    PARTIALLY_DONE = "partially_done"
+    DONE = "done"
+
+
+class Task(str, Enum):
+    TEXT_CLASSIFICATION = "text_classification"
+    TOKEN_CLASSIFICATION = "token_classification"
+    
+TEXT_CLASSIFICATION_SUBTASKS = [
+    "Sentiment Classification",
+    "Language Classification",
+    "App Review Classification",
+    "Topic Classification",
+    "Subjectivity Classification",
+    "Grammaticality Classification",
+    "News Classification",
+    "Speech Act Classification",
+    "Dialogue Act Classification",
+    "Fact vs. Opinion Classification",
+    "Legal Text Classification",
+    "Medical Classification",
+    "Marketing Message Classification",
+    "Climate-Related Paragraph Classification",
+    "Emotion Detection",
+]
+
+TOKEN_CLASSIFICATION_SUBTASKS = ["token-classification-sub-task"]
+
+def update_task_status(filepath: str, text: str, mode: str = "w"):
+    with open(filepath, mode) as fp:
+        fp.write(text)
+        
+
+class openai_client:
+    def __init__(self):
+        self.api_key = os.getenv("GENAI_KEY")
+
+    async def llm_completion(self, content: str, system_prompt: Optional[str] = None):
+        uri = "ws://llm-generation-container:8000/generate"
+
+        async with websockets.connect(uri) as websocket:
+            args = {
+                "query": content,
+                "key": self.api_key,
+                "model": "gpt-4o",
+                "provider": self.general_variables.provider,
+            }
+            if system_prompt:
+                args["system_prompt"] = system_prompt
+
+            await websocket.send(json.dumps(args))
+
+            response_text = ""
+            while True:
+                response = await websocket.receive_text()
+                response_data = json.loads(response)
+
+                response_text += response_data["content"]
+
+                if response_data["end_of_stream"]:
+                    return response_text
+

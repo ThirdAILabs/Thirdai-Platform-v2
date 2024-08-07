@@ -2,6 +2,7 @@ import enum
 import re
 from datetime import datetime
 
+from enum import Enum
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -232,6 +233,30 @@ class Model(SQLDeclarativeBase):
         Index("model_identifier_index", "user_id", "name"),
         UniqueConstraint("user_id", "name"),
     )
+
+
+class State(str, Enum):
+    NOT_STARTED = "not-started"
+    RUNNING = "running"
+    FAILED = "failed"
+    PARTIALLY_DONE = "partially_done"
+    DONE = "done"
+    
+class Workflow(SQLDeclarativeBase):
+    __tablename__ = "workflow"
+
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    infer_task_status = Column(ENUM(State), default=State.NOT_STARTED)
+    datasource_status = Column(ENUM(State), default=State.NOT_STARTED)
+    model_training_status = Column(ENUM(State), default=State.NOT_STARTED)
+    deployment_status = Column(ENUM(State), default=State.NOT_STARTED)
 
 
 class ModelPermission(SQLDeclarativeBase):

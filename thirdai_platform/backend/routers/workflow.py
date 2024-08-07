@@ -32,6 +32,36 @@ def workflow_types(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Get all workflow types.
+
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): List of workflow types with their details.
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Successfully got the workflow types",
+        "data": {
+            "types": [
+                {
+                    "id": "c1b1c5d7-8b8a-4f3b-a88b-2ec5a7a5f014",
+                    "name": "semantic_search",
+                    "description": "Semantic search workflow",
+                    "model_requirements": {
+                        "ModelType1": {"count": 2},
+                        "ModelType2": {"count": 1, "sub_type": "SubTypeA"}
+                    }
+                },
+                ...
+            ]
+        }
+    }
+    ```
+    """
     types = session.query(schema.WorkflowType).all()
     types_list = [
         {
@@ -56,6 +86,34 @@ def create_workflow(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Create a new workflow.
+
+    - **Parameters**:
+      - `name` (str): Name of the workflow.
+      - `type_name` (str): Name of the workflow type.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): ID of the newly created workflow.
+
+    **Example Request**:
+    ```json
+    {
+        "name": "MyWorkflow",
+        "type_name": "semantic_search"
+    }
+    ```
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Successfully added the workflow",
+        "data": {"workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c"}
+    }
+    ```
+    """
     user: schema.User = authenticated_user.user
 
     workflow: schema.Workflow = (
@@ -72,7 +130,7 @@ def create_workflow(
     if not workflow_type:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Invalid workflow type ID.",
+            message=f"Invalid workflow type name: {type_name}.",
         )
 
     new_workflow = schema.Workflow(
@@ -97,6 +155,14 @@ class WorkflowParams(BaseModel):
     workflow_id: str
     model_identifiers: List[str]
 
+    class Config:
+        schema_extra = {
+            "example": {
+                "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
+                "model_identifiers": ["model1", "model2"],
+            }
+        }
+
 
 @workflow_router.post("/add-models")
 def add_models(
@@ -104,6 +170,38 @@ def add_models(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Add models to a workflow.
+
+    - **Parameters**:
+      - `body` (WorkflowParams): JSON body with workflow ID and model identifiers.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): List of models in the workflow.
+
+    **Example Request**:
+    ```json
+    {
+        "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
+        "model_identifiers": ["model1", "model2"]
+    }
+    ```
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Models added to workflow successfully.",
+        "data": {
+            "models": [
+                {"id": "model1", "name": "Model 1"...},
+                {"id": "model2", "name": "Model 2"...}
+            ]
+        }
+    }
+    ```
+    """
     workflow: schema.Workflow = session.query(schema.Workflow).get(body.workflow_id)
 
     if not workflow:
@@ -156,6 +254,37 @@ def delete_models(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Delete models from a workflow.
+
+    - **Parameters**:
+      - `body` (WorkflowParams): JSON body with workflow ID and model identifiers.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): List of models remaining in the workflow.
+
+    **Example Request**:
+    ```json
+    {
+        "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
+        "model_identifiers": ["model1", "model2"]
+    }
+    ```
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Models deleted from workflow successfully.",
+        "data": {
+            "models": [
+                {"id": "model3", "name": "Model 3"...}
+            ]
+        }
+    }
+    ```
+    """
     workflow: schema.Workflow = session.query(schema.Workflow).get(body.workflow_id)
 
     if not workflow:
@@ -205,6 +334,52 @@ def validate_workflow(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Validate a workflow to ensure it meets model requirements.
+
+    - **Parameters**:
+      - `workflow_id` (str): ID of the workflow to validate.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): Validation issues or success message.
+
+    **Example Request**:
+    ```json
+    {
+        "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c"
+    }
+    ```
+
+    **Example Response**:
+    - Success:
+    ```json
+    {
+        "status_code": 200,
+        "message": "All models are properly trained and deployed.",
+        "data": {
+            "models": [
+                {"id": "model1", "name": "Model 1"...},
+                {"id": "model2", "name": "Model 2"...}
+            ]
+        }
+    }
+    ```
+
+    - Failure:
+    ```json
+    {
+        "status_code": 400,
+        "message": "Validation failed. Some models have issues.",
+        "data": {
+            "models": {
+                "ModelType1": ["Requires 2 ModelType1(s), but found 1."],
+                "model1": ["Training is not complete.", "Deployment is not complete."]
+            }
+        }
+    }
+    ```
+    """
     workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
 
     if not workflow:
@@ -225,8 +400,8 @@ def validate_workflow(
     model_requirements = workflow_type.model_requirements
 
     model_counts = Counter(
-        (worflow_model.model.type, worflow_model.model.sub_type)
-        for worflow_model in workflow_models
+        (workflow_model.model.type, workflow_model.model.sub_type)
+        for workflow_model in workflow_models
     )
 
     issues = defaultdict(list)
@@ -288,6 +463,30 @@ def stop_workflow(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Stop a workflow and undeploy models if necessary.
+
+    - **Parameters**:
+      - `workflow_id` (str): ID of the workflow to stop.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+
+    **Example Request**:
+    ```json
+    {
+        "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c"
+    }
+    ```
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Workflow stopped successfully."
+    }
+    ```
+    """
     workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
 
     if not workflow:
@@ -345,6 +544,37 @@ def start_workflow(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Start a workflow and deploy models if necessary.
+
+    - **Parameters**:
+      - `workflow_id` (str): ID of the workflow to start.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): List of models in the workflow.
+
+    **Example Request**:
+    ```json
+    {
+        "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c"
+    }
+    ```
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 202,
+        "message": "Workflow started successfully.",
+        "data": {
+            "models": [
+                {"id": "model1", "name": "Model 1"...},
+                {"id": "model2", "name": "Model 2"...}
+            ]
+        }
+    }
+    ```
+    """
     workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
 
     if not workflow:
@@ -462,6 +692,18 @@ class WorkflowTypeParams(BaseModel):
     description: str
     model_requirements: dict
 
+    class Config:
+        schema_extra = {
+            "example": {
+                "name": "semantic_search",
+                "description": "Semantic search workflow",
+                "model_requirements": {
+                    "ModelType1": {"count": 2},
+                    "ModelType2": {"count": 1, "sub_type": "SubTypeA"},
+                },
+            }
+        }
+
 
 @workflow_router.post("/add-type")
 def add_workflow_type(
@@ -469,6 +711,40 @@ def add_workflow_type(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Add a new workflow type.
+
+    - **Parameters**:
+      - `params` (WorkflowTypeParams): JSON body with workflow type details.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): ID and name of the newly created workflow type.
+
+    **Example Request**:
+    ```json
+    {
+        "name": "semantic_search",
+        "description": "Semantic search workflow",
+        "model_requirements": {
+            "ModelType1": {"count": 2},
+            "ModelType2": {"count": 1, "sub_type": "SubTypeA"}
+        }
+    }
+    ```
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Successfully added the workflow type",
+        "data": {
+            "id": "c1b1c5d7-8b8a-4f3b-a88b-2ec5a7a5f014",
+            "name": "semantic_search"
+        }
+    }
+    ```
+    """
     existing_type = (
         session.query(schema.WorkflowType).filter_by(name=params.name).first()
     )
@@ -500,6 +776,30 @@ def delete_workflow_type(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Delete a workflow type.
+
+    - **Parameters**:
+      - `type_id` (str): ID of the workflow type to delete.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+
+    **Example Request**:
+    ```json
+    {
+        "type_id": "c1b1c5d7-8b8a-4f3b-a88b-2ec5a7a5f014"
+    }
+    ```
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Successfully deleted the workflow type"
+    }
+    ```
+    """
     workflow_type = session.query(schema.WorkflowType).filter_by(id=type_id).first()
     if not workflow_type:
         return response(

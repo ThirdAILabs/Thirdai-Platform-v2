@@ -87,9 +87,8 @@ jobs:
     - name: Create Directories for Share and Test
       run: |
         mkdir -p $HOME/nfs/dir
-        mkdir -p $HOME/local/test/dir
         echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
-        echo "LOCAL_TEST_DIR=$HOME/local/test/dir" >> $GITHUB_ENV
+        echo "LOCAL_TEST_DIR=$$HOME/nfs/dir" >> $GITHUB_ENV
 
     - name: Setup additional environment variables
       run: |

@@ -1,55 +1,10 @@
 import csv
 import json
-import os
 import random
-from typing import List
-
-datagen_prompt = """This is the description of the task user wants to perform: ```{task_prompt}```
-Generate {samples_to_generate} training samples for above task for the label "{label_to_generate}".
-
-The data generated should strictly follow the description: 
-{label_description_prompt}
-
-DO NOT include any bulleting or prefix at start of each sentence and each. Do not include any quotes or emojis.
+from typing import List, Dict
 
 
-VERY IMPORTANT POINT: Give only the sentences in output and make sure each sentence should start on a new line. Do not include any extra new line.
-
-
-Ensure that the data is diverse enough to capture different genres and dialects.
-Do not include the label in sentences.
-
-Following are some of the sample data points for reference:
-{examples}
-
-GENERATED SAMPLES MUST BE VERY DIFFERENT FROM THE ABOVE SAMPLES
-
-{user_prompts}
-You can refer to these prompt to include diversity:
-{random_prompts}
-
-Sentences should have following words to generate diverse examples:
-{random_vocab}
-"""
-
-
-def get_faker_entities(tag: str, fake, faker_attributes: List[str], num_samples: int):
-    matching_attr = next(
-        (attr for attr in faker_attributes if tag.lower() in attr.lower()), None
-    )
-
-    if not matching_attr:
-        return [], False
-
-    try:
-        samples = [getattr(fake, matching_attr)() for _ in range(num_samples)]
-        return samples, True
-    except Exception as e:
-        print(f"Error in faker {e}")
-        return [], False
-
-
-def subsample_dictionary(data, k=2):
+def subsample_dictionary(data: Dict[str, List[str]], k=2):
     return {
         key: random.sample(values, min(k, len(values))) for key, values in data.items()
     }

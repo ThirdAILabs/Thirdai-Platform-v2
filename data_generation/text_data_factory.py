@@ -4,12 +4,12 @@ import os
 import random
 import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from resource.text_prompts import datagen_prompt
 from resource.util_data import vocab
 from typing import Dict, List, Optional
 
 from data_factory_interface import DataFactory
 from tqdm import tqdm
-from utils import datagen_prompt
 
 TEXT_COLUMN = "text"
 TARGET_LABEL_COLUMN = "label"
@@ -18,9 +18,7 @@ TARGET_LABEL_COLUMN = "label"
 def assert_sufficient_examples(
     target_labels: List[str], examples: Dict[str, List[str]]
 ):
-    missing_examples = [
-        label for label in examples.keys() if label not in target_labels
-    ]
+    missing_examples = [label for label in target_labels if label not in examples]
     if missing_examples:
         raise ValueError(
             f"Examples are not given for all labels. Labels with missing examples: {', '.join(missing_examples)}"

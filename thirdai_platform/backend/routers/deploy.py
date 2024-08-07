@@ -28,6 +28,7 @@ from backend.utils import (
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
@@ -464,3 +465,72 @@ def log_results(
     session.commit()
 
     return {"message": "Log entry added successfully"}
+
+
+@deploy_router.get("/info")
+def get_deployment_info(
+    deployment_id: str,
+    require_raw_logs: bool = False,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Retrieve deployment information.
+
+    Parameters:
+    - deployment_id: The ID of the deployment (query parameter).
+    - require_logs: Whether to include logs in the response (query parameter).
+
+    Returns:
+    - A JSON response with deployment information and optionally logs.
+    """
+    user: schema.User = authenticated_user.user
+
+    # Fetch the deployment from the database for the authenticated user
+    deployment = (
+        session.query(schema.Deployment)
+        .filter(
+            schema.Deployment.id == deployment_id, schema.Deployment.user_id == user.id
+        )
+        .first()
+    )
+
+    if not deployment:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="No deployment with this id",
+        )
+
+    # Prepare the response data
+    deployment_info = {
+        "id": str(deployment.id),
+        "name": deployment.name,
+        "status": deployment.status,
+        "model_id": str(deployment.model_id),
+    }
+
+    # Fetch logs metadata for the authenticated user
+    logs = (
+        session.query(schema.Log)
+        .filter(
+            schema.Log.deployment_id == deployment_id, schema.Log.user_id == user.id
+        )
+        .all()
+    )
+
+    # Include log entries conditionally in the response
+    deployment_info["logs"] = [
+        {
+            "user_id": str(log.user_id),
+            "action": log.action,
+            "count": log.count,
+            **({"log_entries": log.log_entries} if require_raw_logs else {}),
+        }
+        for log in logs
+    ]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Deployment info retrieved successfully",
+        data=jsonable_encoder(deployment_info),
+    )

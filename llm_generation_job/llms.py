@@ -1,6 +1,6 @@
 import json
 import os
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 import aiohttp
 
@@ -14,21 +14,24 @@ class LLMBase:
 
 class OpenAILLM(LLMBase):
     async def stream(
-        self, key: str, query: str, model: str
+        self, key: str, query: str, model: str, system_prompt: Optional[str] = None
     ) -> AsyncGenerator[str, None]:
         url = "https://api.openai.com/v1/chat/completions"
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {key}",
         }
+        messages = [
+            {
+                "role": "user",
+                "content": query,
+            }
+        ]
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
         body = {
             "model": model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": query,
-                }
-            ],
+            "messages": messages,
             "stream": True,
         }
         async with aiohttp.ClientSession() as session:

@@ -4,11 +4,6 @@ from dataclasses import MISSING, dataclass, fields
 from enum import Enum
 from typing import Dict, List, Optional, Type, TypeVar, Union, get_args, get_origin
 
-# from dotenv import load_dotenv
-
-# dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
-# load_dotenv(dotenv_path)
-
 T = TypeVar("T", bound="EnvLoader")
 
 
@@ -17,8 +12,13 @@ class DataCategory(str, Enum):
     token = "token"
 
 
+class LLMProvider(str, Enum):
+    openai = "openai"
+    cohere = "cohere"
+
+
 class EnvLoader:
-    type_mapping = {"DataCategory": DataCategory}
+    type_mapping = {"DataCategory": DataCategory, "LLMProvider": LLMProvider}
 
     @classmethod
     def load_from_env(cls: Type[T]) -> T:
@@ -69,11 +69,9 @@ class EnvLoader:
         if isinstance(field_type, type) and issubclass(field_type, Enum):
             try:
                 # Try converting directly
-                print(f"{field_type = }")
                 return field_type(value)
             except ValueError:
                 # Handle case where value is in form 'EnumClass.EnumMember'
-                print(f"{value = }, {type(value) = }")
                 enum_class, enum_member = value.split(".")
                 enum_type = EnvLoader.type_mapping.get(enum_class)
                 if enum_type and issubclass(enum_type, Enum):
@@ -95,7 +93,8 @@ class GeneralVariables(EnvLoader):
     model_bazaar_dir: str
     data_id: str
     data_category: DataCategory
-    genai_key: str
+    key: str
+    provider: LLMProvider = LLMProvider.openai
 
 
 @dataclass

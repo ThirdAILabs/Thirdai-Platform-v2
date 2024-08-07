@@ -202,7 +202,7 @@ Workflow:
     dependencies: []
     params:
       run_name: variable
-      type: Rag
+      type: rag
 
   check_unsupervised_supervised:
     dependencies: []

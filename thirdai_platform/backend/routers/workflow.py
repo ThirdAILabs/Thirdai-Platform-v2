@@ -52,7 +52,7 @@ def workflow_types(
 @workflow_router.post("/create")
 def create_workflow(
     name: str,
-    type_id: str,
+    type_name: str,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
@@ -68,7 +68,7 @@ def create_workflow(
             message="Workflow with this name already exists for this user.",
         )
 
-    workflow_type = session.query(schema.WorkflowType).filter_by(id=type_id).first()
+    workflow_type = session.query(schema.WorkflowType).filter_by(name=type_name).first()
     if not workflow_type:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -76,7 +76,10 @@ def create_workflow(
         )
 
     new_workflow = schema.Workflow(
-        name=name, type_id=type_id, user_id=user.id, status=schema.Status.not_started
+        name=name,
+        type_id=workflow_type.id,
+        user_id=user.id,
+        status=schema.Status.not_started,
     )
 
     session.add(new_workflow)

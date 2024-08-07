@@ -113,7 +113,7 @@ jobs:
       run: |
         source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE
-        python3 -m headless.test --base-url $PUBLIC_MODEL_BAZAAR_ENDPOINT --email $ADMIN_MAIL --password $ADMIN_PASSWORD --dag-file headless/dag_config.yaml --all --run-name 12
+        python3 -m headless.test --base-url http://localhost:80/api/ --email $ADMIN_MAIL --password $ADMIN_PASSWORD --dag-file headless/dag_config.yaml --all --run-name 12
 
     - name: Display Logs
       if: always()

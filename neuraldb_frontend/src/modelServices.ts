@@ -720,10 +720,9 @@ export class GlobalModelService implements ModelService {
         };
     
         const serializedData = JSON.stringify(telemetryPackage);
-        const url = new URL('http://localhost:8000/record-event');
     
         try {
-            const response = await fetch(url.toString(), {
+            const response = await fetch(this.url + '/telemetry/record-event', {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

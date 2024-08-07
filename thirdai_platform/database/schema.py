@@ -288,6 +288,17 @@ class Log(SQLDeclarativeBase):
     )
 
 
+class WorkflowType(SQLDeclarativeBase):
+    __tablename__ = "workflow_types"
+
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    name = Column(String(256), nullable=False, unique=True)
+    description = Column(String(512), nullable=True)
+    model_requirements = Column(JSON, nullable=False)
+
+
 class Workflow(SQLDeclarativeBase):
     __tablename__ = "workflows"
 
@@ -295,7 +306,9 @@ class Workflow(SQLDeclarativeBase):
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     name = Column(String(256), nullable=False)
-    type = Column(String(256), nullable=False)
+    type_id = Column(
+        UUID(as_uuid=True), ForeignKey("workflow_types.id"), nullable=False
+    )
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -305,6 +318,7 @@ class Workflow(SQLDeclarativeBase):
     workflow_models = relationship(
         "WorkflowModel", back_populates="workflow", cascade="all, delete-orphan"
     )
+    workflow_type = relationship("WorkflowType")
 
     __table_args__ = (
         UniqueConstraint("name", "user_id", name="unique_workflow_name_user"),

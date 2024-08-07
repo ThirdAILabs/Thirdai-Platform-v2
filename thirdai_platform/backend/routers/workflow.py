@@ -1,6 +1,6 @@
 import json
 import os
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import List
 
@@ -27,10 +27,32 @@ from sqlalchemy.orm import Session
 workflow_router = APIRouter()
 
 
+@workflow_router.get("/types")
+def workflow_types(
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    types = session.query(schema.WorkflowType).all()
+    types_list = [
+        {
+            "id": str(t.id),
+            "name": t.name,
+            "description": t.description,
+            "model_requirements": t.model_requirements,
+        }
+        for t in types
+    ]
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the workflow types",
+        data={"types": jsonable_encoder(types_list)},
+    )
+
+
 @workflow_router.post("/create")
 def create_workflow(
     name: str,
-    type: str,
+    type_id: str,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
@@ -46,8 +68,15 @@ def create_workflow(
             message="Workflow with this name already exists for this user.",
         )
 
+    workflow_type = session.query(schema.WorkflowType).filter_by(id=type_id).first()
+    if not workflow_type:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Invalid workflow type ID.",
+        )
+
     new_workflow = schema.Workflow(
-        name=name, type=type, user_id=user.id, status=schema.Status.not_started
+        name=name, type_id=type_id, user_id=user.id, status=schema.Status.not_started
     )
 
     session.add(new_workflow)
@@ -100,7 +129,7 @@ def add_models(
 
         if workflow_model:
             return response(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=status.HTTP_400_BAD_REQUEST,
                 message=f"Model {model.id} already found in workflow.",
             )
 
@@ -189,7 +218,40 @@ def validate_workflow(
             message="No models found in the workflow.",
         )
 
+    workflow_type: schema.WorkflowType = workflow.workflow_type
+    model_requirements = workflow_type.model_requirements
+
+    model_counts = Counter(
+        (worflow_model.model.type, worflow_model.model.sub_type)
+        for worflow_model in workflow_models
+    )
+
     issues = defaultdict(list)
+
+    for model_type, requirements in model_requirements.items():
+        required_count = requirements["count"]
+        required_sub_type = requirements.get("sub_type")
+
+        if required_sub_type:
+            current_count = sum(
+                count
+                for (m_type, m_sub_type), count in model_counts.items()
+                if m_type == model_type and m_sub_type == required_sub_type
+            )
+        else:
+            current_count = sum(
+                count
+                for (m_type, _), count in model_counts.items()
+                if m_type == model_type
+            )
+
+        if current_count < required_count:
+            sub_type_msg = (
+                f" with sub_type {required_sub_type}" if required_sub_type else ""
+            )
+            issues[model_type].append(
+                f"Requires {required_count} {model_type}(s){sub_type_msg}, but found {current_count}."
+            )
 
     for workflow_model in workflow_models:
         model: schema.Model = workflow_model.model
@@ -389,4 +451,62 @@ def start_workflow(
         status_code=status.HTTP_202_ACCEPTED,
         message="Workflow started successfully.",
         data={"models": jsonable_encoder(list_workflow_models(workflow))},
+    )
+
+
+class WorkflowTypeParams(BaseModel):
+    name: str
+    description: str
+    model_requirements: dict
+
+
+@workflow_router.post("/add-type")
+def add_workflow_type(
+    params: WorkflowTypeParams,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    existing_type = (
+        session.query(schema.WorkflowType).filter_by(name=params.name).first()
+    )
+    if existing_type:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Workflow type with this name already exists.",
+        )
+
+    new_workflow_type = schema.WorkflowType(
+        name=params.name,
+        description=params.description,
+        model_requirements=params.model_requirements,
+    )
+    session.add(new_workflow_type)
+    session.commit()
+    session.refresh(new_workflow_type)
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully added the workflow type",
+        data={"id": str(new_workflow_type.id), "name": new_workflow_type.name},
+    )
+
+
+@workflow_router.post("/delete-type")
+def delete_workflow_type(
+    type_id: str,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    workflow_type = session.query(schema.WorkflowType).filter_by(id=type_id).first()
+    if not workflow_type:
+        return response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="Workflow type not found.",
+        )
+
+    session.delete(workflow_type)
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK, message="Successfully deleted the workflow type"
     )

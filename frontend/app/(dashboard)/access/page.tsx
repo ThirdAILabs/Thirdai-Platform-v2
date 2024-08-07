@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -6,25 +9,48 @@ import {
   CardTitle
 } from '@/components/ui/card';
 
+// Define types for the models, teams, and users
+type Model = {
+  name: string;
+  type: 'Private Model' | 'Protected Model' | 'Public Model';
+  owner: string;
+  users?: string[];
+  team?: string;
+  teamAdmin?: string;
+};
+
+type Team = {
+  name: string;
+  admin: string;
+  members: string[];
+};
+
+type User = {
+  name: string;
+  role: string;
+  adminTeams: string[];
+  ownedModels: string[];
+};
+
 export default function AccessPage() {
   const userRole = "Global Admin";
   const roleDescription = "This role has read and write access to all team members and models.";
 
-  // Sample data for the models
-  const models = [
+  // Initial data for the models
+  const initialModels: Model[] = [
     { name: 'Model A', type: 'Private Model', owner: 'Alice', users: ['Bob', 'Charlie'] },
     { name: 'Model B', type: 'Protected Model', owner: 'Alice', team: 'Team A', teamAdmin: 'Charlie' },
     { name: 'Model C', type: 'Public Model', owner: 'Bob' },
   ];
 
   // Sample data for the teams
-  const teams = [
+  const teams: Team[] = [
     { name: 'Team A', admin: 'Charlie', members: ['Alice', 'Bob', 'Charlie'] },
     { name: 'Team B', admin: 'Dave', members: ['Eve', 'Frank', 'Grace'] },
   ];
 
   // Sample data for the users
-  const users = [
+  const users: User[] = [
     { name: 'Alice', role: 'Member', adminTeams: [], ownedModels: ['Model A', 'Model B'] },
     { name: 'Bob', role: 'Member', adminTeams: [], ownedModels: ['Model C'] },
     { name: 'Charlie', role: 'Admin', adminTeams: ['Team A'], ownedModels: [] },
@@ -33,6 +59,17 @@ export default function AccessPage() {
     { name: 'Frank', role: 'Member', adminTeams: [], ownedModels: [] },
     { name: 'Grace', role: 'Member', adminTeams: [], ownedModels: [] },
   ];
+
+  // State to manage models
+  const [models, setModels] = useState<Model[]>(initialModels);
+
+  // Handle model type change
+  const handleModelTypeChange = (index: number, newType: 'Private Model' | 'Protected Model' | 'Public Model') => {
+    const updatedModels = models.map((model, i) =>
+      i === index ? { ...model, type: newType } : model
+    );
+    setModels(updatedModels);
+  };
 
   return (
     <Card>
@@ -61,7 +98,17 @@ export default function AccessPage() {
               {models.map((model, index) => (
                 <tr key={index} className="border-t">
                   <td className="py-2 px-4">{model.name}</td>
-                  <td className="py-2 px-4">{model.type}</td>
+                  <td className="py-2 px-4">
+                    <select
+                      value={model.type}
+                      onChange={(e) => handleModelTypeChange(index, e.target.value as 'Private Model' | 'Protected Model' | 'Public Model')}
+                      className="border border-gray-300 rounded px-2 py-1"
+                    >
+                      <option value="Private Model">Private Model</option>
+                      <option value="Protected Model">Protected Model</option>
+                      <option value="Public Model">Public Model</option>
+                    </select>
+                  </td>
                   <td className="py-2 px-4">
                     {model.type === 'Private Model' && (
                       <div>

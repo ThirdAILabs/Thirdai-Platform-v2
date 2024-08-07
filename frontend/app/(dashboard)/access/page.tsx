@@ -12,9 +12,9 @@ export default function AccessPage() {
 
   // Sample data for the table
   const models = [
-    { name: 'Model A', type: 'Private Model', access: [{ member: 'Alice', type: 'Owner' }, { member: 'Bob', type: 'Read' }] },
-    { name: 'Model B', type: 'Protected Model', access: [{ member: 'Alice', type: 'Write' }, { member: 'Charlie', type: 'Read' }] },
-    { name: 'Model C', type: 'Public Model', access: [{ member: 'Bob', type: 'Owner' }, { member: 'Charlie', type: 'Write' }] },
+    { name: 'Model A', type: 'Private Model', owner: 'Alice', users: ['Bob', 'Charlie'] },
+    { name: 'Model B', type: 'Protected Model', owner: 'Alice', team: 'Team A', teamAdmin: 'Charlie' },
+    { name: 'Model C', type: 'Public Model', owner: 'Bob' },
   ];
 
   return (
@@ -25,15 +25,15 @@ export default function AccessPage() {
       </CardHeader>
       <CardContent>
         <div className="mb-4">
-          <h2 className="text-xl font-semibold">Your role is: {userRole}</h2>
-          <p>Role description: {roleDescription}</p>
+          <h2 className="text-xl font-semibold">{userRole}</h2>
+          <p>{roleDescription}</p>
         </div>
         <table className="min-w-full bg-white">
           <thead>
             <tr>
               <th className="py-2 px-4 text-left">Model Name</th>
               <th className="py-2 px-4 text-left">Model Type</th>
-              <th className="py-2 px-4 text-left">Access</th>
+              <th className="py-2 px-4 text-left">Access Details</th>
             </tr>
           </thead>
           <tbody>
@@ -42,11 +42,24 @@ export default function AccessPage() {
                 <td className="py-2 px-4">{model.name}</td>
                 <td className="py-2 px-4">{model.type}</td>
                 <td className="py-2 px-4">
-                  {model.access.map((access, accessIndex) => (
-                    <div key={accessIndex}>
-                      {access.member} ({access.type})
+                  {model.type === 'Private Model' && (
+                    <div>
+                      <div>Owner: {model.owner}</div>
+                      <div>Users: {model.users?.join(', ') || 'None'}</div>
                     </div>
-                  ))}
+                  )}
+                  {model.type === 'Protected Model' && (
+                    <div>
+                      <div>Owner: {model.owner}</div>
+                      <div>Team: {model.team || 'None'}</div>
+                      <div>Team Admin: {model.teamAdmin || 'None'}</div>
+                    </div>
+                  )}
+                  {model.type === 'Public Model' && (
+                    <div>
+                      <div>Owner: {model.owner}</div>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}

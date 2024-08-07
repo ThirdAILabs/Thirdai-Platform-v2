@@ -27,7 +27,7 @@ type Team = {
 
 type User = {
   name: string;
-  role: string;
+  role: 'Member' | 'Team Admin' | 'Global Admin';
   adminTeams: string[];
   ownedModels: string[];
 };
@@ -53,11 +53,12 @@ export default function AccessPage() {
   const initialUsers: User[] = [
     { name: 'Alice', role: 'Member', adminTeams: [], ownedModels: ['Model A', 'Model B'] },
     { name: 'Bob', role: 'Member', adminTeams: [], ownedModels: ['Model C'] },
-    { name: 'Charlie', role: 'Admin', adminTeams: ['Team A'], ownedModels: [] },
-    { name: 'Dave', role: 'Admin', adminTeams: ['Team B'], ownedModels: [] },
+    { name: 'Charlie', role: 'Team Admin', adminTeams: ['Team A'], ownedModels: [] },
+    { name: 'Dave', role: 'Team Admin', adminTeams: ['Team B'], ownedModels: [] },
     { name: 'Eve', role: 'Member', adminTeams: [], ownedModels: [] },
     { name: 'Frank', role: 'Member', adminTeams: [], ownedModels: [] },
     { name: 'Grace', role: 'Member', adminTeams: [], ownedModels: [] },
+    { name: 'Global Admin', role: 'Global Admin', adminTeams: [], ownedModels: [] }
   ];
 
   // State to manage models, teams, and users
@@ -99,19 +100,32 @@ export default function AccessPage() {
 
   // Delete a team and update protected models
   const deleteTeam = (teamName: string) => {
+    const teamAdmin = teams.find(team => team.name === teamName)?.admin;
     setTeams(teams.filter(team => team.name !== teamName));
     const updatedModels = models.map(model =>
-      model.team === teamName ? { ...model, type: 'Private Model', team: undefined, teamAdmin: undefined } : model
+      model.team === teamName
+        ? { ...model, type: 'Private Model', owner: model.owner, team: undefined, teamAdmin: undefined }
+        : model
     ) as Model[];
     setModels(updatedModels);
   };
 
   // Delete a user account and update owned models
   const deleteUser = (userName: string) => {
+    const globalAdmin = users.find(user => user.role === 'Global Admin')?.name || 'None';
+    const userToDelete = users.find(user => user.name === userName);
     setUsers(users.filter(user => user.name !== userName));
-    const updatedModels = models.map(model =>
-      model.owner === userName ? { ...model, type: 'Private Model', owner: 'None' } : model
-    ) as Model[];
+    const updatedModels = models.map(model => {
+      if (model.owner === userName) {
+        if (model.type === 'Protected Model') {
+          const teamAdmin = users.find(user => user.adminTeams.includes(model.team || ''))?.name || globalAdmin;
+          return { ...model, owner: teamAdmin, type: 'Private Model' };
+        } else {
+          return { ...model, owner: globalAdmin, type: 'Private Model' };
+        }
+      }
+      return model;
+    }) as Model[];
     setModels(updatedModels);
   };
 

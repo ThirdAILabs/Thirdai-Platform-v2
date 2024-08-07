@@ -104,7 +104,7 @@ jobs:
         JWT_SECRET="CsnCr3lebs9eJQ"
         SENDGRID_KEY="sendgrid-key"
         PLATFORM="local"
-        PYTHON_PATH="$(which python3)"
+        PYTHON_PATH="$GITHUB_WORKSPACE/venv/bin/python"
         ADMIN_USERNAME="admin"
         ADMIN_MAIL="admin@mail.com"
         ADMIN_PASSWORD="password"
@@ -117,22 +117,25 @@ jobs:
 
     - name: Launch Backend
       run: |
+        source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE/thirdai_platform
         ls -la 
         cat .env
         source .env
-        source ${{ github.workspace }}/venv/bin/activate
+        echo $DATABASE_URI
+        echo $LOCAL_TEST_DIR
         nohup uvicorn main:app --reload --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
 
 
     - name: Run Tests
       run: |
+        source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE/thirdai_platform
         ls -la 
         cat .env
         source .env
-        cd $GITHUB_WORKSPACE
-        source ${{ github.workspace }}/venv/bin/activate
+        echo $DATABASE_URI
+        echo $LOCAL_TEST_DIR
         python3 -m headless.test --base-url http://localhost:80/api/ --email admin@mail.com --password password --dag-file headless/dag_config.yaml --all --run-name 12
 
     - name: Display Logs

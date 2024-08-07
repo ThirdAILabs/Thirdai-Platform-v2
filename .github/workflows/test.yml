@@ -16,6 +16,22 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v2
 
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'
+
+    - name: Setup Python and Install Dependencies
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+        pip install -r deployment_job/requirements.txt
+        pip install -r docs/requirements.txt
+        pip install -r headless/requirements.txt
+        pip install -r llm_generation_job/requirements.txt
+        pip install -r thirdai_platform/requirements.txt
+        pip install -r train_job/requirements.txt
+
     - name: Install Homebrew
       run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
@@ -105,6 +121,7 @@ jobs:
         ls -la 
         cat .env
         source .env
+        source venv/bin/activate
         nohup uvicorn main:app --reload --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
 
 
@@ -115,13 +132,23 @@ jobs:
         cat .env
         source .env
         cd $GITHUB_WORKSPACE
+        source venv/bin/activate
         python3 -m headless.test --base-url http://localhost:80/api/ --email admin@mail.com --password password --dag-file headless/dag_config.yaml --all --run-name 12
+
+    - name: Display Logs
+      if: always()
+      run: |
+        echo "Nomad Logs:"
+        cat nomad.log
+        echo "Traefik Logs:"
+        cat local_setup/traefik.log
+        echo "Vault Logs:"
+        cat vault.log
+        echo "Uvicorn Logs:"
+        cat $GITHUB_WORKSPACE/thirdai_platform/uvicorn.log
 
     - name: Stop Services
       if: always()
       run: |
         brew services stop postgresql
-        pkill nomad
-        pkill traefik
-        pkill uvicorn
-        pkill vault
+        brew services stop nomad

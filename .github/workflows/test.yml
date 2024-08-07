@@ -69,10 +69,10 @@ jobs:
         sleep 10
         psql -U $USER -d postgres -c "SELECT 1"
         psql -U $USER -d postgres -c "CREATE ROLE postgres WITH LOGIN SUPERUSER;" || true
-        psql -U postgres -c "ALTER ROLE postgres WITH PASSWORD 'yourpassword';"
+        psql -U postgres -c "ALTER ROLE postgres WITH PASSWORD 'password';"
         psql -U postgres -c "CREATE DATABASE model_bazaar;"
         psql -U postgres -d model_bazaar -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
-        echo "DATABASE_URI=postgresql://postgres:yourpassword@localhost:5432/model_bazaar" >> $GITHUB_ENV
+        echo "DATABASE_URI=postgresql://postgres:password@localhost:5432/model_bazaar" >> $GITHUB_ENV
 
     - name: Install Vault
       run: |
@@ -88,7 +88,7 @@ jobs:
       run: |
         mkdir -p $HOME/nfs/dir
         echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
-        echo "LOCAL_TEST_DIR=$$HOME/nfs/dir" >> $GITHUB_ENV
+        echo "LOCAL_TEST_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
 
     - name: Setup additional environment variables
       run: |

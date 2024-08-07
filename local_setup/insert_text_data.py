@@ -32,7 +32,7 @@ with get_session() as session:
 
 # Copying files
 copytree(
-    "/share/data/dataset_inventory/token_classification",
+    root,
     os.getenv("SHARE_DIR"),
     dirs_exist_ok=True,
 )

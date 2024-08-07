@@ -78,7 +78,7 @@ jobs:
     - name: Run Traefik
       run: |
         cd local_setup
-        nohup bash launch_traefik.sh > traefik.log 2>&1 &
+        nohup sudo bash launch_traefik.sh > traefik.log 2>&1 &
         cd ..
         echo "PUBLIC_MODEL_BAZAAR_ENDPOINT=http://localhost:80/" >> $GITHUB_ENV
         echo "PRIVATE_MODEL_BAZAAR_ENDPOINT=http://localhost:80/" >> $GITHUB_ENV

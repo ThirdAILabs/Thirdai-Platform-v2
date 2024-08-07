@@ -14,6 +14,8 @@ from backend.routers.user import user_router as user
 from backend.routers.vault import vault_router as vault
 from backend.routers.workflow import workflow_router as workflow
 from backend.utils import restart_generate_job
+from database.session import get_session
+from database.utils import initialize_default_workflow_types
 from fastapi.middleware.cors import CORSMiddleware
 
 app = fastapi.FastAPI()
@@ -41,6 +43,10 @@ async def startup_event():
         print("Starting Generation Job...")
         await restart_generate_job()
         print("Successfully started Generation Job!")
+        print("Adding default workflow types")
+        with next(get_session()) as session:
+            initialize_default_workflow_types(session)
+        print("Added workflow types")
     except Exception as error:
         print(f"Failed to start the Generation Job : {error}", file=sys.stderr)
 

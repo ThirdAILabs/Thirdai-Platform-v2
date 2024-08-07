@@ -1,8 +1,8 @@
 import os
 
-import hvac
+import hvac  # type: ignore
 from auth.jwt import AuthenticatedUser, verify_access_token
-from backend.utils import get_model_from_identifier, response
+from backend.utils import get_model_from_identifier
 from database import schema
 from database.session import get_session
 from fastapi import Depends, HTTPException, status

@@ -4,6 +4,7 @@ from datetime import datetime
 
 from enum import Enum
 from sqlalchemy import (
+    ARRAY,
     JSON,
     Boolean,
     Column,
@@ -18,6 +19,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy.orm import declarative_base, relationship, validates
+
+from thirdai_platform.backend.utils import Task
 
 SQLDeclarativeBase = declarative_base()
 
@@ -257,6 +260,55 @@ class Workflow(SQLDeclarativeBase):
     datasource_status = Column(ENUM(State), default=State.NOT_STARTED)
     model_training_status = Column(ENUM(State), default=State.NOT_STARTED)
     deployment_status = Column(ENUM(State), default=State.NOT_STARTED)
+
+class DataSource(SQLDeclarativeBase):
+    __tablename__ = "datasource"
+
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    workflow_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("workflow.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    catalog_id = Column(
+        UUID(as_uuid=True), ForeignKey("catalog.id", ondelete="CASCADE"), nullable=True
+    )
+    samples_per_label = Column(Integer, nullable=True)
+    target_labels = Column(ARRAY(String), nullable=True)
+    user_vocab = Column(ARRAY(String), nullable=True)
+    examples = Column(JSON, nullable=True)
+    user_prompts = Column(String(100), nullable=True)
+    labels_description = Column(JSON, nullable=True)
+    batch_size = Column(Integer, nullable=True)
+    vocab_per_sentence = Column(Integer, nullable=True)
+    domain_prompt = Column(String(100), nullable=True)
+    tags = Column(ARRAY(String), nullable=True)
+    tag_examples = Column(JSON, nullable=True)
+    num_call_batches = Column(Integer, nullable=True)
+    num_samples_per_tag = Column(Integer, nullable=True)
+    user_inserted = Column(Boolean, default=False)
+    generated = Column(Boolean, default=True)
+    __table_args__ = (UniqueConstraint("workflow_id"),)
+
+class Catalog(SQLDeclarativeBase):
+    __tablename__ = "catalog"
+
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    name = Column(String(100), nullable=False)
+    task = Column(ENUM(Task), nullable=False)
+    sub_tasks = Column(ARRAY(String))
+    input_feature = Column(String, nullable=False)
+    target_feature = Column(String, nullable=False)
+    target_labels = Column(ARRAY(String), nullable=False)
+    splits = Column(ARRAY(String))
+    generated = Column(Boolean, default=True)
+    num_generated_samples = Column(Integer)
+    user_inserted = Column(Boolean, default=False)
+
 
 
 class ModelPermission(SQLDeclarativeBase):

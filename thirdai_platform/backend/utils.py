@@ -7,6 +7,7 @@ import socket
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urljoin
+import uuid
 
 import bcrypt
 import requests
@@ -17,6 +18,7 @@ from jinja2 import Template
 from pydantic import BaseModel, Field, root_validator
 from sqlalchemy.orm import Session
 import websockets
+from database.session import get_session
 
 logger = logging.getLogger("ThirdAI_Platform")
 
@@ -746,4 +748,45 @@ class openai_client:
 
                 if response_data["end_of_stream"]:
                     return response_text
+
+def get_task(workflow_id: uuid.UUID):
+    with get_session() as session:
+        return (
+            session.query(schema.InferTask)
+            .filter(schema.InferTask.workflow_id == workflow_id)
+            .first()
+        )
+        
+def filter_by(
+        task: Task, sub_tasks: Optional[List[str]] = None
+    ) -> List[schema.Catalog]:
+        print(f"{task=}")
+        print(f"{sub_tasks=}")
+        with get_session() as session:
+            query = session.query(schema.Catalog).filter(schema.Catalog.task == task)
+            if sub_tasks:
+                query = query.filter(schema.Catalog.sub_tasks.op("&&")(sub_tasks))
+
+            catalogs: List[schema.Catalog] = query.all()
+            return catalogs
+        
+def find_dataset(
+    catalogs: List[schema.Catalog], target_labels: str, cut_off: float = 0.75
+):
+    def similarity(dataset_labels: List[str], target_labels: List[str]) -> float:
+        if not dataset_labels:
+            return 0.0
+        match_count = len(set(dataset_labels) & set(target_labels))
+        return match_count / len(dataset_labels)
+
+    most_suited_dataset = None
+    max_similarity = -1
+    for catalog in catalogs:
+        if len(catalog.target_labels) >= len(target_labels):
+            sim = similarity(catalog.target_labels, target_labels)
+            if sim >= cut_off and sim > max_similarity:
+                max_similarity = sim
+                most_suited_dataset = catalog
+
+    return most_suited_dataset
 

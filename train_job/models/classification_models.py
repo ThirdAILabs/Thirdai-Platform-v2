@@ -8,7 +8,7 @@ from models.model import Model
 from thirdai import bolt
 from utils import list_files
 from variables import TextClassificationVariables, TokenClassificationVariables
-
+import os
 
 @apply_exception_handler
 class ClassificationModel(Model):
@@ -55,6 +55,49 @@ class ClassificationModel(Model):
             / "model.udt"
         )
 
+    def train_on_catalog(self, catalog_id, **kwargs):
+        self.reporter.report_status(self.general_variables.model_id, "in_progress")
+        
+        model = self.get_model()
+        
+        train_file = os.path.join(
+                self.general_variables.model_bazaar_dir,
+                catalog_id,
+                "train.csv"
+            )
+        
+        start_time = time.time()
+        model.train(
+            train_file,
+            epochs=self.train_variables.unsupervised_epochs,
+            learning_rate=self.train_variables.learning_rate,
+            batch_size=self.train_variables.batch_size,
+            metrics=self.train_variables.metrics,
+        )
+        training_time = time.time() - start_time
+
+        self.save_model(model)
+
+        num_params = self.get_num_params(model)
+        model_size = self.get_size()
+        model_size_in_memory = model_size * 4
+        latency = self.get_latency(model)
+
+        self.reporter.report_complete(
+            self.general_variables.model_id,
+            metadata={
+                "num_params": str(num_params),
+                "thirdai_version": str(thirdai.__version__),
+                "training_time": str(training_time),
+                "size": str(model_size),
+                "size_in_memory": str(model_size_in_memory),
+                "latency": str(latency),
+            },
+        )
+        
+        return model
+    
+    
     def load_model(self, model_id):
         return bolt.UniversalDeepTransformer.load(self.get_udt_path(model_id))
 

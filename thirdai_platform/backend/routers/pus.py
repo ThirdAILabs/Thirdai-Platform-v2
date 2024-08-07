@@ -39,18 +39,13 @@ def infer_task(
 
     # Starting a workflow
     workflow_id = uuid.uuid4()
-
-    workflow_dir = os.path.join(os.getenv("DATAGEN_WORKFLOW_DIR"), str(workflow_id))
-    infer_task_dir = os.path.join(workflow_dir, "infer_task")
-    infer_task_status_file = os.path.join(infer_task_dir, "status")
     
     
     with get_session() as session:
         entry = schema.Workflow(id=workflow_id, user_id=authenticated_user.user.id)
         session.add(entry)
         session.commit()
-            
-    os.makedirs(workflow_dir, exist_ok=True)
+
     try:
         # Staring the task: infer task and sub-task
         infer_task_id = uuid.uuid4()
@@ -69,10 +64,6 @@ def infer_task(
             workflow_entry.infer_task_status = State.RUNNING
             session.commit()
             
-        os.mkdir(infer_task_dir)
-            
-
-        update_task_status(infer_task_status_file, text="\nstatus: Running", mode="w")
 
         # Get the task from the openai
         prompt = f"""
@@ -147,8 +138,6 @@ def infer_task(
                 entry.infer_task_status = status
                 session.commit()
             session.commit()
-            
-        update_task_status(infer_task_status_file, text="Status: Done", mode="w")
 
         return response(
             status_code=status.HTTP_200_OK,
@@ -161,13 +150,6 @@ def infer_task(
         )
     except Exception as e:
         print(f"{workflow_id = }")
-        with open(infer_task_status_file, "w") as f:
-            current_time = datetime.datetime.now(
-                pytz.timezone("Asia/Kolkata")
-            ).strftime("%Y-%m-%d %H:%M:%S %Z%z")
-            f.write(f"Time: {current_time}\n")
-            traceback.print_exc(file=f)
-        update_task_status(infer_task_status_file, text=f"\nStatus: Failed {str(e)}", mode="a+")
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message="Got into an error. Unable to infer task. You can report back with this workflow id so that we can look into the issue",

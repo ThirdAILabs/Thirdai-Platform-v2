@@ -1,10 +1,9 @@
-# routers/telemetry_router.py
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Any
 import json
-import os
+
+from routers.model import get_model
 
 class TelemetryEvent(BaseModel):
     UserAction: str
@@ -18,22 +17,16 @@ class TelemetryEventPackage(BaseModel):
     UserMachine: str
     event: TelemetryEvent
 
-LOG_FILE_PATH = "telemetry_logs.json"
-
 telemetry_router = APIRouter()
 
 @telemetry_router.post("/record-event")
 async def record_event(telemetry_package: TelemetryEventPackage):
+    model = get_model()
     log_entry = telemetry_package.dict()
-
-    # Ensure the log file exists
-    if not os.path.isfile(LOG_FILE_PATH):
-        with open(LOG_FILE_PATH, 'w') as f:
-            json.dump([], f)
 
     # Append the log entry to the JSON file
     try:
-        with open(LOG_FILE_PATH, 'r+') as f:
+        with open(model.telemetry_path, 'r+') as f:
             logs = json.load(f)
             logs.append(log_entry)
             f.seek(0)

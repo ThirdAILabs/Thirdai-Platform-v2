@@ -107,7 +107,7 @@ jobs:
       run: |
         source ${{ github.workspace }}/venv/bin/activate
         python3 -m pip uninstall -y thirdai
-        python3 -m pip install local_setup/thirdai-0.9.7+a0152a5-cp311-cp311-macosx_11_0_arm64
+        python3 -m pip install local_setup/thirdai-0.9.7+a0152a5-cp311-cp311-macosx_11_0_arm64.whl
 
     - name: Launch Backend
       run: |

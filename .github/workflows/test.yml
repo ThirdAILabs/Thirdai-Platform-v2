@@ -92,8 +92,6 @@ jobs:
         sudo systemctl start postgresql.service
         sudo -i -u postgres
 
-
-
     - name: Start PostgreSQL Service
       run: sudo systemctl start postgresql
 

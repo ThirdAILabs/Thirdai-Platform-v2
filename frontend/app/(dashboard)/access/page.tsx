@@ -44,7 +44,7 @@ export default function AccessPage() {
   ];
 
   // Sample data for the teams
-  const teams: Team[] = [
+  const initialTeams: Team[] = [
     { name: 'Team A', admin: 'Charlie', members: ['Alice', 'Bob', 'Charlie'] },
     { name: 'Team B', admin: 'Dave', members: ['Eve', 'Frank', 'Grace'] },
   ];
@@ -60,14 +60,48 @@ export default function AccessPage() {
     { name: 'Grace', role: 'Member', adminTeams: [], ownedModels: [] },
   ];
 
-  // State to manage models
+  // State to manage models and teams
   const [models, setModels] = useState<Model[]>(initialModels);
+  const [teams, setTeams] = useState<Team[]>(initialTeams);
+  const [newTeamName, setNewTeamName] = useState<string>('');
+  const [newTeamAdmin, setNewTeamAdmin] = useState<string>('');
+  const [newTeamMembers, setNewTeamMembers] = useState<string[]>([]);
+  const [selectedTeam, setSelectedTeam] = useState<string>('');
+  const [newMember, setNewMember] = useState<string>('');
 
   // Handle model type change
   const handleModelTypeChange = (index: number, newType: 'Private Model' | 'Protected Model' | 'Public Model') => {
     const updatedModels = models.map((model, i) =>
       i === index ? { ...model, type: newType } : model
     );
+    setModels(updatedModels);
+  };
+
+  // Create a new team
+  const createNewTeam = () => {
+    const newTeam: Team = { name: newTeamName, admin: newTeamAdmin, members: newTeamMembers };
+    setTeams([...teams, newTeam]);
+    setNewTeamName('');
+    setNewTeamAdmin('');
+    setNewTeamMembers([]);
+  };
+
+  // Add a member to an existing team
+  const addMemberToTeam = () => {
+    const updatedTeams = teams.map(team =>
+      team.name === selectedTeam ? { ...team, members: [...team.members, newMember] } : team
+    );
+    setTeams(updatedTeams);
+    setSelectedTeam('');
+    setNewMember('');
+  };
+
+  // Delete a team and update protected models
+  const deleteTeam = (teamName: string) => {
+    setTeams(teams.filter(team => team.name !== teamName));
+    const updatedModels = models.map(model =>
+      model.team === teamName ? { ...model, type: 'Private Model', team: undefined, teamAdmin: undefined } : model
+    ) as Model[];
     setModels(updatedModels);
   };
 
@@ -153,8 +187,80 @@ export default function AccessPage() {
                     ))}
                 </ul>
               </div>
+              <button
+                onClick={() => deleteTeam(team.name)}
+                className="mt-2 bg-red-500 text-white px-2 py-1 rounded"
+              >
+                Delete Team
+              </button>
             </div>
           ))}
+
+          {/* Create New Team */}
+          <div className="mb-8">
+            <h4 className="text-md font-semibold">Create New Team</h4>
+            <div className="mb-2">
+              <input
+                type="text"
+                placeholder="Team Name"
+                value={newTeamName}
+                onChange={(e) => setNewTeamName(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 mb-2"
+              />
+              <input
+                type="text"
+                placeholder="Team Admin"
+                value={newTeamAdmin}
+                onChange={(e) => setNewTeamAdmin(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 mb-2"
+              />
+              <input
+                type="text"
+                placeholder="Team Members (comma separated)"
+                value={newTeamMembers.join(', ')}
+                onChange={(e) => setNewTeamMembers(e.target.value.split(',').map(member => member.trim()))}
+                className="border border-gray-300 rounded px-2 py-1 mb-2"
+              />
+              <button
+                onClick={createNewTeam}
+                className="bg-blue-500 text-white px-2 py-1 rounded"
+              >
+                Create Team
+              </button>
+            </div>
+          </div>
+
+          {/* Add Member to Team */}
+          <div>
+            <h4 className="text-md font-semibold">Add Member to Team</h4>
+            <div className="mb-2">
+              <select
+                value={selectedTeam}
+                onChange={(e) => setSelectedTeam(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 mb-2"
+              >
+                <option value="">Select Team</option>
+                {teams.map((team) => (
+                  <option key={team.name} value={team.name}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                placeholder="New Member"
+                value={newMember}
+                onChange={(e) => setNewMember(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 mb-2"
+              />
+              <button
+                onClick={addMemberToTeam}
+                className="bg-green-500 text-white px-2 py-1 rounded"
+              >
+                Add Member
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Users Section */}

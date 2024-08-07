@@ -36,6 +36,17 @@ jobs:
     - name: Install Homebrew
       run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
+    - name: Install Docker
+      run: |
+        brew install --cask docker
+        # Start Docker
+        open /Applications/Docker.app
+        # Wait for Docker to start
+        until docker info; do
+          echo "Waiting for Docker to start..."
+          sleep 5
+        done
+
     - name: Install Nomad
       run: brew install nomad
 

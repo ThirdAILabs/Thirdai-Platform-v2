@@ -3,13 +3,16 @@ import uuid
 from typing import Annotated, Dict, List, Optional, Union
 
 from auth.jwt import AuthenticatedUser, verify_access_token
-from backend.auth_dependencies import get_current_user, team_admin_or_global_admin
+from backend.auth_dependencies import (
+    is_model_owner,
+    team_admin_or_global_admin,
+    verify_model_read_access,
+)
 from backend.utils import (
     get_expiry_min,
     get_high_level_model_info,
     get_model,
     get_model_from_identifier,
-    model_accessible,
     response,
     validate_name,
 )
@@ -28,12 +31,6 @@ model_router = APIRouter()
 storage: interface.StorageInterface = local.LocalStorage(
     os.getenv("LOCAL_TEST_DIR", "/model_bazaar")
 )
-
-
-class UpdateModelPermissionInput(BaseModel):
-    model_name: str
-    user_email: str
-    permission: schema.Permission
 
 
 @model_router.get("/public-list")
@@ -597,11 +594,10 @@ def download_public_model(
     return StreamingResponse(iterfile(), headers=headers, media_type=media_type)
 
 
-@model_router.get("/download")
+@model_router.get("/download", dependencies=[Depends(verify_model_read_access)])
 def download_model(
     model_identifier: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Downloads specified model.
@@ -619,12 +615,6 @@ def download_model(
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=str(error),
-        )
-
-    if not model_accessible(model, authenticated_user.user):
-        return response(
-            status_code=status.HTTP_403_FORBIDDEN,
-            message="You don't have access to download this model.",
         )
 
     model.downloads += 1
@@ -655,18 +645,10 @@ def download_model(
 
 @model_router.get("/team-models", dependencies=[Depends(team_admin_or_global_admin)])
 def list_team_models(
-    team_name: str,
+    team_id: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    user: schema.User = authenticated_user.user
-    if user.role not in [schema.Role.team_admin, schema.Role.global_admin]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have the required permissions.",
-        )
-
-    team = session.query(schema.Team).filter(schema.Team.name == team_name).first()
+    team: schema.Team = session.query(schema.Team).get(team_id)
     if not team:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
@@ -688,44 +670,33 @@ def list_team_models(
     )
 
 
-@model_router.post("/update-model-permission")
+@model_router.post("/update-model-permission", dependencies=[Depends(is_model_owner)])
 def update_model_permission(
-    input: UpdateModelPermissionInput,
+    model_identifier: str,
+    email: str,
+    permission: schema.Permission,
     session: Session = Depends(get_session),
-    current_user: schema.User = Depends(get_current_user),
 ):
-    model = (
-        session.query(schema.Model)
-        .filter(schema.Model.name == input.model_name)
-        .first()
-    )
-    user = (
-        session.query(schema.User).filter(schema.User.email == input.user_email).first()
-    )
-
+    model = get_model_from_identifier(model_identifier, session)
     if not model:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Model not found."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model with identifier {model_identifier} not found",
         )
-
+    user = session.query(schema.User).filter(schema.User.email == email).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
         )
 
-    if not current_user.is_global_admin():
-        if model.user_id != current_user.id:
-            if model.team_id:
-                if current_user.is_team_admin_of_team(model.team_id):
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail="Only the creator, team admin of the model's team, or global admin can update model permissions.",
-                    )
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Only the creator, team admin of the model's team, or global admin can update model permissions.",
-                )
+    if (
+        model.get_user_permission(user)
+        and model.get_user_permission(user) == permission
+    ):
+        return response(
+            status_code=status.HTTP_200_OK,
+            message=f"User already has this permission.",
+        )
 
     model_permission = (
         session.query(schema.ModelPermission)
@@ -734,10 +705,10 @@ def update_model_permission(
     )
 
     if model_permission:
-        model_permission.permission = input.permission
+        model_permission.permission = permission
     else:
         new_permission = schema.ModelPermission(
-            model_id=model.id, user_id=user.id, permission=input.permission
+            model_id=model.id, user_id=user.id, permission=permission
         )
         session.add(new_permission)
 
@@ -745,6 +716,6 @@ def update_model_permission(
 
     return response(
         status_code=status.HTTP_200_OK,
-        message=f"Permission updated to '{input.permission}' for user '{input.user_email}' on model '{input.model_name}'.",
+        message=f"Permission updated to '{permission}' for user '{email}' on model '{model_identifier}'.",
         data={"model_id": str(model.id), "user_id": str(user.id)},
     )

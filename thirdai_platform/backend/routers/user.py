@@ -3,8 +3,8 @@ import pathlib
 from urllib.parse import urlencode, urljoin
 
 import bcrypt
-from auth.jwt import AuthenticatedUser, create_access_token, verify_access_token
-from backend.auth_dependencies import global_admin_only, team_admin_or_global_admin
+from auth.jwt import create_access_token
+from backend.auth_dependencies import global_admin_only
 from backend.mailer import Mailer
 from backend.utils import hash_password, response
 from database import schema
@@ -155,14 +155,45 @@ def add_global_admin(
     session.commit()
     return response(
         status_code=status.HTTP_200_OK,
-        message=f"User {email} has been successfully added as a global admin and removed from all teams.",
+        message=f"User {email} has been successfully added as a global admin",
     )
 
 
-@user_router.delete("/delete-user", dependencies=[Depends(global_admin_only)])
+@user_router.post("/delete-global-admin", dependencies=[Depends(global_admin_only)])
+def delete_global_admin(
+    admin_request: AdminRequest,
+    session: Session = Depends(get_session),
+):
+    email = admin_request.email
+    user = session.query(schema.User).filter(schema.User.email == email).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not registered yet.",
+        )
+
+    if not user.global_admin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not a global admin.",
+        )
+
+    # update the user's role to normal user
+    user.global_admin = False
+
+    session.commit()
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"User {email} has been successfully removed as a global admin and is now a normal user.",
+    )
+
+
+@user_router.delete("/delete-user")
 def delete_user(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
+    current_user: schema.User = Depends(global_admin_only),
 ):
     email = admin_request.email
     user = session.query(schema.User).filter(schema.User.email == email).first()
@@ -172,6 +203,25 @@ def delete_user(
             status_code=status.HTTP_404_NOT_FOUND,
             message=f"User with id {email} not found.",
         )
+
+    team_admins = (
+        session.query(schema.UserTeam).filter_by(role=schema.Role.team_admin).all()
+    )
+    team_admin_map = {
+        team_admin.team_id: team_admin.user_id for team_admin in team_admins
+    }
+
+    models = session.query(schema.Model).filter_by(user_id=user.id).all()
+
+    for model in models:
+        if model.access_level == schema.Access.protected:
+            new_owner_id = team_admin_map.get(model.team_id, current_user.id)
+        else:
+            new_owner_id = current_user.id
+
+        model.user_id = new_owner_id
+
+    session.bulk_save_objects(models)
 
     session.delete(user)
     session.commit()

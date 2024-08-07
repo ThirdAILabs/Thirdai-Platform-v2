@@ -11,7 +11,7 @@ from auth.jwt import (
     verify_access_token,
     verify_access_token_no_throw,
 )
-from backend.auth_dependencies import verify_model_access
+from backend.auth_dependencies import is_model_owner
 from backend.utils import (
     delete_nomad_job,
     get_deployment,
@@ -148,7 +148,7 @@ def get_deployment_permissions(
     )
 
 
-@deploy_router.post("/run", dependencies=[Depends(verify_model_access)])
+@deploy_router.post("/run", dependencies=[Depends(is_model_owner)])
 def deploy_model(
     deployment_name: str,
     model_identifier: str,
@@ -304,11 +304,10 @@ def deploy_model(
     )
 
 
-@deploy_router.get("/status")
+@deploy_router.get("/status", dependencies=[Depends(is_model_owner)])
 def deployment_status(
     deployment_identifier: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Get the status of a deployment.
@@ -393,11 +392,10 @@ def deployment_status(
     return {"message": "successfully updated"}
 
 
-@deploy_router.post("/stop")
+@deploy_router.post("/stop", dependencies=[Depends(is_model_owner)])
 def undeploy_model(
     deployment_identifier: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Stop a running deployment.

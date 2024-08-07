@@ -34,7 +34,7 @@ def get_current_user(
 
 def global_admin_only(current_user: schema.User = Depends(get_current_user)):
     print(
-        f"Checking Global Admin: {current_user.is_global_admin()}, {current_user.email}"
+        f"Checking Global Admin for {current_user.email}: {current_user.is_global_admin()}"
     )
     if not current_user.is_global_admin():
         raise HTTPException(
@@ -44,11 +44,18 @@ def global_admin_only(current_user: schema.User = Depends(get_current_user)):
     return current_user
 
 
-# Note: Following make sure the user is a global admin or a user is an admin to one team,
-# However, this doesnot qurantees that the user is an admin to a particular team. That should
-# be handled in the required function depending upon access depending upon the case.
-def team_admin_or_global_admin(current_user: schema.User = Depends(get_current_user)):
-    if current_user.is_global_admin() or current_user.is_team_admin_of_any_team():
+def team_admin_or_global_admin(
+    team_id: str,
+    current_user: schema.User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    team = session.query(schema.Team).filter(schema.Team.id == team_id).first()
+    if not team:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
+        )
+
+    if current_user.is_global_admin() or current_user.is_team_admin_of_team(team.id):
         return current_user
 
     raise HTTPException(
@@ -57,7 +64,28 @@ def team_admin_or_global_admin(current_user: schema.User = Depends(get_current_u
     )
 
 
-def verify_model_access(
+def is_model_owner(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+    current_user: schema.User = Depends(get_current_user),
+):
+    model = get_model_from_identifier(model_identifier, session)
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model with identifier {model_identifier} not found",
+        )
+
+    if model.get_owner_permission(current_user):
+        return True
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You do not have owner permissions to this model",
+    )
+
+
+def verify_model_read_access(
     model_identifier: str,
     session: Session = Depends(get_session),
     current_user: schema.User = Depends(get_current_user),
@@ -70,15 +98,32 @@ def verify_model_access(
         )
 
     permission = model.get_user_permission(current_user)
-    if permission is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to access this model",
-        )
-
-    if permission == schema.Permission.read or permission == schema.Permission.write:
+    if permission in [schema.Permission.read, schema.Permission.write]:
         return model
 
     raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to the model"
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You do not have read access to this model",
+    )
+
+
+def verify_model_write_access(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+    current_user: schema.User = Depends(get_current_user),
+):
+    model = get_model_from_identifier(model_identifier, session)
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model with identifier {model_identifier} not found",
+        )
+
+    permission = model.get_user_permission(current_user)
+    if permission == schema.Permission.write:
+        return model
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You do not have write access to this model",
     )

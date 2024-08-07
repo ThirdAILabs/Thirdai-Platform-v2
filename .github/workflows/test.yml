@@ -24,13 +24,7 @@ jobs:
     - name: Setup Python and Install Dependencies
       run: |
         python -m venv ${{ github.workspace }}/venv
-        source ${{ github.workspace }}/venv/bin/activate
-        pip install -r deployment_job/requirements.txt
-        pip install -r docs/requirements.txt
-        pip install -r headless/requirements.txt
-        pip install -r llm_generation_job/requirements.txt
-        pip install -r thirdai_platform/requirements.txt
-        pip install -r train_job/requirements.txt
+        echo "PYTHON_PATH=${{ github.workspace }}/venv/bin/python" >> $GITHUB_ENV
 
     - name: Install Homebrew
       run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -41,11 +35,10 @@ jobs:
     - name: Start Nomad in Development Mode
       run: |
         nohup sudo nomad agent -dev -config="local_setup/agent.hcl" > nomad.log 2>&1 &
+        echo "NOMAD_ENDPOINT=http://localhost:4646/" >> $GITHUB_ENV
     
     - name: Verify Nomad Cluster
-      run: |
-        sleep 10  # Give Nomad some time to start
-        nomad node status
+      run: sleep 10 && nomad node status
 
     - name: Install Traefik
       run: brew install traefik
@@ -55,10 +48,11 @@ jobs:
         cd local_setup
         nohup bash launch_traefik.sh > traefik.log 2>&1 &
         cd ..
+        echo "PUBLIC_MODEL_BAZAAR_ENDPOINT=http://localhost:80/" >> $GITHUB_ENV
+        echo "PRIVATE_MODEL_BAZAAR_ENDPOINT=http://localhost:80/" >> $GITHUB_ENV
 
     - name: Install PostgreSQL
-      run: |
-        brew install postgresql@14
+      run: brew install postgresql@14
 
     - name: Start PostgreSQL Service
       run: brew services start postgresql@14
@@ -66,78 +60,53 @@ jobs:
     - name: Setup PostgreSQL Database
       run: |
         sleep 10
-        psql -U $USER -d postgres -c "SELECT 1"  # Check if PostgreSQL is accessible
+        psql -U $USER -d postgres -c "SELECT 1"
         psql -U $USER -d postgres -c "CREATE ROLE postgres WITH LOGIN SUPERUSER;" || true
         psql -U postgres -c "ALTER ROLE postgres WITH PASSWORD 'yourpassword';"
         psql -U postgres -c "CREATE DATABASE model_bazaar;"
         psql -U postgres -d model_bazaar -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
-
+        echo "DATABASE_URI=postgresql://postgres:yourpassword@localhost:5432/model_bazaar" >> $GITHUB_ENV
 
     - name: Install Vault
       run: |
         brew tap hashicorp/tap
         brew install hashicorp/tap/vault
+        echo "HASHICORP_VAULT_ENDPOINT=http://127.0.0.1:8200" >> $GITHUB_ENV
+        echo "HASHICORP_VAULT_TOKEN=00000000-0000-0000-0000-000000000000" >> $GITHUB_ENV
 
     - name: Start Vault Server
-      run: |
-        nohup vault server --dev --dev-root-token-id="00000000-0000-0000-0000-000000000000" > vault.log 2>&1 &
-    
-    - name: Set Vault Environment Variable
-      run: echo "VAULT_ADDR='http://127.0.0.1:8200'" >> $GITHUB_ENV
+      run: nohup vault server --dev --dev-root-token-id="00000000-0000-0000-0000-000000000000" > vault.log 2>&1 &
 
     - name: Create Directories for Share and Test
       run: |
         mkdir -p $HOME/nfs/dir
         mkdir -p $HOME/local/test/dir
+        echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
+        echo "LOCAL_TEST_DIR=$HOME/local/test/dir" >> $GITHUB_ENV
 
-    - name: Setup Environment File
+    - name: Setup additional environment variables
       run: |
-        cat <<EOF > $GITHUB_WORKSPACE/thirdai_platform/.env
-        DATABASE_URI="postgresql://postgres:password@localhost:5432/model_bazaar"
-        PUBLIC_MODEL_BAZAAR_ENDPOINT="http://localhost:80/"
-        PRIVATE_MODEL_BAZAAR_ENDPOINT="http://localhost:80/"
-        NOMAD_ENDPOINT="http://localhost:4646/"
-        LICENSE_PATH="$GITHUB_WORKSPACE/local_setup/ndb_enterprise_license.json"
-        GENAI_KEY="your-openai-key"
-        SHARE_DIR="$HOME/nfs/dir"
-        LOCAL_TEST_DIR="$HOME/local/test/dir"
-        JWT_SECRET="CsnCr3lebs9eJQ"
-        SENDGRID_KEY="sendgrid-key"
-        PLATFORM="local"
-        PYTHON_PATH="$GITHUB_WORKSPACE/venv/bin/python"
-        ADMIN_USERNAME="admin"
-        ADMIN_MAIL="admin@mail.com"
-        ADMIN_PASSWORD="password"
-        HASHICORP_VAULT_ENDPOINT="http://127.0.0.1:8200"
-        HASHICORP_VAULT_TOKEN="00000000-0000-0000-0000-000000000000"
-        TEST_ENVIRONMENT=True
-        EOF
-        ls -la  # List files in the specified directory
-
+        echo "LICENSE_PATH=${{ github.workspace }}/local_setup/ndb_enterprise_license.json" >> $GITHUB_ENV
+        echo "JWT_SECRET=CsnCr3lebs9eJQ" >> $GITHUB_ENV
+        echo "SENDGRID_KEY=sendgrid-key" >> $GITHUB_ENV
+        echo "GENAI_KEY=your-openai-key" >> $GITHUB_ENV
+        echo "ADMIN_USERNAME=admin" >> $GITHUB_ENV
+        echo "ADMIN_MAIL=admin@mail.com" >> $GITHUB_ENV
+        echo "ADMIN_PASSWORD=password" >> $GITHUB_ENV
+        echo "PLATFORM=local" >> $GITHUB_ENV
+        echo "TEST_ENVIRONMENT=True" >> $GITHUB_ENV
 
     - name: Launch Backend
       run: |
         source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE/thirdai_platform
-        ls -la 
-        cat .env
-        source .env
-        echo $DATABASE_URI
-        echo $LOCAL_TEST_DIR
         nohup uvicorn main:app --reload --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
-
 
     - name: Run Tests
       run: |
         source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE/thirdai_platform
-        ls -la 
-        cat .env
-        source .env
-        echo $DATABASE_URI
-        echo $LOCAL_TEST_DIR
-        cd $GITHUB_WORKSPACE
-        python3 -m headless.test --base-url http://localhost:80/api/ --email admin@mail.com --password password --dag-file headless/dag_config.yaml --all --run-name 12
+        python3 -m headless.test --base-url $PUBLIC_MODEL_BAZAAR_ENDPOINT --email $ADMIN_MAIL --password $ADMIN_PASSWORD --dag-file headless/dag_config.yaml --all --run-name 12
 
     - name: Display Logs
       if: always()

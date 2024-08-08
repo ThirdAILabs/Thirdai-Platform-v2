@@ -294,7 +294,7 @@ def deploy_model(
     )
 
 
-@deploy_router.get("/status", dependencies=[Depends(is_model_owner)])
+@deploy_router.get("/status")
 def deployment_status(
     deployment_identifier: str,
     session: Session = Depends(get_session),

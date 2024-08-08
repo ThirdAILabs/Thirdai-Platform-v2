@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
+import { fetchAllModels, fetchAllTeams, fetchAllUsers, createTeam, addUserToTeam, assignTeamAdmin } from "@/lib/backend";
 
 // Define types for the models, teams, and users
 type Model = {
@@ -17,16 +18,29 @@ type Model = {
   users?: string[];
   team?: string;
   teamAdmin?: string;
+  domain: string;
+  latency: string;
+  modelId: string;
+  numParams: string;
+  publishDate: string;
+  size: string;
+  sizeInMemory: string;
+  subType: string;
+  thirdaiVersion: string;
+  trainingTime: string;
 };
 
 type Team = {
+  id: string;
   name: string;
   admin: string;
   members: string[];
 };
 
 type User = {
+  id: string;
   name: string;
+  email: string;
   role: 'Member' | 'Team Admin' | 'Global Admin';
   adminTeams: string[];
   ownedModels: string[];
@@ -36,35 +50,10 @@ export default function AccessPage() {
   const userRole = "Global Admin";
   const roleDescription = "This role has read and write access to all team members and models.";
 
-  // Initial data for the models
-  const initialModels: Model[] = [
-    { name: 'Model A', type: 'Private Model', owner: 'Alice', users: ['Bob', 'Charlie'] },
-    { name: 'Model B', type: 'Protected Model', owner: 'Alice', team: 'Team A', teamAdmin: 'Charlie' },
-    { name: 'Model C', type: 'Public Model', owner: 'Bob' },
-  ];
-
-  // Sample data for the teams
-  const initialTeams: Team[] = [
-    { name: 'Team A', admin: 'Charlie', members: ['Alice', 'Bob', 'Charlie'] },
-    { name: 'Team B', admin: 'Dave', members: ['Eve', 'Frank', 'Grace'] },
-  ];
-
-  // Sample data for the users
-  const initialUsers: User[] = [
-    { name: 'Alice', role: 'Member', adminTeams: [], ownedModels: ['Model A', 'Model B'] },
-    { name: 'Bob', role: 'Member', adminTeams: [], ownedModels: ['Model C'] },
-    { name: 'Charlie', role: 'Team Admin', adminTeams: ['Team A'], ownedModels: [] },
-    { name: 'Dave', role: 'Team Admin', adminTeams: ['Team B'], ownedModels: [] },
-    { name: 'Eve', role: 'Member', adminTeams: [], ownedModels: [] },
-    { name: 'Frank', role: 'Member', adminTeams: [], ownedModels: [] },
-    { name: 'Grace', role: 'Member', adminTeams: [], ownedModels: [] },
-    { name: 'Global Admin', role: 'Global Admin', adminTeams: [], ownedModels: [] }
-  ];
-
   // State to manage models, teams, and users
-  const [models, setModels] = useState<Model[]>(initialModels);
-  const [teams, setTeams] = useState<Team[]>(initialTeams);
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [models, setModels] = useState<Model[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [newTeamAdmin, setNewTeamAdmin] = useState<string>('');
   const [newTeamMembers, setNewTeamMembers] = useState<string[]>([]);
@@ -80,12 +69,31 @@ export default function AccessPage() {
   };
 
   // Create a new team
-  const createNewTeam = () => {
-    const newTeam: Team = { name: newTeamName, admin: newTeamAdmin, members: newTeamMembers };
-    setTeams([...teams, newTeam]);
-    setNewTeamName('');
-    setNewTeamAdmin('');
-    setNewTeamMembers([]);
+  const createNewTeam = async () => {
+    try {
+      // Create the team
+      const createdTeam = await createTeam(newTeamName);
+      const team_id = createdTeam.data.team_id; // Correctly accessing the team ID
+
+      // Add members to the team
+      for (const member of newTeamMembers) {
+        await addUserToTeam(member, team_id);
+      }
+
+      // Assign the admin to the team
+      await assignTeamAdmin(newTeamAdmin, team_id);
+
+      // Update the state
+      // const newTeam: Team = { name: newTeamName, admin: newTeamAdmin, members: newTeamMembers };
+      // setTeams([...teams, newTeam]);
+
+      // Clear the input fields
+      setNewTeamName('');
+      setNewTeamAdmin('');
+      setNewTeamMembers([]);
+    } catch (error) {
+      console.error('Failed to create new team', error);
+    }
   };
 
   // Add a member to an existing team
@@ -128,6 +136,75 @@ export default function AccessPage() {
     }) as Model[];
     setModels(updatedModels);
   };
+
+  useEffect(() => {
+    const getModels = async () => {
+      try {
+        const response = await fetchAllModels();
+        console.log('Fetched Models:', response.data);  // Print out the results
+        const modelData = response.data.map((model): Model => ({
+          name: model.model_name,
+          type: model.access_level === 'private' ? 'Private Model' : model.access_level === 'protected' ? 'Protected Model' : 'Public Model',
+          owner: model.username,
+          users: [], // This needs to be populated based on your application logic
+          team: model.team_id !== 'None' ? model.team_id : undefined,
+          teamAdmin: undefined, // This needs to be populated based on your application logic
+          domain: model.domain,
+          latency: model.latency,
+          modelId: model.model_id,
+          numParams: model.num_params,
+          publishDate: model.publish_date,
+          size: model.size,
+          sizeInMemory: model.size_in_memory,
+          subType: model.sub_type,
+          thirdaiVersion: model.thirdai_version,
+          trainingTime: model.training_time,
+        }));
+        setModels(modelData);
+      } catch (error) {
+        console.error('Failed to fetch models', error);
+      }
+    };
+
+    const getTeams = async () => {
+      try {
+        const response = await fetchAllTeams();
+        console.log('Fetched Teams:', response.data);  // Print out the results
+        const teamData = response.data.map((team): Team => ({
+          id: team.id,
+          name: team.name,
+          admin: '', // This needs to be populated based on your application logic
+          members: [], // This needs to be populated based on your application logic
+        }));
+        setTeams(teamData);
+      } catch (error) {
+        console.error('Failed to fetch teams', error);
+      }
+    };
+
+    const getUsers = async () => {
+      try {
+        const response = await fetchAllUsers();
+        console.log('Fetched Users:', response.data);  // Print out the results
+        const userData = response.data.map((user): User => ({
+          id: user.id,
+          name: user.username,
+          email: user.email,
+          role: user.global_admin ? 'Global Admin' : 'Member', // Adjust the logic if you have Team Admins
+          adminTeams: [], // This needs to be populated based on your application logic
+          ownedModels: [], // This needs to be populated based on your application logic
+        }));
+        setUsers(userData);
+      } catch (error) {
+        console.error('Failed to fetch users', error);
+      }
+    };
+
+    getModels();
+    getTeams();
+    getUsers();
+  }, []);
+
 
   return (
     <Card>

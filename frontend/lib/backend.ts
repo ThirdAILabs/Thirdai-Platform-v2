@@ -525,3 +525,162 @@ export interface DeploymentStats {
   system: DeploymentStatsTable;
   throughput: DeploymentStatsTable;
 }
+
+
+
+//// Admin access dashboard functions /////
+
+// Define the response types for models, teams, and users
+interface ModelResponse {
+  access_level: string;
+  domain: string;
+  latency: string;
+  model_id: string;
+  model_name: string;
+  num_params: string;
+  publish_date: string;
+  size: string;
+  size_in_memory: string;
+  sub_type: string;
+  team_id: string;
+  thirdai_version: string;
+  training_time: string;
+  type: string;
+  user_email: string;
+  username: string;
+}
+
+interface UserResponse {
+  email: string;
+  global_admin: boolean;
+  id: string;
+  teams: string[];
+  username: string;
+}
+
+interface TeamResponse {
+  id: string;
+  name: string;
+}
+
+export async function fetchAllModels(): Promise<{ data: ModelResponse[] }> {
+  const accessToken = getAccessToken(); // Make sure this function is implemented elsewhere in your codebase
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get('http://localhost:8000/api/model/all-models')
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export async function fetchAllTeams(): Promise<{ data: TeamResponse[] }> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get('http://localhost:8000/api/team/list')
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get('http://localhost:8000/api/user/all-users')
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+
+// TEAM //
+
+interface CreateTeamResponse {
+  status_code: number;
+  message: string;
+  data: {
+    team_id: string;
+    team_name: string;
+  };
+}
+
+export async function createTeam(name: string): Promise<CreateTeamResponse> {
+  const accessToken = getAccessToken(); // Make sure this function is implemented elsewhere in your codebase
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ name });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`http://localhost:8000/api/team/create-team?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data as CreateTeamResponse);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+
+
+export async function addUserToTeam(email: string, team_id: string, role: string = 'user') {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ email, team_id, role });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`http://localhost:8000/api/team/add-user-to-team?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export async function assignTeamAdmin(email: string, team_id: string) {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ email, team_id });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`http://localhost:8000/api/team/assign-team-admin?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}

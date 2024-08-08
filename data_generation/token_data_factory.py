@@ -17,7 +17,7 @@ from typing import Dict, List
 from data_factory_interface import DataFactory
 from faker import Faker
 from tqdm import tqdm
-from utils import fill_and_transform_templates, load_and_write_csv, subsample_dictionary
+from utils import fill_and_transform_templates, subsample_dictionary
 
 from .utils import assert_sufficient_examples
 
@@ -177,9 +177,6 @@ class TokenDataFactory(DataFactory):
                 )
             )
 
-        train_file_location = self.save_dir / "train.csv"
-        errored_file_location = self.save_dir / "traceback.err"
-
         random.shuffle(tasks)
         tasks = tasks[: total_expected_sentences - sentences_generated]
 
@@ -208,23 +205,26 @@ class TokenDataFactory(DataFactory):
                             generated_templates.append(response.split("\n"))
 
                     except Exception as e:
-                        with open(errored_file_location, mode="a") as errored_fp:
+                        with open(self.errored_file_location, mode="a") as errored_fp:
                             traceback.print_exc(file=errored_fp)
                             errored_fp.write("\n" + "=" * 100 + "\n")
 
             data_points = fill_and_transform_templates(
                 tags, generated_templates, complete_tag_examples
             )
-            with open(train_file_location, "a") as csvfile:
-                csv_writer = csv.DictWriter(csvfile, fieldnames=[])
-                if sentences_generated == 0:
-                    csv_writer.writeheader()
 
-                csv_writer.writerows(data_points)
+            self.write_on_training_file(
+                data_points,
+                fieldnames=(
+                    [SOURCE_COLUMN, TARGET_COLUMN] if sentences_generated == 0 else None
+                ),
+            )
+
+            sentences_generated += len(data_points)
 
         dataset_config = {
-            "filepath": train_file_location,
-            "error_file": errored_file_location,
+            "filepath": self.train_file_location,
+            "error_file": self.errored_file_location,
             "task": "TOKEN_CLASSIFICATION",
             "input_feature": SOURCE_COLUMN,
             "target_feature": TARGET_COLUMN,

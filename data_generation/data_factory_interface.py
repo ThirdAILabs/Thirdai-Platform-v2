@@ -1,9 +1,10 @@
+import csv
 import json
 import random
 from abc import ABC, abstractmethod
 from pathlib import Path
 from resource.util_data import random_prompts, vocab
-from typing import Optional
+from typing import Dict, List, Optional
 
 from variables import GeneralVariables
 
@@ -37,6 +38,29 @@ class DataFactory(ABC):
             for __annotations__, items in random_prompts.items()
         ]
 
+    def write_on_training_file(
+        self,
+        data_points: List[Dict[str, str]],
+        fieldnames: Optional[List[str]] = None,
+        newline: Optional[str] = None,
+        encoding: Optional[str] = None,
+    ):
+        with open(
+            self.train_file_location, "a", newline=newline, encoding=encoding
+        ) as csv_file:
+            csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            if fieldnames:
+                csv_writer.writeheader()
+            csv_writer.writerows(data_points)
+
     def save_config(self, **kwargs):
         with open(self.save_dir / "config.json", "w") as config_fp:
             json.dump(kwargs, config_fp, indent=4)
+
+    @property
+    def train_file_location(self):
+        return self.save_dir / "train.csv"
+
+    @property
+    def errored_file_location(self):
+        return self.save_dir / "traceback.err"

@@ -15,10 +15,10 @@ def main():
         from text_data_factory import TextDataFactory
         from variables import TextGenerationVariables
 
-        factory = TextDataFactory(api_key=general_variables.genai_key)
+        factory = TextDataFactory()
         args = TextGenerationVariables.load_from_env()
 
-        factory.generate(
+        factory.generate_data(
             task_prompt=args.task_prompt,
             samples_per_label=args.samples_per_label,
             target_labels=args.target_labels,
@@ -33,10 +33,10 @@ def main():
         from token_data_factory import TokenDataFactory
         from variables import TokenGenerationVariables
 
-        factory = TokenDataFactory(api_key=general_variables.genai_key)
+        factory = TokenDataFactory()
         args = TokenGenerationVariables.load_from_env()
 
-        factory.generate(
+        factory.generate_data(
             domain_prompt=args.domain_prompt,
             tags=args.tags,
             tag_examples=args.tag_examples,

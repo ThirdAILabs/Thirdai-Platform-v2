@@ -44,7 +44,7 @@ class TextDataFactory(DataFactory):
                 prompt,
             )
             return [
-                (text, target_label)
+                {SOURCE_COLUMN: text, TARGET_COLUMN: target_label}
                 for text in text_response.replace("\n\n", "\n").split("\n")
                 if text.strip()
             ]
@@ -82,52 +82,52 @@ class TextDataFactory(DataFactory):
 
         random.shuffle(input_data)
         input_data = input_data[: total_expected_sentences - sentences_generated]
-        train_file_location = self.save_dir / "train.csv"
-        errored_file_location = self.save_dir / "traceback.err"
 
-        with open(train_file_location, "a", newline="", encoding="utf-8") as csvfile:
-            csv_writer = csv.writer(csvfile)
-            if sentences_generated == 0:
-                csv_writer.writerow([SOURCE_COLUMN, TARGET_COLUMN])
+        write_chunk_size = 50
+        total_chunks = len(input_data) // write_chunk_size + 1
+        for idx in range(0, len(input_data), write_chunk_size):
+            chunk = input_data[idx : idx + write_chunk_size]
+            data_points = []
+            with ProcessPoolExecutor() as executor, tqdm(
+                total=len(chunk),
+                desc=f"Generating text data {(idx // write_chunk_size)}/{total_chunks}",
+            ) as pbar:
+                futures = []
 
-            write_chunk_size = 50
-            total_chunks = len(input_data) // write_chunk_size + 1
-            for idx in range(0, len(input_data), write_chunk_size):
-                chunk = input_data[idx : idx + write_chunk_size]
-                text_with_target_label = []
-                with ProcessPoolExecutor() as executor, tqdm(
-                    total=len(chunk),
-                    desc=f"Generating text data {(idx // write_chunk_size)}/{total_chunks}",
-                ) as pbar:
-                    futures = []
+                # Submit input_data to the executor
+                for task in chunk:
+                    future = executor.submit(process_task, task)
+                    future.add_done_callback(lambda p: pbar.update())
+                    futures.append(future)
 
-                    # Submit input_data to the executor
-                    for task in chunk:
-                        future = executor.submit(process_task, task)
-                        future.add_done_callback(lambda p: pbar.update())
-                        futures.append(future)
+                # Wait for all input_data to complete and handle exceptions
+                for future in as_completed(futures):
+                    try:
+                        response = future.result()
+                        if response:
+                            data_points.append(response)
 
-                    # Wait for all input_data to complete and handle exceptions
-                    for future in as_completed(futures):
-                        try:
-                            response = future.result()
-                            if response:
-                                text_with_target_label.append(response)
+                    except Exception as e:
+                        with open(self.errored_file_location, mode="a") as errored_fp:
+                            traceback.print_exc(file=errored_fp)
+                            errored_fp.write("\n" + "=" * 100 + "\n")
 
-                        except Exception as e:
-                            with open(errored_file_location, mode="a") as errored_fp:
-                                traceback.print_exc(file=errored_fp)
-                                errored_fp.write("\n" + "=" * 100 + "\n")
+            random.shuffle(data_points)
 
-            random.shuffle(text_with_target_label)
+            self.write_on_training_file(
+                data_points,
+                fieldnames=(
+                    [SOURCE_COLUMN, TARGET_COLUMN] if sentences_generated == 0 else None
+                ),
+                newline="",
+                encoding="utf-8",
+            )
 
-            # Writing to the csv
-            csv_writer.writerows(text_with_target_label)
-            sentences_generated += len(text_with_target_label)
+            sentences_generated += len(data_points)
 
         dataset_config = {
-            "filepath": train_file_location,
-            "error_file": errored_file_location,
+            "filepath": self.train_file_location,
+            "error_file": self.errored_file_location,
             "task": "TEXT_CLASSIFICATION",
             "input_feature": SOURCE_COLUMN,
             "target_feature": TARGET_COLUMN,

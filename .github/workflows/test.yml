@@ -97,7 +97,7 @@ jobs:
 
     - name: Setup PostgreSQL Database
       run: |
-        sleep 10
+        sleep 30 #TODO(pratik): check status here
         sudo -u postgres psql -c "SELECT 1"
         sudo -u postgres psql -c "CREATE ROLE postgres WITH LOGIN SUPERUSER;" || true
         sudo -u postgres psql -c "ALTER ROLE postgres WITH PASSWORD 'password';"

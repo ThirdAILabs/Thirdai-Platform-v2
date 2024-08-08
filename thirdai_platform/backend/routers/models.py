@@ -1,9 +1,10 @@
 import os
 import uuid
-from typing import Annotated, Dict, List, Optional, Union
+from typing import Annotated, Dict, Optional, Union
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import (
+    global_admin_only,
     is_model_owner,
     team_admin_or_global_admin,
     verify_model_read_access,
@@ -56,30 +57,29 @@ def list_public_models(
     Returns:
     - JSONResponse - A JSON response with the list of public models.
     """
-    results = (
+    query = (
         session.query(schema.Model)
         .options(joinedload(schema.Model.user))
         .filter(
             schema.Model.name.ilike(f"%{name}%"),
             schema.Model.access_level == schema.Access.public,
+            schema.Model.train_status == schema.Status.complete,
         )
     )
 
-    results = results.filter(schema.Model.train_status == schema.Status.complete)
-
     if domain:
-        results = results.filter(schema.Model.domain == domain)
+        query = query.filter(schema.Model.domain == domain)
 
     if username:
-        results = results.filter(schema.Model.user.username == username)
+        query = query.join(schema.User).filter(schema.User.username == username)
 
     if type:
-        results = results.filter(schema.Model.type == type)
+        query = query.filter(schema.Model.type == type)
 
     if sub_type:
-        results = results.filter(schema.Model.sub_type == sub_type)
+        query = query.filter(schema.Model.sub_type == sub_type)
 
-    results = [get_high_level_model_info(result) for result in results]
+    results = [get_high_level_model_info(result) for result in query.all()]
 
     return response(
         status_code=status.HTTP_200_OK,
@@ -150,7 +150,7 @@ def list_models(
         query = query.filter(schema.Model.domain == domain)
 
     if username:
-        query = query.filter(schema.Model.user.username == username)
+        query = query.join(schema.User).filter(schema.User.username == username)
 
     if type:
         query = query.filter(schema.Model.type == type)
@@ -193,7 +193,7 @@ def check_model(
     - A JSON response indicating if the model is present.
     """
     user: schema.User = authenticated_user.user
-    model: schema.Model = (
+    model_exists = (
         session.query(schema.Model)
         .filter(and_(schema.Model.name == name, schema.Model.user_id == user.id))
         .first()
@@ -202,7 +202,7 @@ def check_model(
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully checked for model name",
-        data={"model_present": True if model else False},
+        data={"model_present": model_exists is not None},
     )
 
 
@@ -233,7 +233,6 @@ def save_deployed_model(
     """
     user: schema.User = authenticated_user.user
     base_model: schema.Model = session.query(schema.Model).get(body.base_model_id)
-    user: schema.User = session.query(schema.User).get(user.id)
 
     new_model = schema.Model(
         id=body.model_id,
@@ -246,17 +245,13 @@ def save_deployed_model(
         parent_id=base_model.id,
         type=base_model.type,
         sub_type=base_model.sub_type,
-        team_id=user.team_id,
     )
 
     session.add(new_model)
     session.commit()
     session.refresh(new_model)
 
-    metadata: schema.MetaData = schema.MetaData(
-        model_id=body.model_id, deployment=body.metadata
-    )
-
+    metadata = schema.MetaData(model_id=body.model_id, deployment=body.metadata)
     session.add(metadata)
     session.commit()
 
@@ -283,7 +278,7 @@ def pending_train_models(
     """
     user: schema.User = authenticated_user.user
 
-    pending_model_train: List[schema.Model] = (
+    pending_model_train = (
         session.query(schema.Model)
         .filter(
             schema.Model.user_id == user.id,
@@ -338,11 +333,9 @@ def upload_token(
             message=str(error),
         )
 
-    model: schema.Model = get_model(
-        session, username=user.username, model_name=model_name
-    )
+    model_exists = get_model(session, username=user.username, model_name=model_name)
 
-    if model:
+    if model_exists:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"There is already a model saved with {model_name}",
@@ -506,7 +499,7 @@ def upload_commit(
         return response(status_code=status.HTTP_401_UNAUTHORIZED, message=str(error))
 
     model_name = payload["model_identifier"].split("/")[1]
-    model: schema.Model = (
+    model_exists = (
         session.query(schema.Model)
         .filter(
             schema.Model.user_id == payload["user_id"], schema.Model.name == model_name
@@ -514,7 +507,7 @@ def upload_commit(
         .first()
     )
 
-    if model:
+    if model_exists:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"There is already a model saved with {model_name}",
@@ -528,7 +521,7 @@ def upload_commit(
             message=str(error),
         )
 
-    user: schema.User = session.query(schema.User).get(payload["user_id"])
+    user = session.query(schema.User).get(payload["user_id"])
     domain = user.email.split("@")[1]
 
     try:
@@ -557,7 +550,6 @@ def upload_commit(
             model_id=payload["model_id"],
             general=body.metadata,
         )
-
         session.add(new_metadata)
         session.commit()
 
@@ -610,12 +602,12 @@ def download_public_model(
             yield chunk
 
     # Set the appropriate filename based on the model type and compression
-    if compressed:
-        filename = f"{model_identifier}.{model.type}.zip"
-        media_type = "application/zip"
-    else:
-        filename = f"{model_identifier}.{model.type}"
-        media_type = "application/octet-stream"
+    filename = (
+        f"{model_identifier}.{model.type}.zip"
+        if compressed
+        else f"{model_identifier}.{model.type}"
+    )
+    media_type = "application/zip" if compressed else "application/octet-stream"
 
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
 
@@ -712,12 +704,12 @@ def download_model(
             yield chunk
 
     # Set the appropriate filename based on the model type and compression
-    if compressed:
-        filename = f"{model_identifier}.{model.type}.zip"
-        media_type = "application/zip"
-    else:
-        filename = f"{model_identifier}.{model.type}"
-        media_type = "application/octet-stream"
+    filename = (
+        f"{model_identifier}.{model.type}.zip"
+        if compressed
+        else f"{model_identifier}.{model.type}"
+    )
+    media_type = "application/zip" if compressed else "application/octet-stream"
 
     headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
 
@@ -761,7 +753,17 @@ def list_team_models(
     team_id: str,
     session: Session = Depends(get_session),
 ):
-    team: schema.Team = session.query(schema.Team).get(team_id)
+    """
+    List all models associated with a specific team.
+
+    Parameters:
+    - team_id: The ID of the team.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the list of team models.
+    """
+    team = session.query(schema.Team).get(team_id)
     if not team:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
@@ -790,6 +792,18 @@ def update_model_permission(
     permission: schema.Permission,
     session: Session = Depends(get_session),
 ):
+    """
+    Update a user's permission for a specific model.
+
+    Parameters:
+    - model_identifier: The identifier of the model.
+    - email: The email of the user whose permission is being updated.
+    - permission: The new permission to assign to the user.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response indicating the success of the operation.
+    """
     model = get_model_from_identifier(model_identifier, session)
     if not model:
         raise HTTPException(
@@ -802,10 +816,8 @@ def update_model_permission(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
         )
 
-    if (
-        model.get_user_permission(user)
-        and model.get_user_permission(user) == permission
-    ):
+    existing_permission = model.get_user_permission(user)
+    if existing_permission and existing_permission == permission:
         return response(
             status_code=status.HTTP_200_OK,
             message=f"User already has this permission.",
@@ -831,4 +843,137 @@ def update_model_permission(
         status_code=status.HTTP_200_OK,
         message=f"Permission updated to '{permission}' for user '{email}' on model '{model_identifier}'.",
         data={"model_id": str(model.id), "user_id": str(user.id)},
+    )
+
+
+@model_router.get("/all-models", dependencies=[Depends(global_admin_only)])
+def list_all_models(
+    session: Session = Depends(get_session),
+):
+    """
+    List all models in the system.
+
+    Parameters:
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the list of all models.
+    """
+    results = session.query(schema.Model).all()
+
+    results = [get_high_level_model_info(result) for result in results]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the list of all models",
+        data=jsonable_encoder(results),
+    )
+
+
+def deduplicate_permissions(permissions_list: list[dict]) -> list[dict]:
+    """
+    Remove duplicates from a list of permissions, where each permission is a dictionary.
+    """
+    return [dict(t) for t in {tuple(d.items()) for d in permissions_list}]
+
+
+@model_router.get("/permissions", dependencies=[Depends(is_model_owner)])
+def get_model_permissions(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Get detailed information about users' permissions on a specific model.
+
+    Parameters:
+    - model_identifier: The identifier of the model to retrieve permissions for.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the list of users and their permissions on the model.
+    """
+    model = get_model_from_identifier(model_identifier, session)
+
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Model not found"
+        )
+
+    permissions_info = {"owner": [], "write": [], "read": []}
+
+    # Adding model owner and global admins as owners
+    owner = session.query(schema.User).filter(schema.User.id == model.user_id).first()
+    if owner:
+        permissions_info["owner"].append(
+            {"user_id": owner.id, "username": owner.username, "email": owner.email}
+        )
+
+    global_admins = (
+        session.query(schema.User).filter(schema.User.global_admin == True).all()
+    )
+    for admin in global_admins:
+        permissions_info["owner"].append(
+            {"user_id": admin.id, "username": admin.username, "email": admin.email}
+        )
+
+    explicit_permissions = (
+        session.query(schema.ModelPermission)
+        .join(schema.User)
+        .filter(schema.ModelPermission.model_id == model.id)
+        .all()
+    )
+
+    for perm in explicit_permissions:
+        if perm.permission == schema.Permission.write:
+            permissions_info["write"].append(
+                {
+                    "user_id": perm.user.id,
+                    "username": perm.user.username,
+                    "email": perm.user.email,
+                }
+            )
+        elif perm.permission == schema.Permission.read:
+            permissions_info["read"].append(
+                {
+                    "user_id": perm.user.id,
+                    "username": perm.user.username,
+                    "email": perm.user.email,
+                }
+            )
+
+    # Team permissions for protected models
+    if model.access_level == schema.Access.protected:
+        team_users = (
+            session.query(schema.UserTeam)
+            .join(schema.User)
+            .filter(schema.UserTeam.team_id == model.team_id)
+            .all()
+        )
+        for user_team in team_users:
+            if user_team.role == schema.Role.team_admin:
+                permissions_info["owner"].append(
+                    {
+                        "user_id": user_team.user.id,
+                        "username": user_team.user.username,
+                        "email": user_team.user.email,
+                    }
+                )
+            elif user_team.role == schema.Role.user:
+                permissions_info["read"].append(
+                    {
+                        "user_id": user_team.user.id,
+                        "username": user_team.user.username,
+                        "email": user_team.user.email,
+                    }
+                )
+
+    # Deduplicate all permission lists
+    permissions_info = {
+        key: deduplicate_permissions(value) for key, value in permissions_info.items()
+    }
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully retrieved model permissions",
+        data=jsonable_encoder(permissions_info),
     )

@@ -168,7 +168,7 @@ def add_global_admin(
 
 
 @user_router.post("/delete-global-admin", dependencies=[Depends(global_admin_only)])
-def delete_global_admin(
+def demote_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
@@ -232,6 +232,7 @@ def delete_user(
         if model.access_level == schema.Access.protected:
             new_owner_id = team_admin_map.get(model.team_id, current_user.id)
         else:
+            # current user is the global_admin.
             new_owner_id = current_user.id
 
         model.user_id = new_owner_id

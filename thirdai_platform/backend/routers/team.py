@@ -256,7 +256,13 @@ def remove_team_admin(
         .first()
     )
 
-    if not user_team or user_team.role != schema.Role.team_admin:
+    if not user_team:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User is not part of this team",
+        )
+
+    if user_team.role != schema.Role.team_admin:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User is not a team admin of this team",

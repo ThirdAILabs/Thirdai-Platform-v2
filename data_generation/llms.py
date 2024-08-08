@@ -1,16 +1,14 @@
+import os
 from abc import ABC, abstractmethod
 from typing import Optional
 
-import google.generativeai as genai
+import cohere
 from openai import OpenAI
 
 
-class GenerativeBaseModel(ABC):
-    def __init__(self):
-        pass
-
+class LLMBase(ABC):
     @abstractmethod
-    def generate_output(
+    def completion(
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
@@ -18,14 +16,12 @@ class GenerativeBaseModel(ABC):
         pass
 
 
-class OpenAIClient(GenerativeBaseModel):
-    """Uses OpenAI gpt-4o"""
-
+class OpenAILLM(LLMBase):
     def __init__(self, api_key: str):
         super().__init__()
         self.client = OpenAI(api_key=api_key)
 
-    def generate_output(
+    def completion(
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
@@ -46,20 +42,28 @@ class OpenAIClient(GenerativeBaseModel):
         return response.choices[0].message.content
 
 
-class gemini(GenerativeBaseModel):
-    """Uses gemini 1.0 pro"""
-
+class CohereLLM(LLMBase):
     def __init__(self, api_key: str):
         super().__init__()
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel("gemini-1.0-pro-latest")
+        self.client = cohere.Client(api_key=api_key)
 
-    def generate_output(
+    def completion(
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
+        model_name: str = "command-r-plus",
     ) -> str:
+        message = ""
+        if system_prompt:
+            message = f"{system_prompt}\n\n"
+        message += prompt
 
-        response = self.model.generate_content(contents=prompt)
+        response = self.client.chat(model=model_name, message=message)
 
         return response.text
+
+
+llm_classes = {
+    "openai": OpenAILLM,
+    "cohere": CohereLLM,
+}

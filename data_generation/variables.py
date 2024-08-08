@@ -93,8 +93,8 @@ class GeneralVariables(EnvLoader):
     model_bazaar_dir: str
     data_id: str
     data_category: DataCategory
-    key: str
-    provider: LLMProvider = LLMProvider.openai
+    genai_key: str
+    llm_provider: LLMProvider = LLMProvider.openai
 
 
 @dataclass

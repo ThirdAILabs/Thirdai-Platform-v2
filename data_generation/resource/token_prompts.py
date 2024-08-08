@@ -22,7 +22,6 @@ VERY IMPORTANT POINTS:
    2. Give only the attributes in output and make sure each attribute should start on a new line. Do not include any extra new line.
 """
 
-# To generate realistic tag examples for the given user tag
 tag_value_prompt = """Please generate {num_samples_per_tag} diverse samples for the {tag} named entity. Below are some examples of the {tag} entity:
 {tag_example}
 
@@ -34,12 +33,36 @@ VERY IMPORTANT: Only include the attributes themselves in the output. Each attri
 Additionally, aim to cover a wide range of variations within the {tag} entity to ensure the data is as varied and representative as possible.
 """
 
-template_prompt = """You have to generate 2 templatized sentences for the tags: {tags}
+template_prompt = """You have to generate {k} templatized sentences for the tags: {tags}
 
 As an example here are two sentences for the tags [GENDER,ENTHNICITY,DISABILITY,SSN]
 
 She is [GENDER] and is of [ENTHNICITY] DESCENT 
 After getting diagnosed with [DISABILITY] John went home. His social security number is [SSN].
 
-Each sentence should start on a new line and with no bulleting or any header/footer.
+Each sentence should start on a new line and with no bulleting, header/footer or any steps involved.
+"""
+
+dataset_generation_prompt = """You possess deep expertise in {domain_prompt}. Please generate {batch_size} templates of synthetic sentences and associated tags for {domain_prompt}
+            
+VERY IMPORTANT: MAKE SURE identify all named entities occurred that belong to one of the following entity types: 
+{sampled_tags}
+
+
+When generating the output for the NER task, adhere to the following strict format guidelines to ensure data consistency and format correctness
+
+Following are some sample output format for generation. This is just for example and you should not mimic this pattern.
+
+{templatized_sentences_examples}
+
+Key Requirements:
+-   Mask the Only the Entities in square brackets with and make sure entities are in upper case. 
+-   The entities should strictly belong to one of {sampled_tags}. Do not include anything apart from entities in square brackets
+-   Seperate different samples by new line
+-   Give only the generated samples in output and make sure each sample should start on a new line. Do not include any extra new line. 
+-   DO NOT include any bulleting or prefix at start of each sentence and each. Do not include any quotes or emojis
+-   Give equal weightage to all the tags
+-   {rnd_prompts_str}
+
+{values_requirements}
 """

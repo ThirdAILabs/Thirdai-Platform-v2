@@ -2,3 +2,4 @@ requests
 networkx
 pyyaml
 boto3
+pytest

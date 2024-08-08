@@ -268,9 +268,14 @@ class DAGExecutor:
                 try:
                     future.result()
                 except Exception as exc:
-                    logging.error(f"Configuration generated an exception: {exc}")
+                    logging.error(
+                        f"Configuration generated an exception: {exc}",
+                        exc_info=True,
+                    )
+                    return False
 
         logging.info(f"Finished execution of DAG '{dag_name}' with all configurations")
+        return True
 
     def execute_all(self):
         """
@@ -293,7 +298,10 @@ class DAGExecutor:
                 try:
                     future.result()
                 except Exception as exc:
-                    logging.error(f"Configuration generated an exception: {exc}")
+                    logging.error(
+                        f"Configuration generated an exception: {exc}",
+                        exc_info=True,
+                    )
 
         logging.info(f"Finished execution of all DAGs")
 

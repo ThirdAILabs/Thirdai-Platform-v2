@@ -8,6 +8,14 @@ from thirdai import neural_db as ndb
 from headless.configs import Config
 
 
+import os
+import sys
+import boto3
+from botocore import UNSIGNED
+from botocore.client import Config
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+
+
 def get_csv_source_id(
     file: str,
     CSV_ID_COLUMN: Optional[str] = None,
@@ -118,3 +126,33 @@ def extract_static_methods(cls: Type) -> Dict[str, Callable]:
         if isinstance(method, staticmethod):
             static_methods[name] = method.__func__
     return static_methods
+
+
+def download_from_s3_if_not_exists(s3_uri, local_dir):
+    if not os.path.exists(local_dir):
+        os.makedirs(local_dir)
+
+    config = Config(
+        signature_version=UNSIGNED,
+        retries={"max_attempts": 10, "mode": "standard"},
+        connect_timeout=5,
+        read_timeout=60,
+    )
+
+    s3 = boto3.client("s3", config=config)
+    bucket_name = s3_uri.split("/")[2]
+    s3_path = "/".join(s3_uri.split("/")[3:])
+
+    try:
+        for key in s3.list_objects_v2(Bucket=bucket_name, Prefix=s3_path)["Contents"]:
+            local_file_path = os.path.join(local_dir, key["Key"].split("/")[-1])
+            if not os.path.exists(local_file_path):
+                s3.download_file(bucket_name, key["Key"], local_file_path)
+                print(f"Downloaded {local_file_path}")
+    except (NoCredentialsError, PartialCredentialsError) as e:
+        print(f"Error in downloading from S3: {str(e)}")
+        sys.exit(1)
+
+
+def normalize_s3_uri(s3_uri):
+    return s3_uri.rstrip("/")

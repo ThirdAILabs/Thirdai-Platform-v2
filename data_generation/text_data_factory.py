@@ -116,9 +116,8 @@ class TextDataFactory(DataFactory):
 
             self.write_on_training_file(
                 data_points,
-                fieldnames=(
-                    [SOURCE_COLUMN, TARGET_COLUMN] if sentences_generated == 0 else None
-                ),
+                fieldnames=[SOURCE_COLUMN, TARGET_COLUMN],
+                write_fields=sentences_generated == 0,
                 newline="",
                 encoding="utf-8",
             )

@@ -41,7 +41,8 @@ class DataFactory(ABC):
     def write_on_training_file(
         self,
         data_points: List[Dict[str, str]],
-        fieldnames: Optional[List[str]] = None,
+        fieldnames: List[str],
+        write_fields: bool = True,
         newline: Optional[str] = None,
         encoding: Optional[str] = None,
     ):
@@ -49,7 +50,7 @@ class DataFactory(ABC):
             self.train_file_location, "a", newline=newline, encoding=encoding
         ) as csv_file:
             csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-            if fieldnames:
+            if write_fields:
                 csv_writer.writeheader()
             csv_writer.writerows(data_points)
 

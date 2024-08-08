@@ -1,6 +1,6 @@
 // app/NERQuestions.js
 import React, { useState } from 'react';
-import { trainTokenClassifier } from '@/lib/backend';
+import { getUsername, trainTokenClassifier } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
 type Category = {
@@ -211,7 +211,7 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
                 // TODO: We need a better naming scheme, or add a place to enter the model name.
                 if (onCreateModel) {
                   // TODO: SOMEHOW GET USERNAME
-                  onCreateModel('peter', modelName);
+                  onCreateModel(getUsername(), modelName);
                 }
                 trainTokenClassifier(modelName, generatedData, tags).then(() => {
                   if (!stayOnPage) {

@@ -125,6 +125,7 @@ const RAGQuestions = ({
             <SemanticSearchQuestions 
               onCreateModel={(username, modelName) => {
                 // TODO: SOMEHOW GET CURRENT USERNAME
+                console.log("username", username);
                 setSsIdentifier(`${username}/${modelName}`);
                 setCreatedSS(true);
               }}
@@ -197,6 +198,7 @@ const RAGQuestions = ({
                   <NERQuestions 
                     onCreateModel={(username, modelName) => {
                       // TODO: SOMEHOW GET USERNAME
+                      console.log("username", username);
                       setGrIdentifier(`${username}/${modelName}`);
                       setCreatedGR(true);
                     }} 

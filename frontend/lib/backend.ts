@@ -16,6 +16,14 @@ export function getAccessToken(): string {
   return accessToken;
 }
 
+export function getUsername(): string {
+  const username = localStorage.getItem('username');
+  if (!username) {
+    throw new Error('Username is not available');
+  }
+  return username;
+}
+
 export async function fetchPrivateModels(name: string) {
   // Retrieve the access token from local storage
   const accessToken = getAccessToken()
@@ -291,6 +299,13 @@ export function userEmailLogin(email: string, password: string): Promise<any> {
             // Store accessToken into local storage, replacing any existing one.
             localStorage.setItem('accessToken', accessToken);
           }
+
+          const username = res.data.data.user.username;
+
+          if (username) {
+            localStorage.setItem("username", username);
+          }
+
           resolve(res.data);
         })
         .catch((err) => {

@@ -550,11 +550,17 @@ interface ModelResponse {
   username: string;
 }
 
+interface UserTeamInfo {
+  team_id: string;
+  team_name: string;
+  role: 'Member' | 'team_admin' | 'Global Admin';
+}
+
 interface UserResponse {
   email: string;
   global_admin: boolean;
   id: string;
-  teams: string[];
+  teams: UserTeamInfo[];
   username: string;
 }
 

@@ -37,12 +37,18 @@ type Team = {
   members: string[];
 };
 
+type UserTeam = {
+  id: string;
+  name: string;
+  role: 'Member' | 'team_admin' | 'Global Admin';
+};
+
 type User = {
   id: string;
   name: string;
   email: string;
   role: 'Member' | 'Team Admin' | 'Global Admin';
-  adminTeams: string[];
+  teams: UserTeam[];  // Updated to store team details
   ownedModels: string[];
 };
 
@@ -76,16 +82,26 @@ export default function AccessPage() {
       const team_id = createdTeam.data.team_id; // Correctly accessing the team ID
 
       // Add members to the team
-      for (const member of newTeamMembers) {
-        await addUserToTeam(member, team_id);
+      for (const memberName of newTeamMembers) {
+        const member = users.find(user => user.name === memberName);
+        if (member) {
+          await addUserToTeam(member.email, team_id);
+        } else {
+          console.error(`User with name ${memberName} not found`);
+        }
       }
 
       // Assign the admin to the team
-      await assignTeamAdmin(newTeamAdmin, team_id);
+      const admin = users.find(user => user.name === newTeamAdmin);
+      if (admin) {
+        await assignTeamAdmin(admin.email, team_id);
+      } else {
+        console.error(`User with name ${newTeamAdmin} not found`);
+      }
 
       // Update the state
-      // const newTeam: Team = { name: newTeamName, admin: newTeamAdmin, members: newTeamMembers };
-      // setTeams([...teams, newTeam]);
+      const newTeam: Team = { id: team_id, name: newTeamName, admin: newTeamAdmin, members: newTeamMembers };
+      setTeams([...teams, newTeam]);
 
       // Clear the input fields
       setNewTeamName('');
@@ -120,21 +136,21 @@ export default function AccessPage() {
 
   // Delete a user account and update owned models
   const deleteUser = (userName: string) => {
-    const globalAdmin = users.find(user => user.role === 'Global Admin')?.name || 'None';
-    const userToDelete = users.find(user => user.name === userName);
-    setUsers(users.filter(user => user.name !== userName));
-    const updatedModels = models.map(model => {
-      if (model.owner === userName) {
-        if (model.type === 'Protected Model') {
-          const teamAdmin = users.find(user => user.adminTeams.includes(model.team || ''))?.name || globalAdmin;
-          return { ...model, owner: teamAdmin, type: 'Private Model' };
-        } else {
-          return { ...model, owner: globalAdmin, type: 'Private Model' };
-        }
-      }
-      return model;
-    }) as Model[];
-    setModels(updatedModels);
+    // const globalAdmin = users.find(user => user.role === 'Global Admin')?.name || 'None';
+    // const userToDelete = users.find(user => user.name === userName);
+    // setUsers(users.filter(user => user.name !== userName));
+    // const updatedModels = models.map(model => {
+    //   if (model.owner === userName) {
+    //     if (model.type === 'Protected Model') {
+    //       const teamAdmin = users.find(user => user.adminTeams.includes(model.team || ''))?.name || globalAdmin;
+    //       return { ...model, owner: teamAdmin, type: 'Private Model' };
+    //     } else {
+    //       return { ...model, owner: globalAdmin, type: 'Private Model' };
+    //     }
+    //   }
+    //   return model;
+    // }) as Model[];
+    // setModels(updatedModels);
   };
 
   useEffect(() => {
@@ -146,9 +162,9 @@ export default function AccessPage() {
           name: model.model_name,
           type: model.access_level === 'private' ? 'Private Model' : model.access_level === 'protected' ? 'Protected Model' : 'Public Model',
           owner: model.username,
-          users: [], // This needs to be populated based on your application logic
+          users: [], // To be populated later
           team: model.team_id !== 'None' ? model.team_id : undefined,
-          teamAdmin: undefined, // This needs to be populated based on your application logic
+          teamAdmin: undefined, // To be populated later
           domain: model.domain,
           latency: model.latency,
           modelId: model.model_id,
@@ -170,12 +186,29 @@ export default function AccessPage() {
       try {
         const response = await fetchAllTeams();
         console.log('Fetched Teams:', response.data);  // Print out the results
-        const teamData = response.data.map((team): Team => ({
-          id: team.id,
-          name: team.name,
-          admin: '', // This needs to be populated based on your application logic
-          members: [], // This needs to be populated based on your application logic
-        }));
+        const teamData = response.data.map((team): Team => {
+          const members: string[] = [];
+          let admin = '';
+
+          // Populate members and admin from users and models data
+          users.forEach(user => {
+            const userTeam = user.teams.find(ut => ut.id === team.id);
+            if (userTeam) {
+              members.push(user.name);
+              if (userTeam.role === 'team_admin') {
+                admin = user.name;
+              }
+            }
+          });
+
+          return {
+            id: team.id,
+            name: team.name,
+            admin: admin,
+            members: members,
+          };
+        });
+
         setTeams(teamData);
       } catch (error) {
         console.error('Failed to fetch teams', error);
@@ -191,8 +224,12 @@ export default function AccessPage() {
           name: user.username,
           email: user.email,
           role: user.global_admin ? 'Global Admin' : 'Member', // Adjust the logic if you have Team Admins
-          adminTeams: [], // This needs to be populated based on your application logic
-          ownedModels: [], // This needs to be populated based on your application logic
+          teams: user.teams.map(team => ({
+            id: team.team_id,
+            name: team.team_name,
+            role: team.role,
+          })),
+          ownedModels: models.filter(model => model.owner === user.username).map(model => model.name),
         }));
         setUsers(userData);
       } catch (error) {
@@ -201,8 +238,7 @@ export default function AccessPage() {
     };
 
     getModels();
-    getTeams();
-    getUsers();
+    getUsers().then(() => getTeams());
   }, []);
 
 
@@ -371,8 +407,10 @@ export default function AccessPage() {
             <div key={index} className="mb-8">
               <h4 className="text-md font-semibold">{user.name}</h4>
               <div className="mb-2">Role: {user.role}</div>
-              {user.adminTeams.length > 0 && (
-                <div className="mb-2">Admin Teams: {user.adminTeams.join(', ')}</div>
+              {user.teams.filter(team => team.role === 'team_admin').length > 0 && (
+                <div className="mb-2">
+                  Admin Teams: {user.teams.filter(team => team.role === 'team_admin').map(team => team.name).join(', ')}
+                </div>
               )}
               {user.ownedModels.length > 0 && (
                 <div>Owned Models: {user.ownedModels.join(', ')}</div>

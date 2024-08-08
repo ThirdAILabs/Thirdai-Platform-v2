@@ -10,21 +10,19 @@ logger = logging.getLogger("my-logger")
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
-logger.error(
-   "logging: Model3-initiated",
-  
-   extra={"tags": {"service": "my-service"}},
-)
-logger.warning(
-   "logging: Model3-trained",
-   extra={"tags": {"service": "my-service"}},
-)
+# logger.info(
+#    "test-1",
+#    extra={"tags": {"deployment_id": str(123),"PER":21, "ORG": 51}},
+# )
 
 logger.info(
-   "logging: Model4-trained",
-   extra={"tags": {"service": "my-service"}},
+   "test-2",
+   extra={"tags": {"deployment_id": 200,"PER":81, "ORG": 313}, "SSN": 5, "ADDR": 10},
 )
-logger.debug(
-   "logging: Model4-deployed",
-   extra={"tags": {"service": "my-service"}},
+
+
+logger.info(
+   "test-2",
+   extra={"tags": {"deployment_id": 200,"PER":81, "ORG": 313}, "SSN": 50, "ADDR": 100},
 )
+

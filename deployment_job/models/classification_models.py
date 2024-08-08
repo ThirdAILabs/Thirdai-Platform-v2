@@ -6,7 +6,7 @@ from thirdai import bolt
 import logging_loki
 import logging
 logging_loki.emitter.LokiEmitter.level_tag = "level"
-
+from collections import Counter
 
 class ClassificationModel(Model):
     def __init__(self):
@@ -45,6 +45,8 @@ class TextClassificationModel(ClassificationModel):
         prediction = self.model.predict({"text": query}, top_k=top_k)
         class_names = [self.model.class_name(x) for x in prediction[0]]
 
+        _counter = Counter(class_names)
+
         self.db_logger.info(
             str(self.general_variables.deployment_id),
             extra={"tags": {
@@ -52,7 +54,7 @@ class TextClassificationModel(ClassificationModel):
                     "service":"text_classification", 
                     "type": "udt",
                     "action": "predict",
-                    "labels": class_names, 
+                    **_counter,
                 }}
         )
         
@@ -79,6 +81,8 @@ class TokenClassificationModel(ClassificationModel):
         for x in predictions: 
             predictions_flattened.extend([label for label in x if label != "O"])
         
+        _counter = Counter(predictions_flattened)
+        
         self.db_logger.info(
             str(self.general_variables.deployment_id),
             extra={"tags": {
@@ -86,7 +90,7 @@ class TokenClassificationModel(ClassificationModel):
                     "service":"token_classification", 
                     "type": "udt",
                     "action": "predict",
-                    "labels": predictions_flattened, 
+                     **_counter,
                 }}
         )
         

@@ -132,10 +132,10 @@ class TokenDataFactory(DataFactory):
         self,
         domain_prompt: str,
         tags: List[str],
-        num_call_batches: int,
         tag_examples: Dict[str, List[str]],
+        num_call_batches: int,
         batch_size=40,
-        num_samples_per_tag=100,
+        num_samples_per_tag=4,
         sentences_generated=0,  # To resume the generate function incase of midway failure. TODO(Gautam): Incorporate resuming the data_generation task
     ):
         total_expected_sentences = batch_size * num_call_batches

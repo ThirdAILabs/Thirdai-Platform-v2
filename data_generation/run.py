@@ -18,17 +18,6 @@ def main():
         factory = TextDataFactory()
         args = TextGenerationVariables.load_from_env()
 
-        factory.generate_data(
-            task_prompt=args.task_prompt,
-            samples_per_label=args.samples_per_label,
-            target_labels=args.target_labels,
-            user_vocab=args.user_vocab,
-            examples=args.examples,
-            user_prompts=args.user_prompts,
-            labels_description=args.labels_description,
-            batch_size=args.batch_size,
-            vocab_per_sentence=args.vocab_per_sentence,
-        )
     else:
         from token_data_factory import TokenDataFactory
         from variables import TokenGenerationVariables
@@ -36,14 +25,7 @@ def main():
         factory = TokenDataFactory()
         args = TokenGenerationVariables.load_from_env()
 
-        factory.generate_data(
-            domain_prompt=args.domain_prompt,
-            tags=args.tags,
-            tag_examples=args.tag_examples,
-            num_call_batches=args.num_call_batches,
-            batch_size=args.batch_size,
-            num_samples_per_tag=args.num_samples_per_tag,
-        )
+    factory.generate_data(**asdict(args))
 
 
 if __name__ == "__main__":

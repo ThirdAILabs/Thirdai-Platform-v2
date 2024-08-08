@@ -1,5 +1,6 @@
 import os
 import pathlib
+from typing import List, Optional
 from urllib.parse import urlencode, urljoin
 
 import bcrypt
@@ -14,7 +15,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 user_router = APIRouter()
 basic_security = HTTPBasic()
@@ -83,41 +84,45 @@ def email_signup(
     Returns:
     - A JSON response indicating the signup status.
     """
-    user = session.query(schema.User).filter(schema.User.email == body.email).first()
-    if user:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="There is already an account associated with this email.",
+    user: Optional[schema.User] = (
+        session.query(schema.User)
+        .filter(
+            (schema.User.email == body.email) | (schema.User.username == body.username)
         )
-
-    name = (
-        session.query(schema.User).filter(schema.User.username == body.username).first()
+        .first()
     )
-    if name:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="There is already a user associated with this name.",
-        )
+
+    if user:
+        if user.email == body.email:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="There is already an account associated with this email.",
+            )
+        else:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="There is already a user associated with this name.",
+            )
 
     try:
         is_test_environment = os.getenv("TEST_ENVIRONMENT", "False") == "True"
 
-        user = schema.User(
+        new_user = schema.User(
             username=body.username,
             email=body.email,
             password_hash=hash_password(body.password),
             verified=is_test_environment,
         )
 
-        session.add(user)
+        session.add(new_user)
         session.commit()
-        session.refresh(user)
+        session.refresh(new_user)
 
         if not is_test_environment:
             send_verification_mail(
-                user.email,
-                str(user.verification_token),
-                user.username,
+                new_user.email,
+                str(new_user.verification_token),
+                new_user.username,
             )
 
     except Exception as err:
@@ -128,9 +133,9 @@ def email_signup(
         message="Successfully signed up via email.",
         data={
             "user": {
-                "username": user.username,
-                "email": user.email,
-                "user_id": str(user.id),
+                "username": new_user.username,
+                "email": new_user.email,
+                "user_id": str(new_user.id),
             },
         },
     )
@@ -142,7 +147,9 @@ def add_global_admin(
     session: Session = Depends(get_session),
 ):
     email = admin_request.email
-    user = session.query(schema.User).filter(schema.User.email == email).first()
+    user: Optional[schema.User] = (
+        session.query(schema.User).filter(schema.User.email == email).first()
+    )
 
     if not user:
         raise HTTPException(
@@ -150,10 +157,10 @@ def add_global_admin(
             detail="User is not registered yet.",
         )
 
-    # update the user's role to global admin
+    # Update the user's role to global admin
     user.global_admin = True
-
     session.commit()
+
     return response(
         status_code=status.HTTP_200_OK,
         message=f"User {email} has been successfully added as a global admin",
@@ -166,7 +173,9 @@ def delete_global_admin(
     session: Session = Depends(get_session),
 ):
     email = admin_request.email
-    user = session.query(schema.User).filter(schema.User.email == email).first()
+    user: Optional[schema.User] = (
+        session.query(schema.User).filter(schema.User.email == email).first()
+    )
 
     if not user:
         raise HTTPException(
@@ -180,10 +189,10 @@ def delete_global_admin(
             detail="User is not a global admin.",
         )
 
-    # update the user's role to normal user
+    # Update the user's role to normal user
     user.global_admin = False
-
     session.commit()
+
     return response(
         status_code=status.HTTP_200_OK,
         message=f"User {email} has been successfully removed as a global admin and is now a normal user.",
@@ -197,22 +206,27 @@ def delete_user(
     current_user: schema.User = Depends(global_admin_only),
 ):
     email = admin_request.email
-    user = session.query(schema.User).filter(schema.User.email == email).first()
+    user: Optional[schema.User] = (
+        session.query(schema.User)
+        .options(joinedload(schema.User.models))
+        .filter(schema.User.email == email)
+        .first()
+    )
 
     if not user:
         return response(
             status_code=status.HTTP_404_NOT_FOUND,
-            message=f"User with id {email} not found.",
+            message=f"User with email {email} not found.",
         )
 
-    team_admins = (
+    team_admins: List[schema.UserTeam] = (
         session.query(schema.UserTeam).filter_by(role=schema.Role.team_admin).all()
     )
     team_admin_map = {
         team_admin.team_id: team_admin.user_id for team_admin in team_admins
     }
 
-    models = session.query(schema.Model).filter_by(user_id=user.id).all()
+    models: List[schema.Model] = user.models
 
     for model in models:
         if model.access_level == schema.Access.protected:
@@ -223,13 +237,12 @@ def delete_user(
         model.user_id = new_owner_id
 
     session.bulk_save_objects(models)
-
     session.delete(user)
     session.commit()
 
     return response(
         status_code=status.HTTP_200_OK,
-        message=f"User with id {email} has been successfully deleted.",
+        message=f"User with email {email} has been successfully deleted.",
     )
 
 
@@ -265,7 +278,7 @@ def email_verify(verification_token: str, session: Session = Depends(get_session
     Returns:
     - A JSON response indicating the verification status.
     """
-    user: schema.User = (
+    user: Optional[schema.User] = (
         session.query(schema.User)
         .filter(schema.User.verification_token == verification_token)
         .first()
@@ -278,7 +291,6 @@ def email_verify(verification_token: str, session: Session = Depends(get_session
 
     user.verified = True
     user.verification_token = None
-
     session.commit()
 
     return {"message": "Email verification successful."}
@@ -306,7 +318,7 @@ def email_login(
     Returns:
     - A JSON response indicating the login status and user details along with an access token.
     """
-    user: schema.User = (
+    user: Optional[schema.User] = (
         session.query(schema.User)
         .filter(schema.User.email == credentials.username)
         .first()
@@ -358,7 +370,7 @@ def reset_password_verify(
     user's email, ensuring security. Once verified, the system allows the user to update their
     password seamlessly.
     """
-    user: schema.User = (
+    user: Optional[schema.User] = (
         session.query(schema.User).filter(schema.User.email == body.email).first()
     )
 
@@ -377,13 +389,11 @@ def reset_password_verify(
     if user.reset_password_code != body.reset_password_code:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="entered wrong reset password code.",
+            message="Entered wrong reset password code.",
         )
 
     user.reset_password_code = None
-
     user.password_hash = hash_password(body.new_password)
-
     session.commit()
 
     return response(
@@ -393,9 +403,7 @@ def reset_password_verify(
 
 
 @user_router.get("/all-users", dependencies=[Depends(global_admin_only)])
-def list_all_users(
-    session: Session = Depends(get_session),
-):
+def list_all_users(session: Session = Depends(get_session)):
     """
     List all users in the system along with their team memberships and roles.
 
@@ -405,28 +413,29 @@ def list_all_users(
     Returns:
     - A JSON response with the list of all users and their team details.
     """
-    results = session.query(schema.User).all()
+    users: List[schema.User] = (
+        session.query(schema.User)
+        .options(joinedload(schema.User.teams).joinedload(schema.UserTeam.team))
+        .all()
+    )
 
-    users_info = []
-    for user in results:
-        teams_info = [
-            {
-                "team_id": user_team.team_id,
-                "team_name": session.query(schema.Team).get(user_team.team_id).name,
-                "role": user_team.role,
-            }
-            for user_team in user.teams
-        ]
-
-        users_info.append(
-            {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "global_admin": user.global_admin,
-                "teams": teams_info,
-            }
-        )
+    users_info = [
+        {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "global_admin": user.global_admin,
+            "teams": [
+                {
+                    "team_id": user_team.team_id,
+                    "team_name": user_team.team.name,
+                    "role": user_team.role,
+                }
+                for user_team in user.teams
+            ],
+        }
+        for user in users
+    ]
 
     return response(
         status_code=status.HTTP_200_OK,
@@ -444,35 +453,37 @@ def get_user_info(
     Get detailed information about a specific user.
 
     Parameters:
-    - user_id: The ID of the user to retrieve information for.
     - session: The database session (dependency).
     - authenticated_user: The authenticated user (dependency).
 
     Returns:
     - A JSON response with the user's information.
     """
-    user: schema.User = authenticated_user.user
+    user: Optional[schema.User] = (
+        session.query(schema.User)
+        .options(joinedload(schema.User.teams).joinedload(schema.UserTeam.team))
+        .filter(schema.User.id == authenticated_user.user.id)
+        .first()
+    )
 
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
-    teams_info = [
-        {
-            "team_id": user_team.team_id,
-            "team_name": session.query(schema.Team).get(user_team.team_id).name,
-            "role": user_team.role,
-        }
-        for user_team in user.teams
-    ]
-
     user_info = {
         "id": user.id,
         "username": user.username,
         "email": user.email,
         "global_admin": user.global_admin,
-        "teams": teams_info,
+        "teams": [
+            {
+                "team_id": user_team.team_id,
+                "team_name": user_team.team.name,
+                "role": user_team.role,
+            }
+            for user_team in user.teams
+        ],
     }
 
     return response(

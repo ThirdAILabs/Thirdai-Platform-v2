@@ -52,10 +52,10 @@ def initialize_environment():
 
 
 dag_files = [
-    ("dag_config.yaml", "GlobalAdmin"),
-    ("dag_config.yaml", "TeamAdmin"),
-    ("dag_config.yaml", "NDB"),
-    ("dag_config.yaml", "UDT"),
+    ("headless/dag_config.yaml", "GlobalAdmin"),
+    ("headless/dag_config.yaml", "TeamAdmin"),
+    ("headless/dag_config.yaml", "NDB"),
+    ("headless/dag_config.yaml", "UDT"),
 ]
 
 

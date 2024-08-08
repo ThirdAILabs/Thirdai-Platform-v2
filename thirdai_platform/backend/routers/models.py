@@ -4,6 +4,7 @@ from typing import Annotated, Dict, List, Optional, Union
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import (
+    global_admin_only,
     is_model_owner,
     team_admin_or_global_admin,
     verify_model_read_access,
@@ -218,7 +219,6 @@ def save_deployed_model(
         parent_id=base_model.id,
         type=base_model.type,
         sub_type=base_model.sub_type,
-        team_id=user.team_id,
     )
 
     session.add(new_model)
@@ -718,4 +718,129 @@ def update_model_permission(
         status_code=status.HTTP_200_OK,
         message=f"Permission updated to '{permission}' for user '{email}' on model '{model_identifier}'.",
         data={"model_id": str(model.id), "user_id": str(user.id)},
+    )
+
+
+@model_router.get("/all-models", dependencies=[Depends(global_admin_only)])
+def list_all_models(
+    session: Session = Depends(get_session),
+):
+    """
+    List all models in the system.
+
+    Parameters:
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the list of all models.
+    """
+    results = session.query(schema.Model).all()
+
+    results = [get_high_level_model_info(result) for result in results]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the list of all models",
+        data=jsonable_encoder(results),
+    )
+
+
+@model_router.get("/permissions", dependencies=[Depends(is_model_owner)])
+def get_model_permissions(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Get detailed information about users' permissions on a specific model.
+
+    Parameters:
+    - model_identifier: The identifier of the model to retrieve permissions for.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the list of users and their permissions on the model.
+    """
+    model: schema.Model = get_model_from_identifier(model_identifier, session)
+
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Model not found"
+        )
+
+    permissions_info = {"owner": [], "write": [], "read": []}
+
+    owner = session.query(schema.User).filter(schema.User.id == model.user_id).first()
+    if owner:
+        permissions_info["owner"].append(
+            {"user_id": owner.id, "username": owner.username, "email": owner.email}
+        )
+
+    global_admins = (
+        session.query(schema.User).filter(schema.User.global_admin == True).all()
+    )
+    for admin in global_admins:
+        permissions_info["owner"].append(
+            {"user_id": admin.id, "username": admin.username, "email": admin.email}
+        )
+
+    explicit_permissions = (
+        session.query(schema.ModelPermission)
+        .join(schema.User)
+        .filter(schema.ModelPermission.model_id == model.id)
+        .all()
+    )
+
+    for perm in explicit_permissions:
+        if perm.permission == schema.Permission.write:
+            permissions_info["write"].append(
+                {
+                    "user_id": perm.user.id,
+                    "username": perm.user.username,
+                    "email": perm.user.email,
+                }
+            )
+        elif perm.permission == schema.Permission.read:
+            permissions_info["read"].append(
+                {
+                    "user_id": perm.user.id,
+                    "username": perm.user.username,
+                    "email": perm.user.email,
+                }
+            )
+
+    # Team permissions for protected models
+    if model.access_level == schema.Access.protected:
+        team_users = (
+            session.query(schema.UserTeam)
+            .join(schema.User)
+            .filter(schema.UserTeam.team_id == model.team_id)
+            .all()
+        )
+        for user_team in team_users:
+            if user_team.role == schema.Role.team_admin:
+                permissions_info["owner"].append(
+                    {
+                        "user_id": user_team.user.id,
+                        "username": user_team.user.username,
+                        "email": user_team.user.email,
+                    }
+                )
+            elif user_team.role == schema.Role.user:
+                permissions_info["read"].append(
+                    {
+                        "user_id": user_team.user.id,
+                        "username": user_team.user.username,
+                        "email": user_team.user.email,
+                    }
+                )
+
+    # Remove duplicates from the owner list
+    permissions_info["owner"] = [
+        dict(t) for t in {tuple(d.items()) for d in permissions_info["owner"]}
+    ]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully retrieved model permissions",
+        data=jsonable_encoder(permissions_info),
     )

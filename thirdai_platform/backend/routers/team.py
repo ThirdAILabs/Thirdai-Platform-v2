@@ -7,6 +7,7 @@ from backend.utils import get_model_from_identifier, response
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 team_router = APIRouter()
@@ -297,4 +298,77 @@ def remove_team_admin(
         status_code=status.HTTP_200_OK,
         message="Team admin role removed successfully",
         data={"user_id": str(user.id), "team_id": str(team.id)},
+    )
+
+
+@team_router.get("/list", dependencies=[Depends(global_admin_only)])
+def list_all_teams(
+    session: Session = Depends(get_session),
+):
+    """
+    List all teams in the system.
+
+    Parameters:
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the list of all teams.
+    """
+    teams = session.query(schema.Team).all()
+
+    teams_info = [
+        {
+            "id": team.id,
+            "name": team.name,
+        }
+        for team in teams
+    ]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the list of all teams",
+        data=jsonable_encoder(teams_info),
+    )
+
+
+@team_router.get("/team-users", dependencies=[Depends(team_admin_or_global_admin)])
+def list_team_users(
+    team_id: str,
+    session: Session = Depends(get_session),
+):
+    """
+    List all users in a specific team.
+
+    Parameters:
+    - team_id: The ID of the team to retrieve users for.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the list of users in the team.
+    """
+    team = session.query(schema.Team).get(team_id)
+
+    if not team:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
+        )
+
+    user_teams = (
+        session.query(schema.UserTeam).filter(schema.UserTeam.team_id == team_id).all()
+    )
+
+    users_info = [
+        {
+            "user_id": user_team.user_id,
+            "username": session.query(schema.User).get(user_team.user_id).username,
+            "email": session.query(schema.User).get(user_team.user_id).email,
+            "role": user_team.role,
+        }
+        for user_team in user_teams
+    ]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully retrieved users in the team",
+        data=jsonable_encoder(users_info),
     )

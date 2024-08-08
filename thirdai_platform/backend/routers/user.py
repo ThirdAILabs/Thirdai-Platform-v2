@@ -3,13 +3,14 @@ import pathlib
 from urllib.parse import urlencode, urljoin
 
 import bcrypt
-from auth.jwt import create_access_token
+from auth.jwt import AuthenticatedUser, create_access_token, verify_access_token
 from backend.auth_dependencies import global_admin_only
 from backend.mailer import Mailer
 from backend.utils import hash_password, response
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.encoders import jsonable_encoder
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -388,4 +389,94 @@ def reset_password_verify(
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully changed the password.",
+    )
+
+
+@user_router.get("/all-users", dependencies=[Depends(global_admin_only)])
+def list_all_users(
+    session: Session = Depends(get_session),
+):
+    """
+    List all users in the system along with their team memberships and roles.
+
+    Parameters:
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the list of all users and their team details.
+    """
+    results = session.query(schema.User).all()
+
+    users_info = []
+    for user in results:
+        teams_info = [
+            {
+                "team_id": user_team.team_id,
+                "team_name": session.query(schema.Team).get(user_team.team_id).name,
+                "role": user_team.role,
+            }
+            for user_team in user.teams
+        ]
+
+        users_info.append(
+            {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "global_admin": user.global_admin,
+                "teams": teams_info,
+            }
+        )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the list of all users",
+        data=jsonable_encoder(users_info),
+    )
+
+
+@user_router.get("/info")
+def get_user_info(
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Get detailed information about a specific user.
+
+    Parameters:
+    - user_id: The ID of the user to retrieve information for.
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Returns:
+    - A JSON response with the user's information.
+    """
+    user: schema.User = authenticated_user.user
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
+    teams_info = [
+        {
+            "team_id": user_team.team_id,
+            "team_name": session.query(schema.Team).get(user_team.team_id).name,
+            "role": user_team.role,
+        }
+        for user_team in user.teams
+    ]
+
+    user_info = {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "global_admin": user.global_admin,
+        "teams": teams_info,
+    }
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully retrieved user information",
+        data=jsonable_encoder(user_info),
     )

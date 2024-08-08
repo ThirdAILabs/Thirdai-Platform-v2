@@ -23,7 +23,7 @@ queries_ingested_bytes = Throughput()
 @propagate_error
 def udt_query(
     base_params: BaseQueryParams,
-    _=Depends(permissions.verify_read_permission),
+    token=Depends(permissions.verify_read_permission),
 ):
     """
     Predicts the output based on the provided query parameters.
@@ -46,7 +46,7 @@ def udt_query(
     model = get_model()
     params = base_params.dict()
 
-    results = model.predict(**params)
+    results = model.predict(**params, token=token)
 
     tokens_identified.log(len([tags[0] for tags in results.predicted_tags if tags[0] != "O"]))
     queries_ingested.log(1)

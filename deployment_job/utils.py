@@ -130,6 +130,15 @@ class Status(str, enum.Enum):
 
 
 def highlighted_pdf_bytes(reference: ndb.Reference):
+    """
+    Generate highlighted PDF bytes from a reference.
+
+    Parameters:
+    - reference: ndb.Reference - The document reference containing metadata and source path.
+
+    Returns:
+    - bytes: The PDF with highlights as bytes, or None if no highlights are present.
+    """
     if "highlight" not in reference.metadata:
         return None
     highlight = ast.literal_eval(reference.metadata["highlight"])
@@ -145,6 +154,16 @@ def highlighted_pdf_bytes(reference: ndb.Reference):
 
 
 def new_pdf_chunks(db: ndb.NeuralDB, reference: ndb.Reference):
+    """
+    Get chunks of a PDF document with text and bounding boxes for each chunk.
+
+    Parameters:
+    - db: ndb.NeuralDB - The database instance.
+    - reference: ndb.Reference - The document reference containing metadata and source path.
+
+    Returns:
+    - dict: A dictionary containing filename, ids, text, and bounding boxes for each chunk, or None if no chunk boxes are present.
+    """
     if "chunk_boxes" not in reference.metadata:
         return None
     doc, start_id = db._savable_state.documents._get_doc_and_start_id(reference.id)
@@ -160,6 +179,16 @@ def new_pdf_chunks(db: ndb.NeuralDB, reference: ndb.Reference):
 
 
 def old_pdf_chunks(db: ndb.NeuralDB, reference: ndb.Reference):
+    """
+    Get chunks of a PDF document with text and highlighted bounding boxes for each chunk.
+
+    Parameters:
+    - db: ndb.NeuralDB - The database instance.
+    - reference: ndb.Reference - The document reference containing metadata and source path.
+
+    Returns:
+    - dict: A dictionary containing filename, ids, text, and bounding boxes for each chunk, or None if no highlights are present.
+    """
     if "highlight" not in reference.metadata:
         return None
     doc, start_id = db._savable_state.documents._get_doc_and_start_id(reference.id)

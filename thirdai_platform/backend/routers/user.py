@@ -4,11 +4,12 @@ from urllib.parse import urlencode, urljoin
 
 import bcrypt
 from auth.jwt import create_access_token
+from backend.auth_dependencies import global_admin_only
 from backend.mailer import Mailer
 from backend.utils import hash_password, response
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -26,6 +27,10 @@ class AccountSignupBody(BaseModel):
     username: str
     email: str
     password: str
+
+
+class AdminRequest(BaseModel):
+    email: str
 
 
 def send_verification_mail(email: str, verification_token: str, username: str):
@@ -87,29 +92,33 @@ def email_signup(
     name = (
         session.query(schema.User).filter(schema.User.username == body.username).first()
     )
-
     if name:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="There is already an user associated with this name.",
+            message="There is already a user associated with this name.",
         )
+
     try:
+        is_test_environment = os.getenv("TEST_ENVIRONMENT", "False") == "True"
+
         user = schema.User(
             username=body.username,
             email=body.email,
             password_hash=hash_password(body.password),
-            verified=False,
+            verified=is_test_environment,
         )
 
         session.add(user)
         session.commit()
         session.refresh(user)
 
-        send_verification_mail(
-            user.email,
-            str(user.verification_token),
-            user.username,
-        )
+        if not is_test_environment:
+            send_verification_mail(
+                user.email,
+                str(user.verification_token),
+                user.username,
+            )
+
     except Exception as err:
         return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(err))
 
@@ -123,6 +132,103 @@ def email_signup(
                 "user_id": str(user.id),
             },
         },
+    )
+
+
+@user_router.post("/add-global-admin", dependencies=[Depends(global_admin_only)])
+def add_global_admin(
+    admin_request: AdminRequest,
+    session: Session = Depends(get_session),
+):
+    email = admin_request.email
+    user = session.query(schema.User).filter(schema.User.email == email).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not registered yet.",
+        )
+
+    # update the user's role to global admin
+    user.global_admin = True
+
+    session.commit()
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"User {email} has been successfully added as a global admin",
+    )
+
+
+@user_router.post("/delete-global-admin", dependencies=[Depends(global_admin_only)])
+def delete_global_admin(
+    admin_request: AdminRequest,
+    session: Session = Depends(get_session),
+):
+    email = admin_request.email
+    user = session.query(schema.User).filter(schema.User.email == email).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not registered yet.",
+        )
+
+    if not user.global_admin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not a global admin.",
+        )
+
+    # update the user's role to normal user
+    user.global_admin = False
+
+    session.commit()
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"User {email} has been successfully removed as a global admin and is now a normal user.",
+    )
+
+
+@user_router.delete("/delete-user")
+def delete_user(
+    admin_request: AdminRequest,
+    session: Session = Depends(get_session),
+    current_user: schema.User = Depends(global_admin_only),
+):
+    email = admin_request.email
+    user = session.query(schema.User).filter(schema.User.email == email).first()
+
+    if not user:
+        return response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message=f"User with id {email} not found.",
+        )
+
+    team_admins = (
+        session.query(schema.UserTeam).filter_by(role=schema.Role.team_admin).all()
+    )
+    team_admin_map = {
+        team_admin.team_id: team_admin.user_id for team_admin in team_admins
+    }
+
+    models = session.query(schema.Model).filter_by(user_id=user.id).all()
+
+    for model in models:
+        if model.access_level == schema.Access.protected:
+            new_owner_id = team_admin_map.get(model.team_id, current_user.id)
+        else:
+            new_owner_id = current_user.id
+
+        model.user_id = new_owner_id
+
+    session.bulk_save_objects(models)
+
+    session.delete(user)
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"User with id {email} has been successfully deleted.",
     )
 
 
@@ -232,4 +338,54 @@ def email_login(
             "access_token": create_access_token(user.id, expiration_min=120),
             "verified": user.verified,
         },
+    )
+
+
+class VerifyResetPassword(BaseModel):
+    email: str
+    reset_password_code: int
+    new_password: str
+
+
+@user_router.post("/new-password", include_in_schema=False)
+def reset_password_verify(
+    body: VerifyResetPassword,
+    session: Session = Depends(get_session),
+):
+    """
+    The password change process involves verification of the reset password code sent to the
+    user's email, ensuring security. Once verified, the system allows the user to update their
+    password seamlessly.
+    """
+    user: schema.User = (
+        session.query(schema.User).filter(schema.User.email == body.email).first()
+    )
+
+    if not user:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="This email is not registered with any account.",
+        )
+
+    if not user.reset_password_code:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Click on forgot password to get verification code.",
+        )
+
+    if user.reset_password_code != body.reset_password_code:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="entered wrong reset password code.",
+        )
+
+    user.reset_password_code = None
+
+    user.password_hash = hash_password(body.new_password)
+
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully changed the password.",
     )

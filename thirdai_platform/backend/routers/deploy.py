@@ -11,6 +11,7 @@ from auth.jwt import (
     verify_access_token,
     verify_access_token_no_throw,
 )
+from backend.auth_dependencies import is_model_owner
 from backend.utils import (
     delete_nomad_job,
     get_deployment,
@@ -57,32 +58,30 @@ def deployment_read_write_permissions(
     Returns:
     - A tuple (read_permission: bool, write_permission: bool).
     """
-    deployment: schema.Deployment = (
-        session.query(schema.Deployment)
-        .options(joinedload(schema.Deployment.user))
-        .get(deployment_id)
-    )
-    access_level = session.query(schema.Model).get(deployment.model_id).access_level
-    deployment_is_public = access_level == schema.Access.public
+
+    deployment = session.query(schema.Deployment).get(deployment_id)
+    model = session.query(schema.Model).get(deployment.model_id)
+
+    if not deployment:
+        return False, False
+
+    if not model:
+        return False, False
 
     if not isinstance(authenticated_user, AuthenticatedUser):
-        if deployment_is_public:
+        if model.access_level == schema.Access.public:
             return True, False
         return False, False
 
-    current_user: schema.User = authenticated_user.user
-    if deployment.user_id == current_user.id:
-        return True, True
+    user = authenticated_user.user
 
-    if deployment_is_public:
-        return True, False
+    permission = model.get_user_permission(user)
+    if permission == schema.Permission.write:
+        return True, True  # Full access
+    elif permission == schema.Permission.read:
+        return True, False  # Read-only access
 
-    deployment_is_protected = access_level == schema.Access.protected
-    user_is_in_deployment_domain = deployment.user.domain == current_user.domain
-    if deployment_is_protected and user_is_in_deployment_domain:
-        return True, False
-
-    return False, False
+    return False, False  # No access
 
 
 def deployment_owner_permissions(
@@ -151,7 +150,7 @@ def get_deployment_permissions(
     )
 
 
-@deploy_router.post("/run")
+@deploy_router.post("/run", dependencies=[Depends(is_model_owner)])
 def deploy_model(
     deployment_name: str,
     model_identifier: str,
@@ -210,13 +209,7 @@ def deploy_model(
             message="Deployment name is not valid.",
         )
 
-    try:
-        model: schema.Model = get_model_from_identifier(model_identifier, session)
-    except Exception as error:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=str(error),
-        )
+    model: schema.Model = get_model_from_identifier(model_identifier, session)
 
     if model.train_status != schema.Status.complete:
         return response(
@@ -365,11 +358,10 @@ def deploy_model(
     )
 
 
-@deploy_router.get("/status")
+@deploy_router.get("/status", dependencies=[Depends(is_model_owner)])
 def deployment_status(
     deployment_identifier: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Get the status of a deployment.
@@ -478,11 +470,10 @@ def deployment_model_Name(
     )
 
 
-@deploy_router.post("/stop")
+@deploy_router.post("/stop", dependencies=[Depends(is_model_owner)])
 def undeploy_model(
     deployment_identifier: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Stop a running deployment.
@@ -726,4 +717,72 @@ def update_metadata(
         status_code=status.HTTP_200_OK,
         message="Deployment metadata updated successfully.",
         data={"deployment_id": deployment_id, "metadata": deployment.metadata_json},
+    )
+
+@deploy_router.get("/info")
+def get_deployment_info(
+    deployment_id: str,
+    require_raw_logs: bool = False,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token)
+):
+    """
+    Retrieve deployment information.
+
+    Parameters:
+    - deployment_id: The ID of the deployment (query parameter).
+    - require_logs: Whether to include logs in the response (query parameter).
+
+    Returns:
+    - A JSON response with deployment information and optionally logs.
+    """
+    user: schema.User = authenticated_user.user
+
+    # Fetch the deployment from the database for the authenticated user
+    deployment = (
+        session.query(schema.Deployment)
+        .filter(
+            schema.Deployment.id == deployment_id, schema.Deployment.user_id == user.id
+        )
+        .first()
+    )
+
+    if not deployment:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="No deployment with this id",
+        )
+
+    # Prepare the response data
+    deployment_info = {
+        "id": str(deployment.id),
+        "name": deployment.name,
+        "status": deployment.status,
+        "model_id": str(deployment.model_id),
+    }
+
+    # Fetch logs metadata for the authenticated user
+    logs = (
+        session.query(schema.Log)
+        .filter(
+            schema.Log.deployment_id == deployment_id, schema.Log.user_id == user.id
+        )
+        .all()
+    )
+
+    # Include log entries conditionally in the response
+    deployment_info["logs"] = [
+        {
+            "user_id": str(log.user_id),
+            "action": log.action,
+            "count": log.count,
+            **({"log_entries": log.log_entries} if require_raw_logs else {}),
+        }
+        for log in logs
+    ]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Deployment info retrieved successfully",
+        data=jsonable_encoder(deployment_info),
     )

@@ -153,10 +153,10 @@ def list_models(
         query = query.filter(schema.Model.user.username == username)
 
     if type:
-        results = results.filter(schema.Model.type == type)
+        query = query.filter(schema.Model.type == type)
 
     if sub_type:
-        results = results.filter(schema.Model.sub_type == sub_type)
+        query = query.filter(schema.Model.sub_type == sub_type)
 
     if access_level:
         conditions = []
@@ -164,9 +164,9 @@ def list_models(
             conditions.append(schema.Model.access_level == access)
 
         # We have to unpack the conditions to be able to processed by `or_` function.
-        results = results.filter(or_(*conditions))
+        query = query.filter(or_(*conditions))
 
-    results = [get_high_level_model_info(result) for result in results]
+    results = [get_high_level_model_info(result) for result in query]
 
     return response(
         status_code=status.HTTP_200_OK,

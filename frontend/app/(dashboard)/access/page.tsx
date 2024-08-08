@@ -113,13 +113,35 @@ export default function AccessPage() {
   };
 
   // Add a member to an existing team
-  const addMemberToTeam = () => {
-    const updatedTeams = teams.map(team =>
-      team.name === selectedTeam ? { ...team, members: [...team.members, newMember] } : team
-    );
-    setTeams(updatedTeams);
-    setSelectedTeam('');
-    setNewMember('');
+  const addMemberToTeam = async () => {
+    try {
+      // Find the team by name
+      const team = teams.find(t => t.name === selectedTeam);
+      if (!team) {
+        console.error('Selected team not found');
+        return;
+      }
+
+      // Find the user by name
+      const user = users.find(u => u.name === newMember);
+      if (!user) {
+        console.error('User not found');
+        return;
+      }
+
+      // Call the function to add the user to the team
+      await addUserToTeam(user.email, team.id);
+
+      // Optionally update the team members state (if needed)
+      const updatedTeams = teams.map(t =>
+        t.id === team.id ? { ...t, members: [...t.members, user.name] } : t
+      );
+      setTeams(updatedTeams)
+      setSelectedTeam('');  // Clear the selected team
+      setNewMember('');     // Clear the new member input
+    } catch (error) {
+      console.error('Failed to add member to team', error);
+    }
   };
 
   // Delete a team and update protected models
@@ -182,6 +204,33 @@ export default function AccessPage() {
       }
     };
 
+    const getUsers = async () => {
+      try {
+        const response = await fetchAllUsers();
+        console.log('Fetched Users:', response.data);  // Print out the results
+        const userData = response.data.map((user): User => ({
+          id: user.id,
+          name: user.username,
+          email: user.email,
+          role: user.global_admin ? 'Global Admin' : 'Member', // Adjust the logic if you have Team Admins
+          teams: user.teams.map(team => ({
+            id: team.team_id,
+            name: team.team_name,
+            role: team.role,
+          })),
+          ownedModels: models.filter(model => model.owner === user.username).map(model => model.name),
+        }));
+        setUsers(userData);
+      } catch (error) {
+        console.error('Failed to fetch users', error);
+      }
+    };
+
+    getModels();
+    getUsers()
+  }, []);
+
+  useEffect(()=>{
     const getTeams = async () => {
       try {
         const response = await fetchAllTeams();
@@ -215,31 +264,8 @@ export default function AccessPage() {
       }
     };
 
-    const getUsers = async () => {
-      try {
-        const response = await fetchAllUsers();
-        console.log('Fetched Users:', response.data);  // Print out the results
-        const userData = response.data.map((user): User => ({
-          id: user.id,
-          name: user.username,
-          email: user.email,
-          role: user.global_admin ? 'Global Admin' : 'Member', // Adjust the logic if you have Team Admins
-          teams: user.teams.map(team => ({
-            id: team.team_id,
-            name: team.team_name,
-            role: team.role,
-          })),
-          ownedModels: models.filter(model => model.owner === user.username).map(model => model.name),
-        }));
-        setUsers(userData);
-      } catch (error) {
-        console.error('Failed to fetch users', error);
-      }
-    };
-
-    getModels();
-    getUsers().then(() => getTeams());
-  }, []);
+    getTeams()
+  }, [users])
 
 
   return (

@@ -52,8 +52,11 @@ def workflow_types(
                     "name": "semantic_search",
                     "description": "Semantic search workflow",
                     "model_requirements": {
-                        "ModelType1": {"count": 2},
-                        "ModelType2": {"count": 1, "sub_type": "SubTypeA"}
+                        "ModelType1": [{"count": 2}],
+                        "ModelType2": [
+                            {"count": 1, "sub_type": "SubTypeA"},
+                            {"count": 1, "sub_type": "SubTypeB"}
+                        ]
                     }
                 },
                 ...
@@ -406,30 +409,31 @@ def validate_workflow(
 
     issues = defaultdict(list)
 
-    for model_type, requirements in model_requirements.items():
-        required_count = requirements["count"]
-        required_sub_type = requirements.get("sub_type")
+    for model_type, requirements_list in model_requirements.items():
+        for requirements in requirements_list:
+            required_count = requirements["count"]
+            required_sub_type = requirements.get("sub_type")
 
-        if required_sub_type:
-            current_count = sum(
-                count
-                for (m_type, m_sub_type), count in model_counts.items()
-                if m_type == model_type and m_sub_type == required_sub_type
-            )
-        else:
-            current_count = sum(
-                count
-                for (m_type, _), count in model_counts.items()
-                if m_type == model_type
-            )
+            if required_sub_type:
+                current_count = sum(
+                    count
+                    for (m_type, m_sub_type), count in model_counts.items()
+                    if m_type == model_type and m_sub_type == required_sub_type
+                )
+            else:
+                current_count = sum(
+                    count
+                    for (m_type, _), count in model_counts.items()
+                    if m_type == model_type
+                )
 
-        if current_count < required_count:
-            sub_type_msg = (
-                f" with sub_type {required_sub_type}" if required_sub_type else ""
-            )
-            issues[model_type].append(
-                f"Requires {required_count} {model_type}(s){sub_type_msg}, but found {current_count}."
-            )
+            if current_count < required_count:
+                sub_type_msg = (
+                    f" with sub_type {required_sub_type}" if required_sub_type else ""
+                )
+                issues[model_type].append(
+                    f"Requires {required_count} {model_type}(s){sub_type_msg}, but found {current_count}."
+                )
 
     for workflow_model in workflow_models:
         model: schema.Model = workflow_model.model
@@ -698,8 +702,11 @@ class WorkflowTypeParams(BaseModel):
                 "name": "semantic_search",
                 "description": "Semantic search workflow",
                 "model_requirements": {
-                    "ModelType1": {"count": 2},
-                    "ModelType2": {"count": 1, "sub_type": "SubTypeA"},
+                    "ModelType1": [{"count": 2}],
+                    "ModelType2": [
+                        {"count": 1, "sub_type": "SubTypeA"},
+                        {"count": 1, "sub_type": "SubTypeB"},
+                    ],
                 },
             }
         }
@@ -727,8 +734,11 @@ def add_workflow_type(
         "name": "semantic_search",
         "description": "Semantic search workflow",
         "model_requirements": {
-            "ModelType1": {"count": 2},
-            "ModelType2": {"count": 1, "sub_type": "SubTypeA"}
+            "ModelType1": [{"count": 2}],
+            "ModelType2": [
+                {"count": 1, "sub_type": "SubTypeA"},
+                {"count": 1, "sub_type": "SubTypeB"}
+            ]
         }
     }
     ```

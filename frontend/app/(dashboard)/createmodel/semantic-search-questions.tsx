@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import React, { useState } from 'react';
 import { SelectModel } from '@/lib/db';
-import { train_ndb } from '@/lib/backend';
+import { getUsername, train_ndb } from '@/lib/backend';
 
 interface SemanticSearchQuestionsProps {
   onCreateModel?: (userName: string, modelName: string) => void;
@@ -67,7 +67,7 @@ const SemanticSearchQuestions = ({ onCreateModel, stayOnPage }: SemanticSearchQu
       setIsLoading(true);
       try {
         if (onCreateModel) {
-          onCreateModel('peter', modelName);
+          onCreateModel(getUsername(), modelName);
         }
 
         const formData = await handleFileFormdata();

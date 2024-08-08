@@ -15,7 +15,7 @@ class ClassificationModel(Model):
         self.model: bolt.UniversalDeepTransformer = self.load_model()
 
         self.loki_handler = logging_loki.LokiHandler(
-            url="http://localhost:3100/loki/api/v1/push",
+            url="http://192.168.1.11/loki/api/v1/push",
             version="1",
             )
 

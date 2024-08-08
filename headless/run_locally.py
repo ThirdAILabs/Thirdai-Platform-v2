@@ -10,7 +10,6 @@ from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from headless import add_basic_args
 from headless.dag_executor import DAGExecutor
 from headless.functions import functions_registry, initialize_flow
-
 from headless.utils import download_from_s3_if_not_exists, normalize_s3_uri
 
 

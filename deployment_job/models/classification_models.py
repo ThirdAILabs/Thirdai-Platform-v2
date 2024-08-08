@@ -32,6 +32,19 @@ class TextClassificationModel(ClassificationModel):
         prediction = self.model.predict({"text": query}, top_k=top_k)
         class_names = [self.model.class_name(x) for x in prediction[0]]
 
+        self.reporter.log(
+            action="predict",
+            deployment_id=self.general_variables.deployment_id,
+            access_token=kwargs.get("token"),
+            train_samples=[
+                {
+                    "query": query,
+                    "top_k": str(top_k),
+                    "class_names": ",".join(class_names),
+                }
+            ],
+        )
+
         return inputs.SearchResultsTextClassification(
             query_text=query,
             class_names=class_names,
@@ -44,12 +57,18 @@ class TokenClassificationModel(ClassificationModel):
 
     def predict(self, **kwargs):
         query = kwargs["query"]
-        top_k = kwargs["top_k"]
 
-        predicted_tags = self.model.predict({"source": query}, top_k=top_k)
+        predicted_tags = self.model.predict({"source": query}, top_k=1)
         predictions = []
         for predicted_tag in predicted_tags:
             predictions.append([x[0] for x in predicted_tag])
+
+        self.reporter.log(
+            action="predict",
+            deployment_id=self.general_variables.deployment_id,
+            access_token=kwargs.get("token"),
+            train_samples=[{"query": query, "predictions": ",".join(predictions[0])}],
+        )
 
         return inputs.SearchResultsTokenClassification(
             query_text=query,

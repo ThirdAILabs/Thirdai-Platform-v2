@@ -1,7 +1,8 @@
 import asyncio
 import time
 from functools import wraps
-from multiprocessing import Lock, Manager, Process, Queue
+from queue import Queue
+from threading import Lock, Thread
 from typing import Any
 
 import uvicorn
@@ -74,8 +75,7 @@ async def async_timer() -> None:
 
 
 task_queue = Queue()
-manager = Manager()
-tasks = manager.dict()
+tasks = {}
 task_lock = Lock()
 
 
@@ -108,10 +108,12 @@ async def startup_event() -> None:
         time.sleep(10)
         reporter.update_deploy_status(general_variables.deployment_id, "complete")
         if general_variables.type == TypeEnum.NDB:
-            process = Process(
+            # TODO(Yash/Kartik): Separate Job for write modifications for NDB.
+            # As we are going with on-disk index we could only have one instance of model with write mode.
+            thread = Thread(
                 target=process_tasks, args=(task_queue, task_lock, tasks), daemon=True
             )
-            process.start()
+            thread.start()
     except Exception as e:
         reporter.update_deploy_status(general_variables.deployment_id, "failed")
         raise e  # Re-raise the exception to propagate it to the main block

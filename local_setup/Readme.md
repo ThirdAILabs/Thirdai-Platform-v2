@@ -64,7 +64,7 @@ Without this process, it is cumbersome to test out platform changes. We would ha
       - Change `PUBLIC_MODEL_BAZAAR_ENDPOINT` and `PRIVATE_MODEL_BAZAAR_ENDPOINT` to be "http://localhost:80/" (make sure to include the trailing /)
       - Change `NOMAD_ENDPOINT` to "http://localhost:4646/"
       - Change `LICENSE_PATH` to point to your Rag on Rails license (look below for how to create a license file)
-      - Change `SHARE_DIR` and `LOCAL_TEST_DIR` to point to an empty directory where all models and files will be saved
+      - Change `SHARE_DIR` to point to an empty directory where all models and files will be saved
       - Create a `JWT_SECRET` key for generating access token
       - Change the `SENDGRID_KEY`
       - Change the `PYTHON_PATH` to your virtual env python path.
@@ -89,3 +89,8 @@ Extra steps that may help:
 2. Edit the variables `cpu_mhz_limit` and `expiry_date` in `thirdai_platform/licensing/generate/generate_license.py` to the desired values.
 3. Run `python licensing/generate/generate_license.py`, and this should create a file called `ndb_enterprise_license.json` in the `thirdai_platform` directory.
 4. Use this license file in the launching of the Thirdai platform application.
+
+
+### Setting up HashiCorp Vault
+You can use the following instructions to set it up:
+https://waytohksharma.medium.com/install-hashicorp-vault-on-mac-fdbd8cd9113b

@@ -17,6 +17,16 @@ team_router = APIRouter()
 
 @team_router.post("/create-team", dependencies=[Depends(global_admin_only)])
 def add_team(name: str, session: Session = Depends(get_session)):
+    """
+    Create a new team.
+
+    Parameters:
+    - name: The name of the team to be created.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the team ID and name upon successful creation.
+    """
     existing_team: Optional[schema.Team] = (
         session.query(schema.Team).filter_by(name=name).first()
     )
@@ -45,6 +55,18 @@ def add_user_to_team(
     role: schema.Role = schema.Role.user,
     session: Session = Depends(get_session),
 ):
+    """
+    Add a user to a team.
+
+    Parameters:
+    - email: The email of the user to add to the team.
+    - team_id: The ID of the team to add the user to.
+    - role: The role of the user in the team (default: user).
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the user ID and team ID upon successful addition.
+    """
     user: Optional[schema.User] = (
         session.query(schema.User).filter_by(email=email).first()
     )
@@ -89,6 +111,17 @@ def assign_team_admin(
     team_id: str,
     session: Session = Depends(get_session),
 ):
+    """
+    Assign a user as a team admin.
+
+    Parameters:
+    - email: The email of the user to be assigned as team admin.
+    - team_id: The ID of the team where the user will be assigned as admin.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the user ID and team ID upon successful assignment.
+    """
     user_team: Optional[schema.UserTeam] = (
         session.query(schema.UserTeam)
         .join(schema.User)
@@ -114,6 +147,16 @@ def assign_team_admin(
 
 @team_router.delete("/delete-team", dependencies=[Depends(global_admin_only)])
 def delete_team(team_id: str, session: Session = Depends(get_session)):
+    """
+    Delete a team.
+
+    Parameters:
+    - team_id: The ID of the team to delete.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the deleted team ID.
+    """
     team: Optional[schema.Team] = (
         session.query(schema.Team)
         .options(joinedload(schema.Team.users), joinedload(schema.Team.models))
@@ -149,6 +192,17 @@ def add_model_to_team(
     team_id: str,
     session: Session = Depends(get_session),
 ):
+    """
+    Add a model to a team.
+
+    Parameters:
+    - model_identifier: The identifier of the model to add to the team.
+    - team_id: The ID of the team to add the model to.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the model ID and team ID upon successful addition.
+    """
     model: Optional[schema.Model] = get_model_from_identifier(model_identifier, session)
     if not model:
         raise HTTPException(
@@ -183,6 +237,16 @@ def remove_model_from_team(
     model_identifier: str,
     session: Session = Depends(get_session),
 ):
+    """
+    Remove a model from a team.
+
+    Parameters:
+    - model_identifier: The identifier of the model to remove from the team.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the model ID upon successful removal.
+    """
     model: Optional[schema.Model] = get_model_from_identifier(model_identifier, session)
     if not model:
         raise HTTPException(
@@ -209,6 +273,17 @@ def remove_user_from_team(
     team_id: str,
     session: Session = Depends(get_session),
 ):
+    """
+    Remove a user from a team.
+
+    Parameters:
+    - email: The email of the user to remove from the team.
+    - team_id: The ID of the team to remove the user from.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the user ID and team ID upon successful removal.
+    """
     user_team: Optional[schema.UserTeam] = (
         session.query(schema.UserTeam)
         .join(schema.User)
@@ -249,6 +324,17 @@ def remove_team_admin(
     team_id: str,
     session: Session = Depends(get_session),
 ):
+    """
+    Remove a user's team admin role.
+
+    Parameters:
+    - email: The email of the user to remove as team admin.
+    - team_id: The ID of the team from which the user's admin role will be removed.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the user ID and team ID upon successful removal of the admin role.
+    """
     user_team: Optional[schema.UserTeam] = (
         session.query(schema.UserTeam)
         .join(schema.User)

@@ -35,7 +35,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()
 
@@ -81,7 +81,7 @@ def deployment_owner_permissions(
     deployment_id: str,
     session: Session,
     authenticated_user: Union[AuthenticatedUser, HTTPException],
-) -> bool:
+):
     """
     Determine if the user has owner permissions for a deployment.
 
@@ -97,9 +97,9 @@ def deployment_owner_permissions(
     if not deployment or not isinstance(authenticated_user, AuthenticatedUser):
         return False
 
-    current_user: schema.User = authenticated_user.user
+    current_user = authenticated_user.user
 
-    model: schema.Model = session.query(schema.Model).get(deployment.model_id)
+    model = session.query(schema.Model).get(deployment.model_id)
 
     return model.user_id == current_user.id
 
@@ -120,8 +120,12 @@ def get_deployment_permissions(
     - session: The database session (dependency).
     - authenticated_user: The authenticated user (dependency).
 
-    Returns:
-    - A JSON response with the read, write, and override permissions and the token expiration time.
+    Example Usage:
+    ```json
+    {
+       "deployment_id" : "deployment_123",
+    }
+    ```
     """
     read, write = deployment_read_write_permissions(
         deployment_id, session, authenticated_user
@@ -164,8 +168,17 @@ def deploy_model(
     - session: The database session (dependency).
     - authenticated_user: The authenticated user (dependency).
 
-    Returns:
-    - A JSON response indicating the status of the deployment.
+    Example Usage:
+    ```json
+    {
+        "deployment_name": "my_deployment",
+        "model_identifier": "model_123",
+        "memory": 2048,
+        "autoscaling_enabled": true,
+        "autoscaler_max_count": 5,
+        "genai_key": "your_genai_key"
+    }
+    ```
     """
     user = authenticated_user.user
 
@@ -305,10 +318,13 @@ def deployment_status(
     Parameters:
     - deployment_identifier: The identifier of the deployment.
     - session: The database session (dependency).
-    - authenticated_user: The authenticated user (dependency).
 
-    Returns:
-    - A JSON response with the deployment status and ID.
+    Example Usage:
+    ```json
+    {
+        "deployment_identifier": "model123:user123/deployment_name"
+    }
+    ```
     """
     (
         model_username,
@@ -358,8 +374,13 @@ def deployment_status(
     - status: The new status for the deployment.
     - session: The database session (dependency).
 
-    Returns:
-    - A JSON response indicating the update status.
+    Example Usage:
+    ```json
+    {
+        "deployment_id": "deployment123",
+        "status": "in_progress"
+    }
+    ```
     """
     deployment = session.query(schema.Deployment).get(deployment_id)
     if not deployment:
@@ -385,10 +406,13 @@ def undeploy_model(
     Parameters:
     - deployment_identifier: The identifier of the deployment to stop.
     - session: The database session (dependency).
-    - authenticated_user: The authenticated user (dependency).
 
-    Returns:
-    - A JSON response indicating the stop status of the deployment.
+    Example Usage:
+    ```json
+    {
+        "deployment_identifier": "model123:user123/deployment_name"
+    }
+    ```
     """
     (
         model_username,
@@ -464,8 +488,18 @@ def log_results(
     - session: The database session (dependency).
     - authenticated_user: The authenticated user (dependency).
 
-    Returns:
-    - A JSON response indicating the log entry status.
+    Example Usage:
+    ```json
+    {
+        "deployment_id": "deployment123",
+        "action": "train",
+        "train_samples": [
+            {"input": "data1", "output": "label1"},
+            {"input": "data2", "output": "label2"}
+        ],
+        "used": true
+    }
+    ```
     """
     user = authenticated_user.user
     deployment = session.query(schema.Deployment).get(log_data.deployment_id)
@@ -518,10 +552,15 @@ def get_deployment_info(
 
     Parameters:
     - deployment_id: The ID of the deployment (query parameter).
-    - require_logs: Whether to include logs in the response (query parameter).
+    - require_raw_logs: Whether to include raw logs in the response (query parameter).
 
-    Returns:
-    - A JSON response with deployment information and optionally logs.
+    Example Usage:
+    ```json
+    {
+        "deployment_id": "deployment123",
+        "require_raw_logs": false
+    }
+    ```
     """
     user = authenticated_user.user
 

@@ -48,8 +48,15 @@ job "victoriametrics" {
         args = [
           "--storageDataPath=/storage",
           "--retentionPeriod=1d",
-          "--httpListenAddr=:8428"
+          "--httpListenAddr=:8428",
+          "--promscrape.config=$${NOMAD_TASK_DIR}/prometheus.yml"
         ]
+      }
+
+      template {
+        data        = file(abspath("./../configs/prometheus.tpl.yml"))
+        destination = "$${NOMAD_TASK_DIR}/prometheus.yml"
+        change_mode = "restart"
       }
 
       resources {

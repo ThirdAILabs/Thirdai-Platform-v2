@@ -40,7 +40,7 @@ plugin "docker" {
 }
 
 telemetry {
-  collection_interval        = "15s"
+  collection_interval        = "2s"
   disable_hostname           = true
   prometheus_metrics         = true
   publish_allocation_metrics = true

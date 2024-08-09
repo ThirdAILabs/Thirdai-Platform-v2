@@ -26,7 +26,7 @@ def main():
         args = TokenGenerationVariables.load_from_env()
 
     # Saving the args first
-    factory.save_dict(factory.generation_args_location, *asdict(args))
+    factory.save_dict(factory.generation_args_location, **asdict(args))
     factory.generate_data(**asdict(args))
 
 

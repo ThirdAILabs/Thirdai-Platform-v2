@@ -20,16 +20,26 @@ class DataFactory(ABC):
         )
         self.save_dir.mkdir(parents=True, exist_ok=True)
 
-        self.llm_model = llm_classes.get(self.general_variables.llm_provider.value)(
-            api_key=self.general_variables.genai_key
-        )
         self.train_file_location = self.save_dir / "train.csv"
         self.errored_file_location = self.save_dir / "traceback.err"
         self.config_file_location = self.save_dir / "config.json"
         self.generation_args_location = self.save_dir / "generation_args.json"
 
+    def init_llm(self):
+        return llm_classes.get(self.general_variables.llm_provider.value)(
+            api_key=self.general_variables.genai_key
+        )
+
+    def llm_completion(self, prompt: str, system_prompt: Optional[str] = None):
+        llm_model = self.init_llm()
+        return llm_model.completion(prompt, system_prompt=system_prompt)
+
     @abstractmethod
     def generate_data(self, **kwargs):
+        pass
+
+    @abstractmethod
+    def fill_and_transform(self, **kwargs):
         pass
 
     def get_random_vocab(self, user_vocab: Optional[str] = None, k=1):
@@ -50,6 +60,8 @@ class DataFactory(ABC):
         newline: Optional[str] = None,
         encoding: Optional[str] = None,
     ):
+        with open(self.save_dir / "data_point", "w") as fp:
+            fp.write(str(data_points))
         try:
             with open(
                 self.train_file_location, "a", newline=newline, encoding=encoding

@@ -34,7 +34,7 @@ def subsample_dictionary(data: Dict[str, List[str]], k=2):
 
 
 def parse_template(template: str, allowed_tags: List[str]):
-    words = template.replace("'", '"').split()
+    words = template.split()
     if not words:
         return None, None, None
 
@@ -42,13 +42,14 @@ def parse_template(template: str, allowed_tags: List[str]):
     words_tag = []
     tags_present = []
     for word in words:
-        if re.match(r"^\[.*\]$", word):
+        match = re.search(r"\[(.*?)\]", word)
+        if match:
             # word is a tag
-            word_tag = word[1:-1].upper()
+            word_tag = match.group(1)
             assert word_tag in allowed_tags
 
             words_tag.append(word_tag)
-            source_template.append(f"{{{word_tag}}}")
+            source_template.append(word.replace(match.group(0), f"{{{word_tag}}}", 1))
             tags_present.append(word_tag)
         else:
             source_template.append(word)

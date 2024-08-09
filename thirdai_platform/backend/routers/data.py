@@ -33,7 +33,7 @@ class TextClassificationGenerateArgs(BaseModel):
     labels_description: Dict[str, str]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
-    batch_size: int = 40
+    write_chunk_size: int = 40
     vocab_per_sentence: int = 4
     allocation_cores: Optional[int] = None
     allocation_memory: Optional[int] = None
@@ -109,8 +109,8 @@ class TokenClassificationGenerateArgs(BaseModel):
     domain_prompt: str
     tags: List[str]
     tag_examples: Dict[str, List[str]]
-    num_call_batches: int
-    batch_size: int = 40
+    num_sentences_to_generate: int
+    write_chunk_size: int = 40
     num_samples_per_tag: int = 4
     allocation_cores: Optional[int] = None
     allocation_memory: Optional[int] = None

@@ -1,8 +1,8 @@
 attribute_dimension_prompt = """Which attribute dimensions do you consider most vital in determining the topic of the task: ```{domain_prompt}```?
 
-VERY IMPORTANT POINTS:
-   1. DO NOT include any bulleting, enumeration, header/footer in any sentences. Do not include any quotes or emojis.
-   2. Give only the attributes in output and make sure each attribute should start on a new line. Do not include any extra new line.
+DO NOT include any bulleting or prefix at start of each sentence and each. Do not include any quotes or emojis.
+
+VERY IMPORTANT POINT: Give only the attributes in output and make sure each attribute should start on a new line. Do not include any extra new line.
 
 List atmost 5 attributes.
 
@@ -17,16 +17,15 @@ Weather
 attribute_value_prompt = """Given your extensive expertise in {domain_prompt}, please provide a range of realistic values for {attribute}. Ensure these estimates are diverse and applicable to real-world scenarios. 
 For attributes known to have well-defined values, provide specific, practical estimates; for all other attributes, offer generalized yet realistic ranges.
 
-VERY IMPORTANT POINTS:
-   1. DO NOT include any bulleting, enumeration, header/footer in any sentences. Do not include any quotes or emojis.
-   2. Give only the attributes in output and make sure each attribute should start on a new line. Do not include any extra new line.
+DO NOT include any bulleting or prefix at start of each sentence and each. Do not include any quotes or emojis.
+
+VERY IMPORTANT POINT: Give only the attributes in output and make sure each attribute should start on a new line. Do not include any extra new line.
 """
 
-tag_value_prompt = """Please generate {num_samples_per_tag} diverse samples for the {tag} named entity. Below are some examples of the {tag} entity:
+tag_value_prompt = """You possess deep expertise in {domain_prompt}. Please generate {num_samples_per_tag} diverse samples for the {tag} named entity. Below are some examples of the {tag} entity:
 {tag_example}
 
-VERY IMPORTANT POINTS:
-        - Ensure each sample starts on a new line without any bullet points, prefixes, quotes, or emojis or any header/footer.
+Ensure each sample starts on a new line without any bullet points, prefixes, quotes, or emojis at the beginning of each sentence.
 
 VERY IMPORTANT: Only include the attributes themselves in the output. Each attribute should appear on a new line without any additional new lines.
 
@@ -43,7 +42,7 @@ After getting diagnosed with [DISABILITY] John went home. His social security nu
 Each sentence should start on a new line and with no bulleting, header/footer or any steps involved.
 """
 
-dataset_generation_prompt = """You possess deep expertise in {domain_prompt}. Please generate {batch_size} templates of synthetic sentences and associated tags for {domain_prompt}
+dataset_generation_prompt = """You possess deep expertise in {domain_prompt}. Please generate {generate_at_a_time} templates of synthetic sentences and associated tags for {domain_prompt}
             
 VERY IMPORTANT: MAKE SURE identify all named entities occurred that belong to one of the following entity types: 
 {sampled_tags}

@@ -2,7 +2,7 @@ datagen_prompt = """This is the description of the task user wants to perform: `
 Generate {samples_to_generate} training samples for above task for the label "{label_to_generate}".
 
 The data generated should strictly follow the description: 
-{label_description_prompt}
+{label_description}
 
 DO NOT include any bulleting or prefix at start of each sentence and each. Do not include any quotes or emojis.
 

@@ -9,7 +9,7 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { fetchAllModels, fetchAllTeams, fetchAllUsers, 
-          createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam,
+          createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam, deleteTeamById,
           deleteUserAccount } from "@/lib/backend";
 
 // Define types for the models, teams, and users
@@ -69,6 +69,89 @@ export default function AccessPage() {
   const [selectedTeamForRemove, setSelectedTeamForRemove] = useState<string>('');
   const [newMember, setNewMember] = useState<string>('');
   const [memberToRemove, setMemberToRemove] = useState<string>('');
+
+  const getModels = async () => {
+    try {
+      const response = await fetchAllModels();
+      console.log('Fetched Models:', response.data);  // Print out the results
+      const modelData = response.data.map((model): Model => ({
+        name: model.model_name,
+        type: model.access_level === 'private' ? 'Private Model' : model.access_level === 'protected' ? 'Protected Model' : 'Public Model',
+        owner: model.username,
+        users: [], // To be populated later
+        team: model.team_id !== 'None' ? model.team_id : undefined,
+        teamAdmin: undefined, // To be populated later
+        domain: model.domain,
+        latency: model.latency,
+        modelId: model.model_id,
+        numParams: model.num_params,
+        publishDate: model.publish_date,
+        size: model.size,
+        sizeInMemory: model.size_in_memory,
+        subType: model.sub_type,
+        thirdaiVersion: model.thirdai_version,
+        trainingTime: model.training_time,
+      }));
+      setModels(modelData);
+    } catch (error) {
+      console.error('Failed to fetch models', error);
+    }
+  };
+
+  const getUsers = async () => {
+    try {
+      const response = await fetchAllUsers();
+      console.log('Fetched Users:', response.data);  // Print out the results
+      const userData = response.data.map((user): User => ({
+        id: user.id,
+        name: user.username,
+        email: user.email,
+        role: user.global_admin ? 'Global Admin' : 'Member', // Adjust the logic if you have Team Admins
+        teams: user.teams.map(team => ({
+          id: team.team_id,
+          name: team.team_name,
+          role: team.role,
+        })),
+        ownedModels: models.filter(model => model.owner === user.username).map(model => model.name),
+      }));
+      setUsers(userData);
+    } catch (error) {
+      console.error('Failed to fetch users', error);
+    }
+  };
+
+  const getTeams = async () => {
+    try {
+      const response = await fetchAllTeams();
+      console.log('Fetched Teams:', response.data);  // Print out the results
+      const teamData = response.data.map((team): Team => {
+        const members: string[] = [];
+        let admin = '';
+
+        // Populate members and admin from users and models data
+        users.forEach(user => {
+          const userTeam = user.teams.find(ut => ut.id === team.id);
+          if (userTeam) {
+            members.push(user.name);
+            if (userTeam.role === 'team_admin') {
+              admin = user.name;
+            }
+          }
+        });
+
+        return {
+          id: team.id,
+          name: team.name,
+          admin: admin,
+          members: members,
+        };
+      });
+
+      setTeams(teamData);
+    } catch (error) {
+      console.error('Failed to fetch teams', error);
+    }
+  };
 
   // Handle model type change
   const handleModelTypeChange = (index: number, newType: 'Private Model' | 'Protected Model' | 'Public Model') => {
@@ -180,15 +263,25 @@ export default function AccessPage() {
   };
 
   // Delete a team and update protected models
-  const deleteTeam = (teamName: string) => {
-    const teamAdmin = teams.find(team => team.name === teamName)?.admin;
-    setTeams(teams.filter(team => team.name !== teamName));
-    const updatedModels = models.map(model =>
-      model.team === teamName
-        ? { ...model, type: 'Private Model', owner: model.owner, team: undefined, teamAdmin: undefined }
-        : model
-    ) as Model[];
-    setModels(updatedModels);
+  const deleteTeam = async (teamName: string) => {
+    try {
+      // Find the team by name
+      const team = teams.find(t => t.name === teamName);
+      if (!team) {
+        console.error('Team not found');
+        return;
+      }
+
+      // Call the API to delete the team
+      await deleteTeamById(team.id);
+
+
+      await getModels()
+      await getUsers()
+      await getTeams()
+    } catch (error) {
+      console.error('Failed to delete team', error);
+    }
   };
 
   // Delete a user account and update owned models
@@ -204,106 +297,21 @@ export default function AccessPage() {
       // Call the API to delete the user
       await deleteUserAccount(user.email);
 
-      // Update the users state by removing the deleted user
-      const updatedUsers = users.filter(u => u.name !== userName);
-      setUsers(updatedUsers);
-
-      // Optionally update the models state to handle models owned by the deleted user
-      // setModels(prevModels => prevModels.filter(model => model.owner !== userName));
+      // Update the states
+      await getModels()
+      await getUsers()
+      await getTeams()
     } catch (error) {
       console.error('Failed to delete user', error);
     }
   };
 
   useEffect(() => {
-    const getModels = async () => {
-      try {
-        const response = await fetchAllModels();
-        console.log('Fetched Models:', response.data);  // Print out the results
-        const modelData = response.data.map((model): Model => ({
-          name: model.model_name,
-          type: model.access_level === 'private' ? 'Private Model' : model.access_level === 'protected' ? 'Protected Model' : 'Public Model',
-          owner: model.username,
-          users: [], // To be populated later
-          team: model.team_id !== 'None' ? model.team_id : undefined,
-          teamAdmin: undefined, // To be populated later
-          domain: model.domain,
-          latency: model.latency,
-          modelId: model.model_id,
-          numParams: model.num_params,
-          publishDate: model.publish_date,
-          size: model.size,
-          sizeInMemory: model.size_in_memory,
-          subType: model.sub_type,
-          thirdaiVersion: model.thirdai_version,
-          trainingTime: model.training_time,
-        }));
-        setModels(modelData);
-      } catch (error) {
-        console.error('Failed to fetch models', error);
-      }
-    };
-
-    const getUsers = async () => {
-      try {
-        const response = await fetchAllUsers();
-        console.log('Fetched Users:', response.data);  // Print out the results
-        const userData = response.data.map((user): User => ({
-          id: user.id,
-          name: user.username,
-          email: user.email,
-          role: user.global_admin ? 'Global Admin' : 'Member', // Adjust the logic if you have Team Admins
-          teams: user.teams.map(team => ({
-            id: team.team_id,
-            name: team.team_name,
-            role: team.role,
-          })),
-          ownedModels: models.filter(model => model.owner === user.username).map(model => model.name),
-        }));
-        setUsers(userData);
-      } catch (error) {
-        console.error('Failed to fetch users', error);
-      }
-    };
-
     getModels();
     getUsers()
   }, []);
 
   useEffect(()=>{
-    const getTeams = async () => {
-      try {
-        const response = await fetchAllTeams();
-        console.log('Fetched Teams:', response.data);  // Print out the results
-        const teamData = response.data.map((team): Team => {
-          const members: string[] = [];
-          let admin = '';
-
-          // Populate members and admin from users and models data
-          users.forEach(user => {
-            const userTeam = user.teams.find(ut => ut.id === team.id);
-            if (userTeam) {
-              members.push(user.name);
-              if (userTeam.role === 'team_admin') {
-                admin = user.name;
-              }
-            }
-          });
-
-          return {
-            id: team.id,
-            name: team.name,
-            admin: admin,
-            members: members,
-          };
-        });
-
-        setTeams(teamData);
-      } catch (error) {
-        console.error('Failed to fetch teams', error);
-      }
-    };
-
     getTeams()
   }, [users])
 

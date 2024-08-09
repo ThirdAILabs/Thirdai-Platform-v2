@@ -712,6 +712,26 @@ export async function deleteUserFromTeam(email: string, team_id: string): Promis
   });
 }
 
+export async function deleteTeamById(team_id: string): Promise<void> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ team_id });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .delete(`http://localhost:8000/api/team/delete-team?${params.toString()}`)
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.error('Error deleting team:', err);
+        reject(err);
+      });
+  });
+}
+
 
 // USER //
 

@@ -52,7 +52,7 @@ job "grafana" {
       user = "root"
 
       config {
-        image = "grafana/grafana:9.1.4-ubuntu"
+        image = "grafana/grafana:main-ubuntu"
         ports = ["grafana-http"]
       }
 
@@ -68,9 +68,7 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
-    {{- range nomadService "vicky-web" }}
-    url: http://{{.Address}}:{{.Port}}
-    {{ end -}}
+    url: http://192.168.1.6:8428
 EOF
         destination = "/local/grafana/provisioning/datasources/datasources.yaml"
       }

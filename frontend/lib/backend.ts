@@ -711,3 +711,26 @@ export async function deleteUserFromTeam(email: string, team_id: string): Promis
       });
   });
 }
+
+
+// USER //
+
+export async function deleteUserAccount(email: string): Promise<void> {
+  const accessToken = getAccessToken(); // Ensure this function is implemented elsewhere in your codebase
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .delete('http://localhost:8000/api/user/delete-user', {
+        data: { email },
+      })
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.error('Error deleting user:', err);
+        reject(err);
+      });
+  });
+}

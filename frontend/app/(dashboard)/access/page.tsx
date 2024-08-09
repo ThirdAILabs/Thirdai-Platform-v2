@@ -9,7 +9,8 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { fetchAllModels, fetchAllTeams, fetchAllUsers, 
-          createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam } from "@/lib/backend";
+          createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam,
+          deleteUserAccount } from "@/lib/backend";
 
 // Define types for the models, teams, and users
 type Model = {
@@ -191,22 +192,27 @@ export default function AccessPage() {
   };
 
   // Delete a user account and update owned models
-  const deleteUser = (userName: string) => {
-    // const globalAdmin = users.find(user => user.role === 'Global Admin')?.name || 'None';
-    // const userToDelete = users.find(user => user.name === userName);
-    // setUsers(users.filter(user => user.name !== userName));
-    // const updatedModels = models.map(model => {
-    //   if (model.owner === userName) {
-    //     if (model.type === 'Protected Model') {
-    //       const teamAdmin = users.find(user => user.adminTeams.includes(model.team || ''))?.name || globalAdmin;
-    //       return { ...model, owner: teamAdmin, type: 'Private Model' };
-    //     } else {
-    //       return { ...model, owner: globalAdmin, type: 'Private Model' };
-    //     }
-    //   }
-    //   return model;
-    // }) as Model[];
-    // setModels(updatedModels);
+  const deleteUser = async (userName: string) => {
+    try {
+      // Find the user by name
+      const user = users.find(u => u.name === userName);
+      if (!user) {
+        console.error('User not found');
+        return;
+      }
+
+      // Call the API to delete the user
+      await deleteUserAccount(user.email);
+
+      // Update the users state by removing the deleted user
+      const updatedUsers = users.filter(u => u.name !== userName);
+      setUsers(updatedUsers);
+
+      // Optionally update the models state to handle models owned by the deleted user
+      // setModels(prevModels => prevModels.filter(model => model.owner !== userName));
+    } catch (error) {
+      console.error('Failed to delete user', error);
+    }
   };
 
   useEffect(() => {

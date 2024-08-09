@@ -977,3 +977,73 @@ def get_model_permissions(
         message="Successfully retrieved model permissions",
         data=jsonable_encoder(permissions_info),
     )
+
+
+@model_router.post("/update-access-level", dependencies=[Depends(is_model_owner)])
+def update_access_level(
+    model_identifier: str,
+    access_level: schema.Access,
+    session: Session = Depends(get_session),
+):
+    """
+    Update the access level of a model.
+
+    Parameters:
+    - model_identifier: The identifier of the model to update.
+    - access_level: The new access level to set for the model.
+
+    Returns:
+    - A JSON response indicating the success of the operation, including the model ID and the updated access level.
+    """
+    model = get_model_from_identifier(model_identifier, session)
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Model not found",
+        )
+
+    model.access_level = access_level
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"Access level updated to '{access_level}' for model '{model_identifier}'.",
+        data={"model_id": str(model.id), "access_level": model.access_level},
+    )
+
+
+@model_router.post("/update-default-permission", dependencies=[Depends(is_model_owner)])
+def update_default_permission(
+    model_identifier: str,
+    new_permission: schema.Permission,
+    session: Session = Depends(get_session),
+):
+    """
+    Update the default permission of a model.
+
+    Parameters:
+    - model_identifier: The identifier of the model to update.
+    - new_permission: The new default permission to set.
+
+    Returns:
+    - A JSON response indicating the success of the operation, including the model ID and the updated default permission.
+    """
+    model = get_model_from_identifier(model_identifier, session)
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Model not found",
+        )
+
+    # Directly update the default permission
+    model.default_permission = new_permission
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"Default permission updated to '{new_permission}' for model '{model_identifier}'.",
+        data={
+            "model_id": str(model.id),
+            "default_permission": model.default_permission,
+        },
+    )

@@ -1,6 +1,7 @@
 'use client';
 
-import { Container, TextField, Button, Box } from '@mui/material';
+import { Container, TextField, Box } from '@mui/material';
+import { Button } from '@/components/ui/button';
 import {
   MouseEventHandler,
   ReactNode,
@@ -308,30 +309,17 @@ export default function Interact() {
         alignItems="center"
         width="100%"
       >
-        <TextField
-          variant="outlined"
+        <Input
+          autoFocus
+          className='text-md'
+          style={{height: "3rem"}}
           value={inputText}
           onChange={handleInputChange}
-          style={{
-            width: '100%',
-            backgroundColor: 'white',
-            borderRadius: '5px',
-            border: 'none'
-          }}
-          placeholder="Enter your text"
-          InputProps={{ style: { height: '3rem' }, disableUnderline: true }} // Adjust the height as needed
+          placeholder="Enter your text..."
+          onSubmit={handleRun}          
         />
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleRun}
-          style={{
-            height: '3rem',
-            marginLeft: '1rem',
-            backgroundColor: 'black'
-          }}
-        >
-          Run
+        <Button size="sm" style={{height: '3rem', marginLeft: '10px', padding: '0 20px'}} onClick={handleRun}>
+            Run
         </Button>
       </Box>
       {annotations.length > 0 && (

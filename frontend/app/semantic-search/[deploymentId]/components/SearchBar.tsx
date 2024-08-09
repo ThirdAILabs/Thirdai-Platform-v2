@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useRef, useState } from "react";
+import { Button } from '@/components/ui/button';
 import styled from "styled-components";
 import { FaSave } from "react-icons/fa";
 import {
@@ -16,10 +17,12 @@ import useClickOutside from "./hooks/useClickOutside";
 import PromptToggle from "./buttons/PromptToggle";
 import SearchTextInput from "./SearchTextInput";
 import Modal from "./Modal";
+import { Input } from "@/components/ui/input";
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenuContent } from "@radix-ui/react-dropdown-menu";
 
 const Container = styled.section`
-    background-color: white;
-    box-shadow: 0 10px 10px 4px white;
+    box-shadow: 0 10px 10px 4px muted;
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -28,7 +31,6 @@ const Container = styled.section`
 `;
 
 const SearchArea = styled.section`
-    background-color: white;
     width: 100%;
     display: flex;
     flex-direction: row;
@@ -44,7 +46,6 @@ const Description = styled.section`
 `;
 
 const TryNewModelButton = styled.button`
-    background-color: white;
     border: 1px solid ${color.accent};
     border-radius: ${borderRadius.smallButton};
     transition-duration: ${duration.transition};
@@ -91,28 +92,6 @@ interface ButtonProps {
     primary?: boolean;
 }
 
-const Button = styled.button<ButtonProps>`
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    background-color: ${(props) => (props.primary ? "#4CAF50" : "#f1f1f1")};
-    color: ${(props) => (props.primary ? "white" : "black")};
-    cursor: pointer;
-    font-size: 14px;
-
-    &:hover {
-        background-color: ${(props) => (props.primary ? "#45a049" : "#ddd")};
-    }
-`;
-
-const Input = styled.input`
-    width: calc(100% - 120px);
-    padding: 10px;
-    margin-top: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-`;
-
 const ErrorMessage = styled.p`
     color: red;
     font-size: 12px;
@@ -121,20 +100,23 @@ const ErrorMessage = styled.p`
 
 interface UserModelDescriptionProps {
     onClickViewDocuments: () => void;
+    sources: Source[];
+    setSources: (sources: Source[]) => void;
 }
 
 function UserModelDescription(props: UserModelDescriptionProps) {
     return (
-        <Description>
+        <Description className="bg-muted">
             Generating answers from your documents.
             <Spacer $width="7px" />
-            <TryNewModelButton onClick={props.onClickViewDocuments}>
-                View Documents
-            </TryNewModelButton>
-            {/* <Spacer $width="7px" />
-            <a href={process.env.REACT_APP_MODEL_BAZAAR_URL}>
-                <TryNewModelButton>Train/Deploy new models</TryNewModelButton>
-            </a> */}
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button size="sm" className="h-8 gap-1" onClick={props.onClickViewDocuments}>
+                        View Documents
+                    </Button>
+                </DropdownMenuTrigger>  
+                <Sources sources={props.sources} setSources={props.setSources} visible />
+            </DropdownMenu>
         </Description>
     );
 }
@@ -242,9 +224,14 @@ export default function SearchBar({
 
     return (
         <Container>
-            <SearchArea>
-                <SearchTextInput
+            <SearchArea style={{marginBottom: "5px"}}>
+                <Input
+                    autoFocus
+                    className="text-md"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
                     placeholder="Ask anything..."
+                    style={{ height: "3rem" }}
                     onSubmit={() => {
                         onSubmit(query, prompt)
 
@@ -268,8 +255,6 @@ export default function SearchBar({
                             });
 
                     }}
-                    value={query}
-                    setValue={setQuery}
                 />
                 <PromptToggle
                     active={dialogOpen}
@@ -293,18 +278,13 @@ export default function SearchBar({
             {modelService.isUserModel() ? (
                 <UserModelDescription
                     onClickViewDocuments={() => setShowSources((val) => !val)}
+                    sources={sources}
+                    setSources={setSources}
                 />
             ) : (
                 <GlobalModelDescription />
             )}
             <Spacer $height="5px" />
-            <PanelContainer ref={sourcesRef}>
-                <Sources
-                    sources={sources}
-                    visible={showSources}
-                    setSources={setSources}
-                />
-            </PanelContainer>
 
             {modalOpen && (
                 <Modal onClose={() => setModalOpen(false)}>

@@ -14,6 +14,9 @@ import { Spacer } from "./Layout";
 import { ModelService, Source } from "../modelServices";
 import { ModelServiceContext } from "../Context";
 import FileUploadModal from "./FileUploadModal";
+import { DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface SourcesProps {
     sources: Source[];
@@ -183,76 +186,56 @@ export default function Sources(props: SourcesProps) {
     }
 
     return (
-        props.visible && (
-            <Panel>
-                {fuse && (
-                    <>
-                        <Search
-                            placeholder="Filter documents by name..."
-                            onChange={handleSearchBarChangeEvent}
-                        />
-                        <Scrollable>
-                            <Spacer $height="10px" />
-                            {matches.map((source, i) => (
-                                <div
-                                    key={i}
-                                    style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "space-between",
-                                    }}
-                                >
-                                    <SourceButton
-                                        onClick={() =>
-                                            modelService.openSource(
-                                                source.source,
-                                            )
-                                        }
-                                    >
-                                        {formatSource(source.source)}
-                                        <Spacer $width="10px" />
-                                        {canReadSource(source.source) && (
-                                            <ReadSourceButton>
-                                                Read source <StyledArrow />
-                                            </ReadSourceButton>
-                                        )}
-                                    </SourceButton>
-                                    <DeleteSourceButton
-                                        onClick={() => {
-                                            modelService.deleteSources([
+        fuse && (
+            <DropdownMenuContent style={{width: "300px"}} align="start">
+                <Input
+                    autoFocus
+                    className="font-medium"
+                    placeholder="Filter documents by name..."
+                    onChange={handleSearchBarChangeEvent}
+                    style={{ marginBottom: '5px' }}
+                />
+                <Scrollable>
+                    <Spacer $height="10px" />
+                    {matches.map((source, i) => (
+                        <DropdownMenuItem key={i} style={{display: "flex", justifyContent: "space-between"}} onClick={() =>
+                        {
+                            console.log("Propagated");
+                            modelService.openSource(
+                                source.source,
+                            )}
+                        }>
+                            {formatSource(source.source)}
+                            <Button
+                                className="bg-transparent hover:bg-red-500 text-red-500 hover:text-white"
+                                style={{height: "2rem", width: "2rem", border: "1px solid red"}}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    modelService.deleteSources([
+                                        source.source_id,
+                                    ]);
+                                    props.setSources(
+                                        props.sources.filter(
+                                            (x) =>
+                                                x.source_id !==
                                                 source.source_id,
-                                            ]);
-                                            props.setSources(
-                                                props.sources.filter(
-                                                    (x) =>
-                                                        x.source_id !==
-                                                        source.source_id,
-                                                ),
-                                            );
-                                        }}
-                                    >
-                                        X
-                                    </DeleteSourceButton>
-                                </div>
-                            ))}
-                        </Scrollable>
-                        <Divider />
-                        <AddSourceButton
-                            onClick={() => {
-                                setOpen(true);
-                            }}
-                        >
-                            Add Documents
-                        </AddSourceButton>
-                        <FileUploadModal
-                            isOpen={open}
-                            handleCloseModal={() => setOpen(false)}
-                            addSources={handleAddSources}
-                            refreshSources={refreshSources}
-                        />
-                    </>
-                )}
-            </Panel>
+                                        ),
+                                    );
+                                }}
+                            >✕</Button>
+                        </DropdownMenuItem>
+                    ))}
+                </Scrollable>
+                <Button style={{width: "100%", marginTop: "15px"}} onClick={() => {setOpen(true);}}>
+                    Add Documents
+                </Button>
+                <FileUploadModal
+                    isOpen={open}
+                    handleCloseModal={() => setOpen(false)}
+                    addSources={handleAddSources}
+                    refreshSources={refreshSources}
+                />
+            </DropdownMenuContent>
         )
     );
 }

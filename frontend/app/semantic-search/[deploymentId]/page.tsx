@@ -30,10 +30,12 @@ import ChatToggle from "./components/chat/ChatToggle";
 import { createDeploymentUrl } from "./components/DeploymentURL";
 import PillButton from "./components/buttons/PillButton";
 import { useParams, useSearchParams } from "next/navigation";
+import { CardTitle } from "@/components/ui/card";
 
 const Frame = styled.section<{ $opacity: string }>`
     position: absolute;
     width: 100%;
+    height: 100%;
     overflow-x: visible;
     opacity: ${(props) => props.$opacity};
     transition-duration: ${duration.transition};
@@ -330,163 +332,166 @@ function App() {
         <ModelServiceContext.Provider value={modelService}>
             {modelService && (
                 <Frame $opacity={opacity}>
-                    {pdfInfo && (
-                        <PdfViewerWrapper>
-                            <PdfViewer
-                                name={pdfInfo.filename}
-                                src={pdfInfo.source}
-                                chunks={pdfInfo.docChunks}
-                                initialChunk={
-                                    pdfInfo.highlighted
-                                }
-                                onSelect={setSelectedPdfChunk}
-                                onClose={() => {
-                                    setSelectedPdfChunk(null);
-                                    setPdfInfo(null);
-                                }}
-                            />
-                        </PdfViewerWrapper>
-                    )}
-                    {selectedPdfChunk && (
-                        <UpvoteModalWrapper>
-                            <UpvoteModal
-                                queryText={upvoteQuery}
-                                setQueryText={setUpvoteQuery}
-                                upvoteText={
-                                    selectedPdfChunk.text
-                                }
-                                onSubmit={() => {
-                                    modelService.upvote(
-                                        results!.queryId,
-                                        upvoteQuery,
-                                        selectedPdfChunk.id,
-                                        selectedPdfChunk.text,
-                                    );
-                                }}
-                            />
-                        </UpvoteModalWrapper>
-                    )}
-                    <a href="/">
-                        <Logo src={LogoImg.src} alt="Logo" />
-                    </a>
-                    <TopRightCorner>
-                        <ChatToggle
-                            active={chatMode}
-                            onClick={() =>
-                                setChatMode(
-                                    (chatMode) => !chatMode,
-                                )
-                            }
-                        />
-                        <Spacer $width="5px" />
-                        <Teach />
-                    </TopRightCorner>
-                    {chatMode ? (
-                        <Chat />
-                    ) : (
-                        <>
-                            <SearchContainer
-                                $center={results === null}
-                            >
-                                {!results && (
-                                    <Pad
-                                        $left="5px"
-                                        $bottom="5px"
-                                    >
-                                        <SearchPrompt>
-                                            How can we help?
-                                        </SearchPrompt>
-                                    </Pad>
-                                )}
-                                <SearchBar
-                                    query={query}
-                                    setQuery={setQuery}
-                                    onSubmit={submit}
-                                    sources={sources}
-                                    setSources={setSources}
-                                    prompt={prompt}
-                                    setPrompt={setPrompt}
+                    <div className="bg-muted" style={{height: "100%", width: "100%"}}>
+
+                        {pdfInfo && (
+                            <PdfViewerWrapper>
+                                <PdfViewer
+                                    name={pdfInfo.filename}
+                                    src={pdfInfo.source}
+                                    chunks={pdfInfo.docChunks}
+                                    initialChunk={
+                                        pdfInfo.highlighted
+                                    }
+                                    onSelect={setSelectedPdfChunk}
+                                    onClose={() => {
+                                        setSelectedPdfChunk(null);
+                                        setPdfInfo(null);
+                                    }}
                                 />
-                                {!results &&
-                                    !modelService.isUserModel() && (
+                            </PdfViewerWrapper>
+                        )}
+                        {selectedPdfChunk && (
+                            <UpvoteModalWrapper>
+                                <UpvoteModal
+                                    queryText={upvoteQuery}
+                                    setQueryText={setUpvoteQuery}
+                                    upvoteText={
+                                        selectedPdfChunk.text
+                                    }
+                                    onSubmit={() => {
+                                        modelService.upvote(
+                                            results!.queryId,
+                                            upvoteQuery,
+                                            selectedPdfChunk.id,
+                                            selectedPdfChunk.text,
+                                        );
+                                    }}
+                                />
+                            </UpvoteModalWrapper>
+                        )}
+                        <a href="/">
+                            <Logo src={LogoImg.src} alt="Logo" />
+                        </a>
+                        <TopRightCorner>
+                            <ChatToggle
+                                active={chatMode}
+                                onClick={() =>
+                                    setChatMode(
+                                        (chatMode) => !chatMode,
+                                    )
+                                }
+                            />
+                            <Spacer $width="5px" />
+                            <Teach />
+                        </TopRightCorner>
+                        {chatMode ? (
+                            <Chat />
+                        ) : (
+                            <>
+                                <SearchContainer
+                                    $center={results === null}
+                                >
+                                    {!results && (
                                         <Pad
                                             $left="5px"
-                                            $top="20px"
-                                            $bottom="100px"
+                                            $bottom="5px"
                                         >
-                                            <ExampleQueries
-                                                examples={
-                                                    c.exampleQueries
-                                                }
-                                                onClick={
-                                                    chooseExample
-                                                }
-                                            />
+                                            <CardTitle>
+                                                How can we help?
+                                            </CardTitle>
                                         </Pad>
                                     )}
-                                {failed && (
-                                    <Pad $top="100px">
-                                        <InvalidModelMessage />
+                                    <SearchBar
+                                        query={query}
+                                        setQuery={setQuery}
+                                        onSubmit={submit}
+                                        sources={sources}
+                                        setSources={setSources}
+                                        prompt={prompt}
+                                        setPrompt={setPrompt}
+                                    />
+                                    {!results &&
+                                        !modelService.isUserModel() && (
+                                            <Pad
+                                                $left="5px"
+                                                $top="20px"
+                                                $bottom="100px"
+                                            >
+                                                <ExampleQueries
+                                                    examples={
+                                                        c.exampleQueries
+                                                    }
+                                                    onClick={
+                                                        chooseExample
+                                                    }
+                                                />
+                                            </Pad>
+                                        )}
+                                    {failed && (
+                                        <Pad $top="100px">
+                                            <InvalidModelMessage />
+                                        </Pad>
+                                    )}
+                                </SearchContainer>
+                                {results && !failed && (
+                                    <Pad
+                                        $top="150px"
+                                        $bottom="80px"
+                                        $left="10%"
+                                        $right="30%"
+                                    >
+                                        <Pad $left="5px">
+                                            {
+                                                ifGenerationOn &&
+                                                <>
+                                                    <Spacer $height="30px" />
+                                                    <GeneratedAnswer
+                                                        answer={answer}
+                                                    />
+                                                </>
+                                            }
+                                            <Spacer $height="50px" />
+                                            {checkedIds.size >
+                                                0 && (
+                                                <PillButton
+                                                    onClick={
+                                                        regenerateWithSelectedReferences
+                                                    }
+                                                >
+                                                    Regenerate with
+                                                    selected
+                                                    references
+                                                </PillButton>
+                                            )}
+                                            <Spacer $height="50px" />
+                                            <ReferenceList
+                                                references={results.references.slice(
+                                                    0,
+                                                    numReferences,
+                                                )}
+                                                onOpen={openSource}
+                                                onUpvote={upvote}
+                                                onDownvote={
+                                                    downvote
+                                                }
+                                                onMore={more}
+                                                showMoreButton={
+                                                    !!showMoreButton
+                                                }
+                                                checkedIds={
+                                                    checkedIds
+                                                }
+                                                onCheck={onCheck}
+                                                modelService = {modelService}
+                                                ifGuardRailOn = {ifGuardRailOn}
+                                            />
+                                        </Pad>
                                     </Pad>
                                 )}
-                            </SearchContainer>
-                            {results && !failed && (
-                                <Pad
-                                    $top="150px"
-                                    $bottom="80px"
-                                    $left="10%"
-                                    $right="30%"
-                                >
-                                    <Pad $left="5px">
-                                        {
-                                            ifGenerationOn &&
-                                            <>
-                                                <Spacer $height="30px" />
-                                                <GeneratedAnswer
-                                                    answer={answer}
-                                                />
-                                            </>
-                                        }
-                                        <Spacer $height="50px" />
-                                        {checkedIds.size >
-                                            0 && (
-                                            <PillButton
-                                                onClick={
-                                                    regenerateWithSelectedReferences
-                                                }
-                                            >
-                                                Regenerate with
-                                                selected
-                                                references
-                                            </PillButton>
-                                        )}
-                                        <Spacer $height="50px" />
-                                        <ReferenceList
-                                            references={results.references.slice(
-                                                0,
-                                                numReferences,
-                                            )}
-                                            onOpen={openSource}
-                                            onUpvote={upvote}
-                                            onDownvote={
-                                                downvote
-                                            }
-                                            onMore={more}
-                                            showMoreButton={
-                                                !!showMoreButton
-                                            }
-                                            checkedIds={
-                                                checkedIds
-                                            }
-                                            onCheck={onCheck}
-                                            modelService = {modelService}
-                                            ifGuardRailOn = {ifGuardRailOn}
-                                        />
-                                    </Pad>
-                                </Pad>
-                            )}
-                        </>
-                    )}
+                            </>
+                        )}
+                    </div>
                 </Frame>
             )}
         </ModelServiceContext.Provider>

@@ -1,57 +1,41 @@
+from typing import List, Optional
+
 from backend.auth_dependencies import (
-    get_current_user,
     global_admin_only,
+    is_model_owner,
     team_admin_or_global_admin,
 )
-from backend.utils import response
+from backend.utils import get_model_from_identifier, response
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from sqlalchemy.sql.expression import null
+from fastapi.encoders import jsonable_encoder
+from sqlalchemy.orm import Session, joinedload
 
 team_router = APIRouter()
 
 
-class CreateTeamInput(BaseModel):
-    name: str
-
-
-class AddModelInput(BaseModel):
-    model_name: str
-    team_name: str
-
-
-class RemoveModelInput(BaseModel):
-    model_name: str
-
-
-class AddUserToTeamInput(BaseModel):
-    user_email: str
-    team_name: str
-    role: schema.Role = (
-        schema.Role.user
-    )  # default role is user to a team if not specified
-
-
-class AssignTeamAdminInput(BaseModel):
-    user_email: str
-    team_name: str
-
-
-class DeleteTeamInput(BaseModel):
-    team_name: str
-
-
 @team_router.post("/create-team", dependencies=[Depends(global_admin_only)])
-def add_team(input: CreateTeamInput, session: Session = Depends(get_session)):
-    if session.query(schema.Team).filter_by(name=input.name).first():
+def add_team(name: str, session: Session = Depends(get_session)):
+    """
+    Create a new team.
+
+    Parameters:
+    - name: The name of the team to be created.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the team ID and name upon successful creation.
+    """
+    existing_team: Optional[schema.Team] = (
+        session.query(schema.Team).filter_by(name=name).first()
+    )
+    if existing_team:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Team with this name already exists",
         )
-    new_team = schema.Team(name=input.name)
+    new_team = schema.Team(name=name)
     session.add(new_team)
     session.commit()
     session.refresh(new_team)
@@ -66,12 +50,27 @@ def add_team(input: CreateTeamInput, session: Session = Depends(get_session)):
     "/add-user-to-team", dependencies=[Depends(team_admin_or_global_admin)]
 )
 def add_user_to_team(
-    input: AddUserToTeamInput,
+    email: str,
+    team_id: str,
+    role: schema.Role = schema.Role.user,
     session: Session = Depends(get_session),
-    current_user: schema.User = Depends(get_current_user),
 ):
-    user = session.query(schema.User).filter_by(email=input.user_email).first()
-    team = session.query(schema.Team).filter_by(name=input.team_name).first()
+    """
+    Add a user to a team.
+
+    Parameters:
+    - email: The email of the user to add to the team.
+    - team_id: The ID of the team to add the user to.
+    - role: The role of the user in the team (default: user).
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the user ID and team ID upon successful addition.
+    """
+    user: Optional[schema.User] = (
+        session.query(schema.User).filter_by(email=email).first()
+    )
+    team: Optional[schema.Team] = session.query(schema.Team).get(team_id)
 
     if not user:
         raise HTTPException(
@@ -82,15 +81,7 @@ def add_user_to_team(
             status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
         )
 
-    # check if the current user is a team admin of the same team
-    if not current_user.is_global_admin():
-        if not current_user.is_team_admin_of_team(team.id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User does not have permission to add members to this team",
-            )
-
-    user_team = (
+    user_team: Optional[schema.UserTeam] = (
         session.query(schema.UserTeam)
         .filter_by(user_id=user.id, team_id=team.id)
         .first()
@@ -101,7 +92,7 @@ def add_user_to_team(
             detail="User already a member of this team",
         )
 
-    new_user_team = schema.UserTeam(user_id=user.id, team_id=team.id, role=input.role)
+    new_user_team = schema.UserTeam(user_id=user.id, team_id=team.id, role=role)
     session.add(new_user_team)
     session.commit()
 
@@ -116,82 +107,94 @@ def add_user_to_team(
     "/assign-team-admin", dependencies=[Depends(team_admin_or_global_admin)]
 )
 def assign_team_admin(
-    input: AssignTeamAdminInput,
+    email: str,
+    team_id: str,
     session: Session = Depends(get_session),
-    current_user: schema.User = Depends(get_current_user),
 ):
-    user = (
-        session.query(schema.User).filter(schema.User.email == input.user_email).first()
-    )
-    team = (
-        session.query(schema.Team).filter(schema.Team.name == input.team_name).first()
-    )
+    """
+    Assign a user as a team admin.
 
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User not found, {input.user_email}",
-        )
-    if not team:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Team not found, {input.team_name}",
-        )
+    Parameters:
+    - email: The email of the user to be assigned as team admin.
+    - team_id: The ID of the team where the user will be assigned as admin.
+    - session: The database session (dependency).
 
-    # check if the current user is a team admin of the same team
-    if not current_user.is_global_admin():
-        if not current_user.is_team_admin_of_team(team.id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User does not have permission to assign team admin for this team",
-            )
-
+    Returns:
+    - A JSON response with the user ID and team ID upon successful assignment.
+    """
+    # Fetch both user and the corresponding user-team relation in one query
     user_team = (
         session.query(schema.UserTeam)
-        .filter_by(user_id=user.id, team_id=team.id)
+        .join(schema.User)
+        .join(schema.Team)
+        .filter(schema.User.email == email, schema.Team.id == team_id)
+        .options(joinedload(schema.UserTeam.user), joinedload(schema.UserTeam.team))
         .first()
     )
 
     if user_team:
+        # If user-team relationship exists, just update the role
         user_team.role = schema.Role.team_admin
     else:
-        new_user_team = schema.UserTeam(
+        # Fetch user and team in one go if the user-team relationship doesn't exist
+        user, team = (
+            session.query(schema.User, schema.Team)
+            .filter(schema.User.email == email, schema.Team.id == team_id)
+            .first()
+        )
+
+        if not user or not team:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User or Team not found",
+            )
+
+        # Create new user-team relationship and assign the role
+        user_team = schema.UserTeam(
             user_id=user.id, team_id=team.id, role=schema.Role.team_admin
         )
-        session.add(new_user_team)
+        session.add(user_team)
 
     session.commit()
+
     return response(
         status_code=status.HTTP_200_OK,
-        message=f"User {input.user_email} has been successfully assigned as team admin for {input.team_name}.",
-        data={"user_id": str(user.id), "team_id": str(team.id)},
+        message=f"User {email} has been successfully assigned as team admin for team ID {team_id}.",
+        data={"user_id": str(user_team.user_id), "team_id": str(user_team.team_id)},
     )
 
 
 @team_router.delete("/delete-team", dependencies=[Depends(global_admin_only)])
-def delete_team(input: DeleteTeamInput, session: Session = Depends(get_session)):
-    team = session.query(schema.Team).filter_by(name=input.team_name).first()
+def delete_team(team_id: str, session: Session = Depends(get_session)):
+    """
+    Delete a team.
+
+    Parameters:
+    - team_id: The ID of the team to delete.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the deleted team ID.
+    """
+    team: Optional[schema.Team] = (
+        session.query(schema.Team)
+        .options(joinedload(schema.Team.users), joinedload(schema.Team.models))
+        .get(team_id)
+    )
+
     if not team:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
         )
 
-    # remove all users from the team
-    user_teams = session.query(schema.UserTeam).filter_by(team_id=team.id).all()
-    for user_team in user_teams:
+    # Delete all user-team relationships and update model access levels
+    for user_team in team.users:
         session.delete(user_team)
 
-    # setting the team_id of all models belonging to this team to NULL
-    models = session.query(schema.Model).filter_by(team_id=team.id).all()
-    for model in models:
-        # since one model belongs to only one team
+    for model in team.models:
         model.access_level = schema.Access.private
+        model.team_id = None
 
-        model.team_id = null()
-
-    session.commit()
-
-    # deleting the team
     session.delete(team)
     session.commit()
 
@@ -202,13 +205,24 @@ def delete_team(input: DeleteTeamInput, session: Session = Depends(get_session))
     )
 
 
-@team_router.post("/add-model-to-team")
+@team_router.post("/add-model-to-team", dependencies=[Depends(is_model_owner)])
 def add_model_to_team(
-    input: AddModelInput,
+    model_identifier: str,
+    team_id: str,
     session: Session = Depends(get_session),
-    current_user: schema.User = Depends(get_current_user),
 ):
-    model = session.query(schema.Model).filter_by(name=input.model_name).first()
+    """
+    Add a model to a team.
+
+    Parameters:
+    - model_identifier: The identifier of the model to add to the team.
+    - team_id: The ID of the team to add the model to.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the model ID and team ID upon successful addition.
+    """
+    model: Optional[schema.Model] = get_model_from_identifier(model_identifier, session)
     if not model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Model not found"
@@ -219,21 +233,14 @@ def add_model_to_team(
             detail="Model already belongs to a team",
         )
 
-    team = session.query(schema.Team).filter_by(name=input.team_name).first()
+    team: Optional[schema.Team] = session.query(schema.Team).get(team_id)
     if not team:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
         )
 
-    if model.get_user_permission(current_user) != schema.Permission.write:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not have enough access to the model.",
-        )
-
     model.team_id = team.id
-    if model.access == schema.Access.private:
-        model.access = schema.Access.protected
+    model.access_level = schema.Access.protected
 
     session.commit()
 
@@ -244,28 +251,29 @@ def add_model_to_team(
     )
 
 
-@team_router.post("/remove-model-from-team")
+@team_router.post("/remove-model-from-team", dependencies=[Depends(is_model_owner)])
 def remove_model_from_team(
-    input: RemoveModelInput,
+    model_identifier: str,
     session: Session = Depends(get_session),
-    current_user: schema.User = Depends(get_current_user),
 ):
-    model = session.query(schema.Model).filter_by(name=input.model_name).first()
+    """
+    Remove a model from a team.
+
+    Parameters:
+    - model_identifier: The identifier of the model to remove from the team.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the model ID upon successful removal.
+    """
+    model: Optional[schema.Model] = get_model_from_identifier(model_identifier, session)
     if not model:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Model not found"
         )
 
-    # check if the current user belongs to the team the model is associated with
-    if model.team_id:
-        if model.get_user_permission(current_user) != schema.Permission.write:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User does not have enough access to the model.",
-            )
-
-    model.team_id = null()
-    model.access = schema.Access.private
+    model.team_id = None
+    model.access_level = schema.Access.private
 
     session.commit()
 
@@ -273,4 +281,170 @@ def remove_model_from_team(
         status_code=status.HTTP_200_OK,
         message="Model removed from team successfully",
         data={"model_id": str(model.id)},
+    )
+
+
+@team_router.post(
+    "/remove-user-from-team", dependencies=[Depends(team_admin_or_global_admin)]
+)
+def remove_user_from_team(
+    email: str,
+    team_id: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Remove a user from a team.
+
+    Parameters:
+    - email: The email of the user to remove from the team.
+    - team_id: The ID of the team to remove the user from.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the user ID and team ID upon successful removal.
+    """
+    user_team: Optional[schema.UserTeam] = (
+        session.query(schema.UserTeam)
+        .join(schema.User)
+        .filter(schema.User.email == email, schema.UserTeam.team_id == team_id)
+        .first()
+    )
+
+    if not user_team:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User or Team not found",
+        )
+
+    models: List[schema.Model] = (
+        session.query(schema.Model)
+        .filter_by(user_id=user_team.user_id, team_id=team_id)
+        .all()
+    )
+    for model in models:
+        model.access_level = schema.Access.private
+        model.team_id = None
+
+    session.delete(user_team)
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="User removed from the team successfully",
+        data={"user_id": str(user_team.user_id), "team_id": str(team_id)},
+    )
+
+
+@team_router.post(
+    "/remove-team-admin", dependencies=[Depends(team_admin_or_global_admin)]
+)
+def remove_team_admin(
+    email: str,
+    team_id: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Remove a user's team admin role.
+
+    Parameters:
+    - email: The email of the user to remove as team admin.
+    - team_id: The ID of the team from which the user's admin role will be removed.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the user ID and team ID upon successful removal of the admin role.
+    """
+    user_team: Optional[schema.UserTeam] = (
+        session.query(schema.UserTeam)
+        .join(schema.User)
+        .filter(schema.User.email == email, schema.UserTeam.team_id == team_id)
+        .first()
+    )
+
+    if not user_team:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User is not part of this team",
+        )
+
+    if user_team.role != schema.Role.team_admin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not a team admin of this team",
+        )
+
+    user_team.role = schema.Role.user
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Team admin role removed successfully",
+        data={"user_id": str(user_team.user_id), "team_id": str(user_team.team_id)},
+    )
+
+
+@team_router.get("/list", dependencies=[Depends(global_admin_only)])
+def list_all_teams(session: Session = Depends(get_session)):
+    """
+    List all teams in the system.
+
+    Parameters:
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the list of all teams.
+    """
+    teams: List[schema.Team] = session.query(schema.Team).all()
+
+    teams_info = [
+        {
+            "id": team.id,
+            "name": team.name,
+        }
+        for team in teams
+    ]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the list of all teams",
+        data=jsonable_encoder(teams_info),
+    )
+
+
+@team_router.get("/team-users", dependencies=[Depends(team_admin_or_global_admin)])
+def list_team_users(
+    team_id: str,
+    session: Session = Depends(get_session),
+):
+    """
+    List all users in a specific team.
+
+    Parameters:
+    - team_id: The ID of the team to retrieve users for.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the list of users in the team.
+    """
+    user_teams: List[schema.UserTeam] = (
+        session.query(schema.UserTeam)
+        .options(joinedload(schema.UserTeam.user))
+        .filter(schema.UserTeam.team_id == team_id)
+        .all()
+    )
+
+    users_info = [
+        {
+            "user_id": user_team.user_id,
+            "username": user_team.user.username,
+            "email": user_team.user.email,
+            "role": user_team.role,
+        }
+        for user_team in user_teams
+    ]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully retrieved users in the team",
+        data=jsonable_encoder(users_info),
     )

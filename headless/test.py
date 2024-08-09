@@ -65,9 +65,9 @@ def main():
         "run_name": args.run_name,
     }
 
-    local_test_dir = os.getenv("LOCAL_TEST_DIR")
+    local_test_dir = os.getenv("SHARE_DIR")
     if not local_test_dir:
-        print("Error: LOCAL_TEST_DIR environment variable is not set.")
+        print("Error: SHARE_DIR environment variable is not set.")
         sys.exit(1)
 
     s3_uris = [

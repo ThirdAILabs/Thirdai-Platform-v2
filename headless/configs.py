@@ -3,9 +3,9 @@ import sys
 from abc import ABC
 from typing import Optional
 
-base_path = os.getenv("LOCAL_TEST_DIR")
+base_path = os.getenv("SHARE_DIR")
 if not base_path:
-    print("Error: LOCAL_TEST_DIR environment variable is not set.")
+    print("Error: SHARE_DIR environment variable is not set.")
     sys.exit(1)
 
 

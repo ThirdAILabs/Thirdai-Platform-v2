@@ -333,11 +333,6 @@ class GlobalAdminFunctions:
         except Exception as e:
             pass
 
-        flow.bazaar_client.login(
-            email="admin@mail.com",
-            password="password",
-        )
-
     @staticmethod
     def test_add_global_admin(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
@@ -376,15 +371,15 @@ class GlobalAdminFunctions:
     def test_create_team(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
         response = flow.bazaar_client.create_team(inputs.get("name"))
-        logging.info(
-            f"Create Team: {'Passed' if response.status_code == 201 else 'Failed'} - {response.json()}"
-        )
+        print(response)
+
+        return response
 
     @staticmethod
     def test_add_user_to_team(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
         response = flow.bazaar_client.add_user_to_team(
-            inputs.get("user_email"), inputs.get("team_name")
+            inputs.get("user_email"), inputs.get("team_id")
         )
         logging.info(
             f"Add User to Team: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
@@ -394,7 +389,7 @@ class GlobalAdminFunctions:
     def test_assign_team_admin(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
         response = flow.bazaar_client.assign_team_admin(
-            inputs.get("user_email"), inputs.get("team_name")
+            inputs.get("user_email"), inputs.get("team_id")
         )
         logging.info(
             f"Assign Team Admin: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
@@ -403,7 +398,7 @@ class GlobalAdminFunctions:
     @staticmethod
     def test_delete_team(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
-        response = flow.bazaar_client.delete_team(inputs.get("team_name"))
+        response = flow.bazaar_client.delete_team(inputs.get("team_id"))
         logging.info(
             f"Delete Team: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
         )
@@ -429,14 +424,6 @@ class TeamAdminFunctions:
     @staticmethod
     def ta_setup(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
-        flow.bazaar_client.login(
-            email="admin@mail.com",
-            password="password",
-        )
-        response = flow.bazaar_client.create_team(inputs.get("team_name"))
-        if response.status_code == 201:
-            logging.info("Team created successfully.")
-
         try:
             flow.bazaar_client.signup(
                 email="ta_team_admin@mail.com",
@@ -445,12 +432,6 @@ class TeamAdminFunctions:
             )
         except Exception as e:
             logging.error(f"Failed to signup another team admin: {e}")
-
-        response = flow.bazaar_client.assign_team_admin(
-            "ta_team_admin@mail.com", inputs.get("team_name")
-        )
-        if response.status_code == 200:
-            logging.info("Assigned user to team.")
 
         try:
             flow.bazaar_client.signup(
@@ -484,7 +465,7 @@ class TeamAdminFunctions:
         )
 
         response = flow.bazaar_client.add_user_to_team(
-            inputs.get("user_email"), inputs.get("team_name")
+            inputs.get("user_email"), inputs.get("team_id")
         )
         logging.info(
             f"Add User to Team: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
@@ -495,7 +476,7 @@ class TeamAdminFunctions:
         logging.info(f"inputs: {inputs}")
 
         response = flow.bazaar_client.assign_team_admin(
-            inputs.get("user_email"), inputs.get("team_name")
+            inputs.get("user_email"), inputs.get("team_id")
         )
         logging.info(
             f"Assign Team Admin: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
@@ -509,23 +490,11 @@ class TeamAdminFunctions:
                 "Login Instance: %s", flow.bazaar_client._login_instance.username
             )
 
-            response = flow.bazaar_client.delete_user(inputs.get("email"))
+            response = flow.bazaar_client.remove_user_from_team(
+                inputs.get("email"), inputs.get("team_id")
+            )
             logging.info(
                 f"Test Delete Team Member: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
-            )
-        except HTTPError as e:
-            if e.response.status_code == 403:
-                logging.info("Passes")
-            else:
-                raise
-
-    @staticmethod
-    def test_ta_delete_team(inputs: Dict[str, str]):
-        logging.info(f"inputs: {inputs}")
-        try:
-            response = flow.bazaar_client.delete_team(inputs.get("team_name"))
-            logging.info(
-                f"Delete Team: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
             )
         except HTTPError as e:
             if e.response.status_code == 403:
@@ -565,17 +534,15 @@ class TeamAdminFunctions:
     @staticmethod
     def ta_cleanup(inputs: Dict[str, str]):
         logging.info("Starting cleanup process.")
-
-        flow.bazaar_client.login(
-            email="admin@mail.com",
-            password="password",
-        )
+        team_id = inputs.get("team_id")
 
         user_emails = [
             "ta_team_admin@mail.com",
             "ta_another_team_admin@mail.com",
             "ta_test_team_member@mail.com",
         ]
+
+        flow.bazaar_client.log_in(flow._global_email, flow._global_password)
 
         for email in user_emails:
             try:
@@ -586,16 +553,13 @@ class TeamAdminFunctions:
             except Exception as e:
                 logging.error(f"Failed to delete user {email}: {e}")
 
-        team_names = ["TA-Test-Team"]
-
-        for team_name in team_names:
-            try:
-                response = flow.bazaar_client.delete_team(team_name)
-                logging.info(
-                    f"Delete Team {team_name}: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
-                )
-            except Exception as e:
-                logging.error(f"Failed to delete team {team_name}: {e}")
+        try:
+            response = flow.bazaar_client.delete_team(team_id)
+            logging.info(
+                f"Delete Team {team_id}: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+            )
+        except Exception as e:
+            logging.error(f"Failed to delete team {team_id}: {e}")
 
         logging.info("Cleanup process completed.")
 

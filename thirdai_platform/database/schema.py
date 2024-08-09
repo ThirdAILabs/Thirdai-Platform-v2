@@ -11,7 +11,6 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    Table,
     UniqueConstraint,
     text,
 )
@@ -33,7 +32,7 @@ class Status(str, enum.Enum):
 class Role(enum.Enum):
     user = "user"
     team_admin = "team_admin"
-    global_admin = "global_admin"  # Global Admin won't be part of any team
+    global_admin = "global_admin"
 
 
 class Access(enum.Enum):
@@ -107,22 +106,21 @@ class User(SQLDeclarativeBase):
         return self.email.split("@")[1]
 
     def get_team_roles(self):
-        team_roles = [
+        return (
             {"team_id": user_team.team_id, "role": user_team.role}
             for user_team in self.teams
-        ]
-        return team_roles
+        )
 
     def is_global_admin(self):
         return self.global_admin
 
     def is_team_admin_of_any_team(self):
-        return any(role["role"] == Role.team_admin for role in self.get_team_roles())
+        return any(user_team.role == Role.team_admin for user_team in self.teams)
 
     def is_team_admin_of_team(self, team_id: UUID):
         return any(
-            role["role"] == Role.team_admin and role["team_id"] == team_id
-            for role in self.get_team_roles()
+            user_team.role == Role.team_admin and user_team.team_id == team_id
+            for user_team in self.teams
         )
 
 
@@ -154,6 +152,9 @@ class Model(SQLDeclarativeBase):
     published_date = Column(
         DateTime, default=datetime.utcnow().isoformat(), nullable=True
     )
+    default_permission = Column(
+        ENUM(Permission), nullable=False, default=Permission.read
+    )
 
     parent_id = Column(
         UUID(as_uuid=True), ForeignKey("models.id", ondelete="SET NULL"), nullable=True
@@ -179,7 +180,7 @@ class Model(SQLDeclarativeBase):
     )
 
     def get_default_permission(self):
-        return Permission.read
+        return self.default_permission
 
     @validates("name")
     def validate_model_name(self, key, name):
@@ -213,6 +214,16 @@ class Model(SQLDeclarativeBase):
             return self.get_default_permission()
 
         return None
+
+    def get_owner_permission(self, user):
+        if user.id == self.user_id or user.is_global_admin():
+            return True
+
+        if self.access_level == Access.protected:
+            if user.is_team_admin_of_team(self.team_id):
+                return True
+
+        return False
 
     __table_args__ = (
         Index("train_status_index", "train_status"),

@@ -99,6 +99,9 @@ def get_high_level_model_info(result: schema.Model):
         "domain": result.domain,
         "type": result.type,
         "deploy_status": result.deploy_status,
+        "team_id": str(result.team_id),
+        "model_id": str(result.id),
+        "sub_type": result.sub_type,
     }
 
     # Include metadata if it exists

@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from reporter import Reporter
 from routers.ndb import create_ndb_router, process_tasks
 from routers.udt import udt_router
-from utils import delete_job
+from utils import delete_deployment_job
 from variables import GeneralVariables, TypeEnum
 
 general_variables = GeneralVariables.load_from_env()
@@ -62,7 +62,7 @@ async def async_timer() -> None:
             )
             reset_event.clear()  # clear the event if the endpoint was hit within the timeout period
         except asyncio.TimeoutError:
-            response, job_id = delete_job(
+            response, job_id = delete_deployment_job(
                 general_variables.model_id, general_variables.task_runner_token
             )
             if response.status_code == 200:

@@ -17,6 +17,8 @@ class Flow:
         password (str): Password for authentication.
         """
         self._bazaar_client = ModelBazaar(base_url=base_url)
+        self._global_email = email
+        self._global_password = password
         self._bazaar_client.log_in(email=email, password=password)
         self._workflow_client = WorkflowClient(self._bazaar_client)
 

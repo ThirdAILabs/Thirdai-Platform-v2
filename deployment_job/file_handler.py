@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Protocol
 
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile, status
 from thirdai import neural_db as ndb
 from utils import FILE_DOCUMENT_TYPES
 
@@ -97,6 +97,74 @@ class S3FileHandler:
                 config=config,
             )
         return s3_client
+
+    def create_bucket_if_not_exists(self, bucket_name):
+        import boto3
+        from botocore.exceptions import ClientError
+
+        try:
+            self.s3_client.head_bucket(Bucket=bucket_name)
+            print(f"Bucket {bucket_name} already exists.")
+        except ClientError as e:
+            error_code = int(e.response["Error"]["Code"])
+            if error_code == 404:
+                try:
+                    self.s3_client.create_bucket(
+                        Bucket=bucket_name,
+                        CreateBucketConfiguration={
+                            "LocationConstraint": (
+                                boto3.session.Session().region_name
+                                if boto3.session.Session().region_name
+                                else "us-east-1"
+                            )
+                        },
+                    )
+                    print(f"Bucket {bucket_name} created successfully.")
+                except ClientError as e:
+                    if e.response["Error"]["Code"] == "BucketAlreadyExists":
+                        print(f"Bucket {bucket_name} already exists globally.")
+                    elif e.response["Error"]["Code"] == "AccessDenied":
+                        raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f"Access denied to create bucket {bucket_name}. Error: {str(e)}",
+                        )
+                    else:
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to create bucket {bucket_name}. Error: {str(e)}",
+                        )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Error checking bucket {bucket_name}. Error: {str(e)}",
+                )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to access bucket {bucket_name}. Error: {str(e)}",
+            )
+
+    def upload_folder_to_s3(self, bucket_name, local_dir):
+        base_dir_name = "model_and_data"
+
+        for root, _, files in os.walk(local_dir):
+            for file in files:
+                local_path = os.path.join(root, file)
+                relative_path = os.path.relpath(local_path, local_dir)
+                s3_path = os.path.join(base_dir_name, relative_path)
+
+                try:
+                    self.s3_client.upload_file(local_path, bucket_name, s3_path)
+                    print(f"Uploaded {local_path} to {bucket_name}/{s3_path}.")
+                except Exception as e:
+                    print(f"Failed to upload {local_path}. Error: {str(e)}")
+
+    def upload_file_to_s3(self, file_path, bucket_name, object_name):
+        try:
+            self.s3_client.upload_file(file_path, bucket_name, object_name)
+            print(f"Uploaded {file_path} to {bucket_name}/{object_name}.")
+        except Exception as e:
+            print(f"Failed to upload {file_path}. Error: {str(e)}")
 
     def handle(self, doc: Dict[str, Any], data_dir: str) -> str:
         bucket, object = doc["path"].replace("s3://", "").split("/", 1)

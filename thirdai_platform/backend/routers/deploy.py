@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import traceback
 from datetime import datetime
 from pathlib import Path
@@ -11,7 +12,8 @@ from auth.jwt import (
     verify_access_token,
     verify_access_token_no_throw,
 )
-from backend.auth_dependencies import is_model_owner
+from backend.auth_dependencies import verify_model_access, is_model_owner
+from backend.file_handler import S3StorageHandler
 from backend.utils import (
     delete_nomad_job,
     get_empty_port,
@@ -32,8 +34,6 @@ from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
-from backend.file_handler import S3StorageHandler
-import subprocess
 
 deploy_router = APIRouter()
 
@@ -541,125 +541,3 @@ def get_deployment_info(
         message="Deployment info retrieved successfully",
         data=jsonable_encoder(deployment_info),
     )
-
-
-def get_s3_client():
-    aws_access_key = os.getenv("AWS_ACCESS_KEY")
-    aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    if not aws_access_key or not aws_secret_access_key:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="AWS credentials are not set in the environment variables.",
-        )
-    return boto3.client(
-        "s3",
-        aws_access_key_id=aws_access_key,
-        aws_secret_access_key=aws_secret_access_key,
-    )
-
-
-def create_bucket_if_not_exists(s3_client, bucket_name):
-    from botocore.exceptions import ClientError
-    import boto3
-
-    try:
-        s3_client.head_bucket(Bucket=bucket_name)
-        print(f"Bucket {bucket_name} already exists.")
-    except ClientError as e:
-        error_code = int(e.response["Error"]["Code"])
-        if error_code == 404:
-            try:
-                s3_client.create_bucket(
-                    Bucket=bucket_name,
-                    CreateBucketConfiguration={
-                        "LocationConstraint": (
-                            boto3.session.Session().region_name
-                            if boto3.session.Session().region_name
-                            else "us-east-1"
-                        )
-                    },
-                )
-                print(f"Bucket {bucket_name} created successfully.")
-            except ClientError as e:
-                if e.response["Error"]["Code"] == "BucketAlreadyExists":
-                    print(f"Bucket {bucket_name} already exists globally.")
-                elif e.response["Error"]["Code"] == "AccessDenied":
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f"Access denied to create bucket {bucket_name}. Error: {str(e)}",
-                    )
-                else:
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail=f"Failed to create bucket {bucket_name}. Error: {str(e)}",
-                    )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error checking bucket {bucket_name}. Error: {str(e)}",
-            )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to access bucket {bucket_name}. Error: {str(e)}",
-        )
-
-
-def upload_files_to_s3(s3_client, bucket_name, local_dir):
-    base_dir_name = "model_and_data"
-
-    for root, _, files in os.walk(local_dir):
-        for file in files:
-            local_path = os.path.join(root, file)
-            relative_path = os.path.relpath(local_path, local_dir)
-            s3_path = os.path.join(base_dir_name, relative_path)
-
-            try:
-                s3_client.upload_file(local_path, bucket_name, s3_path)
-                print(f"Uploaded {local_path} to {bucket_name}/{s3_path}.")
-            except Exception as e:
-                print(f"Failed to upload {local_path}. Error: {str(e)}")
-
-
-def upload_file_to_s3(s3_client, file_path, bucket_name, object_name):
-    try:
-        s3_client.upload_file(file_path, bucket_name, object_name)
-        print(f"Uploaded {file_path} to {bucket_name}/{object_name}.")
-    except Exception as e:
-        print(f"Failed to upload {file_path}. Error: {str(e)}")
-
-
-def dump_postgres_db_to_file(db_uri, dump_file_path):
-    try:
-        subprocess.run(["pg_dump", db_uri, "-f", dump_file_path], check=True)
-        print(f"Database successfully dumped to {dump_file_path}")
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to dump the database: {str(e)}",
-        )
-
-
-@deploy_router.post("/backup-to-s3")
-def backup_to_s3():
-    local_dir = os.getenv("SHARE_DIR")
-    if not local_dir:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="SHARE_DIR environment variable is not set.",
-        )
-
-    bucket_name = os.getenv("RECOVERY_BUCKET_NAME", "thirdai-enterprise-recovery")
-    s3_client = S3StorageHandler.create_s3_client()
-
-    create_bucket_if_not_exists(s3_client, bucket_name)
-
-    db_uri = os.getenv("DATABASE_URI")
-    dump_file_path = os.path.join(local_dir, "db_backup.sql")
-    dump_postgres_db_to_file(db_uri, dump_file_path)
-
-    upload_file_to_s3(s3_client, dump_file_path, bucket_name, "db_backup.sql")
-
-    upload_files_to_s3(s3_client, bucket_name, local_dir)
-
-    return {"message": "Backup to S3 completed successfully, including the database."}

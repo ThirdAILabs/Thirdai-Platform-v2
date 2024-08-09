@@ -30,7 +30,7 @@ from storage import interface, local
 model_router = APIRouter()
 
 storage: interface.StorageInterface = local.LocalStorage(
-    os.getenv("LOCAL_TEST_DIR", "/model_bazaar")
+    os.getenv("SHARE_DIR", "/model_bazaar")
 )
 
 
@@ -1008,7 +1008,7 @@ def update_access_level(
     return response(
         status_code=status.HTTP_200_OK,
         message=f"Access level updated to '{access_level}' for model '{model_identifier}'.",
-        data={"model_id": str(model.id), "access_level": model.access_level},
+        data={"model_id": str(model.id), "access_level": str(model.access_level)},
     )
 
 
@@ -1044,6 +1044,6 @@ def update_default_permission(
         message=f"Default permission updated to '{new_permission}' for model '{model_identifier}'.",
         data={
             "model_id": str(model.id),
-            "default_permission": model.default_permission,
+            "default_permission": str(model.default_permission),
         },
     )

@@ -9,6 +9,7 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { fetchAllModels, fetchAllTeams, fetchAllUsers, 
+          updateModelAccessLevel,
           createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam, deleteTeamById,
           deleteUserAccount } from "@/lib/backend";
 
@@ -154,11 +155,36 @@ export default function AccessPage() {
   };
 
   // Handle model type change
-  const handleModelTypeChange = (index: number, newType: 'Private Model' | 'Protected Model' | 'Public Model') => {
-    const updatedModels = models.map((model, i) =>
-      i === index ? { ...model, type: newType } : model
-    );
-    setModels(updatedModels);
+  const handleModelTypeChange = async (index: number, newType: 'Private Model' | 'Protected Model' | 'Public Model') => {
+    try {
+      const model = models[index];
+      const model_identifier = `${model.owner}/${model.name}`;
+      let access_level: 'private' | 'protected' | 'public';
+
+      switch (newType) {
+        case 'Private Model':
+          access_level = 'private';
+          break;
+        case 'Protected Model':
+          access_level = 'protected';
+          break;
+        case 'Public Model':
+          access_level = 'public';
+          break;
+        default:
+          return;
+      }
+
+      // Call the API to update the model access level
+      await updateModelAccessLevel(model_identifier, access_level);
+
+      // Update the models state
+      const updatedModels = [...models];
+      updatedModels[index] = { ...model, type: newType };
+      setModels(updatedModels);
+    } catch (error) {
+      console.error('Failed to update model access level', error);
+    }
   };
 
   // Create a new team

@@ -53,9 +53,7 @@ class UDTFunctions:
             f"Deploying the model {model.model_identifier} and id {model.model_id}"
         )
 
-        return flow.bazaar_client.deploy_udt(
-            model.model_identifier, f"{run_name}_deployment_{config.sub_type}"
-        )
+        return flow.bazaar_client.deploy_udt(model.model_identifier)
 
     def build_extra_options(config: Config) -> Dict[str, Any]:
         if config.sub_type == "text":
@@ -90,7 +88,7 @@ class CommonFunctions:
         logging.info(f"inputs: {inputs}")
         deployment = inputs.get("deployment")
 
-        logging.info(f"stopping the deployment for {deployment.deployment_identifier}")
+        logging.info(f"stopping the deployment for {deployment.model_identifier}")
 
         flow.bazaar_client.undeploy(deployment)
 
@@ -99,7 +97,7 @@ class CommonFunctions:
         logging.info(f"inputs: {inputs}")
         deployment = inputs.get("deployment")
 
-        logging.info(f"checking the deployment for {deployment.deployment_identifier}")
+        logging.info(f"checking the deployment for {deployment.model_identifier}")
 
         logging.info("Searching the deployment")
         return deployment.search(
@@ -118,7 +116,7 @@ class CommonFunctions:
         logging.info(f"inputs: {inputs}")
         deployment = inputs.get("deployment")
         logging.info(
-            f"Waiting for Deployment to finish for deployment {deployment.deployment_identifier}"
+            f"Waiting for Deployment to finish for deployment {deployment.model_identifier}"
         )
         flow.bazaar_client.await_deploy(deployment)
 
@@ -268,9 +266,7 @@ class NDBFunctions:
             f"Deploying the model {model.model_identifier} and id {model.model_id}"
         )
 
-        return flow.bazaar_client.deploy(
-            model.model_identifier, f"{run_name}_deployment"
-        )
+        return flow.bazaar_client.deploy(model.model_identifier)
 
     def build_extra_options(config: Config, sharded: bool = False) -> Dict[str, Any]:
         """

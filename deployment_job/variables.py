@@ -102,7 +102,6 @@ class EnvLoader:
 @dataclass
 class GeneralVariables(EnvLoader):
     model_id: str
-    deployment_id: str
     model_bazaar_endpoint: str
     model_bazaar_dir: str
     license_key: str
@@ -113,7 +112,7 @@ class GeneralVariables(EnvLoader):
     def deployment_permissions(self, token: str):
         deployment_permissions_endpoint = urljoin(
             self.model_bazaar_endpoint,
-            f"api/deploy/permissions/{self.deployment_id}",
+            f"api/deploy/permissions/{self.model_id}",
         )
         response = requests.get(
             deployment_permissions_endpoint,

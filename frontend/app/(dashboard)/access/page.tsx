@@ -8,7 +8,8 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
-import { fetchAllModels, fetchAllTeams, fetchAllUsers, createTeam, addUserToTeam, assignTeamAdmin } from "@/lib/backend";
+import { fetchAllModels, fetchAllTeams, fetchAllUsers, 
+          createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam } from "@/lib/backend";
 
 // Define types for the models, teams, and users
 type Model = {
@@ -63,8 +64,10 @@ export default function AccessPage() {
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [newTeamAdmin, setNewTeamAdmin] = useState<string>('');
   const [newTeamMembers, setNewTeamMembers] = useState<string[]>([]);
-  const [selectedTeam, setSelectedTeam] = useState<string>('');
+  const [selectedTeamForAdd, setSelectedTeamForAdd] = useState<string>('');
+  const [selectedTeamForRemove, setSelectedTeamForRemove] = useState<string>('');
   const [newMember, setNewMember] = useState<string>('');
+  const [memberToRemove, setMemberToRemove] = useState<string>('');
 
   // Handle model type change
   const handleModelTypeChange = (index: number, newType: 'Private Model' | 'Protected Model' | 'Public Model') => {
@@ -116,7 +119,7 @@ export default function AccessPage() {
   const addMemberToTeam = async () => {
     try {
       // Find the team by name
-      const team = teams.find(t => t.name === selectedTeam);
+      const team = teams.find(t => t.name === selectedTeamForAdd);
       if (!team) {
         console.error('Selected team not found');
         return;
@@ -137,10 +140,41 @@ export default function AccessPage() {
         t.id === team.id ? { ...t, members: [...t.members, user.name] } : t
       );
       setTeams(updatedTeams)
-      setSelectedTeam('');  // Clear the selected team
+      setSelectedTeamForAdd('');  // Clear the selected team
       setNewMember('');     // Clear the new member input
     } catch (error) {
       console.error('Failed to add member to team', error);
+    }
+  };
+
+  const removeMemberFromTeam = async () => {
+    try {
+      // Find the team by name
+      const team = teams.find(t => t.name === selectedTeamForRemove);
+      if (!team) {
+        console.error('Selected team not found');
+        return;
+      }
+
+      // Find the user by name
+      const user = users.find(u => u.name === memberToRemove);
+      if (!user) {
+        console.error('User not found');
+        return;
+      }
+
+      // Call the function to remove the user from the team
+      await deleteUserFromTeam(user.email, team.id);
+
+      // Optionally update the team members state (if needed)
+      const updatedTeams = teams.map(t =>
+        t.id === team.id ? { ...t, members: t.members.filter(m => m !== user.name) } : t
+      );
+      setTeams(updatedTeams)
+      setSelectedTeamForRemove('');  // Clear the selected team
+      setMemberToRemove(''); // Clear the member input
+    } catch (error) {
+      console.error('Failed to remove member from team', error);
     }
   };
 
@@ -398,8 +432,8 @@ export default function AccessPage() {
             <h4 className="text-md font-semibold">Add Member to Team</h4>
             <div className="mb-2">
               <select
-                value={selectedTeam}
-                onChange={(e) => setSelectedTeam(e.target.value)}
+                value={selectedTeamForAdd}
+                onChange={(e) => setSelectedTeamForAdd(e.target.value)}
                 className="border border-gray-300 rounded px-2 py-1 mb-2"
               >
                 <option value="">Select Team</option>
@@ -421,6 +455,38 @@ export default function AccessPage() {
                 className="bg-green-500 text-white px-2 py-1 rounded"
               >
                 Add Member
+              </button>
+            </div>
+          </div>
+
+          {/* Remove Member from Team */}
+          <div>
+            <h4 className="text-md font-semibold">Remove Member from Team</h4>
+            <div className="mb-2">
+              <select
+                value={selectedTeamForRemove}
+                onChange={(e) => setSelectedTeamForRemove(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 mb-2"
+              >
+                <option value="">Select Team</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.name}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                placeholder="Member to Remove"
+                value={memberToRemove}
+                onChange={(e) => setMemberToRemove(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 mb-2"
+              />
+              <button
+                onClick={removeMemberFromTeam}
+                className="bg-red-500 text-white px-2 py-1 rounded"
+              >
+                Remove Member
               </button>
             </div>
           </div>

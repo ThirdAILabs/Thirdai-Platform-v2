@@ -690,3 +690,24 @@ export async function assignTeamAdmin(email: string, team_id: string) {
       });
   });
 }
+
+
+export async function deleteUserFromTeam(email: string, team_id: string): Promise<void> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ email, team_id });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`http://localhost:8000/api/team/remove-user-from-team?${params.toString()}`)
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.error('Error removing user from team:', err);
+        reject(err);
+      });
+  });
+}

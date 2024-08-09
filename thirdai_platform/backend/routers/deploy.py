@@ -477,6 +477,8 @@ def log_results(
             action=log_data.action,
         )
         session.add(log_entry)
+        session.commit()
+        session.refresh(log_entry)
 
     log_entry.log_entries = update_json_list(log_entry.log_entries, new_log)
     log_entry.count += len(log_data.train_samples)
@@ -485,7 +487,7 @@ def log_results(
     return {"message": "Log entry added successfully"}
 
 
-@deploy_router.get("/info", dependencies=[is_model_owner])
+@deploy_router.get("/info", dependencies=[Depends(is_model_owner)])
 def get_deployment_info(
     model_identifier: str,
     require_raw_logs: bool = False,

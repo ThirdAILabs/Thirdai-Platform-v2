@@ -4,7 +4,10 @@ from typing import Optional
 from models.model import Model
 from pydantic_models import inputs
 from thirdai import bolt
-
+import logging_loki
+import logging
+logging_loki.emitter.LokiEmitter.level_tag = "level"
+from collections import Counter
 
 class ClassificationModel(Model):
     def __init__(
@@ -16,6 +19,16 @@ class ClassificationModel(Model):
         else:
             self.model_path = self.get_udt_path(model_id)
         self.model: bolt.UniversalDeepTransformer = self.load_model()
+
+        self.loki_handler = logging_loki.LokiHandler(
+            url="http://192.168.1.11/loki/api/v1/push",
+            version="1",
+            )
+
+        self.db_logger = logging.getLogger("action-logger")
+        self.db_logger.addHandler(self.loki_handler)
+        self.db_logger.setLevel(logging.DEBUG)
+
 
     def get_udt_path(self, model_id: Optional[str] = None) -> str:
         model_id = model_id or self.general_variables.model_id
@@ -54,6 +67,19 @@ class TextClassificationModel(ClassificationModel):
             ],
         )
 
+        _counter = Counter(class_names)
+
+        self.db_logger.info(
+            str(self.general_variables.deployment_id),
+            extra={"tags": {
+                    "deployment_id": str(self.general_variables.deployment_id),
+                    "service":"text_classification", 
+                    "type": "udt",
+                    "action": "predict",
+                    **_counter,
+                }}
+        )
+        
         return inputs.SearchResultsTextClassification(
             query_text=query,
             class_names=class_names,
@@ -73,14 +99,24 @@ class TokenClassificationModel(ClassificationModel):
         predictions = []
         for predicted_tag in predicted_tags:
             predictions.append([x[0] for x in predicted_tag])
-
-        self.reporter.log(
-            action="predict",
-            deployment_id=self.general_variables.deployment_id,
-            access_token=kwargs.get("token"),
-            train_samples=[{"query": query, "predictions": ",".join(predictions[0])}],
+        
+        predictions_flattened = []
+        for x in predictions: 
+            predictions_flattened.extend([label for label in x if label != "O"])
+        
+        _counter = Counter(predictions_flattened)
+        
+        self.db_logger.info(
+            str(self.general_variables.deployment_id),
+            extra={"tags": {
+                    "deployment_id": str(self.general_variables.deployment_id),
+                    "service":"token_classification", 
+                    "type": "udt",
+                    "action": "predict",
+                     **_counter,
+                }}
         )
-
+        
         return inputs.SearchResultsTokenClassification(
             query_text=query,
             tokens=query.split(),

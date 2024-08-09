@@ -1,5 +1,6 @@
 import os
 import uuid
+from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -20,6 +21,11 @@ from sqlalchemy.orm import Session
 data_router = APIRouter()
 
 
+class LLMProvider(str, Enum):
+    openai = "openai"
+    cohere = "cohere"
+
+
 class TextClassificationGenerateArgs(BaseModel):
     samples_per_label: int
     target_labels: List[str]
@@ -29,11 +35,14 @@ class TextClassificationGenerateArgs(BaseModel):
     user_prompts: Optional[List[str]] = None
     batch_size: int = 40
     vocab_per_sentence: int = 4
+    allocation_cores: Optional[int] = None
+    allocation_memory: Optional[int] = None
 
 
 @data_router.post("/generate-text-data")
 def generate_text_data(
     task_prompt: str,
+    llm_provider: LLMProvider = LLMProvider.openai,
     form: str = Form(default="{}"),
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
@@ -81,6 +90,7 @@ def generate_text_data(
         task_prompt=task_prompt,
         data_id=str(data_id),
         data_category="text",
+        llm_provider=llm_provider.value,
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
         share_dir=os.getenv("SHARE_DIR", None),
         genai_key=os.getenv("GENAI_KEY", None),
@@ -102,11 +112,14 @@ class TokenClassificationGenerateArgs(BaseModel):
     num_call_batches: int
     batch_size: int = 40
     num_samples_per_tag: int = 4
+    allocation_cores: Optional[int] = None
+    allocation_memory: Optional[int] = None
 
 
 @data_router.post("/generate-token-data")
 def generate_token_data(
     task_prompt: str,
+    llm_provider: LLMProvider = LLMProvider.openai,
     form: str = Form(default="{}"),
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
@@ -161,6 +174,7 @@ def generate_token_data(
         task_prompt=task_prompt,
         data_id=str(data_id),
         data_category="token",
+        llm_provider=llm_provider.value,
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
         share_dir=os.getenv("SHARE_DIR", None),
         genai_key=genai_key,

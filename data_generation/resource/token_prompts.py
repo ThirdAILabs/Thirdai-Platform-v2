@@ -56,7 +56,7 @@ Following are some sample output format for generation. This is just for example
 {templatized_sentences_examples}
 
 Key Requirements:
--   Mask the Only the Entities in square brackets with and make sure entities are in upper case. 
+-   Mask only the Entities in square brackets with and make sure entities are in upper case. 
 -   The entities should strictly belong to one of {sampled_tags}. Do not include anything apart from entities in square brackets
 -   Seperate different samples by new line
 -   Give only the generated samples in output and make sure each sample should start on a new line. Do not include any extra new line. 

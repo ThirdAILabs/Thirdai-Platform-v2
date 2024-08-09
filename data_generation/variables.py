@@ -36,7 +36,6 @@ class EnvLoader:
                         f.default if f.default is not MISSING else f.default_factory()
                     )
             else:
-                # print(f'{f.name = }, {value = }, {f.type = }')
                 value = cls._convert_type(value, f.type)
             env_vars[f.name] = value
 

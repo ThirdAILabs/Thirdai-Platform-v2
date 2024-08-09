@@ -17,15 +17,17 @@ from typing import Dict, List
 from data_factory_interface import DataFactory
 from faker import Faker
 from tqdm import tqdm
-from utils import fill_and_transform_templates, subsample_dictionary
-
-from .utils import assert_sufficient_examples
-
-SOURCE_COLUMN = "source"
-TARGET_COLUMN = "target"
+from utils import (
+    assert_sufficient_examples,
+    fill_and_transform_templates,
+    subsample_dictionary,
+)
 
 
 class TokenDataFactory(DataFactory):
+    SOURCE_COLUMN = "source"
+    TARGET_COLUMN = "target"
+
     def __init__(
         self,
     ):
@@ -148,7 +150,7 @@ class TokenDataFactory(DataFactory):
                 prompt,
                 system_prompt=f"You are a helpful assistant designed to generate synthetic data for domain {domain_prompt}.",
             )
-            return response
+            return response.split("\n")
 
         attribute_values = self.get_attributes(domain_prompt)
 
@@ -202,7 +204,7 @@ class TokenDataFactory(DataFactory):
                     try:
                         response = future.result()
                         if response:
-                            generated_templates.append(response.split("\n"))
+                            generated_templates.append(response)
 
                     except Exception as e:
                         with open(self.errored_file_location, mode="a") as errored_fp:
@@ -215,7 +217,10 @@ class TokenDataFactory(DataFactory):
 
             self.write_on_training_file(
                 data_points,
-                fieldnames=[SOURCE_COLUMN, TARGET_COLUMN],
+                fieldnames=[
+                    TokenDataFactory.SOURCE_COLUMN,
+                    TokenDataFactory.TARGET_COLUMN,
+                ],
                 write_fields=sentences_generated == 0,
             )
 
@@ -225,11 +230,11 @@ class TokenDataFactory(DataFactory):
             "filepath": self.train_file_location,
             "error_file": self.errored_file_location,
             "task": "TOKEN_CLASSIFICATION",
-            "input_feature": SOURCE_COLUMN,
-            "target_feature": TARGET_COLUMN,
+            "input_feature": TokenDataFactory.SOURCE_COLUMN,
+            "target_feature": TokenDataFactory.TARGET_COLUMN,
             "target_labels": tags,
             "num_samples": sentences_generated,
         }
-        self.save_config(dataset_config)
+        self.save_dict(self.config_file_location, dataset_config)
 
         return dataset_config

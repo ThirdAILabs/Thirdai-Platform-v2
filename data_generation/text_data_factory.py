@@ -9,14 +9,13 @@ from typing import Dict, List, Optional
 
 from data_factory_interface import DataFactory
 from tqdm import tqdm
-
-from .utils import assert_sufficient_descriptions, assert_sufficient_examples
-
-SOURCE_COLUMN = "text"
-TARGET_COLUMN = "label"
+from utils import assert_sufficient_descriptions, assert_sufficient_examples
 
 
 class TextDataFactory(DataFactory):
+    SOURCE_COLUMN = "text"
+    TARGET_COLUMN = "label"
+
     def __init__(self):
         super().__init__()
 
@@ -44,7 +43,10 @@ class TextDataFactory(DataFactory):
                 prompt,
             )
             return [
-                {SOURCE_COLUMN: text, TARGET_COLUMN: target_label}
+                {
+                    TextDataFactory.SOURCE_COLUMN: text,
+                    TextDataFactory.TARGET_COLUMN: target_label,
+                }
                 for text in text_response.replace("\n\n", "\n").split("\n")
                 if text.strip()
             ]
@@ -116,7 +118,10 @@ class TextDataFactory(DataFactory):
 
             self.write_on_training_file(
                 data_points,
-                fieldnames=[SOURCE_COLUMN, TARGET_COLUMN],
+                fieldnames=[
+                    TextDataFactory.SOURCE_COLUMN,
+                    TextDataFactory.TARGET_COLUMN,
+                ],
                 write_fields=sentences_generated == 0,
                 newline="",
                 encoding="utf-8",
@@ -128,11 +133,11 @@ class TextDataFactory(DataFactory):
             "filepath": self.train_file_location,
             "error_file": self.errored_file_location,
             "task": "TEXT_CLASSIFICATION",
-            "input_feature": SOURCE_COLUMN,
-            "target_feature": TARGET_COLUMN,
+            "input_feature": TextDataFactory.SOURCE_COLUMN,
+            "target_feature": TextDataFactory.TARGET_COLUMN,
             "target_labels": target_labels,
             "num_samples": sentences_generated,
         }
-        self.save_config(dataset_config)
+        self.save_dict(self.config_file_location, dataset_config)
 
         return dataset_config

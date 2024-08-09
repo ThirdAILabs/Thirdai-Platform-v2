@@ -1,14 +1,14 @@
 import csv
 import json
 import random
+import traceback
 from abc import ABC, abstractmethod
 from pathlib import Path
 from resource.util_data import random_prompts, vocab
 from typing import Dict, List, Optional
 
+from llms import llm_classes
 from variables import GeneralVariables
-
-from .llms import llm_classes
 
 
 class DataFactory(ABC):
@@ -23,6 +23,10 @@ class DataFactory(ABC):
         self.llm_model = llm_classes.get(self.general_variables.llm_provider.value)(
             api_key=self.general_variables.genai_key
         )
+        self.train_file_location = self.save_dir / "train.csv"
+        self.errored_file_location = self.save_dir / "traceback.err"
+        self.config_file_location = self.save_dir / "config.json"
+        self.generation_args_location = self.save_dir / "generation_args.json"
 
     @abstractmethod
     def generate_data(self, **kwargs):
@@ -46,22 +50,22 @@ class DataFactory(ABC):
         newline: Optional[str] = None,
         encoding: Optional[str] = None,
     ):
-        with open(
-            self.train_file_location, "a", newline=newline, encoding=encoding
-        ) as csv_file:
-            csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-            if write_fields:
-                csv_writer.writeheader()
-            csv_writer.writerows(data_points)
+        try:
+            with open(
+                self.train_file_location, "a", newline=newline, encoding=encoding
+            ) as csv_file:
+                csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+                if write_fields:
+                    csv_writer.writeheader()
+                csv_writer.writerows(data_points)
+        except Exception as e:
+            with open(self.errored_file_location, mode="a") as errored_fp:
+                errored_fp.write(
+                    "\nError while writing on train file " + "-" * 20 + "\n"
+                )
+                traceback.print_exc(file=errored_fp)
+                errored_fp.write("\n" + "=" * 100 + "\n")
 
-    def save_config(self, **kwargs):
-        with open(self.save_dir / "config.json", "w") as config_fp:
-            json.dump(kwargs, config_fp, indent=4)
-
-    @property
-    def train_file_location(self):
-        return self.save_dir / "train.csv"
-
-    @property
-    def errored_file_location(self):
-        return self.save_dir / "traceback.err"
+    def save_dict(self, write_to: str, **kwargs):
+        with open(write_to, "w") as fp:
+            json.dump(kwargs, fp, indent=4)

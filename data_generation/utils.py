@@ -19,7 +19,7 @@ def assert_sufficient_descriptions(
     target_labels: List[str], labels_description: Dict[str, str]
 ):
     missing_description = [
-        label for label in labels_description.keys() if label not in target_labels
+        label for label in target_labels if label not in labels_description
     ]
     if missing_description:
         raise ValueError(

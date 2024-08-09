@@ -87,9 +87,7 @@ def model_owner_permissions(
     Returns:
     - A boolean indicating if the user has owner permissions.
     """
-    model: schema.Model = (
-        session.query(schema.Model).get(model_id)
-    )
+    model: schema.Model = session.query(schema.Model).get(model_id)
 
     if not isinstance(authenticated_user, AuthenticatedUser):
         return False
@@ -116,7 +114,7 @@ def get_model_permissions(
     Example Usage:
     ```json
     {
-       "deployment_id" : "deployment_123",
+       "model_id" : "model_id",
     }
     ```
     """
@@ -301,7 +299,7 @@ def deployment_status(
     Example Usage:
     ```json
     {
-        "deployment_identifier": "model123:user123/deployment_name"
+        "model_identifier": "user123/model_name"
     }
     ```
     """
@@ -337,7 +335,7 @@ def update_deployment_status(
     Example Usage:
     ```json
     {
-        "deployment_id": "deployment123",
+        "model_id": "model_id",
         "status": "in_progress"
     }
     ```
@@ -374,7 +372,7 @@ def undeploy_model(
     Example Usage:
     ```json
     {
-        "deployment_identifier": "model123:user123/deployment_name"
+        "model_identifier": "user123/model123"
     }
     ```
     """
@@ -435,7 +433,7 @@ def log_results(
     Example Usage:
     ```json
     {
-        "deployment_id": "deployment123",
+        "model_id": "model_id",
         "action": "train",
         "train_samples": [
             {"input": "data1", "output": "label1"},
@@ -487,54 +485,42 @@ def log_results(
     return {"message": "Log entry added successfully"}
 
 
-@deploy_router.get("/info")
+@deploy_router.get("/info", dependencies=[is_model_owner])
 def get_deployment_info(
-    deployment_id: str,
+    model_identifier: str,
     require_raw_logs: bool = False,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Retrieve deployment information.
 
     Parameters:
-    - deployment_id: The ID of the deployment (query parameter).
+    - model_identifier: The identifier of the model.
     - require_raw_logs: Whether to include raw logs in the response (query parameter).
 
     Example Usage:
     ```json
     {
-        "deployment_id": "deployment123",
+        "model_identifier": "username/modelname",
         "require_raw_logs": false
     }
     ```
     """
-    user = authenticated_user.user
-
-    # Fetch the deployment and logs together from the database for the authenticated user
-    deployment = (
-        session.query(schema.Deployment)
-        .filter_by(id=deployment_id, user_id=user.id)
-        .first()
-    )
-    if not deployment:
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="No deployment with this id",
+            message=str(error),
         )
 
-    logs = (
-        session.query(schema.Log)
-        .filter_by(deployment_id=deployment_id, user_id=user.id)
-        .all()
-    )
+    logs = session.query(schema.Log).filter_by(schema.Log.model_id == model.id)
 
     # Prepare the response data
     deployment_info = {
-        "id": str(deployment.id),
-        "name": deployment.name,
-        "status": deployment.status,
-        "model_id": str(deployment.model_id),
+        "name": model.name,
+        "status": model.deploy_status,
+        "model_id": str(model.id),
         "logs": [
             {
                 "user_id": str(log.user_id),

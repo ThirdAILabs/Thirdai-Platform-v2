@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 from pathlib import Path
@@ -35,7 +36,6 @@ from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.expression import null
 
 train_router = APIRouter()
 

@@ -1,11 +1,10 @@
-import json
 import os
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
-from backend.auth_dependencies import verify_model_access
+from backend.auth_dependencies import verify_model_read_access
 from backend.file_handler import (
     FileLocation,
     FileType,
@@ -244,7 +243,6 @@ def train_ndb(
             domain=user.domain,
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model else None,
-            team_id=null(),
         )
 
         session.add(new_model)
@@ -464,7 +462,6 @@ def train_udt(
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model else None,
-            team_id=null(),
         )
 
         session.add(new_model)
@@ -794,7 +791,7 @@ def update_shard_train_status(
     return {"message": f"Successfully updated shard with message: {message}"}
 
 
-@train_router.get("/status", dependencies=[Depends(verify_model_access)])
+@train_router.get("/status", dependencies=[Depends(verify_model_read_access)])
 def train_status(
     model_identifier: str,
     session: Session = Depends(get_session),
@@ -829,7 +826,7 @@ def train_status(
 
 
 @train_router.get(
-    "/model-shard-train-status", dependencies=[Depends(verify_model_access)]
+    "/model-shard-train-status", dependencies=[Depends(verify_model_read_access)]
 )
 def model_shard_train_status(
     model_id: str,

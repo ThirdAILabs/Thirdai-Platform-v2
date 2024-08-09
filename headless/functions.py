@@ -493,7 +493,9 @@ class TeamAdminFunctions:
                 "Login Instance: %s", flow.bazaar_client._login_instance.username
             )
 
-            response = flow.bazaar_client.remove_user_from_team(inputs.get("email"), inputs.get("team_id"))
+            response = flow.bazaar_client.remove_user_from_team(
+                inputs.get("email"), inputs.get("team_id")
+            )
             logging.info(
                 f"Test Delete Team Member: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
             )
@@ -542,7 +544,7 @@ class TeamAdminFunctions:
             "ta_another_team_admin@mail.com",
             "ta_test_team_member@mail.com",
         ]
-        
+
         flow.bazaar_client.log_in(flow._global_email, flow._global_password)
 
         for email in user_emails:

@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 data_router = APIRouter()
 
 
+# Not sure if this will lead to exposure of using openai to generate data
 class LLMProvider(str, Enum):
     openai = "openai"
     cohere = "cohere"
@@ -33,7 +34,6 @@ class TextClassificationGenerateArgs(BaseModel):
     labels_description: Dict[str, str]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
-    write_chunk_size: int = 40
     vocab_per_sentence: int = 4
     allocation_cores: Optional[int] = None
     allocation_memory: Optional[int] = None
@@ -77,6 +77,13 @@ def generate_text_data(
 
     data_id = uuid.uuid4()
 
+    genai_key = os.getenv("GENAI_KEY")
+    if genai_key is None:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Need gen_ai key for data-generation",
+        )
+
     submit_nomad_job(
         str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
         nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -110,7 +117,6 @@ class TokenClassificationGenerateArgs(BaseModel):
     tags: List[str]
     tag_examples: Dict[str, List[str]]
     num_sentences_to_generate: int
-    write_chunk_size: int = 40
     num_samples_per_tag: int = 4
     allocation_cores: Optional[int] = None
     allocation_memory: Optional[int] = None

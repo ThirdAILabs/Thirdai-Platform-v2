@@ -134,7 +134,6 @@ class TokenDataFactory(DataFactory):
         tags: List[str],
         tag_examples: Dict[str, List[str]],
         num_sentences_to_generate: int,
-        write_chunk_size: int = 40,
         num_samples_per_tag: int = 4,
         sentences_generated=0,  # To resume the generate function incase of midway failure. TODO(Gautam): Incorporate resuming the data_generation task
     ):
@@ -180,6 +179,7 @@ class TokenDataFactory(DataFactory):
 
         random.shuffle(arguments)
         arguments = arguments[: num_sentences_to_generate - sentences_generated]
+        write_chunk_size = 40
 
         total_chunks = len(arguments) // write_chunk_size + 1
         for idx in range(0, len(arguments), write_chunk_size):
@@ -210,9 +210,6 @@ class TokenDataFactory(DataFactory):
                         with open(self.errored_file_location, mode="a") as errored_fp:
                             traceback.print_exc(file=errored_fp)
                             errored_fp.write("\n" + "=" * 100 + "\n")
-
-            with open(self.save_dir / "data-point", "w") as fp:
-                fp.writelines([str(t) for t in generated_templates])
 
             transformed_data_points = []
             for template in generated_templates:

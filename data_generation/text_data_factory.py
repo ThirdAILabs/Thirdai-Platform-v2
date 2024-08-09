@@ -26,7 +26,6 @@ class TextDataFactory(DataFactory):
         labels_description: Dict[str, str],
         user_vocab: Optional[List[str]] = None,
         user_prompts: Optional[List[str]] = None,
-        write_chunk_size: int = 50,
         vocab_per_sentence=4,
         sentences_generated=0,  # To resume the generate function incase of midway failure. TODO(Gautam): Incorporate resuming the data_generation task
     ):
@@ -72,6 +71,7 @@ class TextDataFactory(DataFactory):
 
         random.shuffle(arguments)
         arguments = arguments[: total_expected_sentences - sentences_generated]
+        write_chunk_size = 50
 
         total_chunks = len(arguments) // write_chunk_size + 1
         for idx in range(0, len(arguments), write_chunk_size):

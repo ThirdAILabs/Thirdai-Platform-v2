@@ -60,8 +60,6 @@ class DataFactory(ABC):
         newline: Optional[str] = None,
         encoding: Optional[str] = None,
     ):
-        with open(self.save_dir / "data_point", "w") as fp:
-            fp.write(str(data_points))
         try:
             with open(
                 self.train_file_location, "a", newline=newline, encoding=encoding

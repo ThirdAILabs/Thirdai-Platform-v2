@@ -49,7 +49,9 @@ def now() -> datetime.datetime:
     return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
 
 
-def delete_job(model_id: str, task_runner_token: str) -> Tuple[requests.Response, str]:
+def delete_deployment_job(
+    model_id: str, task_runner_token: str
+) -> Tuple[requests.Response, str]:
     """
     Deletes a job from Nomad.
 

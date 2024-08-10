@@ -473,7 +473,7 @@ def deployment_model_Name(
     )
 
 
-@deploy_router.post("/stop", dependencies=[Depends(is_model_owner)])
+@deploy_router.post("/stop")
 def undeploy_model(
     deployment_identifier: str,
     session: Session = Depends(get_session),

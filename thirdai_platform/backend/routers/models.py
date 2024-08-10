@@ -128,21 +128,31 @@ def list_models(
     )
 
     if not user.is_global_admin():
-        access_conditions = [schema.Model.access_level == schema.Access.public]
-        if schema.Access.protected in access_level:
-            access_conditions.append(
-                and_(
-                    schema.Model.access_level == schema.Access.protected,
-                    schema.Model.team_id.in_(user_teams),
-                )
+        access_conditions = []
+
+        def add_access_condition(access, condition):
+            if not access_level or access in access_level:
+                access_conditions.append(condition)
+
+        # Adding access conditions based on the user's role and teams
+        add_access_condition(
+            schema.Access.public,
+            schema.Model.access_level == schema.Access.public
+        )
+        add_access_condition(
+            schema.Access.protected,
+            and_(
+                schema.Model.access_level == schema.Access.protected,
+                schema.Model.team_id.in_(user_teams),
             )
-        if schema.Access.private in access_level:
-            access_conditions.append(
-                and_(
-                    schema.Model.access_level == schema.Access.private,
-                    schema.Model.user_id == user.id,
-                )
+        )
+        add_access_condition(
+            schema.Access.private,
+            and_(
+                schema.Model.access_level == schema.Access.private,
+                schema.Model.user_id == user.id,
             )
+        )
 
         query = query.filter(or_(*access_conditions))
 
@@ -157,14 +167,6 @@ def list_models(
 
     if sub_type:
         query = query.filter(schema.Model.sub_type == sub_type)
-
-    if access_level:
-        conditions = []
-        for access in access_level:
-            conditions.append(schema.Model.access_level == access)
-
-        # We have to unpack the conditions to be able to processed by `or_` function.
-        query = query.filter(or_(*conditions))
 
     results = [get_high_level_model_info(result) for result in query]
 

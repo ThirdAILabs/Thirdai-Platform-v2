@@ -69,6 +69,13 @@ datasources:
     type: prometheus
     access: proxy
     url: http://192.168.1.6:8428
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://192.168.1.6
+    version: 1
+    editable: false
+    isDefault: true
 EOF
         destination = "/local/grafana/provisioning/datasources/datasources.yaml"
       }

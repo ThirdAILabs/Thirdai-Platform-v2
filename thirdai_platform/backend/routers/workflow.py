@@ -1,6 +1,6 @@
 import json
 import os
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 from typing import List
 
@@ -51,13 +51,10 @@ def workflow_types(
                     "id": "c1b1c5d7-8b8a-4f3b-a88b-2ec5a7a5f014",
                     "name": "semantic_search",
                     "description": "Semantic search workflow",
-                    "model_requirements": {
-                        "ModelType1": [{"count": 2}],
-                        "ModelType2": [
-                            {"count": 1, "sub_type": "SubTypeA"},
-                            {"count": 1, "sub_type": "SubTypeB"}
-                        ]
-                    }
+                    "model_requirements": [
+                        {"component": "search", "type": "ndb"},
+                        {"component": "guardrail", "type": "udt", "subtype": "token"}
+                    ]
                 },
                 ...
             ]
@@ -157,12 +154,14 @@ def create_workflow(
 class WorkflowParams(BaseModel):
     workflow_id: str
     model_identifiers: List[str]
+    components: List[str]  # Added to match components with models
 
     class Config:
         schema_extra = {
             "example": {
                 "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
                 "model_identifiers": ["model1", "model2"],
+                "components": ["search", "guardrail"],  # Example components
             }
         }
 
@@ -177,7 +176,7 @@ def add_models(
     Add models to a workflow.
 
     - **Parameters**:
-      - `body` (WorkflowParams): JSON body with workflow ID and model identifiers.
+      - `body` (WorkflowParams): JSON body with workflow ID, model identifiers, and components.
     - **Returns**:
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
@@ -187,7 +186,8 @@ def add_models(
     ```json
     {
         "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
-        "model_identifiers": ["model1", "model2"]
+        "model_identifiers": ["model1", "model2"],
+        "components": ["search", "guardrail"]
     }
     ```
 
@@ -213,7 +213,7 @@ def add_models(
             message="Workflow not found.",
         )
 
-    for model_identifier in body.model_identifiers:
+    for model_identifier, component in zip(body.model_identifiers, body.components):
         try:
             model: schema.Model = get_model_from_identifier(model_identifier, session)
         except Exception as error:
@@ -227,6 +227,7 @@ def add_models(
             .filter(
                 schema.WorkflowModel.workflow_id == body.workflow_id,
                 schema.WorkflowModel.model_id == model.id,
+                schema.WorkflowModel.component == component,
             )
             .first()
         )
@@ -234,11 +235,11 @@ def add_models(
         if workflow_model:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Model {model.id} already found in workflow.",
+                message=f"Model {model.id} with component {component} already found in workflow.",
             )
 
         workflow_model = schema.WorkflowModel(
-            workflow_id=workflow.id, model_id=model.id
+            workflow_id=workflow.id, model_id=model.id, component=component
         )
         session.add(workflow_model)
 
@@ -261,7 +262,7 @@ def delete_models(
     Delete models from a workflow.
 
     - **Parameters**:
-      - `body` (WorkflowParams): JSON body with workflow ID and model identifiers.
+      - `body` (WorkflowParams): JSON body with workflow ID, model identifiers, and components.
     - **Returns**:
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
@@ -271,7 +272,8 @@ def delete_models(
     ```json
     {
         "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
-        "model_identifiers": ["model1", "model2"]
+        "model_identifiers": ["model1", "model2"],
+        "components": ["search", "guardrail"]
     }
     ```
 
@@ -296,7 +298,7 @@ def delete_models(
             message="Workflow not found.",
         )
 
-    for model_identifier in body.model_identifiers:
+    for model_identifier, component in zip(body.model_identifiers, body.components):
         try:
             model: schema.Model = get_model_from_identifier(model_identifier, session)
         except Exception as error:
@@ -310,6 +312,7 @@ def delete_models(
             .filter(
                 schema.WorkflowModel.workflow_id == body.workflow_id,
                 schema.WorkflowModel.model_id == model.id,
+                schema.WorkflowModel.component == component,
             )
             .first()
         )
@@ -317,7 +320,7 @@ def delete_models(
         if not workflow_model:
             return response(
                 status_code=status.HTTP_404_NOT_FOUND,
-                message=f"Model {model.id} not found in workflow.",
+                message=f"Model {model.id} with component {component} not found in workflow.",
             )
 
         session.delete(workflow_model)
@@ -331,57 +334,21 @@ def delete_models(
     )
 
 
-@workflow_router.post("/validate")
-def validate_workflow(
+@workflow_router.post("/pre-validate")
+def pre_validate_workflow(
     workflow_id: str,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
-    Validate a workflow to ensure it meets model requirements.
+    Pre-validate a workflow to ensure it meets the model requirements.
 
     - **Parameters**:
-      - `workflow_id` (str): ID of the workflow to validate.
+      - `workflow_id` (str): ID of the workflow to pre-validate.
     - **Returns**:
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
       - `data` (dict): Validation issues or success message.
-
-    **Example Request**:
-    ```json
-    {
-        "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c"
-    }
-    ```
-
-    **Example Response**:
-    - Success:
-    ```json
-    {
-        "status_code": 200,
-        "message": "All models are properly trained and deployed.",
-        "data": {
-            "models": [
-                {"id": "model1", "name": "Model 1"...},
-                {"id": "model2", "name": "Model 2"...}
-            ]
-        }
-    }
-    ```
-
-    - Failure:
-    ```json
-    {
-        "status_code": 400,
-        "message": "Validation failed. Some models have issues.",
-        "data": {
-            "models": {
-                "ModelType1": ["Requires 2 ModelType1(s), but found 1."],
-                "model1": ["Training is not complete.", "Deployment is not complete."]
-            }
-        }
-    }
-    ```
     """
     workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
 
@@ -402,52 +369,95 @@ def validate_workflow(
     workflow_type: schema.WorkflowType = workflow.workflow_type
     model_requirements = workflow_type.model_requirements
 
-    model_counts = Counter(
-        (workflow_model.model.type, workflow_model.model.sub_type)
-        for workflow_model in workflow_models
-    )
-
     issues = defaultdict(list)
 
-    for model_type, requirements_list in model_requirements.items():
-        for requirements in requirements_list:
-            required_count = requirements["count"]
-            required_sub_type = requirements.get("sub_type")
+    for requirement in model_requirements:
+        component = requirement["component"]
+        model_type = requirement["type"]
+        sub_type = requirement.get("subtype")
 
-            if required_sub_type:
-                current_count = sum(
-                    count
-                    for (m_type, m_sub_type), count in model_counts.items()
-                    if m_type == model_type and m_sub_type == required_sub_type
-                )
-            else:
-                current_count = sum(
-                    count
-                    for (m_type, _), count in model_counts.items()
-                    if m_type == model_type
-                )
+        matching_models = [
+            wm
+            for wm in workflow_models
+            if wm.component == component
+            and wm.model.type == model_type
+            and (sub_type is None or wm.model.sub_type == sub_type)
+        ]
 
-            if current_count < required_count:
-                sub_type_msg = (
-                    f" with sub_type {required_sub_type}" if required_sub_type else ""
-                )
-                issues[model_type].append(
-                    f"Requires {required_count} {model_type}(s){sub_type_msg}, but found {current_count}."
-                )
+        required_count = (
+            1  # Since each requirement object represents exactly one required model
+        )
+
+        if len(matching_models) != required_count:
+            issues[component].append(
+                f"Requires exactly {required_count} {model_type}(s) with component {component} and subtype {sub_type}, but found {len(matching_models)}."
+            )
+
+    if issues:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Pre-validation failed. Some models have issues.",
+            data={"models": jsonable_encoder(issues)},
+        )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Pre-validation successful. All model requirements are met.",
+        data={"models": jsonable_encoder(list_workflow_models(workflow))},
+    )
+
+
+@workflow_router.post("/post-validate")
+def post_validate_workflow(
+    workflow_id: str,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Post-validate a workflow to ensure that training and deployment are complete.
+
+    - **Parameters**:
+      - `workflow_id` (str): ID of the workflow to post-validate.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): Validation issues or success message.
+    """
+    workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
+
+    if not workflow:
+        return response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="Workflow not found.",
+        )
+
+    workflow_models: List[schema.WorkflowModel] = workflow.workflow_models
+
+    if not workflow_models:
+        return response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="No models found in the workflow.",
+        )
+
+    issues = defaultdict(list)
 
     for workflow_model in workflow_models:
         model: schema.Model = workflow_model.model
 
         if model.train_status != schema.Status.complete:
-            issues[model.name].append("Training is not complete.")
+            issues[workflow_model.component].append(
+                f"Model {model.name} (component: {workflow_model.component}) training is not complete."
+            )
 
         if model.deploy_status != schema.Status.complete:
-            issues[model.name].append("Deployment is not complete.")
+            issues[workflow_model.component].append(
+                f"Model {model.name} (component: {workflow_model.component}) deployment is not complete."
+            )
 
     if issues:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="Validation failed. Some models have issues.",
+            message="Post-validation failed. Some models have issues.",
             data={"models": jsonable_encoder(issues)},
         )
 
@@ -456,7 +466,7 @@ def validate_workflow(
 
     return response(
         status_code=status.HTTP_200_OK,
-        message="All models are properly trained and deployed.",
+        message="Post-validation successful. All models are properly trained and deployed.",
         data={"models": jsonable_encoder(list_workflow_models(workflow))},
     )
 
@@ -624,6 +634,16 @@ def start_workflow(
             schema.Status.in_progress,
             schema.Status.complete,
         ]:
+            if not model.get_owner_permission(authenticated_user.user):
+                return response(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    message=(
+                        f"You do not have permission to deploy model {model.name} "
+                        f"(component: {workflow_model.component}). "
+                        "Please contact the model owner or admin for deployment."
+                    ),
+                )
+
             try:
                 meta_data = json.loads(model.meta_data.train)
                 size_in_memory = int(meta_data["size_in_memory"])
@@ -694,20 +714,17 @@ def start_workflow(
 class WorkflowTypeParams(BaseModel):
     name: str
     description: str
-    model_requirements: dict
+    model_requirements: List[dict]
 
     class Config:
         schema_extra = {
             "example": {
                 "name": "semantic_search",
                 "description": "Semantic search workflow",
-                "model_requirements": {
-                    "ModelType1": [{"count": 2}],
-                    "ModelType2": [
-                        {"count": 1, "sub_type": "SubTypeA"},
-                        {"count": 1, "sub_type": "SubTypeB"},
-                    ],
-                },
+                "model_requirements": [
+                    {"component": "search", "type": "ndb"},
+                    {"component": "guardrail", "type": "udt", "subtype": "token"},
+                ],
             }
         }
 
@@ -733,13 +750,10 @@ def add_workflow_type(
     {
         "name": "semantic_search",
         "description": "Semantic search workflow",
-        "model_requirements": {
-            "ModelType1": [{"count": 2}],
-            "ModelType2": [
-                {"count": 1, "sub_type": "SubTypeA"},
-                {"count": 1, "sub_type": "SubTypeB"}
-            ]
-        }
+        "model_requirements": [
+            {"component": "search", "type": "ndb"},
+            {"component": "guardrail", "type": "udt", "subtype": "token"}
+        ]
     }
     ```
 

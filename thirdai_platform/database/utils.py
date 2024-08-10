@@ -5,24 +5,24 @@ default_workflow_types = [
     {
         "name": "semantic_search",
         "description": "Semantic search workflow",
-        "model_requirements": {
-            "ndb": [{"count": 1}],
-        },
+        "model_requirements": [
+            {"component": "search", "type": "ndb"},
+        ],
     },
     {
         "name": "nlp",
         "description": "NLP workflow",
-        "model_requirements": {
-            "udt": [{"count": 1}],
-        },
+        "model_requirements": [
+            {"component": "nlp", "type": "udt"},
+        ],
     },
     {
         "name": "rag",
         "description": "RAG workflow",
-        "model_requirements": {
-            "ndb": [{"count": 1}],
-            "udt": [{"count": 1, "sub_type": "token"}],
-        },
+        "model_requirements": [
+            {"component": "search", "type": "ndb"},
+            {"component": "guardrail", "type": "udt", "subtype": "token"},
+        ],
     },
 ]
 

@@ -350,6 +350,7 @@ class WorkflowModel(SQLDeclarativeBase):
         ForeignKey("models.id", ondelete="CASCADE"),
         primary_key=True,
     )
+    component = Column(String(256), nullable=False, primary_key=True)
 
     workflow = relationship("Workflow", back_populates="workflow_models")
     model = relationship("Model")
@@ -357,5 +358,10 @@ class WorkflowModel(SQLDeclarativeBase):
     __table_args__ = (
         Index("workflow_model_index", "workflow_id"),
         Index("model_workflow_index", "model_id"),
-        UniqueConstraint("workflow_id", "model_id", name="unique_workflow_model"),
+        UniqueConstraint(
+            "workflow_id",
+            "model_id",
+            "component",
+            name="unique_workflow_model_component",
+        ),
     )

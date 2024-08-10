@@ -1,6 +1,7 @@
 import os
 import uuid
 from typing import Annotated, Dict, Optional, Union
+from datetime import datetime
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import (
@@ -16,6 +17,7 @@ from backend.utils import (
     get_model_from_identifier,
     response,
     validate_name,
+    get_deployment,
 )
 from database import schema
 from database.session import get_session
@@ -1049,3 +1051,37 @@ def update_default_permission(
             "default_permission": str(model.default_permission),
         },
     )
+
+@model_router.post("/update-model", dependencies=[Depends(is_model_owner)])
+def update_model(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    model = get_model_from_identifier(model_identifier, session)
+    old_model_name = model.name
+    model.name = f"{model.name}-updated"
+    # parent_id, parent_deployment_id, user_id, team_id
+    new_model = schema.Model(
+        name=old_model_name,
+        train_status=model.train_status,
+        type=model.type,
+        sub_type=model.sub_type,
+        downloads=model.downloads,
+        access_level=model.access_level,
+        domain=model.domain,
+        published_date=model.published_date,
+        default_permission=model.default_permission,
+        parent_id=model.parent_id,
+        user_id=model.user_id,
+        team_id=model.team_id
+    )
+    model.published_date = datetime.utcnow().isoformat()
+    session.add(new_model)
+    deployment = get_deployment(session, old_model_name, model.user_id, model.id)
+    deployment.name = f"{deployment.name}-updated"
+    session.commit()
+
+    
+
+    
+

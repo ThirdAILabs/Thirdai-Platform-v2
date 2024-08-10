@@ -219,3 +219,38 @@ def verify_model_write_access(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="You do not have write access to this model",
     )
+
+
+def is_workflow_owner(
+    workflow_id: str,
+    session: Session = Depends(get_session),
+    current_user: schema.User = Depends(get_current_user),
+) -> bool:
+    """
+    Check if the current user is the owner of the specified workflow or a global admin.
+
+    Args:
+        workflow_id (str): The ID of the workflow to check ownership for.
+        session (Session): The database session for querying the workflow.
+        current_user (schema.User): The currently authenticated user.
+
+    Raises:
+        HTTPException: If the workflow is not found or the user does not have owner permissions.
+
+    Returns:
+        bool: True if the user is the owner of the workflow or a global admin.
+    """
+    workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
+    if not workflow:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Workflow with ID {workflow_id} not found",
+        )
+
+    if workflow.user_id == current_user.id or current_user.is_global_admin():
+        return True
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You do not have owner permissions to this workflow",
+    )

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List
 
 from auth.jwt import AuthenticatedUser, verify_access_token
+from backend.auth_dependencies import global_admin_only, is_workflow_owner
 from backend.utils import (
     delete_nomad_job,
     get_empty_port,
@@ -18,7 +19,7 @@ from backend.utils import (
 )
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import verify_license
 from pydantic import BaseModel
@@ -213,6 +214,15 @@ def add_models(
             message="Workflow not found.",
         )
 
+    if (
+        workflow.user_id != authenticated_user.user.id
+        and not authenticated_user.user.is_global_admin()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have owner permissions to this workflow",
+        )
+
     for model_identifier, component in zip(body.model_identifiers, body.components):
         try:
             model: schema.Model = get_model_from_identifier(model_identifier, session)
@@ -252,11 +262,10 @@ def add_models(
     )
 
 
-@workflow_router.post("/delete-models")
+@workflow_router.post("/delete-models", dependencies=[Depends(is_workflow_owner)])
 def delete_models(
     body: WorkflowParams,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Delete models from a workflow.
@@ -334,11 +343,10 @@ def delete_models(
     )
 
 
-@workflow_router.post("/pre-validate")
+@workflow_router.post("/pre-validate", dependencies=[Depends(is_workflow_owner)])
 def pre_validate_workflow(
     workflow_id: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Pre-validate a workflow to ensure it meets the model requirements.
@@ -349,6 +357,27 @@ def pre_validate_workflow(
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
       - `data` (dict): Validation issues or success message.
+
+    **Example Request**:
+    ```json
+    {
+        "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c"
+    }
+    ```
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Pre-validation successful. All model requirements are met.",
+        "data": {
+            "models": [
+                {"id": "model1", "name": "Model 1"...},
+                {"id": "model2", "name": "Model 2"...}
+            ]
+        }
+    }
+    ```
     """
     workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
 
@@ -407,11 +436,10 @@ def pre_validate_workflow(
     )
 
 
-@workflow_router.post("/post-validate")
+@workflow_router.post("/post-validate", dependencies=[Depends(is_workflow_owner)])
 def post_validate_workflow(
     workflow_id: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Post-validate a workflow to ensure that training and deployment are complete.
@@ -422,6 +450,27 @@ def post_validate_workflow(
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
       - `data` (dict): Validation issues or success message.
+
+    **Example Request**:
+    ```json
+    {
+        "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c"
+    }
+    ```
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Post-validation successful. All models are properly trained and deployed.",
+        "data": {
+            "models": [
+                {"id": "model1", "name": "Model 1"...},
+                {"id": "model2", "name": "Model 2"...}
+            ]
+        }
+    }
+    ```
     """
     workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
 
@@ -471,11 +520,10 @@ def post_validate_workflow(
     )
 
 
-@workflow_router.post("/stop")
+@workflow_router.post("/stop", dependencies=[Depends(is_workflow_owner)])
 def stop_workflow(
     workflow_id: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Stop a workflow and undeploy models if necessary.
@@ -552,7 +600,7 @@ def stop_workflow(
     )
 
 
-@workflow_router.post("/start")
+@workflow_router.post("/start", dependencies=[Depends(is_workflow_owner)])
 def start_workflow(
     workflow_id: str,
     session: Session = Depends(get_session),
@@ -729,11 +777,10 @@ class WorkflowTypeParams(BaseModel):
         }
 
 
-@workflow_router.post("/add-type")
+@workflow_router.post("/add-type", dependencies=[Depends(global_admin_only)])
 def add_workflow_type(
     params: WorkflowTypeParams,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Add a new workflow type.
@@ -794,11 +841,10 @@ def add_workflow_type(
     )
 
 
-@workflow_router.post("/delete-type")
+@workflow_router.post("/delete-type", dependencies=[Depends(global_admin_only)])
 def delete_workflow_type(
     type_id: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Delete a workflow type.
@@ -836,4 +882,93 @@ def delete_workflow_type(
 
     return response(
         status_code=status.HTTP_200_OK, message="Successfully deleted the workflow type"
+    )
+
+
+@workflow_router.get("/details", dependencies=[Depends(is_workflow_owner)])
+def get_workflow_details(
+    workflow_id: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Get detailed information about a specific workflow.
+
+    - **Parameters**:
+      - `workflow_id` (str): ID of the workflow.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): Detailed information about the workflow.
+
+    **Example Request**:
+    ```json
+    {
+        "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c"
+    }
+    ```
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Workflow details retrieved successfully.",
+        "data": {
+            "id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
+            "name": "MyWorkflow",
+            "type": "semantic_search",
+            "status": "in_progress",
+            "models": [
+                {"id": "model1", "name": "Model 1", ...},
+                {"id": "model2", "name": "Model 2", ...}
+            ],
+            ...
+        }
+    }
+    ```
+    """
+    workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
+
+    if not workflow:
+        return response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="Workflow not found.",
+        )
+
+    workflow_data = {
+        "id": str(workflow.id),
+        "name": workflow.name,
+        "type": workflow.workflow_type.name,
+        "status": workflow.status,
+        "models": jsonable_encoder(list_workflow_models(workflow=workflow)),
+    }
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Workflow details retrieved successfully.",
+        data=jsonable_encoder(workflow_data),
+    )
+
+
+@workflow_router.delete("/delete", dependencies=[Depends(is_workflow_owner)])
+def delete_workflow(
+    workflow_id: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Delete a workflow by its ID.
+
+    - **Parameters**:
+      - `workflow_id` (str): ID of the workflow to delete.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+    """
+    workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
+
+    session.delete(workflow)
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Workflow deleted successfully.",
     )

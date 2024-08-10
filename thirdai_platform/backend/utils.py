@@ -651,6 +651,9 @@ def get_expiry_min(size: int):
 
 
 def list_workflow_models(workflow: schema.Workflow):
-    return [
-        get_high_level_model_info(model.model) for model in workflow.workflow_models
-    ]
+    models_info = []
+    for workflow_model in workflow.workflow_models:
+        model_info = get_high_level_model_info(workflow_model.model)
+        model_info["component"] = workflow_model.component  # Append the component info
+        models_info.append(model_info)
+    return models_info

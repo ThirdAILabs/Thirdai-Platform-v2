@@ -72,7 +72,7 @@ const RAGQuestions = ({
       {/* Begin Semantic Search Model */}
 
             <div className="mb-4">
-              <span className="block text-lg font-semibold mb-2">Search Model</span>
+              <span className="block text-lg font-semibold mb-2">Retrival App</span>
               <label htmlFor="useExistingSemanticSearch" className="block text-sm font-medium text-gray-700">Use an existing semantic search model?</label>
               <select
                 id="useExistingSemanticSearch"
@@ -217,7 +217,7 @@ const RAGQuestions = ({
             {ifUseLGR === 'Yes' && ifUseExistingLGR === 'Yes' && (
               <div className="mb-4">
                 <label htmlFor="nerModels" className="block text-sm font-medium text-gray-700">
-                  Choose from existing NER Model(s)
+                  Choose from existing NLP App(s)
                 </label>
                 <select
                   id="nerModels"
@@ -263,7 +263,7 @@ const RAGQuestions = ({
 
 
       {/* Begin Model Name Input Field */}
-            <span className="block text-lg font-semibold mb-2">Name your model</span>
+            <span className="block text-lg font-semibold mb-2">Name your App</span>
             <div className="mb-4">
               <label htmlFor="modelName" className="block text-sm font-medium text-gray-700">
                 Model Name
@@ -274,7 +274,7 @@ const RAGQuestions = ({
                 className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 value={modelName || ''}
                 onChange={(e) => setModelName(e.target.value)}
-                placeholder="Enter model name"
+                placeholder="Enter App name"
               />
             </div>
       {/* End Model Name Input Field */}

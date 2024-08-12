@@ -9,7 +9,6 @@ job "loki" {
         to = 3100
       }
     }
-        
     count = 1
 
     task "loki" {

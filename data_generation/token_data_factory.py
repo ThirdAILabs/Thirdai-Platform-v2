@@ -249,7 +249,7 @@ class TokenDataFactory(DataFactory):
                 Extending the [TAG] to match the source texts
 
                     For example:
-                        words = '[NAME] reserved the hall for reunion'
+                        template = '[NAME] reserved the hall for reunion'
                         word_tag = [NAME]
                         word_tag_value = Jessica vega
 

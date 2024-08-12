@@ -98,14 +98,32 @@ def get_high_level_model_info(result: schema.Model):
         "access_level": result.access_level,
         "domain": result.domain,
         "type": result.type,
+        "deploy_status": result.deploy_status,
+        "team_id": str(result.team_id),
+        "model_id": str(result.id),
+        "sub_type": result.sub_type,
     }
 
     # Include metadata if it exists
     if result.meta_data:
         metadata = result.meta_data
         if metadata.train:
+            # Ensure metadata.train is a dictionary
+            if isinstance(metadata.train, str):
+                try:
+                    metadata.train = json.loads(metadata.train)
+                except json.JSONDecodeError as e:
+                    print(f"Error decoding JSON for train: {e}")
+                    metadata.train = {}
             info.update(metadata.train)
         if metadata.general:
+            # Ensure metadata.general is a dictionary
+            if isinstance(metadata.general, str):
+                try:
+                    metadata.general = json.loads(metadata.general)
+                except json.JSONDecodeError as e:
+                    print(f"Error decoding JSON for general: {e}")
+                    metadata.general = {}
             info.update(metadata.general)
 
     return info
@@ -592,29 +610,6 @@ def get_empty_port():
     port = sock.getsockname()[1]
     sock.close()
     return port
-
-
-def parse_deployment_identifier(deployment_identifier):
-    """
-    Parse a deployment identifier.
-
-    Parameters:
-    - deployment_identifier: The deployment identifier in the format 'username/model_name:username/deployment_name'.
-
-    Returns:
-    - tuple: A tuple containing model username, model name, deployment username, and deployment name.
-
-    Raises:
-    - ValueError: If the deployment identifier is not valid.
-    """
-    regex_pattern = "^[\w-]+\/[\w-]+\:[\w-]+\/[\w-]+$"
-    if re.match(regex_pattern, deployment_identifier):
-        model_identifier, deployment_tag = deployment_identifier.split(":")
-        model_username, model_name = model_identifier.split("/")
-        deployment_username, deployment_name = deployment_tag.split("/")
-        return model_username, model_name, deployment_username, deployment_name
-    else:
-        raise ValueError("deployment identifier is not valid")
 
 
 def delete_nomad_job(job_id, nomad_endpoint):

@@ -23,12 +23,7 @@ class Model(ABC):
         self.model_dir: Path = self.get_model_dir(
             model_id=self.general_variables.model_id
         )
-        self.data_dir: Path = (
-            self.model_dir
-            / "deployments"
-            / self.general_variables.deployment_id
-            / "data"
-        )
+        self.data_dir: Path = self.model_dir / "deployments" / "data"
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
     @abstractmethod

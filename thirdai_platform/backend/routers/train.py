@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
-from backend.auth_dependencies import verify_model_access
+from backend.auth_dependencies import verify_model_read_access
 from backend.file_handler import (
     FileLocation,
     FileType,
@@ -36,7 +36,6 @@ from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.expression import null
 
 train_router = APIRouter()
 
@@ -238,13 +237,13 @@ def train_ndb(
             id=model_id,
             user_id=user.id,
             train_status=schema.Status.not_started,
+            deploy_status=schema.Status.not_started,
             name=model_name,
             type="ndb",
             sub_type="single" if not sharded else "sharded",
             domain=user.domain,
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model else None,
-            team_id=null(),
         )
 
         session.add(new_model)
@@ -458,13 +457,13 @@ def train_udt(
             id=model_id,
             user_id=user.id,
             train_status=schema.Status.not_started,
+            deploy_status=schema.Status.not_started,
             name=model_name,
             type="udt",
             sub_type=extra_options["sub_type"],
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model else None,
-            team_id=null(),
         )
 
         session.add(new_model)
@@ -565,7 +564,7 @@ def train_complete(
     else:
         new_metadata = schema.MetaData(
             model_id=trained_model.id,
-            train=body.metadata,
+            train=json.dumps(body.metadata),
         )
         session.add(new_metadata)
 
@@ -794,7 +793,7 @@ def update_shard_train_status(
     return {"message": f"Successfully updated shard with message: {message}"}
 
 
-@train_router.get("/status", dependencies=[Depends(verify_model_access)])
+@train_router.get("/status", dependencies=[Depends(verify_model_read_access)])
 def train_status(
     model_identifier: str,
     session: Session = Depends(get_session),
@@ -823,13 +822,13 @@ def train_status(
         message="Successfully got the train status.",
         data={
             "model_identifier": model_identifier,
-            "status": model.train_status,
+            "train_status": model.train_status,
         },
     )
 
 
 @train_router.get(
-    "/model-shard-train-status", dependencies=[Depends(verify_model_access)]
+    "/model-shard-train-status", dependencies=[Depends(verify_model_read_access)]
 )
 def model_shard_train_status(
     model_id: str,

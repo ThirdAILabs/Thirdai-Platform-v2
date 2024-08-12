@@ -85,7 +85,7 @@ class TextDataFactory(DataFactory):
             chunk_target_label = mapped_target_label[idx : idx + write_chunk_size]
 
             data_points: List[str] = self.run_and_collect_results(
-                tasks_prompt=chunk_to_process, parallelize=False
+                tasks_prompt=chunk_to_process
             )
 
             # sorting based on the task_id

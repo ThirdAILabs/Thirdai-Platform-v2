@@ -1,5 +1,5 @@
 bind_addr = "0.0.0.0"
-data_dir  = "/opt/nomad/data"
+data_dir  = "/Users/benitogeordie/nomad/data"
 
 client {
   enabled           = true
@@ -14,5 +14,6 @@ plugin "docker" {
     volumes {
       enabled = true
     }
+    endpoint = "unix:///Users/benitogeordie/.docker/run/docker.sock"
   }
 }

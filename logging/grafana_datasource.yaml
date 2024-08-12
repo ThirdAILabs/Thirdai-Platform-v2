@@ -4,7 +4,7 @@ datasources:
   - name: Loki
     type: loki
     access: proxy
-    url: http://192.168.1.11 # this should be the private ip of the node running traefik
+    url: http://host.docker.internal:80 # this should be the private ip of the node running traefik
     version: 1
     editable: false
     isDefault: true

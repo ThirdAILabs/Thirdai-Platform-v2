@@ -32,7 +32,7 @@ job "grafana" {
         ports = ["grafana_port"]
 
         volumes = [
-          "/home/kartik/ThirdAI-Platform/logging/grafana_datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml"
+          "/Users/benitogeordie/ThirdAI-Platform-2/logging/grafana_datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml"
         ]
 
       }

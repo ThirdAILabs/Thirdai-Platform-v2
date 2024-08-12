@@ -24,8 +24,8 @@ job "loki" {
         ]
 
         volumes = [
-          "/home/kartik/ThirdAI-Platform/logging/loki.yaml:/etc/loki/loki.yaml",
-          "/home/kartik/ThirdAI-Platform/logging/loki_data:/loki_data"  # ensure that this directory has permissions for this docker container user to do everything
+          "/Users/benitogeordie/ThirdAI-Platform-2/logging/loki.yaml:/etc/loki/loki.yaml",
+          "/Users/benitogeordie/ThirdAI-Platform-2/logging/loki_data:/loki_data"  # ensure that this directory has permissions for this docker container user to do everything
         ]
 
         ports = ["loki_port"]

@@ -8,6 +8,7 @@ from resource.util_data import random_prompts, vocab
 from typing import Dict, List, Optional
 
 from llms import llm_classes
+from tqdm import tqdm
 from variables import GeneralVariables
 
 
@@ -52,6 +53,62 @@ class DataFactory(ABC):
             for __annotations__, items in random_prompts.items()
         ]
 
+    def process_prompt(
+        self,
+        prompt: str,
+        task_id: int,
+        system_prompt: Optional[str] = None,
+    ):
+        texts_of = self.llm_completion(prompt=prompt, system_prompt=system_prompt)
+        return texts_of, task_id
+
+    def run_and_collect_results(
+        self, tasks_prompt: List[Dict[str, str]], parallelize: bool = False
+    ):
+        data_points = []
+        if parallelize:
+            from concurrent.futures import ProcessPoolExecutor, as_completed
+
+            with ProcessPoolExecutor() as executor, tqdm(
+                total=len(tasks_prompt), desc=f"progress: ", leave=True
+            ) as pbar:
+                futures = []
+
+                # Submit arguments to the executor
+                for task_id, task in enumerate(tasks_prompt):
+                    future = executor.submit(
+                        self.process_prompt,
+                        task["prompt"],
+                        task_id,
+                        task.get("system_prompt"),
+                    )
+                    future.add_done_callback(lambda p: pbar.update())
+                    futures.append(future)
+
+                # Wait for all arguments to complete and handle exceptions
+                for future in as_completed(futures):
+                    try:
+                        response_text, task_id = future.result()
+                        data_points.append(
+                            {"response_text": response_text, "task_id": task_id}
+                        )
+
+                    except Exception as e:
+                        with open(self.errored_file_location, mode="a") as errored_fp:
+                            traceback.print_exc(file=errored_fp)
+                            errored_fp.write("\n" + "=" * 100 + "\n")
+                pbar.close()
+        else:
+            for task_id, task in tqdm(enumerate(tasks_prompt), desc="Progress: "):
+                response_text, task_id = self.process_prompt(
+                    prompt=task["prompt"],
+                    task_id=task_id,
+                    system_prompt=task.get("system_prompt"),
+                )
+                data_points.append({"response_text": response_text, "task_id": task_id})
+
+        return data_points
+
     def write_on_training_file(
         self,
         data_points: List[Dict[str, str]],
@@ -75,7 +132,3 @@ class DataFactory(ABC):
                 )
                 traceback.print_exc(file=errored_fp)
                 errored_fp.write("\n" + "=" * 100 + "\n")
-
-    def save_dict(self, write_to: str, **kwargs):
-        with open(write_to, "w") as fp:
-            json.dump(kwargs, fp, indent=4)

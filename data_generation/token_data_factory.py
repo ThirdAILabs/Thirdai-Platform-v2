@@ -1,8 +1,5 @@
-import csv
-import json
-import os
 import random
-import traceback
+import re
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from resource.token_prompts import (
@@ -17,7 +14,7 @@ from typing import Dict, List, Optional
 from data_factory_interface import DataFactory
 from faker import Faker
 from tqdm import tqdm
-from utils import assert_sufficient_examples, parse_template, subsample_dictionary
+from utils import assert_sufficient_examples, save_dict, subsample_dictionary
 
 
 class TokenDataFactory(DataFactory):
@@ -182,40 +179,26 @@ class TokenDataFactory(DataFactory):
         write_chunk_size = 40
 
         total_chunks = len(arguments) // write_chunk_size + 1
-        for idx in range(0, len(arguments), write_chunk_size):
-            chunk = arguments[idx : idx + write_chunk_size]
+        for idx in tqdm(
+            range(0, len(arguments), write_chunk_size),
+            desc="Generating token data: ",
+            total=total_chunks,
+        ):
+            chunk_to_process = arguments[idx : idx + write_chunk_size]
             generated_templates = []
-            with ProcessPoolExecutor() as executor, tqdm(
-                total=len(chunk),
-                desc=f"Generating token data {(idx // write_chunk_size)}/{total_chunks}",
-            ) as pbar:
-                futures = []
 
-                # Submit input_data to the executor
-                for task in chunk:
-                    future = executor.submit(
-                        self.process_prompt, task["prompt"], task.get("system_prompt")
-                    )
-                    future.add_done_callback(lambda p: pbar.update())
-                    futures.append(future)
-
-                # Wait for all input_data to complete and handle exceptions
-                for future in as_completed(futures):
-                    try:
-                        response = future.result()
-                        if response:
-                            generated_templates.extend(response.split("\n"))
-
-                    except Exception as e:
-                        with open(self.errored_file_location, mode="a") as errored_fp:
-                            traceback.print_exc(file=errored_fp)
-                            errored_fp.write("\n" + "=" * 100 + "\n")
+            generated_templates: List[str] = self.run_and_collect_results(
+                tasks_prompt=chunk_to_process
+            )
 
             transformed_data_points = []
-            for template in generated_templates:
-                temp = self.fill_and_transform(tags, template, complete_tag_examples)
-                if temp:
-                    transformed_data_points.append(temp)
+            for template_s in generated_templates:
+                for template in template_s["response_text"].split("\n"):
+                    temp = self.fill_and_transform(
+                        tags, template, complete_tag_examples
+                    )
+                    if temp:
+                        transformed_data_points.append(temp)
 
             self.write_on_training_file(
                 transformed_data_points,
@@ -238,27 +221,48 @@ class TokenDataFactory(DataFactory):
             "tag_values": complete_tag_examples,
             "num_samples": sentences_generated,
         }
-        self.save_dict(self.config_file_location, **dataset_config)
+        save_dict(self.config_file_location, **dataset_config)
 
         return dataset_config
 
     def fill_and_transform(
         self, allowed_tags: List[str], template: str, tag_values: Dict[str, List[str]]
     ):
-        source_template, words_tag, tags_present = parse_template(
-            template, allowed_tags
-        )
-        if not source_template:
+        words = template.split()
+        if not words:
             return
 
-        source_text = source_template.format(
-            **{tag: random.choice(tag_values[tag]) for tag in tags_present}
-        )
+        source = []
+        target = []
+
+        for word in words:
+            match = re.search(r"\[(.*?)\]", word)
+            if match:
+                # word is a tag
+                word_tag = match.group(1)
+                assert word_tag in allowed_tags
+
+                word_tag_value = random.choice(tag_values[word_tag])
+                source.append(word_tag_value)
+
+                """
+                Extending the [TAG] to match the source texts
+
+                    For example:
+                        words = '[NAME] reserved the hall for reunion'
+                        word_tag = [NAME]
+                        word_tag_value = Jessica vega
+
+                    Expected:
+                        source = 'Jessica vega reserved the hall for reunion'
+                        target = 'NAME NAME reserved the hall for reunion'
+                """
+                target.extend([word_tag] * len(word_tag_value.split(" ")))
+            else:
+                source.append(word)
+                target.append("O")
 
         return {
-            TokenDataFactory.SOURCE_COLUMN: source_text,
-            TokenDataFactory.TARGET_COLUMN: words_tag,
+            TokenDataFactory.SOURCE_COLUMN: " ".join(source),
+            TokenDataFactory.TARGET_COLUMN: " ".join(target),
         }
-
-    def process_prompt(self, prompt: str, system_prompt: Optional[str] = None):
-        return self.llm_completion(prompt, system_prompt=system_prompt)

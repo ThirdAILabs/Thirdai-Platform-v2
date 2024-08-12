@@ -1,13 +1,10 @@
 import random
-import time
-import traceback
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from resource.text_prompts import datagen_prompt
 from typing import Dict, List, Optional
 
 from data_factory_interface import DataFactory
 from tqdm import tqdm
-from utils import assert_sufficient_descriptions, assert_sufficient_examples
+from utils import assert_sufficient_descriptions, assert_sufficient_examples, save_dict
 
 
 class TextDataFactory(DataFactory):
@@ -35,9 +32,10 @@ class TextDataFactory(DataFactory):
         assert_sufficient_examples(target_labels, examples)
         assert_sufficient_descriptions(target_labels, labels_description)
 
-        arguments = []
-
+        prompt_tasks = []
+        mapped_target_label = []
         generate_at_a_time = 40  # Max data-points to generate at a time
+
         for target_label in target_labels:
             for current_sentence_idx in range(0, samples_per_label, generate_at_a_time):
                 samples_to_generate = min(
@@ -66,51 +64,38 @@ class TextDataFactory(DataFactory):
                     random_prompts="\n".join(self.get_random_prompts()),
                     random_vocab=str(random_vocab),
                 )
+                prompt_tasks.append({"prompt": prompt})
+                mapped_target_label.append(target_label)
 
-                arguments.append({"prompt": prompt, "target_label": target_label})
+        # Shuffling
+        args = list(zip(prompt_tasks, mapped_target_label))
+        random.shuffle(args)
+        prompt_tasks, mapped_target_label = zip(*args)
 
-        random.shuffle(arguments)
-        arguments = arguments[: total_expected_sentences - sentences_generated]
+        prompt_tasks = prompt_tasks[: total_expected_sentences - sentences_generated]
         write_chunk_size = 50
 
-        total_chunks = len(arguments) // write_chunk_size + 1
-        for idx in range(0, len(arguments), write_chunk_size):
-            chunk = arguments[idx : idx + write_chunk_size]
-            data_points = []
+        total_chunks = len(prompt_tasks) // write_chunk_size + 1
+        for idx in tqdm(
+            range(0, len(prompt_tasks), write_chunk_size),
+            desc="Generating text data: ",
+            total=total_chunks,
+        ):
+            chunk_to_process = prompt_tasks[idx : idx + write_chunk_size]
+            chunk_target_label = mapped_target_label[idx : idx + write_chunk_size]
 
-            with ProcessPoolExecutor() as executor, tqdm(
-                total=len(chunk),
-                desc=f"Generating text data {(idx // write_chunk_size)}/{total_chunks}",
-            ) as pbar:
-                futures = []
+            data_points: List[str] = self.run_and_collect_results(
+                tasks_prompt=chunk_to_process, parallelize=False
+            )
 
-                # Submit arguments to the executor
-                for task in chunk:
-                    future = executor.submit(
-                        self.process_prompt,
-                        task["prompt"],
-                        task["target_label"],
-                        task.get("system_prompt"),
-                    )
-                    future.add_done_callback(lambda p: pbar.update())
-                    futures.append(future)
-
-                # Wait for all arguments to complete and handle exceptions
-                for future in as_completed(futures):
-                    try:
-                        response_text, target_label = future.result()
-                        data_points.append(
-                            {"texts": response_text, "target_label": target_label}
-                        )
-
-                    except Exception as e:
-                        with open(self.errored_file_location, mode="a") as errored_fp:
-                            traceback.print_exc(file=errored_fp)
-                            errored_fp.write("\n" + "=" * 100 + "\n")
+            # sorting based on the task_id
+            data_points = sorted(data_points, key=lambda x: x["task_id"])
 
             transformed_data_points = []
-            for data_point in data_points:
-                temp = self.fill_and_transform(**data_point)
+            for data_point, target_label in zip(data_points, chunk_target_label):
+                temp = self.fill_and_transform(
+                    texts=data_point["response_text"], target_label=target_label
+                )
                 if temp:
                     transformed_data_points.extend(temp)
 
@@ -138,7 +123,7 @@ class TextDataFactory(DataFactory):
             "target_labels": target_labels,
             "num_samples": sentences_generated,
         }
-        self.save_dict(self.config_file_location, **dataset_config)
+        save_dict(self.config_file_location, **dataset_config)
 
         return dataset_config
 
@@ -151,9 +136,3 @@ class TextDataFactory(DataFactory):
             for text in texts.replace("\n\n", "\n").split("\n")
             if text.strip()
         ]
-
-    def process_prompt(
-        self, prompt: str, target_label: str, system_prompt: Optional[str] = None
-    ):
-        texts_of = self.llm_completion(prompt=prompt, system_prompt=system_prompt)
-        return texts_of, target_label

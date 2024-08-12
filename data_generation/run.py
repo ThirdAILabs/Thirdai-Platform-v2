@@ -1,6 +1,7 @@
 import os
 from dataclasses import asdict
 
+from utils import save_dict
 from variables import DataCategory, GeneralVariables
 
 # Load general variables from environment
@@ -26,7 +27,7 @@ def main():
         args = TokenGenerationVariables.load_from_env()
 
     # Saving the args first
-    factory.save_dict(factory.generation_args_location, **asdict(args))
+    save_dict(factory.generation_args_location, **asdict(args))
     factory.generate_data(**asdict(args))
 
 

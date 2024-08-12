@@ -28,8 +28,6 @@ job "victoriametrics" {
         provider = "nomad"
         port     = "vicky-http"
         tags = [
-          "victoriametrics",
-          "web",
           "traefik.enable=true",
           "traefik.http.routers.victoriametric-http.rule=PathPrefix(`/victoria-metric`)",
           "traefik.http.routers.victoriametric-http.priority=10"

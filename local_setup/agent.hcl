@@ -24,10 +24,6 @@ client {
     read_only                 = false
   }
 
-  host_volume "loki" {
-    path                      = "/opt/nomad/nomad-monitoring/data/loki"
-    read_only                 = false
-  }
 }
 
 server {

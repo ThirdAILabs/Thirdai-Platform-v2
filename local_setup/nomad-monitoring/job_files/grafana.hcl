@@ -37,8 +37,14 @@ job "grafana" {
       }
 
       env {
+        GF_AUTH_ANONYMOUS_ENABLED = "true"
+        GF_AUTH_BASIC_ENABLED = "false"
         GF_LOG_LEVEL          = "DEBUG"
         GF_LOG_MODE           = "console"
+        GF_AUTH_ANONYMOUS_ORG_ROLE = "Admin"
+        GF_AUTH_DISABLE_LOGIN_FORM = "true"
+        GF_SERVER_ROOT_URL = "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+        GF_SERVER_SERVE_FROM_SUB_PATH = "true"
         GF_SERVER_HTTP_PORT   = "$${NOMAD_PORT_http}"
         GF_PATHS_PROVISIONING = "/local/grafana/provisioning"
       }

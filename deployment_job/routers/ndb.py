@@ -495,7 +495,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
     @propagate_error
     def pii_detection(
         query: str,
-        _: str = Depends(permissions.verify_write_permission),
+        token: str = Depends(permissions.verify_write_permission),
     ):
         """
         Detect PII in the given query.
@@ -515,7 +515,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         """
         token_model = get_token_model()
 
-        results = token_model.predict(query=query, top_k=1)
+        results = token_model.predict(query=query, top_k=1, token=token)
 
         return response(
             status_code=status.HTTP_200_OK,

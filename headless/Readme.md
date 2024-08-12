@@ -7,6 +7,8 @@ This guide will help you create and execute Directed Acyclic Graphs (DAGs) for o
 ### Sample data
 The sample data paths provided in the configurations can be found at https://github.com/ThirdAILabs/Services-data/tree/main/data/platform. You can use these files directly for testing, or you can use your own configurations and paths.
 
+Set the environment variable `SHARE_DIR` to a specific folder path. The script will download data and store it in that folder, utilizing the `SHARE_DIR` path for its operations.
+
 ## Writing Your Own DAG
 
 1. **Create a YAML File**: Define your DAGs, tasks, dependencies, and parameters.

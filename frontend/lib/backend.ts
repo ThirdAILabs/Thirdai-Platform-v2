@@ -621,6 +621,28 @@ export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
 }
 
 
+// MODEL //
+
+export async function updateModelAccessLevel(model_identifier: string, access_level: 'private' | 'protected' | 'public'): Promise<void> {
+  const accessToken = getAccessToken(); // Ensure this function is implemented elsewhere in your codebase
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ model_identifier, access_level });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`http://localhost:8000/api/model/update-access-level?${params.toString()}`)
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.error('Error updating model access level:', err);
+        reject(err);
+      });
+  });
+}
+
 // TEAM //
 
 interface CreateTeamResponse {
@@ -750,6 +772,26 @@ export async function deleteUserAccount(email: string): Promise<void> {
       })
       .catch((err) => {
         console.error('Error deleting user:', err);
+        reject(err);
+      });
+  });
+}
+
+export async function updateModel(modelIdentifier: string): Promise<void> {
+  const accessToken = getAccessToken(); // Ensure this function is implemented elsewhere in your codebase
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ model_identifier: modelIdentifier });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`http://localhost:8000/api/model/update-model?${params.toString()}`)
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.error('Error updating model:', err);
         reject(err);
       });
   });

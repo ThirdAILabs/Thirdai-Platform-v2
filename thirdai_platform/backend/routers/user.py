@@ -146,6 +146,22 @@ def add_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
+    """
+    Promote a user to global admin.
+
+    Parameters:
+    - admin_request: The request body containing the user's email.
+        - Example:
+        ```json
+        {
+            "email": "user@example.com"
+        }
+        ```
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response indicating the success of the operation.
+    """
     email = admin_request.email
     user: Optional[schema.User] = (
         session.query(schema.User).filter(schema.User.email == email).first()
@@ -172,6 +188,22 @@ def demote_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
+    """
+    Demote a global admin to a regular user.
+
+    Parameters:
+    - admin_request: The request body containing the user's email.
+        - Example:
+        ```json
+        {
+            "email": "user@example.com"
+        }
+        ```
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response indicating the success of the operation.
+    """
     email = admin_request.email
     user: Optional[schema.User] = (
         session.query(schema.User).filter(schema.User.email == email).first()
@@ -205,6 +237,23 @@ def delete_user(
     session: Session = Depends(get_session),
     current_user: schema.User = Depends(global_admin_only),
 ):
+    """
+    Delete a user from the system and reassign their models.
+
+    Parameters:
+    - admin_request: The request body containing the user's email.
+        - Example:
+        ```json
+        {
+            "email": "user@example.com"
+        }
+        ```
+    - session: The database session (dependency).
+    - current_user: The current authenticated global admin (dependency).
+
+    Returns:
+    - A JSON response indicating the success of the operation.
+    """
     email = admin_request.email
     user: Optional[schema.User] = (
         session.query(schema.User)
@@ -367,9 +416,22 @@ def reset_password_verify(
     session: Session = Depends(get_session),
 ):
     """
-    The password change process involves verification of the reset password code sent to the
-    user's email, ensuring security. Once verified, the system allows the user to update their
-    password seamlessly.
+    Reset the user's password after verifying the reset code.
+
+    Parameters:
+    - body: The request body containing the email, reset password code, and new password.
+        - Example:
+        ```json
+        {
+            "email": "johndoe@example.com",
+            "reset_password_code": 123456,
+            "new_password": "newsecurepassword"
+        }
+        ```
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response indicating the password reset status.
     """
     user: Optional[schema.User] = (
         session.query(schema.User).filter(schema.User.email == body.email).first()
@@ -451,7 +513,7 @@ def get_user_info(
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
-    Get detailed information about a specific user.
+    Get detailed information about the authenticated user.
 
     Parameters:
     - session: The database session (dependency).

@@ -1,6 +1,7 @@
 import os
 import uuid
 from typing import Annotated, Dict, Optional, Union
+from datetime import datetime
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import (
@@ -16,6 +17,7 @@ from backend.utils import (
     get_model_from_identifier,
     response,
     validate_name,
+    get_deployment,
 )
 from database import schema
 from database.session import get_session
@@ -30,7 +32,7 @@ from storage import interface, local
 model_router = APIRouter()
 
 storage: interface.StorageInterface = local.LocalStorage(
-    os.getenv("LOCAL_TEST_DIR", "/model_bazaar")
+    os.getenv("SHARE_DIR", "/model_bazaar")
 )
 
 
@@ -128,21 +130,31 @@ def list_models(
     )
 
     if not user.is_global_admin():
-        access_conditions = [schema.Model.access_level == schema.Access.public]
-        if schema.Access.protected in access_level:
-            access_conditions.append(
-                and_(
-                    schema.Model.access_level == schema.Access.protected,
-                    schema.Model.team_id.in_(user_teams),
-                )
+        access_conditions = []
+
+        def add_access_condition(access, condition):
+            if not access_level or access in access_level:
+                access_conditions.append(condition)
+
+        # Adding access conditions based on the user's role and teams
+        add_access_condition(
+            schema.Access.public,
+            schema.Model.access_level == schema.Access.public
+        )
+        add_access_condition(
+            schema.Access.protected,
+            and_(
+                schema.Model.access_level == schema.Access.protected,
+                schema.Model.team_id.in_(user_teams),
             )
-        if schema.Access.private in access_level:
-            access_conditions.append(
-                and_(
-                    schema.Model.access_level == schema.Access.private,
-                    schema.Model.user_id == user.id,
-                )
+        )
+        add_access_condition(
+            schema.Access.private,
+            and_(
+                schema.Model.access_level == schema.Access.private,
+                schema.Model.user_id == user.id,
             )
+        )
 
         query = query.filter(or_(*access_conditions))
 
@@ -157,14 +169,6 @@ def list_models(
 
     if sub_type:
         query = query.filter(schema.Model.sub_type == sub_type)
-
-    if access_level:
-        conditions = []
-        for access in access_level:
-            conditions.append(schema.Model.access_level == access)
-
-        # We have to unpack the conditions to be able to processed by `or_` function.
-        query = query.filter(or_(*conditions))
 
     results = [get_high_level_model_info(result) for result in query]
 
@@ -977,3 +981,107 @@ def get_model_permissions(
         message="Successfully retrieved model permissions",
         data=jsonable_encoder(permissions_info),
     )
+
+
+@model_router.post("/update-access-level", dependencies=[Depends(is_model_owner)])
+def update_access_level(
+    model_identifier: str,
+    access_level: schema.Access,
+    session: Session = Depends(get_session),
+):
+    """
+    Update the access level of a model.
+
+    Parameters:
+    - model_identifier: The identifier of the model to update.
+    - access_level: The new access level to set for the model.
+
+    Returns:
+    - A JSON response indicating the success of the operation, including the model ID and the updated access level.
+    """
+    model = get_model_from_identifier(model_identifier, session)
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Model not found",
+        )
+
+    model.access_level = access_level
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"Access level updated to '{access_level}' for model '{model_identifier}'.",
+        data={"model_id": str(model.id), "access_level": str(model.access_level)},
+    )
+
+
+@model_router.post("/update-default-permission", dependencies=[Depends(is_model_owner)])
+def update_default_permission(
+    model_identifier: str,
+    new_permission: schema.Permission,
+    session: Session = Depends(get_session),
+):
+    """
+    Update the default permission of a model.
+
+    Parameters:
+    - model_identifier: The identifier of the model to update.
+    - new_permission: The new default permission to set.
+
+    Returns:
+    - A JSON response indicating the success of the operation, including the model ID and the updated default permission.
+    """
+    model = get_model_from_identifier(model_identifier, session)
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Model not found",
+        )
+
+    # Directly update the default permission
+    model.default_permission = new_permission
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"Default permission updated to '{new_permission}' for model '{model_identifier}'.",
+        data={
+            "model_id": str(model.id),
+            "default_permission": str(model.default_permission),
+        },
+    )
+
+@model_router.post("/update-model", dependencies=[Depends(is_model_owner)])
+def update_model(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    model = get_model_from_identifier(model_identifier, session)
+    old_model_name = model.name
+    model.name = f"{model.name}-updated"
+    # parent_id, parent_deployment_id, user_id, team_id
+    new_model = schema.Model(
+        name=old_model_name,
+        train_status=model.train_status,
+        type=model.type,
+        sub_type=model.sub_type,
+        downloads=model.downloads,
+        access_level=model.access_level,
+        domain=model.domain,
+        published_date=model.published_date,
+        default_permission=model.default_permission,
+        parent_id=model.parent_id,
+        user_id=model.user_id,
+        team_id=model.team_id
+    )
+    model.published_date = datetime.utcnow().isoformat()
+    session.add(new_model)
+    deployment = get_deployment(session, old_model_name, model.user_id, model.id)
+    deployment.name = f"{deployment.name}-updated"
+    session.commit()
+
+    
+
+    
+

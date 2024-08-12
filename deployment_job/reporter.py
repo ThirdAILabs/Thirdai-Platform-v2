@@ -17,7 +17,7 @@ class Reporter:
         """
         self._api = api_url
         self.loki_handler = logging_loki.LokiHandler(
-            url="http://localhost:3100/loki/api/v1/push",
+            url="http://192.168.1.11/loki/api/v1/push",
             version="1",
             )
 

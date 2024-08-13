@@ -8,11 +8,12 @@ ARGS=(
     "--entrypoints.web.address=:80"
     "--entrypoints.traefik.address=:8080"
     "--providers.nomad=true"
-    "--providers.nomad.endpoint.address=http://localhost:4646"
+    "--providers.nomad.endpoint.address=http://18.219.17.144:4646"
     "--providers.file.filename=$curr_dir/traefik_config/dynamic-conf.yml"
     "--providers.file.watch=true"
     "--log.level=DEBUG"
     "--providers.http.pollInterval=5s"
+    "--accesslog=true"
 )
 
 traefik ${ARGS[@]}

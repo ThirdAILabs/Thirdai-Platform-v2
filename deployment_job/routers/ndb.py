@@ -102,16 +102,22 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         }
         ```
         """
+        print("ndbquery A")
         model = get_model()
+        print("ndbquery B")
         params = base_params.dict()
+        print("ndbquery C")
         if general_variables.type == TypeEnum.NDB:
             extra_params = ndb_params.dict(exclude_unset=True)
             params.update(extra_params)
 
+        print("ndbquery D")
         params["token"] = token
 
+        print("ndbquery E")
         results = model.predict(**params)
 
+        print("ndbquery F")
         return response(
             status_code=status.HTTP_200_OK,
             message="Successful",
@@ -513,10 +519,13 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         }
         ```
         """
+        print("piidetect A")
         token_model = get_token_model()
 
+        print("piidetect B")
         results = token_model.predict(query=query, top_k=1, token=token)
 
+        print("piidetect C")
         return response(
             status_code=status.HTTP_200_OK,
             message="Successfully detected PII.",

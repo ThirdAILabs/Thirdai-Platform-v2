@@ -110,6 +110,7 @@ async def generate(websocket: WebSocket):
         data = await websocket.receive_text()
         try:
             generate_args = GenerateArgs.parse_raw(data)
+            print(f"{generate_args=}")
             break
         except ValidationError as e:
             await websocket.send_json(
@@ -128,6 +129,7 @@ async def generate(websocket: WebSocket):
             return
 
     key = generate_args.key or default_keys.get(generate_args.provider.lower())
+    print(f"{key=}")
     if not key:
         await websocket.send_json(
             {
@@ -152,9 +154,11 @@ async def generate(websocket: WebSocket):
     llm = llm_class()
 
     try:
+        print("About to stream")
         async for next_word in llm.stream(
             key=key, query=generate_args.query, model=generate_args.model
         ):
+            print(f"Streamed={next_word}")
             await websocket.send_json(
                 {"status": "success", "content": next_word, "end_of_stream": False}
             )
@@ -167,6 +171,7 @@ async def generate(websocket: WebSocket):
                 "end_of_stream": True,
             }
         )
+    print("Done")
     await websocket.send_json(
         {"status": "success", "content": "", "end_of_stream": True}
     )
@@ -175,4 +180,4 @@ async def generate(websocket: WebSocket):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

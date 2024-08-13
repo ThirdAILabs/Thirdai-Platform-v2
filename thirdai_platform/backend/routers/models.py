@@ -139,22 +139,21 @@ def list_models(
 
         # Adding access conditions based on the user's role and teams
         add_access_condition(
-            schema.Access.public,
-            schema.Model.access_level == schema.Access.public
+            schema.Access.public, schema.Model.access_level == schema.Access.public
         )
         add_access_condition(
             schema.Access.protected,
             and_(
                 schema.Model.access_level == schema.Access.protected,
                 schema.Model.team_id.in_(user_teams),
-            )
+            ),
         )
         add_access_condition(
             schema.Access.private,
             and_(
                 schema.Model.access_level == schema.Access.private,
                 schema.Model.user_id == user.id,
-            )
+            ),
         )
 
         query = query.filter(or_(*access_conditions))

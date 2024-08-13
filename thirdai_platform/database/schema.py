@@ -84,6 +84,9 @@ class User(SQLDeclarativeBase):
     )
     models = relationship("Model", back_populates="user", cascade="all, delete-orphan")
     logs = relationship("Log", back_populates="user", cascade="all, delete-orphan")
+    workflows = relationship(
+        "Workflow", back_populates="user", cascade="all, delete-orphan"
+    )
     model_permissions = relationship(
         "ModelPermission", back_populates="user", cascade="all, delete-orphan"
     )
@@ -292,5 +295,73 @@ class Log(SQLDeclarativeBase):
         Index("log_user_index", "user_id"),
         UniqueConstraint(
             "model_id", "user_id", "action", name="unique_model_user_action"
+        ),
+    )
+
+
+class WorkflowType(SQLDeclarativeBase):
+    __tablename__ = "workflow_types"
+
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    name = Column(String(256), nullable=False, unique=True)
+    description = Column(String(512), nullable=True)
+    model_requirements = Column(JSON, nullable=False)
+
+
+class Workflow(SQLDeclarativeBase):
+    __tablename__ = "workflows"
+
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    name = Column(String(256), nullable=False)
+    type_id = Column(
+        UUID(as_uuid=True), ForeignKey("workflow_types.id"), nullable=False
+    )
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    status = Column(ENUM(Status), nullable=False, default=Status.not_started)
+
+    user = relationship("User", back_populates="workflows")
+    workflow_models = relationship(
+        "WorkflowModel", back_populates="workflow", cascade="all, delete-orphan"
+    )
+    workflow_type = relationship("WorkflowType")
+
+    __table_args__ = (
+        UniqueConstraint("name", "user_id", name="unique_workflow_name_user"),
+    )
+
+
+# Many to Many relationship for workflow and models.
+class WorkflowModel(SQLDeclarativeBase):
+    __tablename__ = "workflow_models"
+
+    workflow_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("workflows.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    model_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("models.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    component = Column(String(256), nullable=False, primary_key=True)
+
+    workflow = relationship("Workflow", back_populates="workflow_models")
+    model = relationship("Model")
+
+    __table_args__ = (
+        Index("workflow_model_index", "workflow_id"),
+        Index("model_workflow_index", "model_id"),
+        UniqueConstraint(
+            "workflow_id",
+            "model_id",
+            "component",
+            name="unique_workflow_model_component",
         ),
     )

@@ -373,7 +373,7 @@ def get_hcl_payload(filepath, is_jinja, **kwargs):
         content = file.read()
 
     if is_jinja:
-        template = Template(content)
+        template = Template(content, autoescape=True)
         hcl_content = template.render(**kwargs)
     else:
         hcl_content = content
@@ -420,13 +420,11 @@ def submit_nomad_job(filepath, nomad_endpoint, **kwargs):
     filepath_ext = filepath.split(".")[-1]
     is_jinja = filepath_ext == "j2"
     hcl_payload = get_hcl_payload(filepath, is_jinja=is_jinja, **kwargs)
-    with open("/home/gautam/test.hcl", "w") as fp:
-        fp.write(hcl_payload["JobHCL"])
+
     # Before submitting a job to nomad, we must convert the HCL file to JSON
     json_payload_response = requests.post(
         json_payload_url, headers=headers, json=hcl_payload
     )
-    # print(json_payload_response.text)
     json_payload = json_payload_response.json()
 
     # Submit the JSON job spec to Nomad

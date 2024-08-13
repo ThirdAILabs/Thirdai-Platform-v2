@@ -43,11 +43,11 @@ class DataFactory(ABC):
     def fill_and_transform(self, **kwargs):
         pass
 
-    def get_random_vocab(self, user_vocab: Optional[str] = None, k=1):
+    def get_random_vocab(self, user_vocab: Optional[str] = None, k: int = 1):
         vocabulary = vocab + (user_vocab if user_vocab is not None else [])
         return random.sample(population=vocabulary, k=k)
 
-    def get_random_prompts(self, k=1):
+    def get_random_prompts(self, k: int = 1):
         return [
             random.choices(items["prompts"], weights=items["scores"], k=k)[0]
             for __annotations__, items in random_prompts.items()
@@ -70,7 +70,7 @@ class DataFactory(ABC):
             from concurrent.futures import ProcessPoolExecutor, as_completed
 
             with ProcessPoolExecutor() as executor, tqdm(
-                total=len(tasks_prompt), desc=f"progress: ", leave=True
+                total=len(tasks_prompt), desc=f"progress: ", leave=False
             ) as pbar:
                 futures = []
 
@@ -97,9 +97,10 @@ class DataFactory(ABC):
                         with open(self.errored_file_location, mode="a") as errored_fp:
                             traceback.print_exc(file=errored_fp)
                             errored_fp.write("\n" + "=" * 100 + "\n")
-                pbar.close()
         else:
-            for task_id, task in tqdm(enumerate(tasks_prompt), desc="Progress: "):
+            for task_id, task in tqdm(
+                enumerate(tasks_prompt), desc="Progress: ", leave=False
+            ):
                 response_text, task_id = self.process_prompt(
                     prompt=task["prompt"],
                     task_id=task_id,

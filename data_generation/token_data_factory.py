@@ -1,7 +1,6 @@
 import random
 import re
 from collections import defaultdict
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from resource.token_prompts import (
     attribute_dimension_prompt,
     attribute_value_prompt,
@@ -9,7 +8,7 @@ from resource.token_prompts import (
     tag_value_prompt,
     template_prompt,
 )
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from data_factory_interface import DataFactory
 from faker import Faker

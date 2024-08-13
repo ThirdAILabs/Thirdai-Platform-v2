@@ -35,7 +35,6 @@ from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.expression import null
 
 train_router = APIRouter()
 
@@ -237,6 +236,7 @@ def train_ndb(
             id=model_id,
             user_id=user.id,
             train_status=schema.Status.not_started,
+            deploy_status=schema.Status.not_started,
             name=model_name,
             type="ndb",
             sub_type="single" if not sharded else "sharded",
@@ -456,6 +456,7 @@ def train_udt(
             id=model_id,
             user_id=user.id,
             train_status=schema.Status.not_started,
+            deploy_status=schema.Status.not_started,
             name=model_name,
             type="udt",
             sub_type=extra_options["sub_type"],
@@ -562,7 +563,7 @@ def train_complete(
     else:
         new_metadata = schema.MetaData(
             model_id=trained_model.id,
-            train=body.metadata,
+            train=json.dumps(body.metadata),
         )
         session.add(new_metadata)
 
@@ -820,7 +821,7 @@ def train_status(
         message="Successfully got the train status.",
         data={
             "model_identifier": model_identifier,
-            "status": model.train_status,
+            "train_status": model.train_status,
         },
     )
 

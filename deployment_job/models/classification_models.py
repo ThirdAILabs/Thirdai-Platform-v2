@@ -43,7 +43,7 @@ class TextClassificationModel(ClassificationModel):
 
         self.reporter.log(
             action="predict",
-            deployment_id=self.general_variables.deployment_id,
+            model_id=self.general_variables.model_id,
             access_token=kwargs.get("token"),
             train_samples=[
                 {
@@ -76,7 +76,7 @@ class TokenClassificationModel(ClassificationModel):
 
         self.reporter.log(
             action="predict",
-            deployment_id=self.general_variables.deployment_id,
+            model_id=self.general_variables.model_id,
             access_token=kwargs.get("token"),
             train_samples=[{"query": query, "predictions": ",".join(predictions[0])}],
         )

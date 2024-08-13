@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 from typing import Annotated, Dict, Optional, Union
@@ -211,7 +212,6 @@ def check_model(
 
 
 class SaveNDBDeployedModel(BaseModel):
-    deployment_id: str
     model_id: str
     base_model_id: str
     model_name: str
@@ -242,10 +242,10 @@ def save_deployed_model(
         id=body.model_id,
         name=body.model_name,
         train_status=schema.Status.complete,
+        deploy_status=schema.Status.not_started,
         access_level=schema.Access.private,
-        domain=user.email.split("@")[1],
+        domain=user.domain,
         user_id=user.id,
-        parent_deployment_id=body.deployment_id,
         parent_id=base_model.id,
         type=base_model.type,
         sub_type=base_model.sub_type,
@@ -255,7 +255,10 @@ def save_deployed_model(
     session.commit()
     session.refresh(new_model)
 
-    metadata = schema.MetaData(model_id=body.model_id, deployment=body.metadata)
+    metadata: schema.MetaData = schema.MetaData(
+        model_id=body.model_id, general=body.metadata
+    )
+
     session.add(metadata)
     session.commit()
 
@@ -296,15 +299,16 @@ def pending_train_models(
     results = [
         {
             "model_name": result.name,
-            "status": result.train_status,
+            "train_status": result.train_status,
             "username": user.username,
+            "deploy_status": result.deploy_status,
         }
         for result in pending_model_train
     ]
 
     return response(
         status_code=status.HTTP_200_OK,
-        message="Successfully fetched the pending list",
+        message="Successfully fetched the pending list models",
         data=jsonable_encoder(results),
     )
 
@@ -525,8 +529,7 @@ def upload_commit(
             message=str(error),
         )
 
-    user = session.query(schema.User).get(payload["user_id"])
-    domain = user.email.split("@")[1]
+    user: schema.User = session.query(schema.User).get(payload["user_id"])
 
     try:
         new_model = schema.Model(
@@ -535,9 +538,10 @@ def upload_commit(
             access_level=body.access_level,
             type=body.type,
             sub_type=body.sub_type,
-            domain=domain,
+            domain=user.domain,
             user_id=payload["user_id"],
             train_status=schema.Status.complete,
+            deploy_status=schema.Status.not_started,
         )
 
         session.add(new_model)
@@ -552,7 +556,7 @@ def upload_commit(
     if body.metadata:
         new_metadata = schema.MetaData(
             model_id=payload["model_id"],
-            general=body.metadata,
+            general=json.dumps(body.metadata),
         )
         session.add(new_metadata)
         session.commit()
@@ -618,59 +622,6 @@ def download_public_model(
     return StreamingResponse(iterfile(), headers=headers, media_type=media_type)
 
 
-@model_router.post("/rag-entry")
-def add_rag_entry(
-    model_name: str,
-    ndb_model_id: Optional[str] = None,
-    use_llm_guardrail: Optional[bool] = False,
-    token_model_id: Optional[str] = None,
-    session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
-):
-    user: schema.User = authenticated_user.user
-
-    # Create new model entry
-    new_model = schema.Model(
-        user_id=user.id,
-        train_status=schema.Status.complete,
-        name=model_name,
-        type="rag",
-        domain=user.email.split("@")[1],
-        access_level=schema.Access.private,
-    )
-
-    session.add(new_model)
-    session.commit()
-    session.refresh(new_model)
-
-    # Prepare the general metadata dictionary
-    general_metadata = {}
-
-    if ndb_model_id is not None:
-        general_metadata["ndb_model_id"] = ndb_model_id
-
-    if use_llm_guardrail is not None:
-        general_metadata["use_llm_guardrail"] = use_llm_guardrail
-
-    if token_model_id is not None:
-        general_metadata["token_model_id"] = token_model_id
-
-    # Create new metadata entry
-    new_metadata = schema.MetaData(model_id=new_model.id, general=general_metadata)
-
-    session.add(new_metadata)
-    session.commit()
-
-    return response(
-        status_code=status.HTTP_201_CREATED,
-        message="Successfully added new RAG entry.",
-        data={
-            "model_id": str(new_model.id),
-            "model_name": new_model.name,
-            "metadata": jsonable_encoder(general_metadata),
-        },
-    )
-
 @model_router.get("/download", dependencies=[Depends(verify_model_read_access)])
 def download_model(
     model_identifier: str,
@@ -719,38 +670,6 @@ def download_model(
 
     return StreamingResponse(iterfile(), headers=headers, media_type=media_type)
 
-@model_router.get("/info")
-def get_model_info(
-    model_id: str,
-    session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
-):
-    """
-    Get the model information.
-
-    Parameters:
-    - model_id: str - The ID of the model to retrieve.
-    - session: Session - The database session (dependency).
-    - authenticated_user: AuthenticatedUser - The authenticated user (dependency).
-
-    Returns:
-    - JSONResponse: Model information.
-    """
-    # Fetch the model by ID
-    model = session.query(schema.Model).filter_by(id=model_id).first()
-
-    # Check if the model exists
-    if not model:
-        return response(
-            status_code=status.HTTP_404_NOT_FOUND, message="Model not found."
-        )
-
-    result = get_high_level_model_info(model)
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Model information retrieved successfully.",
-        data=jsonable_encoder(result),
-    )
 
 @model_router.get("/team-models", dependencies=[Depends(team_admin_or_global_admin)])
 def list_team_models(
@@ -1051,37 +970,3 @@ def update_default_permission(
             "default_permission": str(model.default_permission),
         },
     )
-
-@model_router.post("/update-model", dependencies=[Depends(is_model_owner)])
-def update_model(
-    model_identifier: str,
-    session: Session = Depends(get_session),
-):
-    model = get_model_from_identifier(model_identifier, session)
-    old_model_name = model.name
-    model.name = f"{model.name}-updated"
-    # parent_id, parent_deployment_id, user_id, team_id
-    new_model = schema.Model(
-        name=old_model_name,
-        train_status=model.train_status,
-        type=model.type,
-        sub_type=model.sub_type,
-        downloads=model.downloads,
-        access_level=model.access_level,
-        domain=model.domain,
-        published_date=model.published_date,
-        default_permission=model.default_permission,
-        parent_id=model.parent_id,
-        user_id=model.user_id,
-        team_id=model.team_id
-    )
-    model.published_date = datetime.utcnow().isoformat()
-    session.add(new_model)
-    deployment = get_deployment(session, old_model_name, model.user_id, model.id)
-    deployment.name = f"{deployment.name}-updated"
-    session.commit()
-
-    
-
-    
-

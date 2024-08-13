@@ -122,18 +122,38 @@ def assign_team_admin(
     Returns:
     - A JSON response with the user ID and team ID upon successful assignment.
     """
-    user_team: Optional[schema.UserTeam] = (
+    # Fetch both user and the corresponding user-team relation in one query
+    user_team = (
         session.query(schema.UserTeam)
         .join(schema.User)
-        .filter(schema.User.email == email, schema.UserTeam.team_id == team_id)
+        .join(schema.Team)
+        .filter(schema.User.email == email, schema.Team.id == team_id)
+        .options(joinedload(schema.UserTeam.user), joinedload(schema.UserTeam.team))
         .first()
     )
 
-    if not user_team:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User or Team not found",
+    if user_team:
+        # If user-team relationship exists, just update the role
+        user_team.role = schema.Role.team_admin
+    else:
+        # Fetch user and team in one go if the user-team relationship doesn't exist
+        user, team = (
+            session.query(schema.User, schema.Team)
+            .filter(schema.User.email == email, schema.Team.id == team_id)
+            .first()
         )
+
+        if not user or not team:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User or Team not found",
+            )
+
+        # Create new user-team relationship and assign the role
+        user_team = schema.UserTeam(
+            user_id=user.id, team_id=team.id, role=schema.Role.team_admin
+        )
+        session.add(user_team)
 
     user_team.role = schema.Role.team_admin
     session.commit()

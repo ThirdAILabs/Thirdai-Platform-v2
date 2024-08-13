@@ -305,7 +305,6 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
             if not input.override:
                 model.reporter.save_model(
                     access_token=token,
-                    deployment_id=general_variables.deployment_id,
                     model_id=model_id,
                     base_model_id=general_variables.model_id,
                     model_name=input.model_name,

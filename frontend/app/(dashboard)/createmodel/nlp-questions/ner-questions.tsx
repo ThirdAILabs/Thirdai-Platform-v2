@@ -105,7 +105,7 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
 
   return (
     <div className='p-5'>
-      <h3 className='mb-3 text-lg font-semibold'>Model Name</h3>
+      <h3 className='mb-3 text-lg font-semibold'>App Name</h3>
       <input
         type="text"
         className="form-input w-full px-3 py-2 border rounded-md"

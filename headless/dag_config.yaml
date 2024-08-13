@@ -1,0 +1,203 @@
+NDB:
+  config: scifact
+  check_unsupervised_supervised:
+    dependencies: []
+    params:
+      sharded: variable
+      run_name: variable
+      config: variable
+
+  await_train:
+    dependencies: [check_unsupervised_supervised]
+    params:
+      model: check_unsupervised_supervised
+
+  deploy_ndb:
+    dependencies: [await_train]
+    params:
+      model: check_unsupervised_supervised
+      run_name: variable
+
+  await_deploy:
+    dependencies: [deploy_ndb]
+    params:
+      deployment: deploy_ndb
+
+  check_search:
+    dependencies: [await_deploy]
+    params:
+      deployment: deploy_ndb
+
+  check_deployment_ndb:
+    dependencies: [check_search]
+    params:
+      deployment: deploy_ndb
+      config: variable
+      results: check_search
+  
+  undeploy:
+    dependencies: [check_deployment_ndb]
+    params:
+      deployment: deploy_ndb
+
+  check_unsupervised:
+    dependencies: [await_train]
+    params:
+      sharded: variable
+      run_name: variable
+      config: variable
+      base_model: check_unsupervised_supervised
+      file_num: 1
+      test: True
+
+  await_train_2:
+    function: await_train
+    dependencies: [check_unsupervised]
+    params:
+      model: check_unsupervised
+
+UDT:
+  config: [token, text]
+  check_udt_train:
+    dependencies: []
+    params:
+      run_name: variable
+      config: variable
+
+  await_train:
+    dependencies: [check_udt_train]
+    params:
+      model: check_udt_train
+  
+  udt_deploy:
+    dependencies: [await_train]
+    params:
+      model: check_udt_train
+      run_name: variable
+      config: variable
+
+  await_deploy:
+    dependencies: [udt_deploy]
+    params:
+      deployment: udt_deploy
+
+  check_search:
+    dependencies: [await_deploy]
+    params:
+      deployment: udt_deploy
+
+  undeploy:
+    dependencies: [check_search]
+    params:
+      deployment: udt_deploy
+
+GlobalAdmin:
+  config: dummy
+  add_new_users:
+    dependencies: []
+
+  test_add_global_admin:
+    dependencies: [add_new_users]
+    params:
+      email: ga_test_global_admin@mail.com
+
+  test_add_key:
+    dependencies: [add_new_users]
+    params:
+      key: "AWS_ACCESS_TOKEN"
+      value: "aws_secret_value"
+
+  test_get_key:
+    dependencies: [test_add_key]
+    params:
+      key: "AWS_ACCESS_TOKEN"
+  
+  test_delete_user:
+    dependencies: [test_get_key]
+    params:
+      email: ga_test_global_admin@mail.com
+
+  test_create_team:
+    dependencies: [add_new_users]
+    params:
+      name: "New Team"
+
+  test_assign_team_admin:
+    dependencies: [test_create_team]
+    params:
+      user_email: ga_test_team_admin@mail.com
+      team_id: test_create_team
+  
+  test_add_user_to_team:
+    dependencies: [test_assign_team_admin]
+    params:
+      user_email: ga_test_team_member@mail.com
+      team_id: test_create_team
+
+  test_delete_team_admin:
+    dependencies: [test_add_user_to_team]
+    params:
+      email: ga_test_team_admin@mail.com
+
+  test_delete_team_member:
+    dependencies: [test_delete_team_admin]
+    params:
+      email: ga_test_team_member@mail.com
+
+  test_delete_team:
+    dependencies: [test_delete_team_member]
+    params:
+      team_id: test_create_team
+
+TeamAdmin:
+  config: dummy
+  ta_setup:
+    dependencies: []
+    params:
+      key: "OPENAI_API_KEY"
+      value: "openai_api_key"
+
+  test_create_team:
+    dependencies: [ta_setup]
+    params:
+      name: "TA-Test-Team"
+
+  test_assign_team_admin:
+    dependencies: [test_create_team]
+    params:
+      user_email: ta_team_admin@mail.com
+      team_id: test_create_team
+
+  test_ta_add_user_to_team:
+    dependencies: [test_create_team]
+    params:
+      user_email: ta_test_team_member@mail.com
+      team_id: test_create_team
+
+  test_ta_assign_team_admin:
+    dependencies: [test_create_team]
+    params:
+      user_email: ta_another_team_admin@mail.com
+      team_id: test_create_team
+
+  test_ta_delete_team_member:
+    dependencies: [test_ta_add_user_to_team]
+    params:
+      email: ta_test_team_member@mail.com
+      team_id: test_create_team
+
+  test_ta_add_key:
+    dependencies: [ta_setup]
+    params:
+      key: "AWS_ACCESS_TOKEN"
+      value: "aws_secret_value"
+
+  test_ta_get_key:
+    dependencies: [test_ta_add_key]
+    params:
+      key: "OPENAI_API_KEY"
+
+  ta_cleanup:
+    dependencies: [test_ta_delete_team_member]
+    params:
+      team_id: test_create_team

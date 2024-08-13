@@ -1,0 +1,12 @@
+http:
+  routers:
+    modelbazaar-http:
+      rule: "PathPrefix(`/`)"
+      priority: 1
+      service: "modelbazaar-service"
+
+  services:
+    modelbazaar-service:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:8000"

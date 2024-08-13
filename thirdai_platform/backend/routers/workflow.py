@@ -949,7 +949,7 @@ def get_workflow_details(
     )
 
 
-@workflow_router.delete("/delete", dependencies=[Depends(is_workflow_owner)])
+@workflow_router.post("/delete", dependencies=[Depends(is_workflow_owner)])
 def delete_workflow(
     workflow_id: str,
     session: Session = Depends(get_session),
@@ -971,4 +971,58 @@ def delete_workflow(
     return response(
         status_code=status.HTTP_200_OK,
         message="Workflow deleted successfully.",
+    )
+
+
+@workflow_router.get("/status", dependencies=[Depends(is_workflow_owner)])
+def get_workflow_status(
+    workflow_id: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Get the current status of a specific workflow.
+
+    - **Parameters**:
+      - `workflow_id` (str): ID of the workflow.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): The current status of the workflow.
+
+    **Example Request**:
+    ```json
+    {
+        "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c"
+    }
+    ```
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Workflow status retrieved successfully.",
+        "data": {
+            "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
+            "status": "in_progress"
+        }
+    }
+    ```
+    """
+    workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
+
+    if not workflow:
+        return response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="Workflow not found.",
+        )
+
+    workflow_status = {
+        "workflow_id": str(workflow.id),
+        "status": workflow.status,
+    }
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Workflow status retrieved successfully.",
+        data=jsonable_encoder(workflow_status),
     )

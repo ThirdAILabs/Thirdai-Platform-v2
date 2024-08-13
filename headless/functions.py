@@ -580,6 +580,7 @@ class WorkflowFunctions:
         response = flow.workflow_client.add_models(
             workflow_id=inputs.get("workflow_id"),
             model_identifiers=[inputs.get("model").model_identifier],
+            components=[inputs.get("component")],
         )
 
     @staticmethod
@@ -588,13 +589,22 @@ class WorkflowFunctions:
         response = flow.workflow_client.delete_models(
             workflow_id=inputs.get("workflow_id"),
             model_identifiers=[inputs.get("model").model_identifier],
+            components=[inputs.get("component")],
         )
 
     @staticmethod
-    def validate_workflow(inputs: Dict[str, str]):
+    def pre_validate_workflow(inputs: Dict[str, str]):
         time.sleep(20)
         logging.info(f"inputs: {inputs}")
-        response = flow.workflow_client.validate_workflow(
+        response = flow.workflow_client.pre_validate_workflow(
+            workflow_id=inputs.get("workflow_id")
+        )
+
+    @staticmethod
+    def post_validate_workflow(inputs: Dict[str, str]):
+        time.sleep(20)
+        logging.info(f"inputs: {inputs}")
+        response = flow.workflow_client.post_validate_workflow(
             workflow_id=inputs.get("workflow_id")
         )
 
@@ -609,6 +619,13 @@ class WorkflowFunctions:
     def start_workflow(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
         response = flow.workflow_client.start_workflow(
+            workflow_id=inputs.get("workflow_id")
+        )
+
+    @staticmethod
+    def delete_workflow(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.workflow_client.delete_workflow(
             workflow_id=inputs.get("workflow_id")
         )
 

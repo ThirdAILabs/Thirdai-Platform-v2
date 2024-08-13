@@ -241,6 +241,7 @@ Workflow:
     params:
       workflow_id: create_workflow
       model: check_unsupervised_supervised
+      component: search
   
   add_udt_model:
     function: add_models
@@ -248,18 +249,29 @@ Workflow:
     params:
       workflow_id: create_workflow
       model: check_udt_train
+      component: guardrail
 
-  start_workflow:
+  pre_validate_workflow:
     dependencies: [add_ndb_model, add_udt_model, await_train, await_train_2]
     params:
       workflow_id: create_workflow
 
-  validate_workflow:
+  start_workflow:
+    dependencies: [pre_validate_workflow]
+    params:
+      workflow_id: create_workflow
+
+  post_validate_workflow:
     dependencies: [start_workflow]
     params:
       workflow_id: create_workflow
 
   stop_workflow:
-    dependencies: [validate_workflow]
+    dependencies: [post_validate_workflow]
+    params:
+      workflow_id: create_workflow
+
+  delete_workflow:
+    dependencies: [stop_workflow]
     params:
       workflow_id: create_workflow

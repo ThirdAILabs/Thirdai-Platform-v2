@@ -52,7 +52,7 @@ export default function ChooseProblem() {
             onChange={(e)=>setModelType(e.target.value)}
           >
             <option value="">-- Please choose an option --</option>
-            <option value="semantic-search">Retrival</option>
+            <option value="semantic-search">Retrieval</option>
             <option value="NLP">NLP (Natural Language Processing)</option>
             <option value="RAG">RAG (Retrieval Augmented Generation)</option>
           </select>

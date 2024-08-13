@@ -72,7 +72,7 @@ const RAGQuestions = ({
       {/* Begin Semantic Search Model */}
 
             <div className="mb-4">
-              <span className="block text-lg font-semibold mb-2">Retrival App</span>
+              <span className="block text-lg font-semibold mb-2">Retrieval App</span>
               <label htmlFor="useExistingSemanticSearch" className="block text-sm font-medium text-gray-700">Use an existing semantic search model?</label>
               <select
                 id="useExistingSemanticSearch"

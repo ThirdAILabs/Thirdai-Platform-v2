@@ -4,13 +4,13 @@ import React, { useState } from 'react';
 import { SelectModel } from '@/lib/db';
 
 interface SCQQuestionsProps {
-    question: string;
-    answer: string;
+  question: string;
+  answer: string;
 }
 
 type GeneratedData = {
-    category: string;
-    examples: string[];
+  category: string;
+  examples: string[];
 };
 
 const predefinedChoices = [
@@ -18,7 +18,7 @@ const predefinedChoices = [
   'Negative Sentiment',
 ];
 
-const SCQQuestions = ({question, answer} : SCQQuestionsProps) => {
+const SCQQuestions = ({ question, answer }: SCQQuestionsProps) => {
   const [categories, setCategories] = useState([{ name: '', example: '' }]);
   const [showReview, setShowReview] = useState(false);
   const [isDataGenerating, setIsDataGenerating] = useState(false);
@@ -38,6 +38,43 @@ const SCQQuestions = ({question, answer} : SCQQuestionsProps) => {
   const handleAddCategory = () => {
     setCategories([...categories, { name: '', example: '' }]);
   };
+
+  const validateCategories = () => {
+    // Check if any category has an empty name or example
+    return categories.every((category: Category) => {
+      return category.name && category.example
+    });
+  };
+
+  const validateLabels = () => {
+    // ensure that category.name does not contain space
+    return categories.every((category: Category) => {
+      return !category.name.includes(' ');
+    });
+  };
+
+  const handleReview = () => {
+    if (validateCategories()) {
+      if (validateLabels()) {
+        setShowReview(true);
+        return true;
+      } else {
+        alert('CategoryName field should not have any space.');
+        return false;
+      }
+    } else {
+      alert('All fields (CategoryName, Example) must be filled for each category.');
+      return false;
+    }
+  };
+
+  const handleAddAndReviewCategory = () => {
+    const reviewSuccess = handleReview();
+    if (reviewSuccess) {
+      handleAddCategory();
+    }
+  };
+
 
   const handleRemoveCategory = (index: number) => {
     setCategories(categories.filter((_, i) => i !== index));
@@ -139,10 +176,10 @@ const SCQQuestions = ({question, answer} : SCQQuestionsProps) => {
             </button>
           </div>
         ))}
-        <button type="button" className='bg-blue-500 text-white px-4 py-2 rounded-md mt-2 mr-2' onClick={handleAddCategory}>
+        <button type="button" className='bg-blue-500 text-white px-4 py-2 rounded-md mt-2 mr-2' onClick={handleAddAndReviewCategory}>
           Add Category
         </button>
-        <button type="button" className='bg-green-500 text-white px-4 py-2 rounded-md mt-2' onClick={()=>{setShowReview(true)}}>Finish and Review</button>
+        <button type="button" className='bg-green-500 text-white px-4 py-2 rounded-md mt-2' onClick={() => { setShowReview(true) }}>Finish and Review</button>
       </form>
 
       {categories.length > 0 && showReview && (
@@ -175,7 +212,7 @@ const SCQQuestions = ({question, answer} : SCQQuestionsProps) => {
         </div>
       )}
 
-      {! isDataGenerating && generatedData.length > 0 && (
+      {!isDataGenerating && generatedData.length > 0 && (
         <div className='mt-5'>
           <h3 className='mb-3 text-lg font-semibold'>Generated Data</h3>
 
@@ -204,13 +241,13 @@ const SCQQuestions = ({question, answer} : SCQQuestionsProps) => {
 
           <div className="flex justify-center">
             <Link href="/">
-            <button
-              type="button"
-              className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-              onClick={() => {}}
-            >
-              Create
-            </button>
+              <button
+                type="button"
+                className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
+                onClick={() => { }}
+              >
+                Create
+              </button>
             </Link>
           </div>
         </div>

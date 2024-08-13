@@ -29,7 +29,7 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
   const [isDataGenerating, setIsDataGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState([]);
   const [generateDataPrompt, setGenerateDataPrompt] = useState('');
-  
+
   const router = useRouter();
 
   const handleCategoryChange = (index: number, field: keyof Category, value: string) => {
@@ -40,6 +40,42 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
 
   const handleAddCategory = () => {
     setCategories([...categories, { name: '', example: '', description: '' }]);
+  };
+
+  const validateCategories = () => {
+    // Check if any category has an empty name, example, or description
+    return categories.every((category: Category) => {
+      return category.name && category.example && category.description;
+    });
+  };
+
+  const validateTags = () => {
+    // ensure that category.name does not contain space
+    return categories.every((category: Category) => {
+      return !category.name.includes(' ');
+    });
+  };
+
+  const handleReview = () => {
+    if (validateCategories()) {
+      if (validateTags()) {
+        setShowReview(true);
+        return true;
+      } else {
+        alert('CategoryName field should not have any space.');
+        return false;
+      }
+    } else {
+      alert('All fields (CategoryName, Example, Description) must be filled for each category.');
+      return false;
+    }
+  };
+
+  const handleAddAndReviewCategory = () => {
+    const reviewSuccess = handleReview();
+    if (reviewSuccess) {
+      handleAddCategory();
+    }
   };
 
   const handleRemoveCategory = (index: number) => {
@@ -151,10 +187,10 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
             </button>
           </div>
         ))}
-        <button type="button" className='bg-blue-500 text-white px-4 py-2 rounded-md mt-2 mr-2' onClick={handleAddCategory}>
+        <button type="button" className='bg-blue-500 text-white px-4 py-2 rounded-md mt-2 mr-2' onClick={handleAddAndReviewCategory}>
           Add Category
         </button>
-        <button type="button" className='bg-green-500 text-white px-4 py-2 rounded-md mt-2' onClick={()=>{setShowReview(true)}}>Finish and Review</button>
+        <button type="button" className='bg-green-500 text-white px-4 py-2 rounded-md mt-2' onClick={() => { setShowReview(true) }}>Finish and Review</button>
       </form>
 
       {categories.length > 0 && showReview && (
@@ -187,7 +223,7 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
         </div>
       )}
 
-      {! isDataGenerating && generatedData.length > 0 && (
+      {!isDataGenerating && generatedData.length > 0 && (
         <div className='mt-5'>
           <h3 className='mb-3 text-lg font-semibold'>Generated Data</h3>
           <div>

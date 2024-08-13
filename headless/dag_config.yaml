@@ -251,23 +251,18 @@ Workflow:
       model: check_udt_train
       component: guardrail
 
-  pre_validate_workflow:
+  validate_workflow:
     dependencies: [add_ndb_model, add_udt_model, await_train, await_train_2]
     params:
       workflow_id: create_workflow
 
   start_workflow:
-    dependencies: [pre_validate_workflow]
-    params:
-      workflow_id: create_workflow
-
-  post_validate_workflow:
-    dependencies: [start_workflow]
+    dependencies: [validate_workflow]
     params:
       workflow_id: create_workflow
 
   stop_workflow:
-    dependencies: [post_validate_workflow]
+    dependencies: [start_workflow]
     params:
       workflow_id: create_workflow
 

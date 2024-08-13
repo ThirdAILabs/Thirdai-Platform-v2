@@ -343,16 +343,16 @@ def delete_models(
     )
 
 
-@workflow_router.post("/pre-validate", dependencies=[Depends(is_workflow_owner)])
-def pre_validate_workflow(
+@workflow_router.post("/validate", dependencies=[Depends(is_workflow_owner)])
+def validate_workflow(
     workflow_id: str,
     session: Session = Depends(get_session),
 ):
     """
-    Pre-validate a workflow to ensure it meets the model requirements.
+    Validate a workflow to ensure it meets the model requirements.
 
     - **Parameters**:
-      - `workflow_id` (str): ID of the workflow to pre-validate.
+      - `workflow_id` (str): ID of the workflow to validate.
     - **Returns**:
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
@@ -369,7 +369,7 @@ def pre_validate_workflow(
     ```json
     {
         "status_code": 200,
-        "message": "Pre-validation successful. All model requirements are met.",
+        "message": "Validation successful. All model requirements are met.",
         "data": {
             "models": [
                 {"id": "model1", "name": "Model 1"...},
@@ -425,36 +425,38 @@ def pre_validate_workflow(
     if issues:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="Pre-validation failed. Some models have issues.",
+            message="Validation failed. Some models have issues.",
             data={"models": jsonable_encoder(issues)},
         )
 
     return response(
         status_code=status.HTTP_200_OK,
-        message="Pre-validation successful. All model requirements are met.",
+        message="Validation successful. All model requirements are met.",
         data={"models": jsonable_encoder(list_workflow_models(workflow))},
     )
 
 
-@workflow_router.post("/post-validate", dependencies=[Depends(is_workflow_owner)])
-def post_validate_workflow(
+@workflow_router.post("/update-status", dependencies=[Depends(is_workflow_owner)])
+def update_workflow_status(
     workflow_id: str,
+    new_status: schema.Status,
     session: Session = Depends(get_session),
 ):
     """
-    Post-validate a workflow to ensure that training and deployment are complete.
+    Update the status of a workflow.
 
     - **Parameters**:
-      - `workflow_id` (str): ID of the workflow to post-validate.
+      - `workflow_id` (str): ID of the workflow to update.
+      - `new_status` (str): New status to set for the workflow.
     - **Returns**:
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
-      - `data` (dict): Validation issues or success message.
 
     **Example Request**:
     ```json
     {
-        "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c"
+        "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
+        "new_status": "complete"
     }
     ```
 
@@ -462,13 +464,7 @@ def post_validate_workflow(
     ```json
     {
         "status_code": 200,
-        "message": "Post-validation successful. All models are properly trained and deployed.",
-        "data": {
-            "models": [
-                {"id": "model1", "name": "Model 1"...},
-                {"id": "model2", "name": "Model 2"...}
-            ]
-        }
+        "message": "Workflow status updated successfully.",
     }
     ```
     """
@@ -480,43 +476,18 @@ def post_validate_workflow(
             message="Workflow not found.",
         )
 
-    workflow_models: List[schema.WorkflowModel] = workflow.workflow_models
-
-    if not workflow_models:
-        return response(
-            status_code=status.HTTP_404_NOT_FOUND,
-            message="No models found in the workflow.",
-        )
-
-    issues = defaultdict(list)
-
-    for workflow_model in workflow_models:
-        model: schema.Model = workflow_model.model
-
-        if model.train_status != schema.Status.complete:
-            issues[workflow_model.component].append(
-                f"Model {model.name} (component: {workflow_model.component}) training is not complete."
-            )
-
-        if model.deploy_status != schema.Status.complete:
-            issues[workflow_model.component].append(
-                f"Model {model.name} (component: {workflow_model.component}) deployment is not complete."
-            )
-
-    if issues:
+    try:
+        workflow.status = new_status
+        session.commit()
+    except KeyError:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="Post-validation failed. Some models have issues.",
-            data={"models": jsonable_encoder(issues)},
+            message=f"Invalid status: {new_status}.",
         )
-
-    workflow.status = schema.Status.complete
-    session.commit()
 
     return response(
         status_code=status.HTTP_200_OK,
-        message="Post-validation successful. All models are properly trained and deployed.",
-        data={"models": jsonable_encoder(list_workflow_models(workflow))},
+        message="Workflow status updated successfully.",
     )
 
 
@@ -916,6 +887,7 @@ def get_workflow_details(
             "id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
             "name": "MyWorkflow",
             "type": "semantic_search",
+            "type_id": "c1b1c5d7-8b8a-4f3b-a88b-2ec5a7a5f014",
             "status": "in_progress",
             "models": [
                 {"id": "model1", "name": "Model 1", ...},
@@ -938,6 +910,7 @@ def get_workflow_details(
         "id": str(workflow.id),
         "name": workflow.name,
         "type": workflow.workflow_type.name,
+        "type_id": str(workflow.type_id),
         "status": workflow.status,
         "models": jsonable_encoder(list_workflow_models(workflow=workflow)),
     }

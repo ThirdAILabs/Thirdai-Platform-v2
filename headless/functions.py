@@ -593,18 +593,10 @@ class WorkflowFunctions:
         )
 
     @staticmethod
-    def pre_validate_workflow(inputs: Dict[str, str]):
+    def validate_workflow(inputs: Dict[str, str]):
         time.sleep(20)
         logging.info(f"inputs: {inputs}")
-        response = flow.workflow_client.pre_validate_workflow(
-            workflow_id=inputs.get("workflow_id")
-        )
-
-    @staticmethod
-    def post_validate_workflow(inputs: Dict[str, str]):
-        time.sleep(20)
-        logging.info(f"inputs: {inputs}")
-        response = flow.workflow_client.post_validate_workflow(
+        response = flow.workflow_client.validate_workflow(
             workflow_id=inputs.get("workflow_id")
         )
 

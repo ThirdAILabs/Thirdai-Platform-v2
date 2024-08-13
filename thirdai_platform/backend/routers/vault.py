@@ -45,7 +45,7 @@ async def add_secret(
 # Note(pratik): Any user can access the secrets, set by global admin
 # TODO(pratik): Add a way pass the vault secrets to nomad jobs as env
 # variable directly rather than accessing here
-@vault_router.get("/get-secret")
+@vault_router.get("/get-secret", dependencies=[Depends(verify_access_token)])
 async def get_secret(
     secret: SecretRequest, client: hvac.Client = Depends(get_vault_client)
 ):

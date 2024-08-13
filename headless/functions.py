@@ -266,7 +266,7 @@ class NDBFunctions:
             f"Deploying the model {model.model_identifier} and id {model.model_id}"
         )
 
-        return flow.bazaar_client.deploy(model.model_identifier)
+        return flow.bazaar_client.deploy(model.model_identifier, f"{run_name}_deploy")
 
     def build_extra_options(config: Config, sharded: bool = False) -> Dict[str, Any]:
         """

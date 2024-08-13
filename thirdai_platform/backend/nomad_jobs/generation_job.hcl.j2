@@ -38,14 +38,9 @@ job "llm-generation" {
 
       config {
         {% if platform == "docker" %}  
-          image = "{{ registry }}/{{ image_name }}:{{ tag }}"
+          image = "{{ image_name }}:{{ tag }}"
           image_pull_timeout = "15m"
           ports = ["generation-http"]
-          auth {
-            username = "{{ docker_username }}"
-            password = "{{ docker_password }}"
-            server_address = "{{ registry }}"
-          }
         {% elif platform == "local" %}
           command = "{{ python_path }}"
           args    = ["-m", "uvicorn", "main:app","--app-dir","{{ generate_app_dir }}","--reload","--host","0.0.0.0","--port","{{ port }}"]

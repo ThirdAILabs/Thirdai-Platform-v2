@@ -626,6 +626,8 @@ async def restart_generate_job():
         delete_nomad_job(GENERATE_JOB_ID, nomad_endpoint)
     cwd = Path(os.getcwd())
     platform = get_platform()
+    print("Platform: ", platform)
+    print("GENERATION_IMAGE_NAME: ", os.getenv("GENERATION_IMAGE_NAME"))
     return submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "generation_job.hcl.j2"),

@@ -65,7 +65,7 @@ class Config(ABC):
     input_dim: int = 10000
     hidden_dim: int = 1024
     output_dim: int = 5000
-    allocation_memory: int = 1000
+    allocation_memory: int = 3000
     allocation_cores: int = 2
     checkpoint_interval: int = 1
 

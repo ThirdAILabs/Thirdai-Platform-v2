@@ -87,15 +87,10 @@ EOF
 
       config {
         {% if platform == "docker" %}  
-          image = "{{ registry }}/{{ image_name }}:{{ tag }}"
+          image = "{{ image_name }}:{{ tag }}"
           image_pull_timeout = "15m"
           ports = ["{{ model_id }}-http"]
           group_add = ["4646"]
-          auth {
-            username = "{{ docker_username }}"
-            password = "{{ docker_password }}"
-            server_address = "{{ registry }}"
-          }
           volumes = [
             "{{ share_dir }}:/model_bazaar"
           ]

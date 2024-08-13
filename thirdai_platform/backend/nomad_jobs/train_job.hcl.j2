@@ -43,13 +43,8 @@ job "train-{{ model_id }}-{{ type }}-{{ sub_type }}" {
 
       config {
         {% if platform == "docker" %}
-          image = "{{ registry }}/{{ image_name }}:{{ tag }}"
+          image = "{{ image_name }}:{{ tag }}"
           image_pull_timeout = "15m"
-          auth {
-            username = "{{ docker_username }}"
-            password = "{{ docker_password }}"
-            server_address = "{{ registry }}"
-          }
           volumes = [
             "{{ share_dir }}:/model_bazaar"
           ]

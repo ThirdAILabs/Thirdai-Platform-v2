@@ -59,18 +59,7 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
                       // console.log('The NER model is already deployed, and deployment ID is: ', response.data.deployment_id)
                       setDeployStatus('Deployed')
                       
-                      // Now, list deployments using the deployment_id from the response
-                      listDeployments(response.data.deployment_id)
-                      .then((deployments) => {
-                        console.log(deployments);
-                        if (deployments.length > 0) {
-                            const firstDeployment = deployments[0];
-                            setNerRAGEndpoint(firstDeployment.modelID);
-                        }
-                      })
-                      .catch((error) => {
-                          console.error('Error listing deployments:', error);
-                      });
+                      setNerRAGEndpoint(response.data.deployment_id);
 
                     } else if (response.data.status === 'in_progress') {
       

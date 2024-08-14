@@ -129,7 +129,7 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
       const addModelsResponse = await add_models_to_workflow({
         workflowId,
         modelIdentifiers: [modelId],
-        components: ["guardrail"], // Specific to this use case
+        components: ['nlp'], // Specific to this use case
       });
   
       console.log('Workflow and model addition successful:', addModelsResponse);

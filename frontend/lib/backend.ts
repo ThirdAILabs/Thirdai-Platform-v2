@@ -325,6 +325,68 @@ export function fetchWorkflows(): Promise<Workflow[]> {
   });
 }
 
+interface ValidateWorkflowResponse {
+  status: string;
+  message: string;
+  data: {
+    models: { id: string; name: string }[];
+  };
+}
+
+export function validate_workflow(workflowId: string): Promise<ValidateWorkflowResponse> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ workflow_id: workflowId });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post<ValidateWorkflowResponse>(`${thirdaiPlatformBaseUrl}/api/workflow/validate?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.detail || 'Failed to validate workflow'));
+        } else {
+          reject(new Error('Failed to validate workflow'));
+        }
+      });
+  });
+}
+
+
+interface StartWorkflowResponse {
+  status_code: number;
+  message: string;
+  data: {
+    models: { id: string; name: string }[];
+  };
+}
+
+export function start_workflow(workflowId: string): Promise<StartWorkflowResponse> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ workflow_id: workflowId });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post<StartWorkflowResponse>(`${thirdaiPlatformBaseUrl}/api/workflow/start?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.detail || 'Failed to start workflow'));
+        } else {
+          reject(new Error('Failed to start workflow'));
+        }
+      });
+  });
+}
 
 
 // Define the interface for the expected response

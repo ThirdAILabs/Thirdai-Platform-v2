@@ -14,7 +14,8 @@ import {
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { deleteModel } from './actions';
-import { deployModel, getDeployStatus, stopDeploy, getAccessToken, deploymentBaseUrl, listDeployments, Workflow } from '@/lib/backend';
+import { deployModel, getDeployStatus, stopDeploy, getAccessToken, deploymentBaseUrl, listDeployments, 
+          Workflow, validate_workflow, start_workflow } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
 export function WorkFlow({ workflow, pending }: { workflow: Workflow, pending?: boolean }) {
@@ -267,6 +268,42 @@ export function WorkFlow({ workflow, pending }: { workflow: Workflow, pending?: 
   //     }
   // }
 
+  const [isValid, setIsValid] = useState(false);
+
+  useEffect(() => {
+    const validateInterval = setInterval(async () => {
+      try {
+        const validationResponse = await validate_workflow(workflow.id);
+        if (validationResponse.status == 'success') {
+          setIsValid(true);
+          console.log('Validation passed.');
+        } else {
+          setIsValid(false);
+          console.log('Validation failed.');
+        }
+      } catch (e) {
+        setIsValid(false);
+        console.error('Validation failed.', e);
+      }
+    }, 3000); // Adjust the interval as needed, e.g., every 5 seconds
+
+    return () => clearInterval(validateInterval);
+  }, [workflow.id]);
+
+  const handleDeploy = async () => {
+    try {
+      if (isValid) {
+        await start_workflow(workflow.id);
+        alert('Workflow started successfully!');
+      } else {
+        alert('Cannot deploy. The workflow is not valid.');
+      }
+    } catch (e) {
+      console.error('Failed to start workflow.', e);
+      alert('Failed to start the workflow.');
+    }
+  };
+
   useEffect(()=>{
     if (workflow.status === 'not_started') {
       setDeployStatus('Ready to Deploy')
@@ -327,14 +364,18 @@ export function WorkFlow({ workflow, pending }: { workflow: Workflow, pending?: 
         </button>
       </TableCell>
       <TableCell className="hidden md:table-cell">
-        <button type="button" 
-                onClick={()=>{console.log('Deploy')}}
-                className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-          <svg className="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
-            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M1 5h12m0 0L9 1m4 4L9 9"/>
-          </svg>
-          <span className="sr-only">Deploy</span>
-        </button>
+        {
+          isValid
+          &&
+          <button type="button" 
+                  onClick={handleDeploy}
+                  className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
+            <svg className="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
+              <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M1 5h12m0 0L9 1m4 4L9 9"/>
+            </svg>
+            <span className="sr-only">Deploy</span>
+          </button>
+        }
       </TableCell>
       <TableCell>
         <DropdownMenu>

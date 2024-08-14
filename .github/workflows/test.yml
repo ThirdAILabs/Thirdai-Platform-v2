@@ -135,12 +135,6 @@ jobs:
         echo "PLATFORM=local" >> $GITHUB_ENV
         echo "TEST_ENVIRONMENT=True" >> $GITHUB_ENV
     
-    - name: Uninstall and Reinstall ThirdAI Library
-      run: |
-        source ${{ github.workspace }}/venv/bin/activate
-        python3 -m pip uninstall -y thirdai
-        python3 -m pip install local_setup/thirdai-0.9.7+382d094-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-
     - name: Launch Backend
       run: |
         source ${{ github.workspace }}/venv/bin/activate

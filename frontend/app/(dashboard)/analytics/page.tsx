@@ -29,7 +29,7 @@ export default function AnalyticsPage() {
   }
 
   const usageDurationData = {
-    labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+    labels: ['7/17-7/20', '7/18-7/21', '7/22-7/25', '7/26-7/29', '7/30-8/2', '8/3-8/6', '8/7-8/11'],
     datasets: [
       {
         label: 'Hours per Day',
@@ -47,7 +47,7 @@ export default function AnalyticsPage() {
   };
 
   const usageFrequencyData = {
-    labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+    labels: ['7/17-7/20', '7/18-7/21', '7/22-7/25', '7/26-7/29', '7/30-8/2', '8/3-8/6', '8/7-8/11'],
     datasets: [
       {
         label: 'Queries per Day',
@@ -63,13 +63,13 @@ export default function AnalyticsPage() {
       },
       {
         label: 'Upvotes per Day',
-        data: [5, 6, 7, 8, 10, 9, 11],
+        data: [16, 13, 16, 13, 11, 10, 8],
         borderColor: 'rgb(255, 159, 64)',
         backgroundColor: 'rgba(255, 159, 64, 0.2)',
       },
       {
         label: 'Associates per Day',
-        data: [2, 3, 2, 3, 4, 3, 4],
+        data: [5, 6, 5, 6, 7, 6, 7],
         borderColor: 'rgb(75, 192, 192)',
         backgroundColor: 'rgba(75, 192, 192, 0.2)',
       },
@@ -77,7 +77,7 @@ export default function AnalyticsPage() {
   };
 
   const reformulatedQueriesData = {
-    labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+    labels: ['7/17-7/20', '7/18-7/21', '7/22-7/25', '7/26-7/29', '7/30-8/2', '8/3-8/6', '8/7-8/11'],
     datasets: [
       {
         label: 'Reformulated Queries',

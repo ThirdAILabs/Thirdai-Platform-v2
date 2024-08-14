@@ -17,16 +17,16 @@ from tqdm import tqdm
 
 from .utils import (
     create_model_identifier,
+    create_s3_client,
+    download_files_from_s3,
     get_directory_size,
     get_file_size,
     hash_path,
+    http_delete_with_error,
     http_get_with_error,
     http_post_with_error,
-    http_delete_with_error,
-    zip_folder,
     restore_postgres_db_from_file,
-    download_files_from_s3,
-    create_s3_client,
+    zip_folder,
 )
 
 

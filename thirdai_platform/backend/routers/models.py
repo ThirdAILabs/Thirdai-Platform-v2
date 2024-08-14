@@ -18,7 +18,6 @@ from backend.utils import (
     get_model_from_identifier,
     response,
     validate_name,
-    get_deployment,
 )
 from database import schema
 from database.session import get_session

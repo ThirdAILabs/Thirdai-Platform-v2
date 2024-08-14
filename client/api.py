@@ -12,7 +12,6 @@ from .base import Bazaar, auth_header
 from .utils import (
     check_deployment_decorator,
     construct_deployment_url,
-    create_deployment_identifier,
     create_model_identifier,
     http_get_with_error,
     http_post_with_error,
@@ -61,12 +60,12 @@ class NeuralDBClient:
     A client for interacting with the deployed NeuralDB model.
 
     Attributes:
-        deployment_identifier (str): The identifier for the deployment.
-        deployment_id (str): The deployment ID for the deployed NeuralDB model.
+        model_identifier (str): The identifier for the deployment.
+        model_id (str): The deployment ID for the deployed NeuralDB model.
         bazaar (thirdai.neural_db.ModelBazaar): The bazaar object corresponding to a NeuralDB Enterprise installation
 
     Methods:
-        __init__(self, deployment_identifier: str, deployment_id: str, bazaar: ModelBazaar) -> None:
+        __init__(self, model_identifier: str, model_id: str, bazaar: ModelBazaar) -> None:
             Initializes a new instance of the NeuralDBClient.
 
         search(self, query, top_k=5, constraints: Optional[dict[str, dict[str, str]]]=None) -> List[dict]:
@@ -97,20 +96,18 @@ class NeuralDBClient:
             Gets the source names and ids of documents in the ndb model
     """
 
-    def __init__(
-        self, deployment_identifier: str, deployment_id: str, bazaar: ModelBazaar
-    ):
+    def __init__(self, model_identifier: str, model_id: str, bazaar: ModelBazaar):
         """
         Initializes a new instance of the NeuralDBClient.
 
         Args:
-            deployment_identifier (str): The identifier for the deployment.
-            deployment_id (str): The deployment ID for the deployed NeuralDB model.
+            model_identifier (str): The identifier for the deployment.
+            model_id (str): The deployment ID for the deployed NeuralDB model.
             bazaar (thirdai.neural_db.ModelBazaar): The bazaar object corresponding to a NeuralDB Enterprise installation
         """
-        self.deployment_identifier = deployment_identifier
+        self.model_identifier = model_identifier
         self.base_url = construct_deployment_url(
-            re.sub(r"api/$", "", bazaar._base_url), deployment_id
+            re.sub(r"api/$", "", bazaar._base_url), model_id
         )
         self.bazaar = bazaar
 
@@ -463,27 +460,25 @@ class UDTClient:
     A client for interacting with deployed UDT Model
 
     Attributes:
-        deployment_identifier (str): The identifier for the deployment.
-        deployment_id (str): The deployment ID for the deployed UDT model.
+        model_identifier (str): The identifier for the deployment.
+        model_id (str): The deployment ID for the deployed UDT model.
         bazaar (thirdai.neural_db.ModelBazaar): The bazaar object corresponding to a NeuralDB Enterprise installation
 
     """
 
-    def __init__(
-        self, deployment_identifier: str, deployment_id: str, bazaar: ModelBazaar
-    ):
+    def __init__(self, model_identifier: str, model_id: str, bazaar: ModelBazaar):
         """
         Initializes a new instance of the UDTClient.
 
         Args:
-            deployment_identifier (str): The identifier for the deployment.
-            deployment_id (str): The deployment ID for the deployed UDT model.
+            model_identifier (str): The identifier for the deployment.
+            model_id (str): The deployment ID for the deployed UDT model.
             bazaar (thirdai.neural_db.ModelBazaar): The bazaar object corresponding to a NeuralDB Enterprise installation
         """
 
-        self.deployment_identifier = deployment_identifier
+        self.model_identifier = model_identifier
         self.base_url = construct_deployment_url(
-            re.sub(r"api/$", "", bazaar._base_url), deployment_id
+            re.sub(r"api/$", "", bazaar._base_url), model_id
         )
         self.bazaar = bazaar
 
@@ -577,7 +572,7 @@ class ModelBazaar(Bazaar):
         list_deployments(self) -> List[dict]:
             Lists the deployments in the Model Bazaar.
 
-        connect(self, deployment_identifier: str) -> NeuralDBClient:
+        connect(self, model_identifier: str) -> NeuralDBClient:
             Connects to a deployed model and returns a NeuralDBClient instance.
     """
 
@@ -1032,7 +1027,6 @@ class ModelBazaar(Bazaar):
     def deploy(
         self,
         model_identifier: str,
-        deployment_name: str,
         memory: Optional[int] = None,
         is_async=False,
     ):
@@ -1050,7 +1044,6 @@ class ModelBazaar(Bazaar):
         url = urljoin(self._base_url, f"deploy/run")
         params = {
             "model_identifier": model_identifier,
-            "deployment_name": deployment_name,
             "memory": memory,
         }
         response = http_post_with_error(
@@ -1059,12 +1052,8 @@ class ModelBazaar(Bazaar):
         response_data = json.loads(response.content)["data"]
 
         ndb_client = NeuralDBClient(
-            deployment_identifier=create_deployment_identifier(
-                model_identifier=model_identifier,
-                deployment_name=deployment_name,
-                deployment_username=self._username,
-            ),
-            deployment_id=response_data["deployment_id"],
+            model_identifier=model_identifier,
+            model_id=response_data["model_id"],
             bazaar=self,
         )
         if is_async:
@@ -1084,7 +1073,6 @@ class ModelBazaar(Bazaar):
         url = urljoin(self._base_url, f"deploy/run")
         params = {
             "model_identifier": model_identifier,
-            "deployment_name": deployment_name,
             "memory": memory,
         }
         response = http_post_with_error(
@@ -1093,12 +1081,8 @@ class ModelBazaar(Bazaar):
         response_data = json.loads(response.content)["data"]
 
         udt_client = UDTClient(
-            deployment_identifier=create_deployment_identifier(
-                model_identifier=model_identifier,
-                deployment_name=deployment_name,
-                deployment_username=self._username,
-            ),
-            deployment_id=response_data["deployment_id"],
+            model_identifier=model_identifier,
+            model_id=response_data["model_id"],
             bazaar=self,
         )
         if is_async:
@@ -1117,7 +1101,7 @@ class ModelBazaar(Bazaar):
         """
         url = urljoin(self._base_url, f"deploy/status")
 
-        params = {"deployment_identifier": ndb_client.deployment_identifier}
+        params = {"model_identifier": ndb_client.model_identifier}
         while True:
             response = http_get_with_error(
                 url, params=params, headers=auth_header(self._access_token)
@@ -1140,7 +1124,7 @@ class ModelBazaar(Bazaar):
         """
         url = urljoin(self._base_url, f"deploy/stop")
         params = {
-            "deployment_identifier": ndb_client.deployment_identifier,
+            "model_identifier": ndb_client.model_identifier,
         }
         response = http_post_with_error(
             url, params=params, headers=auth_header(self._access_token)
@@ -1169,23 +1153,19 @@ class ModelBazaar(Bazaar):
                 author_username=deployment["model_username"],
             )
             deployment_info = {
-                "deployment_identifier": create_deployment_identifier(
-                    model_identifier=model_identifier,
-                    deployment_name=deployment["name"],
-                    deployment_username=deployment["deployment_username"],
-                ),
+                "model_identifier": model_identifier,
                 "status": deployment["deploy_status"],
             }
             deployments.append(deployment_info)
 
         return deployments
 
-    def connect(self, deployment_identifier: str):
+    def connect(self, model_identifier: str):
         """
         Connects to a deployed model and returns a NeuralDBClient instance.
 
         Args:
-            deployment_identifier (str): The identifier of the deployment.
+            model_identifier (str): The identifier of the deployment.
 
         Returns:
             NeuralDBClient: A NeuralDBClient instance.
@@ -1194,7 +1174,7 @@ class ModelBazaar(Bazaar):
 
         response = http_get_with_error(
             url,
-            params={"deployment_identifier": deployment_identifier},
+            params={"model_identifier": model_identifier},
             headers=auth_header(self._access_token),
         )
 
@@ -1203,8 +1183,8 @@ class ModelBazaar(Bazaar):
         if response_data["status"] == "complete":
             print("Connection obtained...")
             return NeuralDBClient(
-                deployment_identifier=deployment_identifier,
-                deployment_id=response_data["deployment_id"],
+                model_identifier=model_identifier,
+                model_id=response_data["model_id"],
                 bazaar=self,
             )
 

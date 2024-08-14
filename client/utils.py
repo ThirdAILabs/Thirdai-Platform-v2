@@ -24,14 +24,8 @@ def create_model_identifier(model_name: str, author_username: str):
     return author_username + "/" + model_name
 
 
-def create_deployment_identifier(
-    model_identifier: str, deployment_name: str, deployment_username: str
-):
-    return model_identifier + ":" + deployment_username + "/" + deployment_name
-
-
-def construct_deployment_url(host, deployment_id):
-    return urljoin(host, deployment_id) + "/"
+def construct_deployment_url(host, model_id):
+    return urljoin(host, model_id) + "/"
 
 
 def check_deployment_decorator(func):

@@ -85,22 +85,22 @@ function Reformulation({
 export default function RecentSamples() {
   const recentUpvotes = useRollingSamples(
     /* samples= */ upvotes,
-    /* numSamples= */ 7,
-    /* maxNewSamples= */ 3,
+    /* numSamples= */ 5,
+    /* maxNewSamples= */ 2,
     /* probabilityNewSamples= */ 0.2,
     /* intervalSeconds= */ 2);
   
   const recentAssociations = useRollingSamples(
     /* samples= */ associations,
-    /* numSamples= */ 7,
-    /* maxNewSamples= */ 3,
+    /* numSamples= */ 5,
+    /* maxNewSamples= */ 2,
     /* probabilityNewSamples= */ 0.1,
     /* intervalSeconds= */ 3);
   
   const recentReformulations = useRollingSamples(
     /* samples= */ reformulations,
-    /* numSamples= */ 4,
-    /* maxNewSamples= */ 2,
+    /* numSamples= */ 3,
+    /* maxNewSamples= */ 1,
     /* probabilityNewSamples= */ 0.4,
     /* intervalSeconds= */ 2);
 
@@ -113,7 +113,7 @@ export default function RecentSamples() {
         width: '100%'
       }}
     >
-      <Card style={{ width: '32.5%' }}>
+      <Card style={{ width: '32.5%', height: '45rem' }}>
         <CardHeader>
           <CardTitle>Recent Upvotes</CardTitle>
           <CardDescription>The latest user-provided upvotes</CardDescription>
@@ -131,7 +131,7 @@ export default function RecentSamples() {
           ))}
         </CardContent>
       </Card>
-      <Card style={{ width: '32.5%' }}>
+      <Card style={{ width: '32.5%', height: '45rem' }}>
         <CardHeader>
           <CardTitle>Recent Associations</CardTitle>
           <CardDescription>
@@ -151,7 +151,7 @@ export default function RecentSamples() {
           ))}
         </CardContent>
       </Card>
-      <Card style={{ width: '32.5%' }}>
+      <Card style={{ width: '32.5%', height: '45rem' }}>
         <CardHeader>
           <CardTitle>Recent Query Reformulations</CardTitle>
           <CardDescription>

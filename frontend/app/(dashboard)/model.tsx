@@ -14,6 +14,7 @@ import {
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { SelectModel } from '@/lib/db';
+import { deleteModel } from './actions';
 import { deployModel, getDeployStatus, stopDeploy, getAccessToken, deploymentBaseUrl, listDeployments } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
@@ -59,7 +60,18 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
                       // console.log('The NER model is already deployed, and deployment ID is: ', response.data.deployment_id)
                       setDeployStatus('Deployed')
                       
-                      setNerRAGEndpoint(response.data.deployment_id);
+                      // Now, list deployments using the deployment_id from the response
+                      listDeployments(response.data.deployment_id)
+                      .then((deployments) => {
+                        console.log(deployments);
+                        if (deployments.length > 0) {
+                            const firstDeployment = deployments[0];
+                            setNerRAGEndpoint(firstDeployment.modelID);
+                        }
+                      })
+                      .catch((error) => {
+                          console.error('Error listing deployments:', error);
+                      });
 
                     } else if (response.data.status === 'in_progress') {
       
@@ -286,7 +298,7 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
           : 'N/A'
       }
       </TableCell>
-      <TableCell className="hidden md:table-cell">&apos;N\A&apos;</TableCell>
+      <TableCell className="hidden md:table-cell">'N\A'</TableCell>
       <TableCell className="hidden md:table-cell">
         <button type="button" 
                 onClick={goToEndpoint}
@@ -438,7 +450,7 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
               &&
               <>
               <DropdownMenuItem>
-                <form action={()=>{}}>
+                <form action={deleteModel}>
                   <button type="button"
                   onClick={()=>{
                     stopDeploy({ deployment_identifier: deploymentIdentifier })

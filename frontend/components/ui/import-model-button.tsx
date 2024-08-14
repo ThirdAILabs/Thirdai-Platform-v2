@@ -26,7 +26,7 @@ const ImportModelButton = () => {
           }}>
             <File className="h-3.5 w-3.5" />
             <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-              Import App
+              Import Model
             </span>
         </Button>
         <input

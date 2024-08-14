@@ -207,7 +207,43 @@ const SCQQuestions = ({question, answer} : SCQQuestionsProps) => {
             <button
               type="button"
               className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-              onClick={() => {}}
+              onClick={async () => {
+
+                const modelData: Omit<SelectModel, 'id'> = {
+                  imageUrl: '/thirdai-small.png',
+                  name: 'my pii detector model',
+                  status: 'training',
+                  trainedAt: new Date(), // Use current date and time
+                  description: 'This is a PII model',
+                  deployEndpointUrl: 'http://70.233.60.118:3001/',
+                  onDiskSizeKb: (300 * 1024).toString(),  // 300 MB converted to KB as string
+                  ramSizeKb: (300 * 1024 * 2).toString(),  // 300 * 2 MB converted to KB as string
+                  numberParameters: 51203077,
+                  rlhfCounts: 0,
+                  modelType: 'ner model'
+                };
+  
+                try {
+                  const response = await fetch('/api/insertModel', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(modelData)
+                  });
+            
+                  if (response.ok) {
+                    const result = await response.json();
+                    console.log('Model inserted:', result);
+                  } else {
+                    const error = await response.json();
+                    console.error('Failed to insert model:', error);
+                  }
+                } catch (error) {
+                  console.error('Error inserting model:', error);
+                }
+
+              }}
             >
               Create
             </button>

@@ -62,7 +62,7 @@ const NLPQuestions = () => {
             </button>
           </form>
           <div className="mt-4 text-sm text-gray-600">
-            <div>Example: I want to analyze my customers&apos; reviews.</div>
+            <div>Example: I want to analyze my customers' reviews.</div>
             <div>Example: I want to analyze the individual tokens within a report document.</div>
           </div>
           {answer && (
@@ -73,7 +73,7 @@ const NLPQuestions = () => {
                   className="py-2 px-4 border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition duration-300"
                   onClick={() => console.log('Build action')}
                 >
-                  Sounds good. Let&apos;s start building it.
+                  Sounds good. Let's start building it.
                 </button>
               </div>
             </div>

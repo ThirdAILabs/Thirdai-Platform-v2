@@ -109,7 +109,7 @@ export default function AnalyticsPage() {
       <div className="mt-6">
         <h2 className="text-lg font-semibold mb-2">Usage Duration Trend</h2>
         <p className="mb-4">
-          Over the past few months, we&apos;ve observed a steady increase in the
+          Over the past few months, we've observed a steady increase in the
           duration users spend on the system. This indicates that users find
           the search system increasingly valuable and are willing to engage
           with it for longer periods.
@@ -124,7 +124,7 @@ export default function AnalyticsPage() {
 
         <h2 className="text-lg font-semibold mb-2">Reformulated Queries</h2>
         <p className="mb-4">
-          While the number of reformulated queries fluctuates, there&apos;s an overall
+          While the number of reformulated queries fluctuates, there's an overall
           downward trend. This suggests that users are becoming more adept at
           finding the information they need on the first attempt, indicating
           improved search accuracy and user satisfaction.

@@ -181,6 +181,7 @@ function App() {
 
                     await modelService.updatePiiSettings(guardRailEndpoint, ifGuardRailOn);
                     console.log('PII settings updated successfully');
+                    modelService.piiDetect('hi Peter');
                 } catch (error) {
                     console.error('Error updating PII settings:', error);
                 }

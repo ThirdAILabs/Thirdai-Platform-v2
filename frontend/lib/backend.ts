@@ -32,7 +32,7 @@ export async function fetchPrivateModels(name: string) {
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   try {
-    const response = await axios.get(`${thirdaiPlatformBaseUrl}/api/model/list`, {
+    const response = await axios.get(`http://localhost:8000/api/model/list`, {
       params: { name },
     });
     return response.data;
@@ -43,7 +43,7 @@ export async function fetchPrivateModels(name: string) {
 }
 
 export async function fetchPublicModels(name: string) {
-    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/model/public-list?name=${name}`);
+    const response = await fetch(`http://localhost:8000/api/model/public-list?name=${name}`);
     if (!response.ok) {
         throw new Error('Failed to fetch public models');
     }
@@ -65,7 +65,7 @@ export async function fetchPendingModels(): Promise<PendingModel> {
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   try {
-    const response = await axios.get(`${thirdaiPlatformBaseUrl}/api/model/pending-train-models`);
+    const response = await axios.get(`http://localhost:8000/api/model/pending-train-models`);
     return response.data;
   } catch (error) {
     console.error('Error fetching private models:', error);
@@ -95,7 +95,7 @@ export async function listDeployments(deployment_id: string): Promise<Deployment
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   try {
-      const response = await axios.get<ApiResponse>(`${thirdaiPlatformBaseUrl}/api/deploy/list-deployments`, {
+      const response = await axios.get<ApiResponse>('http://localhost:8000/api/deploy/list-deployments', {
           params: { deployment_id },
       });
       return response.data.data;
@@ -121,7 +121,7 @@ export function getDeployStatus(values: { deployment_identifier: string }): Prom
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/deploy/status?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}`)
+      .get(`http://localhost:8000/api/deploy/status?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}`)
       .then((res) => {
         resolve(res.data);
       })
@@ -147,7 +147,7 @@ export function stopDeploy(values: { deployment_identifier: string }): Promise<S
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/deploy/stop?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}`)
+      .post(`http://localhost:8000/api/deploy/stop?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}`)
       .then((res) => {
         resolve(res.data);
       })
@@ -198,7 +198,7 @@ export function deployModel(values: { deployment_name: string; model_identifier:
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/deploy/run?${params.toString()}`)
+      .post(`http://localhost:8000/api/deploy/run?${params.toString()}`)
       .then((res) => {
         resolve(res.data);
       })
@@ -222,7 +222,7 @@ export function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
 
     return new Promise((resolve, reject) => {
         axios
-            .post(`${thirdaiPlatformBaseUrl}/api/train/ndb?model_name=${name}`, formData)
+            .post(`http://localhost:8000/api/train/ndb?model_name=${name}`, formData)
             .then((res) => {
                 resolve(res.data);
             })
@@ -273,7 +273,7 @@ export function addRagEntry(values: RagEntryValues): Promise<RagEntryResponse> {
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/model/rag-entry?${params.toString()}`)
+      .post(`http://localhost:8000/api/model/rag-entry?${params.toString()}`)
       .then((res) => {
         resolve(res.data);
       })
@@ -287,7 +287,7 @@ export function addRagEntry(values: RagEntryValues): Promise<RagEntryResponse> {
 export function userEmailLogin(email: string, password: string): Promise<any> {
     return new Promise((resolve, reject) => {
       axios
-        .get(`${thirdaiPlatformBaseUrl}/api/user/email-login`, {
+        .get('http://localhost:8000/api/user/email-login', {
           headers: {
             Authorization: `Basic ${window.btoa(`${email}:${password}`)}`,
           },
@@ -317,7 +317,7 @@ export function userEmailLogin(email: string, password: string): Promise<any> {
 export function userRegister(email: string, password: string, username: string) {
     return new Promise((resolve, reject) => {
       axios
-        .post(`${thirdaiPlatformBaseUrl}/api/user/email-signup-basic`, {
+        .post('http://localhost:8000/api/user/email-signup-basic', {
           email,
           password,
           username,
@@ -370,7 +370,7 @@ export function trainTokenClassifier(modelName: string, samples: TokenClassifica
 
   return new Promise((resolve, reject) => {
       axios
-          .post(`${thirdaiPlatformBaseUrl}/api/train/udt?model_name=${modelName}`, formData)
+          .post(`http://localhost:8000/api/train/udt?model_name=${modelName}`, formData)
           .then((res) => {
               resolve(res.data);
           })
@@ -576,7 +576,7 @@ export async function fetchAllModels(): Promise<{ data: ModelResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/model/all-models`)
+      .get('http://localhost:8000/api/model/all-models')
       .then((res) => {
         resolve(res.data);
       })
@@ -593,7 +593,7 @@ export async function fetchAllTeams(): Promise<{ data: TeamResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/team/list`)
+      .get('http://localhost:8000/api/team/list')
       .then((res) => {
         resolve(res.data);
       })
@@ -610,7 +610,7 @@ export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/user/all-users`)
+      .get('http://localhost:8000/api/user/all-users')
       .then((res) => {
         resolve(res.data);
       })
@@ -632,7 +632,7 @@ export async function updateModelAccessLevel(model_identifier: string, access_le
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/model/update-access-level?${params.toString()}`)
+      .post(`http://localhost:8000/api/model/update-access-level?${params.toString()}`)
       .then(() => {
         resolve();
       })
@@ -663,7 +663,7 @@ export async function createTeam(name: string): Promise<CreateTeamResponse> {
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/team/create-team?${params.toString()}`)
+      .post(`http://localhost:8000/api/team/create-team?${params.toString()}`)
       .then((res) => {
         resolve(res.data as CreateTeamResponse);
       })
@@ -684,7 +684,7 @@ export async function addUserToTeam(email: string, team_id: string, role: string
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/team/add-user-to-team?${params.toString()}`)
+      .post(`http://localhost:8000/api/team/add-user-to-team?${params.toString()}`)
       .then((res) => {
         resolve(res.data);
       })
@@ -703,7 +703,7 @@ export async function assignTeamAdmin(email: string, team_id: string) {
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/team/assign-team-admin?${params.toString()}`)
+      .post(`http://localhost:8000/api/team/assign-team-admin?${params.toString()}`)
       .then((res) => {
         resolve(res.data);
       })
@@ -723,7 +723,7 @@ export async function deleteUserFromTeam(email: string, team_id: string): Promis
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/team/remove-user-from-team?${params.toString()}`)
+      .post(`http://localhost:8000/api/team/remove-user-from-team?${params.toString()}`)
       .then(() => {
         resolve();
       })
@@ -743,7 +743,7 @@ export async function deleteTeamById(team_id: string): Promise<void> {
 
   return new Promise((resolve, reject) => {
     axios
-      .delete(`${thirdaiPlatformBaseUrl}/api/team/delete-team?${params.toString()}`)
+      .delete(`http://localhost:8000/api/team/delete-team?${params.toString()}`)
       .then(() => {
         resolve();
       })
@@ -764,7 +764,7 @@ export async function deleteUserAccount(email: string): Promise<void> {
 
   return new Promise((resolve, reject) => {
     axios
-      .delete(`${thirdaiPlatformBaseUrl}/api/user/delete-user`, {
+      .delete('http://localhost:8000/api/user/delete-user', {
         data: { email },
       })
       .then(() => {
@@ -786,7 +786,7 @@ export async function updateModel(modelIdentifier: string): Promise<void> {
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/model/update-model?${params.toString()}`)
+      .post(`http://localhost:8000/api/model/update-model?${params.toString()}`)
       .then(() => {
         resolve();
       })

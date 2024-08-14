@@ -36,4 +36,6 @@ image_base_names = ImageNames(
     TRAIN_IMAGE_NAME="train_job",
     DEPLOY_IMAGE_NAME="deployment_job",
     GENERATION_IMAGE_NAME="llm_generation_job",
+    FRONTEND_IMAGE_NAME="frontend",
+    NEURALDB_FRONTEND_IMAGE_NAME="neuraldb_frontend",
 )

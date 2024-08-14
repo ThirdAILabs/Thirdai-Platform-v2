@@ -239,14 +239,14 @@ def main() -> None:
         if "branches" not in config["azure"]:
             config["azure"]["branches"] = {}
 
+        tag = "v" + args.version if args.version else get_tag(args.branch, config)
+
         if args.branch not in config["azure"]["branches"]:
             config["azure"]["branches"][args.branch] = {
-                "version": "0.0.1",
+                "version": tag if tag else "0.0.1",
                 "push_credentials": {"username": "", "password": ""},
                 "pull_credentials": {"username": "", "password": ""},
             }
-
-        tag = "v" + args.version if args.version else get_tag(args.branch, config)
 
         azure_config = config["azure"]
         branch_config = azure_config["branches"][args.branch]

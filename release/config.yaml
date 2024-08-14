@@ -1,5 +1,13 @@
 azure:
   branches:
+    frontend-bug-admin-workflow-2:
+      pull_credentials:
+        password: 1F8wbBmMX9LLD6SEy/YCBG0sOoeuV715K9L+1qHiO6+ACRCJ43fx
+        username: thirdaiplatform-pull-frontend-bug-admin-workflow-2
+      push_credentials:
+        password: fho4W31pDUVwO4BZBVCuZ+hZX9lJuOeaKWLuwoYfDY+ACRDsPwk8
+        username: thirdaiplatform-push-frontend-bug-admin-workflow-2
+      version: 0.0.1
     test_1:
       pull_credentials:
         password: lfhxcL/qmrYP24rIH2vmRNSYV9ZlNCfxJyQI6E3kVi+ACRDjUz22
@@ -23,6 +31,6 @@ azure:
       push_credentials:
         password: PkCR7YWr0zG/sW6rZex19qzQdR4A1QNg7RXWFKCBGt+ACRDolvsb
         username: thirdaiplatform-push-test-3
-      version: 0.0.1
+      version: 0.0.3
   registry: thirdaiplatform.azurecr.io
 provider: azure

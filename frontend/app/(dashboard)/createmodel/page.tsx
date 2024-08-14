@@ -19,8 +19,8 @@ export default async function NewModelPage({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Create Model</CardTitle>
-        <CardDescription>Create a new model with a few simple steps.</CardDescription>
+        <CardTitle>Create App</CardTitle>
+        <CardDescription>Create a new application with a few simple steps.</CardDescription>
       </CardHeader>
       <CardContent>
         <ChooseProblem />

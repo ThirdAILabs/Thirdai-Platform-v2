@@ -74,7 +74,7 @@ function DesktopNav() {
           <Home className="h-5 w-5" />
         </NavItem>
 
-        <NavItem href="#" label="Models">
+        <NavItem href="#" label="Application">
           <Package className="h-5 w-5" />
         </NavItem>
 
@@ -179,12 +179,12 @@ function DashboardBreadcrumb() {
         <BreadcrumbSeparator />
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="#">Models</Link>
+            <Link href="#">Apps</Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
         <BreadcrumbItem>
-          <BreadcrumbPage>All Models</BreadcrumbPage>
+          <BreadcrumbPage>All Apps</BreadcrumbPage>
         </BreadcrumbItem>
       </BreadcrumbList>
     </Breadcrumb>

@@ -80,9 +80,9 @@ export function ModelsTable() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Models</CardTitle>
+        <CardTitle>Apps</CardTitle>
         <CardDescription>
-          Manage your models and view their performance.
+          Manage your Apps and view their performance.
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -16,7 +16,7 @@ import { fetchAllModels, fetchAllTeams, fetchAllUsers,
 // Define types for the models, teams, and users
 type Model = {
   name: string;
-  type: 'Private Model' | 'Protected Model' | 'Public Model';
+  type: 'Private App' | 'Protected App' | 'Public App';
   owner: string;
   users?: string[];
   team?: string;
@@ -57,7 +57,7 @@ type User = {
 
 export default function AccessPage() {
   const userRole = "Global Admin";
-  const roleDescription = "This role has read and write access to all team members and models.";
+  const roleDescription = "This role has read and write access to all team members and applications.";
 
   // State to manage models, teams, and users
   const [models, setModels] = useState<Model[]>([]);
@@ -155,20 +155,20 @@ export default function AccessPage() {
   };
 
   // Handle model type change
-  const handleModelTypeChange = async (index: number, newType: 'Private Model' | 'Protected Model' | 'Public Model') => {
+  const handleModelTypeChange = async (index: number, newType: 'Private App' | 'Protected App' | 'Public App') => {
     try {
       const model = models[index];
       const model_identifier = `${model.owner}/${model.name}`;
       let access_level: 'private' | 'protected' | 'public';
 
       switch (newType) {
-        case 'Private Model':
+        case 'Private App':
           access_level = 'private';
           break;
-        case 'Protected Model':
+        case 'Protected App':
           access_level = 'protected';
           break;
-        case 'Public Model':
+        case 'Public App':
           access_level = 'public';
           break;
         default:
@@ -356,12 +356,12 @@ export default function AccessPage() {
 
         {/* Models Section */}
         <div className="mb-8">
-          <h3 className="text-lg font-semibold">Models</h3>
+          <h3 className="text-lg font-semibold">Apps</h3>
           <table className="min-w-full bg-white mb-8">
             <thead>
               <tr>
-                <th className="py-2 px-4 text-left">Model Name</th>
-                <th className="py-2 px-4 text-left">Model Type</th>
+                <th className="py-2 px-4 text-left">App Name</th>
+                <th className="py-2 px-4 text-left">App Type</th>
                 <th className="py-2 px-4 text-left">Access Details</th>
               </tr>
             </thead>
@@ -372,12 +372,12 @@ export default function AccessPage() {
                   <td className="py-2 px-4">
                     <select
                       value={model.type}
-                      onChange={(e) => handleModelTypeChange(index, e.target.value as 'Private Model' | 'Protected Model' | 'Public Model')}
+                      onChange={(e) => handleModelTypeChange(index, e.target.value as 'Private App' | 'Protected App' | 'Public App')}
                       className="border border-gray-300 rounded px-2 py-1"
                     >
-                      <option value="Private Model">Private Model</option>
-                      <option value="Protected Model">Protected Model</option>
-                      <option value="Public Model">Public Model</option>
+                      <option value="Private App">Private App</option>
+                      <option value="Protected App">Protected App</option>
+                      <option value="Public App">Public App</option>
                     </select>
                   </td>
                   <td className="py-2 px-4">
@@ -415,10 +415,10 @@ export default function AccessPage() {
               <div className="mb-2">Admin: {team.admin}</div>
               <div className="mb-2">Members: {team.members.join(', ')}</div>
               <div>
-                <h5 className="text-sm font-semibold">Protected Models</h5>
+                <h5 className="text-sm font-semibold">Protected Apps</h5>
                 <ul className="list-disc pl-5">
                   {models
-                    .filter(model => model.type === 'Protected Model' && model.team === team.name)
+                    .filter(model => model.type === 'Protected App' && model.team === team.name)
                     .map((model, modelIndex) => (
                       <li key={modelIndex}>{model.name}</li>
                     ))}

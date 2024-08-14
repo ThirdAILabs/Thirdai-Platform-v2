@@ -297,9 +297,9 @@ export function add_models_to_workflow({ workflowId, modelIdentifiers, component
 export interface Workflow {
   id: string;
   name: string;
-  type_name: string;
-  status: string; // Assuming there's a status field, adjust if needed
-  created_at?: string | null; // Optional field, can be null
+  type: string;
+  status: string;
+  publish_date: string;
   user_id: string;
   username: string;
 }

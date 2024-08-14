@@ -21,6 +21,7 @@ export function WorkFlow({ workflow, pending }: { workflow: Workflow, pending?: 
   const router = useRouter();
   const [modelIdentifier, setModelIdentifier] = useState<string>('');
   const [deployStatus, setDeployStatus] = useState<string>(pending ? 'in queue' :'');
+  const [deployType, setDeployType] = useState<string>('');
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
   const [deploymentIdentifier, setDeploymentIdentifier] = useState<string | null>(null);
   const [nerRAGEndpoint, setNerRAGEndpoint] = useState<string | null>(null);
@@ -266,6 +267,27 @@ export function WorkFlow({ workflow, pending }: { workflow: Workflow, pending?: 
   //     }
   // }
 
+  useEffect(()=>{
+    if (workflow.status === 'not_started') {
+      setDeployStatus('Ready to Deploy')
+    } else if (workflow.status === 'in_progress') {
+      setDeployStatus('Deploying')
+    } else {
+      setDeployStatus('Deployed')
+    }
+  },[workflow.status])
+
+  useEffect(()=>{
+    if (workflow.type === 'semantic_search') {
+      setDeployType('Semantic Search')
+    } else if (workflow.type === 'nlp') {
+      setDeployType('Natural Language Processing')
+    } else if (workflow.type === 'rag') {
+      setDeployType('Retrieval Augmented Generation')
+    }
+  },[workflow.type])
+
+
   return (
     <TableRow>
       <TableCell className="hidden sm:table-cell">
@@ -280,19 +302,17 @@ export function WorkFlow({ workflow, pending }: { workflow: Workflow, pending?: 
       <TableCell className="font-medium">{workflow.name}</TableCell>
       <TableCell>
         <Badge variant="outline" className="capitalize">
-          {workflow.status}
+          {deployStatus}
         </Badge>
       </TableCell>
-      <TableCell className="hidden md:table-cell">{workflow.type_name}</TableCell>
+      <TableCell className="hidden md:table-cell">{deployType}</TableCell>
       <TableCell className="hidden md:table-cell">
         {
-          workflow.created_at
-          ? new Date(workflow.created_at).toLocaleDateString('en-US', {
+          new Date(workflow.publish_date).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'long',
               day: 'numeric',
             })
-          : 'N/A'
         }
       </TableCell>
       <TableCell className="hidden md:table-cell">'N\A'</TableCell>

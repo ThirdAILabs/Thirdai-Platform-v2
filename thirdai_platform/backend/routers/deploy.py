@@ -57,7 +57,7 @@ def model_read_write_permissions(
 
     model: schema.Model = session.query(schema.Model).get(model_id)
 
-    model = session.query(schema.Model).get(deployment.model_id)
+    model = session.query(schema.Model).get(model_id)
     if not model:
         return False, False
 

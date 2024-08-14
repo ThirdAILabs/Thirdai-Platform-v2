@@ -745,13 +745,15 @@ export class GlobalModelService implements ModelService {
 }
 
 export class UserModelService extends GlobalModelService {
-    authToken: string;
+    authToken: string | null;
     tokenModelUrl: string;
 
-    constructor(url: string, tokenModelUrl: string, sessionId: string, authToken: string) {
+    constructor(url: string, tokenModelUrl: string, sessionId: string) {
         super(url, sessionId);
-        this.authToken = authToken;
         this.tokenModelUrl = tokenModelUrl;
+        this.authToken = window.localStorage.getItem(
+            "accessToken",
+        );
     }
 
     authHeader(): Record<string, string> {

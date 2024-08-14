@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation';
 
 export function Model({ model, pending }: { model: SelectModel, pending?: boolean }) {
   const router = useRouter();
+  const [modelIdentifier, setModelIdentifier] = useState<string>('');
   const [deployStatus, setDeployStatus] = useState<string>(pending ? 'in queue' :'');
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
   const [deploymentIdentifier, setDeploymentIdentifier] = useState<string | null>(null);
@@ -28,7 +29,8 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
   useEffect(() => {
     const username = model.username;
     const modelIdentifier = `${username}/${model.model_name}`;
-    setDeploymentIdentifier(`${modelIdentifier}:${username}/${model.model_name}`)
+    setDeploymentIdentifier(`${modelIdentifier}:${username}/${model.model_name}`);
+    setModelIdentifier(modelIdentifier);
   }, [])
 
   useEffect(() => {
@@ -40,28 +42,28 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
           let tokenModelId = model.token_model_id
 
           if (ndbModelId) {
-            getDeployStatus({ deployment_identifier: `${ndbModelId}:${ndbModelId}` })
+            getDeployStatus({ deployment_identifier: `${ndbModelId}:${ndbModelId}`, model_identifier: modelIdentifier })
             .then((response) => {
               // console.log('Deployment status response:', response);
-              if (response.data.deployment_id && response.data.status === 'complete') {
+              if (response.data.model_id && response.data.deploy_status === 'complete') {
                 
-                // console.log('The NDB model is already deployed, and deployment ID is: ', response.data.deployment_id)
-                setDeploymentId(response.data.deployment_id)
+                // console.log('The NDB model is already deployed, and deployment ID is: ', response.data.model_id)
+                setDeploymentId(response.data.model_id)
 
                 // check if NER model is deployed
                 if (! tokenModelId) {
                   setDeployStatus('Deployed')
                 } else {
-                  getDeployStatus({ deployment_identifier: `${tokenModelId}:${tokenModelId}` })
+                  getDeployStatus({ deployment_identifier: `${tokenModelId}:${tokenModelId}`, model_identifier: modelIdentifier })
                   .then((response) => {
                     // console.log('Deployment status response:', response);
-                    if (response.data.deployment_id && response.data.status === 'complete') {
+                    if (response.data.model_id && response.data.deploy_status === 'complete') {
                       
-                      // console.log('The NER model is already deployed, and deployment ID is: ', response.data.deployment_id)
+                      // console.log('The NER model is already deployed, and deployment ID is: ', response.data.model_id)
                       setDeployStatus('Deployed')
                       
                       // Now, list deployments using the deployment_id from the response
-                      listDeployments(response.data.deployment_id)
+                      listDeployments(response.data.model_id)
                       .then((deployments) => {
                         console.log(deployments);
                         if (deployments.length > 0) {
@@ -73,7 +75,7 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
                           console.error('Error listing deployments:', error);
                       });
 
-                    } else if (response.data.status === 'in_progress') {
+                    } else if (response.data.deploy_status === 'in_progress') {
       
                       // console.log('The NER model is still deploying')
                       setDeployStatus('Deploying')
@@ -95,7 +97,7 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
                   });
                 }
 
-              } else if (response.data.status === 'in_progress') {
+              } else if (response.data.deploy_status === 'in_progress') {
 
                 // console.log('The NDB model is still deploying')
                 setDeployStatus('Deploying')
@@ -117,13 +119,13 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
           }
         } else if (model.type === 'ndb' || model.type === 'udt') {
         
-          getDeployStatus({ deployment_identifier: deploymentIdentifier })
+          getDeployStatus({ deployment_identifier: deploymentIdentifier, model_identifier: modelIdentifier })
             .then((response) => {
-              // console.log('Deployment status response:', response);
-              if (response.data.deployment_id && response.data.status === 'complete') {
+              console.log('Deployment status response:', response);
+              if (response.data.model_id && response.data.deploy_status === 'complete') {
                 setDeployStatus('Deployed');
-                setDeploymentId(response.data.deployment_id);
-              } else if (response.data.status === 'in_progress') {
+                setDeploymentId(response.data.model_id);
+              } else if (response.data.deploy_status === 'in_progress') {
                 setDeployStatus('Deploying');
               } else {
                 setDeployStatus('Ready to Deploy');
@@ -152,11 +154,10 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
   function goToEndpoint() {
     switch (model.type) {
       case "ndb": {
-        const accessToken = getAccessToken();
         let ifGenerationOn = false; // false if semantic search, true if RAG
         let ifGuardRailOn = false; // enable based on actual config
         let guardRailEndpoint = '...' // change based on actual config
-        const newUrl = `${deploymentBaseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+        const newUrl = `/semantic-search/${deploymentId}?ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
         window.open(newUrl, '_blank');
         break;
       }
@@ -168,18 +169,16 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
         console.log('nerRAGEndpoint', nerRAGEndpoint)
 
         if (model.use_llm_guardrail && nerRAGEndpoint) {
-          const accessToken = getAccessToken();
           let ifGenerationOn = true; // false if semantic search, true if RAG
           let ifGuardRailOn = true; // enable based on actual config
           let guardRailEndpoint = nerRAGEndpoint // change based on actual config
-          const newUrl = `${deploymentBaseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+          const newUrl = `/semantic-search/${deploymentId}?ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
           window.open(newUrl, '_blank');
         } else {
-          const accessToken = getAccessToken();
           let ifGenerationOn = true; // false if semantic search, true if RAG
           let ifGuardRailOn = false; // enable based on actual config
           let guardRailEndpoint = '...' // change based on actual config
-          const newUrl = `${deploymentBaseUrl}/search?id=${deploymentId}&token=${accessToken}&ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+          const newUrl = `/semantic-search/${deploymentId}?ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
           window.open(newUrl, '_blank');
         }
         break
@@ -198,16 +197,16 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
       } else {
         const [tokenUsername, modelName] = tokenModelId.split('/');
 
-        getDeployStatus({ deployment_identifier: `${tokenModelId}:${tokenModelId}` })
+        getDeployStatus({ deployment_identifier: `${tokenModelId}:${tokenModelId}`, model_identifier: modelIdentifier })
         .then((response) => {
           console.log('Deployment status response:', response);
-          if (response.data.deployment_id && response.data.status === 'complete') {
+          if (response.data.model_id && response.data.deploy_status === 'complete') {
             
-            console.log('The NER model is already deployed, and deployment ID is: ', response.data.deployment_id)
+            console.log('The NER model is already deployed, and deployment ID is: ', response.data.model_id)
             setDeployStatus('Deployed')
 
             // Now, list deployments using the deployment_id from the response
-            listDeployments(response.data.deployment_id)
+            listDeployments(response.data.model_id)
             .then((deployments) => {
               console.log(deployments);
               if (deployments.length > 0) {
@@ -219,7 +218,7 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
                 console.error('Error listing deployments:', error);
             });
 
-          } else if (response.data.status === 'in_progress') {
+          } else if (response.data.deploy_status === 'in_progress') {
 
             console.log('The NER model is still deploying')
             setDeployStatus('Deploying')
@@ -231,7 +230,7 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
 
             deployModel({ deployment_name: modelName, model_identifier: tokenModelId })
               .then((response) => {
-                if(response.status === 'success') {
+                if(response.status === 'complete') {
                   console.log('deployment success')
 
                   setDeployStatus('Deployed')
@@ -251,7 +250,7 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
 
             deployModel({ deployment_name: modelName, model_identifier: tokenModelId })
               .then((response) => {
-                if(response.status === 'success') {
+                if(response.status === 'complete') {
                   console.log('deployment success')
 
                   setDeployStatus('Deployed')
@@ -324,11 +323,11 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
                             use_llm_guardrail: true,
                           })
                             .then((response) => {
-                              if(response.status === 'success') {
+                              if(response.status === 'complete') {
                                 console.log('deployment success')
 
                                 setDeployStatus('Deployed')
-                                setDeploymentId(response.data.deployment_id)
+                                setDeploymentId(response.data.model_id)
           
                                 const modelIdentifier = `${username}/${model.model_name}`;
                                 setDeploymentIdentifier(`${modelIdentifier}:${username}/${model.model_name}`)
@@ -349,17 +348,17 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
                           let tokenModelId = model.token_model_id
 
                             // Check if ndb is deployed, if not deploy it
-                            getDeployStatus({ deployment_identifier: `${ndbModelId}:${ndbModelId}` })
+                            getDeployStatus({ deployment_identifier: `${ndbModelId}:${ndbModelId}`, model_identifier: modelIdentifier })
                             .then((response) => {
                               console.log('Deployment status response:', response);
-                              if (response.data.deployment_id && response.data.status === 'complete') {
+                              if (response.data.model_id && response.data.deploy_status === 'complete') {
                                 
-                                console.log('The NDB model is already deployed, and deployment ID is: ', response.data.deployment_id)
+                                console.log('The NDB model is already deployed, and deployment ID is: ', response.data.model_id)
                                 checkAndDeployNERModel(tokenModelId)
 
                                 // TODO: change existing NDB model's NER model endpoint
 
-                              } else if (response.data.status === 'in_progress') {
+                              } else if (response.data.deploy_status === 'in_progress') {
     
                                 console.log('The NDB model is still deploying')
     
@@ -376,7 +375,7 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
                                 console.log('deploy 1', { deployment_name: modelName, model_identifier: ndbModelId, use_llm_guardrail: tokenModelId ? true : false, token_model_identifier: tokenModelId })
                                 deployModel({ deployment_name: modelName, model_identifier: ndbModelId, use_llm_guardrail: tokenModelId ? true : false, token_model_identifier: tokenModelId })
                                   .then((response) => {
-                                    if(response.status === 'success') {
+                                    if(response.status === 'complete') {
                                       // console.log('deployment success')
                                       // setDeployStatus('Deployed')
 
@@ -404,7 +403,7 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
 
                                 deployModel({ deployment_name:modelName, model_identifier: ndbModelId, use_llm_guardrail: tokenModelId ? true : false, token_model_identifier: tokenModelId })
                                   .then((response) => {
-                                    if(response.status === 'success') {
+                                    if(response.status === 'complete') {
                                       // console.log('deployment success')
                                       // setDeployStatus('Deployed')
 
@@ -453,12 +452,12 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
                 <form action={deleteModel}>
                   <button type="button"
                   onClick={()=>{
-                    stopDeploy({ deployment_identifier: deploymentIdentifier })
+                    stopDeploy({ deployment_identifier: deploymentIdentifier, model_identifier: modelIdentifier })
                       .then((response) => {
                         // Handle success, e.g., display a message or update the UI
                         console.log("Deployment stopped successfully:", response);
                         // Add any additional success handling logic here
-                        if (response.status === 'success') {
+                        if (response.status === 'complete') {
                           setDeployStatus('Read to Deploy')
                           setDeploymentId(null)
                           setDeploymentIdentifier(null)

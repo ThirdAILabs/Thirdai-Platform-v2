@@ -2,6 +2,7 @@ import os
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
+import json
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access

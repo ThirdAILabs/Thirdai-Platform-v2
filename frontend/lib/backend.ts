@@ -107,12 +107,12 @@ export async function listDeployments(deployment_id: string): Promise<Deployment
 
 interface StatusResponse {
   data: {
-    deployment_id: string;
-    status: string;
+    model_id: string;
+    deploy_status: string;
   };
 }
 
-export function getDeployStatus(values: { deployment_identifier: string }): Promise<StatusResponse> {
+export function getDeployStatus(values: { deployment_identifier: string, model_identifier: string }): Promise<StatusResponse> {
   // Retrieve the access token from local storage
   const accessToken = getAccessToken()
 
@@ -121,7 +121,7 @@ export function getDeployStatus(values: { deployment_identifier: string }): Prom
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/deploy/status?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}`)
+      .get(`${thirdaiPlatformBaseUrl}/api/deploy/status?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}&model_identifier=${encodeURIComponent(values.model_identifier)}`)
       .then((res) => {
         resolve(res.data);
       })
@@ -138,7 +138,7 @@ interface StopResponse {
   status: string;
 }
 
-export function stopDeploy(values: { deployment_identifier: string }): Promise<StopResponse> {
+export function stopDeploy(values: { deployment_identifier: string, model_identifier: string }): Promise<StopResponse> {
   // Retrieve the access token from local storage
   const accessToken = getAccessToken()
 
@@ -147,7 +147,7 @@ export function stopDeploy(values: { deployment_identifier: string }): Promise<S
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/deploy/stop?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}`)
+      .post(`${thirdaiPlatformBaseUrl}/api/deploy/stop?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}&model_identifier=${encodeURIComponent(values.model_identifier)}`)
       .then((res) => {
         resolve(res.data);
       })
@@ -158,8 +158,7 @@ export function stopDeploy(values: { deployment_identifier: string }): Promise<S
 }
 
 interface DeploymentData {
-  deployment_id: string;
-  deployment_name: string;
+  model_id: string;
   model_identifier: string;
   status: string;
 }

@@ -166,3 +166,5 @@ data/
 
 # DB build with pytest
 *.db
+
+*/ndb_enterprise_license.json

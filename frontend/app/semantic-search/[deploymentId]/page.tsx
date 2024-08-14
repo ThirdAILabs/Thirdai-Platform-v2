@@ -27,7 +27,7 @@ import { Chunk } from "./components/pdf_viewer/interfaces";
 import UpvoteModal from "./components/pdf_viewer/UpvoteModal";
 import Chat from "./components/chat/Chat";
 import ChatToggle from "./components/chat/ChatToggle";
-import { createDeploymentUrl } from "./components/DeploymentURL";
+import { createDeploymentUrl, createTokenModelUrl } from "./components/DeploymentURL";
 import PillButton from "./components/buttons/PillButton";
 import { useParams, useSearchParams } from "next/navigation";
 import { CardTitle } from "@/components/ui/card";
@@ -163,7 +163,8 @@ function App() {
         setGuardRailEndpoint(guardRailEp || '');
 
         const serviceUrl = createDeploymentUrl(params.deploymentId as string);
-        const newModelService = new UserModelService(serviceUrl, uuidv4());
+        const tokenModelUrl = createTokenModelUrl(guardRailEp as string);
+        const newModelService = new UserModelService(serviceUrl, tokenModelUrl, uuidv4());
         setModelService(newModelService);
         newModelService.sources().then(setSources);
     }, []);
@@ -178,7 +179,6 @@ function App() {
 
                     await modelService.updatePiiSettings(guardRailEndpoint, ifGuardRailOn);
                     console.log('PII settings updated successfully');
-                    modelService.piiDetect('hi Peter');
                 } catch (error) {
                     console.error('Error updating PII settings:', error);
                 }
@@ -186,7 +186,7 @@ function App() {
         };
 
         updateSettings()
-      }, [modelService, guardRailEndpoint, ifGuardRailOn]);
+    }, [modelService, guardRailEndpoint, ifGuardRailOn]);
 
     useEffect(() => {
         if (modelService) {
@@ -282,7 +282,6 @@ function App() {
             .getPdfInfo(ref)
             .then((pdf) => {
                 setPdfInfo(pdf);
-                console.log(pdf);
                 setSelectedPdfChunk(pdf.highlighted);
             })
             .catch((e) => {

@@ -23,6 +23,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import verify_license
 from pydantic import BaseModel
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 workflow_router = APIRouter()
@@ -998,4 +999,62 @@ def get_workflow_status(
         status_code=status.HTTP_200_OK,
         message="Workflow status retrieved successfully.",
         data=jsonable_encoder(workflow_status),
+    )
+
+
+@workflow_router.get("/list")
+def list_accessible_workflows(
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    List all workflows accessible to the authenticated user.
+
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): List of workflows accessible to the user.
+    """
+    user: schema.User = authenticated_user.user
+
+    # Build the base query
+    query = session.query(schema.Workflow).join(schema.Workflow.workflow_models)
+
+    # Apply conditions based on user's global admin status
+    if not user.is_global_admin():
+        public_condition = schema.Model.access_level == schema.Access.public
+        protected_condition = and_(
+            schema.Model.access_level == schema.Access.protected,
+            schema.Model.team_id.in_([team.team_id for team in user.teams]),
+        )
+        private_condition = schema.Model.user_id == user.id
+
+        query = query.filter(
+            or_(public_condition, protected_condition, private_condition)
+        )
+
+    # Fetch filtered workflows from the database
+    filtered_workflows = query.all()
+
+    # Apply the can_access check on the remaining workflows
+    accessible_workflows = [
+        workflow for workflow in filtered_workflows if workflow.can_access(user)
+    ]
+
+    workflow_list = [
+        {
+            "id": str(workflow.id),
+            "name": workflow.name,
+            "type": workflow.workflow_type.name,
+            "type_id": str(workflow.type_id),
+            "status": workflow.status,
+            "models": jsonable_encoder(list_workflow_models(workflow=workflow)),
+        }
+        for workflow in accessible_workflows
+    ]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully retrieved accessible workflows.",
+        data=jsonable_encoder(workflow_list),
     )

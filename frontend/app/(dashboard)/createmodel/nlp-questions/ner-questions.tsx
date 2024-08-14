@@ -1,6 +1,6 @@
 // app/NERQuestions.js
 import React, { useState } from 'react';
-import { getUsername, trainTokenClassifier } from '@/lib/backend';
+import { getUsername, trainTokenClassifier, create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
 type Category = {
@@ -103,6 +103,46 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
     });
   };
 
+  const handleCreateNERModel = async () => {
+    if (!modelName) {
+      alert("Please enter a model name.");
+      return;
+    }
+  
+    const tags = Array.from(new Set(categories.map(cat => cat.name)));
+  
+    try {
+      if (onCreateModel) {
+        onCreateModel(getUsername(), modelName);
+      }
+  
+      const modelResponse = await trainTokenClassifier(modelName, generatedData, tags);
+      const modelId = modelResponse.data.model_id;
+  
+      // Create workflow after model creation
+      const workflowName = `Workflow for ${modelName}`;
+      const workflowTypeName = "nlp"; // Assuming this is the type for NER workflows
+      const workflowResponse = await create_workflow({ name: workflowName, typeName: workflowTypeName });
+      const workflowId = workflowResponse.data.workflow_id;
+  
+      // Add the model to the workflow with the appropriate component
+      const addModelsResponse = await add_models_to_workflow({
+        workflowId,
+        modelIdentifiers: [modelId],
+        components: ["guardrail"], // Specific to this use case
+      });
+  
+      console.log('Workflow and model addition successful:', addModelsResponse);
+  
+      if (!stayOnPage) {
+        router.push("/");
+      }
+    } catch (e) {
+      console.log(e || 'Failed to create NER model and workflow');
+    }
+  };
+  
+
   return (
     <div className='p-5'>
       <h3 className='mb-3 text-lg font-semibold'>App Name</h3>
@@ -202,26 +242,7 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
             <button
               type="button"
               className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-              onClick={() => {
-                if (!modelName) {
-                  alert("Please enter a model name.");
-                  return;
-                }
-                const tags = Array.from(new Set(categories.map(cat => cat.name)));
-                // TODO: We need a better naming scheme, or add a place to enter the model name.
-                if (onCreateModel) {
-                  // TODO: SOMEHOW GET USERNAME
-                  onCreateModel(getUsername(), modelName);
-                }
-                trainTokenClassifier(modelName, generatedData, tags).then(() => {
-                  if (!stayOnPage) {
-                    router.push("/");
-                  }
-                }).catch(e => {
-                  alert(e);
-                });
-
-              }}
+              onClick={handleCreateNERModel}
             >
               Create
             </button>

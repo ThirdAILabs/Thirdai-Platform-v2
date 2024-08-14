@@ -437,7 +437,21 @@ function samplesToFile(samples: TokenClassificationSample[], sourceColumn: strin
   return new File([blob], "data.csv", { type: "text/csv" });
 }
 
-export function trainTokenClassifier(modelName: string, samples: TokenClassificationSample[], tags: string[]) {
+interface TrainTokenClassifierResponse {
+  status_code: number;
+  message: string;
+  data: {
+    model_id: string;
+    user_id: string;
+  };
+}
+
+
+export function trainTokenClassifier(
+  modelName: string,
+  samples: TokenClassificationSample[],
+  tags: string[]
+): Promise<TrainTokenClassifierResponse> {
   // Retrieve the access token from local storage
   const accessToken = getAccessToken()
 

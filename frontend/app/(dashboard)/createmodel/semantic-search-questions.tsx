@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import React, { useState } from 'react';
 import { SelectModel } from '@/lib/db';
-import { getUsername, train_ndb } from '@/lib/backend';
+import { getUsername, train_ndb, create_workflow, add_models_to_workflow } from '@/lib/backend';
 
 interface SemanticSearchQuestionsProps {
   onCreateModel?: (userName: string, modelName: string) => void;
@@ -79,13 +79,30 @@ const SemanticSearchQuestions = ({ onCreateModel, stayOnPage }: SemanticSearchQu
 
         console.log('modelName', modelName)
 
-        await train_ndb({ name: modelName, formData });
-      } catch (error) {
+        // Step 1: Create the model
+        const modelResponse = await train_ndb({ name: modelName, formData });
+        const modelId = modelResponse.data.model_id;
+
+        // Step 2: Create the workflow
+        const workflowName = `Workflow for ${modelName}`;
+        const workflowTypeName = "semantic_search"; // You can change this as needed
+        const workflowResponse = await create_workflow({ name: workflowName, typeName: workflowTypeName });
+        const workflowId = workflowResponse.data.workflow_id;
+
+        // Step 3: Add the model to the workflow
+        const addModelsResponse = await add_models_to_workflow({
+            workflowId,
+            modelIdentifiers: [modelId],
+            components: ["search"] // Adjust components as needed
+        });
+
+        console.log('addModelsResponse', addModelsResponse);
+    } catch (error) {
         console.log(error);
-      } finally {
+    } finally {
         setIsLoading(false);
-      }
-    };
+    }
+  }
 
     const createButton = (
       <button

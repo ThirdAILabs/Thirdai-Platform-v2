@@ -17,11 +17,12 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { Model } from './model';
+import { WorkFlow } from './workflow';
 import { SelectModel } from '@/lib/db';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { fetchPublicModels, fetchPrivateModels, fetchPendingModels } from "@/lib/backend"
+import { fetchPublicModels, fetchPrivateModels, fetchPendingModels, fetchWorkflows, Workflow } from "@/lib/backend"
 
 export function ModelsTable() {
   
@@ -77,6 +78,28 @@ export function ModelsTable() {
     return () => clearInterval(intervalId);
   }, []);
 
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+
+  useEffect(() => {
+    async function getWorkflows() {
+      try {
+        const fetchedWorkflows = await fetchWorkflows();
+        console.log('workflows', fetchedWorkflows);
+        setWorkflows(fetchedWorkflows);
+      } catch (err) {
+        if (err instanceof Error) {
+          console.log(err.message);
+        } else {
+          console.log('An unknown error occurred');
+        }
+      }
+    }
+
+    const intervalId = setInterval(getWorkflows, 3000);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
   return (
     <Card>
       <CardHeader>
@@ -111,6 +134,10 @@ export function ModelsTable() {
 
             {pendingModels.map((model, index) => (
                 <Model key={index + 100} model={model} pending = {true} />
+            ))}
+
+            {workflows.map((workflow, index) => (
+                <WorkFlow key={index + 100} workflow={workflow} pending = {true} />
             ))}
           </TableBody>
         </Table>

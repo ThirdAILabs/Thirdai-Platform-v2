@@ -235,6 +235,98 @@ export function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
     });
 }
 
+interface CreateWorkflowParams {
+  name: string;
+  typeName: string;
+}
+
+export function create_workflow({ name, typeName }: CreateWorkflowParams): Promise<any> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ name, type_name: typeName });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/workflow/create?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.detail || 'Failed to create workflow'));
+        } else {
+          reject(new Error('Failed to create workflow'));
+        }
+      });
+  });
+}
+
+interface AddModelsToWorkflowParams {
+  workflowId: string;
+  modelIdentifiers: string[];
+  components: string[];
+}
+
+export function add_models_to_workflow({ workflowId, modelIdentifiers, components }: AddModelsToWorkflowParams): Promise<any> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+      axios
+          .post(`${thirdaiPlatformBaseUrl}/api/workflow/add-models`, {
+              workflow_id: workflowId,
+              model_ids: modelIdentifiers,
+              components,
+          })
+          .then((res) => {
+              resolve(res.data);
+          })
+          .catch((err) => {
+              if (err.response && err.response.data) {
+                  reject(new Error(err.response.data.detail || 'Failed to add models to workflow'));
+              } else {
+                  reject(new Error('Failed to add models to workflow'));
+              }
+          });
+  });
+}
+
+export interface Workflow {
+  id: string;
+  name: string;
+  type_name: string;
+  status: string; // Assuming there's a status field, adjust if needed
+  created_at?: string | null; // Optional field, can be null
+  user_id: string;
+  username: string;
+}
+
+export function fetchWorkflows(): Promise<Workflow[]> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(`${thirdaiPlatformBaseUrl}/api/workflow/list`)
+      .then((res) => {
+        resolve(res.data.data); // Assuming the data is inside `data` field
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.detail || 'Failed to fetch workflows'));
+        } else {
+          reject(new Error('Failed to fetch workflows'));
+        }
+      });
+  });
+}
+
+
+
 // Define the interface for the expected response
 interface RagEntryResponse {
   // Define the structure of your response here

@@ -254,3 +254,38 @@ def is_workflow_owner(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="You do not have owner permissions to this workflow",
     )
+
+
+def is_workflow_accessible(
+    workflow_id: str,
+    session: Session = Depends(get_session),
+    current_user: schema.User = Depends(get_current_user),
+) -> bool:
+    """
+    Check if the current user has access to the specified workflow.
+
+    Args:
+        workflow_id (str): The ID of the workflow to check access for.
+        session (Session): The database session for querying the workflow.
+        current_user (schema.User): The currently authenticated user.
+
+    Raises:
+        HTTPException: If the workflow is not found or the user does not have access to the workflow.
+
+    Returns:
+        bool: True if the user has access to the workflow.
+    """
+    workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
+    if not workflow:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Workflow with ID {workflow_id} not found",
+        )
+
+    if not workflow.can_access(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this workflow",
+        )
+
+    return True

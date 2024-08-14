@@ -40,10 +40,18 @@ class Access(enum.Enum):
     protected = "protected"
     public = "public"
 
+    def restrictiveness(self):
+        order = {"public": 0, "protected": 1, "private": 2}
+        return order[self.value]
+
 
 class Permission(enum.Enum):
     read = "read"
     write = "write"
+
+    def restrictiveness(self):
+        order = {"read": 0, "write": 1}
+        return order[self.value]
 
 
 class Team(SQLDeclarativeBase):
@@ -334,6 +342,50 @@ class Workflow(SQLDeclarativeBase):
     __table_args__ = (
         UniqueConstraint("name", "user_id", name="unique_workflow_name_user"),
     )
+
+    def can_access(self, user) -> bool:
+        """
+        Determines if the given user can access this workflow based on the most restrictive model.
+
+        Args:
+            user (User): The user whose access is to be checked.
+
+        Returns:
+            bool: True if the user can access the workflow, False otherwise.
+        """
+        most_restrictive_access = Access.public  # Start with the least restrictive
+        required_teams = set()  # To track teams associated with protected models
+
+        for workflow_model in self.workflow_models:
+            model = workflow_model.model
+            model_access = model.access_level
+
+            if (
+                model_access.restrictiveness()
+                > most_restrictive_access.restrictiveness()
+            ):
+                most_restrictive_access = model_access
+                required_teams.clear()  # Clear teams as we're now dealing with a new, more restrictive level
+
+            if model_access == Access.protected:
+                required_teams.add(model.team_id)
+
+        # Based on the most restrictive access, check if the user can access
+        if most_restrictive_access == Access.public:
+            return True
+        elif most_restrictive_access == Access.protected:
+            # Check if the user is part of all required teams or is a global admin
+            return (
+                all(
+                    any(ut.team_id == team_id for ut in user.teams)
+                    for team_id in required_teams
+                )
+                or user.is_global_admin()
+            )
+        elif most_restrictive_access == Access.private:
+            return model.user_id == user.id or user.is_global_admin()
+
+        return False
 
 
 # Many to Many relationship for workflow and models.

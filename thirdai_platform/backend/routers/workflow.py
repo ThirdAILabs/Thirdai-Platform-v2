@@ -5,7 +5,11 @@ from pathlib import Path
 from typing import List
 
 from auth.jwt import AuthenticatedUser, verify_access_token
-from backend.auth_dependencies import global_admin_only, is_workflow_owner
+from backend.auth_dependencies import (
+    global_admin_only,
+    is_workflow_accessible,
+    is_workflow_owner,
+)
 from backend.utils import (
     delete_nomad_job,
     get_empty_port,
@@ -23,6 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import verify_license
 from pydantic import BaseModel
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 workflow_router = APIRouter()
@@ -262,10 +267,11 @@ def add_models(
     )
 
 
-@workflow_router.post("/delete-models", dependencies=[Depends(is_workflow_owner)])
+@workflow_router.post("/delete-models")
 def delete_models(
     body: WorkflowParams,
     session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Delete models from a workflow.
@@ -305,6 +311,15 @@ def delete_models(
         return response(
             status_code=status.HTTP_404_NOT_FOUND,
             message="Workflow not found.",
+        )
+
+    if (
+        workflow.user_id != authenticated_user.user.id
+        and not authenticated_user.user.is_global_admin()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have owner permissions to this workflow",
         )
 
     for model_identifier, component in zip(body.model_identifiers, body.components):
@@ -856,7 +871,7 @@ def delete_workflow_type(
     )
 
 
-@workflow_router.get("/details", dependencies=[Depends(is_workflow_owner)])
+@workflow_router.get("/details", dependencies=[Depends(is_workflow_accessible)])
 def get_workflow_details(
     workflow_id: str,
     session: Session = Depends(get_session),
@@ -947,7 +962,7 @@ def delete_workflow(
     )
 
 
-@workflow_router.get("/status", dependencies=[Depends(is_workflow_owner)])
+@workflow_router.get("/status", dependencies=[Depends(is_workflow_accessible)])
 def get_workflow_status(
     workflow_id: str,
     session: Session = Depends(get_session),
@@ -998,4 +1013,67 @@ def get_workflow_status(
         status_code=status.HTTP_200_OK,
         message="Workflow status retrieved successfully.",
         data=jsonable_encoder(workflow_status),
+    )
+
+
+@workflow_router.get("/list")
+def list_accessible_workflows(
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    List all workflows accessible to the authenticated user.
+
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): List of workflows accessible to the user.
+    """
+    user: schema.User = authenticated_user.user
+
+    # Build the base query
+    query = session.query(schema.Workflow).join(schema.Workflow.workflow_models)
+
+    # Apply conditions based on user's global admin status
+    if not user.is_global_admin():
+        public_condition = schema.Model.access_level == schema.Access.public
+        protected_condition = and_(
+            schema.Model.access_level == schema.Access.protected,
+            schema.Model.team_id.in_([team.team_id for team in user.teams]),
+        )
+        private_condition = schema.Model.user_id == user.id
+
+        query = query.filter(
+            or_(public_condition, protected_condition, private_condition)
+        )
+
+    # Fetch filtered workflows from the database
+    filtered_workflows = query.all()
+
+    # Apply the can_access check on the remaining workflows
+    accessible_workflows = [
+        workflow for workflow in filtered_workflows if workflow.can_access(user)
+    ]
+
+    workflow_list = [
+        {
+            "id": str(workflow.id),
+            "name": workflow.name,
+            "type": workflow.workflow_type.name,
+            "type_id": str(workflow.type_id),
+            "status": workflow.status,
+            "models": jsonable_encoder(list_workflow_models(workflow=workflow)),
+            "created_by": {
+                "id": str(workflow.user.id),
+                "username": workflow.user.username,
+                "email": workflow.user.email,
+            },
+        }
+        for workflow in accessible_workflows
+    ]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully retrieved accessible workflows.",
+        data=jsonable_encoder(workflow_list),
     )

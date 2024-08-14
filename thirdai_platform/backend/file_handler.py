@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Dict, List, Optional
 
 import boto3
-from fastapi import UploadFile, HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 from pydantic import BaseModel, validator
 
 

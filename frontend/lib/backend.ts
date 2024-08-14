@@ -795,3 +795,18 @@ export async function updateModel(modelIdentifier: string): Promise<void> {
       });
   });
 }
+
+export async function validAccessToken() {
+  // Retrieve the access token from local storage
+  const accessToken = getAccessToken()
+
+  // Set the default authorization header for axios
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+  
+  try {
+    const response = await axios.get(`${thirdaiPlatformBaseUrl}/api/user/info`);
+    return response.status === 200;
+  } catch (error) {
+    return false;
+  }
+}

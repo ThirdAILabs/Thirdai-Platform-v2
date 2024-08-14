@@ -1,6 +1,7 @@
 import './globals.css';
 
 import { Analytics } from '@vercel/analytics/react';
+import UserWrapper from './user_wrapper';
 
 export const metadata = {
   title: 'ThirdAI Platform',
@@ -13,9 +14,14 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+
   return (
     <html lang="en">
-      <body className="flex min-h-screen w-full flex-col">{children}</body>
+      <body className="flex min-h-screen w-full flex-col">
+        <UserWrapper>
+          {children}
+        </UserWrapper>
+      </body>
       <Analytics />
     </html>
   );

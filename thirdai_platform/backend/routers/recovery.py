@@ -3,7 +3,9 @@ import subprocess
 
 from backend.file_handler import S3StorageHandler
 from backend.utils import response
-from fastapi import APIRouter, HTTPException, status
+from auth.jwt import verify_access_token
+
+from fastapi import APIRouter, HTTPException, status, Depends
 
 recovery_router = APIRouter()
 
@@ -19,7 +21,7 @@ def dump_postgres_db_to_file(db_uri, dump_file_path):
         )
 
 
-@recovery_router.post("/backup-to-s3")
+@recovery_router.post("/backup-to-s3", dependencies=[Depends(verify_access_token)])
 def backup_to_s3():
     local_dir = os.getenv("SHARE_DIR")
     if not local_dir:

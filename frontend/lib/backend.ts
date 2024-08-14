@@ -8,9 +8,9 @@ import { useEffect, useState } from 'react';
 export const thirdaiPlatformBaseUrl = _.trim(process.env.THIRDAI_PLATFORM_BASE_URL!, '/');
 export const deploymentBaseUrl = _.trim(process.env.DEPLOYMENT_BASE_URL!, '/');
 
-export function getAccessToken(): string {
+export function getAccessToken(throwIfNotFound: boolean = true): string | null {
   const accessToken = localStorage.getItem('accessToken');
-  if (!accessToken) {
+  if (!accessToken && throwIfNotFound) {
     throw new Error('Access token is not available');
   }
   return accessToken;
@@ -283,7 +283,7 @@ export function addRagEntry(values: RagEntryValues): Promise<RagEntryResponse> {
 }
 
 
-export function userEmailLogin(email: string, password: string): Promise<any> {
+export function userEmailLogin(email: string, password: string, handleAccessToken: (token: string) => void): Promise<any> {
     return new Promise((resolve, reject) => {
       axios
         .get(`${thirdaiPlatformBaseUrl}/api/user/email-login`, {
@@ -796,17 +796,32 @@ export async function updateModel(modelIdentifier: string): Promise<void> {
   });
 }
 
-export async function validAccessToken() {
-  // Retrieve the access token from local storage
-  const accessToken = getAccessToken()
+export interface Team {
+  team_id: string;
+  team_name: string;
+  role: "user" | "team_admin" | "global_admin";
+};
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  global_admin: boolean;
+  teams: Team[];
+}
+
+export async function accessTokenUser(accessToken: string | null) {
+  if (accessToken === null) {
+    return null;
+  }
 
   // Set the default authorization header for axios
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
   
   try {
     const response = await axios.get(`${thirdaiPlatformBaseUrl}/api/user/info`);
-    return response.status === 200;
+    return response.data.data as User;
   } catch (error) {
-    return false;
+    return null;
   }
 }

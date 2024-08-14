@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -11,16 +11,18 @@ import {
 } from '@/components/ui/card';
 import { userEmailLogin } from '@/lib/backend';
 import Link from 'next/link'
+import { UserContext } from '../user_wrapper';
 
 export default function LoginPage() {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const { setAccessToken } = useContext(UserContext);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const data = await userEmailLogin(email, password);
+      const data = await userEmailLogin(email, password, setAccessToken);
       console.log('User logged in successfully:', data);
       // Redirect to the home page
       window.location.href = '/';

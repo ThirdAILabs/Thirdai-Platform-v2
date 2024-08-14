@@ -8,6 +8,7 @@ import fastapi
 import uvicorn
 from backend.routers.deploy import deploy_router as deploy
 from backend.routers.models import model_router as model
+from backend.routers.recovery import recovery_router as recovery
 from backend.routers.team import team_router as team
 from backend.routers.train import train_router as train
 from backend.routers.user import user_router as user
@@ -31,6 +32,7 @@ app.include_router(model, prefix="/api/model", tags=["model"])
 app.include_router(deploy, prefix="/api/deploy", tags=["deploy"])
 app.include_router(vault, prefix="/api/vault", tags=["vault"])
 app.include_router(team, prefix="/api/team", tags=["team"])
+app.include_router(recovery, prefix="/api/recovery", tags=["recovery"])
 
 
 @app.on_event("startup")

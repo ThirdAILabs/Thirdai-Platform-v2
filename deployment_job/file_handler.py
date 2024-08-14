@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Protocol
 
-from fastapi import UploadFile
+from fastapi import UploadFile, status
 from thirdai import neural_db as ndb
 from utils import FILE_DOCUMENT_TYPES
 

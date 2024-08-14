@@ -9,10 +9,6 @@ advertise {
 
 client {
   enabled                     = true
-
-  meta {
-    env = "dev"
-  }
   
   host_volume "grafana" {
     path                      = "/opt/nomad/nomad-monitoring/data/grafana"

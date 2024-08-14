@@ -28,8 +28,6 @@ job "grafana" {
         port     = "grafana-http"
         provider = "nomad"
         tags = [
-          "grafana",
-          "web",
           "traefik.enable=true",
           "traefik.http.routers.grafana_port.rule=PathPrefix(`/grafana`)",
           "traefik.http.routers.grafana_port.priority=10"
@@ -74,11 +72,15 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
-    url: http://192.168.1.6:8428
+    {{ range nomadService "vicky-web" }}
+    url: http://{{ .Address }}:{{ .Port }}
+    {{ end }}
   - name: Loki
     type: loki
     access: proxy
-    url: http://192.168.1.6
+    {{ range nomadService "vicky-web" }}
+    url: http://{{ .Address }}
+    {{ end }}
     version: 1
     editable: false
     isDefault: true

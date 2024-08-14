@@ -159,14 +159,14 @@ def create_workflow(
 
 class WorkflowParams(BaseModel):
     workflow_id: str
-    model_identifiers: List[str]
+    model_ids: List[str]
     components: List[str]  # Added to match components with models
 
     class Config:
         schema_extra = {
             "example": {
                 "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
-                "model_identifiers": ["model1", "model2"],
+                "model_ids": ["model1_id", "model2_id"],
                 "components": ["search", "guardrail"],  # Example components
             }
         }
@@ -182,7 +182,7 @@ def add_models(
     Add models to a workflow.
 
     - **Parameters**:
-      - `body` (WorkflowParams): JSON body with workflow ID, model identifiers, and components.
+      - `body` (WorkflowParams): JSON body with workflow ID, model IDs, and components.
     - **Returns**:
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
@@ -192,7 +192,7 @@ def add_models(
     ```json
     {
         "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
-        "model_identifiers": ["model1", "model2"],
+        "model_ids": ["model1_id", "model2_id"],
         "components": ["search", "guardrail"]
     }
     ```
@@ -204,8 +204,8 @@ def add_models(
         "message": "Models added to workflow successfully.",
         "data": {
             "models": [
-                {"id": "model1", "name": "Model 1"...},
-                {"id": "model2", "name": "Model 2"...}
+                {"id": "model1_id", "name": "Model 1"...},
+                {"id": "model2_id", "name": "Model 2"...}
             ]
         }
     }
@@ -228,13 +228,12 @@ def add_models(
             detail="You do not have owner permissions to this workflow",
         )
 
-    for model_identifier, component in zip(body.model_identifiers, body.components):
-        try:
-            model: schema.Model = get_model_from_identifier(model_identifier, session)
-        except Exception as error:
+    for model_id, component in zip(body.model_ids, body.components):
+        model: schema.Model = session.query(schema.Model).get(model_id)
+        if not model:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message=str(error),
+                message=f"Model with ID {model_id} not found.",
             )
 
         workflow_model: schema.WorkflowModel = (
@@ -277,7 +276,7 @@ def delete_models(
     Delete models from a workflow.
 
     - **Parameters**:
-      - `body` (WorkflowParams): JSON body with workflow ID, model identifiers, and components.
+      - `body` (WorkflowParams): JSON body with workflow ID, model IDs, and components.
     - **Returns**:
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
@@ -287,7 +286,7 @@ def delete_models(
     ```json
     {
         "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
-        "model_identifiers": ["model1", "model2"],
+        "model_ids": ["model1_id", "model2_id"],
         "components": ["search", "guardrail"]
     }
     ```
@@ -299,7 +298,7 @@ def delete_models(
         "message": "Models deleted from workflow successfully.",
         "data": {
             "models": [
-                {"id": "model3", "name": "Model 3"...}
+                {"id": "model3_id", "name": "Model 3"...}
             ]
         }
     }
@@ -322,13 +321,12 @@ def delete_models(
             detail="You do not have owner permissions to this workflow",
         )
 
-    for model_identifier, component in zip(body.model_identifiers, body.components):
-        try:
-            model: schema.Model = get_model_from_identifier(model_identifier, session)
-        except Exception as error:
+    for model_id, component in zip(body.model_ids, body.components):
+        model: schema.Model = session.query(schema.Model).get(model_id)
+        if not model:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message=str(error),
+                message=f"Model with ID {model_id} not found.",
             )
 
         workflow_model: schema.WorkflowModel = (

@@ -1,4 +1,19 @@
-export const upvotes = [
+interface Upvote {
+    query: string;
+    upvote: string;
+}
+
+interface Association {
+    source: string;
+    target: string;
+}
+
+interface Reformulation {
+    original: string;
+    reformulations: string[];
+}
+
+export const upvotes: Upvote[] = [
     {
         "query": "What is the purpose of renovating the historic building?",
         "upvote": "Historic building undergoes renovation"
@@ -161,7 +176,7 @@ export const upvotes = [
     }
 ]
 
-export const associations = [
+export const associations: Association[] = [
     {
         "source": "What activities are planned for the charity event at the community center?",
         "target": "Local community center hosts charity event"
@@ -324,7 +339,7 @@ export const associations = [
     }
 ]
 
-export const reformulations = [
+export const reformulations: Reformulation[] = [
     {
         "original": "How did scientists find the new planet?",
         "reformulations": [
@@ -475,3 +490,41 @@ export const reformulations = [
         ]
     }
 ]
+
+export const mockSamples: Record<string, { upvotes: Upvote[], associations: Association[], reformulations: Reformulation[] }> = {
+    "default": { 
+        upvotes, 
+        associations, 
+        reformulations,
+    } 
+};
+
+interface Hyperparams {
+    numSamples: number;
+    maxNewSamples: number;
+    probabilityNewSamples: number;
+    intervalSeconds: number;
+}    
+
+export const rollingSampleParameters: Record<string, {upvotes: Hyperparams, associations: Hyperparams, reformulations: Hyperparams}> = {
+    "default": {
+        upvotes: {
+            numSamples: 7,
+            maxNewSamples: 3,
+            probabilityNewSamples: 0.2,
+            intervalSeconds: 2
+        },
+        associations: {
+            numSamples: 7,
+            maxNewSamples: 3,
+            probabilityNewSamples: 0.1,
+            intervalSeconds: 3
+        },
+        reformulations: {
+            numSamples: 4,
+            maxNewSamples: 2,
+            probabilityNewSamples: 0.4,
+            intervalSeconds: 2
+        },
+    }
+};

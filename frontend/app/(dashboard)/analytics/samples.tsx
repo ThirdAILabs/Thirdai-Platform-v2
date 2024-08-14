@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
-import { associations, reformulations, upvotes } from './mock_samples';
+import { mockSamples, rollingSampleParameters } from './mock_samples';
 import useRollingSamples from './rolling';
 
 interface TextPairsProps {
@@ -82,27 +82,24 @@ function Reformulation({
   );
 }
 
-export default function RecentSamples() {
-  const recentUpvotes = useRollingSamples(
-    /* samples= */ upvotes,
-    /* numSamples= */ 7,
-    /* maxNewSamples= */ 3,
-    /* probabilityNewSamples= */ 0.2,
-    /* intervalSeconds= */ 2);
+export default function RecentSamples({id}: {id: string}) {
+  const samples = mockSamples[id] || mockSamples['default'];
+  const params = rollingSampleParameters[id] || rollingSampleParameters['default'];
+
+  const recentUpvotes = useRollingSamples({
+    samples: samples.upvotes,
+    ...params.upvotes
+  });
   
-  const recentAssociations = useRollingSamples(
-    /* samples= */ associations,
-    /* numSamples= */ 7,
-    /* maxNewSamples= */ 3,
-    /* probabilityNewSamples= */ 0.1,
-    /* intervalSeconds= */ 3);
+  const recentAssociations = useRollingSamples({
+    samples: samples.associations,
+    ...params.associations
+  });
   
-  const recentReformulations = useRollingSamples(
-    /* samples= */ reformulations,
-    /* numSamples= */ 4,
-    /* maxNewSamples= */ 2,
-    /* probabilityNewSamples= */ 0.4,
-    /* intervalSeconds= */ 2);
+  const recentReformulations = useRollingSamples({
+    samples: samples.reformulations,
+    ...params.reformulations
+  });
 
   return (
     <div

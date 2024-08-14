@@ -1,11 +1,21 @@
 import { useEffect, useState } from 'react';
 
+interface Props<T> {
+  samples: T[];
+  numSamples: number;
+  maxNewSamples: number;
+  probabilityNewSamples: number;
+  intervalSeconds: number;
+}
+
 export default function useRollingSamples<T>(
-  samples: T[],
-  numSamples: number,
-  maxNewSamples: number,
-  probabilityNewSamples: number,
-  intervalSeconds: number,
+  {
+    samples,
+    numSamples,
+    maxNewSamples,
+    probabilityNewSamples,
+    intervalSeconds,
+  } : Props<T>
 ): (T & { timestamp: string })[] {
   const randomSamples = (sampleSize: number): T[] => {
     const result: T[] = [];

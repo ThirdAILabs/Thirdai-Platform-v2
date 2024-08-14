@@ -925,6 +925,7 @@ def get_workflow_details(
         "type": workflow.workflow_type.name,
         "type_id": str(workflow.type_id),
         "status": workflow.status,
+        "publish_date": str(workflow.published_date),
         "models": jsonable_encoder(list_workflow_models(workflow=workflow)),
     }
 
@@ -1061,6 +1062,7 @@ def list_accessible_workflows(
             "type_id": str(workflow.type_id),
             "status": workflow.status,
             "models": jsonable_encoder(list_workflow_models(workflow=workflow)),
+            "publish_date": str(workflow.published_date),
             "created_by": {
                 "id": str(workflow.user.id),
                 "username": workflow.user.username,

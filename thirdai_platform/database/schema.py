@@ -332,6 +332,9 @@ class Workflow(SQLDeclarativeBase):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     status = Column(ENUM(Status), nullable=False, default=Status.not_started)
+    published_date = Column(
+        DateTime, default=datetime.utcnow().isoformat(), nullable=True
+    )
 
     user = relationship("User", back_populates="workflows")
     workflow_models = relationship(

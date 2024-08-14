@@ -305,7 +305,6 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
             if not input.override:
                 model.reporter.save_model(
                     access_token=token,
-                    deployment_id=general_variables.deployment_id,
                     model_id=model_id,
                     base_model_id=general_variables.model_id,
                     model_name=input.model_name,
@@ -495,7 +494,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
     @propagate_error
     def pii_detection(
         query: str,
-        _: str = Depends(permissions.verify_write_permission),
+        token: str = Depends(permissions.verify_write_permission),
     ):
         """
         Detect PII in the given query.
@@ -515,7 +514,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         """
         token_model = get_token_model()
 
-        results = token_model.predict(query=query, top_k=1)
+        results = token_model.predict(query=query, top_k=1, token=token)
 
         return response(
             status_code=status.HTTP_200_OK,
@@ -523,11 +522,25 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
             data=jsonable_encoder(results),
         )
 
-    @ndb_router.get("/highlighted-pdf", include_in_schema=False)
+    @ndb_router.get("/highlighted-pdf")
     @propagate_error
     def highlighted_pdf(
         reference_id: int, _=Depends(permissions.verify_read_permission)
     ):
+        """
+        Get a highlighted PDF based on the reference ID.
+
+        Parameters:
+        - reference_id: int - The reference ID of the document.
+
+        Returns:
+        - Response: The highlighted PDF as a stream.
+
+        Example Request:
+        ```
+        /highlighted-pdf?reference_id=123
+        ```
+        """
         model = get_model()
         reference = model.db._savable_state.documents.reference(reference_id)
         buffer = io.BytesIO(highlighted_pdf_bytes(reference))
@@ -538,17 +551,46 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
             buffer.getvalue(), headers=headers, media_type="application/pdf"
         )
 
-    @ndb_router.get("/pdf-blob", include_in_schema=False)
+    @ndb_router.get("/pdf-blob")
     @propagate_error
     def pdf_blob(source: str, _=Depends(permissions.verify_read_permission)):
+        """
+        Get the PDF blob from the source.
+
+        Parameters:
+        - source: str - The source path of the PDF.
+
+        Returns:
+        - Response: The PDF as a stream.
+
+        Example Request:
+        ```
+        /pdf-blob?source=/path/to/pdf
+        ```
+        """
         buffer = io.BytesIO(fitz.open(source).tobytes())
         headers = {"Content-Disposition": f'inline; filename="{Path(source).name}"'}
         return Response(
             buffer.getvalue(), headers=headers, media_type="application/pdf"
         )
 
-    @ndb_router.get("/pdf-chunks", include_in_schema=False)
+    @ndb_router.get("/pdf-chunks")
+    @propagate_error
     def pdf_chunks(reference_id: int, _=Depends(permissions.verify_read_permission)):
+        """
+        Get the chunks of a PDF document based on the reference ID.
+
+        Parameters:
+        - reference_id: int - The reference ID of the document.
+
+        Returns:
+        - JSONResponse: The chunks of the PDF document.
+
+        Example Request:
+        ```
+        /pdf-chunks?reference_id=123
+        ```
+        """
         model = get_model()
         reference = model.db.reference(reference_id)
         chunks = new_pdf_chunks(model.db, reference)

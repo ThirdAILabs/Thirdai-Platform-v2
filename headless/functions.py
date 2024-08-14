@@ -1,6 +1,9 @@
 import logging
 import os
+import time
 from typing import Any, Callable, Dict
+
+from requests.exceptions import HTTPError
 
 from headless.configs import Config
 from headless.model import Flow
@@ -51,9 +54,7 @@ class UDTFunctions:
             f"Deploying the model {model.model_identifier} and id {model.model_id}"
         )
 
-        return flow.bazaar_client.deploy_udt(
-            model.model_identifier, f"{run_name}_deployment_{config.sub_type}"
-        )
+        return flow.bazaar_client.deploy_udt(model.model_identifier)
 
     def build_extra_options(config: Config) -> Dict[str, Any]:
         if config.sub_type == "text":
@@ -88,7 +89,7 @@ class CommonFunctions:
         logging.info(f"inputs: {inputs}")
         deployment = inputs.get("deployment")
 
-        logging.info(f"stopping the deployment for {deployment.deployment_identifier}")
+        logging.info(f"stopping the deployment for {deployment.model_identifier}")
 
         flow.bazaar_client.undeploy(deployment)
 
@@ -97,7 +98,7 @@ class CommonFunctions:
         logging.info(f"inputs: {inputs}")
         deployment = inputs.get("deployment")
 
-        logging.info(f"checking the deployment for {deployment.deployment_identifier}")
+        logging.info(f"checking the deployment for {deployment.model_identifier}")
 
         logging.info("Searching the deployment")
         return deployment.search(
@@ -116,7 +117,7 @@ class CommonFunctions:
         logging.info(f"inputs: {inputs}")
         deployment = inputs.get("deployment")
         logging.info(
-            f"Waiting for Deployment to finish for deployment {deployment.deployment_identifier}"
+            f"Waiting for Deployment to finish for deployment {deployment.model_identifier}"
         )
         flow.bazaar_client.await_deploy(deployment)
 
@@ -269,11 +270,7 @@ class NDBFunctions:
             f"Deploying the model {model.model_identifier} and id {model.model_id}"
         )
 
-        return flow.bazaar_client.deploy(
-            model.model_identifier,
-            f"{run_name}_deployment",
-            use_llm_guardrail=use_llm_guardrail,
-        )
+        return flow.bazaar_client.deploy(model.model_identifier)
 
     def build_extra_options(config: Config, sharded: bool = False) -> Dict[str, Any]:
         """
@@ -308,8 +305,331 @@ class NDBFunctions:
         }
 
 
+class GlobalAdminFunctions:
+    @staticmethod
+    def add_new_users(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        try:
+            flow.bazaar_client.signup(
+                email="ga_test_global_admin@mail.com",
+                password="password",
+                username="ga_test_global_admin",
+            )
+        except Exception as e:
+            pass
+
+        try:
+            flow.bazaar_client.signup(
+                email="ga_test_team_admin@mail.com",
+                password="password",
+                username="ga_test_team_admin",
+            )
+        except Exception as e:
+            pass
+
+        try:
+            flow.bazaar_client.signup(
+                email="ga_test_team_member@mail.com",
+                password="password",
+                username="ga_test_team_member",
+            )
+        except Exception as e:
+            pass
+
+    @staticmethod
+    def test_add_global_admin(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.add_global_admin(inputs.get("email"))
+        logging.info(
+            f"Test Add Admin: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_delete_user(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.delete_user(inputs.get("email"))
+        logging.info(
+            f"Test Delete User: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_add_key(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.add_secret_key(
+            inputs.get("key"), inputs.get("value")
+        )
+        logging.info(
+            f"Add Secret Key: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_get_key(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.get_secret_key(inputs.get("key"))
+        logging.info(
+            f"Get Secret Key: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_create_team(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.create_team(inputs.get("name"))
+        print(response)
+
+        return response
+
+    @staticmethod
+    def test_add_user_to_team(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.add_user_to_team(
+            inputs.get("user_email"), inputs.get("team_id")
+        )
+        logging.info(
+            f"Add User to Team: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_assign_team_admin(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.assign_team_admin(
+            inputs.get("user_email"), inputs.get("team_id")
+        )
+        logging.info(
+            f"Assign Team Admin: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_delete_team(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.delete_team(inputs.get("team_id"))
+        logging.info(
+            f"Delete Team: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_delete_team_admin(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.delete_user(inputs.get("email"))
+        logging.info(
+            f"Test Delete User: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_delete_team_member(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.bazaar_client.delete_user(inputs.get("email"))
+        logging.info(
+            f"Test Delete User: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+
+class TeamAdminFunctions:
+    @staticmethod
+    def ta_setup(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        try:
+            flow.bazaar_client.signup(
+                email="ta_team_admin@mail.com",
+                password="password",
+                username="ta_team_admin",
+            )
+        except Exception as e:
+            logging.error(f"Failed to signup another team admin: {e}")
+
+        try:
+            flow.bazaar_client.signup(
+                email="ta_another_team_admin@mail.com",
+                password="password",
+                username="ta_another_team_admin",
+            )
+        except Exception as e:
+            logging.error(f"Failed to signup another team admin: {e}")
+
+        try:
+            flow.bazaar_client.signup(
+                email="ta_test_team_member@mail.com",
+                password="password",
+                username="ta_test_team_member",
+            )
+        except Exception as e:
+            logging.error(f"Failed to signup another team member: {e}")
+
+        response = flow.bazaar_client.add_secret_key(
+            inputs.get("key"), inputs.get("value")
+        )
+
+    @staticmethod
+    def test_ta_add_user_to_team(inputs: Dict[str, str]):
+
+        logging.info(f"inputs: {inputs}")
+        flow.bazaar_client.login(
+            email="ta_team_admin@mail.com",
+            password="password",
+        )
+
+        response = flow.bazaar_client.add_user_to_team(
+            inputs.get("user_email"), inputs.get("team_id")
+        )
+        logging.info(
+            f"Add User to Team: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_ta_assign_team_admin(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+
+        response = flow.bazaar_client.assign_team_admin(
+            inputs.get("user_email"), inputs.get("team_id")
+        )
+        logging.info(
+            f"Assign Team Admin: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def test_ta_delete_team_member(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        try:
+            logging.info(
+                "Login Instance: %s", flow.bazaar_client._login_instance.username
+            )
+
+            response = flow.bazaar_client.remove_user_from_team(
+                inputs.get("email"), inputs.get("team_id")
+            )
+            logging.info(
+                f"Test Delete Team Member: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+            )
+        except HTTPError as e:
+            if e.response.status_code == 403:
+                logging.info("Passes")
+            else:
+                raise
+
+    @staticmethod
+    def test_ta_add_key(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        try:
+            logging.info(
+                "Login Instance: %s", flow.bazaar_client._login_instance.username
+            )
+
+            response = flow.bazaar_client.add_secret_key(
+                inputs.get("key"), inputs.get("value")
+            )
+            logging.info(
+                f"Add Secret Key: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+            )
+        except HTTPError as e:
+            if e.response.status_code == 403:
+                logging.info("Passes")
+            else:
+                raise
+
+    @staticmethod
+    def test_ta_get_key(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+
+        response = flow.bazaar_client.get_secret_key(inputs.get("key"))
+        logging.info(
+            f"Get Secret Key: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+        )
+
+    @staticmethod
+    def ta_cleanup(inputs: Dict[str, str]):
+        logging.info("Starting cleanup process.")
+        team_id = inputs.get("team_id")
+
+        user_emails = [
+            "ta_team_admin@mail.com",
+            "ta_another_team_admin@mail.com",
+            "ta_test_team_member@mail.com",
+        ]
+
+        flow.bazaar_client.log_in(flow._global_email, flow._global_password)
+
+        for email in user_emails:
+            try:
+                response = flow.bazaar_client.delete_user(email)
+                logging.info(
+                    f"Delete User {email}: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+                )
+            except Exception as e:
+                logging.error(f"Failed to delete user {email}: {e}")
+
+        try:
+            response = flow.bazaar_client.delete_team(team_id)
+            logging.info(
+                f"Delete Team {team_id}: {'Passed' if response.status_code == 200 else 'Failed'} - {response.json()}"
+            )
+        except Exception as e:
+            logging.error(f"Failed to delete team {team_id}: {e}")
+
+        logging.info("Cleanup process completed.")
+
+
+class WorkflowFunctions:
+    @staticmethod
+    def create_workflow(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.workflow_client.create_workflow(
+            name=inputs.get("run_name"), type=inputs.get("type")
+        )
+
+        return response
+
+    @staticmethod
+    def add_models(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.workflow_client.add_models(
+            workflow_id=inputs.get("workflow_id"),
+            model_identifiers=[inputs.get("model").model_identifier],
+            components=[inputs.get("component")],
+        )
+
+    @staticmethod
+    def delete_models(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.workflow_client.delete_models(
+            workflow_id=inputs.get("workflow_id"),
+            model_identifiers=[inputs.get("model").model_identifier],
+            components=[inputs.get("component")],
+        )
+
+    @staticmethod
+    def validate_workflow(inputs: Dict[str, str]):
+        time.sleep(20)
+        logging.info(f"inputs: {inputs}")
+        response = flow.workflow_client.validate_workflow(
+            workflow_id=inputs.get("workflow_id")
+        )
+
+    @staticmethod
+    def stop_workflow(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.workflow_client.stop_workflow(
+            workflow_id=inputs.get("workflow_id")
+        )
+
+    @staticmethod
+    def start_workflow(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.workflow_client.start_workflow(
+            workflow_id=inputs.get("workflow_id")
+        )
+
+    @staticmethod
+    def delete_workflow(inputs: Dict[str, str]):
+        logging.info(f"inputs: {inputs}")
+        response = flow.workflow_client.delete_workflow(
+            workflow_id=inputs.get("workflow_id")
+        )
+
+
 functions_registry: Dict[str, Callable] = {
     **extract_static_methods(CommonFunctions),
     **extract_static_methods(NDBFunctions),
     **extract_static_methods(UDTFunctions),
+    **extract_static_methods(GlobalAdminFunctions),
+    **extract_static_methods(TeamAdminFunctions),
+    **extract_static_methods(WorkflowFunctions),
 }

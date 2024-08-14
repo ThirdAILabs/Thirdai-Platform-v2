@@ -32,7 +32,7 @@ export async function fetchPrivateModels(name: string) {
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   try {
-    const response = await axios.get(`http://localhost:8000/api/model/list`, {
+    const response = await axios.get(`${thirdaiPlatformBaseUrl}/api/model/list`, {
       params: { name },
     });
     return response.data;
@@ -43,7 +43,7 @@ export async function fetchPrivateModels(name: string) {
 }
 
 export async function fetchPublicModels(name: string) {
-    const response = await fetch(`http://localhost:8000/api/model/public-list?name=${name}`);
+    const response = await fetch(`${thirdaiPlatformBaseUrl}/api/model/public-list?name=${name}`);
     if (!response.ok) {
         throw new Error('Failed to fetch public models');
     }
@@ -65,7 +65,7 @@ export async function fetchPendingModels(): Promise<PendingModel> {
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   try {
-    const response = await axios.get(`http://localhost:8000/api/model/pending-train-models`);
+    const response = await axios.get(`${thirdaiPlatformBaseUrl}/api/model/pending-train-models`);
     return response.data;
   } catch (error) {
     console.error('Error fetching private models:', error);
@@ -95,7 +95,7 @@ export async function listDeployments(deployment_id: string): Promise<Deployment
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   try {
-      const response = await axios.get<ApiResponse>('http://localhost:8000/api/deploy/list-deployments', {
+      const response = await axios.get<ApiResponse>(`${thirdaiPlatformBaseUrl}/api/deploy/list-deployments`, {
           params: { deployment_id },
       });
       return response.data.data;
@@ -121,7 +121,7 @@ export function getDeployStatus(values: { deployment_identifier: string }): Prom
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`http://localhost:8000/api/deploy/status?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}`)
+      .get(`${thirdaiPlatformBaseUrl}/api/deploy/status?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}`)
       .then((res) => {
         resolve(res.data);
       })
@@ -147,7 +147,7 @@ export function stopDeploy(values: { deployment_identifier: string }): Promise<S
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`http://localhost:8000/api/deploy/stop?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}`)
+      .post(`${thirdaiPlatformBaseUrl}/api/deploy/stop?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}`)
       .then((res) => {
         resolve(res.data);
       })
@@ -198,7 +198,7 @@ export function deployModel(values: { deployment_name: string; model_identifier:
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`http://localhost:8000/api/deploy/run?${params.toString()}`)
+      .post(`${thirdaiPlatformBaseUrl}/api/deploy/run?${params.toString()}`)
       .then((res) => {
         resolve(res.data);
       })
@@ -222,7 +222,7 @@ export function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
 
     return new Promise((resolve, reject) => {
         axios
-            .post(`http://localhost:8000/api/train/ndb?model_name=${name}`, formData)
+            .post(`${thirdaiPlatformBaseUrl}/api/train/ndb?model_name=${name}`, formData)
             .then((res) => {
                 resolve(res.data);
             })
@@ -273,7 +273,7 @@ export function addRagEntry(values: RagEntryValues): Promise<RagEntryResponse> {
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`http://localhost:8000/api/model/rag-entry?${params.toString()}`)
+      .post(`${thirdaiPlatformBaseUrl}/api/model/rag-entry?${params.toString()}`)
       .then((res) => {
         resolve(res.data);
       })
@@ -287,7 +287,7 @@ export function addRagEntry(values: RagEntryValues): Promise<RagEntryResponse> {
 export function userEmailLogin(email: string, password: string): Promise<any> {
     return new Promise((resolve, reject) => {
       axios
-        .get('http://localhost:8000/api/user/email-login', {
+        .get(`${thirdaiPlatformBaseUrl}/api/user/email-login`, {
           headers: {
             Authorization: `Basic ${window.btoa(`${email}:${password}`)}`,
           },
@@ -317,7 +317,7 @@ export function userEmailLogin(email: string, password: string): Promise<any> {
 export function userRegister(email: string, password: string, username: string) {
     return new Promise((resolve, reject) => {
       axios
-        .post('http://localhost:8000/api/user/email-signup-basic', {
+        .post(`${thirdaiPlatformBaseUrl}/api/user/email-signup-basic`, {
           email,
           password,
           username,
@@ -370,7 +370,7 @@ export function trainTokenClassifier(modelName: string, samples: TokenClassifica
 
   return new Promise((resolve, reject) => {
       axios
-          .post(`http://localhost:8000/api/train/udt?model_name=${modelName}`, formData)
+          .post(`${thirdaiPlatformBaseUrl}/api/train/udt?model_name=${modelName}`, formData)
           .then((res) => {
               resolve(res.data);
           })
@@ -524,4 +524,275 @@ export interface DeploymentStatsTable {
 export interface DeploymentStats {
   system: DeploymentStatsTable;
   throughput: DeploymentStatsTable;
+}
+
+
+
+//// Admin access dashboard functions /////
+
+// Define the response types for models, teams, and users
+interface ModelResponse {
+  access_level: string;
+  domain: string;
+  latency: string;
+  model_id: string;
+  model_name: string;
+  num_params: string;
+  publish_date: string;
+  size: string;
+  size_in_memory: string;
+  sub_type: string;
+  team_id: string;
+  thirdai_version: string;
+  training_time: string;
+  type: string;
+  user_email: string;
+  username: string;
+}
+
+interface UserTeamInfo {
+  team_id: string;
+  team_name: string;
+  role: 'Member' | 'team_admin' | 'Global Admin';
+}
+
+interface UserResponse {
+  email: string;
+  global_admin: boolean;
+  id: string;
+  teams: UserTeamInfo[];
+  username: string;
+}
+
+interface TeamResponse {
+  id: string;
+  name: string;
+}
+
+export async function fetchAllModels(): Promise<{ data: ModelResponse[] }> {
+  const accessToken = getAccessToken(); // Make sure this function is implemented elsewhere in your codebase
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(`${thirdaiPlatformBaseUrl}/api/model/all-models`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export async function fetchAllTeams(): Promise<{ data: TeamResponse[] }> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(`${thirdaiPlatformBaseUrl}/api/team/list`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(`${thirdaiPlatformBaseUrl}/api/user/all-users`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+
+// MODEL //
+
+export async function updateModelAccessLevel(model_identifier: string, access_level: 'private' | 'protected' | 'public'): Promise<void> {
+  const accessToken = getAccessToken(); // Ensure this function is implemented elsewhere in your codebase
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ model_identifier, access_level });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/model/update-access-level?${params.toString()}`)
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.error('Error updating model access level:', err);
+        reject(err);
+      });
+  });
+}
+
+// TEAM //
+
+interface CreateTeamResponse {
+  status_code: number;
+  message: string;
+  data: {
+    team_id: string;
+    team_name: string;
+  };
+}
+
+export async function createTeam(name: string): Promise<CreateTeamResponse> {
+  const accessToken = getAccessToken(); // Make sure this function is implemented elsewhere in your codebase
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ name });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/team/create-team?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data as CreateTeamResponse);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+
+
+export async function addUserToTeam(email: string, team_id: string, role: string = 'user') {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ email, team_id, role });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/team/add-user-to-team?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export async function assignTeamAdmin(email: string, team_id: string) {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ email, team_id });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/team/assign-team-admin?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+
+export async function deleteUserFromTeam(email: string, team_id: string): Promise<void> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ email, team_id });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/team/remove-user-from-team?${params.toString()}`)
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.error('Error removing user from team:', err);
+        reject(err);
+      });
+  });
+}
+
+export async function deleteTeamById(team_id: string): Promise<void> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ team_id });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .delete(`${thirdaiPlatformBaseUrl}/api/team/delete-team?${params.toString()}`)
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.error('Error deleting team:', err);
+        reject(err);
+      });
+  });
+}
+
+
+// USER //
+
+export async function deleteUserAccount(email: string): Promise<void> {
+  const accessToken = getAccessToken(); // Ensure this function is implemented elsewhere in your codebase
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .delete(`${thirdaiPlatformBaseUrl}/api/user/delete-user`, {
+        data: { email },
+      })
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.error('Error deleting user:', err);
+        reject(err);
+      });
+  });
+}
+
+export async function updateModel(modelIdentifier: string): Promise<void> {
+  const accessToken = getAccessToken(); // Ensure this function is implemented elsewhere in your codebase
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ model_identifier: modelIdentifier });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/model/update-model?${params.toString()}`)
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.error('Error updating model:', err);
+        reject(err);
+      });
+  });
 }

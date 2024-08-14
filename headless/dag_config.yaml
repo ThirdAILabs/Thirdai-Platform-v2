@@ -91,3 +91,183 @@ UDT:
     dependencies: [check_search]
     params:
       deployment: udt_deploy
+
+GlobalAdmin:
+  config: dummy
+  add_new_users:
+    dependencies: []
+
+  test_add_global_admin:
+    dependencies: [add_new_users]
+    params:
+      email: ga_test_global_admin@mail.com
+
+  test_add_key:
+    dependencies: [add_new_users]
+    params:
+      key: "AWS_ACCESS_TOKEN"
+      value: "aws_secret_value"
+
+  test_get_key:
+    dependencies: [test_add_key]
+    params:
+      key: "AWS_ACCESS_TOKEN"
+  
+  test_delete_user:
+    dependencies: [test_get_key]
+    params:
+      email: ga_test_global_admin@mail.com
+
+  test_create_team:
+    dependencies: [add_new_users]
+    params:
+      name: "New Team"
+
+  test_assign_team_admin:
+    dependencies: [test_create_team]
+    params:
+      user_email: ga_test_team_admin@mail.com
+      team_id: test_create_team
+  
+  test_add_user_to_team:
+    dependencies: [test_assign_team_admin]
+    params:
+      user_email: ga_test_team_member@mail.com
+      team_id: test_create_team
+
+  test_delete_team_admin:
+    dependencies: [test_add_user_to_team]
+    params:
+      email: ga_test_team_admin@mail.com
+
+  test_delete_team_member:
+    dependencies: [test_delete_team_admin]
+    params:
+      email: ga_test_team_member@mail.com
+
+  test_delete_team:
+    dependencies: [test_delete_team_member]
+    params:
+      team_id: test_create_team
+
+TeamAdmin:
+  config: dummy
+  ta_setup:
+    dependencies: []
+    params:
+      key: "OPENAI_API_KEY"
+      value: "openai_api_key"
+
+  test_create_team:
+    dependencies: [ta_setup]
+    params:
+      name: "TA-Test-Team"
+
+  test_assign_team_admin:
+    dependencies: [test_create_team]
+    params:
+      user_email: ta_team_admin@mail.com
+      team_id: test_create_team
+
+  test_ta_add_user_to_team:
+    dependencies: [test_create_team]
+    params:
+      user_email: ta_test_team_member@mail.com
+      team_id: test_create_team
+
+  test_ta_assign_team_admin:
+    dependencies: [test_create_team]
+    params:
+      user_email: ta_another_team_admin@mail.com
+      team_id: test_create_team
+
+  test_ta_delete_team_member:
+    dependencies: [test_ta_add_user_to_team]
+    params:
+      email: ta_test_team_member@mail.com
+      team_id: test_create_team
+
+  test_ta_add_key:
+    dependencies: [ta_setup]
+    params:
+      key: "AWS_ACCESS_TOKEN"
+      value: "aws_secret_value"
+
+  test_ta_get_key:
+    dependencies: [test_ta_add_key]
+    params:
+      key: "OPENAI_API_KEY"
+
+  ta_cleanup:
+    dependencies: [test_ta_delete_team_member]
+    params:
+      team_id: test_create_team
+
+
+Workflow:
+  config: scifact
+  create_workflow:
+    dependencies: []
+    params:
+      run_name: variable
+      type: rag
+
+  check_unsupervised_supervised:
+    dependencies: []
+    params:
+      sharded: variable
+      run_name: variable
+      config: variable
+
+  await_train:
+    dependencies: [check_unsupervised_supervised]
+    params:
+      model: check_unsupervised_supervised
+
+  check_udt_train:
+    dependencies: []
+    params:
+      run_name: variable
+      config: token
+
+  await_train_2:
+    function: await_train
+    dependencies: [check_udt_train]
+    params:
+      model: check_udt_train
+
+  add_ndb_model:
+    function: add_models
+    dependencies: [check_unsupervised_supervised]
+    params:
+      workflow_id: create_workflow
+      model: check_unsupervised_supervised
+      component: search
+  
+  add_udt_model:
+    function: add_models
+    dependencies: [check_udt_train]
+    params:
+      workflow_id: create_workflow
+      model: check_udt_train
+      component: guardrail
+
+  validate_workflow:
+    dependencies: [add_ndb_model, add_udt_model, await_train, await_train_2]
+    params:
+      workflow_id: create_workflow
+
+  start_workflow:
+    dependencies: [validate_workflow]
+    params:
+      workflow_id: create_workflow
+
+  stop_workflow:
+    dependencies: [start_workflow]
+    params:
+      workflow_id: create_workflow
+
+  delete_workflow:
+    dependencies: [stop_workflow]
+    params:
+      workflow_id: create_workflow

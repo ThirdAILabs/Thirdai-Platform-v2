@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -8,126 +8,339 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
+import { fetchAllModels, fetchAllTeams, fetchAllUsers, 
+          updateModelAccessLevel,
+          createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam, deleteTeamById,
+          deleteUserAccount } from "@/lib/backend";
 
 // Define types for the models, teams, and users
 type Model = {
   name: string;
-  type: 'Private Model' | 'Protected Model' | 'Public Model';
+  type: 'Private App' | 'Protected App' | 'Public App';
   owner: string;
   users?: string[];
   team?: string;
   teamAdmin?: string;
+  domain: string;
+  latency: string;
+  modelId: string;
+  numParams: string;
+  publishDate: string;
+  size: string;
+  sizeInMemory: string;
+  subType: string;
+  thirdaiVersion: string;
+  trainingTime: string;
 };
 
 type Team = {
+  id: string;
   name: string;
   admin: string;
   members: string[];
 };
 
-type User = {
+type UserTeam = {
+  id: string;
   name: string;
+  role: 'Member' | 'team_admin' | 'Global Admin';
+};
+
+type User = {
+  id: string;
+  name: string;
+  email: string;
   role: 'Member' | 'Team Admin' | 'Global Admin';
-  adminTeams: string[];
+  teams: UserTeam[];  // Updated to store team details
   ownedModels: string[];
 };
 
 export default function AccessPage() {
   const userRole = "Global Admin";
-  const roleDescription = "This role has read and write access to all team members and models.";
-
-  // Initial data for the models
-  const initialModels: Model[] = [
-    { name: 'Model A', type: 'Private Model', owner: 'Alice', users: ['Bob', 'Charlie'] },
-    { name: 'Model B', type: 'Protected Model', owner: 'Alice', team: 'Team A', teamAdmin: 'Charlie' },
-    { name: 'Model C', type: 'Public Model', owner: 'Bob' },
-  ];
-
-  // Sample data for the teams
-  const initialTeams: Team[] = [
-    { name: 'Team A', admin: 'Charlie', members: ['Alice', 'Bob', 'Charlie'] },
-    { name: 'Team B', admin: 'Dave', members: ['Eve', 'Frank', 'Grace'] },
-  ];
-
-  // Sample data for the users
-  const initialUsers: User[] = [
-    { name: 'Alice', role: 'Member', adminTeams: [], ownedModels: ['Model A', 'Model B'] },
-    { name: 'Bob', role: 'Member', adminTeams: [], ownedModels: ['Model C'] },
-    { name: 'Charlie', role: 'Team Admin', adminTeams: ['Team A'], ownedModels: [] },
-    { name: 'Dave', role: 'Team Admin', adminTeams: ['Team B'], ownedModels: [] },
-    { name: 'Eve', role: 'Member', adminTeams: [], ownedModels: [] },
-    { name: 'Frank', role: 'Member', adminTeams: [], ownedModels: [] },
-    { name: 'Grace', role: 'Member', adminTeams: [], ownedModels: [] },
-    { name: 'Global Admin', role: 'Global Admin', adminTeams: [], ownedModels: [] }
-  ];
+  const roleDescription = "This role has read and write access to all team members and applications.";
 
   // State to manage models, teams, and users
-  const [models, setModels] = useState<Model[]>(initialModels);
-  const [teams, setTeams] = useState<Team[]>(initialTeams);
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [models, setModels] = useState<Model[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [newTeamAdmin, setNewTeamAdmin] = useState<string>('');
   const [newTeamMembers, setNewTeamMembers] = useState<string[]>([]);
-  const [selectedTeam, setSelectedTeam] = useState<string>('');
+  const [selectedTeamForAdd, setSelectedTeamForAdd] = useState<string>('');
+  const [selectedTeamForRemove, setSelectedTeamForRemove] = useState<string>('');
   const [newMember, setNewMember] = useState<string>('');
+  const [memberToRemove, setMemberToRemove] = useState<string>('');
+
+  const getModels = async () => {
+    try {
+      const response = await fetchAllModels();
+      console.log('Fetched Models:', response.data);  // Print out the results
+      const modelData = response.data.map((model): Model => ({
+        name: model.model_name,
+        type: model.access_level === 'private' ? 'Private Model' : model.access_level === 'protected' ? 'Protected Model' : 'Public Model',
+        owner: model.username,
+        users: [], // To be populated later
+        team: model.team_id !== 'None' ? model.team_id : undefined,
+        teamAdmin: undefined, // To be populated later
+        domain: model.domain,
+        latency: model.latency,
+        modelId: model.model_id,
+        numParams: model.num_params,
+        publishDate: model.publish_date,
+        size: model.size,
+        sizeInMemory: model.size_in_memory,
+        subType: model.sub_type,
+        thirdaiVersion: model.thirdai_version,
+        trainingTime: model.training_time,
+      }));
+      setModels(modelData);
+    } catch (error) {
+      console.error('Failed to fetch models', error);
+    }
+  };
+
+  const getUsers = async () => {
+    try {
+      const response = await fetchAllUsers();
+      console.log('Fetched Users:', response.data);  // Print out the results
+      const userData = response.data.map((user): User => ({
+        id: user.id,
+        name: user.username,
+        email: user.email,
+        role: user.global_admin ? 'Global Admin' : 'Member', // Adjust the logic if you have Team Admins
+        teams: user.teams.map(team => ({
+          id: team.team_id,
+          name: team.team_name,
+          role: team.role,
+        })),
+        ownedModels: models.filter(model => model.owner === user.username).map(model => model.name),
+      }));
+      setUsers(userData);
+    } catch (error) {
+      console.error('Failed to fetch users', error);
+    }
+  };
+
+  const getTeams = async () => {
+    try {
+      const response = await fetchAllTeams();
+      console.log('Fetched Teams:', response.data);  // Print out the results
+      const teamData = response.data.map((team): Team => {
+        const members: string[] = [];
+        let admin = '';
+
+        // Populate members and admin from users and models data
+        users.forEach(user => {
+          const userTeam = user.teams.find(ut => ut.id === team.id);
+          if (userTeam) {
+            members.push(user.name);
+            if (userTeam.role === 'team_admin') {
+              admin = user.name;
+            }
+          }
+        });
+
+        return {
+          id: team.id,
+          name: team.name,
+          admin: admin,
+          members: members,
+        };
+      });
+
+      setTeams(teamData);
+    } catch (error) {
+      console.error('Failed to fetch teams', error);
+    }
+  };
 
   // Handle model type change
-  const handleModelTypeChange = (index: number, newType: 'Private Model' | 'Protected Model' | 'Public Model') => {
-    const updatedModels = models.map((model, i) =>
-      i === index ? { ...model, type: newType } : model
-    );
-    setModels(updatedModels);
+  const handleModelTypeChange = async (index: number, newType: 'Private App' | 'Protected App' | 'Public App') => {
+    try {
+      const model = models[index];
+      const model_identifier = `${model.owner}/${model.name}`;
+      let access_level: 'private' | 'protected' | 'public';
+
+      switch (newType) {
+        case 'Private App':
+          access_level = 'private';
+          break;
+        case 'Protected App':
+          access_level = 'protected';
+          break;
+        case 'Public App':
+          access_level = 'public';
+          break;
+        default:
+          return;
+      }
+
+      // Call the API to update the model access level
+      await updateModelAccessLevel(model_identifier, access_level);
+
+      // Update the models state
+      const updatedModels = [...models];
+      updatedModels[index] = { ...model, type: newType };
+      setModels(updatedModels);
+    } catch (error) {
+      console.error('Failed to update model access level', error);
+    }
   };
 
   // Create a new team
-  const createNewTeam = () => {
-    const newTeam: Team = { name: newTeamName, admin: newTeamAdmin, members: newTeamMembers };
-    setTeams([...teams, newTeam]);
-    setNewTeamName('');
-    setNewTeamAdmin('');
-    setNewTeamMembers([]);
+  const createNewTeam = async () => {
+    try {
+      // Create the team
+      const createdTeam = await createTeam(newTeamName);
+      const team_id = createdTeam.data.team_id; // Correctly accessing the team ID
+
+      // Add members to the team
+      for (const memberName of newTeamMembers) {
+        const member = users.find(user => user.name === memberName);
+        if (member) {
+          await addUserToTeam(member.email, team_id);
+        } else {
+          console.error(`User with name ${memberName} not found`);
+        }
+      }
+
+      // Assign the admin to the team
+      const admin = users.find(user => user.name === newTeamAdmin);
+      if (admin) {
+        await assignTeamAdmin(admin.email, team_id);
+      } else {
+        console.error(`User with name ${newTeamAdmin} not found`);
+      }
+
+      // Update the state
+      const newTeam: Team = { id: team_id, name: newTeamName, admin: newTeamAdmin, members: newTeamMembers };
+      setTeams([...teams, newTeam]);
+
+      // Clear the input fields
+      setNewTeamName('');
+      setNewTeamAdmin('');
+      setNewTeamMembers([]);
+    } catch (error) {
+      console.error('Failed to create new team', error);
+    }
   };
 
   // Add a member to an existing team
-  const addMemberToTeam = () => {
-    const updatedTeams = teams.map(team =>
-      team.name === selectedTeam ? { ...team, members: [...team.members, newMember] } : team
-    );
-    setTeams(updatedTeams);
-    setSelectedTeam('');
-    setNewMember('');
+  const addMemberToTeam = async () => {
+    try {
+      // Find the team by name
+      const team = teams.find(t => t.name === selectedTeamForAdd);
+      if (!team) {
+        console.error('Selected team not found');
+        return;
+      }
+
+      // Find the user by name
+      const user = users.find(u => u.name === newMember);
+      if (!user) {
+        console.error('User not found');
+        return;
+      }
+
+      // Call the function to add the user to the team
+      await addUserToTeam(user.email, team.id);
+
+      // Optionally update the team members state (if needed)
+      const updatedTeams = teams.map(t =>
+        t.id === team.id ? { ...t, members: [...t.members, user.name] } : t
+      );
+      setTeams(updatedTeams)
+      setSelectedTeamForAdd('');  // Clear the selected team
+      setNewMember('');     // Clear the new member input
+    } catch (error) {
+      console.error('Failed to add member to team', error);
+    }
+  };
+
+  const removeMemberFromTeam = async () => {
+    try {
+      // Find the team by name
+      const team = teams.find(t => t.name === selectedTeamForRemove);
+      if (!team) {
+        console.error('Selected team not found');
+        return;
+      }
+
+      // Find the user by name
+      const user = users.find(u => u.name === memberToRemove);
+      if (!user) {
+        console.error('User not found');
+        return;
+      }
+
+      // Call the function to remove the user from the team
+      await deleteUserFromTeam(user.email, team.id);
+
+      // Optionally update the team members state (if needed)
+      const updatedTeams = teams.map(t =>
+        t.id === team.id ? { ...t, members: t.members.filter(m => m !== user.name) } : t
+      );
+      setTeams(updatedTeams)
+      setSelectedTeamForRemove('');  // Clear the selected team
+      setMemberToRemove(''); // Clear the member input
+    } catch (error) {
+      console.error('Failed to remove member from team', error);
+    }
   };
 
   // Delete a team and update protected models
-  const deleteTeam = (teamName: string) => {
-    const teamAdmin = teams.find(team => team.name === teamName)?.admin;
-    setTeams(teams.filter(team => team.name !== teamName));
-    const updatedModels = models.map(model =>
-      model.team === teamName
-        ? { ...model, type: 'Private Model', owner: model.owner, team: undefined, teamAdmin: undefined }
-        : model
-    ) as Model[];
-    setModels(updatedModels);
+  const deleteTeam = async (teamName: string) => {
+    try {
+      // Find the team by name
+      const team = teams.find(t => t.name === teamName);
+      if (!team) {
+        console.error('Team not found');
+        return;
+      }
+
+      // Call the API to delete the team
+      await deleteTeamById(team.id);
+
+
+      await getModels()
+      await getUsers()
+      await getTeams()
+    } catch (error) {
+      console.error('Failed to delete team', error);
+    }
   };
 
   // Delete a user account and update owned models
-  const deleteUser = (userName: string) => {
-    const globalAdmin = users.find(user => user.role === 'Global Admin')?.name || 'None';
-    const userToDelete = users.find(user => user.name === userName);
-    setUsers(users.filter(user => user.name !== userName));
-    const updatedModels = models.map(model => {
-      if (model.owner === userName) {
-        if (model.type === 'Protected Model') {
-          const teamAdmin = users.find(user => user.adminTeams.includes(model.team || ''))?.name || globalAdmin;
-          return { ...model, owner: teamAdmin, type: 'Private Model' };
-        } else {
-          return { ...model, owner: globalAdmin, type: 'Private Model' };
-        }
+  const deleteUser = async (userName: string) => {
+    try {
+      // Find the user by name
+      const user = users.find(u => u.name === userName);
+      if (!user) {
+        console.error('User not found');
+        return;
       }
-      return model;
-    }) as Model[];
-    setModels(updatedModels);
+
+      // Call the API to delete the user
+      await deleteUserAccount(user.email);
+
+      // Update the states
+      await getModels()
+      await getUsers()
+      await getTeams()
+    } catch (error) {
+      console.error('Failed to delete user', error);
+    }
   };
+
+  useEffect(() => {
+    getModels();
+    getUsers()
+  }, []);
+
+  useEffect(()=>{
+    getTeams()
+  }, [users])
+
 
   return (
     <Card>
@@ -143,12 +356,12 @@ export default function AccessPage() {
 
         {/* Models Section */}
         <div className="mb-8">
-          <h3 className="text-lg font-semibold">Models</h3>
+          <h3 className="text-lg font-semibold">Apps</h3>
           <table className="min-w-full bg-white mb-8">
             <thead>
               <tr>
-                <th className="py-2 px-4 text-left">Model Name</th>
-                <th className="py-2 px-4 text-left">Model Type</th>
+                <th className="py-2 px-4 text-left">App Name</th>
+                <th className="py-2 px-4 text-left">App Type</th>
                 <th className="py-2 px-4 text-left">Access Details</th>
               </tr>
             </thead>
@@ -159,12 +372,12 @@ export default function AccessPage() {
                   <td className="py-2 px-4">
                     <select
                       value={model.type}
-                      onChange={(e) => handleModelTypeChange(index, e.target.value as 'Private Model' | 'Protected Model' | 'Public Model')}
+                      onChange={(e) => handleModelTypeChange(index, e.target.value as 'Private App' | 'Protected App' | 'Public App')}
                       className="border border-gray-300 rounded px-2 py-1"
                     >
-                      <option value="Private Model">Private Model</option>
-                      <option value="Protected Model">Protected Model</option>
-                      <option value="Public Model">Public Model</option>
+                      <option value="Private App">Private App</option>
+                      <option value="Protected App">Protected App</option>
+                      <option value="Public App">Public App</option>
                     </select>
                   </td>
                   <td className="py-2 px-4">
@@ -202,10 +415,10 @@ export default function AccessPage() {
               <div className="mb-2">Admin: {team.admin}</div>
               <div className="mb-2">Members: {team.members.join(', ')}</div>
               <div>
-                <h5 className="text-sm font-semibold">Protected Models</h5>
+                <h5 className="text-sm font-semibold">Protected Apps</h5>
                 <ul className="list-disc pl-5">
                   {models
-                    .filter(model => model.type === 'Protected Model' && model.team === team.name)
+                    .filter(model => model.type === 'Protected App' && model.team === team.name)
                     .map((model, modelIndex) => (
                       <li key={modelIndex}>{model.name}</li>
                     ))}
@@ -259,8 +472,8 @@ export default function AccessPage() {
             <h4 className="text-md font-semibold">Add Member to Team</h4>
             <div className="mb-2">
               <select
-                value={selectedTeam}
-                onChange={(e) => setSelectedTeam(e.target.value)}
+                value={selectedTeamForAdd}
+                onChange={(e) => setSelectedTeamForAdd(e.target.value)}
                 className="border border-gray-300 rounded px-2 py-1 mb-2"
               >
                 <option value="">Select Team</option>
@@ -285,6 +498,38 @@ export default function AccessPage() {
               </button>
             </div>
           </div>
+
+          {/* Remove Member from Team */}
+          <div>
+            <h4 className="text-md font-semibold">Remove Member from Team</h4>
+            <div className="mb-2">
+              <select
+                value={selectedTeamForRemove}
+                onChange={(e) => setSelectedTeamForRemove(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 mb-2"
+              >
+                <option value="">Select Team</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.name}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                placeholder="Member to Remove"
+                value={memberToRemove}
+                onChange={(e) => setMemberToRemove(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 mb-2"
+              />
+              <button
+                onClick={removeMemberFromTeam}
+                className="bg-red-500 text-white px-2 py-1 rounded"
+              >
+                Remove Member
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Users Section */}
@@ -294,8 +539,10 @@ export default function AccessPage() {
             <div key={index} className="mb-8">
               <h4 className="text-md font-semibold">{user.name}</h4>
               <div className="mb-2">Role: {user.role}</div>
-              {user.adminTeams.length > 0 && (
-                <div className="mb-2">Admin Teams: {user.adminTeams.join(', ')}</div>
+              {user.teams.filter(team => team.role === 'team_admin').length > 0 && (
+                <div className="mb-2">
+                  Admin Teams: {user.teams.filter(team => team.role === 'team_admin').map(team => team.name).join(', ')}
+                </div>
               )}
               {user.ownedModels.length > 0 && (
                 <div>Owned Models: {user.ownedModels.join(', ')}</div>

@@ -635,7 +635,7 @@ export class GlobalModelService implements ModelService {
     ) {
         const args = {
             query: genaiQuery(question, references, genaiPrompt),
-            key: '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' // fill in openai key
+            key: "sk-PYTWB6gs_ofO44-teXA2rIRGRbJfzqDyNXBalHXKcvT3BlbkFJk5905SK2RVE6_ME8i4Lnp9qULbyPZSyOU0vh2fZfQA" // fill in openai key
         };
 
         const uri = this.wsUrl + "/generate";
@@ -745,14 +745,13 @@ export class GlobalModelService implements ModelService {
 }
 
 export class UserModelService extends GlobalModelService {
-    authToken: string | null;
+    authToken: string;
+    tokenModelUrl: string;
 
-    constructor(url: string, sessionId: string) {
+    constructor(url: string, tokenModelUrl: string, sessionId: string, authToken: string) {
         super(url, sessionId);
-        this.authToken = window.localStorage.getItem(
-            "accessToken",
-        );
-        console.log(this.authToken);
+        this.authToken = authToken;
+        this.tokenModelUrl = tokenModelUrl;
     }
 
     authHeader(): Record<string, string> {
@@ -771,5 +770,39 @@ export class UserModelService extends GlobalModelService {
 
     isUserModel(): boolean {
         return true;
+    }
+
+    async piiDetect(query: string): Promise<any> {
+        const url = new URL(this.tokenModelUrl + "/predict");
+
+        const baseParams = { query: query, top_k: 1 };
+        
+        return fetch(url, {
+            method: "POST",
+            headers: {
+                ...this.authHeader(),
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(baseParams)
+        })
+            .then(handleInvalidAuth(this))
+            .then((response) => {
+                console.log('response', response)
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.json().then((err) => {
+                        throw new Error(err.detail || "Unknown error occurred");
+                    });
+                }
+            })
+            .then(({ data }) => {
+                console.log(data);
+                return data as PIIDetectionResult;
+            })
+            .catch((e) => {
+                console.error(e);
+                throw new Error('Failed to detect PII');
+            });
     }
 }

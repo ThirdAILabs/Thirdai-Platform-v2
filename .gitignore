@@ -163,3 +163,6 @@ cython_debug/
 shared_dir/
 data/
 *.bolt
+
+# DB build with pytest
+*.db

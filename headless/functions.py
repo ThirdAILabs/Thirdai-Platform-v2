@@ -54,7 +54,10 @@ class UDTFunctions:
             f"Deploying the model {model.model_identifier} and id {model.model_id}"
         )
 
-        return flow.bazaar_client.deploy_udt(model.model_identifier)
+        return flow.bazaar_client.deploy_udt(
+            model.model_identifier,
+            f"udt_{model.model_identifier}_deployment_{run_name}",
+        )
 
     def build_extra_options(config: Config) -> Dict[str, Any]:
         if config.sub_type == "text":

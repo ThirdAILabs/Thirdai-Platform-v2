@@ -1,7 +1,7 @@
 import os
 from typing import Dict, List, Optional, Tuple
 
-from thirdai.neural_db import ModelBazaar, WorkflowClient
+from client.api import ModelBazaar
 
 from headless.utils import get_csv_source_id
 

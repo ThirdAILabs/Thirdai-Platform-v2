@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
-from .bazaar_base import Bazaar, auth_header
+from .base import Bazaar, auth_header
 from .utils import (
     check_deployment_decorator,
     construct_deployment_url,

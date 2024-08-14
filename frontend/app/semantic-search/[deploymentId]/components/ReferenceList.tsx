@@ -50,9 +50,9 @@ export default function ReferenceList({
     modelService,
     ifGuardRailOn
 }: ReferenceListProps) {
-    const buttonRef = useRef<HTMLButtonElement>();
+    const buttonRef = useRef<HTMLButtonElement>(null);
     function handleMore() {
-        buttonRef.current.scrollIntoView();
+        buttonRef.current!.scrollIntoView();
         onMore();
     }
     return (

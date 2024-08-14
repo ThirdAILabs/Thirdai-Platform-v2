@@ -20,7 +20,7 @@ const StyledCopy = styled(Copy)`
 `;
 
 export default function CopyButton({ toCopy }: { toCopy: string }) {
-    const modelService = useContext<ModelService>(ModelServiceContext);
+    const modelService = useContext<ModelService | null>(ModelServiceContext);
 
     function copyToClipboard() {
         navigator.clipboard.writeText(toCopy);
@@ -41,7 +41,7 @@ export default function CopyButton({ toCopy }: { toCopy: string }) {
                 };
 
                 // Record the event
-                modelService.recordEvent(event)
+                modelService?.recordEvent(event)
                     .then(data => {
                         console.log("Event recorded successfully:", data);
                     })

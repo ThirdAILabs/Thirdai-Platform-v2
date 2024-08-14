@@ -125,7 +125,7 @@ export default function Sources(props: SourcesProps) {
     const [matches, setMatches] = useState(props.sources);
     const [open, setOpen] = useState(false);
 
-    const modelService = useContext<ModelService>(ModelServiceContext);
+    const modelService = useContext<ModelService | null>(ModelServiceContext);
 
     function formatSource(source: string) {
         const lowerSource = source.toLowerCase();
@@ -150,7 +150,7 @@ export default function Sources(props: SourcesProps) {
         setFuse(
             new Fuse(
                 props.sources.map((source) => ({
-                    source: formatSource(source.source),
+                    source: formatSource(source.source)!,
                     source_id: source.source_id,
                 })),
                 { keys: ["source"] },
@@ -165,11 +165,11 @@ export default function Sources(props: SourcesProps) {
             setMatches(props.sources);
             return;
         }
-        setMatches(fuse.search(e.target.value).map((res) => res.item));
+        setMatches(fuse!.search(e.target.value).map((res) => res.item));
     }
 
     function refreshSources() {
-        modelService.sources().then(props.setSources);
+        modelService!.sources().then(props.setSources);
     }
 
     const handleAddSources = async (
@@ -177,7 +177,7 @@ export default function Sources(props: SourcesProps) {
         s3Urls: string[],
     ) => {
         const filesArray = selectedFiles ? Array.from(selectedFiles) : [];
-        await modelService.addSources(filesArray, s3Urls);
+        await modelService!.addSources(filesArray, s3Urls);
     };
 
     function canReadSource(source: string): boolean {
@@ -201,7 +201,7 @@ export default function Sources(props: SourcesProps) {
                         <DropdownMenuItem key={i} style={{display: "flex", justifyContent: "space-between"}} onClick={() =>
                         {
                             console.log("Propagated");
-                            modelService.openSource(
+                            modelService!.openSource(
                                 source.source,
                             )}
                         }>
@@ -211,7 +211,7 @@ export default function Sources(props: SourcesProps) {
                                 style={{height: "2rem", width: "2rem", border: "1px solid red"}}
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    modelService.deleteSources([
+                                    modelService!.deleteSources([
                                         source.source_id,
                                     ]);
                                     props.setSources(

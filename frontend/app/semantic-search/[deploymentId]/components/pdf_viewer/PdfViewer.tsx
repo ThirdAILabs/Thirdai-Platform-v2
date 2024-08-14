@@ -3,7 +3,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import styled from "styled-components";
-import { PageCallback } from "react-pdf/dist/cjs/shared/types";
 import {
     borderRadius,
     color,
@@ -15,9 +14,11 @@ import {
 import { Spacer } from "../Layout";
 import { Borders, Chunk, DocChunks, Point } from "./interfaces";
 import { getChunk } from "./utils";
-import * as pdfjsLib from "pdfjs-dist/build/pdf";
-import pdfjsWorker from "pdfjs-dist/build/pdf.worker.entry";
 
+// @ts-ignore
+import * as pdfjsLib from "pdfjs-dist/build/pdf";
+// @ts-ignore
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.entry";
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 const Container = styled.section`
@@ -129,7 +130,7 @@ export default function PdfViewer(props: PdfViewerProps) {
     const [numPages, setNumPages] = useState<number>();
     const [numPagesReady, setNumPagesReady] = useState<number>(0);
     const [chunk, setChunk] = useState<Chunk | null>(props.initialChunk);
-    const scrollableComponentRef = useRef<HTMLElement>();
+    const scrollableComponentRef = useRef<HTMLElement>(null);
     const undoerRefs = useRef<(string | null)[]>([]);
     const canvasRefs = useRef<HTMLCanvasElement[]>([]);
     const origDimRefs = useRef<[number, number][]>([]);
@@ -154,7 +155,7 @@ export default function PdfViewer(props: PdfViewerProps) {
         reload();
     }
 
-    function pageClickHandler(page: number, pageCallback: PageCallback) {
+    function pageClickHandler(page: number, pageCallback: any) {
         const pageCanvas = canvasRefs.current[page];
         const origWidth = pageCallback.originalWidth;
         const origHeight = pageCallback.originalHeight;
@@ -176,7 +177,7 @@ export default function PdfViewer(props: PdfViewerProps) {
         };
     }
 
-    const onRenderSuccess = (page: number) => (event: PageCallback) => {
+    const onRenderSuccess = (page: number) => (event: any) => {
         canvasRefs.current[page].style.position = "relative";
         canvasRefs.current[page].addEventListener(
             "click",
@@ -250,7 +251,7 @@ export default function PdfViewer(props: PdfViewerProps) {
                 return;
             }
             function highlightIfNeeded() {
-                if (!actions.highlight) {
+                if (!actions?.highlight) {
                     return;
                 }
                 undoerRefs.current[actionPageIdx] =
@@ -258,10 +259,10 @@ export default function PdfViewer(props: PdfViewerProps) {
                     canvasRefs.current[actionPageIdx].toDataURL();
                 const canvas = canvasRefs.current[actionPageIdx];
                 const ctx = canvas.getContext("2d");
-                ctx.fillStyle = color.accentLight + "20";
+                ctx!.fillStyle = color.accentLight + "20";
                 for (const origBox of actions.highlight) {
                     const box = scaleForCanvas(origBox, actionPageIdx);
-                    ctx.fillRect(
+                    ctx!.fillRect(
                         box.left * 2,
                         box.top * 2,
                         (box.right - box.left) * 2,
@@ -274,10 +275,10 @@ export default function PdfViewer(props: PdfViewerProps) {
                 const ctx = canvasRefs.current[actionPageIdx].getContext("2d");
                 const img = new Image();
                 img.onload = () => {
-                    ctx.drawImage(img, 0, 0);
+                    ctx!.drawImage(img, 0, 0);
                     highlightIfNeeded();
                 };
-                img.src = undoerRefs.current[actionPageIdx];
+                img.src = undoerRefs.current[actionPageIdx]!;
             } else {
                 highlightIfNeeded();
             }
@@ -295,8 +296,8 @@ export default function PdfViewer(props: PdfViewerProps) {
             chunk
         ) {
             const { page, borders } = chunk.boxes[0];
-            scrollableComponentRef.current.scrollTop =
-                scrollableComponentRef.current.scrollTop +
+            scrollableComponentRef.current!.scrollTop =
+                scrollableComponentRef.current!.scrollTop +
                 canvasRefs.current[page].getBoundingClientRect().top +
                 scaleForCanvas(borders, page).top -
                 200;
@@ -332,7 +333,7 @@ export default function PdfViewer(props: PdfViewerProps) {
                                     renderAnnotationLayer={false}
                                     width={0.6 * zoomScale * pageWidth}
                                     canvasRef={(elem) => {
-                                        canvasRefs.current[i] = elem;
+                                        canvasRefs.current[i] = elem!;
                                     }}
                                     onRenderSuccess={onRenderSuccess(i)}
                                 />

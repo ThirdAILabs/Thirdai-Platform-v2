@@ -107,15 +107,15 @@ const Placeholder = styled.section`
 `;
 
 export default function Chat(props: any) {
-    const modelService = useContext<ModelService>(ModelServiceContext);
+    const modelService = useContext<ModelService | null>(ModelServiceContext);
 
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
     const [textInput, setTextInput] = useState("");
     const [aiLoading, setAiLoading] = useState(false);
-    const scrollableAreaRef = useRef<HTMLElement>();
+    const scrollableAreaRef = useRef<HTMLElement | null>(null);
 
     useEffect(() => {
-        modelService.getChatHistory().then(setChatHistory);
+        modelService?.getChatHistory().then(setChatHistory);
     }, []);
 
     function onEnterPress(e: any) {
@@ -127,8 +127,10 @@ export default function Chat(props: any) {
             if (!textInput.trim()) {
                 return;
             }
-            console.log(scrollableAreaRef.current.scrollTop);
-            scrollableAreaRef.current.scrollTop = 0;
+            console.log(scrollableAreaRef.current?.scrollTop);
+            if (scrollableAreaRef.current) {
+                scrollableAreaRef.current.scrollTop = 0;
+            }
             const lastTextInput = textInput;
             const lastChatHistory = chatHistory;
             setAiLoading(true);
@@ -137,8 +139,7 @@ export default function Chat(props: any) {
                 { sender: "human", content: textInput },
             ]);
             setTextInput("");
-            modelService
-                .chat(textInput)
+            modelService?.chat(textInput)
                 .then(({ response }) => {
                     setChatHistory((history) => [
                         ...history,

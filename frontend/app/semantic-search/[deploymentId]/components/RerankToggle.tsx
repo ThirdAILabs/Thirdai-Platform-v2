@@ -37,7 +37,7 @@ export default function RerankToggle({
     state: boolean;
     onToggle: () => void;
 }) {
-    const containerRef = useRef<HTMLElement>();
+    const containerRef = useRef<HTMLElement>(null);
 
     function togglePanel() {
         onToggle();

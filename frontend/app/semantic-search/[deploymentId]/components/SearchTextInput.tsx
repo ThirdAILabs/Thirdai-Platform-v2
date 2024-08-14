@@ -30,11 +30,11 @@ export default function SearchTextInput({
     value,
     setValue,
 }: SearchTextInputProps) {
-    const searchTextInputRef = useRef<HTMLTextAreaElement>();
+    const searchTextInputRef = useRef<HTMLTextAreaElement>(null);
     function onSearchEnterPress(e: any) {
         if (e.keyCode === 13 && e.shiftKey === false) {
             e.preventDefault();
-            searchTextInputRef.current.blur();
+            searchTextInputRef.current!.blur();
             onSubmit();
         }
     }
@@ -47,7 +47,7 @@ export default function SearchTextInput({
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={onSearchEnterPress}
             onBlur={() => {
-                searchTextInputRef.current.scrollTop = 0;
+                searchTextInputRef.current!.scrollTop = 0;
             }}
         />
     );

@@ -143,7 +143,7 @@ export default function SearchBar({
     prompt,
     setPrompt,
 }: SearchBarProps) {
-    const modelService = useContext<ModelService>(ModelServiceContext);
+    const modelService = useContext<ModelService | null>(ModelServiceContext);
     const [showSources, setShowSources] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
@@ -151,7 +151,7 @@ export default function SearchBar({
     const [showModelNameInput, setShowModelNameInput] = useState(false);
     const [error, setError] = useState("");
 
-    const sourcesRef = useRef<HTMLElement>();
+    const sourcesRef = useRef<HTMLElement>(null);
     const handleClickOutside = useCallback(() => {
         setShowSources(false);
     }, []);
@@ -175,7 +175,7 @@ export default function SearchBar({
     };
 
     const handleOverride = () => {
-        modelService
+        modelService!
             .saveModel(true)
             .then(() => {
                 setModalOpen(false);
@@ -197,7 +197,7 @@ export default function SearchBar({
             return;
         }
 
-        modelService
+        modelService!
             .saveModel(false, modelName)
             .then(() => {
                 setModalOpen(false);
@@ -228,7 +228,7 @@ export default function SearchBar({
         };
 
         // Record the event
-        modelService.recordEvent(event)
+        modelService!.recordEvent(event)
             .then(data => {
                 console.log("Event recorded successfully:", data);
             })
@@ -276,7 +276,7 @@ export default function SearchBar({
             )}
 
             <Spacer $height="5px" />
-            {modelService.isUserModel() ? (
+            {modelService!.isUserModel() ? (
                 <UserModelDescription
                     onClickViewDocuments={() => setShowSources((val) => !val)}
                     sources={sources}
@@ -302,7 +302,6 @@ export default function SearchBar({
                                     Override
                                 </Button>
                                 <Button
-                                    primary
                                     onClick={handleShowModelNameInput}
                                 >
                                     Save as New
@@ -320,7 +319,7 @@ export default function SearchBar({
                             {error && <ErrorMessage>{error}</ErrorMessage>}
                             <ButtonGroup>
                                 <Button onClick={handleBack}>Back</Button>
-                                <Button primary onClick={handleSaveAsNew}>
+                                <Button onClick={handleSaveAsNew}>
                                     Submit
                                 </Button>
                             </ButtonGroup>

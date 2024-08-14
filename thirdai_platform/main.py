@@ -37,14 +37,6 @@ async def startup_event():
         print("Successfully started Generation Job!")
     except Exception as error:
         print(f"Failed to start the Generation Job : {error}", file=sys.stderr)
-        
-    try:
-        print("Starting search UI...")
-        await restart_neuraldb_deployment_ui()
-        print("Successfully started search UI!")
-    except Exception as error:
-        print(f"Failed to start the search UI : {error}", file=sys.stderr)
-
 
 if __name__ == "__main__":
     uvicorn.run(app, host="localhost", port=8000)

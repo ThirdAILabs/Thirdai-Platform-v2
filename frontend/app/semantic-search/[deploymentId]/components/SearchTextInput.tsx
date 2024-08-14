@@ -11,14 +11,10 @@ const SearchTextArea = styled.textarea`
     outline: none;
     border: none;
     transition-duration: ${duration.transition};
-    height: ${fontSizes.m};
+    height: 100px;
     resize: none;
     font-family: Helvetica, Arial, sans-serif;
 
-    &:focus {
-        height: 100px;
-        transition-duration: ${duration.transition};
-    }
 `;
 
 interface SearchTextInputProps {

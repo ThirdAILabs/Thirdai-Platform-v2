@@ -17,20 +17,16 @@ import Arrow from "../assets/icons/read_source_arrow.svg";
 import CopyButton from "./buttons/CopyButton";
 import { Spacer } from "./Layout";
 import { DownvoteButton, UpvoteButton } from "./buttons/VoteButtons";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle
+} from '@/components/ui/card';  
 import { ModelServiceContext } from "../Context";
 import { ModelService, ReferenceInfo, PIIDetectionResult } from "../modelServices";
-
-const Card = styled.section<{ $opacity: string }>`
-    background: white;
-    width: 100%;
-    border-radius: ${borderRadius.card};
-    height: fit-content;
-    display: flex;
-    flex-direction: row;
-    box-shadow: ${shadow.card};
-    transition-duration: ${duration.transition};
-    opacity: ${(props) => props.$opacity};
-`;
 
 const Stripe = styled.section`
     background: ${color.accent};
@@ -77,6 +73,8 @@ export const ReadSourceButton = styled.section`
     color: ${color.accent};
     width: fit-content;
     padding: ${padding.smallButton};
+    display: flex;
+    flex-direction: row;
 
     ${Header}:hover & {
         background-color: ${color.accent};
@@ -86,6 +84,9 @@ export const ReadSourceButton = styled.section`
 
 export const StyledArrow = styled(Arrow)`
     transition-duration: ${duration.transition};
+    margin-left: 5px;
+    margin-right: 2px;
+    margin-top: 5px;
 
     ${Header}:hover & path {
         fill: white;
@@ -211,8 +212,7 @@ export default function Reference({
     }, [prediction]);
 
     return (
-        <Card $opacity={opacity}>
-            <Stripe />
+        <Card style={{animation: "fade-in 0.5s", display: "flex", flexDirection: "row"}}>
             <TextContainer>
                 <Header onClick={(e)=>{
                     onOpen(e)

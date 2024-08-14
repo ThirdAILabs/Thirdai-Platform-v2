@@ -1,22 +1,20 @@
 import React from "react";
 import styled from "styled-components";
-import PromptSVG from "../../assets/icons/prompt.svg";
+import { FaSave } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 
-const PromptIcon = styled(PromptSVG)`
-    margin-bottom: -10px;
-    width: 25px;
-    path {
-        fill: white;
-    }
+const SaveIcon = styled(FaSave)`
+    cursor: pointer;
+    color: white;
+    font-size: 20px;
 `;
 
-export default function PromptToggle(props: {
+export default function SaveButton(props: {
     onClick: () => void;
 }) {
     return (
         <Button style={{height: "100%"}} onClick={props.onClick}>
-            <PromptIcon />
+            <SaveIcon />
         </Button>
     );
 }

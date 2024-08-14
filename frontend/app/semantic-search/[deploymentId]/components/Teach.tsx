@@ -6,10 +6,11 @@ import TeachPanel from "./TeachPanel";
 import useClickOutside from "./hooks/useClickOutside";
 import { ModelServiceContext } from "../Context";
 import { ModelService } from "../modelServices";
+import { Button } from "@/components/ui/button";
 
 const Container = styled.section`
     width: 50px;
-    height: 30px;
+    height: fit-content;
     display: flex;
     flex-direction: column;
     overflow: visible;
@@ -17,31 +18,11 @@ const Container = styled.section`
     align-items: flex-end;
 `;
 
-function buttonBorderRadius(props: { $active: boolean }) {
-    return props.$active
-        ? `${borderRadius.card} ${borderRadius.card} 0 0`
-        : borderRadius.card;
-}
-
-const Button = styled.button<{ $active: boolean }>`
-    border: none;
-    background-color: ${(props) => (props.$active ? color.accent : "white")};
-    padding: 5px 10px;
-    border-radius: ${buttonBorderRadius};
+const TeachIcon = styled(TeachSVG)`
     transition-duration: ${duration.transition};
-
-    &:hover {
-        cursor: pointer;
-        background-color: ${(props) =>
-            props.$active ? color.accent : color.accentExtraLight};
-    }
-`;
-
-const TeachIcon = styled(TeachSVG)<{ $active: boolean }>`
-    transition-duration: ${duration.transition};
-    width: 30px;
+    width: 40px;
     path {
-        stroke: ${(props) => (props.$active ? "white" : color.accent)};
+        stroke: "white";
     }
 `;
 
@@ -71,7 +52,7 @@ export default function Teach() {
 
     return (
         <Container ref={containerRef}>
-            <Button onClick={togglePanel} $active={showPanel}>
+            <Button style={{width: "60px", height: "50px"}} onClick={togglePanel}>
                 <TeachIcon $active={showPanel} />
             </Button>
             {showPanel && (

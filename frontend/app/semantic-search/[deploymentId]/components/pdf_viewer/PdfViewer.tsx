@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import styled from "styled-components";
@@ -13,8 +15,10 @@ import {
 import { Spacer } from "../Layout";
 import { Borders, Chunk, DocChunks, Point } from "./interfaces";
 import { getChunk } from "./utils";
+import * as pdfjsLib from "pdfjs-dist/build/pdf";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.entry";
 
-// pdfjs.GlobalWorkerOptions.workerSrc = 'pdfjs-dist/build/pdf.worker.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 const Container = styled.section`
     display: flex;
@@ -95,8 +99,7 @@ const CircularButton = styled.button`
     outline: none;
     height: 45px;
     width: 45px;
-    padding-left: 7px;
-    padding-top: 0px;
+    padding-bottom: 2px;
     border-radius: 50%; /* Optional: for round shape */
     display: inline-block;
     text-align: center;
@@ -307,7 +310,7 @@ export default function PdfViewer(props: PdfViewerProps) {
         <Container>
             <Title>{props.name.split("/").pop()}</Title>
             <CloseButtonWrapper>
-                <CircularButton onClick={props.onClose}>⨉</CircularButton>
+                <CircularButton onClick={props.onClose}>×</CircularButton>
             </CloseButtonWrapper>
             <BottomRowButtonsWrapper>
                 <CircularButton onClick={zoomOut}>-</CircularButton>

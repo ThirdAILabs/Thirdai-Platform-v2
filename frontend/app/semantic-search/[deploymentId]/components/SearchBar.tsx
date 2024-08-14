@@ -1,7 +1,6 @@
 import React, { useCallback, useContext, useRef, useState } from "react";
 import { Button } from '@/components/ui/button';
 import styled from "styled-components";
-import { FaSave } from "react-icons/fa";
 import {
     borderRadius,
     color,
@@ -15,6 +14,7 @@ import { ModelServiceContext } from "../Context";
 import Sources from "./Sources";
 import useClickOutside from "./hooks/useClickOutside";
 import PromptToggle from "./buttons/PromptToggle";
+import SaveButton from "./buttons/SaveButton";
 import SearchTextInput from "./SearchTextInput";
 import Modal from "./Modal";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ const SearchArea = styled.section`
     display: flex;
     flex-direction: row;
     align-items: center;
+    height: fit-content;
 `;
 
 const Description = styled.section`
@@ -70,16 +71,6 @@ const PanelContainer = styled.section`
     position: relative;
     height: 0;
     overflow-y: visible;
-`;
-
-const SaveIcon = styled(FaSave)`
-    margin-left: 10px;
-    cursor: pointer;
-    color: ${color.accent};
-
-    &:hover {
-        color: ${color.accentDark};
-    }
 `;
 
 const ButtonGroup = styled.div`
@@ -222,6 +213,31 @@ export default function SearchBar({
             });
     };
 
+    const handleSubmit = () => {
+        console.log("submit");
+        onSubmit(query, prompt)
+
+        // Create a telemetry event
+        const event = {
+            UserAction: 'Searched query',
+            UIComponent: 'SearchTextInput',
+            UI: 'SearchBar',
+            data: {
+                query: query
+            }
+        };
+
+        // Record the event
+        modelService.recordEvent(event)
+            .then(data => {
+                console.log("Event recorded successfully:", data);
+            })
+            .catch(error => {
+                console.error("Error recording event:", error);
+            });
+
+    };
+
     return (
         <Container>
             <SearchArea style={{marginBottom: "5px"}}>
@@ -232,35 +248,20 @@ export default function SearchBar({
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Ask anything..."
                     style={{ height: "3rem" }}
-                    onSubmit={() => {
-                        onSubmit(query, prompt)
-
-                        // Create a telemetry event
-                        const event = {
-                            UserAction: 'Searched query',
-                            UIComponent: 'SearchTextInput',
-                            UI: 'SearchBar',
-                            data: {
-                                query: query
-                            }
-                        };
-
-                        // Record the event
-                        modelService.recordEvent(event)
-                            .then(data => {
-                                console.log("Event recorded successfully:", data);
-                            })
-                            .catch(error => {
-                                console.error("Error recording event:", error);
-                            });
-
+                    onSubmit={handleSubmit}
+                    onKeyDown={(e) => {
+                        if (e.keyCode === 13 && e.shiftKey === false) {
+                            e.preventDefault();
+                            handleSubmit();
+                        }
                     }}
                 />
+                <Spacer $width="15px" />
                 <PromptToggle
-                    active={dialogOpen}
                     onClick={() => setDialogOpen((dialogOpen) => !dialogOpen)}
                 />
-                <SaveIcon onClick={handleSaveClick} />
+                <Spacer $width="7px" />
+                <SaveButton onClick={handleSaveClick} />
             </SearchArea>
             {dialogOpen && (
                 <>

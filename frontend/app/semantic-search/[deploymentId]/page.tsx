@@ -282,6 +282,7 @@ function App() {
             .getPdfInfo(ref)
             .then((pdf) => {
                 setPdfInfo(pdf);
+                console.log(pdf);
                 setSelectedPdfChunk(pdf.highlighted);
             })
             .catch((e) => {
@@ -382,7 +383,7 @@ function App() {
                                     )
                                 }
                             />
-                            <Spacer $width="5px" />
+                            <Spacer $width="40px" />
                             <Teach />
                         </TopRightCorner>
                         {chatMode ? (

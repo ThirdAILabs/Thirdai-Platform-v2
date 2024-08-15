@@ -1,5 +1,6 @@
 import json
 import os
+import traceback
 import uuid
 from typing import Annotated, Dict, Optional, Union
 
@@ -11,6 +12,7 @@ from backend.auth_dependencies import (
     verify_model_read_access,
 )
 from backend.utils import (
+    delete_nomad_job,
     get_expiry_min,
     get_high_level_model_info,
     get_model,
@@ -946,4 +948,40 @@ def update_default_permission(
             "model_id": str(model.id),
             "default_permission": str(model.default_permission),
         },
+    )
+
+
+@model_router.post("/delete", dependencies=[Depends(is_model_owner)])
+def delete_model(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Deletes a specified model.
+
+    - **model_identifier**: The model identifier of the model to delete
+
+    """
+
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    try:
+        storage.delete(model.id)
+        delete_nomad_job(f"deployment-{model.id}", os.getenv("NOMAD_ENDPOINT"))
+        session.delete(model)
+        session.commit()
+    except Exception:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(traceback.format_exc()),
+        )
+
+    return response(
+        status_code=status.HTTP_200_OK, message="Successfully deleted the model."
     )

@@ -632,8 +632,6 @@ def start_workflow(
     workflow_models: List[schema.WorkflowModel] = workflow.workflow_models
 
     if not workflow_models:
-        workflow.status = schema.WorkflowStatus.inactive
-        session.commit()
         return response(
             status_code=status.HTTP_404_NOT_FOUND,
             message="No models found in the workflow.",
@@ -648,8 +646,6 @@ def start_workflow(
             all_training_complete = False
 
     if not all_training_complete:
-        workflow.status = schema.WorkflowStatus.inactive
-        session.commit()
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Cannot start workflow. Some models are not ready.",
@@ -676,8 +672,6 @@ def start_workflow(
                 meta_data = json.loads(model.meta_data.train)
                 size_in_memory = int(meta_data["size_in_memory"])
             except (json.JSONDecodeError, KeyError) as e:
-                workflow.status = schema.Status.stopped
-                session.commit()
                 raise Exception(
                     "Failed to parse model metadata or missing 'size_in_memory'."
                 )
@@ -728,7 +722,6 @@ def start_workflow(
 
             except Exception as err:
                 model.deploy_status = schema.Status.failed
-                workflow.status = schema.WorkflowStatus.inactive
                 session.commit()
                 raise Exception(str(err))
 
@@ -1072,4 +1065,66 @@ def list_accessible_workflows(
         status_code=status.HTTP_200_OK,
         message="Successfully retrieved accessible workflows.",
         data=jsonable_encoder(workflow_list),
+    )
+
+
+@workflow_router.get("/type")
+def get_workflow_type_details(
+    type_id: str,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Get detailed information about a specific workflow type.
+
+    - **Parameters**:
+      - `type_id` (str): The ID of the workflow type to retrieve.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): Detailed information about the workflow type.
+
+    **Example Request**:
+    ```json
+    {
+        "type_id": "c1b1c5d7-8b8a-4f3b-a88b-2ec5a7a5f014"
+    }
+    ```
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Workflow type details retrieved successfully.",
+        "data": {
+            "id": "c1b1c5d7-8b8a-4f3b-a88b-2ec5a7a5f014",
+            "name": "semantic_search",
+            "description": "Semantic search workflow",
+            "model_requirements": [
+                {"component": "search", "type": "ndb"},
+                {"component": "guardrail", "type": "udt", "subtype": "token"}
+            ]
+        }
+    }
+    ```
+    """
+    workflow_type = session.query(schema.WorkflowType).filter_by(id=type_id).first()
+
+    if not workflow_type:
+        return response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="Workflow type not found.",
+        )
+
+    workflow_type_data = {
+        "id": str(workflow_type.id),
+        "name": workflow_type.name,
+        "description": workflow_type.description,
+        "model_requirements": workflow_type.model_requirements,
+    }
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Workflow type details retrieved successfully.",
+        data=jsonable_encoder(workflow_type_data),
     )

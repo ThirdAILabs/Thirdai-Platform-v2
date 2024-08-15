@@ -332,7 +332,7 @@ function App() {
         <ModelServiceContext.Provider value={modelService}>
             {modelService && (
                 <Frame $opacity={opacity}>
-                    <div className="bg-muted" style={{height: "100%", width: "100%"}}>
+                    <div style={{height: "100%", width: "100%"}}>
 
                         {pdfInfo && (
                             <PdfViewerWrapper>

@@ -8,8 +8,8 @@ import { useEffect, useState, createContext, SetStateAction, Dispatch } from "re
 
 interface UserContext {
   user: User | null;
-  accessToken: string | null;
-  setAccessToken: Dispatch<SetStateAction<string | null>>;
+  accessToken?: string | null;
+  setAccessToken: Dispatch<SetStateAction<string | null | undefined>>;
   logout: () => void;
 }
 
@@ -19,7 +19,7 @@ export const UserContext = createContext<UserContext>({user: null, accessToken: 
 
 export default function UserWrapper({children} : {children: React.ReactNode}) {
   const router = useRouter();
-  const [accessToken, setAccessToken] = useState<string | null>(getAccessToken(/* throwIfNotFound= */ false));
+  const [accessToken, setAccessToken] = useState<string | null | undefined>();
   const [user, setUser] = useState<User | null>(null);
 
   const logout = () => {
@@ -29,6 +29,13 @@ export default function UserWrapper({children} : {children: React.ReactNode}) {
   }
 
   useEffect(() => {
+    setAccessToken(getAccessToken(/* throwIfNotFound= */ false));
+  }, [])
+
+  useEffect(() => {
+    if (accessToken === undefined) {
+      return;
+    }
     accessTokenUser(accessToken).then((user) => {
       setUser(user);
       if (!user) {

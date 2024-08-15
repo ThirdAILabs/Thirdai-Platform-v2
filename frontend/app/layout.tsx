@@ -17,7 +17,7 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className="flex min-h-screen w-full flex-col">
+      <body className="flex min-h-screen w-full flex-col bg-muted/40">
         <UserWrapper>
           {children}
         </UserWrapper>

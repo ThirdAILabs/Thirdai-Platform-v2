@@ -6,6 +6,7 @@ from abc import abstractmethod, abstractproperty, abstractstaticmethod
 from dataclasses import dataclass
 
 import pandas as pd
+import re
 
 
 class DataType:
@@ -60,6 +61,48 @@ class TokenClassificationSample(DataType):
         data = json.loads(repr)
         return TokenClassificationSample(
             tokens=data["tokens"], tags=data["tags"], name=name
+        )
+
+
+class XMLTokenClassificationSample(DataType):
+    datatype = "xml_tokenclassification_sample"
+
+    @staticmethod
+    def clean_rawlog(rawlog: str):
+        start = rawlog.find("<")
+        end = rawlog.rfind(">")
+        if start == -1 or end == -1:
+            raise Exception("Invalid XML Log")
+
+        rawlog = rawlog[start : end + 1]
+
+        clean_string = re.sub(r"[^\x20-\x7E\t\n\r]", "", rawlog)
+        return clean_string
+
+    @staticmethod
+    def clean_fields(fields):
+        for key, value in fields.items():
+            if isinstance(value, dict):
+                fields[key] = value["value"]
+
+            fields[key] = str(fields[key])
+
+        return fields
+
+    def __init__(self, name: str, rawlog: str, fields: str):
+        self._name = name
+        self.rawlog = XMLTokenClassificationSample.clean_rawlog(rawlog)
+        self.fields = XMLTokenClassificationSample.clean_fields(fields)
+
+    def serialize(self) -> str:
+        return json.dumps({"rawlog": self.rawlog, "fields": json.dumps(self.fields)})
+
+    @staticmethod
+    def deserialize(name, repr):
+        data = json.loads(repr)
+
+        return XMLTokenClassificationSample(
+            name=name, rawlog=data["rawlog"], fields=data["fields"]
         )
 
 

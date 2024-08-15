@@ -137,7 +137,7 @@ export function ModelsTable() {
             ))}
 
             {workflows.map((workflow, index) => (
-                <WorkFlow key={index + 100} workflow={workflow} pending = {true} />
+                <WorkFlow key={index + 200} workflow={workflow} />
             ))}
           </TableBody>
         </Table>

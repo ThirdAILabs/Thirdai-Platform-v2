@@ -147,11 +147,15 @@ function App() {
     const searchParams = useSearchParams();
     const [ifGenerationOn, setIfGenerationOn] = useState(false);
     const [ifGuardRailOn, setIfGuardRailOn] = useState(false);
-    const [guardRailEndpoint, setGuardRailEndpoint] = useState('');
 
     useEffect(() => {
         const workflowId = searchParams.get('workflowId');
+        const generationOn = searchParams.get('ifGenerationOn') === 'true';
+        
         console.log('workflowId', workflowId)
+        console.log('generationOn', generationOn)
+
+        setIfGenerationOn(generationOn);
 
         const fetchWorkflowDetails = async () => {
             try {
@@ -165,6 +169,10 @@ function App() {
                 // Filter and find the model with component "nlp"
                 const nlpModel = details.data.models.find(model => model.component === 'nlp');
                 const tokenModelUrl = nlpModel ? createTokenModelUrl(nlpModel.model_id) : createTokenModelUrl('');
+
+                if (nlpModel) {
+                    setIfGuardRailOn(true)
+                }
 
                 console.log('serviceUrl:', serviceUrl);
                 console.log('tokenModelUrl:', tokenModelUrl);
@@ -182,25 +190,6 @@ function App() {
             fetchWorkflowDetails();
         }
     }, []);
-
-    useEffect(() => {
-
-        const updateSettings = async () => {
-            if (ifGuardRailOn && guardRailEndpoint && modelService) {
-                try {
-                    console.log('passing guardRailEndpoint', guardRailEndpoint)
-                    console.log('passing ifGuardRailOn', ifGuardRailOn)
-
-                    await modelService.updatePiiSettings(guardRailEndpoint, ifGuardRailOn);
-                    console.log('PII settings updated successfully');
-                } catch (error) {
-                    console.error('Error updating PII settings:', error);
-                }
-            }
-        };
-
-        updateSettings()
-    }, [modelService, guardRailEndpoint, ifGuardRailOn]);
 
     useEffect(() => {
         if (modelService) {
@@ -255,7 +244,9 @@ function App() {
                 query,
                 c.numReferencesFirstLoad + 1 * c.numReferencesLoadMore,
             ).then((results) => {
-                if (results) {
+                if (results &&
+                    ifGenerationOn // turn on generation only if specified
+                ) {
                     modelService!.generateAnswer(
                         query,
                         genaiPrompt,

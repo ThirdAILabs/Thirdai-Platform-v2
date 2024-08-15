@@ -57,8 +57,10 @@ def workflow_types(
                     "name": "semantic_search",
                     "description": "Semantic search workflow",
                     "model_requirements": [
-                        {"component": "search", "type": "ndb"},
-                        {"component": "guardrail", "type": "udt", "subtype": "token"}
+                        [
+                            {"component": "search", "type": "ndb"},
+                            {"component": "guardrail", "type": "udt", "subtype": "token"}
+                        ]
                     ]
                 },
                 ...
@@ -412,29 +414,38 @@ def validate_workflow(
 
     issues = defaultdict(list)
 
-    for requirement in model_requirements:
-        component = requirement["component"]
-        model_type = requirement["type"]
-        sub_type = requirement.get("subtype")
+    valid = False
+    for requirement_group in model_requirements:
+        # Check if any of the requirement groups is satisfied
+        group_valid = True
+        for requirement in requirement_group:
+            component = requirement["component"]
+            model_type = requirement["type"]
+            sub_type = requirement.get("subtype")
 
-        matching_models = [
-            wm
-            for wm in workflow_models
-            if wm.component == component
-            and wm.model.type == model_type
-            and (sub_type is None or wm.model.sub_type == sub_type)
-        ]
+            matching_models = [
+                wm
+                for wm in workflow_models
+                if wm.component == component
+                and wm.model.type == model_type
+                and (sub_type is None or wm.model.sub_type == sub_type)
+            ]
 
-        required_count = (
-            1  # Since each requirement object represents exactly one required model
-        )
-
-        if len(matching_models) != required_count:
-            issues[component].append(
-                f"Requires exactly {required_count} {model_type}(s) with component {component} and subtype {sub_type}, but found {len(matching_models)}."
+            required_count = (
+                1  # Since each requirement object represents exactly one required model
             )
 
-    if issues:
+            if len(matching_models) != required_count:
+                issues[component].append(
+                    f"Requires exactly {required_count} {model_type}(s) with component {component} and subtype {sub_type}, but found {len(matching_models)}."
+                )
+                group_valid = False
+
+        if group_valid:
+            valid = True
+            break
+
+    if not valid:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Validation failed. Some models have issues.",
@@ -735,7 +746,7 @@ def start_workflow(
 class WorkflowTypeParams(BaseModel):
     name: str
     description: str
-    model_requirements: List[dict]
+    model_requirements: List[List[dict]]  # Updated to list of list of dictionaries
 
     class Config:
         schema_extra = {
@@ -743,8 +754,14 @@ class WorkflowTypeParams(BaseModel):
                 "name": "semantic_search",
                 "description": "Semantic search workflow",
                 "model_requirements": [
-                    {"component": "search", "type": "ndb"},
-                    {"component": "guardrail", "type": "udt", "subtype": "token"},
+                    [
+                        {"component": "search", "type": "ndb"},
+                        {"component": "guardrail", "type": "udt", "subtype": "token"},
+                    ],
+                    [
+                        {"component": "search", "type": "ndb"},
+                        {"component": "guardrail", "type": "udt", "subtype": "text"},
+                    ],
                 ],
             }
         }
@@ -771,8 +788,10 @@ def add_workflow_type(
         "name": "semantic_search",
         "description": "Semantic search workflow",
         "model_requirements": [
-            {"component": "search", "type": "ndb"},
-            {"component": "guardrail", "type": "udt", "subtype": "token"}
+            [
+                {"component": "search", "type": "ndb"},
+                {"component": "guardrail", "type": "udt", "subtype": "token"}
+            ]
         ]
     }
     ```
@@ -1101,8 +1120,10 @@ def get_workflow_type_details(
             "name": "semantic_search",
             "description": "Semantic search workflow",
             "model_requirements": [
-                {"component": "search", "type": "ndb"},
-                {"component": "guardrail", "type": "udt", "subtype": "token"}
+                [
+                    {"component": "search", "type": "ndb"},
+                    {"component": "guardrail", "type": "udt", "subtype": "token"}
+                ]
             ]
         }
     }

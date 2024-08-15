@@ -4,7 +4,8 @@ import typing
 from abc import abstractmethod
 from collections import defaultdict
 
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine, event, func
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from data_types import (
@@ -13,11 +14,7 @@ from data_types import (
     deserialize_sample_datatype,
     deserialize_userfeedback,
 )
-from schemas import Base, Samples, FeedBack
-
-
-from sqlalchemy.engine import Engine
-from sqlalchemy import event
+from schemas import Base, FeedBack, Samples
 
 
 @event.listens_for(Engine, "connect")

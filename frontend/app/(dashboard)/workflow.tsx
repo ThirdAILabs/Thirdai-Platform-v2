@@ -23,7 +23,6 @@ export function WorkFlow({ workflow, pending }: { workflow: Workflow, pending?: 
   const [modelIdentifier, setModelIdentifier] = useState<string>('');
   const [deployStatus, setDeployStatus] = useState<string>(pending ? 'in queue' :'');
   const [deployType, setDeployType] = useState<string>('');
-  const [deploymentId, setDeploymentId] = useState<string | null>(null);
   const [deploymentIdentifier, setDeploymentIdentifier] = useState<string | null>(null);
   const [nerRAGEndpoint, setNerRAGEndpoint] = useState<string | null>(null);
 
@@ -152,43 +151,44 @@ export function WorkFlow({ workflow, pending }: { workflow: Workflow, pending?: 
   //   }
   // }, [deploymentIdentifier, model]);
 
-  // function goToEndpoint() {
-  //   switch (model.type) {
-  //     case "ndb": {
-  //       let ifGenerationOn = false; // false if semantic search, true if RAG
-  //       let ifGuardRailOn = false; // enable based on actual config
-  //       let guardRailEndpoint = '...' // change based on actual config
-  //       const newUrl = `/semantic-search/${deploymentId}?ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
-  //       window.open(newUrl, '_blank');
-  //       break;
-  //     }
-  //     case "udt":
-  //       router.push(`/token-classification/${deploymentId}`);
-  //       break;
-  //     case "rag": {
-  //       console.log('model.use_llm_guardrail', model.use_llm_guardrail)
-  //       console.log('nerRAGEndpoint', nerRAGEndpoint)
-
-  //       if (model.use_llm_guardrail && nerRAGEndpoint) {
-  //         let ifGenerationOn = true; // false if semantic search, true if RAG
-  //         let ifGuardRailOn = true; // enable based on actual config
-  //         let guardRailEndpoint = nerRAGEndpoint // change based on actual config
-  //         const newUrl = `/semantic-search/${deploymentId}?ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
-  //         window.open(newUrl, '_blank');
-  //       } else {
-  //         let ifGenerationOn = true; // false if semantic search, true if RAG
-  //         let ifGuardRailOn = false; // enable based on actual config
-  //         let guardRailEndpoint = '...' // change based on actual config
-  //         const newUrl = `/semantic-search/${deploymentId}?ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
-  //         window.open(newUrl, '_blank');
-  //       }
-  //       break
-  //     }
-  //     default:
-  //       throw new Error(`Invalid model type ${model.type}`);
-  //       break;
-  //   }
-  // }
+  function goToEndpoint() {
+    switch (workflow.type) {
+      case "semantic_search": {
+        let ifGenerationOn = false; // false if semantic search, true if RAG
+        let ifGuardRailOn = false; // enable based on actual config
+        let guardRailEndpoint = '...'; // change based on actual config
+        const newUrl = `/semantic-search/${workflow.id}?ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+        window.open(newUrl, '_blank');
+        break;
+      }
+      case "nlp": {
+        router.push(`/token-classification/${workflow.id}`);
+        break;
+      }
+      case "rag": {
+        // console.log('workflow.use_llm_guardrail', workflow.use_llm_guardrail);
+        // console.log('nerRAGEndpoint', nerRAGEndpoint);
+  
+        // if (workflow.use_llm_guardrail && nerRAGEndpoint) {
+        //   let ifGenerationOn = true; // true for RAG
+        //   let ifGuardRailOn = true; // enable based on actual config
+        //   let guardRailEndpoint = nerRAGEndpoint; // change based on actual config
+        //   const newUrl = `/semantic-search/${deploymentId}?ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+        //   window.open(newUrl, '_blank');
+        // } else {
+        //   let ifGenerationOn = true; // true for RAG
+        //   let ifGuardRailOn = false; // enable based on actual config
+        //   let guardRailEndpoint = '...'; // change based on actual config
+        //   const newUrl = `/semantic-search/${deploymentId}?ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+        //   window.open(newUrl, '_blank');
+        // }
+        // break;
+      }
+      default:
+        throw new Error(`Invalid workflow type ${workflow.type}`);
+        break;
+    }
+  }
 
   // const checkAndDeployNERModel = (tokenModelId: string | undefined) => {
 
@@ -294,7 +294,6 @@ export function WorkFlow({ workflow, pending }: { workflow: Workflow, pending?: 
     try {
       if (isValid) {
         await start_workflow(workflow.id);
-        alert('Workflow started successfully!');
       } else {
         alert('Cannot deploy. The workflow is not valid.');
       }
@@ -355,7 +354,7 @@ export function WorkFlow({ workflow, pending }: { workflow: Workflow, pending?: 
       <TableCell className="hidden md:table-cell">'N\A'</TableCell>
       <TableCell className="hidden md:table-cell">
         <button type="button" 
-                onClick={()=>{console.log('go to endpoint')}}
+                onClick={goToEndpoint}
                 className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
           <svg className="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
           <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M1 5h12m0 0L9 1m4 4L9 9"/>

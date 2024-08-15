@@ -13,7 +13,6 @@ from backend.auth_dependencies import (
 from backend.utils import (
     delete_nomad_job,
     get_empty_port,
-    get_model_from_identifier,
     get_platform,
     get_python_path,
     get_root_absolute_path,
@@ -143,7 +142,7 @@ def create_workflow(
         name=name,
         type_id=workflow_type.id,
         user_id=user.id,
-        status=schema.Status.not_started,
+        status=schema.WorkflowStatus.inactive,
     )
 
     session.add(new_workflow)
@@ -452,7 +451,7 @@ def validate_workflow(
 @workflow_router.post("/update-status", dependencies=[Depends(is_workflow_owner)])
 def update_workflow_status(
     workflow_id: str,
-    new_status: schema.Status,
+    new_status: schema.WorkflowStatus,
     session: Session = Depends(get_session),
 ):
     """
@@ -469,7 +468,7 @@ def update_workflow_status(
     ```json
     {
         "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
-        "new_status": "complete"
+        "new_status": "active"
     }
     ```
 
@@ -552,9 +551,7 @@ def stop_workflow(
                 .filter(
                     schema.WorkflowModel.model_id == model.id,
                     schema.Workflow.id != workflow_id,
-                    schema.Workflow.status.in_(
-                        [schema.Status.in_progress, schema.Status.complete]
-                    ),
+                    schema.Workflow.status.in_([schema.WorkflowStatus.active]),
                 )
                 .count()
             )
@@ -568,14 +565,14 @@ def stop_workflow(
                     model.deploy_status = schema.Status.stopped
                     session.commit()
                 except Exception as err:
-                    workflow.status = schema.Status.stopped
+                    workflow.status = schema.WorkflowStatus.inactive
                     session.commit()
                     return response(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                         message=f"Failed to undeploy model {model.name}: {str(err)}",
                     )
 
-    workflow.status = schema.Status.stopped
+    workflow.status = schema.WorkflowStatus.inactive
     session.commit()
 
     return response(
@@ -629,14 +626,12 @@ def start_workflow(
             message="Workflow not found.",
         )
 
-    workflow.status = schema.Status.in_progress
+    workflow.status = schema.WorkflowStatus.active
     session.commit()
 
     workflow_models: List[schema.WorkflowModel] = workflow.workflow_models
 
     if not workflow_models:
-        workflow.status = schema.Status.stopped
-        session.commit()
         return response(
             status_code=status.HTTP_404_NOT_FOUND,
             message="No models found in the workflow.",
@@ -651,8 +646,6 @@ def start_workflow(
             all_training_complete = False
 
     if not all_training_complete:
-        workflow.status = schema.Status.stopped
-        session.commit()
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Cannot start workflow. Some models are not ready.",
@@ -666,13 +659,12 @@ def start_workflow(
             schema.Status.in_progress,
             schema.Status.complete,
         ]:
-            if not model.get_owner_permission(authenticated_user.user):
+            if not model.get_user_permission(authenticated_user.user):
                 return response(
                     status_code=status.HTTP_403_FORBIDDEN,
                     message=(
                         f"You do not have permission to deploy model {model.name} "
                         f"(component: {workflow_model.component}). "
-                        "Please contact the model owner or admin for deployment."
                     ),
                 )
 
@@ -680,8 +672,6 @@ def start_workflow(
                 meta_data = json.loads(model.meta_data.train)
                 size_in_memory = int(meta_data["size_in_memory"])
             except (json.JSONDecodeError, KeyError) as e:
-                workflow.status = schema.Status.stopped
-                session.commit()
                 raise Exception(
                     "Failed to parse model metadata or missing 'size_in_memory'."
                 )
@@ -732,7 +722,6 @@ def start_workflow(
 
             except Exception as err:
                 model.deploy_status = schema.Status.failed
-                workflow.status = schema.Status.stopped
                 session.commit()
                 raise Exception(str(err))
 
@@ -1076,4 +1065,66 @@ def list_accessible_workflows(
         status_code=status.HTTP_200_OK,
         message="Successfully retrieved accessible workflows.",
         data=jsonable_encoder(workflow_list),
+    )
+
+
+@workflow_router.get("/type")
+def get_workflow_type_details(
+    type_id: str,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Get detailed information about a specific workflow type.
+
+    - **Parameters**:
+      - `type_id` (str): The ID of the workflow type to retrieve.
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): Detailed information about the workflow type.
+
+    **Example Request**:
+    ```json
+    {
+        "type_id": "c1b1c5d7-8b8a-4f3b-a88b-2ec5a7a5f014"
+    }
+    ```
+
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Workflow type details retrieved successfully.",
+        "data": {
+            "id": "c1b1c5d7-8b8a-4f3b-a88b-2ec5a7a5f014",
+            "name": "semantic_search",
+            "description": "Semantic search workflow",
+            "model_requirements": [
+                {"component": "search", "type": "ndb"},
+                {"component": "guardrail", "type": "udt", "subtype": "token"}
+            ]
+        }
+    }
+    ```
+    """
+    workflow_type = session.query(schema.WorkflowType).filter_by(id=type_id).first()
+
+    if not workflow_type:
+        return response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="Workflow type not found.",
+        )
+
+    workflow_type_data = {
+        "id": str(workflow_type.id),
+        "name": workflow_type.name,
+        "description": workflow_type.description,
+        "model_requirements": workflow_type.model_requirements,
+    }
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Workflow type details retrieved successfully.",
+        data=jsonable_encoder(workflow_type_data),
     )

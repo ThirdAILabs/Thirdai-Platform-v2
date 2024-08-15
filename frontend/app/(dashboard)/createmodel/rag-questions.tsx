@@ -97,7 +97,7 @@ const RAGQuestions = ({
             {/* Begin existing Semantic Search Models Dropdown */}
 
             {ifUseExistingSS === 'Yes' && (
-              <div className="mb-4">
+              <div style={{marginTop: "20px"}}>
                 <CardDescription>
                   Choose from existing semantic search model(s)
                 </CardDescription>

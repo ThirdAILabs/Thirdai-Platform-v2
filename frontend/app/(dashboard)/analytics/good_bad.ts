@@ -1,2 +1,2 @@
-export const GOOD = "benito/resume"
-export const BAD = "benito/notresume"
+export const GOOD = "admin/amazon-50k-updated"
+export const BAD = "admin/amazon-50k"

@@ -1,4 +1,5 @@
 import { agnewsAssociations, agnewsReformulations, agnewsUpvotes } from "./agnews";
+import { bookAssociations, goodBookReformulations, badBookReformulations, bookUpvotes } from "./books";
 
 interface Upvote {
     query: string;

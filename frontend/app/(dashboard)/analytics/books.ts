@@ -1,4 +1,4 @@
-const bookUpvotes = [
+export const bookUpvotes = [
     {
         "query": "Grey tutu for ballet girls",
         "upvote": "Girls Ballet Tutu Grey"
@@ -781,7 +781,7 @@ const bookUpvotes = [
     }
 ];
 
-const bookAssociations = [
+export const bookAssociations = [
     {
         "source": "Grey tutu for ballet girls",
         "target": "Girls Ballet Tutu Grey"
@@ -1564,7 +1564,7 @@ const bookAssociations = [
     }
 ]
 
-const goodBookReformulations = [
+export const goodBookReformulations = [
     {
         "original": "Girls' grey ballet tutu",
         "reformulations": [
@@ -1839,7 +1839,7 @@ const goodBookReformulations = [
     }
 ]
 
-const badBookReformulations = [
+export const badBookReformulations = [
     {
         "original": "Ballet tutu in grey for girls",
         "reformulations": [

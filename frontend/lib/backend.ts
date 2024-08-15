@@ -294,14 +294,20 @@ export function add_models_to_workflow({ workflowId, modelIdentifiers, component
   });
 }
 
+export interface CreatedBy {
+  id: string;
+  username: string;
+  email: string;
+}
+
 export interface Workflow {
   id: string;
   name: string;
   type: string;
   status: string;
   publish_date: string;
-  user_id: string;
-  username: string;
+  created_by: CreatedBy;
+  models: WorkflowModel[];
 }
 
 export function fetchWorkflows(): Promise<Workflow[]> {

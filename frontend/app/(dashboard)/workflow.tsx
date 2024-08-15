@@ -81,13 +81,37 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
     }
   };
 
-  useEffect(()=>{
-    if (workflow.status === 'inactive') {
-      setDeployStatus('Ready to Deploy')
-    } else if (workflow.status === 'active') {
-      setDeployStatus('Deployed')
+  useEffect(() => {
+    if (workflow.models && workflow.models.length > 0) {
+      let hasFailed = false;
+      let isInProgress = false;
+      let allComplete = true;
+  
+      for (const model of workflow.models) {
+        if (model.deploy_status === 'failed') {
+          hasFailed = true;
+          break; // If any model has failed, no need to check further
+        } else if (model.deploy_status === 'in_progress') {
+          isInProgress = true;
+          allComplete = false; // If any model is in progress, not all can be complete
+        } else if (model.deploy_status !== 'complete') {
+          allComplete = false; // If any model is not complete, mark allComplete as false
+        }
+      }
+  
+      if (hasFailed) {
+        setDeployStatus('Failed');
+      } else if (isInProgress) {
+        setDeployStatus('Deploying');
+      } else if (allComplete) {
+        setDeployStatus('Deployed');
+      } else {
+        setDeployStatus('Ready to Deploy');
+      }
+    } else {
+      setDeployStatus('Ready to Deploy');
     }
-  },[workflow.status])
+  }, [workflow.models]);  
 
   useEffect(()=>{
     if (workflow.type === 'semantic_search') {

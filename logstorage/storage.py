@@ -4,10 +4,11 @@ import typing
 from abc import abstractmethod
 from collections import defaultdict
 
-from data_types import DataType, deserialize_datatype
-from schemas import Base, LogEntry
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import scoped_session, sessionmaker
+
+from data_types import DataType, deserialize_datatype
+from schemas import Base, LogEntry
 
 
 class DataStore:

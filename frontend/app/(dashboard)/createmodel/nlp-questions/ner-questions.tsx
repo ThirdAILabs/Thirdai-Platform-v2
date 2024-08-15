@@ -2,6 +2,9 @@
 import React, { useState } from 'react';
 import { getUsername, trainTokenClassifier } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 type Category = {
   name: string;
@@ -25,7 +28,6 @@ interface NERQuestionsProps {
 const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
   const [modelName, setModelName] = useState("");
   const [categories, setCategories] = useState([{ name: '', example: '', description: '' }]);
-  const [showReview, setShowReview] = useState(false);
   const [isDataGenerating, setIsDataGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState([]);
   const [generateDataPrompt, setGenerateDataPrompt] = useState('');
@@ -55,6 +57,16 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
 
   const generateData = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
+    for (const category of categories) {
+      if (category.name === "" || category.example === "" || category.description === "") {
+        alert("All tokens must have a name, example, and description.");
+        return;
+      }
+    }
+
+    if (isDataGenerating) {
+      return;
+    }
 
     try {
       setIsDataGenerating(true);
@@ -90,102 +102,143 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
       const tag = pair.nerData[idx];
       if (tag === 'O') {
         return (
-          <span key={idx} style={{ padding: '0 4px' }}>
-            {token}
-          </span>
+          <>
+            <span key={idx} style={{ padding: '0 4px' }}>
+              {token}
+            </span>
+            {' '}
+          </>
         );
       }
       return (
-        <span key={idx} style={{ padding: '0 4px', backgroundColor: tag === 'AGE' ? '#ffcccb' : '#ccffcc', borderRadius: '4px' }}>
-          {token} <span style={{ fontSize: '0.8em', fontWeight: 'bold', color: tag === 'AGE' ? '#ff0000' : '#00cc00' }}>{tag}</span>
-        </span>
+        <>
+          <span key={idx} style={{ padding: '0 4px', backgroundColor: tag === 'AGE' ? '#ffcccb' : '#ccffcc', borderRadius: '4px' }}>
+            {token} <span style={{ fontSize: '0.8em', fontWeight: 'bold', color: tag === 'AGE' ? '#ff0000' : '#00cc00' }}>{tag}</span>
+          </span>
+          {' '}
+        </>
       );
     });
   };
 
+  const createModel = () => {
+    if (!modelName) {
+      alert("Please enter a model name.");
+      return;
+    }
+    const tags = Array.from(new Set(categories.map(cat => cat.name)));
+    // TODO: We need a better naming scheme, or add a place to enter the model name.
+    if (onCreateModel) {
+      // TODO: SOMEHOW GET USERNAME
+      onCreateModel(getUsername(), modelName);
+    }
+    trainTokenClassifier(modelName, generatedData, tags).then(() => {
+      if (!stayOnPage) {
+        router.push("/");
+      }
+    }).catch(e => {
+      alert(e);
+    });
+
+  }
+
   return (
-    <div className='p-5'>
-      <h3 className='mb-3 text-lg font-semibold'>App Name</h3>
-      <input
-        type="text"
-        className="form-input w-full px-3 py-2 border rounded-md"
-        placeholder="Model Name"
+    <div>
+      <span className="block text-lg font-semibold">App Name</span>
+      <Input
+        className="text-md"
         value={modelName}
         onChange={(e) => setModelName(e.target.value)}
+        placeholder="Enter app name"
+        style={{marginTop: "10px"}}
       />
-      <h3 className='mb-3 text-lg font-semibold'>Specify Tokens</h3>
-      <form onSubmit={handleSubmit}>
-        {categories.map((category, index) => (
-          <div key={index} className='flex flex-col md:flex-row md:items-center my-2'>
-            <div className="relative w-full md:w-1/3">
-              <input
-                type="text"
-                list={`category-options-${index}`}
-                className="form-input w-full px-3 py-2 border rounded-md"
-                placeholder="Category Name"
-                value={category.name}
-                onChange={(e) => handleCategoryChange(index, 'name', e.target.value)}
-              />
-              <datalist id={`category-options-${index}`}>
-                {predefinedChoices.map((choice, i) => (
-                  <option key={i} value={choice} />
-                ))}
-              </datalist>
-            </div>
-            <input
-              type="text"
-              className='form-input w-full md:w-1/3 md:ml-2 mt-2 md:mt-0 px-3 py-2 border rounded-md'
-              placeholder="Example"
-              value={category.example}
-              onChange={(e) => handleCategoryChange(index, 'example', e.target.value)}
-            />
-            <input
-              type="text"
-              className='form-input w-full md:w-1/3 md:ml-2 mt-2 md:mt-0 px-3 py-2 border rounded-md'
-              placeholder="What this category is about."
-              value={category.description}
-              onChange={(e) => handleCategoryChange(index, 'description', e.target.value)}
-            />
-            <button type="button" className='bg-red-500 text-white px-4 py-2 rounded-md md:ml-2 mt-2 md:mt-0' onClick={() => handleRemoveCategory(index)}>
-              Remove
-            </button>
-          </div>
-        ))}
-        <button type="button" className='bg-blue-500 text-white px-4 py-2 rounded-md mt-2 mr-2' onClick={handleAddCategory}>
-          Add Category
-        </button>
-        <button type="button" className='bg-green-500 text-white px-4 py-2 rounded-md mt-2' onClick={()=>{setShowReview(true)}}>Finish and Review</button>
-      </form>
+      {
+        generatedData.length === 0 && <>
+          <span className="block text-lg font-semibold" style={{marginTop: "20px"}}>Specify Tokens</span>
+          <form onSubmit={handleSubmit}>
+            <div style={{display: "flex", flexDirection: "column", marginTop: "10px"}}>
 
-      {categories.length > 0 && showReview && (
-        <div className='mt-5'>
-          <h3 className='mb-3 text-lg font-semibold'>Review Categories and Examples</h3>
-          <table className='min-w-full bg-white'>
-            <thead>
-              <tr>
-                <th className='py-2 px-4 border-b'>Category Name</th>
-                <th className='py-2 px-4 border-b'>Example</th>
-              </tr>
-            </thead>
-            <tbody>
               {categories.map((category, index) => (
-                <tr key={index}>
-                  <td className='py-2 px-4 border-b'>{category.name}</td>
-                  <td className='py-2 px-4 border-b'>{category.example}</td>
-                </tr>
+                <div key={index} style={{display: "flex", flexDirection: "row", gap: "10px", justifyContent: "space-between"}}>
+                  <div style={{width: "100%"}}>
+                    <Input
+                      list={`category-options-${index}`}
+                      style={{width: "100%"}}
+                      className="text-md"
+                      placeholder="Category Name"
+                      value={category.name}
+                      onChange={(e) => handleCategoryChange(index, 'name', e.target.value)}
+                    />
+                    <datalist id={`category-options-${index}`}>
+                      {predefinedChoices.map((choice, i) => (
+                        <option key={i} value={choice} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <Input
+                    style={{width: "100%"}}
+                    className="text-md"
+                    placeholder="Example"
+                    value={category.example}
+                    onChange={(e) => handleCategoryChange(index, 'example', e.target.value)}
+                  />
+                  <Input
+                    style={{width: "100%"}}
+                    className="text-md"
+                    placeholder="What this category is about."
+                    value={category.description}
+                    onChange={(e) => handleCategoryChange(index, 'description', e.target.value)}
+                  />
+                  <Button variant="destructive" onClick={() => handleRemoveCategory(index)}>
+                    Remove
+                  </Button>
+                </div>
               ))}
-            </tbody>
-          </table>
-
-          <button className='bg-blue-500 text-white px-4 py-2 rounded-md mt-2' onClick={generateData}>Generate more data</button>
-        </div>
-      )}
+              <Button style={{marginTop: "10px", width: "fit-content"}} onClick={handleAddCategory}>
+                Add Category
+              </Button>
+              {
+                categories.length > 0 &&
+                <Button variant={isDataGenerating ? "secondary" : "default"} style={{marginTop: "30px"}} onClick={generateData}>
+                  {isDataGenerating ? "Generating data..." : "Generate data"}
+                </Button>
+              }
+            </div>
+          </form>
+        </>
+      }
 
       {isDataGenerating && (
         <div className='flex justify-center mt-5'>
           <div className='animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500'></div>
         </div>
       )}
+
+      {
+        generatedData.length > 0 && (
+          <>
+            <h3 className='text-lg font-semibold' style={{marginTop: "20px"}}>Categories and Examples</h3>
+            <Table style={{marginTop: "10px"}}>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Example</TableHead>
+                  <TableHead>Description</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {categories.map((category, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium" align="left">{category.name}</TableCell>
+                    <TableCell className="font-medium" align="left">{category.example}</TableCell>
+                    <TableCell className="font-medium" align="left">{category.description}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </>
+        )
+      }
 
       {! isDataGenerating && generatedData.length > 0 && (
         <div className='mt-5'>
@@ -198,33 +251,13 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
             ))}
           </div>
 
-          <div className="flex justify-center">
-            <button
-              type="button"
-              className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-              onClick={() => {
-                if (!modelName) {
-                  alert("Please enter a model name.");
-                  return;
-                }
-                const tags = Array.from(new Set(categories.map(cat => cat.name)));
-                // TODO: We need a better naming scheme, or add a place to enter the model name.
-                if (onCreateModel) {
-                  // TODO: SOMEHOW GET USERNAME
-                  onCreateModel(getUsername(), modelName);
-                }
-                trainTokenClassifier(modelName, generatedData, tags).then(() => {
-                  if (!stayOnPage) {
-                    router.push("/");
-                  }
-                }).catch(e => {
-                  alert(e);
-                });
-
-              }}
-            >
+          <div style={{display: "flex", flexDirection: "row", justifyContent: "space-between", gap: "10px", marginTop: "20px"}}>
+            <Button variant="outline" style={{width: "100%"}} onClick={() => setGeneratedData([])}>
+              Redefine Tokens
+            </Button>
+            <Button style={{width: "100%"}} onClick={createModel}>
               Create
-            </button>
+            </Button>
           </div>
         </div>
       )}

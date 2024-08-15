@@ -2,22 +2,32 @@
 import React, { useState } from 'react';
 import NERQuestions from './ner-questions';
 import SCQQuestions from './sentence-classification-questions'
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { CardDescription } from '@/components/ui/card';
+import { Divider } from '@mui/material';
 
 const NLPQuestions = () => {
   const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState('');
+  const [loadingAnswer, setLoadingAnswer] = useState<boolean>(false);
+  const [answer, setAnswer] = useState('Token classification');
+  const [confirmedAnswer, setConfirmedAnswer] = useState<boolean>(true);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuestion(e.target.value);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
+  const submit = async () => {
     if (!question) {
       console.error('Question is not valid');
       return;
     }
+    
+    if (loadingAnswer) {
+      return;
+    }
+
+    setLoadingAnswer(true);
 
     try {
       const response = await fetch('/api/which-nlp-use-case', {
@@ -36,56 +46,63 @@ const NLPQuestions = () => {
       setAnswer(result.answer);
     } catch (error) {
       console.error('Error during fetch:', error);
+    } finally {
+      setLoadingAnswer(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-6">NLP Use Case Finder</h1>
-        <div className="p-4 max-w-lg mx-auto bg-white shadow-lg rounded-lg">
-          <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
-
-            <input
-              type="text"
-              className="w-full p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    <div style={{width: "100%"}}>
+      {
+        !confirmedAnswer && !answer && <>
+          <span className="block text-lg font-semibold">NLP task assistant</span>
+          <CardDescription>Say "I want to analyze my customers&apos; reviews"</CardDescription>
+          <CardDescription>or "I want to analyze the individual tokens within a report document"</CardDescription>
+          <div style={{display: "flex", flexDirection: "row", gap: "20px", justifyContent: "space-between", margin: "20px 0"}}>
+            <Input 
+              className="text-md"
               value={question}
               onChange={handleInputChange}
-              placeholder="Please describe your use case..."
+              placeholder="Describe your use case..."
+              onKeyDown={(e) => {
+                if (e.keyCode === 13 && e.shiftKey === false) {
+                  e.preventDefault();
+                  submit();
+                }
+              }}
             />
-
-            <button
-              className="w-full py-3 px-6 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300"
-              type="submit"
-            >
-              <i className="bi bi-send mr-2"></i>Submit
-            </button>
-          </form>
-          <div className="mt-4 text-sm text-gray-600">
-            <div>Example: I want to analyze my customers&apos; reviews.</div>
-            <div>Example: I want to analyze the individual tokens within a report document.</div>
           </div>
-          {answer && (
-            <div className="mt-6">
-              <div className="p-4 bg-gray-100 rounded-lg">{answer}</div>
-              <div className="flex justify-end mt-4">
-                <button
-                  className="py-2 px-4 border-2 border-blue-600 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition duration-300"
-                  onClick={() => console.log('Build action')}
-                >
-                  Sounds good. Let&apos;s start building it.
-                </button>
-              </div>
-            </div>
-          )}
+          <Button onClick={submit} variant={loadingAnswer ? "secondary" : "default"} style={{width: "100%"}}>{loadingAnswer ? "Understanding your use case..." : "Submit"}</Button>
+        </>
+      }
+      {
+        !confirmedAnswer && answer && <div style={{marginTop: "20px"}}>
+          <span className="block text-lg font-semibold" style={{marginBottom: "10px"}}>Our recommendation</span>
+          <CardDescription>{answer}</CardDescription>
+          <div style={{width: "100%", marginTop: "20px", display: "flex", flexDirection: "row", justifyContent: "space-between", gap: "10px"}}>
+            <Button
+              style={{width: "100%"}}
+              variant="outline"
+              onClick={() => setAnswer('')}>
+              Retry
+            </Button>
+            <Button
+              style={{width: "100%"}}
+              onClick={() => setConfirmedAnswer(true)}>
+              Continue
+            </Button>
+          </div>
         </div>
-      </div>
-
-      {answer.includes('Sentence classification') ? (
-              <SCQQuestions question = {question} answer = {answer}/>
-            ) : answer.includes('Token classification') ? (
-              <NERQuestions />
-            ) : null}
+      }
+      {
+        confirmedAnswer && answer && (
+          answer.includes('Sentence classification') ? (
+            <SCQQuestions question = {question} answer = {answer}/>
+          ) : answer.includes('Token classification') ? (
+            <NERQuestions />
+          ) : null
+        )
+      }
     </div>
   );
 };

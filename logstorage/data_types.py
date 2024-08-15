@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import uuid
 import typing
 from abc import abstractmethod, abstractproperty, abstractstaticmethod
 from dataclasses import dataclass
 
+from sqlalchemy import UUID
 import pandas as pd
 import re
 
@@ -26,10 +28,26 @@ class DataType:
         return self._name
 
 
-class TextClassificationSample(DataType):
+class DataSamples(DataType):
+    def __init__(self, unique_id=None):
+        self._uuid = unique_id if unique_id is not None else str(uuid.uuid4())
+
+    @property
+    def uuid(self):
+        return self._uuid
+
+    @abstractstaticmethod
+    def deserialize(name: str, repr: str, unique_id: str):
+        # can decode the data
+        pass
+
+
+class TextClassificationSample(DataSamples):
     datatype = "text_classification"
 
-    def __init__(self, name: str, text: str, label: str):
+    def __init__(self, name: str, text: str, label: str, unique_id: str = None):
+        super().__init__(unique_id=unique_id)
+
         self._text = text
         self._label = label
         self._name = name
@@ -38,17 +56,25 @@ class TextClassificationSample(DataType):
         return json.dumps({"text": self._text, "label": self._label})
 
     @staticmethod
-    def deserialize(name, repr) -> str:
+    def deserialize(name, repr, unique_id) -> str:
         data = json.loads(repr)
         return TextClassificationSample(
-            tokens=data["text"], label=data["label"], name=name
+            name=name, text=data["text"], label=data["label"], unique_id=unique_id
         )
 
 
-class TokenClassificationSample(DataType):
+class TokenClassificationSample(DataSamples):
     datatype = "token_classification"
 
-    def __init__(self, name: str, tokens: typing.List[str], tags: typing.List[str]):
+    def __init__(
+        self,
+        name: str,
+        tokens: typing.List[str],
+        tags: typing.List[str],
+        unique_id: str = None,
+    ):
+        super().__init__(unique_id=unique_id)
+
         self._tokens = tokens
         self._tags = tags
         self._name = name
@@ -57,15 +83,15 @@ class TokenClassificationSample(DataType):
         return json.dumps({"tokens": self._tokens, "tags": self._tags})
 
     @staticmethod
-    def deserialize(name, repr):
+    def deserialize(name, repr, unique_id):
         data = json.loads(repr)
         return TokenClassificationSample(
-            tokens=data["tokens"], tags=data["tags"], name=name
+            tokens=data["tokens"], tags=data["tags"], name=name, unique_id=unique_id
         )
 
 
-class XMLTokenClassificationSample(DataType):
-    datatype = "xml_tokenclassification_sample"
+class XMLTokenClassificationSample(DataSamples):
+    datatype = "xml_tokenclassification"
 
     @staticmethod
     def clean_rawlog(rawlog: str):
@@ -89,7 +115,9 @@ class XMLTokenClassificationSample(DataType):
 
         return fields
 
-    def __init__(self, name: str, rawlog: str, fields: str):
+    def __init__(self, name: str, rawlog: str, fields: str, unique_id: str = None):
+        super().__init__(unique_id=unique_id)
+
         self._name = name
         self.rawlog = XMLTokenClassificationSample.clean_rawlog(rawlog)
         self.fields = XMLTokenClassificationSample.clean_fields(fields)
@@ -98,25 +126,45 @@ class XMLTokenClassificationSample(DataType):
         return json.dumps({"rawlog": self.rawlog, "fields": json.dumps(self.fields)})
 
     @staticmethod
-    def deserialize(name, repr):
+    def deserialize(name, repr, unique_id):
         data = json.loads(repr)
 
         return XMLTokenClassificationSample(
-            name=name, rawlog=data["rawlog"], fields=data["fields"]
+            name=name,
+            rawlog=data["rawlog"],
+            fields=json.loads(data["fields"]),
+            unique_id=unique_id,
         )
 
 
-class XMLTokenClassificationFeedBack(DataType):
-    datatype = "xml_tokenclassification_userfeedback"
+class UserFeedBack(DataType):
+    def __init__(self, sample_uuid):
+        self._sample_uuid = sample_uuid
+
+    @property
+    def sample_uuid(self):
+        return self._sample_uuid
+
+    @abstractstaticmethod
+    def deserialize(sample_uuid: str, name: str, repr: str):
+        # can decode the data
+        pass
+
+
+class XMLTokenClassificationFeedBack(UserFeedBack):
+    datatype = "xml_tokenclassification"
 
     def __init__(
         self,
+        sample_uuid: str,
         name: str,
         xpath: str,
         attribute: str,
         delimiter: str,
         index_to_label: typing.Dict[int, str],
     ):
+        super().__init__(sample_uuid)
+
         self._name = name
         self._xpath = xpath
         self._attribute = attribute
@@ -134,7 +182,7 @@ class XMLTokenClassificationFeedBack(DataType):
         )
 
     @staticmethod
-    def deserialize(name, repr) -> str:
+    def deserialize(sample_uuid, name, repr) -> str:
         data = json.loads(repr)
         return XMLTokenClassificationFeedBack(
             name=name,
@@ -142,17 +190,35 @@ class XMLTokenClassificationFeedBack(DataType):
             attribute=data["attribute"],
             delimiter=data["delimiter"],
             index_to_label=data["index_to_label"],
+            sample_uuid=sample_uuid,
         )
 
 
-def deserialize_datatype(type: str, name: str, serialized_data: str):
+def deserialize_sample_datatype(
+    type: str, unique_id: str, name: str, serialized_data: str
+):
     if type == "text_classification":
-        return TextClassificationSample.deserialize(name, serialized_data)
+        return TextClassificationSample.deserialize(
+            name, serialized_data, unique_id=unique_id
+        )
 
     if type == "token_classification":
-        return TokenClassificationSample.deserialize(name, serialized_data)
+        return TokenClassificationSample.deserialize(
+            name, serialized_data, unique_id=unique_id
+        )
 
-    if type == "xml_tokenclassification_userfeedback":
-        return XMLTokenClassificationFeedBack.deserialize(name, serialized_data)
+    if type == "xml_tokenclassification":
+        return XMLTokenClassificationSample.deserialize(
+            name, serialized_data, unique_id=unique_id
+        )
 
     raise Exception(f"Cannot deserialize unknown datatype {type}")
+
+
+def deserialize_userfeedback(
+    type: str, sample_uuid: str, name: str, serialized_data: str
+):
+    if type == "xml_tokenclassification":
+        return XMLTokenClassificationFeedBack.deserialize(
+            sample_uuid=sample_uuid, name=name, repr=serialized_data
+        )

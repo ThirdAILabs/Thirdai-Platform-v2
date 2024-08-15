@@ -22,14 +22,14 @@ export const mockSamples: Record<string, { upvotes: Upvote[], associations: Asso
         reformulations: agnewsReformulations,
     },
     "good": {
-        upvotes: agnewsUpvotes, 
-        associations: agnewsAssociations, 
-        reformulations: agnewsReformulations,
+        upvotes: bookUpvotes, 
+        associations: bookAssociations, 
+        reformulations: goodBookReformulations,
     },
     "bad": {
-        upvotes: agnewsUpvotes, 
-        associations: agnewsAssociations, 
-        reformulations: agnewsReformulations,
+        upvotes: bookUpvotes, 
+        associations: bookAssociations, 
+        reformulations: badBookReformulations,
     },
 };
 

@@ -17,6 +17,7 @@ import {
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { chartData } from './chart_data';
+import { BAD, GOOD } from './good_bad';
 
 export default function AnalyticsPage() {
   const [isClient, setIsClient] = useState(false);
@@ -32,7 +33,9 @@ export default function AnalyticsPage() {
     return null;  // Return null on the first render to avoid hydration mismatch
   }
 
-  const { usageDuration, usageFrequency, reformulatedQueries } = (chartData[params.get("id") as string] || chartData["default"]);
+  const key = params.get("id") === GOOD ? "good" : params.get("id") === BAD ? "bad" : "default"
+
+  const { usageDuration, usageFrequency, reformulatedQueries } = chartData[key];
 
   return (
     <>
@@ -51,7 +54,7 @@ export default function AnalyticsPage() {
           </div>
         </CardContent>
       </Card>
-      <RecentSamples id={params.get("id") as string}/>
+      <RecentSamples id={key}/>
       <UpdateButton />
     </>
   );

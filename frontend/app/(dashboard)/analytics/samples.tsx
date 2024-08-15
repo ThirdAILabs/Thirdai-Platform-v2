@@ -83,8 +83,8 @@ function Reformulation({
 }
 
 export default function RecentSamples({id}: {id: string}) {
-  const samples = mockSamples[id] || mockSamples['default'];
-  const params = rollingSampleParameters[id] || rollingSampleParameters['default'];
+  const samples = mockSamples[id];
+  const params = rollingSampleParameters[id];
 
   const recentUpvotes = useRollingSamples({
     samples: samples.upvotes,

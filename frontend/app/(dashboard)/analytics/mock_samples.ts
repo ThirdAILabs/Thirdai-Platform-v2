@@ -492,11 +492,21 @@ export const reformulations: Reformulation[] = [
 ]
 
 export const mockSamples: Record<string, { upvotes: Upvote[], associations: Association[], reformulations: Reformulation[] }> = {
-    "default": { 
+    "default": {
         upvotes, 
         associations, 
         reformulations,
-    } 
+    },
+    "good": {
+        upvotes, 
+        associations, 
+        reformulations,
+    },
+    "bad": {
+        upvotes, 
+        associations, 
+        reformulations,
+    },
 };
 
 interface Hyperparams {
@@ -507,6 +517,46 @@ interface Hyperparams {
 }    
 
 export const rollingSampleParameters: Record<string, {upvotes: Hyperparams, associations: Hyperparams, reformulations: Hyperparams}> = {
+    "good": {
+        upvotes: {
+            numSamples: 7,
+            maxNewSamples: 3,
+            probabilityNewSamples: 0.2,
+            intervalSeconds: 2
+        },
+        associations: {
+            numSamples: 7,
+            maxNewSamples: 3,
+            probabilityNewSamples: 0.1,
+            intervalSeconds: 3
+        },
+        reformulations: {
+            numSamples: 4,
+            maxNewSamples: 2,
+            probabilityNewSamples: 0.4,
+            intervalSeconds: 2
+        },
+    },
+    "bad": {
+        upvotes: {
+            numSamples: 7,
+            maxNewSamples: 3,
+            probabilityNewSamples: 0.2,
+            intervalSeconds: 2
+        },
+        associations: {
+            numSamples: 7,
+            maxNewSamples: 3,
+            probabilityNewSamples: 0.1,
+            intervalSeconds: 3
+        },
+        reformulations: {
+            numSamples: 4,
+            maxNewSamples: 2,
+            probabilityNewSamples: 0.4,
+            intervalSeconds: 2
+        },
+    },
     "default": {
         upvotes: {
             numSamples: 7,

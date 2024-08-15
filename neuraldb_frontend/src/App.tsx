@@ -173,25 +173,6 @@ function App() {
     }, []);
 
     useEffect(() => {
-
-        const updateSettings = async () => {
-            if (ifGuardRailOn && guardRailEndpoint && modelService) {
-                try {
-                    console.log('passing guardRailEndpoint', guardRailEndpoint)
-                    console.log('passing ifGuardRailOn', ifGuardRailOn)
-
-                    await modelService.updatePiiSettings(guardRailEndpoint, ifGuardRailOn);
-                    console.log('PII settings updated successfully');
-                } catch (error) {
-                    console.error('Error updating PII settings:', error);
-                }
-            }
-        };
-
-        updateSettings()
-    }, [modelService, guardRailEndpoint, ifGuardRailOn]);
-
-    useEffect(() => {
         if (modelService) {
             setOpacity("100%");
         }

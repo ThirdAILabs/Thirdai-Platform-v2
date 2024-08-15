@@ -31,6 +31,7 @@ import { createDeploymentUrl, createTokenModelUrl } from "./components/Deploymen
 import PillButton from "./components/buttons/PillButton";
 import { useParams, useSearchParams } from "next/navigation";
 import { CardTitle } from "@/components/ui/card";
+import { getWorkflowDetails } from '@/lib/backend';
 
 const Frame = styled.section<{ $opacity: string }>`
     position: absolute;
@@ -144,29 +145,42 @@ function App() {
         });
 
     const searchParams = useSearchParams();
-    const params = useParams();
     const [ifGenerationOn, setIfGenerationOn] = useState(false);
     const [ifGuardRailOn, setIfGuardRailOn] = useState(false);
     const [guardRailEndpoint, setGuardRailEndpoint] = useState('');
 
     useEffect(() => {
-        const generationOn = searchParams.get('ifGenerationOn') === 'true';
-        const guardRailOn = searchParams.get('ifGuardRailOn') === 'true';
-        const guardRailEp = searchParams.get('guardRailEndpoint');
+        const workflowId = searchParams.get('workflowId');
+        console.log('workflowId', workflowId)
 
-        console.log('ifGenerationOn', ifGenerationOn)
-        console.log('ifGuardRailOn', ifGuardRailOn)
-        console.log('guardRailEndpoint', guardRailEndpoint)
+        const fetchWorkflowDetails = async () => {
+            try {
+                const details = await getWorkflowDetails(workflowId as string);
+                console.log('Models:', details.data.models);
 
-        setIfGenerationOn(generationOn);
-        setIfGuardRailOn(guardRailOn);
-        setGuardRailEndpoint(guardRailEp || '');
+                // Filter and find the model with component "search"
+                const searchModel = details.data.models.find(model => model.component === 'search');
+                const serviceUrl = searchModel ? createDeploymentUrl(searchModel.model_id) : createDeploymentUrl('');
 
-        const serviceUrl = createDeploymentUrl(params.deploymentId as string);
-        const tokenModelUrl = createTokenModelUrl(guardRailEp as string);
-        const newModelService = new UserModelService(serviceUrl, tokenModelUrl, uuidv4());
-        setModelService(newModelService);
-        newModelService.sources().then(setSources);
+                // Filter and find the model with component "nlp"
+                const nlpModel = details.data.models.find(model => model.component === 'nlp');
+                const tokenModelUrl = nlpModel ? createTokenModelUrl(nlpModel.model_id) : createTokenModelUrl('');
+
+                console.log('serviceUrl:', serviceUrl);
+                console.log('tokenModelUrl:', tokenModelUrl);
+
+                // Initialize the UserModelService with the generated URLs
+                const newModelService = new UserModelService(serviceUrl, tokenModelUrl, uuidv4());
+                setModelService(newModelService);
+                newModelService.sources().then(setSources);
+            } catch (error) {
+                console.error('Failed to fetch workflow details:', error);
+            }
+        };
+    
+        if (workflowId) {
+            fetchWorkflowDetails();
+        }
     }, []);
 
     useEffect(() => {

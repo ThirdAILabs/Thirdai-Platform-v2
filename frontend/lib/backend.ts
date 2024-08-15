@@ -388,6 +388,61 @@ export function start_workflow(workflowId: string): Promise<StartWorkflowRespons
   });
 }
 
+interface WorkflowModel {
+  access_level: string;
+  component: string;
+  deploy_status: string;
+  domain: string;
+  latency: string;
+  model_id: string;
+  model_name: string;
+  num_params: string;
+  publish_date: string;
+  size: string;
+  size_in_memory: string;
+  sub_type: string;
+  team_id: string | null;
+  thirdai_version: string;
+  training_time: string;
+  type: string;
+  user_email: string;
+  username: string;
+}
+
+interface WorkflowDetailsResponse {
+  status_code: number;
+  message: string;
+  data: {
+    id: string;
+    name: string;
+    type: string;
+    type_id: string;
+    status: string;
+    models: WorkflowModel[];
+  };
+}
+
+
+export async function getWorkflowDetails(workflowId: string): Promise<WorkflowDetailsResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ workflow_id: workflowId });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get<WorkflowDetailsResponse>(`${thirdaiPlatformBaseUrl}/api/workflow/details?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        console.error('Error fetching workflow details:', err);
+        reject(new Error('Failed to fetch workflow details'));
+      });
+  });
+}
+
+
 
 // Define the interface for the expected response
 interface RagEntryResponse {

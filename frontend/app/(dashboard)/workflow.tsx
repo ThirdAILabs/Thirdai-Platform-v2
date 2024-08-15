@@ -154,10 +154,7 @@ export function WorkFlow({ workflow, pending }: { workflow: Workflow, pending?: 
   function goToEndpoint() {
     switch (workflow.type) {
       case "semantic_search": {
-        let ifGenerationOn = false; // false if semantic search, true if RAG
-        let ifGuardRailOn = false; // enable based on actual config
-        let guardRailEndpoint = '...'; // change based on actual config
-        const newUrl = `/semantic-search/${workflow.id}?ifGenerationOn=${ifGenerationOn}&ifGuardRailOn=${ifGuardRailOn}&guardRailEndpoint=${guardRailEndpoint}`;
+        const newUrl = `/semantic-search/${workflow.id}?workflowId=${workflow.id}`;
         window.open(newUrl, '_blank');
         break;
       }

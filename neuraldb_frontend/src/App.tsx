@@ -26,7 +26,7 @@ import { Chunk } from "./components/pdf_viewer/interfaces";
 import UpvoteModal from "./components/pdf_viewer/UpvoteModal";
 import Chat from "./components/chat/Chat";
 import ChatToggle from "./components/chat/ChatToggle";
-import { createDeploymentUrl } from "./components/DeploymentURL";
+import { createDeploymentUrl, createTokenModelUrl } from "./components/DeploymentURL";
 import PillButton from "./components/buttons/PillButton";
 
 const Frame = styled.section<{ $opacity: string }>`
@@ -165,30 +165,12 @@ function App() {
 
         if (userModelUrl && accessToken) {
             const serviceUrl = createDeploymentUrl(userModelUrl);
-            const newModelService = new UserModelService(serviceUrl, uuidv4(), accessToken);
+            const tokenModelUrl = createTokenModelUrl(guardRailEp);
+            const newModelService = new UserModelService(serviceUrl, tokenModelUrl, uuidv4(), accessToken);
             setModelService(newModelService);
             newModelService.sources().then(setSources);
         }
     }, []);
-
-    useEffect(() => {
-
-        const updateSettings = async () => {
-            if (ifGuardRailOn && guardRailEndpoint && modelService) {
-                try {
-                    console.log('passing guardRailEndpoint', guardRailEndpoint)
-                    console.log('passing ifGuardRailOn', ifGuardRailOn)
-
-                    await modelService.updatePiiSettings(guardRailEndpoint, ifGuardRailOn);
-                    console.log('PII settings updated successfully');
-                } catch (error) {
-                    console.error('Error updating PII settings:', error);
-                }
-            }
-        };
-
-        updateSettings()
-    }, [modelService, guardRailEndpoint, ifGuardRailOn]);
 
     useEffect(() => {
         if (modelService) {

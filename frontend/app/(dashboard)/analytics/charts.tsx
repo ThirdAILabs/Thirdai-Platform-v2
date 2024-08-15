@@ -28,18 +28,14 @@ export function UsageDurationChart({ data }: ChartProps) {
       legend: {
         position: 'top' as const,
       },
-      title: {
-        display: true,
-        text: 'Daily/Monthly Usage Duration',
-      },
     },
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>User Usage Duration</CardTitle>
-        <CardDescription>How long users engage with the system</CardDescription>
+        <CardTitle>User Clicks</CardTitle>
+        <CardDescription>The positions of results that users click</CardDescription>
       </CardHeader>
       <CardContent>
         <Line options={options} data={data} />
@@ -54,10 +50,6 @@ export function UsageFrequencyChart({ data }: ChartProps) {
     plugins: {
       legend: {
         position: 'top' as const,
-      },
-      title: {
-        display: true,
-        text: 'Daily/Monthly Usage Frequency',
       },
     },
   };
@@ -82,11 +74,13 @@ export function ReformulatedQueriesChart({ data }: ChartProps) {
       legend: {
         position: 'top' as const,
       },
-      title: {
-        display: true,
-        text: 'Reformulated Queries Over Time',
-      },
     },
+    scales: {
+      y: {
+          suggestedMin: 1,
+          suggestedMax: 8,
+      }
+    }
   };
 
   return (

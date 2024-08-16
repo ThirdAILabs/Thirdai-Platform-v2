@@ -22,7 +22,6 @@ const NLPQuestions = () => {
       console.error('Question is not valid');
       return;
     }
-    
     if (loadingAnswer) {
       return;
     }
@@ -52,14 +51,14 @@ const NLPQuestions = () => {
   };
 
   return (
-    <div style={{width: "100%"}}>
+    <div style={{ width: "100%" }}>
       {
         !confirmedAnswer && !answer && <>
           <span className="block text-lg font-semibold">NLP task assistant</span>
-          <CardDescription>Say "I want to analyze my customers&apos; reviews"</CardDescription>
-          <CardDescription>or "I want to analyze the individual tokens within a report document"</CardDescription>
-          <div style={{display: "flex", flexDirection: "row", gap: "20px", justifyContent: "space-between", margin: "20px 0"}}>
-            <Input 
+          <CardDescription>Say &quot;I want to analyze my customers&apos; reviews&quot;</CardDescription>
+          <CardDescription>or &quot;I want to analyze the individual tokens within a report document&quot;</CardDescription>
+          <div style={{ display: "flex", flexDirection: "row", gap: "20px", justifyContent: "space-between", margin: "20px 0" }}>
+            <Input
               className="text-md"
               value={question}
               onChange={handleInputChange}
@@ -72,22 +71,22 @@ const NLPQuestions = () => {
               }}
             />
           </div>
-          <Button onClick={submit} variant={loadingAnswer ? "secondary" : "default"} style={{width: "100%"}}>{loadingAnswer ? "Understanding your use case..." : "Submit"}</Button>
+          <Button onClick={submit} variant={loadingAnswer ? "secondary" : "default"} style={{ width: "100%" }}>{loadingAnswer ? "Understanding your use case..." : "Submit"}</Button>
         </>
       }
       {
-        !confirmedAnswer && answer && <div style={{marginTop: "20px"}}>
-          <span className="block text-lg font-semibold" style={{marginBottom: "10px"}}>Our recommendation</span>
+        !confirmedAnswer && answer && <div style={{ marginTop: "20px" }}>
+          <span className="block text-lg font-semibold" style={{ marginBottom: "10px" }}>Our recommendation</span>
           <CardDescription>{answer}</CardDescription>
-          <div style={{width: "100%", marginTop: "20px", display: "flex", flexDirection: "row", justifyContent: "space-between", gap: "10px"}}>
+          <div style={{ width: "100%", marginTop: "20px", display: "flex", flexDirection: "row", justifyContent: "space-between", gap: "10px" }}>
             <Button
-              style={{width: "100%"}}
+              style={{ width: "100%" }}
               variant="outline"
               onClick={() => setAnswer('')}>
               Retry
             </Button>
             <Button
-              style={{width: "100%"}}
+              style={{ width: "100%" }}
               onClick={() => setConfirmedAnswer(true)}>
               Continue
             </Button>
@@ -97,7 +96,7 @@ const NLPQuestions = () => {
       {
         confirmedAnswer && answer && (
           answer.includes('Sentence classification') ? (
-            <SCQQuestions question = {question} answer = {answer}/>
+            <SCQQuestions question={question} answer={answer} />
           ) : answer.includes('Token classification') ? (
             <NERQuestions />
           ) : null

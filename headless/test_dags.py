@@ -17,9 +17,9 @@ def additional_variables():
 
 @pytest.fixture(scope="session")
 def local_test_dir():
-    local_test_dir = os.getenv("LOCAL_TEST_DIR")
+    local_test_dir = os.getenv("SHARE_DIR")
     if not local_test_dir:
-        pytest.fail("Error: LOCAL_TEST_DIR environment variable is not set.")
+        pytest.fail("Error: SHARE_DIR environment variable is not set.")
     return local_test_dir
 
 

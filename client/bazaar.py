@@ -8,7 +8,7 @@ from urllib.parse import urljoin
 
 from pydantic import BaseModel, ValidationError
 
-from client.clients import Login, Model, BaseClient, NeuralDBClient, UDTClient
+from client.clients import BaseClient, Login, Model, NeuralDBClient, UDTClient
 
 from .utils import (
     auth_header,

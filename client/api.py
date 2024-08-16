@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
-from .base import Bazaar, auth_header
+from client.base import Bazaar, auth_header
 from .utils import (
     check_deployment_decorator,
     construct_deployment_url,
@@ -274,40 +274,6 @@ class NeuralDBClient:
         return json.loads(response.content)["data"]
 
     @check_deployment_decorator
-    def ainsert(self, documents: list[dict[str, Any]]):
-        """
-        Inserts documents into the ndb model asynchronously.
-
-        Args: Look at insert() for args.
-
-        Returns:
-            data (dict[str, str]): A dict containing the task id for the insertion
-
-        """
-
-        if not documents:
-            raise ValueError("Documents cannot be empty.")
-
-        files = []
-        for doc in documents:
-            if "path" in doc and ("location" not in doc or doc["location"] == "local"):
-                if not os.path.exists(doc["path"]):
-                    raise ValueError(
-                        f"Path {doc['path']} was provided but doesn't exist on the machine."
-                    )
-                files.append(("files", open(doc["path"], "rb")))
-
-        files.append(("documents", (None, json.dumps(documents), "application/json")))
-
-        response = http_post_with_error(
-            urljoin(self.base_url, "ainsert"),
-            files=files,
-            headers=auth_header(self.bazaar._access_token),
-        )
-
-        return json.loads(response.content)["data"]
-
-    @check_deployment_decorator
     def task_status(self, task_id: str):
         """
         Gets the task for the given task_id
@@ -391,55 +357,6 @@ class NeuralDBClient:
         )
 
         print("Successfully upvoted the specified search result.")
-
-    @check_deployment_decorator
-    def downvote(self, text_id_pairs: List[Dict[str, Union[str, int]]]):
-        """
-        Downvote response with 'reference_id' corresponding to 'query_text' in the ndb model.
-
-        Args:
-            text_id_pairs: (List[Dict[str, Union[str, int]]]): List of dictionaries where each dictionary has 'query_text' and 'reference_id' keys.
-        """
-        response = http_post_with_error(
-            urljoin(self.base_url, "downvote"),
-            json={"text_id_pairs": text_id_pairs},
-            headers=auth_header(self.bazaar._access_token),
-        )
-
-        print("Successfully downvoted the specified search result.")
-
-    @check_deployment_decorator
-    def chat(self, user_input: str, session_id: str) -> Dict[str, str]:
-        """
-        Returns a reply given the user_input and the chat history associated with session_id
-
-        Args:
-            user_input (str): The user input for the chatbot to respond to
-            session_id (str): The session id corresponding to a specific chat session
-        """
-        response = http_post_with_error(
-            urljoin(self.base_url, "chat"),
-            json={"user_input": user_input, "session_id": session_id},
-            headers=auth_header(self.bazaar._access_token),
-        )
-
-        return response.json()["data"]
-
-    @check_deployment_decorator
-    def get_chat_history(self, session_id: str) -> Dict[List[Dict[str, str]]]:
-        """
-        Returns chat history associated with session_id
-
-        Args:
-            session_id (str): The session id corresponding to a specific chat session
-        """
-        response = http_post_with_error(
-            urljoin(self.base_url, "get-chat-hisory"),
-            json={"session_id": session_id},
-            headers=auth_header(self.bazaar._access_token),
-        )
-
-        return response.json()["data"]
 
     @check_deployment_decorator
     def sources(self) -> List[Dict[str, str]]:
@@ -616,47 +533,6 @@ class ModelBazaar(Bazaar):
         self.login(email=email, password=password)
         self._access_token = self._login_instance.access_token
         self._username = self._login_instance.username
-
-    def push_model(
-        self, model_name: str, local_path: str, access_level: str = "private"
-    ):
-        """
-        Pushes a model to the Model Bazaar.
-
-        Args:
-            model_name (str): The name of the model.
-            local_path (str): The local path of the model.
-            access_level (str): The access level for the model (default is "private").
-        """
-        self.push(
-            name=model_name,
-            model_path=local_path,
-            trained_on="Own Documents",
-            access_level=access_level,
-            is_indexed=True,
-            description="",
-        )
-
-    def pull_model(self, model_identifier: str):
-        """
-        Pulls a model from the Model Bazaar and returns a NeuralDBClient instance.
-
-        Args:
-            model_identifier (str): The identifier of the model.
-
-        Returns:
-            NeuralDBClient: A NeuralDBClient instance.
-        """
-        return self.get_neuraldb(model_identifier=model_identifier)
-
-    def list_models(self):
-        """
-        Lists available models in the Model Bazaar.
-
-        Returns:
-            List[dict]: A list of dictionaries containing information about available models.
-        """
-        return self.fetch()
 
     def train(
         self,
@@ -880,86 +756,6 @@ class ModelBazaar(Bazaar):
         self.await_train(model)
         return model
 
-    def test(
-        self,
-        model_identifier: str,
-        test_doc: str,
-        doc_type: str = "local",
-        test_extra_options: dict = {},
-        is_async: bool = False,
-    ):
-        """
-        Initiates testing for a model and returns the test_id (unique identifier for this test)
-
-        Args:
-            model_identifier (str): The identifier of the model.
-            test_doc (str): A path to a test file for evaluating the trained NeuralDB.
-            doc_type (str): Specifies document location type : "local"(default), "nfs" or "s3".
-            test_extra_options: (Optional[dict])
-            is_async (bool): Whether testing should be asynchronous (default is False).
-
-        Returns:
-            str: The test_id which is unique for given testing.
-        """
-        url = urljoin(self._base_url, f"test/test")
-
-        files = [
-            (
-                ("file", open(test_doc, "rb"))
-                if doc_type == "local"
-                else ("file", (test_doc, "don't care"))
-            )
-        ]
-        if test_extra_options:
-            files.append(
-                (
-                    "extra_options_form",
-                    (None, json.dumps(test_extra_options), "application/json"),
-                )
-            )
-
-        response = http_post_with_error(
-            url,
-            params={
-                "doc_type": doc_type,
-                "model_identifier": model_identifier,
-            },
-            files=files,
-            headers=auth_header(self._access_token),
-        )
-        print(response.content)
-
-        response_content = json.loads(response.content)
-        if response_content["status"] != "success":
-            raise Exception(response_content["message"])
-
-        if is_async:
-            return response_content["data"]["data_id"]
-
-        self.await_test(model_identifier, response_content["data"]["data_id"])
-        return response_content["data"]["data_id"]
-
-    def test_status(self, test_id: str):
-        """
-        Checks for the status of the model testing
-
-        Args:
-            test_id (str): The unique id with which we can recognize the test,
-            the user will get this id in the response when they trigger the test.
-        """
-
-        url = urljoin(self._base_url, f"test/test-status")
-
-        response = http_get_with_error(
-            url,
-            params={"test_id": test_id},
-            headers=auth_header(self._access_token),
-        )
-
-        response_data = json.loads(response.content)["data"]
-
-        return response_data
-
     def await_test(self, model_identifier: str, test_id: str):
         """
         Waits for the testing of the model to complete.
@@ -1132,95 +928,83 @@ class ModelBazaar(Bazaar):
 
         print("Deployment is shutting down.")
 
-    def list_deployments(self):
-        """
-        Lists the deployments in the Model Bazaar.
 
-        Returns:
-            List[dict]: A list of dictionaries containing information about deployments.
-        """
-        url = urljoin(self._base_url, f"jobs/list-deployments")
-        response = http_get_with_error(
-            url,
-            headers=auth_header(self._access_token),
-        )
+class WorkflowClient:
+    def __init__(self, bazaar: ModelBazaar):
+        self.bazaar = bazaar
 
-        response_data = json.loads(response.content)["data"]
-        deployments = []
-        for deployment in response_data:
-            model_identifier = create_model_identifier(
-                model_name=deployment["model_name"],
-                author_username=deployment["model_username"],
-            )
-            deployment_info = {
-                "model_identifier": model_identifier,
-                "status": deployment["deploy_status"],
-            }
-            deployments.append(deployment_info)
-
-        return deployments
-
-    def connect(self, model_identifier: str):
-        """
-        Connects to a deployed model and returns a NeuralDBClient instance.
-
-        Args:
-            model_identifier (str): The identifier of the deployment.
-
-        Returns:
-            NeuralDBClient: A NeuralDBClient instance.
-        """
-        url = urljoin(self._base_url, f"jobs/deploy-status")
-
-        response = http_get_with_error(
-            url,
-            params={"model_identifier": model_identifier},
-            headers=auth_header(self._access_token),
-        )
-
-        response_data = json.loads(response.content)["data"]
-
-        if response_data["status"] == "complete":
-            print("Connection obtained...")
-            return NeuralDBClient(
-                model_identifier=model_identifier,
-                model_id=response_data["model_id"],
-                bazaar=self,
-            )
-
-        raise Exception("The model isn't deployed...")
-
-    def update_model(self, model_name: str, base_model_identifier: str):
-        """
-        Creates a new model with give name by updating the existing model with RLHF Logs.
-
-        Args:
-            model_name (str): Name for the new model.
-            base_model_identifier (str): The identifier of the base model.
-
-        Returns:
-            Model: A Model instance.
-        """
-        url = urljoin(self._base_url, f"bazaar/rlhf-update-model")
+    def create_workflow(self, name: str, type: str):
+        url = urljoin(self.bazaar._base_url, "workflow/create")
         response = http_post_with_error(
             url,
             params={
-                "model_identifier": base_model_identifier,
-                "model_name": model_name,
+                "name": name,
+                "type_name": type,
             },
-            headers=auth_header(self._access_token),
+            headers=auth_header(self.bazaar._access_token),
         )
 
         response_content = json.loads(response.content)
+        return response_content["data"]["workflow_id"]
 
-        if response_content["status"] != "success":
-            raise Exception(response_content["message"])
+    def add_models(self, workflow_id: str, model_ids: List[str], components: List[str]):
+        url = urljoin(self.bazaar._base_url, "workflow/add-models")
+        response = http_post_with_error(
+            url,
+            json={
+                "workflow_id": workflow_id,
+                "model_ids": model_ids,
+                "components": components,
+            },
+            headers=auth_header(self.bazaar._access_token),
+        )
+        response_content = json.loads(response.content)
+        return response_content["data"]["models"]
 
-        model = Model(
-            model_identifier=create_model_identifier(
-                model_name=model_name, author_username=self._username
-            ),
-            model_id=response_content["data"]["model_id"],
+    def delete_models(
+        self, workflow_id: str, model_ids: List[str], components: List[str]
+    ):
+        url = urljoin(self.bazaar._base_url, "workflow/delete-models")
+        response = http_post_with_error(
+            url,
+            params={
+                "workflow_id": workflow_id,
+                "model_ids": model_ids,
+                "components": components,
+            },
+            headers=auth_header(self.bazaar._access_token),
+        )
+        response_content = json.loads(response.content)
+        return response_content["data"]["models"]
+
+    def validate_workflow(self, workflow_id: str):
+        url = urljoin(self.bazaar._base_url, "workflow/validate")
+        response = http_post_with_error(
+            url,
+            params={"workflow_id": workflow_id},
+            headers=auth_header(self.bazaar._access_token),
         )
 
-        return model
+    def stop_workflow(self, workflow_id: str):
+        url = urljoin(self.bazaar._base_url, "workflow/stop")
+        response = http_post_with_error(
+            url,
+            params={"workflow_id": workflow_id},
+            headers=auth_header(self.bazaar._access_token),
+        )
+
+    def start_workflow(self, workflow_id: str):
+        url = urljoin(self.bazaar._base_url, "workflow/start")
+        response = http_post_with_error(
+            url,
+            params={"workflow_id": workflow_id},
+            headers=auth_header(self.bazaar._access_token),
+        )
+
+    def delete_workflow(self, workflow_id: str):
+        url = urljoin(self.bazaar._base_url, "workflow/delete")
+        response = http_post_with_error(
+            url,
+            params={"workflow_id": workflow_id},
+            headers=auth_header(self.bazaar._access_token),
+        )

@@ -1,11 +1,9 @@
-import Link from 'next/link';
 import React, { useState } from 'react';
-import { SelectModel } from '@/lib/db';
 import { getUsername, train_ndb, create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { CardDescription } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
 
 interface SemanticSearchQuestionsProps {
   onCreateModel?: (userName: string, modelName: string) => void;

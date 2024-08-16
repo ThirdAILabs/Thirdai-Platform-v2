@@ -97,7 +97,7 @@ interface UserModelDescriptionProps {
 
 function UserModelDescription(props: UserModelDescriptionProps) {
     return (
-        <Description className="bg-muted">
+        <Description>
             Generating answers from your documents.
             <Spacer $width="7px" />
             <DropdownMenu>

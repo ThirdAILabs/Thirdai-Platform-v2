@@ -1,6 +1,7 @@
 // /lib/backend.js
 
 import axios from 'axios';
+import { access } from 'fs';
 import _ from 'lodash';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -478,7 +479,7 @@ export async function getWorkflowDetails(workflowId: string): Promise<WorkflowDe
 }
 
 
-export function userEmailLogin(email: string, password: string): Promise<any> {
+export function userEmailLogin(email: string, password: string, setAccessToken: (token: string) => void): Promise<any> {
     return new Promise((resolve, reject) => {
       axios
         .get(`${thirdaiPlatformBaseUrl}/api/user/email-login`, {
@@ -492,6 +493,7 @@ export function userEmailLogin(email: string, password: string): Promise<any> {
           if (accessToken) {
             // Store accessToken into local storage, replacing any existing one.
             localStorage.setItem('accessToken', accessToken);
+            setAccessToken(accessToken);
           }
 
           const username = res.data.data.user.username;

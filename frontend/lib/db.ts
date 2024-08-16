@@ -2,6 +2,7 @@ import 'server-only';
 
 export type SelectModel = {
   id: string;
+  model_id: string;
   model_name: string;
   train_status: string; // Assuming "status" is a custom enum or type, adjust if needed
   type: string;

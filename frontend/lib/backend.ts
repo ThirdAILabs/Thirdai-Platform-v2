@@ -449,56 +449,7 @@ export async function getWorkflowDetails(workflowId: string): Promise<WorkflowDe
 }
 
 
-
-// Define the interface for the expected response
-interface RagEntryResponse {
-  // Define the structure of your response here
-  success: boolean;
-  message: string;
-  data?: any;
-}
-
-// Define the interface for the input values
-export interface RagEntryValues {
-  model_name: string;
-  ndb_model_id?: string;
-  use_llm_guardrail?: boolean;
-  token_model_id?: string;
-}
-
-export function addRagEntry(values: RagEntryValues): Promise<RagEntryResponse> {
-  const accessToken = getAccessToken(); // Make sure you have a function to get the access token
-
-  // Set the default authorization header for axios
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-  // Prepare the query parameters
-  const params = new URLSearchParams();
-  params.append('model_name', values.model_name);
-  if (values.ndb_model_id) {
-    params.append('ndb_model_id', values.ndb_model_id);
-  }
-  if (values.use_llm_guardrail !== undefined) {
-    params.append('use_llm_guardrail', values.use_llm_guardrail.toString());
-  }
-  if (values.token_model_id) {
-    params.append('token_model_id', values.token_model_id);
-  }
-
-  return new Promise((resolve, reject) => {
-    axios
-      .post(`${thirdaiPlatformBaseUrl}/api/model/rag-entry?${params.toString()}`)
-      .then((res) => {
-        resolve(res.data);
-      })
-      .catch((err) => {
-        reject(err);
-      });
-  });
-}
-
-
-export function userEmailLogin(email: string, password: string, handleAccessToken: (token: string) => void): Promise<any> {
+export function userEmailLogin(email: string, password: string): Promise<any> {
     return new Promise((resolve, reject) => {
       axios
         .get(`${thirdaiPlatformBaseUrl}/api/user/email-login`, {

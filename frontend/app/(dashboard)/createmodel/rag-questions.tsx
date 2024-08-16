@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { SelectModel } from '@/lib/db';
 import NERQuestions from './nlp-questions/ner-questions';
 import SemanticSearchQuestions from './semantic-search-questions';
-import { addRagEntry, RagEntryValues } from '@/lib/backend';
+import { create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,18 +55,54 @@ const RAGQuestions = ({
   // End state variables & func for LLM
 
   const handleSubmit = async () => {
-    const values: RagEntryValues = {
-      model_name: modelName,
-      ndb_model_id: ssIdentifier ? ssIdentifier : '',
-      use_llm_guardrail: grIdentifier ? true : false,
-      token_model_id: grIdentifier ? grIdentifier : ''
-    };
-
+    const workflowName = `Workflow for ${modelName}`;
+    const workflowTypeName = 'rag';
+  
     try {
-      const response = await addRagEntry(values);
-      console.log('Success:', response);
+      // Step 1: Create the workflow
+      const workflowResponse = await create_workflow({ name: workflowName, typeName: workflowTypeName });
+      const workflowId = workflowResponse.data.workflow_id;
+      console.log('Workflow created:', workflowId);
+  
+      // Step 2: Prepare the models to be added
+      const modelIdentifiers = [];
+      const components = [];
+  
+      // Find and add the semantic search model
+      if (ssIdentifier) {
+        const ssModel = existingSSmodels.find(model => `${model.username}/${model.model_name}` === ssIdentifier);
+        if (ssModel) {
+          modelIdentifiers.push(ssModel.model_id);
+          components.push('search');
+        } else {
+          console.error(`Semantic search model with identifier ${ssIdentifier} not found.`);
+        }
+      }
+
+      // Find and add the NER model if it exists
+      if (grIdentifier) {
+        const nerModel = existingNERModels.find(model => `${model.username}/${model.model_name}` === grIdentifier);
+        if (nerModel) {
+          modelIdentifiers.push(nerModel.model_id);
+          components.push('nlp');
+        } else {
+          console.error(`NER model with identifier ${grIdentifier} not found.`);
+        }
+      }
+  
+      // Step 3: Add the models to the workflow
+      if (modelIdentifiers.length > 0) {
+        const addModelsResponse = await add_models_to_workflow({
+          workflowId,
+          modelIdentifiers,
+          components,
+        });
+        console.log('Models added to workflow:', addModelsResponse);
+      } else {
+        console.error('No models to add to the workflow');
+      }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error during workflow creation or model addition:', error);
     }
   };
 

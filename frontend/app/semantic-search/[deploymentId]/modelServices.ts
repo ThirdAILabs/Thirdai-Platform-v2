@@ -161,7 +161,7 @@ export class GlobalModelService implements ModelService {
 
     constructor(url: string, sessionId: string) {
         this.url = url;
-        this.wsUrl = `${window.location.protocol}//${window.location.host}`.replace("http", "ws");
+        this.wsUrl = process.env.DEPLOYMENT_BASE_URL!.replace("http", "ws");
         this.sessionId = sessionId;
     }
 

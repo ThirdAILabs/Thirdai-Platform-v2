@@ -412,12 +412,13 @@ def validate_workflow(
     workflow_type: schema.WorkflowType = workflow.workflow_type
     model_requirements = workflow_type.model_requirements
 
-    issues = defaultdict(list)
+    all_requirements_valid = False
+    issues_per_group = []
 
-    valid = False
+    # Loop over each requirement group
     for requirement_group in model_requirements:
-        # Check if any of the requirement groups is satisfied
-        group_valid = True
+        group_issues = defaultdict(list)
+
         for requirement in requirement_group:
             component = requirement["component"]
             model_type = requirement["type"]
@@ -436,20 +437,23 @@ def validate_workflow(
             )
 
             if len(matching_models) != required_count:
-                issues[component].append(
+                group_issues[component].append(
                     f"Requires exactly {required_count} {model_type}(s) with component {component} and subtype {sub_type}, but found {len(matching_models)}."
                 )
-                group_valid = False
 
-        if group_valid:
-            valid = True
+        if not group_issues:
+            # If no issues in this group, the workflow is valid
+            all_requirements_valid = True
             break
+        else:
+            # Store issues for this group
+            issues_per_group.append(group_issues)
 
-    if not valid:
+    if not all_requirements_valid:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="Validation failed. Some models have issues.",
-            data={"models": jsonable_encoder(issues)},
+            message="Validation failed. Some model requirement groups have issues.",
+            data={"issues": jsonable_encoder(issues_per_group)},
         )
 
     return response(

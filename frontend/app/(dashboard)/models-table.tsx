@@ -24,11 +24,15 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { fetchPublicModels, fetchPrivateModels, fetchPendingModels, fetchWorkflows, Workflow } from "@/lib/backend"
 
-export function ModelsTable() {
+export function ModelsTable({
+  searchStr,
+  offset,
+}: {
+  searchStr: string;
+  offset: number;
+}) {
   
   // Hardcode the model display
-  const offset = 5
-  const totalModels = 4
   let modelsPerPage = 5;
 
   let router = useRouter();
@@ -100,6 +104,8 @@ export function ModelsTable() {
     return () => clearInterval(intervalId);
   }, []);
 
+  const totalWorkflows = workflows.length;
+
   return (
     <Card>
       <CardHeader>
@@ -147,9 +153,9 @@ export function ModelsTable() {
           <div className="text-xs text-muted-foreground">
             Showing{' '}
             <strong>
-              {Math.min(offset - modelsPerPage, totalModels) + 1}-{offset}
+              {Math.min(offset - modelsPerPage, totalWorkflows) + 1}-{offset}
             </strong>{' '}
-            of <strong>{totalModels}</strong> models
+            of <strong>{totalWorkflows}</strong> models
           </div>
           <div className="flex">
             <Button
@@ -167,7 +173,7 @@ export function ModelsTable() {
               variant="ghost"
               size="sm"
               type="submit"
-              // disabled={offset + modelsPerPage > totalModels}
+              disabled={offset + modelsPerPage > totalWorkflows}
             >
               Next
               <ChevronRight className="ml-2 h-4 w-4" />

@@ -9,7 +9,7 @@ export default async function ModelsPage({
   searchParams: { q: string; offset: string };
 }) {
   const search = searchParams.q ?? '';
-  const offset = searchParams.offset ?? 0;
+  const offset = searchParams.offset ?? 5;
 
   return (
     <Tabs defaultValue="all">
@@ -28,7 +28,10 @@ export default async function ModelsPage({
         </div>
       </div>
       <TabsContent value="all">
-        <ModelsTable/>
+        <ModelsTable
+          searchStr={search}
+          offset={Number(offset) ?? 0}
+        />
       </TabsContent>
     </Tabs>
   );

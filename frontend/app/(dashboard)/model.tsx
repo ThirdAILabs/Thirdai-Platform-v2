@@ -297,7 +297,7 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
           : 'N/A'
       }
       </TableCell>
-      <TableCell className="hidden md:table-cell">'N\A'</TableCell>
+      <TableCell className="hidden md:table-cell">&apos;N\A&apos;</TableCell>
       <TableCell className="hidden md:table-cell">
         <button type="button" 
                 onClick={goToEndpoint}

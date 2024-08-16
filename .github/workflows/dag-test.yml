@@ -16,10 +16,38 @@ concurrency:
 jobs:
   dag_tests:
     runs-on: ubuntu-latest-16-cores
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: model_bazaar
+        ports:
+          - 5432:5432
+        options: > 
+          --health-cmd="pg_isready -U postgres" 
+          --health-interval=10s 
+          --health-timeout=5s 
+          --health-retries=5
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
+
+    - name: Wait for PostgreSQL to be ready
+      run: |
+        until pg_isready -h localhost -U postgres; do
+          echo "Waiting for PostgreSQL..."
+          sleep 1
+        done
+
+    - name: Create Extension
+      run: |
+        psql -h localhost -U postgres -d model_bazaar -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+
+    - name: Set DATABASE_URI
+      run: echo "DATABASE_URI=postgresql://postgres:password@localhost:5432/model_bazaar" >> $GITHUB_ENV
 
     - name: Set up Python
       uses: actions/setup-python@v2
@@ -37,26 +65,6 @@ jobs:
         pip install -r thirdai_platform/requirements.txt
         pip install -r train_job/requirements.txt
         echo "PYTHON_PATH=${{ github.workspace }}/venv/bin/python" >> $GITHUB_ENV
-
-    - name: Install Docker
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-            apt-transport-https \
-            ca-certificates \
-            curl \
-            gnupg \
-            lsb-release
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-        echo \
-          "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
-          $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-        sudo apt-get update
-        sudo apt-get install -y docker-ce docker-ce-cli containerd.io
-        sudo systemctl start docker
-        sudo systemctl enable docker
-        sudo usermod -aG docker $USER
-        docker --version
 
     - name: Install Nomad
       run: |
@@ -96,19 +104,6 @@ jobs:
         sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
         sudo apt update
         sudo apt -y install postgresql
-
-    - name: Start PostgreSQL Service
-      run: sudo systemctl start postgresql
-
-    - name: Setup PostgreSQL Database
-      run: |
-        sleep 30 #TODO(pratik): check status here
-        sudo -u postgres psql -c "SELECT 1"
-        sudo -u postgres psql -c "CREATE ROLE postgres WITH LOGIN SUPERUSER;" || true
-        sudo -u postgres psql -c "ALTER ROLE postgres WITH PASSWORD 'password';"
-        sudo -u postgres psql -c "CREATE DATABASE model_bazaar;"
-        sudo -u postgres psql -d model_bazaar -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
-        echo "DATABASE_URI=postgresql://postgres:password@localhost:5432/model_bazaar" >> $GITHUB_ENV
 
     - name: Install Vault
       run: |

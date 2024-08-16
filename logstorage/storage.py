@@ -140,11 +140,14 @@ class SQLiteStore(DataStore):
 
     def delete_old_samples(self, name: str, samples_to_store: int):
         # only delete samples that have no feedback associated with them
-        current_count = self.get_sample_count(name, with_feedback=False)
+        samples_without_feedback = self.get_sample_count(name, with_feedback=False)
 
-        samples_to_delete = current_count - samples_to_store
+        # total samples
+        total_samples = self.get_sample_count(name)
 
-        if samples_to_delete > 0:
+        samples_to_delete = total_samples - samples_to_store
+
+        if samples_to_delete > 0 and samples_without_feedback > 0:
             session = self.Session()
 
             # delete only the samples that have no associated feedback

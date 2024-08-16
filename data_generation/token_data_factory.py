@@ -198,6 +198,8 @@ class TokenDataFactory(DataFactory):
                 filter(lambda x: x is not None, transformed_data_points)
             )
 
+            random.shuffle(transformed_data_points)
+
             self.write_on_training_file(
                 transformed_data_points,
                 fieldnames=[

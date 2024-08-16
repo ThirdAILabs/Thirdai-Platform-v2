@@ -51,13 +51,10 @@ class DataFactory(ABC):
         ]
 
     def process_prompt(
-        self,
-        prompt: str,
-        task_id: int,
-        system_prompt: Optional[str] = None,
+        self, prompt: str, system_prompt: Optional[str] = None, **kwargs
     ):
         texts_of = self.llm_model.completion(prompt=prompt, system_prompt=system_prompt)
-        return texts_of, task_id
+        return texts_of, kwargs
 
     def run_and_collect_results(
         self, tasks_prompt: List[Dict[str, str]], parallelize: bool = False
@@ -72,12 +69,12 @@ class DataFactory(ABC):
                 futures = []
 
                 # Submit arguments to the executor
-                for task_id, task in enumerate(tasks_prompt):
+                for task in tasks_prompt:
                     future = executor.submit(
                         self.process_prompt,
                         task["prompt"],
-                        task_id,
                         task.get("system_prompt"),
+                        **(task.get("kwargs") or {}),
                     )
                     future.add_done_callback(lambda p: pbar.update())
                     futures.append(future)
@@ -85,9 +82,9 @@ class DataFactory(ABC):
                 # Wait for all arguments to complete and handle exceptions
                 for future in as_completed(futures):
                     try:
-                        response_text, task_id = future.result()
+                        response_text, kwargs = future.result()
                         data_points.append(
-                            {"response_text": response_text, "task_id": task_id}
+                            {"response_text": response_text, "kwargs": kwargs}
                         )
 
                     except Exception as e:

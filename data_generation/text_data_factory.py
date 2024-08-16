@@ -33,7 +33,6 @@ class TextDataFactory(DataFactory):
         assert_sufficient_descriptions(target_labels, labels_description)
 
         prompt_tasks = []
-        mapped_target_label = []
 
         for target_label in target_labels:
             for current_sentence_idx in range(
@@ -65,13 +64,12 @@ class TextDataFactory(DataFactory):
                     random_prompts="\n".join(self.get_random_prompts()),
                     random_vocab=str(random_vocab),
                 )
-                prompt_tasks.append({"prompt": prompt})
-                mapped_target_label.append(target_label)
+                prompt_tasks.append(
+                    {"prompt": prompt, "kwargs": {"target_label": target_label}}
+                )
 
         # Shuffling
-        args = list(zip(prompt_tasks, mapped_target_label))
-        random.shuffle(args)
-        prompt_tasks, mapped_target_label = zip(*args)
+        random.shuffle(prompt_tasks)
 
         prompt_tasks = prompt_tasks[: total_expected_sentences - sentences_generated]
 
@@ -82,22 +80,22 @@ class TextDataFactory(DataFactory):
             total=total_chunks,
         ):
             chunk_to_process = prompt_tasks[idx : idx + self.write_chunk_size]
-            chunk_target_label = mapped_target_label[idx : idx + self.write_chunk_size]
 
             data_points: List[str] = self.run_and_collect_results(
                 tasks_prompt=chunk_to_process, parallelize=True
             )
 
-            # sorting based on the task_id
-            data_points = sorted(data_points, key=lambda x: x["task_id"])
-
-            transformed_data_points = []
-            for data_point, target_label in zip(data_points, chunk_target_label):
-                temp = self.fill_and_transform(
-                    texts=data_point["response_text"], target_label=target_label
+            transformed_data_points = [
+                self.fill_and_transform(
+                    texts=data_point["response_text"],
+                    target_label=data_point["kwargs"]["target_label"],
                 )
-                if temp:
-                    transformed_data_points.extend(temp)
+                for data_point in data_points
+            ]
+            # filtering to remove 'None'
+            transformed_data_points = list(
+                filter(lambda x: x is not None, transformed_data_points)
+            )
 
             random.shuffle(transformed_data_points)
 

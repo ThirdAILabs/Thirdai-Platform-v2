@@ -125,10 +125,24 @@ class GeneralVariables(EnvLoader):
                 "exp": now() + datetime.timedelta(minutes=5),
                 "override": False,
             }
+        elif response.status_code != status.HTTP_200_OK:
+            print(response.text)
+            return {
+                "read": False,
+                "write": False,
+                "exp": now(),
+                "override": False,
+            }
         res_json = response.json()
         permissions = res_json["data"]
         permissions["exp"] = datetime.datetime.fromisoformat(permissions["exp"])
         return permissions
+
+
+@dataclass
+class NDBTokenVariables(EnvLoader):
+    llm_guardrail: bool = False
+    token_model_id: Optional[str] = None
 
 
 def merge_dataclasses_to_dict(*instances) -> dict:

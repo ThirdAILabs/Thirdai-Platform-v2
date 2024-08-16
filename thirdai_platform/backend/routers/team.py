@@ -155,6 +155,7 @@ def assign_team_admin(
         )
         session.add(user_team)
 
+    user_team.role = schema.Role.team_admin
     session.commit()
 
     return response(

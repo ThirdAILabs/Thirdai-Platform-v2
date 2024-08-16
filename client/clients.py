@@ -3,20 +3,20 @@ from __future__ import annotations
 import json
 import os
 import re
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urljoin
 
+from requests.auth import HTTPBasicAuth
+
 from .utils import (
+    auth_header,
     check_deployment_decorator,
+    construct_deployment_url,
     create_model_identifier,
     http_get_with_error,
     http_post_with_error,
-    construct_deployment_url,
-    auth_header,
 )
-
-from requests.auth import HTTPBasicAuth
-from dataclasses import dataclass
 
 
 class Model:
@@ -55,10 +55,11 @@ class Model:
         raise ValueError("Model id is not yet set.")
 
 
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from typing import Optional
 from urllib.parse import urljoin
+
 from requests.auth import HTTPBasicAuth
 
 

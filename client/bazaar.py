@@ -7,15 +7,16 @@ from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 from pydantic import BaseModel, ValidationError
-from client.clients import Model, Login, UDTClient, NeuralDBClient
+
+from client.clients import Login, Model, NeuralDBClient, UDTClient
 
 from .utils import (
+    auth_header,
     create_model_identifier,
     http_delete_with_error,
     http_get_with_error,
     http_post_with_error,
     print_progress_dots,
-    auth_header,
 )
 
 

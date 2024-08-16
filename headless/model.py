@@ -1,8 +1,8 @@
 import os
 from typing import Dict, List, Optional, Tuple
 
-from client.clients import WorkflowClient
 from client.bazaar import ModelBazaar
+from client.clients import WorkflowClient
 from headless.utils import get_csv_source_id
 
 

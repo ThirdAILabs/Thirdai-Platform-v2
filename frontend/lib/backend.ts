@@ -585,29 +585,43 @@ export interface TokenClassificationResult {
 export function useTokenClassificationEndpoints() {
   const accessToken = useAccessToken();
   const params = useParams();
-  const deploymentId = params.deploymentId as string;
-  const currentDeploymentBaseUrl = `${deploymentBaseUrl}/${deploymentId}`;
+  console.log(params);
+  const workflowId = params.deploymentId as string;
+  const [workflowName, setWorkflowName] = useState<string>("");
+  const [deploymentUrl, setDeploymentUrl] = useState<string | undefined>();
   
-  const getName = async (): Promise<string> => {
-    // Set the default authorization header for axios
-    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-  
-    try {
-      const response = await axios.get(`${thirdaiPlatformBaseUrl}/api/deploy/model-name`, {
-        params: { deployment_id: deploymentId },
-      });
-      return response.data.data.name;
-    } catch (error) {
-      console.error('Error getting deployment name:', error);
-      throw new Error('Failed to get deployment name');
-    }
-  };
+  console.log("PARAMS", params);
 
+  useEffect(() => {
+    const init = async () => {
+      const accessToken = getAccessToken();
+      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+  
+      const params = new URLSearchParams({ workflow_id: workflowId });
+      
+
+      axios
+          .get<WorkflowDetailsResponse>(`${thirdaiPlatformBaseUrl}/api/workflow/details?${params.toString()}`)
+          .then((res) => {
+            setWorkflowName(res.data.data.name)
+            for (const model of res.data.data.models) {
+              if (model.component === 'nlp') {
+                setDeploymentUrl(`${deploymentBaseUrl}/${model.model_id}`);
+              }
+            }
+          })
+          .catch((err) => {
+            console.error('Error fetching workflow details:', err);
+          });
+    };
+    init();
+  }, []);
+  
   const predict = async (query: string): Promise<TokenClassificationResult> => {
     // Set the default authorization header for axios
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
     try {
-      const response = await axios.post(`${currentDeploymentBaseUrl}/predict`, {
+      const response = await axios.post(`${deploymentUrl}/predict`, {
         query, top_k: 1
       });
       return response.data.data;
@@ -650,10 +664,11 @@ export function useTokenClassificationEndpoints() {
     return amountstr + suffix;
   }
 
-  const getStats = async (): Promise<DeploymentStats> => {
+  const getStats = deploymentUrl && (async (): Promise<DeploymentStats> => {
     axios.defaults.headers.common.Authorization = `Bearer ${getAccessToken()}`;
     try {
-      const response = await axios.get(`${currentDeploymentBaseUrl}/stats`);
+      console.log(deploymentUrl);
+      const response = await axios.get(`${deploymentUrl}/stats`);
       return {
         system: {
           header: ['Name', 'Description'],
@@ -686,9 +701,10 @@ export function useTokenClassificationEndpoints() {
       console.error("Error fetching stats:", error);
       throw new Error("Error fetching stats.");
     }
-  };
+  });
+
   return {
-    getName,
+    workflowName,
     predict,
     getStats,
   };

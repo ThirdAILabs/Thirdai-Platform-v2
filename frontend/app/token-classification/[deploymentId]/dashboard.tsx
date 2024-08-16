@@ -26,6 +26,9 @@ export default function Dashboard() {
   const { getStats } = useTokenClassificationEndpoints();
 
   useEffect(() => {
+    if (!getStats) {
+      return;
+    }
     const fetchStats = () => {
       getStats().then(({system, throughput}) => {
         setSystem(system);
@@ -42,7 +45,7 @@ export default function Dashboard() {
     return () => {
       clearInterval(intervalId);
     }
-  }, []);
+  }, [getStats]);
 
   const table = (tableInfo: DeploymentStatsTable, title: string) => {
     return <Card>

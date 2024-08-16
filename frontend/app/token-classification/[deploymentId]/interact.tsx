@@ -316,7 +316,13 @@ export default function Interact() {
           value={inputText}
           onChange={handleInputChange}
           placeholder="Enter your text..."
-          onSubmit={handleRun}          
+          onSubmit={handleRun}
+          onKeyDown={(e) => {
+            if (e.keyCode === 13 && e.shiftKey === false) {
+              e.preventDefault();
+              handleRun();
+            }
+          }}    
         />
         <Button size="sm" style={{height: '3rem', marginLeft: '10px', padding: '0 20px'}} onClick={handleRun}>
             Run

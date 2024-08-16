@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 
 import { signIn } from '@/lib/auth';
 import { userRegister } from "@/lib/backend";
+import { useRouter } from 'next/navigation';
 
 export default function SignupForm() {
   const [email, setEmail] = useState('');
@@ -12,11 +13,14 @@ export default function SignupForm() {
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
 
+  const router = useRouter();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const data = await userRegister(email, password, username);
       console.log('User registered successfully:', data);
+      router.push('/login-email');
       // Redirect or show success message
     } catch (err) {
       console.log(err)

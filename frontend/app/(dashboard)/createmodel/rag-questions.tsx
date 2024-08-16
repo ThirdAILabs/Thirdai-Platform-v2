@@ -4,6 +4,9 @@ import { SelectModel } from '@/lib/db';
 import NERQuestions from './nlp-questions/ner-questions';
 import SemanticSearchQuestions from './semantic-search-questions';
 import { create_workflow, add_models_to_workflow } from '@/lib/backend';
+import { CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 const RAGQuestions = ({
   models,
@@ -105,33 +108,35 @@ const RAGQuestions = ({
 
   return (
     <div>
+      {/* Begin Model Name Input Field */}
+            <span className="block text-lg font-semibold">App Name</span>
+            <Input
+              className="text-md"
+              value={modelName}
+              onChange={(e) => setModelName(e.target.value)}
+              placeholder="Enter app name"
+              style={{marginTop: "10px"}}
+            />
+      {/* End Model Name Input Field */}
+
       {/* Begin Semantic Search Model */}
 
-            <div className="mb-4">
-              <span className="block text-lg font-semibold mb-2">Retrieval App</span>
-              <label htmlFor="useExistingSemanticSearch" className="block text-sm font-medium text-gray-700">Use an existing semantic search model?</label>
-              <select
-                id="useExistingSemanticSearch"
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                value={ifUseExistingSS ? ifUseExistingSS : ''}
-                onChange={(e) => {
-                  setUseExistingSS(e.target.value);
-                  setCreatedSS(false);
-                }}
-              >
-                <option value="">-- Please choose an option --</option>
-                <option value="Yes">Yes</option>
-                <option value="No">No, create a new one</option>
-              </select>
+            <div style={{marginTop: "20px"}}>
+              <span className="block text-lg font-semibold">Retrieval App</span>
+              <CardDescription>Use an existing retrieval app?</CardDescription>
+              <div style={{display: "flex", flexDirection: "row", gap: "10px", marginTop: "10px"}}>
+                <Button variant={ifUseExistingSS ? ifUseExistingSS === "Yes" ? "secondary" : "outline" : "default"} onClick={() => {setUseExistingSS("Yes"); setCreatedSS(false);}}>Yes</Button>
+                <Button variant={ifUseExistingSS ? ifUseExistingSS === "No" ? "secondary" : "outline" : "default"} onClick={() => {setUseExistingSS("No"); setCreatedSS(false);}}>No, create a new one</Button>
+              </div>
             </div>
 
             {/* Begin existing Semantic Search Models Dropdown */}
 
             {ifUseExistingSS === 'Yes' && (
               <div className="mb-4">
-                <label htmlFor="semanticSearchModels" className="block text-sm font-medium text-gray-700">
+                <CardDescription>
                   Choose from existing semantic search model(s)
-                </label>
+                </CardDescription>
                 <select
                   id="semanticSearchModels"
                   className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
@@ -182,45 +187,57 @@ const RAGQuestions = ({
 
       {/* Begin choose LLM guardrail */}
 
-            <span className="block text-lg font-semibold mb-2">LLM guardrail</span>
-            <div className="mb-4">
-              <label htmlFor="llmGuardrail" className="block text-sm font-medium text-gray-700">Would you like to add LLM guardrail?</label>
-              <select
-                id="llmGuardrail"
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                value={ifUseLGR}
-                onChange={(e)=>{
-                  if (e.target.value === "No") {
-                    setGrIdentifier(null);
-                  }
-                  setIfUseLGR(e.target.value);
+            <span className="block text-lg font-semibold" style={{marginTop: "20px"}}>LLM Guardrail</span>
+            <CardDescription>Would you like to add LLM guardrail?</CardDescription>
+            <div style={{display: "flex", flexDirection: "row", gap: "10px", marginTop: "10px"}}>
+              <Button 
+                variant={ifUseLGR ? ifUseLGR === "Yes" ? "secondary" : "outline" : "default"}
+                onClick={() => {
+                  setIfUseLGR("Yes");
                   setCreatedGR(false);
                 }}
               >
-                <option value="">-- Please choose an option --</option>
-                <option value="Yes">Yes</option>
-                <option value="No">No</option>
-              </select>
+                Yes
+              </Button>
+              <Button
+                variant={ifUseLGR ? ifUseLGR === "No" ? "secondary" : "outline" : "default"}
+                onClick={() => {
+                  setGrIdentifier(null);
+                  setIfUseLGR("No");
+                  setCreatedGR(false);
+                }}
+              >
+                No
+              </Button>
             </div>
 
             {/* Begin choose to use existing LLM guardrail */}
 
             {ifUseLGR === 'Yes' && (
-              <div className="mb-4">
-                <label htmlFor="useExistingGuardrail" className="block text-sm font-medium text-gray-700">Use an existing NER model for LLM guardrail?</label>
-                <select
-                  id="useExistingGuardrail"
-                  className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                  value={ifUseExistingLGR ? ifUseExistingLGR : ''}
-                  onChange={(e) => {
-                    setIfUseExistingLGR(e.target.value);
-                    setCreatedGR(false);
-                  }}
-                >
-                  <option value="">-- Please choose an option --</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No, create a new one</option>
-                </select>
+              <div style={{marginTop: "20px"}}>
+                <CardDescription>
+                  Use an existing NER model for LLM guardrail?
+                </CardDescription>
+                <div style={{display: "flex", flexDirection: "row", gap: "10px", marginTop: "10px"}}>
+                  <Button 
+                    variant={ifUseExistingLGR ? ifUseExistingLGR === "Yes" ? "secondary" : "outline" : "default"}
+                    onClick={() => {
+                      setIfUseExistingLGR("Yes");
+                      setCreatedGR(false);
+                    }}
+                  >
+                    Yes
+                  </Button>
+                  <Button
+                    variant={ifUseExistingLGR ? ifUseExistingLGR === "No" ? "secondary" : "outline" : "default"}
+                    onClick={() => {
+                      setIfUseExistingLGR("No");
+                      setCreatedGR(false);
+                    }}
+                  >
+                    No
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -251,10 +268,10 @@ const RAGQuestions = ({
 
             {/* Begin existing NER Models Dropdown */}
             {ifUseLGR === 'Yes' && ifUseExistingLGR === 'Yes' && (
-              <div className="mb-4">
-                <label htmlFor="nerModels" className="block text-sm font-medium text-gray-700">
+              <div style={{marginTop: "20px"}}>
+                <CardDescription>
                   Choose from existing NLP App(s)
-                </label>
+                </CardDescription>
                 <select
                   id="nerModels"
                   className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
@@ -278,43 +295,33 @@ const RAGQuestions = ({
 
 
       {/* Begin chat interface */}
-            <span className="block text-lg font-semibold mb-2">Chat</span>
-            <div className="mb-4">
-              <label htmlFor="llmType" className="block text-sm font-medium text-gray-700">Choose an LLM option</label>
-              <select
-                id="llmType"
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                value={llmType ? llmType : ''}
-                onChange={(e) => setLlmType(e.target.value)}
-              >
-                <option value="">-- Please choose an option --</option>
-                <option value="OpenAI">OpenAI</option>
-                <option value="Llama">Llama</option>
-                <option value="Self-host">Self-host</option>
-              </select>
+            <span className="block text-lg font-semibold" style={{marginTop: "20px"}}>Chat</span>
+            <div>
+              <CardDescription>
+                Choose an LLM option
+              </CardDescription>
+              <div style={{display: "flex", flexDirection: "row", gap: "10px", marginTop: "10px"}}>
+                  <Button 
+                    variant={llmType ? llmType === "OpenAI" ? "secondary" : "outline" : "default"}
+                    onClick={() => setLlmType("OpenAI")}
+                  >
+                    OpenAI
+                  </Button>
+                  <Button 
+                    variant={llmType ? llmType === "Llama" ? "secondary" : "outline" : "default"}
+                    onClick={() => setLlmType("Llama")}
+                  >
+                    Llama
+                  </Button>
+                  <Button 
+                    variant={llmType ? llmType === "Self-host" ? "secondary" : "outline" : "default"}
+                    onClick={() => setLlmType("Self-host")}
+                  >
+                    Self-host
+                  </Button>
+                </div>
             </div>
       {/* End chat interface */}
-
-
-
-
-      {/* Begin Model Name Input Field */}
-            <span className="block text-lg font-semibold mb-2">Name your App</span>
-            <div className="mb-4">
-              <label htmlFor="modelName" className="block text-sm font-medium text-gray-700">
-                Model Name
-              </label>
-              <input
-                type="text"
-                id="modelName"
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                value={modelName || ''}
-                onChange={(e) => setModelName(e.target.value)}
-                placeholder="Enter App name"
-              />
-            </div>
-      {/* End Model Name Input Field */}
-
 
 
       {/* Begin create and deploy */}
@@ -327,15 +334,11 @@ const RAGQuestions = ({
               && 
               modelName 
               &&
-              <div className="flex justify-center">
+              <div style={{marginTop: "30px"}}>
                 <Link href="/">
-                <button
-                  type="button"
-                  className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-                  onClick={handleSubmit}
-                >
+                <Button onClick={handleSubmit} style={{width: "100%"}}>
                   {`${ifUseExistingSS === 'No' || (ifUseLGR === 'Yes' && ifUseExistingLGR === 'No') ? 'Create' : 'Create and Deploy'}`}
-                </button>
+                </Button>
                 </Link>
               </div>
             }

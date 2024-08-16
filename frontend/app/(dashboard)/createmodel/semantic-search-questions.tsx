@@ -1,76 +1,74 @@
-import Link from 'next/link';
 import React, { useState } from 'react';
-import { SelectModel } from '@/lib/db';
 import { getUsername, train_ndb, create_workflow, add_models_to_workflow } from '@/lib/backend';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { CardDescription } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
 
 interface SemanticSearchQuestionsProps {
   onCreateModel?: (userName: string, modelName: string) => void;
   stayOnPage?: boolean;
 };
 
+enum SourceType {
+  S3 = "s3",
+  LOCAL = "local",
+}
+
 const SemanticSearchQuestions = ({ onCreateModel, stayOnPage }: SemanticSearchQuestionsProps) => {
-    // Begin state variables & func for source
+    const [modelName, setModelName] = useState('');
     const [sources, setSources] = useState<Array<{ type: string, value: File | null }>>([]);
-    const [newSourceType, setNewSourceType] = useState<string>('');
-    const [newSourceValue, setNewSourceValue] = useState<File | null>(null);
+    const router = useRouter();
+    
+    const addSource = (type: SourceType) => {
+      setSources(prev => [...prev, {type, value: null}]);
+    }
+
+    const setSourceValue = (index: number, value: File) => {
+      const newSources = [...sources];
+      newSources[index].value = value;
+      setSources(newSources);
+    }
   
-    const handleAddSource = () => {
-      if (newSourceType && newSourceValue) {
-        setSources([...sources, { type: newSourceType, value: newSourceValue }]);
-        setNewSourceType('');
-        setNewSourceValue(null);
-      }
-    };
-  
-    const handleSourceTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      setNewSourceType(e.target.value);
-    };
-  
-    const handleSourceValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files[0]) {
-        setNewSourceValue(e.target.files[0]);
-      }
-    };
-  
-    const handleDeleteSource = (index: number) => {
+    const deleteSource = (index: number) => {
       const updatedSources = sources.filter((_, i) => i !== index);
       setSources(updatedSources);
     };
 
-
-    const [isLoading, setIsLoading] = useState(false);
-    const [modelName, setModelName] = useState('')
-    const [retriever, setRetriever] = useState('finetunable_retriever');
-
-    const handleFileFormdata = async () => {
+    const makeFileFormData = () => {
       let formData = new FormData();
       const fileDetailsList: Array<{ mode: string; location: string }> = [];
 
-      sources.forEach((source) => {
-        if (source.type === 'local' && source.value) {
-          formData.append('files', source.value);
-          fileDetailsList.push({ mode: 'unsupervised', location: 'local' });
-        } else if (source.type === 's3' && source.value) {
-          formData.append('files', new File([], source.value.name)); // "don't care" as a placeholder
-          fileDetailsList.push({ mode: 'unsupervised', location: 's3' });
-        }
+      sources.filter(({value}) => !!value).forEach(({type, value}) => {
+        formData.append('files', value!); // Assert that value is non-null since we've filtered nulls.
+        fileDetailsList.push({ mode: 'unsupervised', location: type });
       });
   
-      const extraOptionsForm = { retriever };
+      const extraOptionsForm = { retriever: 'finetunable_retriever' };
       formData.append('extra_options_form', JSON.stringify(extraOptionsForm));
       formData.append('file_details_list', JSON.stringify({ file_details: fileDetailsList }));
 
       return formData;
     };
 
-    const handleSubmit = async () => {
-      setIsLoading(true);
+    const submit = async () => {
       try {
+        if (!modelName) {
+          alert("Please give the app a name. The name cannot have spaces, forward slashes (/) or colons (:).")
+          return;
+        }
+        if (modelName.includes(" ") || modelName.includes("/") || modelName.includes(":")) {
+          alert("The app name cannot have spaces, forward slashes (/) or colons (:).")
+          return;
+        }
+
+        console.log(`Submitting model '${modelName}'`);
+
         if (onCreateModel) {
           onCreateModel(getUsername(), modelName);
         }
 
-        const formData = await handleFileFormdata();
+        const formData = makeFileFormData();
 
         // Print out all the FormData entries
         formData.forEach((value, key) => {
@@ -97,123 +95,73 @@ const SemanticSearchQuestions = ({ onCreateModel, stayOnPage }: SemanticSearchQu
         });
 
         console.log('addModelsResponse', addModelsResponse);
+
+        if (!stayOnPage) {
+          router.push("/")
+        }
     } catch (error) {
         console.log(error);
-    } finally {
-        setIsLoading(false);
     }
   }
 
-    const createButton = (
-      <button
-        type="button"
-        className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-        onClick={handleSubmit}
-      >
-        Create
-      </button>
-    );
+    console.log(sources);
 
     return (
       <div>
+        <span className="block text-lg font-semibold">App Name</span>
+        <Input 
+          className="text-md"
+          value={modelName}
+          onChange={(e) => setModelName(e.target.value)}
+          placeholder="Enter app name"
+          style={{marginTop: "10px"}}
+        />
+
+        <span className="block text-lg font-semibold" style={{marginTop: "20px"}}>Sources</span>
+        <CardDescription>Select files to search over.</CardDescription>
+        
         {
-          <>
-            <span className="block text-lg font-semibold mb-2">Choose source files</span>
-            <p className="mb-4">Please upload the necessary files.</p>
-
-            <div className="mb-4">
-              <label htmlFor="newSourceType" className="block text-sm font-medium text-gray-700">Select Source Type</label>
-              <select
-                id="newSourceType"
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                value={newSourceType}
-                onChange={handleSourceTypeChange}
-              >
-                <option value="">-- Please choose an option --</option>
-                <option value="s3">S3</option>
-                <option value="local">Local File</option>
-              </select>
-            </div>
-
-            {newSourceType === 's3' && (
-              <div className="mb-4">
-                <label htmlFor="newSourceValue" className="block text-sm font-medium text-gray-700">S3 URL</label>
-                <input
-                  type="text"
-                  id="newSourceValue"
-                  className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                  placeholder="Enter S3 URL"
-                  onChange={(e) => setNewSourceValue(new File([], e.target.value))} // "don't care" as a placeholder
-                />
-              </div>
-            )}
-
-            {newSourceType === 'local' && (
-              <div className="mb-4">
-                <label htmlFor="newSourceValue" className="block text-sm font-medium text-gray-700">Upload File</label>
-                <input
-                  type="file"
-                  id="newSourceValue"
-                  className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                  onChange={handleSourceValueChange}
-                  multiple
-                />
-              </div>
-            )}
-
-            <button
-              type="button"
-              className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-              onClick={handleAddSource}
-            >
-              Add Source
-            </button>
-
-            {/* Begin Display added sources */}
+          sources.map(({type}, index) => (
             <div>
-              <h3 className="text-lg font-semibold mb-2">Added Sources</h3>
-              <ul>
-                {sources.map((source, index) => (
-                  <li key={index} className="mb-2 flex items-center justify-between">
-                    <span className="inline-block px-4 py-2 rounded-md bg-gray-200 text-black">
-                      <strong>{source.type === 's3' ? 'S3 URL' : 'Local File'}:</strong> {source.value?.name || 'N/A'}
-                    </span>
-                    <button
-                      type="button"
-                      className="ml-4 bg-red-500 text-white px-2 py-1 rounded-md"
-                      onClick={() => handleDeleteSource(index)}
-                    >
-                      Delete
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <div style={{display: "flex", flexDirection: "row", gap: "20px", justifyContent: "space-between", marginTop: "10px"}}>
+                {type === SourceType.S3 && (
+                  <Input 
+                    className="text-md"
+                    onChange={(e) => setSourceValue(index, new File([], e.target.value))}
+                    placeholder="http://s3.amazonaws.com/bucketname/"
+                  />
+                )}
+                {type === SourceType.LOCAL && (
+                  <Input
+                    type="file"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setSourceValue(index, e.target.files[0]);
+                      }
+                    }}
+                    multiple
+                  />
+                )}
+                <Button
+                  variant="destructive"
+                  onClick={() => deleteSource(index)}
+                >
+                  Delete
+                </Button>
+              </div>
             </div>
-            {/* End Display added sources */}
-          </>
+          ))
         }
-        {/* End source files */}
 
-        {/* Add Model Name Input Field */}
-        <span className="block text-lg font-semibold mb-2">Name your app</span>
-        <div className="mb-4">
-          <label htmlFor="modelName" className="block text-sm font-medium text-gray-700">
-            App Name
-          </label>
-          <input
-            type="text"
-            id="modelName"
-            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            value={modelName || ''}
-            onChange={(e) => setModelName(e.target.value)}
-            placeholder="Enter App name"
-          />
+        <div style={{display: "flex", gap: "10px", marginTop: "10px"}}>
+          <Button onClick={() => addSource(SourceType.LOCAL)}>Add Local File</Button>
+          <Button onClick={() => addSource(SourceType.S3)}>Add S3 File</Button>
         </div>
 
-        <div className="flex justify-center">
-          {
-            stayOnPage ? createButton : <Link href="/"> {createButton} </Link>
-          }
+        <div className="flex justify-start">
+          <Button onClick={submit} style={{marginTop: "30px", width: "100%"}}>
+            Create
+          </Button>
         </div>
       </div>
     );

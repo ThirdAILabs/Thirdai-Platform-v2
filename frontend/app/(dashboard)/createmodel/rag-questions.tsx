@@ -123,11 +123,16 @@ const RAGQuestions = ({
 
             <div style={{marginTop: "20px"}}>
               <span className="block text-lg font-semibold">Retrieval App</span>
+              {
+              ! createdSS &&
+              <>
               <CardDescription>Use an existing retrieval app?</CardDescription>
               <div style={{display: "flex", flexDirection: "row", gap: "10px", marginTop: "10px"}}>
                 <Button variant={ifUseExistingSS ? ifUseExistingSS === "Yes" ? "secondary" : "outline" : "default"} onClick={() => {setUseExistingSS("Yes"); setCreatedSS(false);}}>Yes</Button>
                 <Button variant={ifUseExistingSS ? ifUseExistingSS === "No" ? "secondary" : "outline" : "default"} onClick={() => {setUseExistingSS("No"); setCreatedSS(false);}}>No, create a new one</Button>
               </div>
+              </>
+              }
             </div>
 
             {/* Begin existing Semantic Search Models Dropdown */}
@@ -162,7 +167,14 @@ const RAGQuestions = ({
       {
         ifUseExistingSS === 'No' &&
         <>
-          <div style={{visibility: createdSS ? 'hidden' : 'visible'}}>
+        {
+          createdSS
+          ?
+          <div>
+            Semantic search model created.
+          </div>
+          :
+          <div>
             <SemanticSearchQuestions 
               onCreateModel={(username, modelName) => {
                 // TODO: SOMEHOW GET CURRENT USERNAME
@@ -173,9 +185,7 @@ const RAGQuestions = ({
               stayOnPage
               />
           </div>
-          <div style={{visibility: createdSS ? 'visible' : 'hidden'}}>
-            Semantic search model created.
-          </div>
+        }
         </>
       }
               {/* End Create new Semantic Search Model */}
@@ -188,6 +198,9 @@ const RAGQuestions = ({
       {/* Begin choose LLM guardrail */}
 
             <span className="block text-lg font-semibold" style={{marginTop: "20px"}}>LLM Guardrail</span>
+            {
+            !createdGR &&
+            <>  
             <CardDescription>Would you like to add LLM guardrail?</CardDescription>
             <div style={{display: "flex", flexDirection: "row", gap: "10px", marginTop: "10px"}}>
               <Button 
@@ -240,6 +253,8 @@ const RAGQuestions = ({
                 </div>
               </div>
             )}
+            </>
+            }
 
             {/* End choose to use existing LLM guardrail */}
 
@@ -247,7 +262,14 @@ const RAGQuestions = ({
 
             {ifUseLGR === 'Yes' && ifUseExistingLGR === 'No' && (
               <>
-                <div style={{visibility: createdGR ? 'hidden' : 'visible'}}>
+              {
+                createdGR
+                ?
+                <div>
+                  Guardrail model created.
+                </div>
+                :
+                <div>
                   <NERQuestions 
                     onCreateModel={(username, modelName) => {
                       // TODO: SOMEHOW GET USERNAME
@@ -258,9 +280,7 @@ const RAGQuestions = ({
                     stayOnPage
                   />
                 </div>
-                <div style={{visibility: createdGR ? 'visible' : 'hidden'}}>
-                  Guardrail model created.
-                </div>
+              }
               </>
             )}
 

@@ -24,16 +24,16 @@ class NDBModel(Model):
     Base class for NeuralDB (NDB) models.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, write_mode: bool = False) -> None:
         """
         Initializes NDB model with paths and NeuralDB.
         """
         super().__init__()
         self.model_path: Path = self.model_dir / "model.ndb"
-        self.db: ndb.NeuralDB = self.load_ndb()
+        self.db: ndb.NeuralDB = self.load_ndb(write_mode)
 
     @abstractmethod
-    def load_ndb(self) -> ndb.NeuralDB:
+    def load_ndb(self, write_mode: bool = False) -> ndb.NeuralDB:
         """
         Loads the NDB model.
         """
@@ -197,17 +197,19 @@ class SingleNDB(NDBModel):
     Single instance of the NDB model.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, write_mode: bool = False) -> None:
         """
         Initializes a single NDB model.
         """
-        super().__init__()
+        super().__init__(write_mode)
 
-    def load_ndb(self) -> ndb.NeuralDB:
+    def load_ndb(self, write_mode: bool = False) -> ndb.NeuralDB:
         """
         Loads the NDB model from a model path.
         """
-        return ndb.NeuralDB.from_checkpoint(self.model_path)
+        return ndb.NeuralDB.from_checkpoint(
+            self.model_path, read_only=False if write_mode else True
+        )
 
     def save_ndb(self, **kwargs: Any) -> None:
         """
@@ -251,17 +253,19 @@ class ShardedNDB(NDBModel):
     Sharded instance of the NDB model.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, write_mode: bool = False) -> None:
         """
         Initializes a sharded NDB model.
         """
-        super().__init__()
+        super().__init__(write_mode)
 
-    def load_ndb(self) -> ndb.NeuralDB:
+    def load_ndb(self, write_mode: bool = False) -> ndb.NeuralDB:
         """
         Loads the sharded NDB model from model path.
         """
-        db = ndb.NeuralDB.from_checkpoint(self.model_path)
+        db = ndb.NeuralDB.from_checkpoint(
+            self.model_path, read_only=False if write_mode else True
+        )
 
         for i in range(db._savable_state.model.num_shards):
 

@@ -6,12 +6,12 @@ from routers.model import get_model
 from utils import propagate_error, response
 from variables import GeneralVariables
 
-udt_router = APIRouter()
+udt_read_router = APIRouter()
 permissions = Permissions()
 general_variables = GeneralVariables.load_from_env()
 
 
-@udt_router.post("/predict")
+@udt_read_router.post("/predict")
 @propagate_error
 def udt_query(
     base_params: BaseQueryParams,

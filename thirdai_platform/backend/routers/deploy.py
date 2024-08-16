@@ -259,6 +259,7 @@ def deploy_model(
             python_path=get_python_path(),
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+            write_enabled=("true" if model.type == "ndb" else "false"),
         )
 
         model.deploy_status = schema.Status.in_progress
@@ -267,6 +268,7 @@ def deploy_model(
     except Exception as err:
         model.deploy_status = schema.Status.failed
         session.commit()
+        traceback.print_exc()
         logger.info(traceback.format_exc())
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

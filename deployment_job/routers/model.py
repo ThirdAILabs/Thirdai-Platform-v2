@@ -12,8 +12,6 @@ from models.classification_models import (
 from models.ndb_models import ShardedNDB, SingleNDB
 from variables import GeneralVariables, NDBSubtype, TypeEnum, UDTSubtype
 
-# Initialize the model to None
-model_instance = None
 general_variables: GeneralVariables = GeneralVariables.load_from_env()
 
 if general_variables.license_key == "file_license":
@@ -24,28 +22,35 @@ else:
     thirdai.licensing.activate(general_variables.license_key)
 
 
-def get_model():
-    """
-    Retrieves the appropriate model instance based on general variables.
+class ModelManager:
+    _model_instance = None
 
-    Returns:
-        The initialized model instance.
+    @classmethod
+    def get_instance(cls, write_mode: bool = False):
+        """
+        Retrieves the appropriate model instance based on general variables.
 
-    Raises:
-        ValueError: If the model type is invalid.
-    """
-    global model_instance
-    if model_instance is None:
-        if general_variables.type == TypeEnum.NDB:
-            if general_variables.sub_type == NDBSubtype.sharded:
-                model_instance = ShardedNDB()
+        Returns:
+            The initialized model instance.
+
+        Raises:
+            ValueError: If the model type is invalid.
+        """
+        if cls._model_instance is None:
+            if general_variables.type == TypeEnum.NDB:
+                if general_variables.sub_type == NDBSubtype.sharded:
+                    cls._model_instance = ShardedNDB(write_mode=write_mode)
+                else:
+                    cls._model_instance = SingleNDB(write_mode=write_mode)
+            elif general_variables.type == TypeEnum.UDT:
+                if general_variables.sub_type == UDTSubtype.text:
+                    cls._model_instance = TextClassificationModel()
+                else:
+                    cls._model_instance = TokenClassificationModel()
             else:
-                model_instance = SingleNDB()
-        elif general_variables.type == TypeEnum.UDT:
-            if general_variables.sub_type == UDTSubtype.text:
-                model_instance = TextClassificationModel()
-            else:
-                model_instance = TokenClassificationModel()
-        else:
-            raise ValueError("Invalid model type")
-    return model_instance
+                raise ValueError("Invalid model type")
+        return cls._model_instance
+
+
+def get_model(write_mode: bool = False):
+    return ModelManager.get_instance(write_mode=write_mode)

@@ -106,6 +106,7 @@ class GeneralVariables(EnvLoader):
     model_bazaar_dir: str
     license_key: str
     task_runner_token: str
+    write: bool
     type: TypeEnum = TypeEnum.NDB
     sub_type: Union[UDTSubtype, NDBSubtype] = NDBSubtype.single
 

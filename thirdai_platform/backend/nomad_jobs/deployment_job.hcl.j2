@@ -3,7 +3,8 @@ job "deployment-{{ model_id }}" {
 
   type = "service"
 
-  group "deployment" {
+  # Group 1: Autoscaling enabled (read group)
+  group "read" {
     count = 1
 
     scaling {
@@ -25,7 +26,7 @@ job "deployment-{{ model_id }}" {
     }
 
     network {
-      port "{{ model_id }}-http" {
+      port "{{ model_id }}-http-read" {
         {% if platform == "docker" %}
           to = 80
         {% elif platform == "local" %}
@@ -35,18 +36,18 @@ job "deployment-{{ model_id }}" {
     }
 
     service {
-      name = "{{ model_id }}"
-      port = "{{ model_id }}-http"
+      name = "{{ model_id }}-read"
+      port = "{{ model_id }}-http-read"
       provider = "nomad"
 
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.{{ model_id }}-http.rule=PathPrefix(`/{{ model_id }}/`)",
-        "traefik.http.routers.{{ model_id }}-http.priority=10"
+        "traefik.http.routers.{{ model_id }}-http-read.rule=PathPrefix(/{{ model_id }}/read)",
+        "traefik.http.routers.{{ model_id }}-http-read.priority=10"
       ]
     }
 
-    task "backend" {
+    task "read-backend" {
       {% if platform == "local" %}
         driver = "raw_exec"
       {% elif platform == "docker" %}  
@@ -83,13 +84,14 @@ EOF
         {% endif %}
 
         TASK_RUNNER_TOKEN = "${TASK_RUNNER_TOKEN}"
+        WRITE = "false"
       }
 
       config {
         {% if platform == "docker" %}  
           image = "{{ registry }}/{{ image_name }}:{{ tag }}"
           image_pull_timeout = "15m"
-          ports = ["{{ model_id }}-http"]
+          ports = ["{{ model_id }}-http-read"]
           group_add = ["4646"]
           auth {
             username = "{{ docker_username }}"
@@ -109,8 +111,103 @@ EOF
         cpu = 2400
         memory = {{ memory }}
         memory_max = {{ 4 * memory }}
-
       }
     }
   }
+
+  # Conditionally include the write group based on write_enabled
+  {% if write_enabled %}
+  group "write" {
+    count = 1
+
+    network {
+      port "{{ model_id }}-http-write" {
+        {% if platform == "docker" %}
+          to = 81
+        {% elif platform == "local" %}
+          static = {{ port + 1 }}
+        {% endif %}
+      }
+    }
+
+    service {
+      name = "{{ model_id }}-write"
+      port = "{{ model_id }}-http-write"
+      provider = "nomad"
+
+      tags = [
+        "traefik.enable=true",
+        "traefik.http.routers.{{ model_id }}-http-write.rule=PathPrefix(/{{ model_id }}/write)",
+        "traefik.http.routers.{{ model_id }}-http-write.priority=10"
+      ]
+    }
+
+    task "write-backend" {
+      {% if platform == "local" %}
+        driver = "raw_exec"
+      {% elif platform == "docker" %}  
+        driver = "docker"
+
+      template {
+        destination = "${NOMAD_SECRETS_DIR}/env.vars"
+        env         = true
+        change_mode = "restart"
+        data        = <<EOF
+{% raw %}
+{{- with nomadVar "nomad/jobs" -}}
+TASK_RUNNER_TOKEN = {{ .task_runner_token }}
+{{- end -}}
+{% endraw %}
+EOF
+      }
+
+      {% endif %}
+
+      env {
+        MODEL_ID = "{{ model_id }}"
+        MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
+        LICENSE_KEY = "{{ license_key }}"
+        GENAI_KEY = "{{ genai_key }}"
+        TYPE = "{{ type }}"
+        SUB_TYPE = "{{ sub_type }}"
+        AWS_ACCESS_KEY = "{{ aws_access_key }}"
+        AWS_ACCESS_SECRET = "{{ aws_access_secret }}"
+        {% if platform == "local" %}
+          MODEL_BAZAAR_DIR = "{{ share_dir }}"
+        {% elif platform == "docker" %}  
+          MODEL_BAZAAR_DIR = "/model_bazaar"
+        {% endif %}
+
+        TASK_RUNNER_TOKEN = "${TASK_RUNNER_TOKEN}"
+        WRITE = "true"
+      }
+
+      config {
+        {% if platform == "docker" %}  
+          image = "{{ registry }}/{{ image_name }}:{{ tag }}"
+          image_pull_timeout = "15m"
+          ports = ["{{ model_id }}-http-write"]
+          group_add = ["4646"]
+          auth {
+            username = "{{ docker_username }}"
+            password = "{{ docker_password }}"
+            server_address = "{{ registry }}"
+          }
+          volumes = [
+            "{{ share_dir }}:/model_bazaar"
+          ]
+        {% elif platform == "local" %}
+          command = "{{ python_path }}"
+          args    = ["-m", "uvicorn", "main:app","--app-dir","{{ deployment_app_dir }}","--reload","--host","0.0.0.0","--port","{{ port + 1 }}"]
+        {% endif %}
+      }
+
+      resources {
+        cpu = 2400
+        memory = {{ memory }}
+        memory_max = {{ 4 * memory }}
+      }
+    }
+  }
+  {% endif %}
 }

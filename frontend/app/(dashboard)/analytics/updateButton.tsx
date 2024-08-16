@@ -10,7 +10,7 @@ export default function UpdateButton() {
 
     function handleUpdate() {
         updateModel(params.get("id") as string);
-        router.push(`/analytics?id=${encodeURIComponent(params.get("id") + "-updated")}`);
+        router.push(`/`);
     }
     
     return <div style={{display: "flex", justifyContent: "center", marginTop: "20px", marginBottom: "20vh"}}>

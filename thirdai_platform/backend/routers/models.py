@@ -28,7 +28,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import and_, or_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, make_transient
 from storage import interface, local
 
 model_router = APIRouter()
@@ -1023,3 +1023,24 @@ def delete_model(
     return response(
         status_code=status.HTTP_200_OK, message="Successfully deleted the model."
     )
+
+
+@model_router.post("/update-model", dependencies=[Depends(is_model_owner)])
+def update_model(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    model = get_model_from_identifier(model_identifier, session)
+    old_model_id = model.id
+    session.expunge(model)
+    session.make_transient(model)
+    model.id = None
+    model.name = model.name + "-feedback"
+    model.published_date = datetime.utcnow().isoformat()
+    session.add(model)
+    session.commit()
+    session.refresh(model)
+    import shutil
+    shutil.copytree(f"/home/ubuntu/ThirdAI-Platform/local_dir/models/{old_model_id}", f"/home/ubuntu/ThirdAI-Platform/local_dir/models/{model.id}")
+
+    

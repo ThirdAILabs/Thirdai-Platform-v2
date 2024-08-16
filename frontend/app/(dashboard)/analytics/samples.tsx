@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
-import { associations, reformulations, upvotes } from './mock_samples';
+import { mockSamples, rollingSampleParameters } from './mock_samples';
 import useRollingSamples from './rolling';
 
 interface TextPairsProps {
@@ -82,27 +82,24 @@ function Reformulation({
   );
 }
 
-export default function RecentSamples() {
-  const recentUpvotes = useRollingSamples(
-    /* samples= */ upvotes,
-    /* numSamples= */ 5,
-    /* maxNewSamples= */ 2,
-    /* probabilityNewSamples= */ 0.2,
-    /* intervalSeconds= */ 2);
+export default function RecentSamples({id}: {id: string}) {
+  const samples = mockSamples[id];
+  const params = rollingSampleParameters[id];
+
+  const recentUpvotes = useRollingSamples({
+    samples: samples.upvotes,
+    ...params.upvotes
+  });
   
-  const recentAssociations = useRollingSamples(
-    /* samples= */ associations,
-    /* numSamples= */ 5,
-    /* maxNewSamples= */ 2,
-    /* probabilityNewSamples= */ 0.1,
-    /* intervalSeconds= */ 3);
+  const recentAssociations = useRollingSamples({
+    samples: samples.associations,
+    ...params.associations
+  });
   
-  const recentReformulations = useRollingSamples(
-    /* samples= */ reformulations,
-    /* numSamples= */ 3,
-    /* maxNewSamples= */ 1,
-    /* probabilityNewSamples= */ 0.4,
-    /* intervalSeconds= */ 2);
+  const recentReformulations = useRollingSamples({
+    samples: samples.reformulations,
+    ...params.reformulations
+  });
 
   return (
     <div
@@ -113,13 +110,13 @@ export default function RecentSamples() {
         width: '100%'
       }}
     >
-      <Card style={{ width: '32.5%', height: '45rem' }}>
+      <Card style={{ width: '32.5%' }}>
         <CardHeader>
           <CardTitle>Recent Upvotes</CardTitle>
           <CardDescription>The latest user-provided upvotes</CardDescription>
         </CardHeader>
         <CardContent>
-          {recentUpvotes.map(({ timestamp, query, upvote }, idx) => (
+          {(recentUpvotes).map(({ timestamp, query, upvote }, idx) => (
             <TextPairs
               key={idx}
               timestamp={timestamp}
@@ -131,7 +128,7 @@ export default function RecentSamples() {
           ))}
         </CardContent>
       </Card>
-      <Card style={{ width: '32.5%', height: '45rem' }}>
+      <Card style={{ width: '32.5%' }}>
         <CardHeader>
           <CardTitle>Recent Associations</CardTitle>
           <CardDescription>
@@ -151,7 +148,7 @@ export default function RecentSamples() {
           ))}
         </CardContent>
       </Card>
-      <Card style={{ width: '32.5%', height: '45rem' }}>
+      <Card style={{ width: '32.5%' }}>
         <CardHeader>
           <CardTitle>Recent Query Reformulations</CardTitle>
           <CardDescription>

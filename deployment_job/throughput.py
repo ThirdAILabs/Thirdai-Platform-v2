@@ -13,7 +13,7 @@ class Throughput:
         self.past_hour_history = [SecondCount(0, 0) for _ in range(3600)]
         self.past_hour_total = 0
         self.since_beginning_total = 0
-    
+
     def log(self, amount=1):
         timestamp = int(time.time())
         idx = timestamp % len(self.past_hour_history)
@@ -25,7 +25,7 @@ class Throughput:
             self.past_hour_total += amount
             self.past_hour_history[idx] = SecondCount(timestamp, amount)
         self.since_beginning_total += amount
-    
+
     def past_hour(self):
         return self.past_hour_total
 

@@ -52,5 +52,6 @@ async def startup_event():
     except Exception as error:
         print(f"Failed to start the Generation Job : {error}", file=sys.stderr)
 
+
 if __name__ == "__main__":
     uvicorn.run(app, host="localhost", port=8000)

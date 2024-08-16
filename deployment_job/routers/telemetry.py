@@ -12,13 +12,16 @@ class TelemetryEvent(BaseModel):
     UI: str
     data: Any = None
 
+
 class TelemetryEventPackage(BaseModel):
     UserName: str
     timestamp: str
     UserMachine: str
     event: TelemetryEvent
 
+
 telemetry_router = APIRouter()
+
 
 @telemetry_router.post("/record-event")
 async def record_event(telemetry_package: TelemetryEventPackage):
@@ -27,7 +30,7 @@ async def record_event(telemetry_package: TelemetryEventPackage):
 
     # Append the log entry to the JSON file
     try:
-        with open(model.telemetry_path, 'r+') as f:
+        with open(model.telemetry_path, "r+") as f:
             logs = json.load(f)
             logs.append(log_entry)
             f.seek(0)

@@ -49,9 +49,11 @@ def udt_query(
 
     results = model.predict(**params, token=token)
 
-    tokens_identified.log(len([tags[0] for tags in results.predicted_tags if tags[0] != "O"]))
+    tokens_identified.log(
+        len([tags[0] for tags in results.predicted_tags if tags[0] != "O"])
+    )
     queries_ingested.log(1)
-    queries_ingested_bytes.log(len(params['query']))
+    queries_ingested_bytes.log(len(params["query"]))
 
     return response(
         status_code=status.HTTP_200_OK,
@@ -65,8 +67,8 @@ def udt_query(
 def udt_query(_=Depends(permissions.verify_read_permission)):
     """
     Returns statistics about the deployment such as the number of tokens identified, number of
-    queries ingested, and total size of queries ingested. 
-    
+    queries ingested, and total size of queries ingested.
+
     Parameters:
     - token: str - Authorization token (inferred from permissions dependency).
 
@@ -101,6 +103,6 @@ def udt_query(_=Depends(permissions.verify_read_permission)):
                 "queries_ingested": queries_ingested.past_hour(),
                 "queries_ingested_bytes": queries_ingested_bytes.past_hour(),
             },
-            "uptime": int(time.time() - start_time)
-        }
+            "uptime": int(time.time() - start_time),
+        },
     )

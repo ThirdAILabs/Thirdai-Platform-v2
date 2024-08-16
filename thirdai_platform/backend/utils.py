@@ -272,9 +272,9 @@ class NDBExtraOptions(BaseModel):
     hidden_bias: Optional[bool] = None
     retriever: Optional[str] = None  # This flag is for which retriever to use.
     unsupervised_train: Optional[bool] = None
-    disable_finetunable_retriever: Optional[bool] = (
-        None  # This flag is to disable inverted index in supervised training.
-    )
+    disable_finetunable_retriever: Optional[
+        bool
+    ] = None  # This flag is to disable inverted index in supervised training.
     checkpoint_interval: Optional[int] = None
     fast_approximation: Optional[bool] = None
     num_buckets_to_sample: Optional[int] = None
@@ -639,7 +639,7 @@ async def restart_generate_job():
         python_path=get_python_path(),
         generate_app_dir=str(get_root_absolute_path() / "llm_generation_job"),
     )
-    
+
 
 NEURALDB_DEPLOYMENT_ID = "neuraldb-deployment-ui"
 
@@ -651,7 +651,9 @@ async def restart_neuraldb_deployment_ui():
     cwd = Path(os.getcwd())
     return submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
-        filepath=str(cwd / "backend" / "nomad_jobs" / "neuraldb_deployment_ui_job.hcl.j2"),
+        filepath=str(
+            cwd / "backend" / "nomad_jobs" / "neuraldb_deployment_ui_job.hcl.j2"
+        ),
         public_model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
         platform=get_platform(),
         tag=os.getenv("TAG"),

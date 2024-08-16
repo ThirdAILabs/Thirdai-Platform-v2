@@ -4,13 +4,13 @@ import React, { useState } from 'react';
 import { SelectModel } from '@/lib/db';
 
 interface SCQQuestionsProps {
-    question: string;
-    answer: string;
+  question: string;
+  answer: string;
 }
 
 type GeneratedData = {
-    category: string;
-    examples: string[];
+  category: string;
+  examples: string[];
 };
 
 const predefinedChoices = [
@@ -18,7 +18,7 @@ const predefinedChoices = [
   'Negative Sentiment',
 ];
 
-const SCQQuestions = ({question, answer} : SCQQuestionsProps) => {
+const SCQQuestions = ({ question, answer }: SCQQuestionsProps) => {
   const [categories, setCategories] = useState([{ name: '', example: '' }]);
   const [showReview, setShowReview] = useState(false);
   const [isDataGenerating, setIsDataGenerating] = useState(false);
@@ -142,7 +142,7 @@ const SCQQuestions = ({question, answer} : SCQQuestionsProps) => {
         <button type="button" className='bg-blue-500 text-white px-4 py-2 rounded-md mt-2 mr-2' onClick={handleAddCategory}>
           Add Category
         </button>
-        <button type="button" className='bg-green-500 text-white px-4 py-2 rounded-md mt-2' onClick={()=>{setShowReview(true)}}>Finish and Review</button>
+        <button type="button" className='bg-green-500 text-white px-4 py-2 rounded-md mt-2' onClick={() => { setShowReview(true) }}>Finish and Review</button>
       </form>
 
       {categories.length > 0 && showReview && (
@@ -175,7 +175,7 @@ const SCQQuestions = ({question, answer} : SCQQuestionsProps) => {
         </div>
       )}
 
-      {! isDataGenerating && generatedData.length > 0 && (
+      {!isDataGenerating && generatedData.length > 0 && (
         <div className='mt-5'>
           <h3 className='mb-3 text-lg font-semibold'>Generated Data</h3>
 
@@ -204,49 +204,13 @@ const SCQQuestions = ({question, answer} : SCQQuestionsProps) => {
 
           <div className="flex justify-center">
             <Link href="/">
-            <button
-              type="button"
-              className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-              onClick={async () => {
-
-                const modelData: Omit<SelectModel, 'id'> = {
-                  imageUrl: '/thirdai-small.png',
-                  name: 'my pii detector model',
-                  status: 'training',
-                  trainedAt: new Date(), // Use current date and time
-                  description: 'This is a PII model',
-                  deployEndpointUrl: 'http://70.233.60.118:3001/',
-                  onDiskSizeKb: (300 * 1024).toString(),  // 300 MB converted to KB as string
-                  ramSizeKb: (300 * 1024 * 2).toString(),  // 300 * 2 MB converted to KB as string
-                  numberParameters: 51203077,
-                  rlhfCounts: 0,
-                  modelType: 'ner model'
-                };
-  
-                try {
-                  const response = await fetch('/api/insertModel', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(modelData)
-                  });
-            
-                  if (response.ok) {
-                    const result = await response.json();
-                    console.log('Model inserted:', result);
-                  } else {
-                    const error = await response.json();
-                    console.error('Failed to insert model:', error);
-                  }
-                } catch (error) {
-                  console.error('Error inserting model:', error);
-                }
-
-              }}
-            >
-              Create
-            </button>
+              <button
+                type="button"
+                className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
+                onClick={async () => { }}
+              >
+                Create
+              </button>
             </Link>
           </div>
         </div>

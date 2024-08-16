@@ -8,10 +8,12 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card';
-import { fetchAllModels, fetchAllTeams, fetchAllUsers, 
-          updateModelAccessLevel,
-          createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam, deleteTeamById,
-          deleteUserAccount } from "@/lib/backend";
+import {
+  fetchAllModels, fetchAllTeams, fetchAllUsers,
+  updateModelAccessLevel,
+  createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam, deleteTeamById,
+  deleteUserAccount
+} from "@/lib/backend";
 
 // Define types for the models, teams, and users
 type Model = {
@@ -337,7 +339,7 @@ export default function AccessPage() {
     getUsers()
   }, []);
 
-  useEffect(()=>{
+  useEffect(() => {
     getTeams()
   }, [users])
 

@@ -44,6 +44,7 @@ jobs:
 
     - name: Create Extension
       run: |
+        export PGPASSWORD='password'
         psql -h localhost -U postgres -d model_bazaar -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
 
     - name: Set DATABASE_URI

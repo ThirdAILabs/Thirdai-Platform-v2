@@ -197,8 +197,6 @@ class NDBFunctions:
         logging.info("Ovveriding the model")
         deployment.save_model(override=True)
 
-        deployment.pii_detect("MY name is Yash, I work at ThirdAI Corp from May 2022.")
-
     @staticmethod
     def check_unsupervised(inputs: Dict[str, Any]) -> Any:
         logging.info(f"Running unsupervised with {inputs}")
@@ -263,8 +261,6 @@ class NDBFunctions:
     def deploy_ndb(inputs: Dict[str, Any]) -> Any:
         logging.info(f"inputs: {inputs}")
         model = inputs.get("model")
-        run_name = inputs.get("run_name")
-        use_llm_guardrail = inputs.get("use_llm_guardrail", False)
 
         logging.info(
             f"Deploying the model {model.model_identifier} and id {model.model_id}"

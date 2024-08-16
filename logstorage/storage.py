@@ -38,7 +38,7 @@ class DataStore:
         pass
 
     @abstractmethod
-    def get_sample_count(self, name: str):
+    def get_sample_count(self, name: str, with_feedback: bool):
         # returns the total count of entries with the given name
         pass
 
@@ -102,11 +102,24 @@ class SQLiteStore(DataStore):
         )
         session.commit()
 
-    def get_sample_count(self, name: str):
+    def get_sample_count(self, name: str, with_feedback: bool):
         session = self.Session()
-        count = (
-            session.query(func.count(Samples.id)).filter(Samples.name == name).scalar()
-        )
+        if with_feedback:
+            count = (
+                session.query(func.count(Samples.id))
+                .join(FeedBack, Samples.id == FeedBack.sample_uuid)
+                .filter(Samples.name == name)
+                .scalar()
+            )
+
+        else:
+            count = (
+                session.query(func.count(Samples.id))
+                .outerjoin(FeedBack, Samples.id == FeedBack.sample_uuid)
+                .filter(Samples.name == name)
+                .filter(FeedBack.id == None)
+                .scalar()
+            )
         return count
 
     def get_feedback_count(self, name: str):
@@ -120,24 +133,27 @@ class SQLiteStore(DataStore):
         return count
 
     def delete_old_samples(self, name: str, samples_to_store: int):
-        current_count = self.get_sample_count(name)
+        # only delete samples that have no feedback associated with them
+        current_count = self.get_sample_count(name, with_feedback=False)
 
         samples_to_delete = current_count - samples_to_store
 
         if samples_to_delete > 0:
             session = self.Session()
 
+            # delete only the samples that have no associated feedback
             oldest_entries = (
                 session.query(Samples.id)
+                .outerjoin(FeedBack, Samples.id == FeedBack.sample_uuid)
                 .filter(Samples.name == name)
+                .filter(FeedBack.id == None)
                 .order_by(Samples.timestamp.asc())
                 .limit(samples_to_delete)
                 .all()
             )
+
             for entry_id in oldest_entries:
-                session.delete(
-                    session.query(Samples).filter(Samples.id == entry_id[0]).one()
-                )
+                session.delete(session.query(Samples).get(entry_id[0]))
             session.commit()
 
     def get_samples(self, name: str, num_samples: int):
@@ -172,29 +188,31 @@ class SQLiteStore(DataStore):
 
 
 class DataStorage:
-    def __init__(self, connector: DataStore, per_log_buffer_size: int = 1000):
+    def __init__(self, connector: DataStore):
         self.connector = connector
 
         # class attributes are generated using the connector hence, we do not need to write
         # save load logic for DataStorage class.
-        self.existing_entities: typing.Set[str] = connector.existing_names()
-        self.sample_counter = defaultdict(int)
+        self._sample_counter = defaultdict(int)
 
-        for name in self.existing_entities:
-            self.sample_counter[name] = connector.get_sample_count(name=name)
+        # this counter is local to DataStorage and will not be consistent across different instances of DataStorage.
+        # this reduces the write load on the Connector. the number of samples for the same storage might end up being
+        # more than the buffer limit but they can be clipped out later.
+        for name in self.connector.existing_names():
+            self._sample_counter[name] = connector.get_sample_count(name=name)
 
         # if per log buffer size is None then no limit on the number of samples for any logtype
-        self.per_log_buffer_size = per_log_buffer_size
+        self._per_log_buffer_size = 1000
 
-    def insert_samples(self, samples: typing.List[DataSamples]):
-
+    def insert_samples(
+        self, samples: typing.List[DataSamples], override_buffer_limit=False
+    ):
+        # override buffer limit should be used
         samples_to_insert = []
         for sample in samples:
-            self.existing_entities.add(sample.name)
-
-            if (
-                self.per_log_buffer_size
-                and self.sample_counter[sample.name] < self.per_log_buffer_size
+            if override_buffer_limit or (
+                self._per_log_buffer_size
+                and self._sample_counter[sample.name] < self._per_log_buffer_size
             ):
                 samples_to_insert.append(
                     (sample.uuid, sample.datatype, sample.name, sample.serialize())
@@ -205,9 +223,6 @@ class DataStorage:
         self.connector.add_samples(samples_to_insert)
 
     def retrieve_samples(self, name: str, num_samples: int):
-        if name not in self.existing_entities:
-            return []
-
         entries = self.connector.get_samples(name, num_samples=num_samples)
 
         return [
@@ -221,17 +236,11 @@ class DataStorage:
         feedbacks_to_insert = []
 
         for feedback in feedbacks:
-            if feedback.name not in self.existing_entities:
-                raise Exception("Cannot add feedback for a name that does not exist")
-
             feedbacks_to_insert.append((feedback.sample_uuid, feedback.serialize()))
 
         self.connector.add_feedback(feedbacks_to_insert)
 
     def retrieve_feedbacks(self, name: str):
-        if name not in self.existing_entities:
-            return []
-
         feedbacks = self.connector.get_feedback(name)
 
         return [
@@ -240,3 +249,11 @@ class DataStorage:
             )
             for datatype, sample_uuid, data in feedbacks
         ]
+
+    def clip(self):
+        existing_sample_types = self.connector.existing_names()
+
+        for name in existing_sample_types():
+            self.connector.delete_old_samples(
+                name=name, samples_to_store=self._per_log_buffer_size
+            )

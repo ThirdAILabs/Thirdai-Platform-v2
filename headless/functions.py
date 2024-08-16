@@ -582,7 +582,7 @@ class WorkflowFunctions:
         logging.info(f"inputs: {inputs}")
         response = flow.workflow_client.add_models(
             workflow_id=inputs.get("workflow_id"),
-            model_identifiers=[inputs.get("model").model_identifier],
+            model_ids=[inputs.get("model").model_id],
             components=[inputs.get("component")],
         )
 
@@ -591,7 +591,7 @@ class WorkflowFunctions:
         logging.info(f"inputs: {inputs}")
         response = flow.workflow_client.delete_models(
             workflow_id=inputs.get("workflow_id"),
-            model_identifiers=[inputs.get("model").model_identifier],
+            model_ids=[inputs.get("model").model_id],
             components=[inputs.get("component")],
         )
 

@@ -981,7 +981,6 @@ def delete_model(
     Deletes a specified model.
 
     - **model_identifier**: The model identifier of the model to delete
-
     """
 
     try:
@@ -992,15 +991,33 @@ def delete_model(
             message=str(error),
         )
 
+    errors = []
+
+    # Step 1: Delete model storage
     try:
         storage.delete(model.id)
+    except Exception as storage_error:
+        errors.append(f"Failed to delete model from storage: {str(storage_error)}")
+
+    # Step 2: Delete Nomad job
+    try:
         delete_nomad_job(f"deployment-{model.id}", os.getenv("NOMAD_ENDPOINT"))
+    except Exception as nomad_error:
+        errors.append(f"Failed to delete Nomad job: {str(nomad_error)}")
+
+    # Step 3: Delete model from the database
+    try:
         session.delete(model)
         session.commit()
-    except Exception:
+    except Exception as db_error:
+        errors.append(f"Failed to delete model from database: {str(db_error)}")
+
+    # If any errors occurred, return them in the response
+    if errors:
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message=str(traceback.format_exc()),
+            message="Model deletion encountered issues.",
+            data={"errors": errors},
         )
 
     return response(

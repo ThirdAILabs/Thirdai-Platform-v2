@@ -6,6 +6,9 @@ import RAGQuestions from './rag-questions';
 import NLPQuestions from './nlp-questions/nlp-questions';
 import SemanticSearchQuestions from './semantic-search-questions';
 import { fetchPublicModels, fetchPrivateModels, fetchPendingModels } from "@/lib/backend"
+import { Button } from '@/components/ui/button';
+import { Divider } from '@mui/material';
+import { CardDescription } from '@/components/ui/card';
 
 export default function ChooseProblem() {
   const [modelType, setModelType] = useState('');
@@ -40,31 +43,46 @@ export default function ChooseProblem() {
     getModels();
   }, []);
 
+  const RETRIEVAL = "Retrieval"
+  const NLP = "Natural Language Processing"
+  const RAG = "Retrieval Augmented Generation"
+
   return (
     <>
-        <span className="block text-lg font-semibold mb-2">Use case</span>
-        <div className="mb-4">
-          <label htmlFor="modelType" className="block text-sm font-medium text-gray-700">Please select the App type based on your use case:</label>
-          <select
-            id="modelType"
-            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-            value={modelType}
-            onChange={(e)=>setModelType(e.target.value)}
-          >
-            <option value="">-- Please choose an option --</option>
-            <option value="semantic-search">Retrieval</option>
-            <option value="NLP">NLP (Natural Language Processing)</option>
-            <option value="RAG">RAG (Retrieval Augmented Generation)</option>
-          </select>
+        <div style={{display: "flex", flexDirection: "column"}}>
+          <span className="block text-lg font-semibold">Use case</span>
+          <CardDescription>Please select the app type based on your use case.</CardDescription>
+          <div style={{display: "flex", gap: "10px", marginTop: "10px"}}>
+            {
+              [RETRIEVAL, NLP, RAG].map((type) => {
+                const variant = (
+                  !modelType 
+                    ? "default"
+                    : modelType === type
+                      ? "secondary"
+                      : "outline"
+                );
+                return <Button
+                  onClick={() => setModelType(type)}
+                  variant={variant}
+                  style={{width: "100%", ...(variant === "outline" ? {} : {border: "1px solid white"})}}
+                  >
+                    {type}
+                </Button>
+              })
+            }
+          </div>
+
+          {modelType && (
+            <div style={{width: "100%", marginTop: "20px"}}>
+              <Divider style={{marginBottom: "20px"}}/>
+              {modelType === RAG && <RAGQuestions models = {privateModels}/>}
+              {modelType === NLP && <NLPQuestions />}
+              {modelType === RETRIEVAL && <SemanticSearchQuestions />}
+            </div>
+          )}
         </div>
 
-        {modelType && (
-          <div>
-            {modelType === 'RAG' && <RAGQuestions models = {privateModels}/>}
-            {modelType === 'NLP' && <NLPQuestions />}
-            {modelType === 'semantic-search' && <SemanticSearchQuestions />}
-          </div>
-        )}
     </>
   );
 }

@@ -1,5 +1,6 @@
+"use client"
+
 import { Button } from '@/components/ui/button';
-import { auth, signOut } from '@/lib/auth';
 import Image from 'next/image';
 import {
   DropdownMenu,
@@ -10,10 +11,11 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
+import { useContext } from 'react';
+import { UserContext } from '../user_wrapper';
 
-export async function User() {
-  let session = await auth();
-  let user = session?.user;
+export function User() {
+  const { user, logout } = useContext(UserContext);
 
   return (
     <DropdownMenu>
@@ -24,7 +26,7 @@ export async function User() {
           className="overflow-hidden rounded-full"
         >
           <Image
-            src={user?.image ?? '/placeholder-user.jpg'}
+            src={'/placeholder-user.jpg'}
             width={36}
             height={36}
             alt="Avatar"
@@ -33,7 +35,7 @@ export async function User() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+        <DropdownMenuLabel>{user?.username}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem>Settings</DropdownMenuItem>
         <DropdownMenuItem>Support</DropdownMenuItem>
@@ -41,10 +43,7 @@ export async function User() {
         {user ? (
           <DropdownMenuItem>
             <form
-              action={async () => {
-                'use server';
-                await signOut();
-              }}
+              action={logout}
             >
               <button type="submit">Sign Out</button>
             </form>

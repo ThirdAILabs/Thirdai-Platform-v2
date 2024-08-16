@@ -1,4 +1,4 @@
-name: Setup ThirdAI Platform
+name: Run DAG Tests
 
 on:
   push:

@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
-import { deleteModel } from './actions';
 import { Workflow, validate_workflow, start_workflow } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
@@ -192,7 +191,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               &&
               <>
               <DropdownMenuItem>
-                <form action={deleteModel}>
+                <form>
                   <button type="button"
                   onClick={()=>{console.log('undeploy workflow')}}
                   >Undeploy</button>

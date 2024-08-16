@@ -14,7 +14,6 @@ import {
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { SelectModel } from '@/lib/db';
-import { deleteModel } from './actions';
 import { deployModel, getDeployStatus, stopDeploy, getAccessToken, deploymentBaseUrl, listDeployments } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
@@ -449,7 +448,7 @@ export function Model({ model, pending }: { model: SelectModel, pending?: boolea
               &&
               <>
               <DropdownMenuItem>
-                <form action={deleteModel}>
+                <form>
                   <button type="button"
                   onClick={()=>{
                     stopDeploy({ deployment_identifier: deploymentIdentifier, model_identifier: modelIdentifier })

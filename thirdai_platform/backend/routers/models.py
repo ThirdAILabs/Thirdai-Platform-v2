@@ -1,5 +1,6 @@
 import json
 import os
+import traceback
 import uuid
 from typing import Annotated, Dict, Optional, Union
 
@@ -11,6 +12,7 @@ from backend.auth_dependencies import (
     verify_model_read_access,
 )
 from backend.utils import (
+    delete_nomad_job,
     get_expiry_min,
     get_high_level_model_info,
     get_model,
@@ -946,4 +948,57 @@ def update_default_permission(
             "model_id": str(model.id),
             "default_permission": str(model.default_permission),
         },
+    )
+
+
+@model_router.post("/delete", dependencies=[Depends(is_model_owner)])
+def delete_model(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Deletes a specified model.
+
+    - **model_identifier**: The model identifier of the model to delete
+    """
+
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    errors = []
+
+    # Step 1: Delete model storage
+    try:
+        storage.delete(model.id)
+    except Exception as storage_error:
+        errors.append(f"Failed to delete model from storage: {str(storage_error)}")
+
+    # Step 2: Delete Nomad job
+    try:
+        delete_nomad_job(f"deployment-{model.id}", os.getenv("NOMAD_ENDPOINT"))
+    except Exception as nomad_error:
+        errors.append(f"Failed to delete Nomad job: {str(nomad_error)}")
+
+    # Step 3: Delete model from the database
+    try:
+        session.delete(model)
+        session.commit()
+    except Exception as db_error:
+        errors.append(f"Failed to delete model from database: {str(db_error)}")
+
+    # If any errors occurred, return them in the response
+    if errors:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message="Model deletion encountered issues.",
+            data={"errors": errors},
+        )
+
+    return response(
+        status_code=status.HTTP_200_OK, message="Successfully deleted the model."
     )

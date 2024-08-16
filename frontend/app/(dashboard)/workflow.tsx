@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
-import { Workflow, validate_workflow, start_workflow } from '@/lib/backend';
+import { Workflow, validate_workflow, start_workflow, stop_workflow } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
 export function WorkFlow({ workflow }: { workflow: Workflow }) {
@@ -81,7 +81,10 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
   };
 
   useEffect(() => {
-    if (workflow.models && workflow.models.length > 0) {
+    if (workflow.status === 'inactive') {
+      // If the workflow is inactive, we always say it's inactive regardless of model statuses
+      setDeployStatus('Inactive');
+    } else if (workflow.models && workflow.models.length > 0) {
       let hasFailed = false;
       let isInProgress = false;
       let allComplete = true;
@@ -101,16 +104,17 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       if (hasFailed) {
         setDeployStatus('Failed');
       } else if (isInProgress) {
-        setDeployStatus('Deploying');
+        setDeployStatus('Starting');
       } else if (allComplete) {
-        setDeployStatus('Deployed');
+        setDeployStatus('Active'); // Models are complete and workflow is active
       } else {
-        setDeployStatus('Ready to Deploy');
+        setDeployStatus('Ready to Start');
       }
     } else {
-      setDeployStatus('Ready to Deploy');
+      // If no models are present, the workflow is ready to deploy
+      setDeployStatus('Ready to Start');
     }
-  }, [workflow.models]);  
+  }, [workflow.models, workflow.status]);
 
   useEffect(()=>{
     if (workflow.type === 'semantic_search') {
@@ -186,23 +190,33 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem>Edit</DropdownMenuItem>
+            <Link href={`/analytics?id=${encodeURIComponent(`${workflow.id}`)}`}>
+                <DropdownMenuItem>
+                    <button type="button">Usage stats</button>
+                </DropdownMenuItem>
+              </Link>
             {
-              deployStatus === 'Deployed'
+              deployStatus === 'Active'
               &&
               <>
               <DropdownMenuItem>
                 <form>
                   <button type="button"
-                  onClick={()=>{console.log('undeploy workflow')}}
-                  >Undeploy</button>
+                    onClick={async () => {
+                      try {
+                        const response = await stop_workflow(workflow.id);
+                        console.log('Workflow undeployed successfully:', response);
+                        // Optionally, update the UI state to reflect the undeployment
+                        setDeployStatus('Inactive');
+                      } catch (error) {
+                        console.error('Error undeploying workflow:', error);
+                      }
+                    }}
+                  >
+                    Stop Workflow
+                  </button>
                 </form>
               </DropdownMenuItem>
-
-              <Link href={`/analytics?id=${encodeURIComponent(`${workflow.id}`)}`}>
-                <DropdownMenuItem>
-                    <button type="button">Usage stats</button>
-                </DropdownMenuItem>
-              </Link>
               </>
             }
           </DropdownMenuContent>

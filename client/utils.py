@@ -258,3 +258,9 @@ def download_files_from_s3(bucket_name, local_dir):
             print("No contents found in 'model_and_data/' folder.")
     except Exception as e:
         print(f"An error occurred during download: {str(e)}")
+
+
+def auth_header(access_token):
+    return {
+        "Authorization": f"Bearer {access_token}",
+    }

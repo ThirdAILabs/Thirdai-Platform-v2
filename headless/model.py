@@ -1,7 +1,7 @@
 import os
 from typing import Dict, List, Optional, Tuple
 
-from client.api import ModelBazaar
+from client.clients import ModelBazaar
 from headless.utils import get_csv_source_id
 
 

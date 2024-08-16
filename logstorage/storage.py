@@ -102,25 +102,31 @@ class SQLiteStore(DataStore):
         )
         session.commit()
 
-    def get_sample_count(self, name: str, with_feedback: bool):
+    def get_sample_count(self, name: str, with_feedback: bool = None):
+
         session = self.Session()
+        if with_feedback is None:
+            return (
+                session.query(func.count(Samples.id))
+                .filter(Samples.name == name)
+                .scalar()
+            )
+
         if with_feedback:
-            count = (
+            return (
                 session.query(func.count(Samples.id))
                 .join(FeedBack, Samples.id == FeedBack.sample_uuid)
                 .filter(Samples.name == name)
                 .scalar()
             )
 
-        else:
-            count = (
-                session.query(func.count(Samples.id))
-                .outerjoin(FeedBack, Samples.id == FeedBack.sample_uuid)
-                .filter(Samples.name == name)
-                .filter(FeedBack.id == None)
-                .scalar()
-            )
-        return count
+        return (
+            session.query(func.count(Samples.id))
+            .outerjoin(FeedBack, Samples.id == FeedBack.sample_uuid)
+            .filter(Samples.name == name)
+            .filter(FeedBack.id == None)
+            .scalar()
+        )
 
     def get_feedback_count(self, name: str):
         session = self.Session()
@@ -199,7 +205,9 @@ class DataStorage:
         # this reduces the write load on the Connector. the number of samples for the same storage might end up being
         # more than the buffer limit but they can be clipped out later.
         for name in self.connector.existing_names():
-            self._sample_counter[name] = connector.get_sample_count(name=name)
+            self._sample_counter[name] = connector.get_sample_count(
+                name=name, with_feedback=None
+            )
 
         # if per log buffer size is None then no limit on the number of samples for any logtype
         self._per_log_buffer_size = 1000
@@ -218,7 +226,7 @@ class DataStorage:
                     (sample.uuid, sample.datatype, sample.name, sample.serialize())
                 )
 
-                self.sample_counter[sample.name] += 1
+                self._sample_counter[sample.name] += 1
 
         self.connector.add_samples(samples_to_insert)
 
@@ -253,7 +261,7 @@ class DataStorage:
     def clip(self):
         existing_sample_types = self.connector.existing_names()
 
-        for name in existing_sample_types():
+        for name in existing_sample_types:
             self.connector.delete_old_samples(
                 name=name, samples_to_store=self._per_log_buffer_size
             )

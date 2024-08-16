@@ -20,6 +20,7 @@ const RAGQuestions = ({
   const [ifUseExistingSS, setUseExistingSS] = useState<string|null>(null);
   const [existingSSmodels, setExistingSSmodels] = useState<SelectModel[]>([]);
   const [ssIdentifier, setSsIdentifier] = useState<string | null>(null);
+  const [ssModelId, setSsModelId] = useState<string | null>(null);
   const [createdSS, setCreatedSS] = useState<boolean>(false);
   
   useEffect(() => {
@@ -36,6 +37,7 @@ const RAGQuestions = ({
   const [ifUseExistingLGR, setIfUseExistingLGR] = useState<string|null>(null);
   const [existingNERModels, setExistingNERModels] = useState<SelectModel[]>([]);
   const [grIdentifier, setGrIdentifier] = useState<string | null>(null);
+  const [grModelId, setGrModelId] = useState<string | null>(null);
   const [createdGR, setCreatedGR] = useState<boolean>(false);
 
   useEffect(() => {
@@ -69,25 +71,19 @@ const RAGQuestions = ({
       const components = [];
   
       // Find and add the semantic search model
-      if (ssIdentifier) {
-        const ssModel = existingSSmodels.find(model => `${model.username}/${model.model_name}` === ssIdentifier);
-        if (ssModel) {
-          modelIdentifiers.push(ssModel.model_id);
-          components.push('search');
-        } else {
-          console.error(`Semantic search model with identifier ${ssIdentifier} not found.`);
-        }
+      if (ssModelId) {
+        modelIdentifiers.push(ssModelId);
+        components.push('search');
+      } else {
+        console.error(`Semantic search model with identifier ${ssIdentifier} not found.`);
       }
 
       // Find and add the NER model if it exists
-      if (grIdentifier) {
-        const nerModel = existingNERModels.find(model => `${model.username}/${model.model_name}` === grIdentifier);
-        if (nerModel) {
-          modelIdentifiers.push(nerModel.model_id);
-          components.push('nlp');
-        } else {
-          console.error(`NER model with identifier ${grIdentifier} not found.`);
-        }
+      if (grModelId) {
+        modelIdentifiers.push(grModelId);
+        components.push('nlp');
+      } else {
+        console.error(`NER model with identifier ${grIdentifier} not found.`);
       }
   
       // Step 3: Add the models to the workflow
@@ -147,7 +143,12 @@ const RAGQuestions = ({
                   className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                   value={ssIdentifier || ''}
                   onChange={(e) => {
-                    setSsIdentifier(e.target.value);
+                    const ssID = e.target.value;
+                    setSsIdentifier(ssID);
+                    const ssModel = existingSSmodels.find(model => `${model.username}/${model.model_name}` === ssID);
+                    if (ssModel) {
+                      setSsModelId(ssModel.model_id)
+                    }
                   }}
                 >
                   <option value="">-- Please choose a model --</option>
@@ -176,10 +177,10 @@ const RAGQuestions = ({
           :
           <div>
             <SemanticSearchQuestions 
-              onCreateModel={(username, modelName) => {
+              onCreateModel={(modelID) => {
                 // TODO: SOMEHOW GET CURRENT USERNAME
-                console.log("username", username);
-                setSsIdentifier(`${username}/${modelName}`);
+                console.log("semantic search modelID", modelID);
+                setSsModelId(modelID);
                 setCreatedSS(true);
               }}
               stayOnPage
@@ -271,10 +272,10 @@ const RAGQuestions = ({
                 :
                 <div>
                   <NERQuestions 
-                    onCreateModel={(username, modelName) => {
+                    onCreateModel={(modelID) => {
                       // TODO: SOMEHOW GET USERNAME
-                      console.log("username", username);
-                      setGrIdentifier(`${username}/${modelName}`);
+                      console.log("NER modelID", modelID);
+                      setGrModelId(modelID);
                       setCreatedGR(true);
                     }} 
                     stayOnPage
@@ -296,7 +297,14 @@ const RAGQuestions = ({
                   id="nerModels"
                   className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                   value={grIdentifier ? grIdentifier : ''}
-                  onChange={(e) => setGrIdentifier(e.target.value)}
+                  onChange={(e) => {
+                    const grID = e.target.value;
+                    setGrIdentifier(grID);
+                    const grModel = existingNERModels.find(model => `${model.username}/${model.model_name}` === grID);
+                    if (grModel) {
+                      setGrModelId(grModel.model_id)
+                    }
+                  }}
                 >
                   <option value="">-- Please choose a model --</option>
                   {existingNERModels.map(model => (
@@ -346,9 +354,9 @@ const RAGQuestions = ({
 
       {/* Begin create and deploy */}
             {
-              (ssIdentifier) 
+              (ssModelId) 
               && 
-              (ifUseLGR === 'No' || grIdentifier) 
+              (ifUseLGR === 'No' || grModelId) 
               && 
               llmType 
               && 

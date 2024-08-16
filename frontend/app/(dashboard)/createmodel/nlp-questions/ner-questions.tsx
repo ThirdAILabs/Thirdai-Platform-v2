@@ -138,7 +138,7 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
       const modelId = modelResponse.data.model_id;
   
       // Create workflow after model creation
-      const workflowName = `Workflow for ${modelName}`;
+      const workflowName = modelName;
       const workflowTypeName = "nlp"; // Assuming this is the type for NER workflows
       const workflowResponse = await create_workflow({ name: workflowName, typeName: workflowTypeName });
       const workflowId = workflowResponse.data.workflow_id;

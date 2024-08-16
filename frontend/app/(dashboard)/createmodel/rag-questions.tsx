@@ -55,7 +55,7 @@ const RAGQuestions = ({
   // End state variables & func for LLM
 
   const handleSubmit = async () => {
-    const workflowName = `Workflow for ${modelName}`;
+    const workflowName = modelName;
     const workflowTypeName = 'rag';
   
     try {

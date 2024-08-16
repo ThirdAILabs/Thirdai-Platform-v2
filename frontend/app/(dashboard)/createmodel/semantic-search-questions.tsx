@@ -82,7 +82,7 @@ const SemanticSearchQuestions = ({ onCreateModel, stayOnPage }: SemanticSearchQu
         const modelId = modelResponse.data.model_id;
 
         // Step 2: Create the workflow
-        const workflowName = `Workflow for ${modelName}`;
+        const workflowName = modelName;
         const workflowTypeName = "semantic_search"; // You can change this as needed
         const workflowResponse = await create_workflow({ name: workflowName, typeName: workflowTypeName });
         const workflowId = workflowResponse.data.workflow_id;

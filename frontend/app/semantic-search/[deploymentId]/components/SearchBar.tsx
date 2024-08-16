@@ -93,12 +93,17 @@ interface UserModelDescriptionProps {
     onClickViewDocuments: () => void;
     sources: Source[];
     setSources: (sources: Source[]) => void;
+    ifGenerationOn: boolean;
 }
 
 function UserModelDescription(props: UserModelDescriptionProps) {
     return (
         <Description>
-            Generating answers from your documents.
+            {
+                props.ifGenerationOn
+                &&
+                `Generating answers from your documents`
+            }
             <Spacer $width="7px" />
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -132,6 +137,7 @@ interface SearchBarProps {
     setSources: (sources: Source[]) => void;
     prompt: string;
     setPrompt: (prompt: string) => void;
+    ifGenerationOn: boolean;
 }
 
 export default function SearchBar({
@@ -142,6 +148,7 @@ export default function SearchBar({
     setSources,
     prompt,
     setPrompt,
+    ifGenerationOn
 }: SearchBarProps) {
     const modelService = useContext<ModelService | null>(ModelServiceContext);
     const [showSources, setShowSources] = useState(false);
@@ -281,6 +288,7 @@ export default function SearchBar({
                     onClickViewDocuments={() => setShowSources((val) => !val)}
                     sources={sources}
                     setSources={setSources}
+                    ifGenerationOn={ifGenerationOn}
                 />
             ) : (
                 <GlobalModelDescription />

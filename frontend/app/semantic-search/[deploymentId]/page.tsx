@@ -415,6 +415,7 @@ function App() {
                                         setSources={setSources}
                                         prompt={prompt}
                                         setPrompt={setPrompt}
+                                        ifGenerationOn={ifGenerationOn}
                                     />
                                     {!results &&
                                         !modelService.isUserModel() && (

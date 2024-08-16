@@ -454,29 +454,6 @@ class ModelBazaar:
         self.await_train(model)
         return model
 
-    def await_test(self, model_identifier: str, test_id: str):
-        """
-        Waits for the testing of the model to complete.
-
-        Args:
-            model_identifier: The identifier of the model.
-            test_id: Unique id for the test.
-        """
-
-        while True:
-            response_data = self.test_status(test_id)
-
-            if response_data["status"] == "complete":
-                print("\nTesting completed")
-                return response_data["results"]
-
-            if response_data["status"] == "failed":
-                print("\nTesting Failed")
-                raise ValueError(f"Test Failed for {model_identifier} and {test_id}")
-
-            print("Testing: In progress", end="", flush=True)
-            print_progress_dots(duration=10)
-
     def train_status(self, model: Model):
         """
         Checks for the status of the model training
@@ -548,7 +525,7 @@ class ModelBazaar:
         ndb_client = NeuralDBClient(
             model_identifier=model_identifier,
             model_id=response_data["model_id"],
-            bazaar=self,
+            login_instance=self._login_instance,
         )
         if is_async:
             return ndb_client
@@ -577,7 +554,7 @@ class ModelBazaar:
         udt_client = UDTClient(
             model_identifier=model_identifier,
             model_id=response_data["model_id"],
-            bazaar=self,
+            login_instance=self._login_instance,
         )
         if is_async:
             return udt_client

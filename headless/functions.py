@@ -33,9 +33,10 @@ class UDTFunctions:
         logging.info(f"Running Udt with {inputs}")
         run_name = inputs.get("run_name")
         config: Config = inputs.get("config")
+        dag_name = inputs.get("dag_name")
 
         return flow.bazaar_client.train_udt(
-            model_name=f"{run_name}_{config.name}_udt_{config.sub_type}",
+            model_name=f"{run_name}_{dag_name}_{config.name}_udt_{config.sub_type}",
             supervised_docs=[
                 os.path.join(config.base_path, config.unsupervised_paths[0])
             ],
@@ -209,12 +210,13 @@ class NDBFunctions:
         base_model = inputs.get("base_model", None)
         file_num = inputs.get("file_num", 0)
         test = inputs.get("test", False)
+        dag_name = inputs.get("dag_name")
 
         base_model_identifier = base_model.model_identifier if base_model else None
 
         type = "single" if not sharded else "multiple"
         return flow.train(
-            model_name=f"{run_name}_{config.name}_{type}_unsupervised",
+            model_name=f"{run_name}_{dag_name}_{config.name}_{type}_unsupervised",
             unsupervised_docs=[
                 os.path.join(config.base_path, config.unsupervised_paths[file_num])
             ],
@@ -236,12 +238,13 @@ class NDBFunctions:
         base_model = inputs.get("base_model", None)
         file_num = inputs.get("file_num", 0)
         test = inputs.get("test", False)
+        dag_name = inputs.get("dag_name")
 
         base_model_identifier = base_model.model_identifier if base_model else None
 
         type = "single" if not sharded else "multiple"
         return flow.train(
-            model_name=f"{run_name}_{config.name}_{type}_unsupervised_supervised",
+            model_name=f"{run_name}_{dag_name}_{config.name}_{type}_unsupervised_supervised",
             unsupervised_docs=[
                 os.path.join(config.base_path, config.unsupervised_paths[file_num])
             ],

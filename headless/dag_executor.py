@@ -184,6 +184,8 @@ class DAGExecutor:
                     inputs[param] = self.outputs[dag_name][config_name][source]
                 else:
                     inputs[param] = source
+            # adds dag_name to the inputs
+            inputs["dag_name"] = dag_name
             self.outputs[dag_name][config_name][task_name] = task_func(inputs)
         logging.info(
             f"Finished executing task '{task_name}' in DAG '{dag_name}' with config '{config_name}', with output {self.outputs[dag_name][config_name][task_name]}."

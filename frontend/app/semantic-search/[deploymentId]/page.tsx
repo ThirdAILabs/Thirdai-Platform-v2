@@ -19,7 +19,6 @@ import {
     PdfInfo,
     ReferenceInfo,
     Source,
-    UserModelService,
 } from "./modelServices";
 import InvalidModelMessage from "./components/InvalidModelMessage";
 import PdfViewer from "./components/pdf_viewer/PdfViewer";
@@ -174,11 +173,7 @@ function App() {
                     setIfGuardRailOn(true)
                 }
 
-                console.log('serviceUrl:', serviceUrl);
-                console.log('tokenModelUrl:', tokenModelUrl);
-
-                // Initialize the UserModelService with the generated URLs
-                const newModelService = new UserModelService(serviceUrl, tokenModelUrl, uuidv4());
+                const newModelService = new ModelService(serviceUrl, tokenModelUrl, uuidv4());
                 setModelService(newModelService);
                 newModelService.sources().then(setSources);
             } catch (error) {
@@ -417,23 +412,6 @@ function App() {
                                         setPrompt={setPrompt}
                                         ifGenerationOn={ifGenerationOn}
                                     />
-                                    {!results &&
-                                        !modelService.isUserModel() && (
-                                            <Pad
-                                                $left="5px"
-                                                $top="20px"
-                                                $bottom="100px"
-                                            >
-                                                <ExampleQueries
-                                                    examples={
-                                                        c.exampleQueries
-                                                    }
-                                                    onClick={
-                                                        chooseExample
-                                                    }
-                                                />
-                                            </Pad>
-                                        )}
                                     {failed && (
                                         <Pad $top="100px">
                                             <InvalidModelMessage />

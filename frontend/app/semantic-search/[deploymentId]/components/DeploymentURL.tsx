@@ -6,6 +6,6 @@ export function createDeploymentUrl(deploymentId: string) {
 }
 
 export function createTokenModelUrl(deploymentId: string) {
-    const hostname = `${window.location.protocol}//${window.location.host}`;
+    const hostname = process.env.DEPLOYMENT_BASE_URL;
     return `${hostname}/${deploymentId}`;
 }

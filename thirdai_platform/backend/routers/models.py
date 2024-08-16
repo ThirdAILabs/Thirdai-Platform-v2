@@ -1058,28 +1058,25 @@ def update_model(
     session: Session = Depends(get_session),
 ):
     model = get_model_from_identifier(model_identifier, session)
-    old_model_name = model.name
-    model.name = f"{model.name}-updated"
-    # parent_id, parent_deployment_id, user_id, team_id
     new_model = schema.Model(
-        name=old_model_name,
+        name=model.name + "-feedback",
         train_status=model.train_status,
         type=model.type,
         sub_type=model.sub_type,
         downloads=model.downloads,
         access_level=model.access_level,
         domain=model.domain,
-        published_date=model.published_date,
+        published_date=datetime.utcnow().isoformat(),
         default_permission=model.default_permission,
         parent_id=model.parent_id,
         user_id=model.user_id,
         team_id=model.team_id
     )
-    model.published_date = datetime.utcnow().isoformat()
     session.add(new_model)
-    deployment = get_deployment(session, old_model_name, model.user_id, model.id)
-    deployment.name = f"{deployment.name}-updated"
     session.commit()
+    session.refresh(new_model)
+    import shutil
+    shutil.copytree(f"/home/ubuntu/ThirdAI-Platform/local_dir/models/{model.id}", f"/home/ubuntu/ThirdAI-Platform/local_dir/models/{new_model.id}")
 
     
 

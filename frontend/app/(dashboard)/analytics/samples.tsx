@@ -116,7 +116,7 @@ export default function RecentSamples({id}: {id: string}) {
           <CardDescription>The latest user-provided upvotes</CardDescription>
         </CardHeader>
         <CardContent>
-          {recentUpvotes.map(({ timestamp, query, upvote }, idx) => (
+          {(recentUpvotes).map(({ timestamp, query, upvote }, idx) => (
             <TextPairs
               key={idx}
               timestamp={timestamp}

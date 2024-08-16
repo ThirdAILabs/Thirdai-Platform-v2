@@ -70,13 +70,13 @@ export const chartData: Record<string, ModelChartData> = {
         },
         {
           label: 'Upvotes per Day',
-          data: [5, 6, 7, 8, 10, 9, 11],
+          data: [8, 7, 9, 8, 7, 6, 5],
           borderColor: 'rgb(255, 159, 64)',
           backgroundColor: 'rgba(255, 159, 64, 0.2)',
         },
         {
           label: 'Associates per Day',
-          data: [2, 3, 2, 3, 4, 3, 4],
+          data: [4, 4, 3, 3, 3, 2, 2],
           borderColor: 'rgb(75, 192, 192)',
           backgroundColor: 'rgba(75, 192, 192, 0.2)',
         },
@@ -106,13 +106,13 @@ export const chartData: Record<string, ModelChartData> = {
         },
         {
           label: 'Second result',
-          data: [0.3210601442822079, 0.3434425016483842, 0.32149393590689523, 0.3313959346677103, 0.33539110840911784, 0.3424920284350734, 0.33490398791025594],
+          data: [0.2715609029119882, 0.2788901114387518, 0.2763283745626661, 0.2838865280978141, 0.2723396521020153, 0.25799510679744936, 0.2527330922401086],
           borderColor: 'rgb(54, 162, 235)',
           backgroundColor: 'rgba(54, 162, 235, 0.2)',
         },
         {
           label: 'Third result',
-          data: [0.2715609029119882, 0.2788901114387518, 0.2763283745626661, 0.2838865280978141, 0.2723396521020153, 0.25799510679744936, 0.2527330922401086],
+          data: [0.3210601442822079, 0.3434425016483842, 0.32149393590689523, 0.3313959346677103, 0.33539110840911784, 0.3424920284350734, 0.33490398791025594],
           borderColor: 'rgb(255, 99, 132)',
           backgroundColor: 'rgba(255, 99, 132, 0.2)',
         },
@@ -242,6 +242,83 @@ export const chartData: Record<string, ModelChartData> = {
         {
           label: 'Reformulations per Query',
           data: [5.2, 4.4, 4.8, 3.9, 3.5, 2.8, 2.6],
+          borderColor: 'rgb(255, 205, 86)',
+          backgroundColor: 'rgba(255, 205, 86, 0.2)',
+        },
+      ],
+    }
+  },
+  "empty": {
+    usageDuration: {
+      labels: ['-1d', '-0d'],
+      datasets: [
+        {
+          label: 'First result',
+          data: [0, 0],
+          borderColor: 'rgb(75, 192, 192)',
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        },
+        {
+          label: 'Second result',
+          data: [0, 0],
+          borderColor: 'rgb(54, 162, 235)',
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        },
+        {
+          label: 'Third result',
+          data: [0, 0],
+          borderColor: 'rgb(255, 99, 132)',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+        },
+        {
+          label: 'Fourth result',
+          data: [0, 0],
+          borderColor: 'rgb(153, 102, 255)',
+          backgroundColor: 'rgba(153, 102, 255, 0.2)',
+        },
+        {
+          label: 'Fifth result',
+          data: [0, 0],
+          borderColor: 'rgb(255, 205, 86)',
+          backgroundColor: 'rgba(255, 205, 86, 0.2)',
+        },
+      ],
+    },
+    usageFrequency: {
+      labels: ['-1d', '-0d'],
+      datasets: [
+        {
+          label: 'Queries per Day',
+          data: [0, 0],
+          borderColor: 'rgb(255, 99, 132)',
+          backgroundColor: 'rgba(255, 99, 132, 0.2)',
+        },
+        {
+          label: 'Clicks per Day',
+          data: [0, 0],
+          borderColor: 'rgb(153, 102, 255)',
+          backgroundColor: 'rgba(153, 102, 255, 0.2)',
+        },
+        {
+          label: 'Upvotes per Day',
+          data: [0, 0],
+          borderColor: 'rgb(255, 159, 64)',
+          backgroundColor: 'rgba(255, 159, 64, 0.2)',
+        },
+        {
+          label: 'Associates per Day',
+          data: [0, 0],
+          borderColor: 'rgb(75, 192, 192)',
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        },
+      ],
+    },
+    reformulatedQueries: {
+      labels: ['-1d', '-0d'],
+      datasets: [
+        {
+          label: 'Reformulations per Query',
+          data: [0, 0],
           borderColor: 'rgb(255, 205, 86)',
           backgroundColor: 'rgba(255, 205, 86, 0.2)',
         },

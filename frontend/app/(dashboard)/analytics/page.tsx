@@ -33,7 +33,9 @@ export default function AnalyticsPage() {
     return null;  // Return null on the first render to avoid hydration mismatch
   }
 
-  const key = params.get("id") === GOOD ? "good" : params.get("id") === BAD ? "bad" : "default"
+  const id = params.get("id") as string;
+
+  const key = id.includes("feedback") ? "empty" : id === GOOD ? "good" : id === BAD ? "bad" : "default"
 
   const { usageDuration, usageFrequency, reformulatedQueries } = chartData[key];
 

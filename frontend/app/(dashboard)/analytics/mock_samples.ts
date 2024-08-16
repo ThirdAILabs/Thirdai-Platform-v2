@@ -32,6 +32,11 @@ export const mockSamples: Record<string, { upvotes: Upvote[], associations: Asso
         associations: bookAssociations, 
         reformulations: badBookReformulations,
     },
+    "empty": {
+        upvotes: [], 
+        associations: [], 
+        reformulations: [],
+    }
 };
 
 interface Hyperparams {
@@ -97,6 +102,26 @@ export const rollingSampleParameters: Record<string, {upvotes: Hyperparams, asso
         },
         reformulations: {
             numSamples: 4,
+            maxNewSamples: 2,
+            probabilityNewSamples: 0.4,
+            intervalSeconds: 2
+        },
+    },
+    "empty": {
+        upvotes: {
+            numSamples: 0,
+            maxNewSamples: 3,
+            probabilityNewSamples: 0.2,
+            intervalSeconds: 2
+        },
+        associations: {
+            numSamples: 0,
+            maxNewSamples: 0,
+            probabilityNewSamples: 0.1,
+            intervalSeconds: 3
+        },
+        reformulations: {
+            numSamples: 0,
             maxNewSamples: 2,
             probabilityNewSamples: 0.4,
             intervalSeconds: 2

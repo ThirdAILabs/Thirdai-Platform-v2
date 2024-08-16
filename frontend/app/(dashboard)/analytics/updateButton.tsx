@@ -6,9 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation"
 
 export default function UpdateButton() {
     const params = useSearchParams();
-    
+    const router = useRouter();
+
     function handleUpdate() {
         updateModel(params.get("id") as string);
+        router.push(`/`);
     }
     
     return <div style={{display: "flex", justifyContent: "center", marginTop: "20px", marginBottom: "20vh"}}>

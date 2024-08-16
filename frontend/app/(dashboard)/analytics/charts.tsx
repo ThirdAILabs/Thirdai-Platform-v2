@@ -29,6 +29,12 @@ export function UsageDurationChart({ data }: ChartProps) {
         position: 'top' as const,
       },
     },
+    scales: {
+      y: {
+          suggestedMin: 0,
+          suggestedMax: 0.5,
+      }
+    }
   };
 
   return (
@@ -52,6 +58,12 @@ export function UsageFrequencyChart({ data }: ChartProps) {
         position: 'top' as const,
       },
     },
+    scales: {
+      y: {
+          suggestedMin: 0,
+          suggestedMax: 1.0,
+      }
+    }
   };
 
   return (

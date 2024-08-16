@@ -255,9 +255,12 @@ def deploy_model(
         )
 
     if not memory:
-        memory = (
-            int(model.meta_data.train["size_in_memory"]) // 1000000
-        ) + 1000  # MB required for deployment
+        if not model.meta_data:
+            memory = 1000
+        else:
+            memory = (
+                int(model.meta_data.train["size_in_memory"]) // 1000000
+            ) + 1000  # MB required for deployment
 
     if token_model_identifier:
         try:

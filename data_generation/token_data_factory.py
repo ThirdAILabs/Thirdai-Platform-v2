@@ -183,20 +183,20 @@ class TokenDataFactory(DataFactory):
             total=total_chunks,
         ):
             chunk_to_process = arguments[idx : idx + self.write_chunk_size]
-            generated_templates = []
 
             generated_templates: List[str] = self.run_and_collect_results(
                 tasks_prompt=chunk_to_process, parallelize=True
             )
 
-            transformed_data_points = []
-            for template_s in generated_templates:
-                for template in template_s["response_text"].split("\n"):
-                    temp = self.fill_and_transform(
-                        tags, template, complete_tag_examples
-                    )
-                    if temp:
-                        transformed_data_points.append(temp)
+            transformed_data_points = [
+                self.fill_and_transform(tags, template, complete_tag_examples)
+                for template_s in generated_templates
+                for template in template_s["response_text"].split("\n")
+            ]
+            # filtering to remove 'None'
+            transformed_data_points = list(
+                filter(lambda x: x is not None, transformed_data_points)
+            )
 
             self.write_on_training_file(
                 transformed_data_points,
@@ -244,7 +244,7 @@ class TokenDataFactory(DataFactory):
                 source.append(word_tag_value)
 
                 """
-                Extending the [TAG] to match the source texts
+                Extending the [TAG] to match the source text
 
                     For example:
                         template = '[NAME] reserved the hall for reunion'
@@ -253,7 +253,7 @@ class TokenDataFactory(DataFactory):
 
                     Expected:
                         source = 'Jessica vega reserved the hall for reunion'
-                        target = 'NAME NAME reserved the hall for reunion'
+                        target = 'NAME NAME O O O O O'
                 """
                 target.extend([word_tag] * len(word_tag_value.split(" ")))
             else:

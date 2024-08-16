@@ -28,7 +28,7 @@ def main():
 
     # Saving the args first
     save_dict(factory.generation_args_location, **asdict(args))
-    factory.generate_data(**asdict(args))
+    dataset_config = factory.generate_data(**asdict(args))
 
 
 if __name__ == "__main__":

@@ -11,8 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from reporter import Reporter
 from routers.ndb import create_ndb_router, process_tasks
-from routers.udt import udt_router
 from routers.telemetry import telemetry_router  # Import the telemetry router
+from routers.udt import udt_router
 from utils import delete_deployment_job
 from variables import GeneralVariables, TypeEnum
 

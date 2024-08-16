@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from pydantic_models import inputs
 from pydantic_models.documents import DocumentList
 from pydantic_models.inputs import BaseQueryParams, NDBExtraParams
+from routers.model import TokenModelManager, get_model, get_token_model
 from utils import (
     Status,
     highlighted_pdf_bytes,
@@ -26,7 +27,6 @@ from utils import (
     response,
     validate_name,
 )
-from routers.model import TokenModelManager, get_model, get_token_model
 from variables import GeneralVariables, TypeEnum
 
 permissions = Permissions()

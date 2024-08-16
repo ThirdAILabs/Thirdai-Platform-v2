@@ -1,12 +1,13 @@
+import time
+
 from fastapi import APIRouter, Depends, status
 from fastapi.encoders import jsonable_encoder
 from permissions import Permissions
 from pydantic_models.inputs import BaseQueryParams
 from routers.model import get_model
+from throughput import Throughput
 from utils import propagate_error, response
 from variables import GeneralVariables
-from throughput import Throughput
-import time
 
 udt_router = APIRouter()
 permissions = Permissions()

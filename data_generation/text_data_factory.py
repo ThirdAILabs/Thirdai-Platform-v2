@@ -34,12 +34,13 @@ class TextDataFactory(DataFactory):
 
         prompt_tasks = []
         mapped_target_label = []
-        generate_at_a_time = 40  # Max data-points to generate at a time
 
         for target_label in target_labels:
-            for current_sentence_idx in range(0, samples_per_label, generate_at_a_time):
+            for current_sentence_idx in range(
+                0, samples_per_label, self.generate_at_a_time
+            ):
                 samples_to_generate = min(
-                    generate_at_a_time, samples_per_label - current_sentence_idx
+                    self.generate_at_a_time, samples_per_label - current_sentence_idx
                 )
                 random_vocab = self.get_random_vocab(
                     user_vocab, k=vocab_per_sentence * samples_to_generate
@@ -73,19 +74,18 @@ class TextDataFactory(DataFactory):
         prompt_tasks, mapped_target_label = zip(*args)
 
         prompt_tasks = prompt_tasks[: total_expected_sentences - sentences_generated]
-        write_chunk_size = 50
 
-        total_chunks = len(prompt_tasks) // write_chunk_size + 1
+        total_chunks = len(prompt_tasks) // self.write_chunk_size + 1
         for idx in tqdm(
-            range(0, len(prompt_tasks), write_chunk_size),
+            range(0, len(prompt_tasks), self.write_chunk_size),
             desc="Generating text data: ",
             total=total_chunks,
         ):
-            chunk_to_process = prompt_tasks[idx : idx + write_chunk_size]
-            chunk_target_label = mapped_target_label[idx : idx + write_chunk_size]
+            chunk_to_process = prompt_tasks[idx : idx + self.write_chunk_size]
+            chunk_target_label = mapped_target_label[idx : idx + self.write_chunk_size]
 
             data_points: List[str] = self.run_and_collect_results(
-                tasks_prompt=chunk_to_process
+                tasks_prompt=chunk_to_process, parallelize=True
             )
 
             # sorting based on the task_id

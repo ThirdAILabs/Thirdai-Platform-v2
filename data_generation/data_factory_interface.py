@@ -20,20 +20,16 @@ class DataFactory(ABC):
             / self.general_variables.data_id
         )
         self.save_dir.mkdir(parents=True, exist_ok=True)
-
+        self.llm_model = llm_classes.get(self.general_variables.llm_provider.value)(
+            api_key=self.general_variables.genai_key
+        )
         self.train_file_location = self.save_dir / "train.csv"
         self.errored_file_location = self.save_dir / "traceback.err"
         self.config_file_location = self.save_dir / "config.json"
         self.generation_args_location = self.save_dir / "generation_args.json"
 
-    def init_llm(self):
-        return llm_classes.get(self.general_variables.llm_provider.value)(
-            api_key=self.general_variables.genai_key
-        )
-
-    def llm_completion(self, prompt: str, system_prompt: Optional[str] = None):
-        llm_model = self.init_llm()
-        return llm_model.completion(prompt, system_prompt=system_prompt)
+        self.generate_at_a_time = 40
+        self.write_chunk_size = 50
 
     @abstractmethod
     def generate_data(self, **kwargs):
@@ -48,9 +44,10 @@ class DataFactory(ABC):
         return random.sample(population=vocabulary, k=k)
 
     def get_random_prompts(self, k: int = 1):
+        # Don't have weighted random.choice() functionality.
         return [
             random.choices(items["prompts"], weights=items["scores"], k=k)[0]
-            for __annotations__, items in random_prompts.items()
+            for items in random_prompts.values()
         ]
 
     def process_prompt(
@@ -59,7 +56,7 @@ class DataFactory(ABC):
         task_id: int,
         system_prompt: Optional[str] = None,
     ):
-        texts_of = self.llm_completion(prompt=prompt, system_prompt=system_prompt)
+        texts_of = self.llm_model.completion(prompt=prompt, system_prompt=system_prompt)
         return texts_of, task_id
 
     def run_and_collect_results(
@@ -67,9 +64,9 @@ class DataFactory(ABC):
     ):
         data_points = []
         if parallelize:
-            from concurrent.futures import ProcessPoolExecutor, as_completed
+            from concurrent.futures import ThreadPoolExecutor, as_completed
 
-            with ProcessPoolExecutor() as executor, tqdm(
+            with ThreadPoolExecutor() as executor, tqdm(
                 total=len(tasks_prompt), desc=f"progress: ", leave=False
             ) as pbar:
                 futures = []

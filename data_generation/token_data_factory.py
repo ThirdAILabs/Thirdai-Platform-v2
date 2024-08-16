@@ -35,14 +35,14 @@ class TokenDataFactory(DataFactory):
         ]
 
     def get_attributes(self, domain_prompt: str):
-        response: str = self.llm_completion(
+        response: str = self.llm_model.completion(
             prompt=attribute_dimension_prompt.format(domain_prompt=domain_prompt),
         )
         attributes = response.split("\n")
 
         attribute_values = {}
         for attribute in tqdm(attributes, desc="Attributed definition...", leave=True):
-            response = self.llm_completion(
+            response = self.llm_model.completion(
                 prompt=attribute_value_prompt.format(
                     domain_prompt=domain_prompt, attribute=attribute
                 ),
@@ -92,7 +92,7 @@ class TokenDataFactory(DataFactory):
                 user_examples, min(3, len(user_examples))
             )
 
-            response = self.llm_completion(
+            response = self.llm_model.completion(
                 prompt=tag_value_prompt.format(
                     domain_prompt=domain_prompt,
                     num_samples_per_tag=num_samples_per_tag,
@@ -105,7 +105,7 @@ class TokenDataFactory(DataFactory):
         return complete_tag_examples
 
     def get_templatized_examples(self, tags: List[str], k: int = 2):
-        return self.llm_completion(
+        return self.llm_model.completion(
             template_prompt.format(tags=", ".join(tags).replace("'", ""), k=k)
         )
 
@@ -148,9 +148,8 @@ class TokenDataFactory(DataFactory):
         )
 
         arguments = []
-        generate_at_a_time = 40
         for current_sentence_idx in range(
-            0, num_sentences_to_generate, generate_at_a_time
+            0, num_sentences_to_generate, self.generate_at_a_time
         ):
             # TODO(anyone): we should also add the [user_tag -> examples] in dataset_generation_prompt.
             random_prompts = self.get_random_prompts()
@@ -160,8 +159,8 @@ class TokenDataFactory(DataFactory):
                 {
                     "prompt": dataset_generation_prompt.format(
                         domain_prompt=domain_prompt,
-                        generate_at_a_time=min(
-                            generate_at_a_time,
+                        num_to_generate=min(
+                            self.generate_at_a_time,
                             num_sentences_to_generate - current_sentence_idx,
                         ),
                         sampled_tags=random.sample(tags, k=min(5, len(tags))),
@@ -175,19 +174,19 @@ class TokenDataFactory(DataFactory):
 
         random.shuffle(arguments)
         arguments = arguments[: num_sentences_to_generate - sentences_generated]
-        write_chunk_size = 40
+        self.write_chunk_size = 40
 
-        total_chunks = len(arguments) // write_chunk_size + 1
+        total_chunks = len(arguments) // self.write_chunk_size + 1
         for idx in tqdm(
-            range(0, len(arguments), write_chunk_size),
+            range(0, len(arguments), self.write_chunk_size),
             desc="Generating token data: ",
             total=total_chunks,
         ):
-            chunk_to_process = arguments[idx : idx + write_chunk_size]
+            chunk_to_process = arguments[idx : idx + self.write_chunk_size]
             generated_templates = []
 
             generated_templates: List[str] = self.run_and_collect_results(
-                tasks_prompt=chunk_to_process
+                tasks_prompt=chunk_to_process, parallelize=True
             )
 
             transformed_data_points = []

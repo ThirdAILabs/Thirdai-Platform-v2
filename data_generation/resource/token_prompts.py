@@ -42,7 +42,7 @@ After getting diagnosed with [DISABILITY] John went home. His social security nu
 Each sentence should start on a new line and with no bulleting, header/footer or any steps involved.
 """
 
-dataset_generation_prompt = """You possess deep expertise in {domain_prompt}. Please generate {generate_at_a_time} templates of synthetic sentences and associated tags for {domain_prompt}
+dataset_generation_prompt = """You possess deep expertise in {domain_prompt}. Please generate {num_to_generate} templates of synthetic sentences and associated tags for {domain_prompt}
             
 VERY IMPORTANT: MAKE SURE identify all named entities occurred that belong to one of the following entity types: 
 {sampled_tags}

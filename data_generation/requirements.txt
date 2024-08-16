@@ -1,4 +1,3 @@
 openai
 cohere
 faker
-websockets

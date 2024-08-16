@@ -9,9 +9,7 @@ from openai import OpenAI
 class LLMBase(ABC):
     @abstractmethod
     def completion(
-        self,
-        prompt: str,
-        system_prompt: Optional[str] = None,
+        self, prompt: str, system_prompt: Optional[str] = None, **kwargs
     ) -> str:
         pass
 

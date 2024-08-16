@@ -394,6 +394,35 @@ export function start_workflow(workflowId: string): Promise<StartWorkflowRespons
   });
 }
 
+interface StopWorkflowResponse {
+  status_code: number;
+  message: string;
+}
+
+export function stop_workflow(workflowId: string): Promise<StopWorkflowResponse> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/workflow/stop`, null, {
+        params: { workflow_id: workflowId },
+      })
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.detail || 'Failed to stop workflow'));
+        } else {
+          reject(new Error('Failed to stop workflow'));
+        }
+      });
+  });
+}
+
+
 interface WorkflowModel {
   access_level: string;
   component: string;

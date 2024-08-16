@@ -128,13 +128,13 @@ export function ModelsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {privateModels.map((model, index) => (
+            {/* {privateModels.map((model, index) => (
                 <Model key={index} model={model} />
             ))}
 
             {pendingModels.map((model, index) => (
                 <Model key={index + 100} model={model} pending = {true} />
-            ))}
+            ))} */}
 
             {workflows.map((workflow, index) => (
                 <WorkFlow key={index + 200} workflow={workflow} />

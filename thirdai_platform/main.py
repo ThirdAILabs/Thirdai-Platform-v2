@@ -14,7 +14,7 @@ from backend.routers.train import train_router as train
 from backend.routers.user import user_router as user
 from backend.routers.vault import vault_router as vault
 from backend.routers.workflow import workflow_router as workflow
-from backend.utils import restart_generate_job, restart_neuraldb_deployment_ui
+from backend.utils import restart_generate_job
 from database.session import get_session
 from database.utils import initialize_default_workflow_types
 from fastapi.middleware.cors import CORSMiddleware

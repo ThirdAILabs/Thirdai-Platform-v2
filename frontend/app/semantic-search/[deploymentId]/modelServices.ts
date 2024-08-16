@@ -48,50 +48,6 @@ export interface PIIDetectionResult {
     predicted_tags: string[];
 }
 
-export interface ModelService {
-    isUserModel: () => boolean;
-    sources: () => Promise<Source[]>;
-    saveModel: (override: boolean, model_name?: string) => Promise<any>;
-    addSources: (files: File[], s3Urls: string[]) => Promise<any>;
-    deleteSources: (sourceIDs: string[]) => Promise<any>;
-    predict: (
-        queryText: string,
-        topK: number,
-        queryId?: string,
-    ) => Promise<SearchResult | null>;
-    openSource: (source: string) => void;
-    openReferenceSource: (reference: ReferenceInfo) => void;
-    getPdfInfo: (reference: ReferenceInfo) => Promise<PdfInfo>;
-    upvote: (
-        queryId: string,
-        queryText: string,
-        referenceId: number,
-        referenceText: string,
-    ) => Promise<any>;
-    downvote: (
-        queryId: string,
-        queryText: string,
-        referenceId: number,
-        referenceText: string,
-    ) => Promise<any>;
-    qna: (question: string, answer: string) => Promise<any>;
-    associate: (source: string, target: string) => Promise<any>;
-    generateAnswer: (
-        question: string,
-        genaiPrompt: string,
-        references: ReferenceInfo[],
-        websocketRef: React.MutableRefObject<WebSocket | null>,
-        onNextWord: (str: string) => void,
-    ) => Promise<void>;
-    authHeader: () => Record<string, string>;
-    handleInvalidAuth: () => void;
-    getChatHistory: () => Promise<ChatMessage[]>;
-    chat: (textInput: string) => Promise<ChatResponse>;
-    piiDetect(query: string): Promise<PIIDetectionResult>;
-    updatePiiSettings(token_model_id: string, llm_guardrail: boolean): Promise<any>;
-    recordEvent(event: TelemetryEvent): Promise<any>;
-}
-
 function sourceName(ref: ReferenceJson) {
     if (ref.source.endsWith(".pdf") || ref.source.endsWith(".docx")) {
         return ref.source.split("/").at(-1);
@@ -130,15 +86,6 @@ function startAndEnd(text: string, n_words: number = 2) {
     return [trimmed.substring(0, startEnd), trimmed.substring(endStart + 1)];
 }
 
-function handleInvalidAuth(modelService: ModelService) {
-    return (response: Response) => {
-        if (response.status == 401) {
-            modelService.handleInvalidAuth();
-        }
-        return response;
-    };
-}
-
 type TelemetryEvent = {
     UserAction: string // e.g., 'click', 'hover', 'input', etc.
     UIComponent: string // 'search button' 'model card', etc.
@@ -154,31 +101,46 @@ export type TelemetryEventPackage = {
 }
 
 
-export class GlobalModelService implements ModelService {
+export class ModelService {
     url: string;
     wsUrl: string;
     sessionId: string;
+    authToken: string | null;
+    tokenModelUrl: string;
 
-    constructor(url: string, sessionId: string) {
+    constructor(url: string, tokenModelUrl: string, sessionId: string) {
         this.url = url;
         this.wsUrl = process.env.DEPLOYMENT_BASE_URL!.replace("http", "ws");
         this.sessionId = sessionId;
-    }
-
-    isUserModel(): boolean {
-        return false;
+        this.tokenModelUrl = tokenModelUrl;
+        this.authToken = window.localStorage.getItem(
+            "accessToken",
+        );
     }
 
     authHeader(): Record<string, string> {
-        return {};
+        return {
+            Authorization: `Bearer ${this.authToken}`,
+            "Cache-Control": "no-cache",
+        };
     }
 
-    handleInvalidAuth(): void {}
+    handleInvalidAuth() {
+        return (response: Response) => {
+            if (response.status == 401) {
+                alert(
+                    "You do not have the correct permissions. Please sign into Model Bazaar with the correct credentials.",
+                );
+            }
+            return response;
+        };
+    }
+    
 
     async sources(): Promise<Source[]> {
         const url = new URL(this.url + "/sources");
         return fetch(url, { headers: this.authHeader() })
-            .then(handleInvalidAuth(this))
+            .then(this.handleInvalidAuth())
             .then((response) => {
                 if (response.ok) {
                     return response.json();
@@ -225,7 +187,7 @@ export class GlobalModelService implements ModelService {
                 "Content-Type": "application/json",
             }
         })
-            .then(handleInvalidAuth(this))
+            .then(this.handleInvalidAuth())
             .then((response) => {
                 console.log('response', response)
                 if (response.ok) {
@@ -261,7 +223,7 @@ export class GlobalModelService implements ModelService {
                 "Content-Type": "application/json",
             },
         })
-            .then(handleInvalidAuth(this))
+            .then(this.handleInvalidAuth())
             .then((response) => {
                 if (response.ok) {
                     return response.json();
@@ -316,7 +278,7 @@ export class GlobalModelService implements ModelService {
                 ...this.authHeader(),
             },
         })
-            .then(handleInvalidAuth(this))
+            .then(this.handleInvalidAuth())
             .then((response) => {
                 if (response.ok) {
                     return response.json();
@@ -344,7 +306,7 @@ export class GlobalModelService implements ModelService {
                 "Content-Type": "application/json",
             },
         })
-            .then(handleInvalidAuth(this))
+            .then(this.handleInvalidAuth())
             .then((response) => {
                 if (response.ok) {
                     return response.json();
@@ -382,7 +344,7 @@ export class GlobalModelService implements ModelService {
                 },
                 body: JSON.stringify({ base_params: baseParams, ndb_params: ndbParams })
             })
-            .then(handleInvalidAuth(this))
+            .then(this.handleInvalidAuth())
             .then((response) => {
                 if (response.ok) {
                     return response.json();
@@ -412,7 +374,7 @@ export class GlobalModelService implements ModelService {
         const blobUrl = new URL(this.url + "/pdf-blob");
         blobUrl.searchParams.append("source", reference.sourceURL.toString());
         const blobPromise = fetch(blobUrl, { headers: this.authHeader() })
-            .then(handleInvalidAuth(this))
+            .then(this.handleInvalidAuth())
             .then((res) => res.arrayBuffer())
             .then((data) => {
                 var file = new Blob([data], { type: "application/pdf" });
@@ -423,7 +385,7 @@ export class GlobalModelService implements ModelService {
         chunkUrl.searchParams.append("reference_id", reference.id.toString());
         let highlighted: Chunk | null = null;
         const chunkPromise = fetch(chunkUrl, { headers: this.authHeader() })
-            .then(handleInvalidAuth(this))
+            .then(this.handleInvalidAuth())
             .then((res) => res.json())
             .then(({ data }) => {
                 const filename = data.filename as string;
@@ -485,7 +447,7 @@ export class GlobalModelService implements ModelService {
         const url = new URL(this.url + "/highlighted-pdf");
         url.searchParams.append("reference_id", reference.id.toString());
         fetch(url, { headers: this.authHeader() })
-            .then(handleInvalidAuth(this))
+            .then(this.handleInvalidAuth())
             .then((res) => res.arrayBuffer())
             .then((data) => {
                 var file = new Blob([data], { type: "application/pdf" });
@@ -501,7 +463,7 @@ export class GlobalModelService implements ModelService {
         const url = new URL(this.url + "/pdf-blob");
         url.searchParams.append("source", source.toString());
         fetch(url, { headers: this.authHeader() })
-            .then(handleInvalidAuth(this))
+            .then(this.handleInvalidAuth())
             .then((res) => res.arrayBuffer())
             .then((data) => {
                 var file = new Blob([data], { type: "application/pdf" });
@@ -564,7 +526,7 @@ export class GlobalModelService implements ModelService {
                 "Content-type": "application/json; charset=UTF-8",
                 ...this.authHeader(),
             },
-        }).then(handleInvalidAuth(this));
+        }).then(this.handleInvalidAuth());
     }
 
     async downvote(
@@ -587,7 +549,7 @@ export class GlobalModelService implements ModelService {
                 "Content-type": "application/json; charset=UTF-8",
                 ...this.authHeader(),
             },
-        }).then(handleInvalidAuth(this));
+        }).then(this.handleInvalidAuth());
     }
 
     async qna(question: string, answer: string): Promise<any> {
@@ -605,7 +567,7 @@ export class GlobalModelService implements ModelService {
                 "Content-type": "application/json; charset=UTF-8",
                 ...this.authHeader(),
             },
-        }).then(handleInvalidAuth(this));
+        }).then(this.handleInvalidAuth());
     }
 
     async associate(source: string, target: string): Promise<any> {
@@ -623,7 +585,7 @@ export class GlobalModelService implements ModelService {
                 "Content-type": "application/json; charset=UTF-8",
                 ...this.authHeader(),
             },
-        }).then(handleInvalidAuth(this));
+        }).then(this.handleInvalidAuth());
     }
 
     async generateAnswer(
@@ -682,7 +644,7 @@ export class GlobalModelService implements ModelService {
                 ...this.authHeader(),
             },
         })
-            .then(handleInvalidAuth(this))
+            .then(this.handleInvalidAuth())
             .then((res) => res.json())
             .then(
                 (response) => response["data"]["chat_history"] as ChatMessage[],
@@ -701,7 +663,7 @@ export class GlobalModelService implements ModelService {
                 ...this.authHeader(),
             },
         })
-            .then(handleInvalidAuth(this))
+            .then(this.handleInvalidAuth())
             .then((res) => res.json())
             .then((response) => response["data"] as ChatResponse);
     }
@@ -742,69 +704,4 @@ export class GlobalModelService implements ModelService {
         }
     }
     
-}
-
-export class UserModelService extends GlobalModelService {
-    authToken: string | null;
-    tokenModelUrl: string;
-
-    constructor(url: string, tokenModelUrl: string, sessionId: string) {
-        super(url, sessionId);
-        this.tokenModelUrl = tokenModelUrl;
-        this.authToken = window.localStorage.getItem(
-            "accessToken",
-        );
-    }
-
-    authHeader(): Record<string, string> {
-        return {
-            Authorization: `Bearer ${this.authToken}`,
-            "Cache-Control": "no-cache",
-        };
-    }
-
-    handleInvalidAuth(): void {
-        alert(
-            "You do not have the correct permissions. Please sign into Model Bazaar with the correct credentials.",
-        );
-        // TODO(Geordie): Handle invalid auth by redirecting to model bazaar login page.
-    }
-
-    isUserModel(): boolean {
-        return true;
-    }
-
-    async piiDetect(query: string): Promise<any> {
-        const url = new URL(this.tokenModelUrl + "/predict");
-
-        const baseParams = { query: query, top_k: 1 };
-        
-        return fetch(url, {
-            method: "POST",
-            headers: {
-                ...this.authHeader(),
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(baseParams)
-        })
-            .then(handleInvalidAuth(this))
-            .then((response) => {
-                console.log('response', response)
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    return response.json().then((err) => {
-                        throw new Error(err.detail || "Unknown error occurred");
-                    });
-                }
-            })
-            .then(({ data }) => {
-                console.log(data);
-                return data as PIIDetectionResult;
-            })
-            .catch((e) => {
-                console.error(e);
-                throw new Error('Failed to detect PII');
-            });
-    }
 }

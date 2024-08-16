@@ -89,14 +89,14 @@ const ErrorMessage = styled.p`
     margin-top: 5px;
 `;
 
-interface UserModelDescriptionProps {
+interface ModelDescriptionProps {
     onClickViewDocuments: () => void;
     sources: Source[];
     setSources: (sources: Source[]) => void;
     ifGenerationOn: boolean;
 }
 
-function UserModelDescription(props: UserModelDescriptionProps) {
+function ModelDescription(props: ModelDescriptionProps) {
     return (
         <Description>
             {
@@ -283,16 +283,12 @@ export default function SearchBar({
             )}
 
             <Spacer $height="5px" />
-            {modelService!.isUserModel() ? (
-                <UserModelDescription
-                    onClickViewDocuments={() => setShowSources((val) => !val)}
-                    sources={sources}
-                    setSources={setSources}
-                    ifGenerationOn={ifGenerationOn}
-                />
-            ) : (
-                <GlobalModelDescription />
-            )}
+            <ModelDescription
+                onClickViewDocuments={() => setShowSources((val) => !val)}
+                sources={sources}
+                setSources={setSources}
+                ifGenerationOn={ifGenerationOn}
+            />
             <Spacer $height="5px" />
 
             {modalOpen && (

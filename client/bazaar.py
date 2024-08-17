@@ -6,15 +6,14 @@ from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 from client.clients import BaseClient, Login, Model, NeuralDBClient, UDTClient
-
 from client.utils import (
     auth_header,
     create_model_identifier,
+    download_files_from_s3,
     http_delete_with_error,
     http_get_with_error,
     http_post_with_error,
     print_progress_dots,
-    download_files_from_s3,
 )
 
 

@@ -509,6 +509,7 @@ class ModelBazaar:
 
         print("Deployment is shutting down.")
 
+    # TODO(pratik): add a unit tests for this function
     @staticmethod
     def full_backup_restore(bucket_name, local_dir, database_uri):
         import boto3

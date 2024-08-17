@@ -1,93 +1,21 @@
 import json
 import os
-import re
 import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
-from pydantic import BaseModel, ValidationError
-
 from client.clients import BaseClient, Login, Model, NeuralDBClient, UDTClient
 
-from .utils import (
+from client.utils import (
     auth_header,
     create_model_identifier,
     http_delete_with_error,
     http_get_with_error,
     http_post_with_error,
     print_progress_dots,
+    download_files_from_s3,
 )
-
-
-class BazaarEntry(BaseModel):
-    name: str
-    author_username: str
-    identifier: str
-    trained_on: Optional[str] = None
-    num_params: int
-    size: int
-    size_in_memory: int
-    hash: str
-    domain: str
-    description: Optional[str] = None
-    is_indexed: bool = False
-    publish_date: str
-    author_email: str
-    access_level: str = "public"
-    thirdai_version: str
-
-    @staticmethod
-    def from_dict(entry):
-        return BazaarEntry(
-            name=entry["model_name"],
-            author_username=entry["username"],
-            identifier=create_model_identifier(
-                model_name=entry["model_name"], author_username=entry["username"]
-            ),
-            trained_on=entry["trained_on"],
-            num_params=entry["num_params"],
-            size=entry["size"],
-            size_in_memory=entry["size_in_memory"],
-            hash=entry["hash"],
-            domain=entry["domain"],
-            description=entry["description"],
-            is_indexed=entry["is_indexed"],
-            publish_date=entry["publish_date"],
-            author_email=entry["user_email"],
-            access_level=entry["access_level"],
-            thirdai_version=entry["thirdai_version"],
-        )
-
-    @staticmethod
-    def bazaar_entry_from_json(json_entry):
-        try:
-            loaded_entry = BazaarEntry.from_dict(json_entry)
-            return loaded_entry
-        except ValidationError as e:
-            print(f"Validation error: {e}")
-            return None
-
-
-def relative_path_depth(child_path: Path, parent_path: Path):
-    child_path, parent_path = child_path.resolve(), parent_path.resolve()
-    relpath = os.path.relpath(child_path, parent_path)
-    if relpath == ".":
-        return 0
-    else:
-        return 1 + relpath.count(os.sep)
-
-
-# Use this decorator for any function to enforce users use only after login.
-def login_required(func):
-    def wrapper(self, *args, **kwargs):
-        if not self.is_logged_in():
-            raise PermissionError(
-                "This method requires login, please use '.login()' first then try again."
-            )
-        return func(self, *args, **kwargs)
-
-    return wrapper
 
 
 class ModelBazaar:
@@ -108,7 +36,7 @@ class ModelBazaar:
         self._access_token = None
         self._doc_types = ["local", "nfs", "s3"]
 
-    def signup(self, email, password, username):
+    def sign_up(self, email, password, username):
         json_data = {
             "username": username,
             "email": email,
@@ -119,6 +47,7 @@ class ModelBazaar:
             urljoin(self._base_url, "user/email-signup-basic"),
             json=json_data,
         )
+        self._username = username
 
         print(
             f"Successfully signed up. Please check your email ({email}) to verify your account."
@@ -126,6 +55,8 @@ class ModelBazaar:
 
     def login(self, email, password):
         self._login_instance = Login.with_email(self._base_url, email, password)
+        self._access_token = self._login_instance.access_token
+        self._username = self._login_instance.username
 
     def add_global_admin(self, email):
         response = http_post_with_error(
@@ -207,30 +138,6 @@ class ModelBazaar:
 
     def is_logged_in(self):
         return self._login_instance.username is not None
-
-    def sign_up(self, email, password, username):
-        """
-        Signs up a user and sets the username for the ModelBazaar instance.
-
-        Args:
-            email (str): The email of the user.
-            password (str): The password of the user.
-            username (str): The desired username.
-        """
-        self.signup(email=email, password=password, username=username)
-        self._username = username
-
-    def log_in(self, email, password):
-        """
-        Logs in a user and sets user-related attributes for the ModelBazaar instance.
-
-        Args:
-            email (str): The email of the user.
-            password (str): The password of the user.
-        """
-        self.login(email=email, password=password)
-        self._access_token = self._login_instance.access_token
-        self._username = self._login_instance.username
 
     def train(
         self,
@@ -602,3 +509,14 @@ class ModelBazaar:
         )
 
         print("Deployment is shutting down.")
+
+    @staticmethod
+    def full_backup_restore(bucket_name, local_dir, database_uri):
+        import boto3
+
+        os.environ["DATABASE_URI"] = database_uri
+        os.environ["SHARE_DIR"] = local_dir
+
+        download_files_from_s3(bucket_name, local_dir)
+
+        print("Backup and restore operations completed successfully.")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 import json
 import os
 import re
@@ -9,7 +10,7 @@ from urllib.parse import urljoin
 
 from requests.auth import HTTPBasicAuth
 
-from .utils import (
+from client.utils import (
     auth_header,
     check_deployment_decorator,
     construct_deployment_url,
@@ -137,15 +138,6 @@ class NeuralDBClient(BaseClient):
 
         upvote(self, text_id_pairs: List[Dict[str, Union[str, int]]]) -> None:
             Upvotes a response in the ndb model.
-
-        downvote(self, text_id_pairs: List[Dict[str, Union[str, int]]]) -> None:
-            Downvotes a response in the ndb model.
-
-        chat(self, user_input: str, session_id: str) -> Dict[str, str]:
-            Returns a reply given the user_input and the chat history associated with session_id
-
-        get_chat_history(self, session_id: str) -> Dict[List[Dict[str, str]]]:
-            Returns chat history associated with session_id
 
         sources(self) -> List[Dict[str, str]]:
             Gets the source names and ids of documents in the ndb model

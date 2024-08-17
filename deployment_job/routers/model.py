@@ -22,6 +22,7 @@ else:
     thirdai.licensing.activate(general_variables.license_key)
 
 
+# Singleton Practice for Model instances.
 class ModelManager:
     _model_instance = None
 

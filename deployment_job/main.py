@@ -12,6 +12,7 @@ from reporter import Reporter
 from routers.ndb.read import ndb_read_router
 from routers.ndb.write import ndb_write_router, process_tasks
 from routers.udt.read import udt_read_router
+from routers.telemetry import telemetry_router  # Import the telemetry router
 from utils import delete_deployment_job
 from variables import GeneralVariables, TypeEnum
 
@@ -73,6 +74,9 @@ async def async_timer() -> None:
                 )
             reset_event.clear()
 
+
+# Include the telemetry router for all deployments
+app.include_router(telemetry_router, prefix=f"/{general_variables.model_id}/telemetry")
 
 if general_variables.type == TypeEnum.NDB:
     if general_variables.write:

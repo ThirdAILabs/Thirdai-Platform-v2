@@ -67,13 +67,13 @@ jobs:
         pip install -r train_job/requirements.txt
         echo "PYTHON_PATH=${{ github.workspace }}/venv/bin/python" >> $GITHUB_ENV
 
-    - name: Setup `nomad`
+    - name: Setup Nomad
       uses: hashicorp/setup-nomad@main
       id: setup
       with:
         version: v1.6.2
 
-    - name: Run `nomad version`
+    - name: Run nomad version
       id: version
       run: "nomad version"
 

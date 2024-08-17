@@ -52,7 +52,7 @@ class ModelBazaar:
             f"Successfully signed up. Please check your email ({email}) to verify your account."
         )
 
-    def login(self, email, password):
+    def log_in(self, email, password):
         self._login_instance = Login.with_email(self._base_url, email, password)
         self._access_token = self._login_instance.access_token
         self._username = self._login_instance.username

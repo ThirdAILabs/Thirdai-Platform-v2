@@ -77,6 +77,11 @@ jobs:
       id: version
       run: "nomad version"
 
+    - name: Start Nomad in Development Mode
+      run: |
+        nohup sudo nomad agent -dev -config="local_setup/agent.hcl" > nomad.log 2>&1 &
+        echo "NOMAD_ENDPOINT=http://localhost:4646/" >> $GITHUB_ENV
+
     - name: Install Traefik
       run: |
         wget https://github.com/traefik/traefik/releases/download/v3.1.2/traefik_v3.1.2_linux_amd64.tar.gz

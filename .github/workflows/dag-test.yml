@@ -67,20 +67,21 @@ jobs:
         pip install -r train_job/requirements.txt
         echo "PYTHON_PATH=${{ github.workspace }}/venv/bin/python" >> $GITHUB_ENV
 
-    - name: Setup Nomad
-      uses: hashicorp/setup-nomad@main
-      id: setup
-      with:
-        version: v1.6.2
+    - name: Install Nomad
+      run: |
+        sudo apt-get update && sudo apt-get install -y wget gpg
+        wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor > /usr/share/keyrings/hashicorp-archive-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+        sudo apt-get update && sudo apt-get install -y nomad
 
-    - name: Run nomad version
-      id: version
-      run: "nomad version"
 
     - name: Start Nomad in Development Mode
       run: |
         nohup sudo nomad agent -dev -config="local_setup/agent.hcl" > nomad.log 2>&1 &
         echo "NOMAD_ENDPOINT=http://localhost:4646/" >> $GITHUB_ENV
+    
+    - name: Verify Nomad Cluster
+      run: sleep 10 && nomad node status
 
     - name: Install Traefik
       run: |

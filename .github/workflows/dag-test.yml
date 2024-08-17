@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PRODUCT_VERSION: "1.6.2" # or: "latest"
+  PRODUCT_VERSION: "latest"
 
 jobs:
   dag_tests:

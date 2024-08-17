@@ -465,7 +465,7 @@ class TeamAdminFunctions:
     def test_ta_add_user_to_team(inputs: Dict[str, str]):
 
         logging.info(f"inputs: {inputs}")
-        flow.bazaar_client.login(
+        flow.bazaar_client.log_in(
             email="ta_team_admin@mail.com",
             password="password",
         )

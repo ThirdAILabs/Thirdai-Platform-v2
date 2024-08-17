@@ -77,11 +77,15 @@ jobs:
 
     - name: Start Nomad in Development Mode
       run: |
-        nohup sudo nomad agent -dev -config="local_setup/agent.hcl" > nomad.log 2>&1 &
+        NOMAD_PATH=$(which nomad)
+        nohup sudo $NOMAD_PATH agent -dev -config="local_setup/agent.hcl" > nomad.log 2>&1 &
         echo "NOMAD_ENDPOINT=http://localhost:4646/" >> $GITHUB_ENV
     
     - name: Verify Nomad Cluster
-      run: sleep 10 && nomad node status
+      run: |
+        NOMAD_PATH=$(which nomad)
+        echo $NOMAD_PATH
+        sleep 10 && $NOMAD_PATH node status
 
     - name: Install Traefik
       run: |

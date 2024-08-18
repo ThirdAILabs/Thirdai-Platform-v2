@@ -2,4 +2,5 @@
 
 monitors:
 	cd job_files && nomad run victoriametrics.hcl
+	cd job_files && nomad run loki.hcl
 	cd job_files && nomad run grafana.hcl

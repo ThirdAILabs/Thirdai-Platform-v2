@@ -67,7 +67,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": null,
+  "id": 3,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -86,6 +86,7 @@
     },
     {
       "datasource": {
+        "default": false,
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
@@ -125,6 +126,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -132,9 +134,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.1.4",
+      "pluginVersion": "11.2.0-191410",
       "targets": [
         {
           "datasource": {
@@ -142,7 +146,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum by (cluster) (nomad_client_host_cpu_total{cluster=\"$cluster\"}) / (sum by (cluster) (nomad_client_host_cpu_total{cluster=\"$cluster\"}) + sum by (cluster) (nomad_client_host_cpu_idle{cluster=\"$cluster\"}))",
+          "expr": "sum by (cluster,node_id) (nomad_client_host_cpu_total{cluster=\"$cluster\",node_id=\"$node_id\"}) / (sum by (cluster, node_id) (nomad_client_host_cpu_total{cluster=\"$cluster\",node_id=\"$node_id\"}) + sum by (cluster, node_id) (nomad_client_host_cpu_idle{cluster=\"$cluster\",node_id=\"$node_id\"}))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -153,6 +157,7 @@
     },
     {
       "datasource": {
+        "default": false,
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
@@ -188,6 +193,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -195,9 +201,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.1.4",
+      "pluginVersion": "11.2.0-191410",
       "targets": [
         {
           "datasource": {
@@ -205,7 +213,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum by (cluster) (nomad_client_allocated_cpu{cluster=\"$cluster\"}) / (sum by (cluster) (nomad_client_allocated_cpu{cluster=\"$cluster\"}) + sum by (cluster) (nomad_client_unallocated_cpu{cluster=\"$cluster\"}))",
+          "expr": "sum by (cluster, node_id) (nomad_client_allocated_cpu{cluster=\"$cluster\", node_id=\"$node_id\"}) / (sum by (cluster,node_id) (nomad_client_allocated_cpu{cluster=\"$cluster\", node_id=\"$node_id\"}) + sum by (cluster, node_id) (nomad_client_unallocated_cpu{cluster=\"$cluster\", node_id=\"$node_id\"}))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -216,6 +224,7 @@
     },
     {
       "datasource": {
+        "default": false,
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
@@ -251,6 +260,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -258,9 +268,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.1.4",
+      "pluginVersion": "11.2.0-191410",
       "targets": [
         {
           "datasource": {
@@ -268,7 +280,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum by (cluster) (nomad_client_host_memory_used{cluster=\"$cluster\"}) / (sum by (cluster) (nomad_client_host_memory_total{cluster=\"$cluster\"}))",
+          "expr": "sum by (cluster, node_id) (nomad_client_host_memory_used{cluster=\"$cluster\", node_id=\"$node_id\"}) / (sum by (cluster, node_id) (nomad_client_host_memory_total{cluster=\"$cluster\", node_id=\"$node_id\"}))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -279,6 +291,7 @@
     },
     {
       "datasource": {
+        "default": false,
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
@@ -314,6 +327,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -321,9 +335,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.1.4",
+      "pluginVersion": "11.2.0-191410",
       "targets": [
         {
           "datasource": {
@@ -331,7 +347,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum by (cluster) (nomad_client_allocated_memory{cluster=\"$cluster\"}) / (sum by (cluster) (nomad_client_allocated_memory{cluster=\"$cluster\"}) + sum by (cluster) (nomad_client_unallocated_memory{cluster=\"$cluster\"}))",
+          "expr": "sum by (cluster, node_id) (nomad_client_allocated_memory{cluster=\"$cluster\", node_id=\"$node_id\"}) / (sum by (cluster, node_id) (nomad_client_allocated_memory{cluster=\"$cluster\", node_id=\"$node_id\"}) + sum by (cluster, node_id) (nomad_client_unallocated_memory{cluster=\"$cluster\", node_id=\"$node_id\"}))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -342,6 +358,7 @@
     },
     {
       "datasource": {
+        "default": false,
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
@@ -381,6 +398,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -388,9 +406,11 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "pluginVersion": "9.1.4",
+      "pluginVersion": "11.2.0-191410",
       "targets": [
         {
           "datasource": {
@@ -398,7 +418,7 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "sum by (cluster) (nomad_client_host_disk_used{cluster=\"$cluster\"}) / (sum by (cluster) (nomad_client_host_disk_size{cluster=\"$cluster\"}))",
+          "expr": "sum by (cluster, node_id) (nomad_client_host_disk_used{cluster=\"$cluster\", node_id=\"$node_id\"}) / (sum by (cluster, node_id) (nomad_client_host_disk_size{cluster=\"$cluster\", node_id=\"$node_id\"}))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -422,6 +442,7 @@
     },
     {
       "datasource": {
+        "default": false,
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
@@ -433,7 +454,9 @@
           },
           "custom": {
             "align": "auto",
-            "displayMode": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
             "inspect": false
           },
           "links": [],
@@ -530,8 +553,11 @@
                 }
               },
               {
-                "id": "custom.displayMode",
-                "value": "color-background"
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "color-background"
+                }
               },
               {
                 "id": "min",
@@ -564,8 +590,11 @@
                 }
               },
               {
-                "id": "custom.displayMode",
-                "value": "color-background"
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "color-background"
+                }
               },
               {
                 "id": "min",
@@ -598,8 +627,11 @@
                 }
               },
               {
-                "id": "custom.displayMode",
-                "value": "color-background"
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "color-background"
+                }
               },
               {
                 "id": "min",
@@ -626,8 +658,10 @@
                 "value": 138
               },
               {
-                "id": "custom.displayMode",
-                "value": "color-text"
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
               },
               {
                 "id": "color",
@@ -683,7 +717,9 @@
       },
       "id": 23,
       "options": {
+        "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": "",
           "reducer": [
             "sum"
@@ -693,7 +729,7 @@
         "showHeader": true,
         "sortBy": []
       },
-      "pluginVersion": "9.1.4",
+      "pluginVersion": "11.2.0-191410",
       "targets": [
         {
           "datasource": {
@@ -894,11 +930,13 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 100,
             "gradientMode": "opacity",
@@ -907,6 +945,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineStyle": {
               "fill": "solid"
@@ -1003,11 +1042,13 @@
             "mode": "palette-classic"
           },
           "custom": {
+            "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 100,
             "gradientMode": "opacity",
@@ -1016,6 +1057,7 @@
               "tooltip": false,
               "viz": false
             },
+            "insertNulls": false,
             "lineInterpolation": "linear",
             "lineStyle": {
               "fill": "solid"
@@ -1089,8 +1131,7 @@
       "type": "timeseries"
     }
   ],
-  "schemaVersion": 37,
-  "style": "dark",
+  "schemaVersion": 39,
   "tags": [
     "nomad",
     "nomad-clients"
@@ -1099,9 +1140,9 @@
     "list": [
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "Prometheus",
-          "value": "Prometheus"
+          "value": "PBFA97CFB590B2093"
         },
         "hide": 0,
         "includeAll": false,
@@ -1110,13 +1151,18 @@
         "name": "DS_PROMETHEUS",
         "options": [],
         "query": "prometheus",
+        "queryValue": "",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
         "type": "datasource"
       },
       {
-        "current": {},
+        "current": {
+          "selected": true,
+          "text": "local",
+          "value": "local"
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "${DS_PROMETHEUS}"
@@ -1137,6 +1183,30 @@
         "skipUrlSync": false,
         "sort": 0,
         "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(node_id)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Node ID",
+        "multi": false,
+        "name": "node_id",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(node_id)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
       }
     ]
   },
@@ -1148,6 +1218,6 @@
   "timezone": "",
   "title": "Clients",
   "uid": "Y72kP0G4z",
-  "version": 1,
+  "version": 5,
   "weekStart": ""
 }

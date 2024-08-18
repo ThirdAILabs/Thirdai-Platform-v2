@@ -23,17 +23,6 @@ job "grafana" {
     task "grafana" {
       driver = "docker"
 
-      service {
-        name     = "grafana-web"
-        port     = "grafana-http"
-        provider = "nomad"
-        tags = [
-          "traefik.enable=true",
-          "traefik.http.routers.grafana_port.rule=PathPrefix(`/grafana`)",
-          "traefik.http.routers.grafana_port.priority=10"
-        ]
-      }
-
       env {
         GF_AUTH_ANONYMOUS_ENABLED = "true"
         GF_AUTH_BASIC_ENABLED = "false"
@@ -94,7 +83,9 @@ apiVersion: 1
 providers:
   - name: dashboards
     type: file
+    disableDeletion: true
     updateIntervalSeconds: 10
+    allowUiUpdates: true
     options:
       foldersFromFilesStructure: true
       path: /local/grafana/provisioning/dashboards
@@ -117,6 +108,12 @@ EOF
       template {
         data            = file(abspath("./../dashboards/server.json"))
         destination     = "local/grafana/provisioning/dashboards/nomad/server.json"
+        left_delimiter  = "[["
+        right_delimiter = "]]"
+      }
+      template {
+        data            = file(abspath("./../dashboards/loki.json"))
+        destination     = "local/grafana/provisioning/dashboards/loki.json"
         left_delimiter  = "[["
         right_delimiter = "]]"
       }

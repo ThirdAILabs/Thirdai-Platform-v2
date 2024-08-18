@@ -156,28 +156,15 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       </TableCell>
       <TableCell className="hidden md:table-cell">&apos;N\A&apos;</TableCell>
       <TableCell className="hidden md:table-cell">
-        <button type="button" 
-                onClick={goToEndpoint}
-                className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-          <svg className="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
-          <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M1 5h12m0 0L9 1m4 4L9 9"/>
-          </svg>
-          <span className="sr-only">Go to endpoint</span>
-        </button>
-      </TableCell>
-      <TableCell className="hidden md:table-cell">
-        {
-          isValid
-          &&
-          <button type="button" 
-                  onClick={handleDeploy}
-                  className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-full text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">
-            <svg className="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
-              <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M1 5h12m0 0L9 1m4 4L9 9"/>
-            </svg>
-            <span className="sr-only">Deploy</span>
-          </button>
-        }
+        <Button
+          onClick={deployStatus === 'Inactive' ? handleDeploy : goToEndpoint}
+          className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+        >
+          <span className="sr-only">
+            {deployStatus === 'Inactive' ? 'Start' : 'Go to endpoint'}
+          </span>
+          {deployStatus === 'Inactive' ? 'Start' : 'Go to endpoint'}
+        </Button>
       </TableCell>
       <TableCell>
         <DropdownMenu>

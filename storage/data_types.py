@@ -28,7 +28,7 @@ class DataType:
         return self._name
 
 
-class DataSamples(DataType):
+class DataSample(DataType):
     def __init__(self, unique_id=None):
         self._uuid = unique_id if unique_id is not None else str(uuid.uuid4())
 
@@ -42,7 +42,7 @@ class DataSamples(DataType):
         pass
 
 
-class TextClassificationSample(DataSamples):
+class TextClassificationSample(DataSample):
     datatype = "text_classification"
 
     def __init__(self, name: str, text: str, label: str, unique_id: str = None):
@@ -63,7 +63,7 @@ class TextClassificationSample(DataSamples):
         )
 
 
-class TokenClassificationSample(DataSamples):
+class TokenClassificationSample(DataSample):
     datatype = "token_classification"
 
     def __init__(
@@ -106,7 +106,7 @@ class UserFeedBack(DataType):
 
 
 class TokenClassificationFeedBack(UserFeedBack):
-    datatype = "tokenclassification"
+    datatype = "token_classification"
 
     def __init__(
         self,
@@ -159,7 +159,7 @@ def deserialize_sample_datatype(
 def deserialize_userfeedback(
     type: str, sample_uuid: str, name: str, serialized_data: str
 ):
-    if type == "tokenclassification":
+    if type == "token_classification":
         return TokenClassificationFeedBack.deserialize(
             sample_uuid=sample_uuid, name=name, repr=serialized_data
         )

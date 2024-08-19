@@ -261,7 +261,6 @@ class NDBFunctions:
     def deploy_ndb(inputs: Dict[str, Any]) -> Any:
         logging.info(f"inputs: {inputs}")
         model = inputs.get("model")
-        run_name = inputs.get("run_name")
 
         logging.info(
             f"Deploying the model {model.model_identifier} and id {model.model_id}"
@@ -579,7 +578,7 @@ class WorkflowFunctions:
         logging.info(f"inputs: {inputs}")
         response = flow.workflow_client.add_models(
             workflow_id=inputs.get("workflow_id"),
-            model_identifiers=[inputs.get("model").model_identifier],
+            model_ids=[inputs.get("model").model_id],
             components=[inputs.get("component")],
         )
 
@@ -588,7 +587,7 @@ class WorkflowFunctions:
         logging.info(f"inputs: {inputs}")
         response = flow.workflow_client.delete_models(
             workflow_id=inputs.get("workflow_id"),
-            model_identifiers=[inputs.get("model").model_identifier],
+            model_ids=[inputs.get("model").model_id],
             components=[inputs.get("component")],
         )
 

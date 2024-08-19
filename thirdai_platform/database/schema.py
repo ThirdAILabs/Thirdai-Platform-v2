@@ -29,6 +29,11 @@ class Status(str, enum.Enum):
     failed = "failed"
 
 
+class WorkflowStatus(str, enum.Enum):
+    inactive = "inactive"
+    active = "active"
+
+
 class Role(enum.Enum):
     user = "user"
     team_admin = "team_admin"
@@ -331,7 +336,12 @@ class Workflow(SQLDeclarativeBase):
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    status = Column(ENUM(Status), nullable=False, default=Status.not_started)
+    status = Column(
+        ENUM(WorkflowStatus), nullable=False, default=WorkflowStatus.inactive
+    )
+    published_date = Column(
+        DateTime, default=datetime.utcnow().isoformat(), nullable=True
+    )
 
     user = relationship("User", back_populates="workflows")
     workflow_models = relationship(

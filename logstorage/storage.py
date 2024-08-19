@@ -40,6 +40,9 @@ class DataStore:
     @abstractmethod
     def get_sample_count(self, name: str, with_feedback: bool):
         # returns the total count of entries with the given name
+        # with feedback : None - returns total count
+        # with feedback : True - returns samples with a feedback associated to them
+        # with feedback : False - returns samples with no feedback associated to them
         pass
 
     @abstractmethod
@@ -61,7 +64,7 @@ class DataStore:
         pass
 
     @abstractmethod
-    def existing_names(self):
+    def existing_sample_names(self):
         # get unique names in the store
         pass
 
@@ -189,7 +192,7 @@ class SQLiteStore(DataStore):
         )
         return entries
 
-    def existing_names(self):
+    def existing_sample_names(self):
         session = self.Session()
         names = session.query(Samples.name).distinct().all()
 
@@ -207,7 +210,7 @@ class DataStorage:
         # this counter is local to DataStorage and will not be consistent across different instances of DataStorage.
         # this reduces the write load on the Connector. the number of samples for the same storage might end up being
         # more than the buffer limit but they can be clipped out later.
-        for name in self.connector.existing_names():
+        for name in self.connector.existing_sample_names():
             self._sample_counter[name] = connector.get_sample_count(
                 name=name, with_feedback=None
             )
@@ -261,10 +264,16 @@ class DataStorage:
             for datatype, sample_uuid, data in feedbacks
         ]
 
-    def clip(self):
-        existing_sample_types = self.connector.existing_names()
+    def clip_storage(self):
+        existing_sample_types = self.connector.existing_sample_names()
 
         for name in existing_sample_types:
+            # only deletes samples with no feedback associated with them
             self.connector.delete_old_samples(
                 name=name, samples_to_store=self._per_log_buffer_size
+            )
+
+            # update the sample counter
+            self._sample_counter[name] = self.connector.get_sample_count(
+                name=name, with_feedback=None
             )

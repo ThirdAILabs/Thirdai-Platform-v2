@@ -233,7 +233,7 @@ def main() -> None:
     provider_name = config["provider"]
     if provider_name == "azure":
         if not config["azure"]["registry"]:
-            config["azure"]["registry"] = "thirdaiplatform.azurecr.io"
+            config["azure"]["registry"] = "testthirdaiplatform.azurecr.io"
 
         # Ensure branch configuration exists
         if "branches" not in config["azure"]:

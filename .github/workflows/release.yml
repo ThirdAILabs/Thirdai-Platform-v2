@@ -20,6 +20,10 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: '3.11'
+      
+      - name: Get current branch name
+        id: get_branch
+        run: echo "BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_ENV
 
       - name: Install Dependencies
         run: |
@@ -30,49 +34,40 @@ jobs:
       - name: Log in to Azure Container Registry
         run: |
           echo Ov+4eWt/ojeOnGexHWTmNluBBtEMUoPNHFodeC8QOH+ACRCkdX5r | az acr login --name testThirdaiPlatform --username testThirdaiPlatform --password-stdin
+          echo Ov+4eWt/ojeOnGexHWTmNluBBtEMUoPNHFodeC8QOH+ACRCkdX5r | docker login testthirdaiplatform.azurecr.io -u testThirdaiPlatform --password-stdin
         env:
           AZURE_USERNAME: testThirdaiPlatform
           AZURE_PASSWORD: Ov+4eWt/ojeOnGexHWTmNluBBtEMUoPNHFodeC8QOH+ACRCkdX5r
 
-      - name: Build and Push Docker Images
-        run: |
-          python release/push.py --branch release-ci --config release/config.yaml
+      # - name: Build and Push Docker Images
+      #   run: |
+      #     python release/push.py --branch ${{ env.BRANCH_NAME }} --config release/config.yaml
 
       - name: Pull and Save Docker Images as Tar
         run: |
           DOCKER_DIRECTORIES=("deployment_job" "llm_generation_job" "train_job" "thirdai_platform")
 
-          VERSION_TAG="1.0.0"
-
+          VERSION_TAG="v1.0.0"
           REGISTRY="testthirdaiplatform.azurecr.io"
+          BRANCH_NAME="${{ env.BRANCH_NAME }}"
 
           for DIR in "${DOCKER_DIRECTORIES[@]}"; do
-            IMAGE_NAME=$(basename "$DIR")
+            IMAGE_NAME="${DIR}_${BRANCH_NAME}"
             FULL_IMAGE_NAME="$REGISTRY/$IMAGE_NAME:$VERSION_TAG"
             
-            docker pull "$FULL_IMAGE_NAME"
-            docker save "$FULL_IMAGE_NAME" -o "${IMAGE_NAME}.tar"
+            echo "Pulling image: $FULL_IMAGE_NAME"
+            if docker pull "$FULL_IMAGE_NAME"; then
+              echo "Saving image as tar: ${IMAGE_NAME}.tar"
+              docker save "$FULL_IMAGE_NAME" -o "${IMAGE_NAME}.tar"
+            else
+              echo "Error: Failed to pull image $FULL_IMAGE_NAME"
+              echo "Skipping save for $FULL_IMAGE_NAME"
+            fi
           done
 
-      - name: Create Local Registry Setup Script
+      - name: Package Docker Images, Setup Script, and Config
         run: |
-          echo '#!/bin/bash' > setup_local_registry.sh
-          echo 'docker run -d -p 5000:5000 --name registry registry:2' >> setup_local_registry.sh
-          
-          for DIR in "${DOCKER_DIRECTORIES[@]}"; do
-            IMAGE_NAME=$(basename "$DIR")
-            FULL_IMAGE_NAME="$REGISTRY/$IMAGE_NAME:$VERSION_TAG"
-            
-            echo "docker load -i ${IMAGE_NAME}.tar" >> setup_local_registry.sh
-            echo "docker tag $FULL_IMAGE_NAME localhost:5000/$IMAGE_NAME:$VERSION_TAG" >> setup_local_registry.sh
-            echo "docker push localhost:5000/$IMAGE_NAME:$VERSION_TAG" >> setup_local_registry.sh
-          done
-
-          chmod +x setup_local_registry.sh
-
-      - name: Package Docker Images and Setup Script
-        run: |
-          tar -cvf docker_images_and_setup.tar *.tar setup_local_registry.sh
+          tar -cvf docker_images_and_setup.tar *.tar bin/setup_local_registry.sh
 
       - name: Upload Tar Archive as Artifact
         uses: actions/upload-artifact@v2

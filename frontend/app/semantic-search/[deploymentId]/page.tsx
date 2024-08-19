@@ -225,22 +225,22 @@ function App() {
     }
 
     async function submit(query: string, genaiPrompt: string) {
-        async function detectAndReplacePII(references: ReferenceInfo[]) {
+        async function detectAndReplacePII(references: ReferenceInfo[], piiMapping: Map<string, string>) {
             let piiDetected = false;
         
             for (let ref of references) {
                 if (ifGuardRailOn) {
-                    console.log('Before PII deduction:', ref.content);  // Log before PII deduction
+                    // console.log('Before PII deduction:', ref.content);  // Log before PII deduction
                     
                     try {
                         const prediction = await modelService!.piiDetect(ref.content);
                         const transformedPrediction = transformPrediction(prediction);
                         const originalContent = ref.content;
-                        ref.content = replaceSensitiveInfo(ref.content, transformedPrediction);
+                        ref.content = replaceSensitiveInfo(ref.content, transformedPrediction, piiMapping);
         
                         if (ref.content !== originalContent) {
                             piiDetected = true;
-                            console.log('After PII deduction:', ref.content);  // Log after PII deduction
+                            // console.log('After PII deduction:', ref.content);  // Log after PII deduction
                         }
                     } catch (error) {
                         console.error('Error detecting PII:', error);
@@ -249,7 +249,7 @@ function App() {
             }
         
             if (!piiDetected) {
-                console.log('No PII deduction happened');
+                // console.log('No PII deduction happened');
             }
         }
     
@@ -281,11 +281,22 @@ function App() {
             return result;
         }
     
-        function replaceSensitiveInfo(content: string, transformedPrediction: [string, string][]) {
+        function replaceSensitiveInfo(content: string, transformedPrediction: [string, string][], piiMapping: Map<string, string>) {
             transformedPrediction.forEach(([sentence, tag]) => {
                 if (tag !== 'O') {
-                    const placeholder = generateReplacementText(tag);
-                    content = content.replace(sentence, placeholder);
+                    const key = sentence.toLowerCase();  // Ensure case-insensitivity
+                    let replacement;
+        
+                    if (piiMapping.has(key)) {
+                        replacement = piiMapping.get(key)!;
+                    } else {
+                        replacement = generateReplacementText(tag);
+                        piiMapping.set(key, replacement);
+                    }
+        
+                    // Escape special characters in the sentence before using it in a RegExp
+                    const escapedSentence = sentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    content = content.replace(new RegExp(escapedSentence, 'gi'), replacement);
                 }
             });
             return content;
@@ -305,6 +316,28 @@ function App() {
             return result;
         }
 
+        async function replaceSensitiveInfoInQuery(query: string, piiMapping: Map<string, string>) {
+            try {
+                const prediction = await modelService!.piiDetect(query);
+                console.log('this is prediction by pii model', prediction)
+                const transformedPrediction = transformPrediction(prediction);
+                console.log('this is transformedPrediction by pii model', transformedPrediction)
+    
+                transformedPrediction.forEach(([sentence, tag]) => {
+                    const key = sentence.toLowerCase();  // Ensure case-insensitivity
+                    if (piiMapping.has(key)) {
+                        const replacement = piiMapping.get(key)!;
+                        const escapedSentence = sentence.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        query = query.replace(new RegExp(escapedSentence, 'gi'), replacement);
+                    }
+                });
+            } catch (error) {
+                console.error('Error detecting PII in query:', error);
+            }
+        
+            return query;
+        }
+
 
         if (websocketRef.current) {
             websocketRef.current.close();
@@ -319,11 +352,20 @@ function App() {
             const results = await getResults(query, c.numReferencesFirstLoad + 1 * c.numReferencesLoadMore);
             
             if (results && ifGenerationOn) {
-                // Detect PII and replace it in the references before generating the answer
-                await detectAndReplacePII(results.references);
-                
+                const piiMapping = new Map<string, string>();  // Case-insensitive mapping
+    
+                // Perform PII deduction on references and build the map
+                await detectAndReplacePII(results.references, piiMapping);
+    
+                // Perform PII deduction on the query using the same map
+                const deductedQuery = await replaceSensitiveInfoInQuery(query, piiMapping);
+
+                console.log('deducted query:', deductedQuery)
+                console.log('deducted references:', results.references)
+    
+                // Generate answer using the PII-deducted query and references
                 modelService!.generateAnswer(
-                    query,
+                    deductedQuery,
                     genaiPrompt,
                     results.references,
                     websocketRef,

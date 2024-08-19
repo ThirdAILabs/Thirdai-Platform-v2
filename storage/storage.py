@@ -25,7 +25,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor.close()
 
 
-class DataStore:
+class Connector:
     # Interface for data store backend. Can be repurposed to a DB based storage,
     # a file based storage, etc. The DataStore should be persistent.
     @abstractmethod
@@ -70,7 +70,7 @@ class DataStore:
         pass
 
 
-class SQLiteStore(DataStore):
+class SQLiteConnector(Connector):
     def __init__(self, db_path: str):
         self.engine = create_engine(f"sqlite:///{db_path}", echo=True)
         self.Session = scoped_session(sessionmaker(bind=self.engine))
@@ -201,7 +201,7 @@ class SQLiteStore(DataStore):
 
 
 class DataStorage:
-    def __init__(self, connector: DataStore):
+    def __init__(self, connector: Connector):
         self.connector = connector
 
         # class attributes are generated using the connector hence, we do not need to write
@@ -216,8 +216,8 @@ class DataStorage:
                 name=name, with_feedback=None
             )
 
-        # if per log buffer size is None then no limit on the number of samples for any logtype
-        self._per_log_buffer_size = 1000
+        # if per name buffer size is None then no limit on the number of samples for each name
+        self._per_name_buffer_size = 1000
 
     def insert_samples(
         self, samples: typing.List[DataSamples], override_buffer_limit=False
@@ -226,8 +226,8 @@ class DataStorage:
         samples_to_insert = []
         for sample in samples:
             if override_buffer_limit or (
-                self._per_log_buffer_size
-                and self._sample_counter[sample.name] < self._per_log_buffer_size
+                self._per_name_buffer_size
+                and self._sample_counter[sample.name] < self._per_name_buffer_size
             ):
                 samples_to_insert.append(
                     (sample.uuid, sample.datatype, sample.name, sample.serialize())
@@ -271,7 +271,7 @@ class DataStorage:
         for name in existing_sample_types:
             # only deletes samples with no feedback associated with them
             self.connector.delete_old_samples(
-                name=name, samples_to_store=self._per_log_buffer_size
+                name=name, samples_to_store=self._per_name_buffer_size
             )
 
             # update the sample counter

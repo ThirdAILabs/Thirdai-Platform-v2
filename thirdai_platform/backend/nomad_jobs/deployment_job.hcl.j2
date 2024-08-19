@@ -42,7 +42,7 @@ job "deployment-{{ model_id }}" {
 
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.{{ model_id }}-http-read.rule=PathPrefix(/{{ model_id }}/read)",
+        "traefik.http.routers.{{ model_id }}-http-read.rule=PathPrefix(`/{{ model_id }}/read`)",
         "traefik.http.routers.{{ model_id }}-http-read.priority=10"
       ]
     }
@@ -137,7 +137,7 @@ EOF
 
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.{{ model_id }}-http-write.rule=PathPrefix(/{{ model_id }}/write)",
+        "traefik.http.routers.{{ model_id }}-http-write.rule=PathPrefix(`/{{ model_id }}/write`)",
         "traefik.http.routers.{{ model_id }}-http-write.priority=10"
       ]
     }

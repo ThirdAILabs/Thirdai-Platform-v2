@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
-import { Workflow, validate_workflow, start_workflow, stop_workflow } from '@/lib/backend';
+import { Workflow, validate_workflow, start_workflow, stop_workflow, delete_workflow } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
 export function WorkFlow({ workflow }: { workflow: Workflow }) {
@@ -206,6 +206,24 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               </DropdownMenuItem>
               </>
             }
+            <DropdownMenuItem>
+              <form>
+                <button type="button"
+                  onClick={async () => {
+                    if (window.confirm('Are you sure you want to delete this workflow?')) {
+                      try {
+                        const response = await delete_workflow(workflow.id);
+                        console.log('Workflow deleted successfully:', response);
+                      } catch (error) {
+                        console.error('Error deleting workflow:', error);
+                      }
+                    }
+                  }}
+                >
+                  Delete Workflow
+                </button>
+              </form>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

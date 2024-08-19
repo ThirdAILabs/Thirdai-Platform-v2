@@ -8,8 +8,12 @@ from sqlalchemy import create_engine, event, func
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-from data_types import (DataSamples, UserFeedBack, deserialize_sample_datatype,
-                        deserialize_userfeedback)
+from data_types import (
+    DataSamples,
+    UserFeedBack,
+    deserialize_sample_datatype,
+    deserialize_userfeedback,
+)
 from schemas import Base, FeedBack, Samples
 
 

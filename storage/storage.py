@@ -202,27 +202,27 @@ class SQLiteConnector(Connector):
 
 class DataStorage:
     def __init__(self, connector: Connector):
+        # all class attributes should be generated using the connector
+        # and it is supposed to be used as a single source of truth.
         self.connector = connector
-
-        # class attributes are generated using the connector hence, we do not need to write
-        # save load logic for DataStorage class.
-        self._sample_counter = defaultdict(int)
 
         # this counter is local to DataStorage and will not be consistent across different instances of DataStorage.
         # this reduces the write load on the Connector. the number of samples for the same storage might end up being
         # more than the buffer limit but they can be clipped out later.
+        self._sample_counter = defaultdict(int)
         for name in self.connector.existing_sample_names():
             self._sample_counter[name] = connector.get_sample_count(
                 name=name, with_feedback=None
             )
 
         # if per name buffer size is None then no limit on the number of samples for each name
+        # this attribute is to be considered as private so that two different instances of
+        # DataStorage with the same connector have same buffer size.
         self._per_name_buffer_size = 1000
 
     def insert_samples(
         self, samples: typing.List[DataSamples], override_buffer_limit=False
     ):
-        # override buffer limit should be used
         samples_to_insert = []
         for sample in samples:
             if override_buffer_limit or (

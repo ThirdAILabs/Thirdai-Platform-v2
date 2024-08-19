@@ -226,16 +226,30 @@ function App() {
 
     async function submit(query: string, genaiPrompt: string) {
         async function detectAndReplacePII(references: ReferenceInfo[]) {
+            let piiDetected = false;
+        
             for (let ref of references) {
                 if (ifGuardRailOn) {
+                    console.log('Before PII deduction:', ref.content);  // Log before PII deduction
+                    
                     try {
                         const prediction = await modelService!.piiDetect(ref.content);
                         const transformedPrediction = transformPrediction(prediction);
+                        const originalContent = ref.content;
                         ref.content = replaceSensitiveInfo(ref.content, transformedPrediction);
+        
+                        if (ref.content !== originalContent) {
+                            piiDetected = true;
+                            console.log('After PII deduction:', ref.content);  // Log after PII deduction
+                        }
                     } catch (error) {
                         console.error('Error detecting PII:', error);
                     }
                 }
+            }
+        
+            if (!piiDetected) {
+                console.log('No PII deduction happened');
             }
         }
     
@@ -270,13 +284,18 @@ function App() {
         function replaceSensitiveInfo(content: string, transformedPrediction: [string, string][]) {
             transformedPrediction.forEach(([sentence, tag]) => {
                 if (tag !== 'O') {
-                    const placeholder = generateRandomAlphanumeric(5);
+                    const placeholder = generateReplacementText(tag);
                     content = content.replace(sentence, placeholder);
                 }
             });
             return content;
         }
     
+        function generateReplacementText(tag: string) {
+            const placeholder = generateRandomAlphanumeric(5);
+            return `${placeholder}(this '${tag}' has been replaced with pseudonym, please use it in generation for consistency)`;
+        }
+
         function generateRandomAlphanumeric(length: number) {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
             let result = '';

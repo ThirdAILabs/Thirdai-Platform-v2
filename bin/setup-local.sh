@@ -10,7 +10,6 @@ VERSION_TAG="v1.0.0"
 REGISTRY="testthirdaiplatform.azurecr.io"
 BRANCH_NAME="release-ci"
 
-# Load Docker images and push to local registry
 for DIR in "${DOCKER_DIRECTORIES[@]}"; do
   IMAGE_NAME="${DIR}_${BRANCH_NAME}"
   TAR_FILE="${IMAGE_NAME}.tar"
@@ -24,7 +23,6 @@ for DIR in "${DOCKER_DIRECTORIES[@]}"; do
   fi
 done
 
-# Overwrite .env file with parsed values from YAML
 cat <<EOF > .env_config
 DATABASE_URI="postgresql://postgres:newpassword@localhost:5432/model_bazaar"
 PRIVATE_MODEL_BAZAAR_ENDPOINT="http://localhost:80/"

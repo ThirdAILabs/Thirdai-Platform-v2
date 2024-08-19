@@ -10,7 +10,7 @@ on:
 jobs:
   build-and-package:
     name: Build, Package, and Upload Docker Images
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-cores
 
     steps:
       - name: Checkout Code

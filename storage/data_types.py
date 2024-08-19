@@ -90,55 +90,9 @@ class TokenClassificationSample(DataSamples):
         )
 
 
-class XMLTokenClassificationSample(DataSamples):
-    datatype = "xml_tokenclassification"
-
-    @staticmethod
-    def clean_rawlog(rawlog: str):
-        start = rawlog.find("<")
-        end = rawlog.rfind(">")
-        if start == -1 or end == -1:
-            raise Exception("Invalid XML Log")
-
-        rawlog = rawlog[start : end + 1]
-
-        clean_string = re.sub(r"[^\x20-\x7E\t\n\r]", "", rawlog)
-        return clean_string
-
-    @staticmethod
-    def clean_fields(fields):
-        for key, value in fields.items():
-            if isinstance(value, dict):
-                fields[key] = value["value"]
-
-            fields[key] = str(fields[key])
-
-        return fields
-
-    def __init__(self, name: str, rawlog: str, fields: str, unique_id: str = None):
-        super().__init__(unique_id=unique_id)
-
-        self._name = name
-        self.rawlog = XMLTokenClassificationSample.clean_rawlog(rawlog)
-        self.fields = XMLTokenClassificationSample.clean_fields(fields)
-
-    def serialize(self) -> str:
-        return json.dumps({"rawlog": self.rawlog, "fields": json.dumps(self.fields)})
-
-    @staticmethod
-    def deserialize(name, repr, unique_id):
-        data = json.loads(repr)
-
-        return XMLTokenClassificationSample(
-            name=name,
-            rawlog=data["rawlog"],
-            fields=json.loads(data["fields"]),
-            unique_id=unique_id,
-        )
-
-
 class UserFeedBack(DataType):
     def __init__(self, sample_uuid):
+        # There cannot be a feedback without a corresponding sample
         self._sample_uuid = sample_uuid
 
     @property
@@ -151,31 +105,25 @@ class UserFeedBack(DataType):
         pass
 
 
-class XMLTokenClassificationFeedBack(UserFeedBack):
-    datatype = "xml_tokenclassification"
+class TokenClassificationFeedBack(UserFeedBack):
+    datatype = "tokenclassification"
 
     def __init__(
         self,
         sample_uuid: str,
         name: str,
-        xpath: str,
-        attribute: str,
         delimiter: str,
         index_to_label: typing.Dict[int, str],
     ):
         super().__init__(sample_uuid)
 
         self._name = name
-        self._xpath = xpath
-        self._attribute = attribute
         self._delimiter = delimiter
         self._index_to_label = index_to_label
 
     def serialize(self) -> str:
         return json.dumps(
             {
-                "xpath": self._xpath,
-                "attribute": self._attribute,
                 "delimiter": self._delimiter,
                 "index_to_label": self._index_to_label,
             }
@@ -184,10 +132,8 @@ class XMLTokenClassificationFeedBack(UserFeedBack):
     @staticmethod
     def deserialize(sample_uuid, name, repr) -> str:
         data = json.loads(repr)
-        return XMLTokenClassificationFeedBack(
+        return TokenClassificationFeedBack(
             name=name,
-            xpath=data["xpath"],
-            attribute=data["attribute"],
             delimiter=data["delimiter"],
             index_to_label=data["index_to_label"],
             sample_uuid=sample_uuid,
@@ -207,18 +153,15 @@ def deserialize_sample_datatype(
             name, serialized_data, unique_id=unique_id
         )
 
-    if type == "xml_tokenclassification":
-        return XMLTokenClassificationSample.deserialize(
-            name, serialized_data, unique_id=unique_id
-        )
-
-    raise Exception(f"Cannot deserialize unknown datatype {type}")
+    raise Exception(f"Cannot deserialize unknown sample type: {type}")
 
 
 def deserialize_userfeedback(
     type: str, sample_uuid: str, name: str, serialized_data: str
 ):
-    if type == "xml_tokenclassification":
-        return XMLTokenClassificationFeedBack.deserialize(
+    if type == "tokenclassification":
+        return TokenClassificationFeedBack.deserialize(
             sample_uuid=sample_uuid, name=name, repr=serialized_data
         )
+
+    raise Exception(f"Cannot deserialize unknown userfeedback type: {type}")

@@ -17,6 +17,7 @@ from data_types import (
 from schemas import Base, FeedBack, Samples
 
 
+# turns on foreign key constraint check for sqlite
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()

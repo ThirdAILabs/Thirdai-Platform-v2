@@ -50,17 +50,17 @@ app.include_router(recovery, prefix="/api/recovery", tags=["recovery"])
 
 @app.on_event("startup")
 async def startup_event():
-    # try:
-    #     print("Starting Generation Job...")
-    #     await restart_generate_job()
-    #     print("Successfully started Generation Job!")
-    # except Exception as error:
-    #     print(f"Failed to start the Generation Job : {error}", file=sys.stderr)
+    try:
+        print("Starting Generation Job...")
+        await restart_generate_job()
+        print("Successfully started Generation Job!")
+    except Exception as error:
+        print(f"Failed to start the Generation Job : {error}", file=sys.stderr)
 
     try:
         print("Starting telemetry Job...")
-        # if os.getenv("TEST_ENVIRONMENT", "True") == "False":
-        await restart_telemetry_jobs()
+        if os.getenv("TEST_ENVIRONMENT", "True") == "False":
+            await restart_telemetry_jobs()
         print("Successfully started telemetry Job!")
     except Exception as error:
         traceback.print_exc()

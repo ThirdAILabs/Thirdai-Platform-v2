@@ -55,8 +55,7 @@ class TextClassificationModel(ClassificationModel):
         )
 
         return inputs.SearchResultsTextClassification(
-            query_text=query,
-            class_names=class_names,
+            query_text=query, class_names=class_names
         )
 
 
@@ -82,7 +81,5 @@ class TokenClassificationModel(ClassificationModel):
         )
 
         return inputs.SearchResultsTokenClassification(
-            query_text=query,
-            tokens=query.split(),
-            predicted_tags=predictions,
+            query_text=query, predicted_tags=predictions
         )

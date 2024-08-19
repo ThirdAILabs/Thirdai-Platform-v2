@@ -192,15 +192,11 @@ def train_ndb(
     filenames = get_files(files, data_id, files_info)
 
     if not isinstance(filenames, list):
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=filenames,
-        )
+        return response(status_code=status.HTTP_400_BAD_REQUEST, message=filenames)
 
     if len(filenames) == 0:
         return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="No files provided.",
+            status_code=status.HTTP_400_BAD_REQUEST, message="No files provided."
         )
 
     unique_filenames = set(filenames)
@@ -221,10 +217,7 @@ def train_ndb(
                     message="You do not have access to the specified base model.",
                 )
         except Exception as error:
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message=str(error),
-            )
+            return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(error))
 
     sharded = (
         True
@@ -288,17 +281,13 @@ def train_ndb(
         session.commit()
         logger.info(str(err))
         return response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message=str(err),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
         )
 
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully submitted the job",
-        data={
-            "model_id": str(model_id),
-            "user_id": str(user.id),
-        },
+        data={"model_id": str(model_id), "user_id": str(user.id)},
     )
 
 
@@ -425,15 +414,11 @@ def train_udt(
     filenames = get_files(files, data_id, files_info)
 
     if not isinstance(filenames, list):
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=filenames,
-        )
+        return response(status_code=status.HTTP_400_BAD_REQUEST, message=filenames)
 
     if len(filenames) == 0:
         return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="No files provided.",
+            status_code=status.HTTP_400_BAD_REQUEST, message="No files provided."
         )
 
     unique_filenames = set(filenames)
@@ -454,10 +439,7 @@ def train_udt(
                     message="You do not have access to the specified base model.",
                 )
         except Exception as error:
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message=str(error),
-            )
+            return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(error))
 
     try:
         new_model: schema.Model = schema.Model(
@@ -519,17 +501,13 @@ def train_udt(
         session.commit()
         logger.info(str(err))
         return response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message=str(err),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
         )
 
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully submitted the job",
-        data={
-            "model_id": str(model_id),
-            "user_id": str(user.id),
-        },
+        data={"model_id": str(model_id), "user_id": str(user.id)},
     )
 
 
@@ -539,10 +517,7 @@ class TrainComplete(BaseModel):
 
 
 @train_router.post("/complete")
-def train_complete(
-    body: TrainComplete,
-    session: Session = Depends(get_session),
-):
+def train_complete(body: TrainComplete, session: Session = Depends(get_session)):
     """
     Mark the training of a model as complete.
 
@@ -578,10 +553,7 @@ def train_complete(
     if metadata:
         metadata.train = update_json(metadata.train, body.metadata)
     else:
-        new_metadata = schema.MetaData(
-            model_id=trained_model.id,
-            train=json.dumps(body.metadata),
-        )
+        new_metadata = schema.MetaData(model_id=trained_model.id, train=body.metadata)
         session.add(new_metadata)
 
     session.commit()
@@ -761,8 +733,7 @@ def create_shard(
         session.commit()
         logger.info(str(err))
         return response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message=str(err),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
         )
 
     return {"message": f"Successfully created shard"}
@@ -819,11 +790,8 @@ def update_shard_train_status(
     return {"message": f"Successfully updated shard with message: {message}"}
 
 
-@train_router.get("/status", dependencies=[Depends(verify_model_read_access)])
-def train_status(
-    model_identifier: str,
-    session: Session = Depends(get_session),
-):
+@train_router.get("/status", dependencies=[Depends(verify_model_access)])
+def train_status(model_identifier: str, session: Session = Depends(get_session)):
     """
     Get the status of a NeuralDB.
 
@@ -838,28 +806,19 @@ def train_status(
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
     except Exception as error:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=str(error),
-        )
+        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(error))
 
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the train status.",
-        data={
-            "model_identifier": model_identifier,
-            "train_status": model.train_status,
-        },
+        data={"model_identifier": model_identifier, "status": model.train_status},
     )
 
 
 @train_router.get(
     "/model-shard-train-status", dependencies=[Depends(verify_model_read_access)]
 )
-def model_shard_train_status(
-    model_id: str,
-    session: Session = Depends(get_session),
-):
+def model_shard_train_status(model_id: str, session: Session = Depends(get_session)):
     """
     Get the training status of all shards for a given model.
 
@@ -878,8 +837,7 @@ def model_shard_train_status(
         )
     except Exception as error:
         return response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message=str(error),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(error)
         )
 
     if not model_shards:
@@ -889,10 +847,7 @@ def model_shard_train_status(
         )
 
     results = [
-        {
-            "shard_num": result.shard_num,
-            "status": result.train_status,
-        }
+        {"shard_num": result.shard_num, "status": result.train_status}
         for result in model_shards
     ]
 

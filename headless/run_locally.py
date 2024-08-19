@@ -31,10 +31,7 @@ def main():
     parser.add_argument("--sharded", action="store_true", help="Run sharded training")
 
     args = parser.parse_args()
-    additional_variables = {
-        "sharded": args.sharded,
-        "run_name": args.run_name,
-    }
+    additional_variables = {"sharded": args.sharded, "run_name": args.run_name}
 
     local_test_dir = os.getenv("SHARE_DIR")
     if not local_test_dir:

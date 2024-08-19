@@ -315,6 +315,45 @@ class ModelShard(SQLDeclarativeBase):
     model = relationship("Model", back_populates="model_shards")
 
 
+class Deployment(SQLDeclarativeBase):
+    __tablename__ = "deployments"
+
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    name = Column(String(256), nullable=False)
+    status = Column(ENUM(Status), nullable=False)
+
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    model_id = Column(
+        UUID(as_uuid=True), ForeignKey("models.id", ondelete="CASCADE"), nullable=False
+    )
+
+    child_models = relationship(
+        "Model",
+        back_populates="parent_deployment",
+        foreign_keys=[Model.parent_deployment_id],
+    )
+
+    user = relationship("User", back_populates="deployments")
+    model = relationship("Model", back_populates="deployments", foreign_keys=[model_id])
+    logs = relationship(
+        "Log", back_populates="deployment", cascade="all, delete-orphan"
+    )
+
+    @validates("name")
+    def validate_deployment_name(self, key, name):
+        # allow only alphanumeric characters, underscores, and hyphens
+        assert re.match(
+            r"^[\w-]+$", name
+        ), "Deployment name should only contain alphanumeric characters, underscores, and hyphens"
+        return name
+
+    __table_args__ = (UniqueConstraint("model_id", "user_id", "name"),)
+
+
 class Log(SQLDeclarativeBase):
     __tablename__ = "logs"
 

@@ -115,8 +115,7 @@ class NDBModel(Model):
         )
 
         return inputs.SearchResultsNDB(
-            query_text=kwargs["query"],
-            references=pydantic_references,
+            query_text=kwargs["query"], references=pydantic_references
         )
 
     def associate(self, **kwargs: Any) -> None:
@@ -144,10 +143,7 @@ class NDBModel(Model):
         """
         return sorted(
             [
-                {
-                    "source": doc.source,
-                    "source_id": doc.hash,
-                }
+                {"source": doc.source, "source_id": doc.hash}
                 for doc, _ in self.db._savable_state.documents.registry.values()
             ],
             key=lambda source: source["source"],
@@ -184,10 +180,7 @@ class NDBModel(Model):
         )
 
         return [
-            {
-                "source": doc.reference(0).source,
-                "source_id": doc.hash,
-            }
+            {"source": doc.reference(0).source, "source_id": doc.hash}
             for doc in ndb_docs
         ]
 

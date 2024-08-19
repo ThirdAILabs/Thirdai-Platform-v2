@@ -31,11 +31,7 @@ license_info = {
 license_str = json.dumps(license_info, separators=(",", ":"))
 
 # Sign the license
-signature = private_key.sign(
-    license_str.encode(),
-    padding.PKCS1v15(),
-    hashes.SHA256(),
-)
+signature = private_key.sign(license_str.encode(), padding.PKCS1v15(), hashes.SHA256())
 
 # Encode the signature in Base64 to embed in JSON
 encoded_signature = base64.b64encode(signature).decode()

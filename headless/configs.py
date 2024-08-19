@@ -93,9 +93,7 @@ class Scifact(Config):
         "scifact/trn_supervised_part1.csv",
         "scifact/trn_supervised_part2.csv",
     ]
-    test_paths: list[str] = [
-        "scifact/tst_supervised.csv",
-    ]
+    test_paths: list[str] = ["scifact/tst_supervised.csv"]
     insert_paths: list[str] = ["scifact/sample_nda.pdf"]
 
     strong_columns: list[str] = ["TITLE"]

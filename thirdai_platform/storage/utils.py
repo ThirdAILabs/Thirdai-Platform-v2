@@ -23,9 +23,7 @@ def create_token(expiration_min=15, **kwargs):
     payload = {"exp": access_token_expires, **kwargs}
 
     access_token = jwt.encode(
-        payload=payload,
-        key=os.getenv("JWT_SECRET"),
-        algorithm="HS256",
+        payload=payload, key=os.getenv("JWT_SECRET"), algorithm="HS256"
     )
     return access_token
 
@@ -48,9 +46,7 @@ def verify_token(token):
         # This function automatically checks for token expiration:
         # https://pyjwt.readthedocs.io/en/stable/usage.html#expiration-time-claim-exp
         payload = jwt.decode(
-            jwt=token,
-            key=os.getenv("JWT_SECRET"),
-            algorithms=["HS256"],
+            jwt=token, key=os.getenv("JWT_SECRET"), algorithms=["HS256"]
         )
         return payload
     except jwt.PyJWTError:

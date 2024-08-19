@@ -205,9 +205,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         model = get_model()
         sources = model.sources()
         return response(
-            status_code=status.HTTP_200_OK,
-            message="Successful",
-            data=sources,
+            status_code=status.HTTP_200_OK, message="Successful", data=sources
         )
 
     @ndb_router.post("/delete")
@@ -439,10 +437,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
 
     @ndb_router.post("/task-status")
     @propagate_error
-    def task_status(
-        task_id: str,
-        _=Depends(permissions.verify_write_permission),
-    ):
+    def task_status(task_id: str, _=Depends(permissions.verify_write_permission)):
         """
         Get the status of a specific task.
 
@@ -485,8 +480,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
                 )
             else:
                 return response(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    message="Task ID not found",
+                    status_code=status.HTTP_404_NOT_FOUND, message="Task ID not found"
                 )
 
     @ndb_router.get("/highlighted-pdf")
@@ -565,9 +559,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
             chunks = old_pdf_chunks(model.db, reference)
         if chunks:
             return response(
-                status_code=status.HTTP_200_OK,
-                message="Successful",
-                data=chunks,
+                status_code=status.HTTP_200_OK, message="Successful", data=chunks
             )
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,

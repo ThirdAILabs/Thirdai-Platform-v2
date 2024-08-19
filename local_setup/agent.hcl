@@ -20,6 +20,11 @@ client {
     read_only                 = false
   }
 
+  host_volume "loki" {
+    path                      = "/opt/nomad/nomad-monitoring/data/loki"
+    read_only                 = false
+  }
+
 }
 
 server {
@@ -28,11 +33,16 @@ server {
 
 plugin "docker" {
   config {
-    allow_privileged = true
     volumes {
       enabled                = true
     }
     extra_labels             = ["job_name", "job_id", "task_group_name", "task_name", "namespace", "node_name", "node_id"]
+  }
+}
+
+plugin "raw_exec" {
+  config {
+    enabled = true
   }
 }
 

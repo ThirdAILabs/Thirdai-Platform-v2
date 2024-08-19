@@ -106,8 +106,7 @@ class CommonFunctions:
 
         logging.info("Searching the deployment")
         return deployment.search(
-            query="Can autism and down syndrome be in conjunction",
-            top_k=5,
+            query="Can autism and down syndrome be in conjunction", top_k=5
         )
 
     @staticmethod
@@ -192,7 +191,7 @@ class NDBFunctions:
                     config.doc_type,
                 )
                 for file in config.insert_paths
-            ],
+            ]
         )
 
         logging.info("Checking the sources")
@@ -338,6 +337,8 @@ class GlobalAdminFunctions:
         except Exception as e:
             pass
 
+        flow.bazaar_client.login(email="admin@mail.com", password="password")
+
     @staticmethod
     def test_add_global_admin(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
@@ -429,6 +430,11 @@ class TeamAdminFunctions:
     @staticmethod
     def ta_setup(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
+        flow.bazaar_client.login(email="admin@mail.com", password="password")
+        response = flow.bazaar_client.create_team(inputs.get("team_name"))
+        if response.status_code == 201:
+            logging.info("Team created successfully.")
+
         try:
             flow.bazaar_client.sign_up(
                 email="ta_team_admin@mail.com",
@@ -464,10 +470,7 @@ class TeamAdminFunctions:
     def test_ta_add_user_to_team(inputs: Dict[str, str]):
 
         logging.info(f"inputs: {inputs}")
-        flow.bazaar_client.log_in(
-            email="ta_team_admin@mail.com",
-            password="password",
-        )
+        flow.bazaar_client.login(email="ta_team_admin@mail.com", password="password")
 
         response = flow.bazaar_client.add_user_to_team(
             inputs.get("user_email"), inputs.get("team_id")
@@ -539,7 +542,8 @@ class TeamAdminFunctions:
     @staticmethod
     def ta_cleanup(inputs: Dict[str, str]):
         logging.info("Starting cleanup process.")
-        team_id = inputs.get("team_id")
+
+        flow.bazaar_client.login(email="admin@mail.com", password="password")
 
         user_emails = [
             "ta_team_admin@mail.com",

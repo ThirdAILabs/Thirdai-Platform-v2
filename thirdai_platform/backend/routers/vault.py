@@ -18,13 +18,9 @@ class SecretResponse(BaseModel):
 
 
 # Note(pratik): Only global admin can add a secret to vault
-@vault_router.post(
-    "/add-secret",
-    dependencies=[Depends(global_admin_only)],
-)
+@vault_router.post("/add-secret", dependencies=[Depends(global_admin_only)])
 async def add_secret(
-    secret: SecretResponse,
-    client: hvac.Client = Depends(get_vault_client),
+    secret: SecretResponse, client: hvac.Client = Depends(get_vault_client)
 ):
     if secret.key not in ["AWS_ACCESS_TOKEN", "OPENAI_API_KEY"]:
         raise HTTPException(

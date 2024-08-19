@@ -15,11 +15,7 @@ admin_username = os.getenv("ADMIN_USERNAME")
 admin_mail = os.getenv("ADMIN_MAIL")
 admin_password = os.getenv("ADMIN_PASSWORD")
 
-env_variable_names = [
-    "ADMIN_USERNAME",
-    "ADMIN_MAIL",
-    "ADMIN_PASSWORD",
-]
+env_variable_names = ["ADMIN_USERNAME", "ADMIN_MAIL", "ADMIN_PASSWORD"]
 
 # Check if any of the environment variables are missing
 missing_variables = [var for var in env_variable_names if os.getenv(var) is None]

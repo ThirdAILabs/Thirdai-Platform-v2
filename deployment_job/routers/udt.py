@@ -23,8 +23,7 @@ queries_ingested_bytes = Throughput()
 @udt_router.post("/predict")
 @propagate_error
 def udt_query(
-    base_params: BaseQueryParams,
-    token=Depends(permissions.verify_read_permission),
+    base_params: BaseQueryParams, token=Depends(permissions.verify_read_permission)
 ):
     """
     Predicts the output based on the provided query parameters.

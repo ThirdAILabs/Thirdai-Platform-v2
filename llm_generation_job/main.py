@@ -145,11 +145,7 @@ async def generate(websocket: WebSocket):
     llm_class = model_classes.get(generate_args.provider.lower())
     if llm_class is None:
         await websocket.send_json(
-            {
-                "status": "error",
-                "detail": "Unsupported provider",
-                "end_of_stream": True,
-            }
+            {"status": "error", "detail": "Unsupported provider", "end_of_stream": True}
         )
         return
 

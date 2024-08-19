@@ -224,7 +224,69 @@ function App() {
             });
     }
 
-    function submit(query: string, genaiPrompt: string) {
+    async function submit(query: string, genaiPrompt: string) {
+        async function detectAndReplacePII(references: ReferenceInfo[]) {
+            for (let ref of references) {
+                if (ifGuardRailOn) {
+                    try {
+                        const prediction = await modelService!.piiDetect(ref.content);
+                        const transformedPrediction = transformPrediction(prediction);
+                        ref.content = replaceSensitiveInfo(ref.content, transformedPrediction);
+                    } catch (error) {
+                        console.error('Error detecting PII:', error);
+                    }
+                }
+            }
+        }
+    
+        function transformPrediction(prediction: any) {
+            const { tokens, predicted_tags } = prediction;
+            let result: [string, string][] = [];
+            let currentSentence = '';
+            let currentTag = '';
+        
+            for (let i = 0; i < tokens.length; i++) {
+                const word = tokens[i];
+                const tag = predicted_tags && predicted_tags[i] ? predicted_tags[i][0] : 'O';
+        
+                if (tag === currentTag) {
+                    currentSentence += ` ${word}`;
+                } else {
+                    if (currentSentence) {
+                        result.push([currentSentence.trim(), currentTag]);
+                    }
+                    currentSentence = word;
+                    currentTag = tag;
+                }
+            }
+        
+            if (currentSentence) {
+                result.push([currentSentence.trim(), currentTag]);
+            }
+        
+            return result;
+        }
+    
+        function replaceSensitiveInfo(content: string, transformedPrediction: [string, string][]) {
+            transformedPrediction.forEach(([sentence, tag]) => {
+                if (tag !== 'O') {
+                    const placeholder = generateRandomAlphanumeric(5);
+                    content = content.replace(sentence, placeholder);
+                }
+            });
+            return content;
+        }
+    
+        function generateRandomAlphanumeric(length: number) {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+
         if (websocketRef.current) {
             websocketRef.current.close();
         }
@@ -235,22 +297,20 @@ function App() {
         setCanSearchMore(true);
         setNumReferences(c.numReferencesFirstLoad);
         if (query.trim().length > 0) {
-            getResults(
-                query,
-                c.numReferencesFirstLoad + 1 * c.numReferencesLoadMore,
-            ).then((results) => {
-                if (results &&
-                    ifGenerationOn // turn on generation only if specified
-                ) {
-                    modelService!.generateAnswer(
-                        query,
-                        genaiPrompt,
-                        results.references,
-                        websocketRef,
-                        (next) => setAnswer((prev) => prev + next),
-                    );
-                }
-            });
+            const results = await getResults(query, c.numReferencesFirstLoad + 1 * c.numReferencesLoadMore);
+            
+            if (results && ifGenerationOn) {
+                // Detect PII and replace it in the references before generating the answer
+                await detectAndReplacePII(results.references);
+                
+                modelService!.generateAnswer(
+                    query,
+                    genaiPrompt,
+                    results.references,
+                    websocketRef,
+                    (next) => setAnswer((prev) => prev + next),
+                );
+            }
         } else {
             setResults(null);
             setAnswer("");

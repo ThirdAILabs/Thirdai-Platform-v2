@@ -312,7 +312,7 @@ class GlobalAdminFunctions:
     def add_new_users(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
         try:
-            flow.bazaar_client.signup(
+            flow.bazaar_client.sign_up(
                 email="ga_test_global_admin@mail.com",
                 password="password",
                 username="ga_test_global_admin",
@@ -321,7 +321,7 @@ class GlobalAdminFunctions:
             pass
 
         try:
-            flow.bazaar_client.signup(
+            flow.bazaar_client.sign_up(
                 email="ga_test_team_admin@mail.com",
                 password="password",
                 username="ga_test_team_admin",
@@ -330,7 +330,7 @@ class GlobalAdminFunctions:
             pass
 
         try:
-            flow.bazaar_client.signup(
+            flow.bazaar_client.sign_up(
                 email="ga_test_team_member@mail.com",
                 password="password",
                 username="ga_test_team_member",
@@ -430,31 +430,31 @@ class TeamAdminFunctions:
     def ta_setup(inputs: Dict[str, str]):
         logging.info(f"inputs: {inputs}")
         try:
-            flow.bazaar_client.signup(
+            flow.bazaar_client.sign_up(
                 email="ta_team_admin@mail.com",
                 password="password",
                 username="ta_team_admin",
             )
         except Exception as e:
-            logging.error(f"Failed to signup another team admin: {e}")
+            logging.error(f"Failed to sign_up another team admin: {e}")
 
         try:
-            flow.bazaar_client.signup(
+            flow.bazaar_client.sign_up(
                 email="ta_another_team_admin@mail.com",
                 password="password",
                 username="ta_another_team_admin",
             )
         except Exception as e:
-            logging.error(f"Failed to signup another team admin: {e}")
+            logging.error(f"Failed to sign_up another team admin: {e}")
 
         try:
-            flow.bazaar_client.signup(
+            flow.bazaar_client.sign_up(
                 email="ta_test_team_member@mail.com",
                 password="password",
                 username="ta_test_team_member",
             )
         except Exception as e:
-            logging.error(f"Failed to signup another team member: {e}")
+            logging.error(f"Failed to sign_up another team member: {e}")
 
         response = flow.bazaar_client.add_secret_key(
             inputs.get("key"), inputs.get("value")

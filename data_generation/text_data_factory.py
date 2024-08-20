@@ -81,16 +81,17 @@ class TextDataFactory(DataFactory):
         ):
             chunk_to_process = prompt_tasks[idx : idx + self.write_chunk_size]
 
-            data_points: List[str] = self.run_and_collect_results(
+            data_points: List[Dict] = self.run_and_collect_results(
                 tasks_prompt=chunk_to_process, parallelize=True
             )
 
             transformed_data_points = [
-                self.fill_and_transform(
+                item
+                for data_point in data_points
+                for item in self.fill_and_transform(
                     texts=data_point["response_text"],
                     target_label=data_point["kwargs"]["target_label"],
                 )
-                for data_point in data_points
             ]
             # filtering to remove 'None'
             transformed_data_points = list(

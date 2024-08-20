@@ -178,10 +178,14 @@ class DAGExecutor:
             for param, source in task_params.items():
                 if source == "variable":
                     inputs[param] = self.variables[dag_name][config_name][param]
+                elif param == "config":
+                    inputs[param] = get_configs(Config, source)[0]
                 elif source in self.outputs[dag_name][config_name]:
                     inputs[param] = self.outputs[dag_name][config_name][source]
                 else:
                     inputs[param] = source
+            # adds dag_name to the inputs
+            inputs["dag_name"] = dag_name
             self.outputs[dag_name][config_name][task_name] = task_func(inputs)
         logging.info(
             f"Finished executing task '{task_name}' in DAG '{dag_name}' with config '{config_name}', with output {self.outputs[dag_name][config_name][task_name]}."
@@ -223,6 +227,7 @@ class DAGExecutor:
                             f"Task '{task_name}' in DAG '{dag_name}' generated an exception: {exc} for config {config_name}",
                             exc_info=True,
                         )
+                        raise exc
                     else:
                         logging.info(
                             f"Task '{task_name}' in DAG '{dag_name}' completed successfully"
@@ -266,9 +271,14 @@ class DAGExecutor:
                 try:
                     future.result()
                 except Exception as exc:
-                    logging.error(f"Configuration generated an exception: {exc}")
+                    logging.error(
+                        f"Configuration generated an exception: {exc}",
+                        exc_info=True,
+                    )
+                    return False
 
         logging.info(f"Finished execution of DAG '{dag_name}' with all configurations")
+        return True
 
     def execute_all(self):
         """
@@ -291,7 +301,10 @@ class DAGExecutor:
                 try:
                     future.result()
                 except Exception as exc:
-                    logging.error(f"Configuration generated an exception: {exc}")
+                    logging.error(
+                        f"Configuration generated an exception: {exc}",
+                        exc_info=True,
+                    )
 
         logging.info(f"Finished execution of all DAGs")
 

@@ -13,7 +13,7 @@ import requests
 from database import schema
 from fastapi.responses import JSONResponse
 from jinja2 import Template
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field, root_validator, validator
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger("ThirdAI_Platform")
@@ -193,6 +193,48 @@ class UDTExtraOptions(BaseModel):
             values["default_tag"] = values.get("default_tag", "O")
         return values
 
+    @validator("target_labels")
+    def check_target_labels(cls, v, values):
+        sub_type = values.get("sub_type")
+        if sub_type == "token":
+            if not v:
+                raise ValueError("target_labels must be a non-empty list")
+            for label in v:
+                if len(label) == 0:
+                    raise ValueError(
+                        f'target_labels cannot contain empty strings: "{label}" is invalid'
+                    )
+                if " " in label:
+                    raise ValueError(
+                        f'target_labels cannot contain spaces: "{label}" is invalid'
+                    )
+        return v
+
+    @validator("default_tag")
+    def check_default_tag(cls, v, values):
+        sub_type = values.get("sub_type")
+        if sub_type == "token":
+            if not v:
+                raise ValueError("default_tag must be specified")
+            if " " in v:
+                raise ValueError(f'default_tag cannot contain spaces: "{v}" is invalid')
+        return v
+
+    @validator("n_target_classes")
+    def check_n_target_classes(cls, v, values):
+        """
+        Checks if n_target_classes > 0
+        """
+        sub_type = values.get("sub_type")
+        if sub_type == "text":
+            if v is None:
+                raise ValueError("n_target_classes must be specified")
+            if v <= 0:
+                raise ValueError(
+                    f"n_target_classes must be a positive integer: {v} is invalid"
+                )
+        return v
+
 
 class NDBExtraOptions(BaseModel):
     """
@@ -270,11 +312,11 @@ class NDBExtraOptions(BaseModel):
 
     tokenizer: Optional[str] = None
     hidden_bias: Optional[bool] = None
-    retriever: Optional[str] = None  # This flag is for which retriever to use.
+    # This flag is for which retriever to use.
+    retriever: Optional[str] = None
     unsupervised_train: Optional[bool] = None
-    disable_finetunable_retriever: Optional[bool] = (
-        None  # This flag is to disable inverted index in supervised training.
-    )
+    # This flag is to disable inverted index in supervised training.
+    disable_finetunable_retriever: Optional[bool] = None
     checkpoint_interval: Optional[int] = None
     fast_approximation: Optional[bool] = None
     num_buckets_to_sample: Optional[int] = None
@@ -373,7 +415,7 @@ def get_hcl_payload(filepath, is_jinja, **kwargs):
         content = file.read()
 
     if is_jinja:
-        template = Template(content)
+        template = Template(content, autoescape=True)
         hcl_content = template.render(**kwargs)
     else:
         hcl_content = content
@@ -548,30 +590,6 @@ def update_json_list(current_list, new_dict):
     return json.dumps(current_list)
 
 
-def get_deployment(session: Session, deployment_name, deployment_user_id, model_id):
-    """
-    Get a deployment by name, user ID, and model ID.
-
-    Parameters:
-    - session: SQLAlchemy session.
-    - deployment_name: The name of the deployment.
-    - deployment_user_id: The user ID of the deployment owner.
-    - model_id: The model ID.
-
-    Returns:
-    - schema.Deployment: The deployment object if found, otherwise None.
-    """
-    return (
-        session.query(schema.Deployment)
-        .filter(
-            schema.Deployment.name == deployment_name,
-            schema.Deployment.user_id == deployment_user_id,
-            schema.Deployment.model_id == model_id,
-        )
-        .first()
-    )
-
-
 def model_accessible(model: schema.Model, user: schema.User) -> bool:
     """
     Check if a model is accessible to a user.
@@ -672,3 +690,12 @@ def get_expiry_min(size: int):
     Taking an average speed of 300 to 400 KB/s we give an extra 60 min for every 1.5GB.
     """
     return 60 * (1 + math.floor(size / 1500))
+
+
+def list_workflow_models(workflow: schema.Workflow):
+    models_info = []
+    for workflow_model in workflow.workflow_models:
+        model_info = get_high_level_model_info(workflow_model.model)
+        model_info["component"] = workflow_model.component  # Append the component info
+        models_info.append(model_info)
+    return models_info

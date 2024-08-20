@@ -11,8 +11,8 @@ from fastapi.responses import JSONResponse
 from reporter import Reporter
 from routers.ndb.read import ndb_read_router
 from routers.ndb.write import ndb_write_router, process_tasks
-from routers.udt.read import udt_read_router
 from routers.telemetry import telemetry_router  # Import the telemetry router
+from routers.udt.read import udt_read_router
 from utils import delete_deployment_job
 from variables import GeneralVariables, TypeEnum
 

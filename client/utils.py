@@ -58,6 +58,7 @@ def check_response(response):
             "Failed with status code:", response.status_code, response=response
         )
 
+    print(response.content)
     content = json.loads(response.content)
     print(content)
 

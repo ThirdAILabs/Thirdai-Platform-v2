@@ -14,7 +14,6 @@ from auth.jwt import (
 from backend.auth_dependencies import is_model_owner
 from backend.utils import (
     delete_nomad_job,
-    get_empty_port,
     get_model_from_identifier,
     get_platform,
     get_python_path,
@@ -246,7 +245,6 @@ def deploy_model(
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("DEPLOY_IMAGE_NAME"),
-            port=None if platform == "docker" else get_empty_port(),
             deployment_app_dir=str(get_root_absolute_path() / "deployment_job"),
             model_id=str(model.id),
             model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),

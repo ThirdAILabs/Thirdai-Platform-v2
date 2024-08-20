@@ -29,8 +29,6 @@ job "deployment-{{ model_id }}" {
       port "{{ model_id }}-http-read" {
         {% if platform == "docker" %}
           to = 80
-        {% elif platform == "local" %}
-          static = {{ port }}
         {% endif %}
       }
     }
@@ -43,6 +41,7 @@ job "deployment-{{ model_id }}" {
       tags = [
         "traefik.enable=true",
         "traefik.http.routers.{{ model_id }}-http-read.rule=PathPrefix(`/{{ model_id }}/read`)",
+        "traefik.http.services.{{ model_id }}-read.loadbalancer.server.port={{ model_id }}-http-read",
         "traefik.http.routers.{{ model_id }}-http-read.priority=10"
       ]
     }
@@ -50,7 +49,7 @@ job "deployment-{{ model_id }}" {
     task "read-backend" {
       {% if platform == "local" %}
         driver = "raw_exec"
-      {% elif platform == "docker" %}  
+      {% elif platform == "docker" %}
         driver = "docker"
 
       template {
@@ -79,7 +78,7 @@ EOF
         AWS_ACCESS_SECRET = "{{ aws_access_secret }}"
         {% if platform == "local" %}
           MODEL_BAZAAR_DIR = "{{ share_dir }}"
-        {% elif platform == "docker" %}  
+        {% elif platform == "docker" %}
           MODEL_BAZAAR_DIR = "/model_bazaar"
         {% endif %}
 
@@ -88,7 +87,7 @@ EOF
       }
 
       config {
-        {% if platform == "docker" %}  
+        {% if platform == "docker" %}
           image = "{{ registry }}/{{ image_name }}:{{ tag }}"
           image_pull_timeout = "15m"
           ports = ["{{ model_id }}-http-read"]
@@ -103,7 +102,14 @@ EOF
           ]
         {% elif platform == "local" %}
           command = "{{ python_path }}"
-          args    = ["-m", "uvicorn", "main:app","--app-dir","{{ deployment_app_dir }}","--reload","--host","0.0.0.0","--port","{{ port }}"]
+          # Directly use the dynamically assigned port in the command
+          args    = [
+            "-m", "uvicorn", "main:app",
+            "--app-dir", "{{ deployment_app_dir }}",
+            "--reload",
+            "--host", "0.0.0.0",
+            "--port", "${NOMAD_PORT_{{ model_id | replace("-", "_") }}_http_read}"
+          ]
         {% endif %}
       }
 
@@ -124,8 +130,6 @@ EOF
       port "{{ model_id }}-http-write" {
         {% if platform == "docker" %}
           to = 81
-        {% elif platform == "local" %}
-          static = {{ port + 1 }}
         {% endif %}
       }
     }
@@ -138,6 +142,7 @@ EOF
       tags = [
         "traefik.enable=true",
         "traefik.http.routers.{{ model_id }}-http-write.rule=PathPrefix(`/{{ model_id }}/write`)",
+        "traefik.http.services.{{ model_id }}-write.loadbalancer.server.port={{ model_id }}-http-write",
         "traefik.http.routers.{{ model_id }}-http-write.priority=10"
       ]
     }
@@ -145,7 +150,7 @@ EOF
     task "write-backend" {
       {% if platform == "local" %}
         driver = "raw_exec"
-      {% elif platform == "docker" %}  
+      {% elif platform == "docker" %}
         driver = "docker"
 
       template {
@@ -174,7 +179,7 @@ EOF
         AWS_ACCESS_SECRET = "{{ aws_access_secret }}"
         {% if platform == "local" %}
           MODEL_BAZAAR_DIR = "{{ share_dir }}"
-        {% elif platform == "docker" %}  
+        {% elif platform == "docker" %}
           MODEL_BAZAAR_DIR = "/model_bazaar"
         {% endif %}
 
@@ -183,7 +188,7 @@ EOF
       }
 
       config {
-        {% if platform == "docker" %}  
+        {% if platform == "docker" %}
           image = "{{ registry }}/{{ image_name }}:{{ tag }}"
           image_pull_timeout = "15m"
           ports = ["{{ model_id }}-http-write"]
@@ -198,7 +203,14 @@ EOF
           ]
         {% elif platform == "local" %}
           command = "{{ python_path }}"
-          args    = ["-m", "uvicorn", "main:app","--app-dir","{{ deployment_app_dir }}","--reload","--host","0.0.0.0","--port","{{ port + 1 }}"]
+          # Directly use the dynamically assigned port in the command
+          args    = [
+            "-m", "uvicorn", "main:app",
+            "--app-dir", "{{ deployment_app_dir }}",
+            "--reload",
+            "--host", "0.0.0.0",
+            "--port", "${NOMAD_PORT_{{ model_id | replace("-", "_") }}_http_write}"
+          ]
         {% endif %}
       }
 

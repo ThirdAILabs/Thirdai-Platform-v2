@@ -170,7 +170,7 @@ class NDBFileDetails(BasicFileDetails):
         ]
 
         destination_path = os.path.join(
-            os.getenv("SHARE_DIR", "/model_bazaar"),
+            os.getenv("LOCAL_TEST_DIR", "/model_bazaar"),
             "data",
             str(data_id),
             "relations.json",
@@ -273,7 +273,7 @@ def get_files(files: List[UploadFile], data_id, files_info: List[BasicFileDetail
     for i, file in enumerate(files):
         file_info = files_info[i]
         destination_dir = os.path.join(
-            os.getenv("SHARE_DIR", "/model_bazaar"),
+            os.getenv("LOCAL_TEST_DIR", "/model_bazaar"),
             "data",
             str(data_id),
             file_info.mode,

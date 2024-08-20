@@ -34,7 +34,7 @@ from storage import interface, local
 model_router = APIRouter()
 
 storage: interface.StorageInterface = local.LocalStorage(
-    os.getenv("SHARE_DIR", "/model_bazaar")
+    os.getenv("LOCAL_TEST_DIR", "/model_bazaar")
 )
 
 

@@ -258,29 +258,51 @@ function App() {
                     })
                 );
 
-                console.log('piiMap before processedQuery:', piiMap)
-
                 const processedQuery = await replacePIIWithPlaceholders(query, piiMap);
 
                 console.log('processedQuery:', processedQuery)
+                console.log('piiMap:', piiMap)
                 console.log('processedReferences:')
                 processedReferences.map(reference => {
                     console.log(reference.content);
                 });
-                
-    
+
                 modelService!.generateAnswer(
                     processedQuery,
-                    `${genaiPrompt}. [TAG #id] is sensitive information replaced as placeholder, use them in your response for consistency.`,
+                    `${genaiPrompt}. [TAG #id] is sensitive information replaced as a placeholder, use them in your response for consistency.`,
                     processedReferences,
                     websocketRef,
-                    (next) => setAnswer((prev) => prev + next),
+                    (next) => {                        
+                        setAnswer((prev) => {
+                            // Concatenate previous answer and the new part
+                            const fullAnswer = prev + next;
+                            
+                            // Replace placeholders in the concatenated string
+                            const replacedAnswer = replacePlaceholdersWithOriginal(fullAnswer, piiMap);
+                            
+                            // Return the final processed answer to update the state
+                            return replacedAnswer;
+                        });
+                    },
                 );
             }
         } else {
             setResults(null);
             setAnswer("");
         }
+    }
+
+    function replacePlaceholdersWithOriginal(text: string, piiMap: Map<string, PiiMapValue>): string {
+        const placeholderPattern = /\[([A-Z]+) #(\d+)\]/g;
+        return text.replace(placeholderPattern, (match, tag, id) => {
+            // Find the original value in piiMap by ID
+            for (const [originalSentence, value] of piiMap.entries()) {
+                if (value.id.toString() === id && value.tag === tag) {
+                    return originalSentence;
+                }
+            }
+            return match; // Return the placeholder if no match is found (should not happen)
+        });
     }
 
     async function replacePIIWithPlaceholders(content: string, piiMap: Map<string, PiiMapValue>): Promise<string> {

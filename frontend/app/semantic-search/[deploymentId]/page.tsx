@@ -271,7 +271,7 @@ function App() {
     
                 modelService!.generateAnswer(
                     processedQuery,
-                    genaiPrompt,
+                    `${genaiPrompt}. [TAG #id] is sensitive information replaced as placeholder, use them in your response for consistency.`,
                     processedReferences,
                     websocketRef,
                     (next) => setAnswer((prev) => prev + next),
@@ -296,7 +296,7 @@ function App() {
         for (let i = 0; i < tokens.length; i++) {
             const word = tokens[i];
             const tag = predicted_tags[i][0];
-            console.log('tag:', tag)
+            // console.log('tag:', tag)
     
             if (tag === currentTag) {
                 currentSentence += ` ${word}`;

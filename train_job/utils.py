@@ -1,10 +1,10 @@
 import ast
 import json
+import logging
 import os
 import pickle
 import shutil
 import sys
-import logging
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -15,7 +15,7 @@ from botocore import UNSIGNED
 from botocore.client import Config
 from fastapi import Response
 from thirdai import neural_db as ndb
-from variables import NeuralDBVariables, S3Variables, CSVDocumentVariables
+from variables import CSVDocumentVariables, NeuralDBVariables, S3Variables
 
 GB_1 = 1024 * 1024 * 1024  # Define 1 GB in bytes
 

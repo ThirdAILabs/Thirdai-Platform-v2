@@ -10,8 +10,8 @@ import { Divider } from '@mui/material';
 const NLPQuestions = () => {
   const [question, setQuestion] = useState('');
   const [loadingAnswer, setLoadingAnswer] = useState<boolean>(false);
-  const [answer, setAnswer] = useState('Token classification');
-  const [confirmedAnswer, setConfirmedAnswer] = useState<boolean>(true);
+  const [answer, setAnswer] = useState('');
+  const [confirmedAnswer, setConfirmedAnswer] = useState<boolean>(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuestion(e.target.value);

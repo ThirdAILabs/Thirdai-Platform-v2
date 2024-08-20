@@ -1,16 +1,27 @@
 // app/NERQuestions.js
 import React, { useState } from 'react';
+import axios from 'axios';
+import _ from 'lodash';
 import { getUsername, trainTokenClassifier, create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
+export const thirdaiPlatformBaseUrl = _.trim(process.env.THIRDAI_PLATFORM_BASE_URL!, '/');
+
 type Category = {
   name: string;
   example: string;
   description: string;
 };
+export function getAccessToken(throwIfNotFound: boolean = true): string | null {
+  const accessToken = localStorage.getItem('accessToken');
+  if (!accessToken && throwIfNotFound) {
+    throw new Error('Access token is not available');
+  }
+  return accessToken;
+}
 
 const predefinedChoices = [
   'PHONENUMBER',
@@ -95,6 +106,37 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
       console.error('Error generating data:', error);
       setIsDataGenerating(false);
     }
+    const tags = categories.map(category => category.name);
+    const tag_examples = categories.reduce((acc, category) => {
+      acc[category.name] = [category.example];
+      return acc;
+    }, {});
+
+    let formData = new FormData();
+    formData.append('form', JSON.stringify({
+        domain_prompt: "Personal and financial information for a person",
+        tags: tags,
+        tag_examples: tag_examples,
+        num_sentences_to_generate: 2000,
+        num_samples_per_tag: 20
+      }));
+
+    axios.defaults.headers.common.Authorization = `Bearer ${getAccessToken()}`;
+    const task_prompt = "NER model for the given tags"
+    return new Promise((resolve, reject) => {
+      axios
+          .post(`${thirdaiPlatformBaseUrl}/api/data/generate-token-data?task_prompt=${task_prompt}`, formData)
+          .then((res) => {
+              resolve(res.data);
+          })
+          .catch((err) => {
+              if (err.response && err.response.data) {
+                  reject(new Error(err.response.data.detail || 'Failed to generate'));
+              } else {
+                  reject(new Error('Failed to run model'));
+              }
+          });
+  });
   };
 
   const renderTaggedSentence = (pair: { sentence: string; nerData: string[] }) => {

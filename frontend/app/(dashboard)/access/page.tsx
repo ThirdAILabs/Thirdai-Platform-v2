@@ -14,6 +14,8 @@ import {
   createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam, deleteTeamById,
   deleteUserAccount
 } from "@/lib/backend";
+import { useContext } from 'react';
+import { UserContext } from '../../user_wrapper';
 
 // Define types for the models, teams, and users
 type Model = {
@@ -58,8 +60,22 @@ type User = {
 };
 
 export default function AccessPage() {
-  const userRole = "Global Admin";
-  const roleDescription = "This role has read and write access to all team members, models, and applications.";
+  const { user } = useContext(UserContext);
+
+  // Determine the user role
+  let userRole = "";
+  let roleDescription = "";
+  
+  if (user?.global_admin) {
+    userRole = "Global Admin";
+    roleDescription = "This role has read and write access to all members, models, and applications.";
+  } else if (user?.teams.some(team => team.role === 'team_admin')) {
+    userRole = "Team Admin";
+    roleDescription = "This role has read and write access to all team members, models, and applications in the team.";
+  } else {
+    userRole = "User"; // Default role if not an admin
+    roleDescription = "This role has limited access based on specific team permissions.";
+  }
 
   // State to manage models, teams, and users
   const [models, setModels] = useState<Model[]>([]);

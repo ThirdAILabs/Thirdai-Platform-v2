@@ -49,7 +49,7 @@ def udt_query(
 
     results = model.predict(**params, token=token)
 
-    # TODO(pratik/geordie/yash): logging for search results text classification
+    # TODO(pratik/geordie/yash): Add logging for search results text classification
     if isinstance(results, SearchResultsTokenClassification):
         tokens_identified.log(
             len([tags[0] for tags in results.predicted_tags if tags[0] != "O"])

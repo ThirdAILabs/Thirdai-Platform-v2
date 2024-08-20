@@ -227,6 +227,7 @@ class DAGExecutor:
                             f"Task '{task_name}' in DAG '{dag_name}' generated an exception: {exc} for config {config_name}",
                             exc_info=True,
                         )
+                        raise exc
                     else:
                         logging.info(
                             f"Task '{task_name}' in DAG '{dag_name}' completed successfully"

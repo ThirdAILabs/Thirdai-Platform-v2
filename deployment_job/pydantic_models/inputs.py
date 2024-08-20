@@ -143,3 +143,17 @@ class NDBExtraParams(BaseModel):
     rerank_threshold: float = 1.5
     top_k_threshold: Optional[int] = None
     constraints: Constraints = Field(default_factory=Constraints)
+
+
+class TelemetryEvent(BaseModel):
+    UserAction: str
+    UIComponent: str
+    UI: str
+    data: Any = None
+
+
+class TelemetryEventPackage(BaseModel):
+    UserName: str
+    timestamp: str
+    UserMachine: str
+    event: TelemetryEvent

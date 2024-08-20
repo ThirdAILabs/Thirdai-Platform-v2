@@ -1,29 +1,13 @@
 import json
-from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic_models.inputs import TelemetryEventPackage
 from routers.model import get_model
 
-
-class TelemetryEvent(BaseModel):
-    UserAction: str
-    UIComponent: str
-    UI: str
-    data: Any = None
+telemetry_write_router = APIRouter()
 
 
-class TelemetryEventPackage(BaseModel):
-    UserName: str
-    timestamp: str
-    UserMachine: str
-    event: TelemetryEvent
-
-
-telemetry_router = APIRouter()
-
-
-@telemetry_router.post("/record-event")
+@telemetry_write_router.post("/record-event")
 async def record_event(telemetry_package: TelemetryEventPackage):
     model = get_model()
     log_entry = telemetry_package.dict()

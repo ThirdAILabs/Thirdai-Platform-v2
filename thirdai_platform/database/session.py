@@ -36,7 +36,9 @@ app_env = os.getenv("APP_ENV", "Production")
 echo = True if app_env == "development" else False
 
 # Create the SQLAlchemy engine
-engine = create_engine(db_uri, echo=echo)
+engine = create_engine(
+    db_uri, echo=echo, pool_size=20, max_overflow=30, pool_timeout=30
+)
 
 Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

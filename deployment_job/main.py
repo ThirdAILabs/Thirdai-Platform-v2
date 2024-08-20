@@ -1,5 +1,4 @@
 import asyncio
-import time
 from functools import wraps
 from threading import Thread
 from typing import Any
@@ -11,17 +10,21 @@ from fastapi.responses import JSONResponse
 from reporter import Reporter
 from routers.ndb.read import ndb_read_router
 from routers.ndb.write import ndb_write_router, process_tasks
-from routers.telemetry import telemetry_router  # Import the telemetry router
+from routers.telemetry.write import telemetry_write_router
 from routers.udt.read import udt_read_router
 from utils import delete_deployment_job
 from variables import GeneralVariables, TypeEnum
 
+# Load environment variables
 general_variables = GeneralVariables.load_from_env()
 reporter = Reporter(general_variables.model_bazaar_endpoint)
 
+docs_prefix = "write" if general_variables.write else "read"
+
+# Initialize FastAPI application
 app = FastAPI(
-    docs_url=f"/{general_variables.model_id}/docs",
-    openapi_url=f"/{general_variables.model_id}/openapi.json",
+    docs_url=f"/{general_variables.model_id}/{docs_prefix}/docs",
+    openapi_url=f"/{general_variables.model_id}/{docs_prefix}/openapi.json",
 )
 
 app.add_middleware(
@@ -58,11 +61,11 @@ async def async_timer() -> None:
     """
     while True:
         try:
-            await asyncio.wait_for(
-                reset_event.wait(), timeout=900  # 15 minutes = 900 seconds
-            )
-            reset_event.clear()  # clear the event if the endpoint was hit within the timeout period
+            # Wait for the reset event for 15 minutes (900 seconds)
+            await asyncio.wait_for(reset_event.wait(), timeout=900)
+            reset_event.clear()  # Clear the event if the endpoint was hit within the timeout period
         except asyncio.TimeoutError:
+            # Timer expired, initiate shutdown
             response, job_id = delete_deployment_job(
                 general_variables.model_id, general_variables.task_runner_token
             )
@@ -72,21 +75,18 @@ async def async_timer() -> None:
                 print(
                     f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
                 )
-            reset_event.clear()
+            reset_event.clear()  # Clear event after handling timeout
 
 
-# Include the telemetry router for all deployments
-app.include_router(telemetry_router, prefix=f"/{general_variables.model_id}/telemetry")
+# Include routers based on conditions
+if general_variables.write:
+    app.include_router(
+        telemetry_write_router, prefix=f"/{general_variables.model_id}/write/telemetry"
+    )
 
 if general_variables.type == TypeEnum.NDB:
-    if general_variables.write:
-        app.include_router(
-            ndb_write_router, prefix=f"/{general_variables.model_id}/write"
-        )
-    else:
-        app.include_router(
-            ndb_read_router, prefix=f"/{general_variables.model_id}/read"
-        )
+    router = ndb_write_router if general_variables.write else ndb_read_router
+    app.include_router(router, prefix=f"/{general_variables.model_id}/{docs_prefix}")
 elif general_variables.type == TypeEnum.UDT:
     app.include_router(udt_read_router, prefix=f"/{general_variables.model_id}/read")
 
@@ -110,12 +110,14 @@ async def startup_event() -> None:
     Event handler for application startup.
     """
     try:
-        time.sleep(10)
+        await asyncio.sleep(10)  # Asynchronous sleep to avoid blocking the event loop
         reporter.update_deploy_status(general_variables.model_id, "complete")
         if general_variables.type == TypeEnum.NDB and general_variables.write:
             # This thread will only run in write job.
             thread = Thread(target=process_tasks, daemon=True)
             thread.start()
+        # Start the shutdown timer coroutine
+        asyncio.create_task(async_timer())
     except Exception as e:
         reporter.update_deploy_status(general_variables.model_id, "failed")
         raise e  # Re-raise the exception to propagate it to the main block

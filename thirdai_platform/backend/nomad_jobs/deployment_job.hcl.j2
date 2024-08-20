@@ -12,12 +12,12 @@ job "deployment-{{ model_id }}" {
       min = 1
       max = "{{ autoscaler_max_count }}"
       policy {
-        cooldown = "3m"
-        evaluation_interval = "1m"
+        cooldown = "1m"
+        evaluation_interval = "30s"
         check "avg_cpu" {
           source = "nomad-apm"
           query = "avg_cpu-allocated"
-          query_window = "3m"
+          query_window = "1m"
           strategy "target-value" {
             target = 70
           }
@@ -41,7 +41,6 @@ job "deployment-{{ model_id }}" {
       tags = [
         "traefik.enable=true",
         "traefik.http.routers.{{ model_id }}-http-read.rule=PathPrefix(`/{{ model_id }}/read`)",
-        "traefik.http.services.{{ model_id }}-read.loadbalancer.server.port={{ model_id }}-http-read",
         "traefik.http.routers.{{ model_id }}-http-read.priority=10"
       ]
     }
@@ -142,7 +141,6 @@ EOF
       tags = [
         "traefik.enable=true",
         "traefik.http.routers.{{ model_id }}-http-write.rule=PathPrefix(`/{{ model_id }}/write`)",
-        "traefik.http.services.{{ model_id }}-write.loadbalancer.server.port={{ model_id }}-http-write",
         "traefik.http.routers.{{ model_id }}-http-write.priority=10"
       ]
     }

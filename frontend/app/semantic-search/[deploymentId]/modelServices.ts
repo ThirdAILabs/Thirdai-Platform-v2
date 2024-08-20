@@ -1,5 +1,11 @@
+'use client';
+
 import { genaiQuery } from "./genai";
 import { Box, Chunk, DocChunks } from "./components/pdf_viewer/interfaces";
+import _ from 'lodash';
+
+export const thirdaiPlatformBaseUrl = _.trim(process.env.NEXT_PUBLIC_THIRDAI_PLATFORM_BASE_URL!, '/');
+export const deploymentBaseUrl = _.trim(process.env.NEXT_PUBLIC_DEPLOYMENT_BASE_URL!, '/');
 
 export interface ReferenceJson {
     id: number;
@@ -159,9 +165,10 @@ export class GlobalModelService implements ModelService {
     wsUrl: string;
     sessionId: string;
 
+
     constructor(url: string, sessionId: string) {
         this.url = url;
-        this.wsUrl = process.env.DEPLOYMENT_BASE_URL!.replace("http", "ws");
+        this.wsUrl = deploymentBaseUrl.replace("http", "ws");
         this.sessionId = sessionId;
     }
 
@@ -173,7 +180,7 @@ export class GlobalModelService implements ModelService {
         return {};
     }
 
-    handleInvalidAuth(): void {}
+    handleInvalidAuth(): void { }
 
     async sources(): Promise<Source[]> {
         const url = new URL(this.url + "/sources");
@@ -193,7 +200,7 @@ export class GlobalModelService implements ModelService {
             });
     }
 
-    async updatePiiSettings( token_model_id: string, llm_guardrail: boolean ): Promise<any> {
+    async updatePiiSettings(token_model_id: string, llm_guardrail: boolean): Promise<any> {
         const url = new URL(this.url + "/update-pii-settings");
         url.searchParams.append('token_model_id', token_model_id);
         url.searchParams.append('llm_guardrail', String(llm_guardrail));
@@ -205,19 +212,19 @@ export class GlobalModelService implements ModelService {
                 "Content-Type": "application/json",
             }
         });
-    
+
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.detail || "Unknown error occurred");
         }
-    
+
         return response.json();
     }
 
     async piiDetect(query: string): Promise<any> {
         const url = new URL(this.url + "/pii-detect");
         url.searchParams.append('query', query);
-        
+
         return fetch(url, {
             method: "POST",
             headers: {
@@ -374,14 +381,14 @@ export class GlobalModelService implements ModelService {
         const baseParams = { query: queryText, top_k: topK };
         const ndbParams = { constraints: {} };
 
-        return fetch(url, { 
-                method: "POST", 
-                headers: {
-                    ...this.authHeader(),
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ base_params: baseParams, ndb_params: ndbParams })
-            })
+        return fetch(url, {
+            method: "POST",
+            headers: {
+                ...this.authHeader(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ base_params: baseParams, ndb_params: ndbParams })
+        })
             .then(handleInvalidAuth(this))
             .then((response) => {
                 if (response.ok) {
@@ -711,16 +718,16 @@ export class GlobalModelService implements ModelService {
         const timestamp = new Date().toISOString();
         const userAgent = navigator.userAgent;
         const machineType = userAgent;
-    
+
         const telemetryPackage: TelemetryEventPackage = {
             UserName: userName,
             timestamp: timestamp,
             UserMachine: machineType,
             event: event
         };
-    
+
         const serializedData = JSON.stringify(telemetryPackage);
-    
+
         try {
             const response = await fetch(this.url + '/telemetry/record-event', {
                 method: "POST",
@@ -729,7 +736,7 @@ export class GlobalModelService implements ModelService {
                 },
                 body: serializedData,
             });
-    
+
             if (response.ok) {
                 return response.json();
             } else {
@@ -741,7 +748,7 @@ export class GlobalModelService implements ModelService {
             throw new Error('Failed to record event');
         }
     }
-    
+
 }
 
 export class UserModelService extends GlobalModelService {
@@ -778,7 +785,7 @@ export class UserModelService extends GlobalModelService {
         const url = new URL(this.tokenModelUrl + "/predict");
 
         const baseParams = { query: query, top_k: 1 };
-        
+
         return fetch(url, {
             method: "POST",
             headers: {

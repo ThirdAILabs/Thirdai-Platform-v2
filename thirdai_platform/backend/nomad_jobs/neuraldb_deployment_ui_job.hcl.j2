@@ -1,15 +1,15 @@
-job "neuraldb-deployment-ui" {
+job "thirdai-platform-frontend" {
   datacenters = ["dc1"]
 
   type = "service"
 
-  group "neuraldb-deployment-ui" {
+  group "thirdai-platform-frontend" {
     count = 1
 
     network {
       port "search-ui-http" {
         {% if platform == "docker" %}
-          to = 5000
+          to = 3000
         {% elif platform == "local" %}
           static = 3000
         {% endif %}
@@ -23,8 +23,8 @@ job "neuraldb-deployment-ui" {
 
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.search-ui-http.rule=PathPrefix(`/search`)",
-        "traefik.http.routers.search-ui-http.priority=10"
+        "traefik.http.routers.search-ui-http.rule=PathPrefix(`/`)",
+        "traefik.http.routers.search-ui-http.priority=1"
       ]
     }
 
@@ -37,7 +37,10 @@ job "neuraldb-deployment-ui" {
       {% endif %}
 
       env {
-        REACT_APP_MODEL_BAZAAR_URL = "{{ public_model_bazaar_endpoint }}"
+        NEXT_PUBLIC_DEPLOYMENT_BASE_URL = "{{ deployment_base_url }}"
+        DEPLOYMENT_BASE_URL = "{{ deployment_base_url }}"
+        NEXT_PUBLIC_THIRDAI_PLATFORM_BASE_URL = "{{ thirdai_platform_base_url }}"
+        NEXT_PUBLIC_OPENAI_API_KEY = "{{ openai_api_key }}"
       }
 
       config {
@@ -59,6 +62,7 @@ job "neuraldb-deployment-ui" {
       resources {
         cpu    = 500
         memory = 1000
+        memory_max = 4000
       }
     }
   }

@@ -6,14 +6,10 @@ COPY . /app
 WORKDIR /app
 
 FROM base AS prod-deps
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
-
-FROM base AS build
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-RUN pnpm run build
+RUN pnpm install --prod --frozen-lockfile
+RUN pnpm add sharp @svgr/webpack  # Install the missing dependencies
 
 FROM base
 COPY --from=prod-deps /app/node_modules /app/node_modules
-COPY --from=build /app/.next /app/.next
-COPY --from=build /app/public /app/public
-CMD [ "pnpm", "start" ]
+
+CMD [ "sh", "-c", "pnpm install --frozen-lockfile && pnpm run build && pnpm start" ]

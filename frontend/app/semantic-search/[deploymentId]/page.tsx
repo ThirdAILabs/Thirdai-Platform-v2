@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import "./page.css";
 import styled from "styled-components";
@@ -151,7 +151,7 @@ function App() {
     useEffect(() => {
         const workflowId = searchParams.get('workflowId');
         const generationOn = searchParams.get('ifGenerationOn') === 'true';
-        
+
         console.log('workflowId', workflowId)
         console.log('generationOn', generationOn)
 
@@ -185,7 +185,7 @@ function App() {
                 console.error('Failed to fetch workflow details:', error);
             }
         };
-    
+
         if (workflowId) {
             fetchWorkflowDetails();
         }
@@ -337,7 +337,7 @@ function App() {
         <ModelServiceContext.Provider value={modelService}>
             {modelService && (
                 <Frame $opacity={opacity}>
-                    <div style={{height: "100%", width: "100%"}}>
+                    <div style={{ height: "100%", width: "100%" }}>
 
                         {pdfInfo && (
                             <PdfViewerWrapper>
@@ -460,16 +460,16 @@ function App() {
                                             <Spacer $height="50px" />
                                             {checkedIds.size >
                                                 0 && (
-                                                <PillButton
-                                                    onClick={
-                                                        regenerateWithSelectedReferences
-                                                    }
-                                                >
-                                                    Regenerate with
-                                                    selected
-                                                    references
-                                                </PillButton>
-                                            )}
+                                                    <PillButton
+                                                        onClick={
+                                                            regenerateWithSelectedReferences
+                                                        }
+                                                    >
+                                                        Regenerate with
+                                                        selected
+                                                        references
+                                                    </PillButton>
+                                                )}
                                             <Spacer $height="50px" />
                                             <ReferenceList
                                                 references={results.references.slice(
@@ -489,8 +489,8 @@ function App() {
                                                     checkedIds
                                                 }
                                                 onCheck={onCheck}
-                                                modelService = {modelService}
-                                                ifGuardRailOn = {ifGuardRailOn}
+                                                modelService={modelService}
+                                                ifGuardRailOn={ifGuardRailOn}
                                             />
                                         </Pad>
                                     </Pad>

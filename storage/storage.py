@@ -4,10 +4,6 @@ import typing
 from abc import abstractmethod
 from collections import defaultdict
 
-from sqlalchemy import create_engine, event, func
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import scoped_session, sessionmaker
-
 from data_types import (
     DataSamples,
     UserFeedBack,
@@ -15,6 +11,9 @@ from data_types import (
     deserialize_userfeedback,
 )
 from schemas import Base, FeedBack, Samples
+from sqlalchemy import create_engine, event, func
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 
 # turns on foreign key constraint check for sqlite

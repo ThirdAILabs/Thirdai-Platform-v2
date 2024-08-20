@@ -113,6 +113,15 @@ class FinetunableRetriever(NDBModel):
         """
         self.logger.warning("Evaluation method called. Not implemented.")
 
+    def load_db(self, model_id: str) -> ndb.NeuralDB:
+        db = super().load_db(model_id)
+        db.save(self.model_save_path)
+        return ndb.NeuralDB.from_checkpoint(self.model_save_path)
+
+    def save(self, db: ndb.NeuralDB):
+        if not self.model_save_path.exists():
+            super().save(db)
+
     def initialize_db(self) -> ndb.NeuralDB:
         """
         Initialize a new NeuralDB instance with the retriever.

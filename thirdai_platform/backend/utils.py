@@ -373,7 +373,7 @@ def get_hcl_payload(filepath, is_jinja, **kwargs):
         content = file.read()
 
     if is_jinja:
-        template = Template(content)
+        template = Template(content, autoescape=True)
         hcl_content = template.render(**kwargs)
     else:
         hcl_content = content

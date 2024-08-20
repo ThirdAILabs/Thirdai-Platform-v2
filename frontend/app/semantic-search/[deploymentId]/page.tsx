@@ -224,7 +224,7 @@ function App() {
             });
     }
 
-    function submit(query: string, genaiPrompt: string) {
+    async function submit(query: string, genaiPrompt: string) {
         if (websocketRef.current) {
             websocketRef.current.close();
         }
@@ -234,28 +234,72 @@ function App() {
         setCheckedIds(new Set<number>());
         setCanSearchMore(true);
         setNumReferences(c.numReferencesFirstLoad);
+
         if (query.trim().length > 0) {
-            getResults(
+            const piiMap = new Map<string, string>();
+            const processedQuery = await replacePIIWithPlaceholders(query, piiMap);
+    
+            const results = await getResults(
                 query,
-                c.numReferencesFirstLoad + 1 * c.numReferencesLoadMore,
-            ).then((results) => {
-                if (results &&
-                    ifGenerationOn // turn on generation only if specified
-                ) {
-                    modelService!.generateAnswer(
-                        query,
-                        genaiPrompt,
-                        results.references,
-                        websocketRef,
-                        (next) => setAnswer((prev) => prev + next),
-                    );
-                }
-            });
+                c.numReferencesFirstLoad + 1 * c.numReferencesLoadMore
+            );
+    
+            if (results && ifGenerationOn) {
+
+                console.log('piiMap before processReference:', piiMap)
+
+                const processedReferences = await Promise.all(
+                    results.references.map(async (reference) => {
+                        const processedContent = await replacePIIWithPlaceholders(reference.content, piiMap);
+                        return { ...reference, content: processedContent };
+                    })
+                );
+
+                console.log('processedQuery:', processedQuery)
+                console.log('processedReferences:')
+                processedReferences.map(reference => {
+                    console.log(reference.content);
+                });
+                
+    
+                modelService!.generateAnswer(
+                    processedQuery,
+                    genaiPrompt,
+                    processedReferences,
+                    websocketRef,
+                    (next) => setAnswer((prev) => prev + next),
+                );
+            }
         } else {
             setResults(null);
             setAnswer("");
         }
     }
+
+    async function replacePIIWithPlaceholders(content: string, piiMap: Map<string, string>): Promise<string> {
+        const prediction = await modelService!.piiDetect(content);
+        const { tokens, predicted_tags } = prediction;
+
+        let currentId = piiMap.size + 1;
+        const processedTokens = tokens.map((token: string, index: number) => {
+            const tag = predicted_tags[index][0];
+            
+            // console.log('tag', tag, tag !== 'O')
+
+            if (tag !== 'O') {
+                if (!piiMap.has(token)) {
+                    piiMap.set(token, `[${tag} #${currentId}]`);
+                    currentId++;
+                }
+                return piiMap.get(token) || token;
+            } else {
+                return token;
+            }
+        });
+    
+        return processedTokens.join(" ");
+    }
+
 
     function regenerateWithSelectedReferences() {
         setAnswer("");

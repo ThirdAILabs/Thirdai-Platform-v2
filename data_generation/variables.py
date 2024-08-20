@@ -1,41 +1,29 @@
 import ast
-import datetime
 import html
 import os
-from dataclasses import MISSING, asdict, dataclass, fields
+from dataclasses import MISSING, dataclass, fields
 from enum import Enum
-from typing import Dict, Optional, Type, TypeVar, Union, get_args, get_origin
-from urllib.parse import urljoin
-
-import requests
-from fastapi import status
-from utils import now
+from typing import Dict, List, Optional, Type, TypeVar, Union, get_args, get_origin
 
 T = TypeVar("T", bound="EnvLoader")
 
 
-class TypeEnum(str, Enum):
-    NDB = "ndb"
-    UDT = "udt"
-
-
-class UDTSubtype(str, Enum):
-    token = "token"
+class DataCategory(str, Enum):
     text = "text"
+    token = "token"
 
 
-class NDBSubtype(str, Enum):
-    single = "single"
-    sharded = "sharded"
+class LLMProvider(str, Enum):
+    openai = "openai"
+    cohere = "cohere"
 
 
 class EnvLoader:
-    type_mapping = {
-        "TypeEnum": TypeEnum,
-    }
+    type_mapping = {"DataCategory": DataCategory, "LLMProvider": LLMProvider}
 
     @classmethod
     def load_from_env(cls: Type[T]) -> T:
+        """Load environment variables and return an instance of the class."""
         missing_vars = []
         env_vars: Dict[str, Optional[Union[str, int, float, bool]]] = {}
 
@@ -62,7 +50,8 @@ class EnvLoader:
     @staticmethod
     def _convert_type(
         value: str, field_type: Union[Type, str]
-    ) -> Union[str, int, float, bool, None, Enum]:
+    ) -> Union[str, int, float, bool, List, Dict, None, Enum]:
+        """Convert a string value to the specified field type."""
         if isinstance(field_type, str):
             field_type = EnvLoader.type_mapping.get(field_type, eval(field_type))
 
@@ -97,52 +86,34 @@ class EnvLoader:
             return float(value)
         if field_type == str:
             return value
-
         return ast.literal_eval(value)
 
 
 @dataclass
 class GeneralVariables(EnvLoader):
-    model_id: str
-    model_bazaar_endpoint: str
     model_bazaar_dir: str
-    license_key: str
-    task_runner_token: str
-    type: TypeEnum = TypeEnum.NDB
-    sub_type: Union[UDTSubtype, NDBSubtype] = NDBSubtype.single
-
-    def deployment_permissions(self, token: str):
-        deployment_permissions_endpoint = urljoin(
-            self.model_bazaar_endpoint,
-            f"api/deploy/permissions/{self.model_id}",
-        )
-        response = requests.get(
-            deployment_permissions_endpoint,
-            headers={"Authorization": "Bearer " + token},
-        )
-        if response.status_code == status.HTTP_401_UNAUTHORIZED:
-            return {
-                "read": False,
-                "write": False,
-                "exp": now() + datetime.timedelta(minutes=5),
-                "override": False,
-            }
-        elif response.status_code != status.HTTP_200_OK:
-            print(response.text)
-            return {
-                "read": False,
-                "write": False,
-                "exp": now(),
-                "override": False,
-            }
-        res_json = response.json()
-        permissions = res_json["data"]
-        permissions["exp"] = datetime.datetime.fromisoformat(permissions["exp"])
-        return permissions
+    data_id: str
+    data_category: DataCategory
+    genai_key: str
+    llm_provider: LLMProvider = LLMProvider.openai
 
 
-def merge_dataclasses_to_dict(*instances) -> dict:
-    result = {}
-    for instance in instances:
-        result.update(asdict(instance))
-    return result
+@dataclass
+class TextGenerationVariables(EnvLoader):
+    task_prompt: str
+    samples_per_label: int
+    target_labels: List[str]
+    examples: Dict[str, List[str]]
+    labels_description: Dict[str, str]
+    user_vocab: Optional[List[str]] = None
+    user_prompts: Optional[List[str]] = None
+    vocab_per_sentence: int = 4
+
+
+@dataclass
+class TokenGenerationVariables(EnvLoader):
+    domain_prompt: str
+    tags: List[str]
+    tag_examples: Dict[str, List[str]]
+    num_sentences_to_generate: int
+    num_samples_per_tag: int = 4

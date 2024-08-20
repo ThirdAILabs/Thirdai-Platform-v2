@@ -22,7 +22,6 @@ const NLPQuestions = () => {
       console.error('Question is not valid');
       return;
     }
-
     if (loadingAnswer) {
       return;
     }

@@ -21,7 +21,7 @@ const predefinedChoices = [
 ];
 
 interface NERQuestionsProps {
-  onCreateModel?: (userName: string, modelName: string) => void;
+  onCreateModel?: (modelId: string) => void;
   stayOnPage?: boolean;
 };
 
@@ -130,12 +130,13 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
     const tags = Array.from(new Set(categories.map(cat => cat.name)));
   
     try {
-      if (onCreateModel) {
-        onCreateModel(getUsername(), modelName);
-      }
-  
       const modelResponse = await trainTokenClassifier(modelName, generatedData, tags);
       const modelId = modelResponse.data.model_id;
+
+      // This is called from RAG
+      if (onCreateModel) {
+        onCreateModel(modelId);
+      }
   
       // Create workflow after model creation
       const workflowName = modelName;

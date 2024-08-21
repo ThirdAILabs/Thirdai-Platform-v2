@@ -36,16 +36,52 @@ def insert(
     token: str = Depends(permissions.verify_write_permission),
 ):
     """
-    Endpoint to insert documents into the NDB model.
-
+    Insert documents into the model.
     Parameters:
-    - documents: str - JSON string containing document data.
-    - files: list[UploadFile] - Optional list of files to upload.
+    - documents: str - The documents to be inserted in JSON format.
+    - files: List[UploadFile] - Optional list of files to be uploaded.
     - input_mode: str - Mode of insertion ("sync" or "async").
     - token: str - Authorization token.
-
     Returns:
-    - JSONResponse: Success or failure message.
+    - JSONResponse: Insertion success message.
+    Example Request Body (Sync Mode):
+    ```
+    {
+        "documents": [
+            {
+                "location": "local",
+                "document_type": "PDF",
+                "path": "/path/to/file.pdf",
+                "metadata": {"author": "John Doe"},
+                "chunk_size": 100,
+                "stride": 40,
+                "emphasize_first_words": 0,
+                "ignore_header_footer": true,
+                "ignore_nonstandard_orientation": true
+            }
+        ],
+        "input_mode": "sync"
+    }
+    ```
+    Example Request Body (Async Mode):
+    ```
+    {
+        "documents": [
+            {
+                "location": "local",
+                "document_type": "PDF",
+                "path": "/path/to/file.pdf",
+                "metadata": {"author": "John Doe"},
+                "chunk_size": 100,
+                "stride": 40,
+                "emphasize_first_words": 0,
+                "ignore_header_footer": true,
+                "ignore_nonstandard_orientation": true
+            }
+        ],
+        "input_mode": "async"
+    }
+    ```
     """
     try:
         documents_list = DocumentList.model_validate_json(documents).model_dump()
@@ -110,14 +146,21 @@ def ndb_associate(
     token: str = Depends(permissions.verify_read_permission),
 ):
     """
-    Endpoint to associate text pairs in the NDB model.
-
+    Associate text pairs in the model.
     Parameters:
-    - input: AssociateInput - The input data containing text pairs.
+    - input: AssociateInput - The associate input containing text pairs.
     - token: str - Authorization token.
-
     Returns:
-    - JSONResponse: Success or failure message.
+    - JSONResponse: Association success message.
+    Example Request Body:
+    ```
+    {
+        "text_pairs": [
+            {"source": "AI", "target": "Artificial Intelligence"},
+            {"source": "ML", "target": "Machine Learning"}
+        ]
+    }
+    ```
     """
     model = get_model(write_mode=True)
     model.associate(text_pairs=input.text_pairs, token=token)
@@ -132,14 +175,21 @@ def ndb_upvote(
     token: str = Depends(permissions.verify_read_permission),
 ):
     """
-    Endpoint to upvote specific text-id pairs in the NDB model.
-
+    Upvote specific text-id pairs.
     Parameters:
-    - input: UpvoteInput - The input data containing text-id pairs.
+    - input: UpvoteInput - The upvote input containing text-id pairs.
     - token: str - Authorization token.
-
     Returns:
-    - JSONResponse: Success or failure message.
+    - JSONResponse: Upvote success message.
+    Example Request Body:
+    ```
+    {
+        "text_id_pairs": [
+            {"query_text": "What is AI?", "reference_id": 1},
+            {"query_text": "What is machine learning?", "reference_id": 2}
+        ]
+    }
+    ```
     """
     model = get_model(write_mode=True)
     model.upvote(text_id_pairs=input.text_id_pairs, token=token)
@@ -154,14 +204,18 @@ def delete(
     token: str = Depends(permissions.verify_write_permission),
 ):
     """
-    Endpoint to delete sources from the model.
-
+    Delete sources from the model.
     Parameters:
     - input: DeleteInput - The input containing source IDs to be deleted.
     - token: str - Authorization token.
-
     Returns:
     - JSONResponse: Deletion success message.
+    Example Request Body:
+    ```
+    {
+        "source_ids": ["source1", "source2"]
+    }
+    ```
     """
     model = get_model(write_mode=True)
     model.delete(source_ids=input.source_ids, token=token)
@@ -180,15 +234,20 @@ def save(
     override_permission: bool = Depends(permissions.get_owner_permission),
 ):
     """
-    Endpoint to save the current state of the NDB model.
-
+    Save the current state of the NDB model.
     Parameters:
     - input: SaveModel - The input parameters for saving the model.
     - token: str - Authorization token.
     - override_permission: bool - Whether the user has permission to override the model.
-
     Returns:
     - JSONResponse: Save success message.
+    Example Request Body:
+    ```
+    {
+        "override": false,
+        "model_name": "new_model_name"
+    }
+    ```
     """
     model = get_model(write_mode=True)
     model_id = general_variables.model_id
@@ -250,13 +309,33 @@ def task_status(
     _=Depends(permissions.verify_write_permission),
 ):
     """
-    Endpoint to get the status of a specific task.
-
+    Get the status of a specific task.
     Parameters:
     - task_id: str - The ID of the task.
-
     Returns:
-    - JSONResponse: Task status information.
+    - JSONResponse: The status of the task.
+    Example Request Body:
+    ```
+    {
+        "task_id": "1234-5678-91011-1213"
+    }
+    ```
+    Example Response Body:
+    ```
+    {
+        "status": "success",
+        "message": "Information for task 1234-5678-91011-1213",
+        "data": {
+            "status": "in_progress",
+            "action": "insert",
+            "last_modified": "2024-07-31T12:34:56.789Z",
+            "documents": [...],
+            "message": "",
+            "data": null,
+            "token": "token_value"
+        }
+    }
+    ```
     """
     with task_lock:
         if task_id in tasks:

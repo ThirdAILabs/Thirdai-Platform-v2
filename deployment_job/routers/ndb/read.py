@@ -30,6 +30,51 @@ def ndb_query(
     ndb_params: Optional[NDBExtraParams] = NDBExtraParams(),
     token: str = Depends(permissions.verify_read_permission),
 ):
+    """
+    Query the NDB model with specified parameters.
+    Parameters:
+    - base_params: BaseQueryParams - Basic query parameters.
+        - query: str - The query text.
+        - top_k: int - The number of top results to return (default: 5).
+    - ndb_params: Optional[NDBExtraParams] - Extra NDB-specific query parameters.
+        - rerank: bool - Whether to rerank the results (default: False).
+        - top_k_rerank: int - The number of top results to rerank (default: 100).
+        - context_radius: int - The context radius for the results (default: 1).
+        - rerank_threshold: float - The threshold for reranking (default: 1.5).
+        - top_k_threshold: Optional[int] - The threshold for top_k results.
+        - constraints: Constraints - Additional constraints for the query.
+    - token: str - Authorization token.
+    Returns:
+    - JSONResponse: The query results.
+    Example Request Body:
+    ```
+    {
+        "base_params": {
+            "query": "What is the capital of France?",
+            "top_k": 5
+        },
+        "ndb_params": {
+            "rerank": true,
+            "top_k_rerank": 100,
+            "context_radius": 1,
+            "rerank_threshold": 1.5,
+            "constraints": {
+                "field1": {
+                    "constraint_type": "AnyOf",
+                    "values": ["value1", "value2"]
+                },
+                "field2": {
+                    "constraint_type": "InRange",
+                    "minimum": 0,
+                    "maximum": 10,
+                    "inclusive_min": true,
+                    "inclusive_max": true
+                }
+            }
+        }
+    }
+    ```
+    """
     model = get_model()
     params = base_params.dict()
     extra_params = ndb_params.dict(exclude_unset=True)
@@ -49,6 +94,21 @@ def ndb_query(
 @ndb_read_router.get("/sources")
 @propagate_error
 def get_sources(token: str = Depends(permissions.verify_read_permission)):
+    """
+    Get the sources used in the model.
+    Parameters:
+    - token: str - Authorization token.
+    Returns:
+    - JSONResponse: The list of sources.
+    Example Response Body:
+    ```
+    {
+        "status": "success",
+        "message": "Successful",
+        "data": ["source1", "source2", "source3"]
+    }
+    ```
+    """
     model = get_model()
     sources = model.sources()
 
@@ -64,6 +124,17 @@ def get_sources(token: str = Depends(permissions.verify_read_permission)):
 def highlighted_pdf(
     reference_id: int, token: str = Depends(permissions.verify_read_permission)
 ):
+    """
+    Get a highlighted PDF based on the reference ID.
+    Parameters:
+    - reference_id: int - The reference ID of the document.
+    Returns:
+    - Response: The highlighted PDF as a stream.
+    Example Request:
+    ```
+    /highlighted-pdf?reference_id=123
+    ```
+    """
     model = get_model()
     reference = model.db._savable_state.documents.reference(reference_id)
     buffer = io.BytesIO(highlighted_pdf_bytes(reference))
@@ -76,6 +147,17 @@ def highlighted_pdf(
 @ndb_read_router.get("/pdf-blob")
 @propagate_error
 def pdf_blob(source: str, token: str = Depends(permissions.verify_read_permission)):
+    """
+    Get the PDF blob from the source.
+    Parameters:
+    - source: str - The source path of the PDF.
+    Returns:
+    - Response: The PDF as a stream.
+    Example Request:
+    ```
+    /pdf-blob?source=/path/to/pdf
+    ```
+    """
     buffer = io.BytesIO(fitz.open(source).tobytes())
     headers = {"Content-Disposition": f'inline; filename="{Path(source).name}"'}
     return Response(buffer.getvalue(), headers=headers, media_type="application/pdf")
@@ -86,6 +168,17 @@ def pdf_blob(source: str, token: str = Depends(permissions.verify_read_permissio
 def pdf_chunks(
     reference_id: int, token: str = Depends(permissions.verify_read_permission)
 ):
+    """
+    Get the chunks of a PDF document based on the reference ID.
+    Parameters:
+    - reference_id: int - The reference ID of the document.
+    Returns:
+    - JSONResponse: The chunks of the PDF document.
+    Example Request:
+    ```
+    /pdf-chunks?reference_id=123
+    ```
+    """
     model = get_model()
     reference = model.db.reference(reference_id)
     chunks = new_pdf_chunks(model.db, reference)

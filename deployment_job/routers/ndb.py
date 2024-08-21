@@ -5,8 +5,8 @@ import uuid
 from pathlib import Path
 from typing import List, Optional
 
-import jwt
 import fitz
+import jwt
 import thirdai
 from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
 from fastapi.encoders import jsonable_encoder

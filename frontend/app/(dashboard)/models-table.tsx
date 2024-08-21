@@ -113,11 +113,13 @@ export function ModelsTable({
   }, []);
 
   const totalWorkflows = workflows.length;
+
   // const displayedWorkflows = workflows.slice(offset, offset + modelsPerPage);
   const filteredWorkflows = workflows.filter(workflow =>
     workflow.name.toLowerCase().includes(searchStr.toLowerCase())
   );
   const displayedWorkflows = filteredWorkflows.slice(offset, offset + modelsPerPage);
+
 
   return (
     <Card>

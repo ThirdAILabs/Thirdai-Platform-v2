@@ -165,7 +165,7 @@ def generate_text_data(
     samples_found = 0
     if existing_datasets:
         samples_found = prune_and_merge(
-            existing_datasets, extra_options["target_labels"], data_id
+            schema.UDT_Task.TEXT, existing_datasets, extra_options["target_labels"], data_id
         )
 
     submit_nomad_job(
@@ -258,7 +258,7 @@ def generate_token_data(
     samples_found = 0
     if existing_datasets:
         samples_found = prune_and_merge(
-            existing_datasets, extra_options["tags"], data_id
+            schema.UDT_Task.TOKEN, existing_datasets, extra_options["tags"], data_id
         )
 
     submit_nomad_job(

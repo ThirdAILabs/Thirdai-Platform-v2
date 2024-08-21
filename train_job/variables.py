@@ -212,3 +212,11 @@ class ComputeVariables(EnvLoader):
 class ShardVariables(EnvLoader):
     shard_num: int
     num_classes: int
+
+
+@dataclass
+class CSVDocumentVariables(EnvLoader):
+    csv_id_column: str = None
+    csv_strong_columns: list[str] = None
+    csv_weak_columns: list[str] = None
+    csv_reference_columns: list[str] = None

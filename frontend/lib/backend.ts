@@ -532,14 +532,31 @@ interface TokenClassificationSample {
   sentence: string;
 }
 
-function samplesToFile(samples: TokenClassificationSample[], sourceColumn: string, targetColumn: string) {
-  const rows: string[] = [`${sourceColumn},${targetColumn}`];
-  for (const { nerData, sentence } of samples) {
-    rows.push('"' + sentence.replace('"', '""') + '",' + nerData.join(' '));
+
+interface TokenClassificationExample {
+  name: string;
+  example: string;
+  description: string;
+}
+
+
+function tokenClassifierDatagenForm(modelGoal: string, examples: TokenClassificationExample[]) {
+  let tagExamples: Record<string, string[]> = {};
+  examples.forEach(example => {
+    if (!tagExamples[example.name]) {
+      tagExamples[example.name] = [example.example];
+    } else {
+      tagExamples[example.name].push(example.example);
+    }
+  })
+  const numSentences = 10_000;
+  return {
+    'domain_prompt': modelGoal,
+    'tags': examples.map(example => example.name),
+    'tag_examples': tagExamples,
+    'num_sentences_to_generate': numSentences,
+    'num_samples_per_tag': Math.max(Math.ceil(numSentences / Object.keys(tagExamples).length), 50),
   }
-  const csvContent = rows.join("\n");
-  const blob = new Blob([csvContent], { type: "text/csv" });
-  return new File([blob], "data.csv", { type: "text/csv" });
 }
 
 interface TrainTokenClassifierResponse {
@@ -554,8 +571,8 @@ interface TrainTokenClassifierResponse {
 
 export function trainTokenClassifier(
   modelName: string,
-  samples: TokenClassificationSample[],
-  tags: string[]
+  modelGoal: string,
+  examples: TokenClassificationExample[],
 ): Promise<TrainTokenClassifierResponse> {
   // Retrieve the access token from local storage
   const accessToken = getAccessToken()
@@ -563,24 +580,16 @@ export function trainTokenClassifier(
   // Set the default authorization header for axios
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
-  const sourceColumn = "source";
-  const targetColumn = "target";
-
   const formData = new FormData();
-  formData.append("files", samplesToFile(samples, sourceColumn, targetColumn));
-  formData.append("files_details_list", JSON.stringify({
-    file_details: [{ mode: 'supervised', location: 'local', is_folder: false }]
-  }));
   formData.append("extra_options_form", JSON.stringify({
     sub_type: "token",
-    source_column: sourceColumn, 
-    target_column: targetColumn,
-    target_labels: tags,
   }))
+  formData.append("datagen_options_form", JSON.stringify(tokenClassifierDatagenForm(modelGoal, examples)))
+  console.log(modelGoal);
 
   return new Promise((resolve, reject) => {
       axios
-          .post(`${thirdaiPlatformBaseUrl}/api/train/udt?model_name=${modelName}`, formData)
+          .post(`${thirdaiPlatformBaseUrl}/api/train/udt?model_name=${modelName}&task_prompt=${modelGoal}`, formData)
           .then((res) => {
               resolve(res.data);
           })

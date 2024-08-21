@@ -21,11 +21,12 @@ const predefinedChoices = [
 ];
 
 interface NERQuestionsProps {
+  modelGoal: string;
   onCreateModel?: (modelId: string) => void;
   stayOnPage?: boolean;
 };
 
-const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
+const NERQuestions = ({ modelGoal, onCreateModel, stayOnPage }: NERQuestionsProps) => {
   const [modelName, setModelName] = useState("");
   const [categories, setCategories] = useState([{ name: '', example: '', description: '' }]);
   const [isDataGenerating, setIsDataGenerating] = useState(false);
@@ -127,10 +128,8 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
       return;
     }
   
-    const tags = Array.from(new Set(categories.map(cat => cat.name)));
-  
     try {
-      const modelResponse = await trainTokenClassifier(modelName, generatedData, tags);
+      const modelResponse = await trainTokenClassifier(modelName, modelGoal, categories);
       const modelId = modelResponse.data.model_id;
 
       // This is called from RAG
@@ -262,7 +261,7 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
 
       {! isDataGenerating && generatedData.length > 0 && (
         <div className='mt-5'>
-          <h3 className='mb-3 text-lg font-semibold'>Generated Data</h3>
+          <h3 className='mb-3 text-lg font-semibold'>Example Generated Data</h3>
           <div>
             {generatedData.map((pair, index) => (
               <div key={index} className='my-2'>

@@ -3,6 +3,7 @@ import uuid
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
+import traceback
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.utils import (
@@ -17,9 +18,6 @@ from fastapi import APIRouter, Depends, Form, status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
-
-data_router = APIRouter()
-
 
 # Not sure if this will lead to exposure of using openai to generate data
 class LLMProvider(str, Enum):
@@ -39,13 +37,12 @@ class TextClassificationGenerateArgs(BaseModel):
     allocation_memory: Optional[int] = None
 
 
-@data_router.post("/generate-text-data")
 def generate_text_data(
     task_prompt: str,
+    data_id: str,
+    form: str,
+    train_args: str,
     llm_provider: LLMProvider = LLMProvider.openai,
-    form: str = Form(default="{}"),
-    session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:
@@ -75,8 +72,6 @@ def generate_text_data(
             message=f"License is not valid. {str(e)}",
         )
 
-    data_id = uuid.uuid4()
-
     genai_key = os.getenv("GENAI_KEY")
     if genai_key is None:
         return response(
@@ -95,7 +90,7 @@ def generate_text_data(
         image_name=os.getenv("TRAIN_IMAGE_NAME"),
         train_script=str(get_root_absolute_path() / "data_generation/run.py"),
         task_prompt=task_prompt,
-        data_id=str(data_id),
+        data_id=data_id,
         data_category="text",
         llm_provider=llm_provider.value,
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -103,6 +98,7 @@ def generate_text_data(
         genai_key=os.getenv("GENAI_KEY", None),
         license_key=license_info["boltLicenseKey"],
         extra_options=extra_options,
+        train_args=train_args,
         python_path=get_python_path(),
     )
 
@@ -122,13 +118,12 @@ class TokenClassificationGenerateArgs(BaseModel):
     allocation_memory: Optional[int] = None
 
 
-@data_router.post("/generate-token-data")
 def generate_token_data(
     task_prompt: str,
+    data_id: str,
+    form: str,
+    train_args: str,
     llm_provider: LLMProvider = LLMProvider.openai,
-    form: str = Form(default="{}"),
-    session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:
@@ -158,38 +153,45 @@ def generate_token_data(
             message=f"License is not valid. {str(e)}",
         )
 
-    data_id = uuid.uuid4()
+    try:
+        genai_key = os.getenv("GENAI_KEY")
+        if genai_key is None:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Need gen_ai key for data-generation",
+            )
 
-    genai_key = os.getenv("GENAI_KEY")
-    if genai_key is None:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Need gen_ai key for data-generation",
+        nomad_response = submit_nomad_job(
+            str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
+            nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+            platform=get_platform(),
+            tag=os.getenv("TAG"),
+            registry=os.getenv("DOCKER_REGISTRY"),
+            docker_username=os.getenv("DOCKER_USERNAME"),
+            docker_password=os.getenv("DOCKER_PASSWORD"),
+            image_name=os.getenv("TRAIN_IMAGE_NAME"),
+            train_script=str(get_root_absolute_path() / "data_generation/run.py"),
+            task_prompt=task_prompt,
+            data_id=data_id,
+            data_category="token",
+            llm_provider=llm_provider.value,
+            model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
+            share_dir=os.getenv("SHARE_DIR", None),
+            genai_key=genai_key,
+            license_key=license_info["boltLicenseKey"],
+            extra_options=extra_options,
+            train_args=train_args.replace('"', '\"'),
+            python_path=get_python_path(),
         )
-
-    submit_nomad_job(
-        str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
-        nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
-        platform=get_platform(),
-        tag=os.getenv("TAG"),
-        registry=os.getenv("DOCKER_REGISTRY"),
-        docker_username=os.getenv("DOCKER_USERNAME"),
-        docker_password=os.getenv("DOCKER_PASSWORD"),
-        image_name=os.getenv("TRAIN_IMAGE_NAME"),
-        train_script=str(get_root_absolute_path() / "data_generation/run.py"),
-        task_prompt=task_prompt,
-        data_id=str(data_id),
-        data_category="token",
-        llm_provider=llm_provider.value,
-        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
-        share_dir=os.getenv("SHARE_DIR", None),
-        genai_key=genai_key,
-        license_key=license_info["boltLicenseKey"],
-        extra_options=extra_options,
-        python_path=get_python_path(),
-    )
-
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Successfully submitted the data-generation job",
-    )
+        nomad_response.raise_for_status()
+        
+        return response(
+            status_code=status.HTTP_200_OK,
+            message=f"Successfully submitted the data-generation job. {nomad_response.status_code} {nomad_response.content}",
+        )
+    except Exception as e:
+        print(traceback.format_exc())
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=f"Failed to generate data. {e}"
+        )

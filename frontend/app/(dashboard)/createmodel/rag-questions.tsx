@@ -272,6 +272,7 @@ const RAGQuestions = ({
                 :
                 <div>
                   <NERQuestions 
+                    modelGoal="Model to detect sensitive PII"
                     onCreateModel={(modelID) => {
                       // TODO: SOMEHOW GET USERNAME
                       console.log("NER modelID", modelID);

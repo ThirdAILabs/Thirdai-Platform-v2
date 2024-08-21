@@ -1,5 +1,6 @@
 import os
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Optional
 
 import cohere
@@ -7,6 +8,9 @@ from openai import OpenAI
 
 
 class LLMBase(ABC):
+    def __init__(self, save_dir: Path):
+        self.response_file = save_dir / "response.txt"
+
     @abstractmethod
     def completion(
         self, prompt: str, system_prompt: Optional[str] = None, **kwargs
@@ -15,8 +19,8 @@ class LLMBase(ABC):
 
 
 class OpenAILLM(LLMBase):
-    def __init__(self, api_key: str):
-        super().__init__()
+    def __init__(self, api_key: str, save_dir: Path):
+        super().__init__(save_dir)
         self.client = OpenAI(api_key=api_key)
 
     def completion(
@@ -37,12 +41,18 @@ class OpenAILLM(LLMBase):
             temperature=0.8,
         )
 
-        return response.choices[0].message.content
+        res = response.choices[0].message.content
+        with open(self.response_file, "a") as fp:
+            fp.write(f"Prompt: \n{prompt}\n")
+            fp.write(f"Response: \n{res}\n")
+            fp.write("=" * 100 + "\n\n")
+
+        return res
 
 
 class CohereLLM(LLMBase):
-    def __init__(self, api_key: str):
-        super().__init__()
+    def __init__(self, api_key: str, save_dir: Path):
+        super().__init__(save_dir)
         self.client = cohere.Client(api_key=api_key)
 
     def completion(
@@ -57,6 +67,11 @@ class CohereLLM(LLMBase):
         message += prompt
 
         response = self.client.chat(model=model_name, message=message)
+
+        with open(self.response_file, "a") as fp:
+            fp.write(f"Prompt: \n{prompt}\n")
+            fp.write(f"Response: \n{response.text}\n")
+            fp.write("=" * 100 + "\n\n")
 
         return response.text
 

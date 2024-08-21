@@ -1,6 +1,6 @@
 # Allow reading of all secrets
 path "secret/data/*" {
-  capabilities = ["read", "list"]
+  capabilities = ["read"]
 }
 
 # Allow listing of all secrets

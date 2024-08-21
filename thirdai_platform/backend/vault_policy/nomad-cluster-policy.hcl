@@ -40,13 +40,3 @@ path "sys/capabilities-self" {
 path "auth/token/renew-self" {
   capabilities = ["update"]
 }
-
-# Allow reading of all secrets
-path "secret/data/*" {
-  capabilities = ["update", "read", "list"]
-}
-
-# Allow listing of all secrets
-path "secret/metadata/*" {
-  capabilities = ["update", "read", "list"]
-}

@@ -8,10 +8,6 @@ from pydantic import BaseModel
 vault_router = APIRouter()
 
 
-class SecretRequest(BaseModel):
-    key: str
-
-
 class SecretResponse(BaseModel):
     key: str
     value: str

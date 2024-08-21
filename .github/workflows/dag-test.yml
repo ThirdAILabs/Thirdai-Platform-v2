@@ -110,7 +110,15 @@ jobs:
         echo "HASHICORP_VAULT_TOKEN=00000000-0000-0000-0000-000000000000" >> $GITHUB_ENV
 
     - name: Start Vault Server
-      run: nohup vault server --dev --dev-root-token-id="00000000-0000-0000-0000-000000000000" > vault.log 2>&1 &
+      run: |
+        nohup vault server --dev --dev-root-token-id="00000000-0000-0000-0000-000000000000" > vault.log 2>&1 &
+        sleep 10 # wait for vault to start
+        vault policy write nomad-cluster ${{ github.workspace }}/thirdai_platform/backend/vault_files/nomad-cluster-policy.hcl
+        vault policy write nomad-job ${{ github.workspace }}/thirdai_platform/backend/vault_files/nomad-job-policy.hcl
+        vault write auth/token/roles/nomad-cluster \
+        allowed_policies="nomad-cluster,nomad-job" \
+        orphan=true \
+        period="1h"
 
     - name: Create Directories for Share and Test
       run: |
@@ -140,6 +148,10 @@ jobs:
         source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE
         pytest
+
+    - name: Run Vault Test
+      run: |
+        nomad job run ${{ github.workspace }}/thirdai_platform/backend/vault_files/vault-env-test.nomad
 
     - name: Display Logs
       if: always()

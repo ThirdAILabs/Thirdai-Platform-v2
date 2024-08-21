@@ -6,7 +6,7 @@ job "vault-env-validation" {
     count = 1
 
     task "vault-env-validation-task" {
-      driver = "docker"
+      driver = "raw_exec"
 
       config {
         image = "alpine:latest"

@@ -18,6 +18,25 @@ job "train-{{ model_id }}-{{ type }}-{{ sub_type }}" {
         driver = "raw_exec"
       {% endif %}
 
+      vault {
+        policies = ["nomad-job"]
+      }
+
+      template {
+        data = <<EOT
+{% raw %}
+{{ with secret "secret/data/data/AWS_ACCESS_TOKEN" }}
+AWS_ACCESS_TOKEN="{{ .Data.data.value }}"
+{{ end }}
+{{ with secret "secret/data/data/OPENAI_API_KEY" }}
+OPENAI_API_KEY="{{ .Data.data.value }}"
+{{ end }}
+{% endraw %}
+EOT
+        destination = "data.env"
+        env = true
+      }
+
       env {
         MODEL_ID = "{{ model_id }}"
         DATA_ID = "{{ data_id }}"

@@ -414,13 +414,16 @@ def get_hcl_payload(filepath, is_jinja, **kwargs):
     with open(filepath, "r") as file:
         content = file.read()
 
+    print(content)
     if is_jinja:
         template = Template(content, autoescape=True)
+        print("Template")
         hcl_content = template.render(**kwargs)
     else:
         hcl_content = content
 
     payload = {"JobHCL": hcl_content, "Canonicalize": True}
+    print(payload)
 
     return payload
 
@@ -461,13 +464,22 @@ def submit_nomad_job(filepath, nomad_endpoint, **kwargs):
 
     filepath_ext = filepath.split(".")[-1]
     is_jinja = filepath_ext == "j2"
+
+    print(headers)
     hcl_payload = get_hcl_payload(filepath, is_jinja=is_jinja, **kwargs)
+
+    print("===============================================================")
+    print("HCL Payload Response: ", hcl_payload)
+    print("===============================================================")
 
     # Before submitting a job to nomad, we must convert the HCL file to JSON
     json_payload_response = requests.post(
         json_payload_url, headers=headers, json=hcl_payload
     )
     json_payload = json_payload_response.json()
+    print("===============================================================")
+    print("JSON Payload Response: ", json_payload)
+    print("===============================================================")
 
     # Submit the JSON job spec to Nomad
     response = requests.post(submit_url, headers=headers, json={"Job": json_payload})
@@ -668,6 +680,7 @@ async def restart_generate_job():
         delete_nomad_job(GENERATE_JOB_ID, nomad_endpoint)
     cwd = Path(os.getcwd())
     platform = get_platform()
+    print("Restarting genetaion job")
     return submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "generation_job.hcl.j2"),

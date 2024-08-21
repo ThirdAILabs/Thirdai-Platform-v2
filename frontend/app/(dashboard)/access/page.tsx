@@ -177,20 +177,13 @@ export default function AccessPage() {
   };
 
   // Handle model type change
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [selectedType, setSelectedType] = useState<'Private Model' | 'Protected Model' | 'Public Model' | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState<string | null>(null); // For team selection
-
-  const handleModelTypeChange = async (index: number) => {
-    if (!selectedType) return;
-  
+  const handleModelTypeChange = async (index: number, newType: 'Private Model' | 'Protected Model' | 'Public Model') => {
     try {
       const model = models[index];
       const model_identifier = `${model.owner}/${model.name}`;
-      let access_level: 'private' | 'protected' | 'public' = 'private';
-      let team_id: string | undefined;
-  
-      switch (selectedType) {
+      let access_level: 'private' | 'protected' | 'public';
+
+      switch (newType) {
         case 'Private Model':
           access_level = 'private';
           break;
@@ -435,7 +428,17 @@ export default function AccessPage() {
               {models.map((model, index) => (
                 <tr key={index} className="border-t">
                   <td className="py-2 px-4">{model.name}</td>
-                  <td className="py-2 px-4">{model.type}</td>
+                  <td className="py-2 px-4">
+                    <select
+                      value={model.type}
+                      onChange={(e) => handleModelTypeChange(index, e.target.value as 'Private Model' | 'Protected Model' | 'Public Model')}
+                      className="border border-gray-300 rounded px-2 py-1"
+                    >
+                      <option value="Private Model">Private Model</option>
+                      <option value="Protected Model">Protected Model</option>
+                      <option value="Public Model">Public Model</option>
+                    </select>
+                  </td>
                   <td className="py-2 px-4">
                     {model.type === 'Private Model' && (
                       <div>

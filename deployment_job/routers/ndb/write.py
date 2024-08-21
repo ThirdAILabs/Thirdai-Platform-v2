@@ -107,7 +107,7 @@ def insert(
 @propagate_error
 def ndb_associate(
     input: inputs.AssociateInput,
-    token: str = Depends(permissions.verify_write_permission),
+    token: str = Depends(permissions.verify_read_permission),
 ):
     """
     Endpoint to associate text pairs in the NDB model.
@@ -129,7 +129,7 @@ def ndb_associate(
 @propagate_error
 def ndb_upvote(
     input: inputs.UpvoteInput,
-    token: str = Depends(permissions.verify_write_permission),
+    token: str = Depends(permissions.verify_read_permission),
 ):
     """
     Endpoint to upvote specific text-id pairs in the NDB model.

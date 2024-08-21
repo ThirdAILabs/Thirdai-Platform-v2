@@ -6,6 +6,7 @@ import json
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from permissions import Permissions
 from reporter import Reporter
 from variables import GeneralVariables
 
@@ -28,6 +29,7 @@ class Model(ABC):
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
         self.telemetry_path = self.data_dir / "telemetry_logs.json"
+        self.permissions = Permissions()
 
         if not self.telemetry_path.exists():
             with open(self.telemetry_path, "w") as f:

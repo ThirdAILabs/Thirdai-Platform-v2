@@ -57,13 +57,16 @@ class NDBModel(Model):
         Upvotes entries in the NDB model.
         """
         text_id_pairs = kwargs.get("text_id_pairs")
-
-        self.db.text_to_result_batch(
-            text_id_pairs=[
-                (text_id_pair.query_text, text_id_pair.reference_id)
-                for text_id_pair in text_id_pairs
-            ]
+        write_permission = self.permissions.check_write_permission(
+            token=kwargs.get("token")
         )
+        if write_permission:
+            self.db.text_to_result_batch(
+                text_id_pairs=[
+                    (text_id_pair.query_text, text_id_pair.reference_id)
+                    for text_id_pair in text_id_pairs
+                ]
+            )
 
         train_samples = [
             {
@@ -79,6 +82,7 @@ class NDBModel(Model):
             model_id=self.general_variables.model_id,
             train_samples=train_samples,
             access_token=kwargs.get("token"),
+            used=True if write_permission else False,
         )
 
     def predict(self, **kwargs: Any) -> inputs.SearchResultsNDB:
@@ -124,11 +128,15 @@ class NDBModel(Model):
         Associates entries in the NDB model.
         """
         text_pairs = kwargs.get("text_pairs")
-        self.db.associate_batch(
-            text_pairs=[
-                (text_pair.source, text_pair.target) for text_pair in text_pairs
-            ]
+        write_permission = self.permissions.check_write_permission(
+            token=kwargs.get("token")
         )
+        if write_permission:
+            self.db.associate_batch(
+                text_pairs=[
+                    (text_pair.source, text_pair.target) for text_pair in text_pairs
+                ]
+            )
 
         train_samples = [pair.dict() for pair in text_pairs]
         self.reporter.log(
@@ -136,6 +144,7 @@ class NDBModel(Model):
             model_id=self.general_variables.model_id,
             train_samples=train_samples,
             access_token=kwargs.get("token"),
+            used=True if write_permission else False,
         )
 
     def sources(self) -> List[Dict[str, str]]:

@@ -157,3 +157,29 @@ class Permissions:
         """
         with self.cache_lock:
             return self._get_permissions(token)[2]
+
+    def check_read_permission(self, token: str) -> bool:
+        """
+        Checks read permission for the token without raising an error.
+
+        Args:
+            token (str): The access token.
+
+        Returns:
+            bool: True if the token has read permission, False otherwise.
+        """
+        with self.cache_lock:
+            return self._get_permissions(token)[0]
+
+    def check_write_permission(self, token: str) -> bool:
+        """
+        Checks write permission for the token without raising an error.
+
+        Args:
+            token (str): The access token.
+
+        Returns:
+            bool: True if the token has write permission, False otherwise.
+        """
+        with self.cache_lock:
+            return self._get_permissions(token)[1]

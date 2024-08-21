@@ -240,6 +240,7 @@ def find_datasets(
                 "dataset_name": most_suited_dataset_catalog.name,
                 "catalog_id": str(most_suited_dataset_catalog.id),
                 "find_status": True,
+                "num_samples": most_suited_dataset_catalog.num_generated_samples
             }
             # TODO(Pratyush/Gautam) convert the existing JSON files to CSV
             # dataset location will be os.getenv("SHARE_DIR"), "datasets", "catalog_id", "train.csv"),
@@ -249,6 +250,7 @@ def find_datasets(
                     "dataset_name": None,
                     "catalog_id": None,
                     "find_status": False,
+                    "num_samples": 0
                 }
 
         return response(

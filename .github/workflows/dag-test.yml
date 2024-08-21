@@ -113,8 +113,9 @@ jobs:
       run: |
         nohup vault server --dev --dev-root-token-id="00000000-0000-0000-0000-000000000000" > vault.log 2>&1 &
         sleep 10 # wait for vault to start
-        vault policy write nomad-cluster $GITHUB_WORKSPACE/thirdai_platform/backend/vault_files/nomad-cluster-policy.hcl
-        vault policy write nomad-job $GITHUB_WORKSPACE/thirdai_platform/backend/vault_files/nomad-job-policy.hcl
+        cd $GITHUB_WORKSPACE
+        vault policy write nomad-cluster thirdai_platform/backend/vault_files/nomad-cluster-policy.hcl
+        vault policy write nomad-job thirdai_platform/backend/vault_files/nomad-job-policy.hcl
         vault write auth/token/roles/nomad-cluster \
         allowed_policies="nomad-cluster,nomad-job" \
         orphan=true \

@@ -151,7 +151,7 @@ class TokenDataFactory(DataFactory):
 
         arguments = []
         for current_sentence_idx in range(
-            0, num_sentences_to_generate, self.generate_at_a_time
+            0, num_sentences_to_generate - sentences_generated, self.generate_at_a_time
         ):
             # TODO(anyone): we should also add the [user_tag -> examples] in dataset_generation_prompt.
             random_prompts = self.get_random_prompts()
@@ -175,7 +175,7 @@ class TokenDataFactory(DataFactory):
             )
 
         random.shuffle(arguments)
-        arguments = arguments[: num_sentences_to_generate - sentences_generated]
+        print("len arguments", len(arguments))
         self.write_chunk_size = 40
 
         total_chunks = len(arguments) // self.write_chunk_size + 1
@@ -242,7 +242,9 @@ class TokenDataFactory(DataFactory):
             if match:
                 # word is a tag
                 word_tag = match.group(1)
-                assert word_tag in allowed_tags
+                if word_tag not in allowed_tags:
+                    continue
+                # assert word_tag in allowed_tags
 
                 word_tag_value = random.choice(tag_values[word_tag])
                 source.append(word_tag_value)

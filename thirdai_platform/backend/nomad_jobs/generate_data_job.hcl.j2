@@ -30,6 +30,7 @@ job "GenerateData-{{ data_id }}" {
         {% elif platform == "local" %}
         MODEL_BAZAAR_DIR = "{{ share_dir }}"
         {% endif %}
+        SENTENCES_GENERATED = "{{ sentences_generated }}"
       }
 
       config {

@@ -5,6 +5,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import pandas as pd
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.utils import (
     get_platform,
@@ -29,16 +30,68 @@ def get_catalogs(task: schema.UDT_Task, session: Session):
     return catalogs
 
 
-def find_datasets(
-    catalogs: List[schema.Catalog], target_labels: str
+def update_tags(tag_sequence: str, tags_to_keep: List[str]):
+    tags = tag_sequence.split()
+    updated_tags = ["O" if tag not in tags_to_keep else tag for tag in tags]
+    return " ".join(updated_tags)
+
+
+def replace_tags_and_write(
+    catalog: schema.Catalog, target_labels: List[str], write_path: str
 ):
+    train_path = os.path.join(
+        os.getenv("SHARE_DIR"), "datasets", catalog.id, "train.csv"
+    )
+    df = pd.read_csv(train_path)
+    df["target"] = df["target"].apply(update_tags, tags_to_keep=target_labels)
+    df.to_csv(write_path, mode="a", index=False, header=not os.path.exists(write_path))
+    return len(df)
+
+
+def prune_labels_and_write(
+    catalog: schema.Catalog, target_labels: List[str], write_path: str
+):
+    train_path = os.path.join(
+        os.getenv("SHARE_DIR"), "datasets", catalog.id, "train.csv"
+    )
+    df = pd.read_csv(train_path)
+    df = df[df["label"].isin(target_labels)]
+    df.to_csv(write_path, mode="a", index=False, header=not os.path.exists(write_path))
+    return len(df)
+
+
+def prune_and_merge(
+    task: schema.UDT_Task,
+    existing_datasets: List[schema.Catalog],
+    target_labels: List[str],
+    data_id: str,
+):
+    save_dir = os.path.join(os.getenv("SHARE_DIR"), str(data_id))
+    os.mkdir(save_dir)
+    train_file = os.path.join(save_dir, "train.csv")
+    samples_generated = 0
+    for catalog in existing_datasets:
+        if task == schema.UDT_Task.TOKEN:
+            samples_generated += replace_tags_and_write(
+                catalog, target_labels, train_file
+            )
+        else:
+            samples_generated += prune_labels_and_write(
+                catalog, target_labels, train_file
+            )
+    return samples_generated
+
+
+def find_catalogs(catalogs: List[schema.Catalog], target_labels: str):
     def similarity(dataset_labels: List[str], target_labels: List[str]) -> float:
         if not dataset_labels:
             return 0.0
         match_count = len(set(dataset_labels) & set(target_labels))
         return match_count / len(target_labels)
 
-    most_suited_datasets = list(filter(lambda x: similarity(x.target_labels,target_labels) == 1, catalogs))
+    most_suited_datasets = list(
+        filter(lambda x: similarity(x.target_labels, target_labels) == 1, catalogs)
+    )
 
     return most_suited_datasets
 
@@ -106,6 +159,15 @@ def generate_text_data(
             message=f"Need gen_ai key for data-generation",
         )
 
+    existing_datasets = find_datasets(
+        task=schema.UDT_Task.TEXT, target_labels=extra_options["target_labels"]
+    )
+    samples_found = 0
+    if existing_datasets:
+        samples_found = prune_and_merge(
+            existing_datasets, extra_options["target_labels"], data_id
+        )
+
     submit_nomad_job(
         str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
         nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -126,6 +188,7 @@ def generate_text_data(
         license_key=license_info["boltLicenseKey"],
         extra_options=extra_options,
         python_path=get_python_path(),
+        sentences_generated=samples_found,
     )
 
     return response(
@@ -189,6 +252,15 @@ def generate_token_data(
             message=f"Need gen_ai key for data-generation",
         )
 
+    existing_datasets = find_datasets(
+        task=schema.UDT_Task.TOKEN, target_labels=extra_options["tags"]
+    )
+    samples_found = 0
+    if existing_datasets:
+        samples_found = prune_and_merge(
+            existing_datasets, extra_options["tags"], data_id
+        )
+
     submit_nomad_job(
         str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
         nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -209,6 +281,7 @@ def generate_token_data(
         license_key=license_info["boltLicenseKey"],
         extra_options=extra_options,
         python_path=get_python_path(),
+        sentences_generated=samples_found,
     )
 
     return response(
@@ -217,7 +290,7 @@ def generate_token_data(
     )
 
 
-@data_router.post("/find-dataset")
+# @data_router.post("/find-dataset")
 def find_datasets(
     task: schema.UDT_Task,
     target_labels: List[str],
@@ -227,34 +300,10 @@ def find_datasets(
     try:
         catalogs = get_catalogs(task=task, session=session)
         # Filtering catalogs based on the target_labels
-        most_suited_dataset_catalog = find_dataset(
+        most_suited_dataset_catalogs = find_catalogs(
             catalogs, target_labels=target_labels
         )
-
-        if most_suited_dataset_catalog:
-
-            data = {
-                "dataset_name": most_suited_dataset_catalog.name,
-                "catalog_id": str(most_suited_dataset_catalog.id),
-                "find_status": True,
-                "num_samples": most_suited_dataset_catalog.num_generated_samples,
-            }
-            # TODO(Pratyush/Gautam) convert the existing JSON files to CSV
-            # dataset location will be os.getenv("SHARE_DIR"), "datasets", "catalog_id", "train.csv"),
-
-        if not most_suited_dataset_catalog:
-            data = {
-                "dataset_name": None,
-                "catalog_id": None,
-                "find_status": False,
-                "num_samples": 0,
-            }
-
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Successfully retrieved the preview of the data",
-            data=data,
-        )
+        return most_suited_dataset_catalogs
 
     except Exception as e:
         traceback.print_exc()

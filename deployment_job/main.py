@@ -15,13 +15,11 @@ from routers.udt.read import udt_read_router
 from utils import delete_deployment_job
 from variables import GeneralVariables, TypeEnum
 
-# Load environment variables
 general_variables = GeneralVariables.load_from_env()
 reporter = Reporter(general_variables.model_bazaar_endpoint)
 
 docs_prefix = "write" if general_variables.write else "read"
 
-# Initialize FastAPI application
 app = FastAPI(
     docs_url=f"/{general_variables.model_id}/{docs_prefix}/docs",
     openapi_url=f"/{general_variables.model_id}/{docs_prefix}/openapi.json",
@@ -61,7 +59,6 @@ async def async_timer() -> None:
     """
     while True:
         try:
-            # Wait for the reset event for 15 minutes (900 seconds)
             await asyncio.wait_for(reset_event.wait(), timeout=900)
             reset_event.clear()  # Clear the event if the endpoint was hit within the timeout period
         except asyncio.TimeoutError:

@@ -2,18 +2,18 @@ import argparse
 import os
 import sys
 
+import boto3
+from botocore import UNSIGNED
+from botocore.client import Config
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+
 from headless import add_basic_args
 from headless.dag_executor import DAGExecutor
 from headless.functions import functions_registry, initialize_flow
+from headless.utils import download_from_s3_if_not_exists, normalize_s3_uri
 
 
 def main():
-    """
-    Main function to run the DAG-based test suite.
-
-    Parses command-line arguments, loads configurations, initializes the DAG executor,
-    and runs the specified DAGs or tasks.
-    """
     parser = argparse.ArgumentParser(description="Run DAG-based test suite.")
     add_basic_args(parser)
     parser.add_argument(
@@ -35,6 +35,25 @@ def main():
         "sharded": args.sharded,
         "run_name": args.run_name,
     }
+
+    local_test_dir = os.getenv("SHARE_DIR")
+    if not local_test_dir:
+        print("Error: SHARE_DIR environment variable is not set.")
+        sys.exit(1)
+
+    s3_uris = [
+        "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/scifact",
+        "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/clinc",
+        "s3://thirdai-corp-public/ThirdAI-Enterprise-Test-Data/token",
+    ]
+
+    for s3_uri in s3_uris:
+        normalized_uri = normalize_s3_uri(s3_uri)
+        folder_name = normalized_uri.split("/")[-1]
+
+        download_from_s3_if_not_exists(
+            s3_uri, os.path.join(local_test_dir, folder_name)
+        )
 
     dag_executor = DAGExecutor(
         function_registry=functions_registry, global_vars=additional_variables

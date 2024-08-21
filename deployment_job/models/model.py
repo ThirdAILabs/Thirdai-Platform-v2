@@ -2,6 +2,7 @@
 Defines the abstract base class for models.
 """
 
+import json
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -23,13 +24,14 @@ class Model(ABC):
         self.model_dir: Path = self.get_model_dir(
             model_id=self.general_variables.model_id
         )
-        self.data_dir: Path = (
-            self.model_dir
-            / "deployments"
-            / self.general_variables.deployment_id
-            / "data"
-        )
+        self.data_dir: Path = self.model_dir / "deployments" / "data"
         self.data_dir.mkdir(parents=True, exist_ok=True)
+
+        self.telemetry_path = self.data_dir / "telemetry_logs.json"
+
+        if not self.telemetry_path.exists():
+            with open(self.telemetry_path, "w") as f:
+                json.dump([], f)
 
     @abstractmethod
     def predict(self, **kwargs):

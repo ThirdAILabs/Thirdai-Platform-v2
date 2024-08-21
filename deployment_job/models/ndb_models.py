@@ -82,7 +82,7 @@ class NDBModel(Model):
 
         self.reporter.log(
             action="upvote",
-            deployment_id=self.general_variables.deployment_id,
+            model_id=self.general_variables.model_id,
             train_samples=train_samples,
             access_token=kwargs.get("token"),
         )
@@ -115,7 +115,7 @@ class NDBModel(Model):
 
         self.reporter.log(
             action="predict",
-            deployment_id=self.general_variables.deployment_id,
+            model_id=self.general_variables.model_id,
             access_token=kwargs.get("token"),
             train_samples=[{"query": kwargs["query"]}],
         )
@@ -139,7 +139,7 @@ class NDBModel(Model):
         train_samples = [pair.dict() for pair in text_pairs]
         self.reporter.log(
             action="associate",
-            deployment_id=self.general_variables.deployment_id,
+            model_id=self.general_variables.model_id,
             train_samples=train_samples,
             access_token=kwargs.get("token"),
         )
@@ -168,7 +168,7 @@ class NDBModel(Model):
 
         self.reporter.log(
             action="delete",
-            deployment_id=self.general_variables.deployment_id,
+            model_id=self.general_variables.model_id,
             access_token=kwargs.get("token"),
             train_samples=[{"source_ids": " ".join(source_ids)}],
         )
@@ -184,7 +184,7 @@ class NDBModel(Model):
 
         self.reporter.log(
             action="insert",
-            deployment_id=self.general_variables.deployment_id,
+            model_id=self.general_variables.model_id,
             access_token=kwargs.get("token"),
             train_samples=[{"sources_ids": " ".join(source_ids)}],
         )

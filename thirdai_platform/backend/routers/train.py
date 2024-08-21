@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
+from backend.auth_dependencies import verify_model_read_access
 from backend.file_handler import (
     FileLocation,
     FileType,
@@ -49,6 +50,79 @@ def train_ndb(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Train a NeuralDB model.
+
+    Parameters:
+    - model_name: The name of the model.
+    - files: List of files to be used for training.
+    - file_details_list: Optional JSON string of file details.
+        - Example:
+        ```json
+        {
+            "file_details": [
+                {
+                    "mode": "unsupervised",
+                    "location": "local",
+                    "is_folder": false,
+                    "source_id": null,
+                    "metadata": {
+                        "key1": "value1",
+                        "key2": "value2"
+                    }
+                }
+            ]
+        }
+        ```
+        - Supported modes: "unsupervised", "supervised", "test"
+        - Supported locations: "local", "nfs", "s3"
+    - base_model_identifier: Optional identifier of the base model.
+    - extra_options_form: Optional JSON string of extra options for training.
+        - Example:
+        ```json
+        {
+            "num_models_per_shard": 1,
+            "num_shards": 1,
+            "allocation_cores": 4,
+            "allocation_memory": 8192,
+            "model_cores": 4,
+            "model_memory": 8192,
+            "priority": 1,
+            "csv_id_column": "id",
+            "csv_strong_columns": ["column1", "column2"],
+            "csv_weak_columns": ["column3"],
+            "csv_reference_columns": ["reference_column"],
+            "fhr": 100,
+            "embedding_dim": 256,
+            "output_dim": 128,
+            "max_in_memory_batches": 10,
+            "extreme_num_hashes": 10,
+            "num_classes": 2,
+            "csv_query_column": "query",
+            "csv_id_delimiter": ",",
+            "learning_rate": 0.01,
+            "batch_size": 32,
+            "unsupervised_epochs": 10,
+            "supervised_epochs": 10,
+            "tokenizer": "default",
+            "hidden_bias": true,
+            "retriever": "default",
+            "unsupervised_train": true,
+            "disable_finetunable_retriever": false,
+            "checkpoint_interval": 100,
+            "fast_approximation": false,
+            "num_buckets_to_sample": 10,
+            "metrics": ["accuracy", "f1"],
+            "on_disk": false,
+            "docs_on_disk": false
+        }
+        ```
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Returns:
+    - A JSON response indicating the status of the training job submission.
+    """
     user: schema.User = authenticated_user.user
     try:
         extra_options = NDBExtraOptions.parse_raw(extra_options_form).dict()
@@ -135,11 +209,16 @@ def train_ndb(
             message="Duplicate filenames received, please ensure each filename is unique.",
         )
 
+    # Base model checks
+    base_model = None
     if base_model_identifier:
         try:
-            base_model: schema.Model = get_model_from_identifier(
-                base_model_identifier, session
-            )
+            base_model = get_model_from_identifier(base_model_identifier, session)
+            if not base_model.get_user_permission(user):
+                return response(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    message="You do not have access to the specified base model.",
+                )
         except Exception as error:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -154,16 +233,17 @@ def train_ndb(
     )
 
     try:
-        new_model: schema.Model = schema.Model(
+        new_model = schema.Model(
             id=model_id,
             user_id=user.id,
             train_status=schema.Status.not_started,
+            deploy_status=schema.Status.not_started,
             name=model_name,
             type="ndb",
             sub_type="single" if not sharded else "sharded",
-            domain=user.email.split("@")[1],
+            domain=user.domain,
             access_level=schema.Access.private,
-            parent_id=base_model.id if base_model_identifier else None,
+            parent_id=base_model.id if base_model else None,
         )
 
         session.add(new_model)
@@ -225,6 +305,51 @@ def train_udt(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Train a UDT model.
+
+    Parameters:
+    - model_name: The name of the model.
+    - files: List of files to be used for training.
+    - file_details_list: Optional JSON string of file details.
+        - Example:
+        ```json
+        {
+            "file_details": [
+                {
+                    "mode": "supervised",
+                    "location": "local",
+                    "is_folder": false,
+                }
+            ]
+        }
+        ```
+        - Supported modes: "supervised", "test" (UDT files cannot be in "unsupervised" mode)
+        - Supported locations: "local", "nfs", "s3"
+    - base_model_identifier: Optional identifier of the base model.
+    - extra_options_form: Optional JSON string of extra options for training.
+        - Example:
+        ```json
+        {
+            "allocation_cores": 4,
+            "allocation_memory": 8192,
+            "sub_type": "text",
+            "target_labels": ["label1", "label2"],
+            "source_column": "source",
+            "target_column": "target",
+            "default_tag": "O",
+            "delimiter": ",",
+            "text_column": "text",
+            "label_column": "label",
+            "n_target_classes": 2
+        }
+        ```
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Returns:
+    - A JSON response indicating the status of the training job submission.
+    """
     user: schema.User = authenticated_user.user
     try:
         extra_options = UDTExtraOptions.parse_raw(extra_options_form).dict()
@@ -311,11 +436,16 @@ def train_udt(
             message="Duplicate filenames received, please ensure each filename is unique.",
         )
 
+    # Base model checks
+    base_model = None
     if base_model_identifier:
         try:
-            base_model: schema.Model = get_model_from_identifier(
-                base_model_identifier, session
-            )
+            base_model = get_model_from_identifier(base_model_identifier, session)
+            if not base_model.get_user_permission(user):
+                return response(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    message="You do not have access to the specified base model.",
+                )
         except Exception as error:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -327,12 +457,13 @@ def train_udt(
             id=model_id,
             user_id=user.id,
             train_status=schema.Status.not_started,
+            deploy_status=schema.Status.not_started,
             name=model_name,
             type="udt",
             sub_type=extra_options["sub_type"],
             domain=user.email.split("@")[1],
             access_level=schema.Access.private,
-            parent_id=base_model.id if base_model_identifier else None,
+            parent_id=base_model.id if base_model else None,
         )
 
         session.add(new_model)
@@ -396,18 +527,36 @@ def train_complete(
     body: TrainComplete,
     session: Session = Depends(get_session),
 ):
+    """
+    Mark the training of a model as complete.
+
+    Parameters:
+    - body: The body of the request containing model_id and metadata.
+        - Example:
+        ```json
+        {
+            "model_id": "123e4567-e89b-12d3-a456-426614174000",
+            "metadata": {
+                "accuracy": "0.95",
+                "f1_score": "0.92"
+            }
+        }
+        ```
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response indicating the update status.
+    """
     trained_model: schema.Model = (
         session.query(schema.Model).filter(schema.Model.id == body.model_id).first()
     )
-
     if not trained_model:
         return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_404_NOT_FOUND,
             message=f"No model with id {body.model_id}.",
         )
 
     trained_model.train_status = schema.Status.complete
-    trained_model.access_level = schema.Access.private
 
     metadata: schema.MetaData = trained_model.meta_data
     if metadata:
@@ -415,13 +564,13 @@ def train_complete(
     else:
         new_metadata = schema.MetaData(
             model_id=trained_model.id,
-            train=body.metadata,
+            train=json.dumps(body.metadata),
         )
         session.add(new_metadata)
 
     session.commit()
 
-    return {"message": "successfully updated"}
+    return {"message": "Successfully updated"}
 
 
 @train_router.post("/update-status")
@@ -431,6 +580,26 @@ def train_fail(
     message: str,
     session: Session = Depends(get_session),
 ):
+    """
+    Update the training status of a model.
+
+    Parameters:
+    - model_id: The ID of the model.
+    - status: The new status for the model (e.g., "failed", "in_progress").
+    - message: A message describing the update.
+        - Example:
+        ```json
+        {
+            "model_id": "123e4567-e89b-12d3-a456-426614174000",
+            "status": "failed",
+            "message": "Training failed due to insufficient data."
+        }
+        ```
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response indicating the update status.
+    """
     trained_model: schema.Model = (
         session.query(schema.Model).filter(schema.Model.id == model_id).first()
     )
@@ -456,6 +625,59 @@ def create_shard(
     extra_options_form: str = Form(default="{}"),
     session: Session = Depends(get_session),
 ):
+    """
+    Create a shard for training a NeuralDB model.
+
+    Parameters:
+    - shard_num: The shard number.
+    - model_id: The ID of the model.
+    - data_id: The ID of the data.
+    - base_model_id: Optional ID of the base model.
+    - extra_options_form: Optional JSON string of extra options for training.
+        - Example:
+        ```json
+        {
+            "num_models_per_shard": 1,
+            "num_shards": 1,
+            "allocation_cores": 4,
+            "allocation_memory": 8192,
+            "model_cores": 4,
+            "model_memory": 8192,
+            "priority": 1,
+            "csv_id_column": "id",
+            "csv_strong_columns": ["column1", "column2"],
+            "csv_weak_columns": ["column3"],
+            "csv_reference_columns": ["reference_column"],
+            "fhr": 100,
+            "embedding_dim": 256,
+            "output_dim": 128,
+            "max_in_memory_batches": 10,
+            "extreme_num_hashes": 10,
+            "num_classes": 2,
+            "csv_query_column": "query",
+            "csv_id_delimiter": ",",
+            "learning_rate": 0.01,
+            "batch_size": 32,
+            "unsupervised_epochs": 10,
+            "supervised_epochs": 10,
+            "tokenizer": "default",
+            "hidden_bias": true,
+            "retriever": "default",
+            "unsupervised_train": true,
+            "disable_finetunable_retriever": false,
+            "checkpoint_interval": 100,
+            "fast_approximation": false,
+            "num_buckets_to_sample": 10,
+            "metrics": ["accuracy", "f1"],
+            "on_disk": false,
+            "docs_on_disk": false
+        }
+        ```
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response indicating the shard creation status.
+    """
     try:
         extra_options = NDBExtraOptions.parse_raw(extra_options_form).dict()
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
@@ -528,6 +750,28 @@ def update_shard_train_status(
     message: str = "",
     session: Session = Depends(get_session),
 ):
+    """
+    Update the training status of a model shard.
+
+    Parameters:
+    - shard_num: The shard number.
+    - model_id: The ID of the model.
+    - status: The new status for the shard (e.g., "failed", "in_progress").
+    - message: A message describing the update.
+        - Example:
+        ```json
+        {
+            "shard_num": 1,
+            "model_id": "123e4567-e89b-12d3-a456-426614174000",
+            "status": "in_progress",
+            "message": "Shard training in progress."
+        }
+        ```
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response indicating the update status.
+    """
     model_shard: schema.ModelShard = (
         session.query(schema.ModelShard)
         .filter(
@@ -549,18 +793,21 @@ def update_shard_train_status(
     return {"message": f"Successfully updated shard with message: {message}"}
 
 
-@train_router.get("/status")
+@train_router.get("/status", dependencies=[Depends(verify_model_read_access)])
 def train_status(
     model_identifier: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Get the status of a NeuralDB.
 
-    - **model_identifier**: model identifier of model to retrieve info about
+    Parameters:
+    - model_identifier: The identifier of the model to retrieve info about.
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
 
-    Returns model status.
+    Returns:
+    - A JSON response with the model status.
     """
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
@@ -575,16 +822,28 @@ def train_status(
         message="Successfully got the train status.",
         data={
             "model_identifier": model_identifier,
-            "status": model.train_status,
+            "train_status": model.train_status,
         },
     )
 
 
-@train_router.get("/model-shard-train-status")
+@train_router.get(
+    "/model-shard-train-status", dependencies=[Depends(verify_model_read_access)]
+)
 def model_shard_train_status(
     model_id: str,
     session: Session = Depends(get_session),
 ):
+    """
+    Get the training status of all shards for a given model.
+
+    Parameters:
+    - model_id: The ID of the model.
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response with the training status of all shards.
+    """
     try:
         model_shards: List[schema.ModelShard] = (
             session.query(schema.ModelShard)

@@ -1,6 +1,6 @@
+import json
 import os
 import traceback
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union
@@ -11,97 +11,117 @@ from auth.jwt import (
     verify_access_token,
     verify_access_token_no_throw,
 )
+from backend.auth_dependencies import is_model_owner
 from backend.utils import (
     delete_nomad_job,
-    get_deployment,
     get_empty_port,
-    get_model,
     get_model_from_identifier,
     get_platform,
     get_python_path,
     get_root_absolute_path,
     logger,
     model_accessible,
-    parse_deployment_identifier,
     response,
     submit_nomad_job,
+    update_json,
     update_json_list,
-    validate_name,
 )
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()
 
 
-def deployment_read_write_permissions(
-    deployment_id: str,
+def model_read_write_permissions(
+    model_id: str,
     session: Session,
     authenticated_user: Union[AuthenticatedUser, HTTPException],
 ):
-    deployment: schema.Deployment = (
-        session.query(schema.Deployment)
-        .options(joinedload(schema.Deployment.user))
-        .get(deployment_id)
-    )
-    access_level = session.query(schema.Model).get(deployment.model_id).access_level
-    deployment_is_public = access_level == schema.Access.public
+    """
+    Determine read and write permissions for a model based on the user's access level.
 
-    if not isinstance(authenticated_user, AuthenticatedUser):
-        if deployment_is_public:
-            return True, False
+    Parameters:
+    - model_id: The ID of the model.
+    - session: The database session.
+    - authenticated_user: The authenticated user or HTTPException if authentication fails.
+
+    Returns:
+    - A tuple (read_permission: bool, write_permission: bool).
+    """
+
+    model: schema.Model = session.query(schema.Model).get(model_id)
+
+    if not model:
         return False, False
 
-    current_user: schema.User = authenticated_user.user
-    if deployment.user_id == current_user.id:
-        return True, True
+    # If the user is not authenticated, check if the model is public
+    if not isinstance(authenticated_user, AuthenticatedUser):
+        return model.access_level == schema.Access.public, False
 
-    if deployment_is_public:
-        return True, False
+    user = authenticated_user.user
+    permission = model.get_user_permission(user)
 
-    deployment_is_protected = access_level == schema.Access.protected
-    user_is_in_deployment_domain = deployment.user.domain == current_user.domain
-    if deployment_is_protected and user_is_in_deployment_domain:
-        return True, False
-
-    return False, False
+    return (
+        permission == schema.Permission.read or permission == schema.Permission.write,
+        permission == schema.Permission.write,
+    )
 
 
-def deployment_owner_permissions(
-    deployment_id: str,
+def model_owner_permissions(
+    model_id: str,
     session: Session,
     authenticated_user: Union[AuthenticatedUser, HTTPException],
 ):
-    deployment: schema.Deployment = (
-        session.query(schema.Deployment)
-        .options(joinedload(schema.Deployment.user))
-        .get(deployment_id)
-    )
+    """
+    Determine if the user has owner permissions for a model.
+
+    Parameters:
+    - model_id: The ID of the model.
+    - session: The database session.
+    - authenticated_user: The authenticated user or HTTPException if authentication fails.
+
+    Returns:
+    - A boolean indicating if the user has owner permissions.
+    """
+    model: schema.Model = session.query(schema.Model).get(model_id)
 
     if not isinstance(authenticated_user, AuthenticatedUser):
         return False
 
-    current_user: schema.User = authenticated_user.user
-
-    model: schema.Model = session.query(schema.Model).get(deployment.model_id)
-
-    return model.user_id == current_user.id
+    return model.get_owner_permission(authenticated_user.user)
 
 
-@deploy_router.get("/permissions/{deployment_id}")
-def get_deployment_permissions(
-    deployment_id: str,
+@deploy_router.get("/permissions/{model_id}")
+def get_model_permissions(
+    model_id: str,
     session: Session = Depends(get_session),
-    authenticated_user=Depends(verify_access_token_no_throw),
+    authenticated_user: Union[AuthenticatedUser, HTTPException] = Depends(
+        verify_access_token_no_throw
+    ),
 ):
-    read, write = deployment_read_write_permissions(
-        deployment_id, session, authenticated_user
-    )
-    override = deployment_owner_permissions(deployment_id, session, authenticated_user)
+    """
+    Get the permissions for a model.
+
+    Parameters:
+    - model_id: The ID of the model.
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Example Usage:
+    ```json
+    {
+       "model_id" : "model_id",
+    }
+    ```
+    """
+    read, write = model_read_write_permissions(model_id, session, authenticated_user)
+    override = model_owner_permissions(model_id, session, authenticated_user)
     exp = (
         authenticated_user.exp.isoformat()
         if isinstance(authenticated_user, AuthenticatedUser)
@@ -110,14 +130,13 @@ def get_deployment_permissions(
 
     return response(
         status_code=status.HTTP_200_OK,
-        message=f"Successfully fetched user permissions for deployment with ID {deployment_id}",
+        message=f"Successfully fetched user permissions for model with ID {model_id}",
         data={"read": read, "write": write, "exp": exp, "override": override},
     )
 
 
-@deploy_router.post("/run")
+@deploy_router.post("/run", dependencies=[Depends(is_model_owner)])
 def deploy_model(
-    deployment_name: str,
     model_identifier: str,
     memory: Optional[int] = None,
     autoscaling_enabled: bool = False,
@@ -127,7 +146,31 @@ def deploy_model(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    user: schema.User = authenticated_user.user
+    """
+    Deploy a model.
+
+    Parameters:
+    - model_identifier: The identifier of the model to deploy.
+    - memory: Optional memory allocation for the deployment.
+    - autoscaling_enabled: Whether autoscaling is enabled.
+    - autoscaler_max_count: The maximum count for the autoscaler.
+    - genai_key: Optional GenAI key.
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Example Usage:
+    ```json
+    {
+        "deployment_name": "my_deployment",
+        "model_identifier": "model_123",
+        "memory": 2048,
+        "autoscaling_enabled": true,
+        "autoscaler_max_count": 5,
+        "genai_key": "your_genai_key"
+    }
+    ```
+    """
+    user = authenticated_user.user
 
     try:
         license_info = verify_license(
@@ -138,20 +181,12 @@ def deploy_model(
         if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Resource limit reached, cannot allocate new jobs.",
+                message="Resource limit reached, cannot allocate new jobs.",
             )
     except Exception as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"License is not valid. {str(e)}",
-        )
-
-    try:
-        validate_name(deployment_name)
-    except Exception as error:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="Deployment name is not valid.",
         )
 
     try:
@@ -168,33 +203,19 @@ def deploy_model(
             message=f"Training isn't complete yet. Current status: {str(model.train_status)}",
         )
 
-    duplicate_deployment: schema.Deployment = get_deployment(
-        session, deployment_name, user.id, model.id
-    )
-
-    if duplicate_deployment:
-        if duplicate_deployment.status != schema.Status.stopped:
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="Deployment already running",
-            )
-        else:
-            duplicate_deployment.status = schema.Status.not_started
-            session.commit()
-            deployment = duplicate_deployment
-    else:
-        deployment_identifier = f"{model_identifier}:{user.username}/{deployment_name}"
-        deployment_id = uuid.uuid3(uuid.NAMESPACE_URL, deployment_identifier)
-        deployment = schema.Deployment(
-            id=deployment_id,
-            model_id=model.id,
-            user_id=user.id,
-            name=deployment_name,
-            status=schema.Status.not_started,
+    if model.deploy_status in [
+        schema.Status.starting,
+        schema.Status.in_progress,
+        schema.Status.complete,
+    ]:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Deployment is already {model.deploy_status}.",
         )
-        session.add(deployment)
-        session.commit()
-        session.refresh(deployment)
+
+    model.deploy_status = schema.Status.not_started
+    session.commit()
+    session.refresh(model)
 
     if not model_accessible(model, user):
         return response(
@@ -203,9 +224,15 @@ def deploy_model(
         )
 
     if not memory:
-        memory = (
-            int(model.meta_data.train["size_in_memory"]) // 1000000
-        ) + 1000  # MB required for deployment
+        try:
+            meta_data = json.loads(model.meta_data.train)
+            size_in_memory = int(meta_data["size_in_memory"])
+        except (json.JSONDecodeError, KeyError) as e:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Failed to parse model metadata or missing 'size_in_memory'.",
+            )
+        memory = (size_in_memory // 1000000) + 1000  # MB required for deployment
 
     try:
         work_dir = os.getcwd()
@@ -223,7 +250,6 @@ def deploy_model(
             port=None if platform == "docker" else get_empty_port(),
             deployment_app_dir=str(get_root_absolute_path() / "deployment_job"),
             model_id=str(model.id),
-            deployment_id=str(deployment.id),
             model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
             share_dir=os.getenv("SHARE_DIR", None),
             license_key=license_info["boltLicenseKey"],
@@ -239,11 +265,11 @@ def deploy_model(
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
         )
 
-        deployment.status = schema.Status.in_progress
+        model.deploy_status = schema.Status.in_progress
         session.commit()
 
     except Exception as err:
-        deployment.status = schema.Status.failed
+        model.deploy_status = schema.Status.failed
         session.commit()
         logger.info(traceback.format_exc())
         return response(
@@ -257,121 +283,117 @@ def deploy_model(
         data={
             "status": "queued",
             "model_identifier": model_identifier,
-            "deployment_name": deployment_name,
-            "deployment_id": str(deployment.id),
+            "model_id": str(model.id),
         },
     )
 
 
 @deploy_router.get("/status")
 def deployment_status(
-    deployment_identifier: str,
+    model_identifier: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    (
-        model_username,
-        model_name,
-        deployment_username,
-        deployment_name,
-    ) = parse_deployment_identifier(deployment_identifier)
+    """
+    Get the status of a deployment.
 
-    deployment_user: schema.User = (
-        session.query(schema.User)
-        .filter(schema.User.username == deployment_username)
-        .first()
-    )
+    Parameters:
+    - model_identifier: The identifier of the model.
+    - session: The database session (dependency).
 
-    model: schema.Model = get_model(session, model_username, model_name)
-    if not model:
+    Example Usage:
+    ```json
+    {
+        "model_identifier": "user123/model_name"
+    }
+    ```
+    """
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="No deployment with this identifier",
-        )
-
-    deployment: schema.Deployment = get_deployment(
-        session, deployment_name, deployment_user.id, model.id
-    )
-    if not deployment:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="No deployment with this identifier",
+            message=str(error),
         )
 
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the deployment status",
-        data={"status": deployment.status, "deployment_id": str(deployment.id)},
+        data={"deploy_status": model.deploy_status, "model_id": str(model.id)},
     )
 
 
 @deploy_router.post("/update-status")
-def deployment_status(
-    deployment_id: str,
+def update_deployment_status(
+    model_id: str,
     status: schema.Status,
     session: Session = Depends(get_session),
 ):
-    deployment: schema.Deployment = (
-        session.query(schema.Deployment)
-        .filter(schema.Deployment.id == deployment_id)
-        .first()
+    """
+    Update the status of a deployment.
+
+    Parameters:
+    - model_id: The ID of the model.
+    - status: The new status for the deployment.
+    - session: The database session (dependency).
+
+    Example Usage:
+    ```json
+    {
+        "model_id": "model_id",
+        "status": "in_progress"
+    }
+    ```
+    """
+    model: schema.Model = (
+        session.query(schema.Model).filter(schema.Model.id == model_id).first()
     )
 
-    if not deployment:
+    if not model:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"No deployment with id {deployment_id}.",
+            message=f"No model with id {model_id}.",
         )
 
-    deployment.status = status
+    model.deploy_status = status
 
     session.commit()
 
     return {"message": "successfully updated"}
 
 
-@deploy_router.post("/stop")
+@deploy_router.post("/stop", dependencies=[Depends(is_model_owner)])
 def undeploy_model(
-    deployment_identifier: str,
+    model_identifier: str,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    (
-        model_username,
-        model_name,
-        deployment_username,
-        deployment_name,
-    ) = parse_deployment_identifier(deployment_identifier)
+    """
+    Stop a running deployment.
 
-    deployment_user: schema.User = (
-        session.query(schema.User)
-        .filter(schema.User.username == deployment_username)
-        .first()
-    )
+    Parameters:
+    - model_identifier: The identifier of the model to stop.
+    - session: The database session (dependency).
 
-    model: schema.Model = get_model(session, model_username, model_name)
-    if not model:
+    Example Usage:
+    ```json
+    {
+        "model_identifier": "user123/model123"
+    }
+    ```
+    """
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="No deployment with this identifier",
-        )
-
-    deployment: schema.Deployment = get_deployment(
-        session, deployment_name, deployment_user.id, model.id
-    )
-
-    if not deployment:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="No deployment with this identifier",
+            message=str(error),
         )
 
     try:
         delete_nomad_job(
-            job_id=f"deployment-{str(deployment.id)}",
+            job_id=f"deployment-{str(model.id)}",
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
         )
-        deployment.status = schema.Status.stopped
+        model.deploy_status = schema.Status.stopped
         session.commit()
 
     except Exception as err:
@@ -386,13 +408,13 @@ def undeploy_model(
         message="Service is shutting down",
         data={
             "status": "queued",
-            "deployment_identifier": deployment_identifier,
+            "model_id": str(model.id),
         },
     )
 
 
 class LogData(BaseModel):
-    deployment_id: str
+    model_id: str
     action: str
     train_samples: List[Dict[str, str]]
     used: bool
@@ -404,23 +426,42 @@ def log_results(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Log training results for a deployment.
+
+    Parameters:
+    - log_data: The log data to save (body).
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Example Usage:
+    ```json
+    {
+        "model_id": "model_id",
+        "action": "train",
+        "train_samples": [
+            {"input": "data1", "output": "label1"},
+            {"input": "data2", "output": "label2"}
+        ],
+        "used": true
+    }
+    ```
+    """
     user: schema.User = authenticated_user.user
-    deployment: schema.Deployment = (
-        session.query(schema.Deployment)
-        .filter(schema.Deployment.id == log_data.deployment_id)
-        .first()
+    model: schema.Model = (
+        session.query(schema.Model).filter(schema.Model.id == log_data.model_id).first()
     )
 
-    if not deployment:
+    if not model:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="No deployment with this id",
+            message="No model with this id",
         )
 
     log_entry = (
         session.query(schema.Log)
         .filter(
-            schema.Log.deployment_id == log_data.deployment_id,
+            schema.Log.model_id == log_data.model_id,
             schema.Log.user_id == user.id,
             schema.Log.action == log_data.action,
         )
@@ -435,7 +476,7 @@ def log_results(
 
     if not log_entry:
         log_entry = schema.Log(
-            deployment_id=deployment.id,
+            model_id=model.id,
             user_id=user.id,
             action=log_data.action,
         )
@@ -445,7 +486,60 @@ def log_results(
 
     log_entry.log_entries = update_json_list(log_entry.log_entries, new_log)
     log_entry.count += len(log_data.train_samples)
-
     session.commit()
 
     return {"message": "Log entry added successfully"}
+
+
+@deploy_router.get("/info", dependencies=[Depends(is_model_owner)])
+def get_deployment_info(
+    model_identifier: str,
+    require_raw_logs: bool = False,
+    session: Session = Depends(get_session),
+):
+    """
+    Retrieve deployment information.
+
+    Parameters:
+    - model_identifier: The identifier of the model.
+    - require_raw_logs: Whether to include raw logs in the response (query parameter).
+
+    Example Usage:
+    ```json
+    {
+        "model_identifier": "username/modelname",
+        "require_raw_logs": false
+    }
+    ```
+    """
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    logs = session.query(schema.Log).filter_by(schema.Log.model_id == model.id)
+
+    # Prepare the response data
+    deployment_info = {
+        "name": model.name,
+        "status": model.deploy_status,
+        "model_id": str(model.id),
+        "logs": [
+            {
+                "user_id": str(log.user_id),
+                "action": log.action,
+                "count": log.count,
+                **({"log_entries": log.log_entries} if require_raw_logs else {}),
+            }
+            for log in logs
+        ],
+    }
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Deployment info retrieved successfully",
+        data=jsonable_encoder(deployment_info),
+    )

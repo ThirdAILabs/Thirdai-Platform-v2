@@ -5,24 +5,54 @@ from enum import Enum
 from typing import Dict, List, Optional
 
 import boto3
-from fastapi import UploadFile
+from fastapi import HTTPException, UploadFile, status
 from pydantic import BaseModel, validator
 
 
 class FileType(str, Enum):
+    """
+    Enum to represent the type of the file.
+
+    Supported values:
+    - unsupervised: Unsupervised file type.
+    - supervised: Supervised file type.
+    - test: Test file type.
+    """
+
     unsupervised = "unsupervised"
     supervised = "supervised"
     test = "test"
 
 
 class FileLocation(str, Enum):
+    """
+    Enum to represent the location of the file.
+
+    Supported values:
+    - local: Local file location.
+    - nfs: Network File System (NFS) location.
+    - s3: Amazon S3 location.
+    """
+
     local = "local"
     nfs = "nfs"
     s3 = "s3"
 
 
-# BaseModel with validations
 class BasicFileDetails(BaseModel):
+    """
+    Base model for file details with validations.
+
+    Attributes:
+    - mode: The mode of the file (unsupervised, supervised, test).
+    - location: The location of the file (local, nfs, s3).
+    - is_folder: Optional boolean indicating if the file is a folder (default is False).
+
+    Validators:
+    - check_location: Validates the location value.
+    - check_is_folder: Validates the is_folder value based on the location.
+    """
+
     mode: FileType
     location: FileLocation
     is_folder: Optional[bool] = False
@@ -42,6 +72,15 @@ class BasicFileDetails(BaseModel):
         return v
 
     def validate_csv_extension(self, filename: str):
+        """
+        Validates if the file has a .csv extension for supervised and test modes.
+
+        Parameters:
+        - filename: The name of the file.
+
+        Raises:
+        - ValueError: If the file does not have a .csv extension.
+        """
         if self.mode in {FileType.supervised, FileType.test}:
             _, ext = os.path.splitext(filename)
             if ext != ".csv":
@@ -51,10 +90,33 @@ class BasicFileDetails(BaseModel):
         return True
 
     def save_relations(self, supervised_filenames, data_id, source_ids):
-        pass  # Default implementation does nothing
+        """
+        Saves the relations for supervised files.
+
+        Parameters:
+        - supervised_filenames: List of supervised filenames.
+        - data_id: The data ID.
+        - source_ids: List of source IDs.
+
+        Default implementation does nothing.
+        """
+        pass
 
 
 class NDBFileDetails(BasicFileDetails):
+    """
+    Model for Neural Database (NDB) file details.
+
+    Attributes:
+    - source_id: Optional source ID for the file.
+    - metadata: Optional metadata dictionary for the file.
+
+    Validators:
+    - check_source_id: Validates the source ID based on the mode.
+    - check_metadata: Validates the metadata based on the mode and is_folder.
+    - check_is_folder: Validates the is_folder value based on the mode.
+    """
+
     source_id: Optional[str] = None
     metadata: Optional[Dict[str, str]] = None
 
@@ -85,6 +147,17 @@ class NDBFileDetails(BasicFileDetails):
         return v
 
     def save_relations(self, supervised_filenames, data_id, source_ids):
+        """
+        Saves the relations for supervised files.
+
+        Parameters:
+        - supervised_filenames: List of supervised filenames.
+        - data_id: The data ID.
+        - source_ids: List of source IDs.
+
+        Raises:
+        - ValueError: If source IDs are not provided for all supervised files.
+        """
         if len(supervised_filenames) != len(source_ids):
             raise ValueError("Source ids have not been given for all supervised files.")
 
@@ -97,7 +170,7 @@ class NDBFileDetails(BasicFileDetails):
         ]
 
         destination_path = os.path.join(
-            os.getenv("LOCAL_TEST_DIR", "/model_bazaar"),
+            os.getenv("SHARE_DIR", "/model_bazaar"),
             "data",
             str(data_id),
             "relations.json",
@@ -110,6 +183,13 @@ class NDBFileDetails(BasicFileDetails):
 
 
 class UDTFileDetails(BasicFileDetails):
+    """
+    Model for User Defined Type (UDT) file details.
+
+    Validators:
+    - check_mode: Ensures UDT files are not in 'unsupervised' mode.
+    """
+
     @validator("mode")
     def check_mode(cls, v):
         if v == FileType.unsupervised:
@@ -118,6 +198,16 @@ class UDTFileDetails(BasicFileDetails):
 
 
 class NDBFileDetailsList(BaseModel):
+    """
+    Model for a list of NDB file details.
+
+    Attributes:
+    - file_details: List of NDB file details.
+
+    Validators:
+    - check_file_counts: Validates the counts of test and unsupervised files.
+    """
+
     file_details: List[NDBFileDetails]
 
     @validator("file_details")
@@ -142,6 +232,16 @@ class NDBFileDetailsList(BaseModel):
 
 
 class UDTFileDetailsList(BaseModel):
+    """
+    Model for a list of UDT file details.
+
+    Attributes:
+    - file_details: List of UDT file details.
+
+    Validators:
+    - check_file_counts: Validates the counts of test files.
+    """
+
     file_details: List[UDTFileDetails]
 
     @validator("file_details")
@@ -155,6 +255,17 @@ class UDTFileDetailsList(BaseModel):
 
 
 def get_files(files: List[UploadFile], data_id, files_info: List[BasicFileDetails]):
+    """
+    Process and get the list of filenames for the provided files and their details.
+
+    Parameters:
+    - files: List of UploadFile objects.
+    - data_id: The data ID.
+    - files_info: List of BasicFileDetails objects.
+
+    Returns:
+    - A list of processed filenames.
+    """
     filenames = []
     supervised_filenames = []
     source_ids = []
@@ -162,7 +273,7 @@ def get_files(files: List[UploadFile], data_id, files_info: List[BasicFileDetail
     for i, file in enumerate(files):
         file_info = files_info[i]
         destination_dir = os.path.join(
-            os.getenv("LOCAL_TEST_DIR", "/model_bazaar"),
+            os.getenv("SHARE_DIR", "/model_bazaar"),
             "data",
             str(data_id),
             file_info.mode,
@@ -188,7 +299,6 @@ def get_files(files: List[UploadFile], data_id, files_info: List[BasicFileDetail
                 json.dump(file_info.metadata, json_file)
 
     if supervised_filenames and source_ids:
-        # Call save_relations method on the specific class
         for file_info in files_info:
             if isinstance(file_info, NDBFileDetails):
                 file_info.save_relations(supervised_filenames, data_id, source_ids)
@@ -196,8 +306,15 @@ def get_files(files: List[UploadFile], data_id, files_info: List[BasicFileDetail
     return filenames
 
 
-# Base storage handler
 class StorageHandler(ABC):
+    """
+    Abstract base class for storage handlers.
+
+    Methods:
+    - process_files: Abstract method to process files.
+    - validate_file: Abstract method to validate files.
+    """
+
     @abstractmethod
     def process_files(
         self, file_info: BasicFileDetails, file: UploadFile, destination_dir: str
@@ -209,8 +326,15 @@ class StorageHandler(ABC):
         pass
 
 
-# Local storage handler
 class LocalStorageHandler(StorageHandler):
+    """
+    Local storage handler for processing and validating local files.
+
+    Methods:
+    - process_files: Processes and saves the local file.
+    - validate_file: Validates the local file.
+    """
+
     def process_files(
         self, file_info: BasicFileDetails, file: UploadFile, destination_dir: str
     ):
@@ -226,8 +350,15 @@ class LocalStorageHandler(StorageHandler):
         file_info.validate_csv_extension(filename)
 
 
-# NFS storage handler
 class NFSStorageHandler(StorageHandler):
+    """
+    NFS storage handler for processing and validating NFS files.
+
+    Methods:
+    - process_files: Processes and saves the NFS file.
+    - validate_file: Validates the NFS file.
+    """
+
     def process_files(
         self, file_info: BasicFileDetails, file: UploadFile, destination_dir: str
     ):
@@ -253,8 +384,19 @@ class NFSStorageHandler(StorageHandler):
         file_info.validate_csv_extension(filename)
 
 
-# S3 storage handler
 class S3StorageHandler(StorageHandler):
+    """
+    S3 storage handler for processing and validating S3 files.
+    Methods:
+    - create_s3_client: Creates an S3 client.
+    - process_files: Processes and saves the S3 file.
+    - list_s3_files: Lists files in the specified S3 location.
+    - validate_file: Validates the S3 file.
+    """
+
+    def __init__(self):
+        self.s3_client = self.create_s3_client()
+
     def create_s3_client(self):
         from botocore import UNSIGNED
         from botocore.client import Config
@@ -299,9 +441,8 @@ class S3StorageHandler(StorageHandler):
         return s3_files
 
     def list_s3_files(self, filename):
-        s3 = self.create_s3_client()
         bucket_name, prefix = filename.replace("s3://", "").split("/", 1)
-        paginator = s3.get_paginator("list_objects_v2")
+        paginator = self.s3_client.get_paginator("list_objects_v2")
         pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
         file_keys = []
         for page in pages:
@@ -313,9 +454,86 @@ class S3StorageHandler(StorageHandler):
     def validate_file(self, file_info: BasicFileDetails, filename: str):
         file_info.validate_csv_extension(filename)
 
+    def create_bucket_if_not_exists(self, bucket_name):
+        import boto3
+        from botocore.exceptions import ClientError
 
-# Factory to get the correct handler
+        try:
+            self.s3_client.head_bucket(Bucket=bucket_name)
+            print(f"Bucket {bucket_name} already exists.")
+        except ClientError as e:
+            error_code = int(e.response["Error"]["Code"])
+            if error_code == 404:
+                try:
+                    self.s3_client.create_bucket(
+                        Bucket=bucket_name,
+                        CreateBucketConfiguration={
+                            "LocationConstraint": (
+                                boto3.session.Session().region_name
+                                if boto3.session.Session().region_name
+                                else "us-east-1"
+                            )
+                        },
+                    )
+                    print(f"Bucket {bucket_name} created successfully.")
+                except ClientError as e:
+                    if e.response["Error"]["Code"] == "BucketAlreadyExists":
+                        print(f"Bucket {bucket_name} already exists globally.")
+                    elif e.response["Error"]["Code"] == "AccessDenied":
+                        raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f"Access denied to create bucket {bucket_name}. Error: {str(e)}",
+                        )
+                    else:
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail=f"Failed to create bucket {bucket_name}. Error: {str(e)}",
+                        )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Error checking bucket {bucket_name}. Error: {str(e)}",
+                )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to access bucket {bucket_name}. Error: {str(e)}",
+            )
+
+    def upload_file_to_s3(self, file_path, bucket_name, object_name):
+        try:
+            self.s3_client.upload_file(file_path, bucket_name, object_name)
+            print(f"Uploaded {file_path} to {bucket_name}/{object_name}.")
+        except Exception as e:
+            print(f"Failed to upload {file_path}. Error: {str(e)}")
+
+    def upload_folder_to_s3(self, bucket_name, local_dir):
+        base_dir_name = "model_and_data"
+
+        for root, _, files in os.walk(local_dir):
+            for file in files:
+                local_path = os.path.join(root, file)
+                relative_path = os.path.relpath(local_path, local_dir)
+                s3_path = os.path.join(base_dir_name, relative_path)
+
+                try:
+                    self.s3_client.upload_file(local_path, bucket_name, s3_path)
+                    print(f"Uploaded {local_path} to {bucket_name}/{s3_path}.")
+                except Exception as e:
+                    print(f"Failed to upload {local_path}. Error: {str(e)}")
+
+
 class StorageHandlerFactory:
+    """
+    Factory class to get the correct storage handler based on location.
+
+    Attributes:
+    - handlers: Dictionary mapping FileLocation to handler classes.
+
+    Methods:
+    - get_handler: Returns the handler class for the specified location.
+    """
+
     handlers = {
         FileLocation.local: LocalStorageHandler,
         FileLocation.nfs: NFSStorageHandler,

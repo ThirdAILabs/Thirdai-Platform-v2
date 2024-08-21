@@ -1,5 +1,6 @@
 import ast
 import datetime
+import html
 import os
 from dataclasses import MISSING, asdict, dataclass, fields
 from enum import Enum
@@ -87,6 +88,7 @@ class EnvLoader:
                 if enum_type and issubclass(enum_type, Enum):
                     return enum_type[enum_member]
 
+        value = html.unescape(value)
         if field_type == bool:
             return ast.literal_eval(value.capitalize())
         if field_type == int:
@@ -102,7 +104,6 @@ class EnvLoader:
 @dataclass
 class GeneralVariables(EnvLoader):
     model_id: str
-    deployment_id: str
     model_bazaar_endpoint: str
     model_bazaar_dir: str
     license_key: str
@@ -115,7 +116,7 @@ class GeneralVariables(EnvLoader):
     def deployment_permissions(self, token: str):
         deployment_permissions_endpoint = urljoin(
             self.model_bazaar_endpoint,
-            f"api/deploy/permissions/{self.deployment_id}",
+            f"api/deploy/permissions/{self.model_id}",
         )
         response = requests.get(
             deployment_permissions_endpoint,
@@ -126,6 +127,14 @@ class GeneralVariables(EnvLoader):
                 "read": False,
                 "write": False,
                 "exp": now() + datetime.timedelta(minutes=5),
+                "override": False,
+            }
+        elif response.status_code != status.HTTP_200_OK:
+            print(response.text)
+            return {
+                "read": False,
+                "write": False,
+                "exp": now(),
                 "override": False,
             }
         res_json = response.json()

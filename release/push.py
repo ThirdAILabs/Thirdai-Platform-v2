@@ -169,7 +169,7 @@ def verify_tag(
         new = provider.get_local_image_digest(image_id=image_id)
         if existing and existing != new:
             raise RuntimeError(
-                f"A docker image with name '{name}' and tag '{tag}' with "
+                f"A docker image with name '{name}' and branch '{branch}' and tag '{tag}' with "
                 "a different checksum exists in the registry."
             )
 

@@ -1,7 +1,8 @@
 import asyncio
 import time
 from functools import wraps
-from multiprocessing import Lock, Manager, Process, Queue
+from queue import Queue
+from threading import Lock, Thread
 from typing import Any
 
 import uvicorn
@@ -10,16 +11,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from reporter import Reporter
 from routers.ndb import create_ndb_router, process_tasks
+from routers.telemetry import telemetry_router  # Import the telemetry router
 from routers.udt import udt_router
-from utils import delete_job
+from utils import delete_deployment_job
 from variables import GeneralVariables, TypeEnum
 
 general_variables = GeneralVariables.load_from_env()
 reporter = Reporter(general_variables.model_bazaar_endpoint)
 
 app = FastAPI(
-    docs_url=f"/{general_variables.deployment_id}/docs",
-    openapi_url=f"/{general_variables.deployment_id}/openapi.json",
+    docs_url=f"/{general_variables.model_id}/docs",
+    openapi_url=f"/{general_variables.model_id}/openapi.json",
 )
 
 app.add_middleware(
@@ -61,8 +63,8 @@ async def async_timer() -> None:
             )
             reset_event.clear()  # clear the event if the endpoint was hit within the timeout period
         except asyncio.TimeoutError:
-            response, job_id = delete_job(
-                general_variables.deployment_id, general_variables.task_runner_token
+            response, job_id = delete_deployment_job(
+                general_variables.model_id, general_variables.task_runner_token
             )
             if response.status_code == 200:
                 print(f"Job {job_id} stopped successfully")
@@ -74,16 +76,17 @@ async def async_timer() -> None:
 
 
 task_queue = Queue()
-manager = Manager()
-tasks = manager.dict()
+tasks = {}
 task_lock = Lock()
 
+# Include the telemetry router for all deployments
+app.include_router(telemetry_router, prefix=f"/{general_variables.model_id}/telemetry")
 
 if general_variables.type == TypeEnum.NDB:
     ndb_router = create_ndb_router(task_queue, task_lock, tasks)
-    app.include_router(ndb_router, prefix=f"/{general_variables.deployment_id}")
+    app.include_router(ndb_router, prefix=f"/{general_variables.model_id}")
 elif general_variables.type == TypeEnum.UDT:
-    app.include_router(udt_router, prefix=f"/{general_variables.deployment_id}")
+    app.include_router(udt_router, prefix=f"/{general_variables.model_id}")
 
 
 @app.exception_handler(404)
@@ -106,14 +109,16 @@ async def startup_event() -> None:
     """
     try:
         time.sleep(10)
-        reporter.update_deploy_status(general_variables.deployment_id, "complete")
+        reporter.update_deploy_status(general_variables.model_id, "complete")
         if general_variables.type == TypeEnum.NDB:
-            process = Process(
+            # TODO(Yash/Kartik): Separate Job for write modifications for NDB.
+            # As we are going with on-disk index we could only have one instance of model with write mode.
+            thread = Thread(
                 target=process_tasks, args=(task_queue, task_lock, tasks), daemon=True
             )
-            process.start()
+            thread.start()
     except Exception as e:
-        reporter.update_deploy_status(general_variables.deployment_id, "failed")
+        reporter.update_deploy_status(general_variables.model_id, "failed")
         raise e  # Re-raise the exception to propagate it to the main block
 
 
@@ -122,4 +127,4 @@ if __name__ == "__main__":
         uvicorn.run(app, host="localhost", port=8000)
     except Exception as e:
         print(f"Uvicorn failed to start: {str(e)}")
-        reporter.update_deploy_status(general_variables.deployment_id, "failed")
+        reporter.update_deploy_status(general_variables.model_id, "failed")

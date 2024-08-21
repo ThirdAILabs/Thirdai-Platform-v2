@@ -29,25 +29,18 @@ def get_catalogs(task: schema.UDT_Task, session: Session):
     return catalogs
 
 
-def find_dataset(
-    catalogs: List[schema.Catalog], target_labels: str, cut_off: float = 0.75
+def find_datasets(
+    catalogs: List[schema.Catalog], target_labels: str
 ):
     def similarity(dataset_labels: List[str], target_labels: List[str]) -> float:
         if not dataset_labels:
             return 0.0
         match_count = len(set(dataset_labels) & set(target_labels))
-        return match_count / len(dataset_labels)
+        return match_count / len(target_labels)
 
-    most_suited_dataset = None
-    max_similarity = -1
-    for catalog in catalogs:
-        if len(catalog.target_labels) >= len(target_labels):
-            sim = similarity(catalog.target_labels, target_labels)
-            if sim >= cut_off and sim > max_similarity:
-                max_similarity = sim
-                most_suited_dataset = catalog
+    most_suited_datasets = list(filter(lambda x: similarity(x.target_labels,target_labels) == 1, catalogs))
 
-    return most_suited_dataset
+    return most_suited_datasets
 
 
 # Not sure if this will lead to exposure of using openai to generate data

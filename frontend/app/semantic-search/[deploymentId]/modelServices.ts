@@ -138,7 +138,7 @@ export class ModelService {
     
 
     async sources(): Promise<Source[]> {
-        const url = new URL(this.url + "/sources");
+        const url = new URL(this.url + "/read/sources");
         return fetch(url, { headers: this.authHeader() })
             .then(this.handleInvalidAuth())
             .then((response) => {
@@ -156,7 +156,7 @@ export class ModelService {
     }
 
     async piiDetect(query: string): Promise<any> {
-        const url = new URL(this.tokenModelUrl + "/predict");
+        const url = new URL(this.tokenModelUrl + "/read/predict");
 
         const baseParams = { query: query, top_k: 1 };
         
@@ -190,7 +190,7 @@ export class ModelService {
     }
 
     async saveModel(override: boolean, model_name?: string): Promise<any> {
-        const url = new URL(this.url + "/save");
+        const url = new URL(this.url + "/write/save");
         const payload = {
             override,
             model_name: model_name || null,
@@ -250,7 +250,7 @@ export class ModelService {
         }
 
         formData.append("documents", JSON.stringify(documentData));
-        const url = new URL(this.url + "/insert");
+        const url = new URL(this.url + "/write/insert");
 
         return fetch(url, {
             method: "POST",
@@ -276,7 +276,7 @@ export class ModelService {
 
     async deleteSources(sourceIDs: string[]): Promise<any> {
         console.log(this.url);
-        const url = new URL(this.url + "/delete");
+        const url = new URL(this.url + "/write/delete");
         return fetch(url, {
             method: "POST",
             body: JSON.stringify({
@@ -307,7 +307,7 @@ export class ModelService {
         topK: number,
         queryId?: string,
     ): Promise<SearchResult | null> {
-        const url = new URL(this.url + "/predict");
+        const url = new URL(this.url + "/read/predict");
 
         // TODO(Geordie): Accept a "timeout" / "longer than expected" callback.
         // E.g. if the query takes too long, then we can display a message
@@ -352,7 +352,7 @@ export class ModelService {
     }
 
     getPdfInfo(reference: ReferenceInfo): Promise<PdfInfo> {
-        const blobUrl = new URL(this.url + "/pdf-blob");
+        const blobUrl = new URL(this.url + "/read/pdf-blob");
         blobUrl.searchParams.append("source", reference.sourceURL.toString());
         const blobPromise = fetch(blobUrl, { headers: this.authHeader() })
             .then(this.handleInvalidAuth())
@@ -362,7 +362,7 @@ export class ModelService {
                 return URL.createObjectURL(file);
             });
 
-        const chunkUrl = new URL(this.url + "/pdf-chunks");
+        const chunkUrl = new URL(this.url + "/read/pdf-chunks");
         chunkUrl.searchParams.append("reference_id", reference.id.toString());
         let highlighted: Chunk | null = null;
         const chunkPromise = fetch(chunkUrl, { headers: this.authHeader() })
@@ -425,7 +425,7 @@ export class ModelService {
     }
 
     openHighlightedPDF(reference: ReferenceInfo) {
-        const url = new URL(this.url + "/highlighted-pdf");
+        const url = new URL(this.url + "/read/highlighted-pdf");
         url.searchParams.append("reference_id", reference.id.toString());
         fetch(url, { headers: this.authHeader() })
             .then(this.handleInvalidAuth())
@@ -441,7 +441,7 @@ export class ModelService {
     }
 
     openPDF(source: string) {
-        const url = new URL(this.url + "/pdf-blob");
+        const url = new URL(this.url + "/read/pdf-blob");
         url.searchParams.append("source", source.toString());
         fetch(url, { headers: this.authHeader() })
             .then(this.handleInvalidAuth())
@@ -493,7 +493,7 @@ export class ModelService {
         referenceId: number,
         referenceText: string,
     ): Promise<any> {
-        return fetch(this.url + "/upvote", {
+        return fetch(this.url + "/write/upvote", {
             method: "POST",
             body: JSON.stringify({
                 text_id_pairs: [
@@ -552,7 +552,7 @@ export class ModelService {
     }
 
     async associate(source: string, target: string): Promise<any> {
-        return fetch(this.url + "/associate", {
+        return fetch(this.url + "/write/associate", {
             method: "POST",
             body: JSON.stringify({
                 text_pairs: [
@@ -665,7 +665,7 @@ export class ModelService {
         const serializedData = JSON.stringify(telemetryPackage);
     
         try {
-            const response = await fetch(this.url + '/telemetry/record-event', {
+            const response = await fetch(this.url + '/write/telemetry/record-event', {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

@@ -652,7 +652,7 @@ export function useTokenClassificationEndpoints() {
     // Set the default authorization header for axios
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
     try {
-      const response = await axios.post(`${deploymentUrl}/predict`, {
+      const response = await axios.post(`${deploymentUrl}/read/predict`, {
         query, top_k: 1
       });
       return response.data.data;
@@ -699,7 +699,7 @@ export function useTokenClassificationEndpoints() {
     axios.defaults.headers.common.Authorization = `Bearer ${getAccessToken()}`;
     try {
       console.log(deploymentUrl);
-      const response = await axios.get(`${deploymentUrl}/stats`);
+      const response = await axios.get(`${deploymentUrl}/read/stats`);
       return {
         system: {
           header: ['Name', 'Description'],

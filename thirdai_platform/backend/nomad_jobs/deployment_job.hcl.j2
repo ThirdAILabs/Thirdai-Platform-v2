@@ -121,7 +121,7 @@ EOF
   }
 
   # Conditionally include the write group based on write_enabled
-  {% if write_enabled %}
+  {% if write_enabled == "true" %}
   group "write" {
     count = 1
 

@@ -221,7 +221,6 @@ export default function SearchBar({
     };
 
     const handleSubmit = () => {
-        console.log("submit");
         onSubmit(query, prompt)
 
         // Create a telemetry event

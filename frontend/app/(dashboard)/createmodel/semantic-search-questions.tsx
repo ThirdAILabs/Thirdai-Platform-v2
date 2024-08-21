@@ -123,7 +123,7 @@ const SemanticSearchQuestions = ({ onCreateModel, stayOnPage }: SemanticSearchQu
         
         {
           sources.map(({type}, index) => (
-            <div>
+            <div key={index}>
               <div style={{display: "flex", flexDirection: "row", gap: "20px", justifyContent: "space-between", marginTop: "10px"}}>
                 {type === SourceType.S3 && (
                   <Input 

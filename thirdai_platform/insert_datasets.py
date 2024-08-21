@@ -20,8 +20,8 @@ for file in filenames:
     with open(file, "r") as f:
         data = json.load(f)
         if data["task"].endswith("_classification"):
-            data["task"] = data["task"][:-len("_classification")]
-        
+            data["task"] = data["task"][: -len("_classification")]
+
         entry = schema.Catalog(
             id=data["id"],
             name=data["name"] if data["name"] else "unnamed_data",

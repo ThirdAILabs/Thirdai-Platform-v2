@@ -20,10 +20,12 @@ from sqlalchemy.orm import declarative_base, relationship, validates
 
 SQLDeclarativeBase = declarative_base()
 
+
 class UDT_Task(str, enum.Enum):
     TEXT = "text"
     TOKEN = "token"
-    
+
+
 class Status(str, enum.Enum):
     not_started = "not_started"
     starting = "starting"
@@ -431,7 +433,8 @@ class WorkflowModel(SQLDeclarativeBase):
             name="unique_workflow_model_component",
         ),
     )
-    
+
+
 class Catalog(SQLDeclarativeBase):
     __tablename__ = "catalog"
 

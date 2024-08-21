@@ -22,11 +22,13 @@ from sqlalchemy.orm import Session
 
 data_router = APIRouter()
 
+
 def get_catalogs(task: schema.UDT_Task, session: Session):
     query = session.query(schema.Catalog).filter(schema.Catalog.task == task)
     catalogs: List[schema.Catalog] = query.all()
     return catalogs
-    
+
+
 def find_dataset(
     catalogs: List[schema.Catalog], target_labels: str, cut_off: float = 0.75
 ):
@@ -46,6 +48,7 @@ def find_dataset(
                 most_suited_dataset = catalog
 
     return most_suited_dataset
+
 
 # Not sure if this will lead to exposure of using openai to generate data
 class LLMProvider(str, Enum):
@@ -220,6 +223,7 @@ def generate_token_data(
         message="Successfully submitted the data-generation job",
     )
 
+
 @data_router.post("/find-dataset")
 def find_datasets(
     task: schema.UDT_Task,
@@ -231,34 +235,34 @@ def find_datasets(
         catalogs = get_catalogs(task=task, session=session)
         # Filtering catalogs based on the target_labels
         most_suited_dataset_catalog = find_dataset(
-                catalogs, target_labels=target_labels
-            )
+            catalogs, target_labels=target_labels
+        )
 
         if most_suited_dataset_catalog:
-            
+
             data = {
                 "dataset_name": most_suited_dataset_catalog.name,
                 "catalog_id": str(most_suited_dataset_catalog.id),
                 "find_status": True,
-                "num_samples": most_suited_dataset_catalog.num_generated_samples
+                "num_samples": most_suited_dataset_catalog.num_generated_samples,
             }
             # TODO(Pratyush/Gautam) convert the existing JSON files to CSV
             # dataset location will be os.getenv("SHARE_DIR"), "datasets", "catalog_id", "train.csv"),
 
         if not most_suited_dataset_catalog:
             data = {
-                    "dataset_name": None,
-                    "catalog_id": None,
-                    "find_status": False,
-                    "num_samples": 0
-                }
+                "dataset_name": None,
+                "catalog_id": None,
+                "find_status": False,
+                "num_samples": 0,
+            }
 
         return response(
             status_code=status.HTTP_200_OK,
             message="Successfully retrieved the preview of the data",
             data=data,
         )
-        
+
     except Exception as e:
         traceback.print_exc()
         return response(

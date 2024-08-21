@@ -39,7 +39,10 @@ As an example here are two sentences for the tags [GENDER,ENTHNICITY,DISABILITY,
 She is [GENDER] and is of [ENTHNICITY] DESCENT 
 After getting diagnosed with [DISABILITY] John went home. His social security number is [SSN].
 
-Each sentence should start on a new line and with no bulleting, header/footer or any steps involved.
+Key Requirements:
+-   Each sentence should start on a new line and with no bulleting, header/footer or any steps involved. 
+-   Make sure to include at least two entities in each samples.
+-   These Entities would be filled later so make sure these samples would make sense after being filled.
 """
 
 dataset_generation_prompt = """You possess deep expertise in {domain_prompt}. Please generate {num_to_generate} templates of synthetic sentences and associated tags for {domain_prompt}
@@ -55,13 +58,11 @@ Following are some sample output format for generation. This is just for example
 {templatized_sentences_examples}
 
 Key Requirements:
--   Mask only the Entities in square brackets with and make sure entities are in upper case. 
--   The entities should strictly belong to one of {sampled_tags}. Do not include anything apart from entities in square brackets
--   Seperate different samples by new line
+-   Mask only the Entities in square brackets.
+-   The entities should strictly belong to one of {sampled_tags}. Make sure to include at least two entities in each samples. Do not include anything apart from entities in square brackets. 
+-   These Entities would be filled later so make sure these samples would make sense after being filled.
 -   Give only the generated samples in output and make sure each sample should start on a new line. Do not include any extra new line. 
--   DO NOT include any bulleting or prefix at start of each sentence and each. Do not include any quotes or emojis
--   Give equal weightage to all the tags
+-   DO NOT include any bulleting or header/footer with any samples. Do not include any quotes or emojis.
+-   Give equal weightage to all the tags.
 -   {rnd_prompts_str}
-
-{values_requirements}
 """

@@ -17,11 +17,12 @@ class DataFactory(ABC):
         self.general_variables: GeneralVariables = GeneralVariables.load_from_env()
         self.save_dir = (
             Path(self.general_variables.model_bazaar_dir)
+            / "generated_data"
             / self.general_variables.data_id
         )
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.llm_model = llm_classes.get(self.general_variables.llm_provider.value)(
-            api_key=self.general_variables.genai_key
+            api_key=self.general_variables.genai_key, save_dir=self.save_dir
         )
         self.train_file_location = self.save_dir / "train.csv"
         self.errored_file_location = self.save_dir / "traceback.err"
@@ -128,3 +129,8 @@ class DataFactory(ABC):
                 errored_fp.write("Data-points: \n")
                 errored_fp.write(str(data_points) + "\n")
                 errored_fp.write("\n" + "=" * 100 + "\n")
+
+    def write_to_errorfile(self, text: str):
+        with open(self.errored_file_location, "a") as errored_fp:
+            errored_fp.write(f"\ntext: {text}")
+            errored_fp.write("\n" + "=" * 100 + "\n")

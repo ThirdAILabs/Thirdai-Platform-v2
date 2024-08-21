@@ -157,7 +157,7 @@ def generate_token_data(
     llm_provider: LLMProvider = LLMProvider.openai,
     form: str = Form(default="{}"),
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    # authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:

@@ -1,5 +1,7 @@
 // app/NERQuestions.js
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import _ from 'lodash';
 import { getUsername, trainTokenClassifier, create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
@@ -7,11 +9,20 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CardDescription } from '@/components/ui/card';
 
+export const thirdaiPlatformBaseUrl = _.trim(process.env.THIRDAI_PLATFORM_BASE_URL!, '/');
+
 type Category = {
   name: string;
   example: string;
   description: string;
 };
+export function getAccessToken(throwIfNotFound: boolean = true): string | null {
+  const accessToken = localStorage.getItem('accessToken');
+  if (!accessToken && throwIfNotFound) {
+    throw new Error('Access token is not available');
+  }
+  return accessToken;
+}
 
 const predefinedChoices = [
   'PHONENUMBER',
@@ -103,8 +114,8 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
       return;
     }
 
-    try {
-      setIsDataGenerating(true);
+    // try {
+    //   setIsDataGenerating(true);
 
       const response = await fetch('/endpoints/generate-data-token-classification', {
         method: 'POST',
@@ -114,16 +125,16 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
         body: JSON.stringify({ categories }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Network response was not ok');
-      }
+    //   if (!response.ok) {
+    //     const errorData = await response.json();
+    //     throw new Error(errorData.error || 'Network response was not ok');
+    //   }
 
-      const result = await response.json();
+    //   const result = await response.json();
 
-      console.log('result', result);
-      setGeneratedData(result.syntheticDataPairs);
-      setGenerateDataPrompt(result.prompts);
+    //   console.log('result', result);
+    //   setGeneratedData(result.syntheticDataPairs);
+    //   setGenerateDataPrompt(result.prompts);
 
       setIsDataGenerating(false);
     } catch (error) {

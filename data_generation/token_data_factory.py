@@ -13,7 +13,12 @@ from typing import Dict, List
 from data_factory_interface import DataFactory
 from faker import Faker
 from tqdm import tqdm
-from utils import assert_sufficient_examples, save_dict, subsample_dictionary
+from utils import (
+    assert_sufficient_examples,
+    clean_text,
+    save_dict,
+    subsample_dictionary,
+)
 
 
 class TokenDataFactory(DataFactory):
@@ -61,7 +66,12 @@ class TokenDataFactory(DataFactory):
 
         matched_attr = min(matched_attrs, key=len)
 
-        return [self.faker.__getattr__(matched_attr)() for _ in range(num_samples)]
+        return list(
+            map(
+                lambda x: clean_text(str(x)),
+                [self.faker.__getattr__(matched_attr)() for _ in range(num_samples)],
+            ),
+        )
 
     def get_complete_tag_examples(
         self,
@@ -137,7 +147,7 @@ class TokenDataFactory(DataFactory):
 
         assert_sufficient_examples(tags, tag_examples)
 
-        attribute_values = self.get_attributes(domain_prompt)
+        # attribute_values = self.get_attributes(domain_prompt)
 
         complete_tag_examples = self.get_complete_tag_examples(
             domain_prompt, tag_examples, num_sentences_to_generate, num_samples_per_tag
@@ -154,7 +164,7 @@ class TokenDataFactory(DataFactory):
             # TODO(anyone): we should also add the [user_tag -> examples] in dataset_generation_prompt.
             random_prompts = self.get_random_prompts()
 
-            values_requirements = self.get_value_requirements(attribute_values)
+            # values_requirements = self.get_value_requirements(attribute_values)
             arguments.append(
                 {
                     "prompt": dataset_generation_prompt.format(
@@ -166,7 +176,6 @@ class TokenDataFactory(DataFactory):
                         sampled_tags=random.sample(tags, k=min(5, len(tags))),
                         templatized_sentences_examples=templatized_sentences_examples,
                         rnd_prompts_str="\n -\t".join(random_prompts),
-                        values_requirements=values_requirements,
                     ),
                     "system_prompt": f"You are a helpful assistant designed to generate synthetic data for domain {domain_prompt}.",
                 }
@@ -239,8 +248,14 @@ class TokenDataFactory(DataFactory):
             match = re.search(r"\[(.*?)\]", word)
             if match:
                 # word is a tag
-                word_tag = match.group(1)
-                assert word_tag in allowed_tags
+                word_tag = match.group(1).upper()
+                if word_tag not in allowed_tags:
+                    self.write_to_errorfile(
+                        text=f"""Word tag {word_tag} not present in the allowed tags {', '.join(allowed_tags)}
+template: {template}
+                    """
+                    )
+                    continue
 
                 word_tag_value = random.choice(tag_values[word_tag])
                 source.append(word_tag_value)

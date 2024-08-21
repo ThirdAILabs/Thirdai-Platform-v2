@@ -1,4 +1,3 @@
-import csv
 import json
 import random
 import re
@@ -36,3 +35,10 @@ def subsample_dictionary(data: Dict[str, List[str]], k=2):
     return {
         key: random.sample(values, min(k, len(values))) for key, values in data.items()
     }
+
+
+def clean_text(text: str):
+    text = text.replace("\n", " ")
+    text = re.sub(r"\s+", " ", text)
+    cleaned_text = re.sub(r"[^A-Za-z0-9.@/\-,;:?!\'\\ ]+", "", text)
+    return cleaned_text.strip()

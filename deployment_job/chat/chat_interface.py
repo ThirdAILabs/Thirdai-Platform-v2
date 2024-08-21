@@ -1,8 +1,6 @@
-import os
 from abc import ABC, abstractmethod
 from typing import List
 
-from chat.openai import OpenAIChat
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.docstore.document import Document
 from langchain.vectorstores import NeuralDBVectorStore
@@ -108,8 +106,3 @@ class ChatInterface(ABC):
         chat_history.add_ai_message(response["answer"])
 
         return response["answer"]
-
-
-llm_providers = {"openai": OpenAIChat}
-
-llm_default_keys = {"openai": os.getenv("OPENAI", None)}

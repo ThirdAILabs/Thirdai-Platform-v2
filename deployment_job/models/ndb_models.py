@@ -13,10 +13,9 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List
 
-from chat.chat_interface import llm_default_keys, llm_providers
+from chat import llm_providers
 from file_handler import create_ndb_docs
 from models.model import Model
-from pkg_resources import get_provider
 from pydantic_models import inputs
 from thirdai import neural_db as ndb
 

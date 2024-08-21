@@ -446,7 +446,6 @@ export async function delete_workflow(workflowId: string): Promise<DeleteWorkflo
       })
       .catch((err) => {
         console.error('Error deleting workflow:', err);
-        alert('Error deleting workflow:' + err)
         reject(new Error('Failed to delete workflow'));
       });
   });

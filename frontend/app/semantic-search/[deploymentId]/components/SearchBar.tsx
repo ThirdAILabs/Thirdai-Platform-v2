@@ -232,10 +232,6 @@ export default function SearchBar({
     };
 
     const handleSubmit = () => {
-        // When a user hits enter (to trigger generation) or 
-        // click on one suggestion to trigger cache-generation, the suggestion bar would go away.
-        setShowSuggestionBar(false)
-
         onSubmit(query, prompt)
 
         // Create a telemetry event

@@ -133,6 +133,8 @@ class TokenDataFactory(DataFactory):
         num_samples_per_tag: int = 4,
         sentences_generated=0,  # To resume the generate function incase of midway failure. TODO(Gautam): Incorporate resuming the data_generation task
     ):
+        print(f"{sentences_generated = }")
+        
         assert sentences_generated < num_sentences_to_generate, "Invalid configuration"
 
         assert_sufficient_examples(tags, tag_examples)

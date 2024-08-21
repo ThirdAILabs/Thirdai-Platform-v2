@@ -95,8 +95,8 @@ class GeneralVariables(EnvLoader):
     data_id: str
     data_category: DataCategory
     genai_key: str
-    llm_provider: LLMProvider = LLMProvider.openai
     sentences_generated: int
+    llm_provider: LLMProvider = LLMProvider.openai
 
 
 @dataclass

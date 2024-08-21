@@ -44,8 +44,8 @@ def replace_tags_and_write(
     df = pd.read_csv(train_path)
 
     # TODO(Gautam/pratyush): Pass this source and target column from platform to container to stay consistent with it
-    df[COLUMNS[schema.UDT_Task.TEXT]["target"]] = df[
-        COLUMNS[schema.UDT_Task.TEXT]["target"]
+    df[COLUMNS[schema.UDT_Task.TOKEN]["target"]] = df[
+        COLUMNS[schema.UDT_Task.TOKEN]["target"]
     ].apply(update_tags, tags_to_keep=target_labels)
     df.to_csv(write_path, mode="a", index=False, header=not os.path.exists(write_path))
     return len(df)
@@ -256,7 +256,7 @@ def generate_token_data(
         )
 
     existing_datasets = find_datasets(
-        task=schema.UDT_Task.TOKEN, target_labels=extra_options["tags"]
+        task=schema.UDT_Task.TOKEN, target_labels=extra_options["tags"], session = session
     )
     samples_found = 0
     if existing_datasets:
@@ -297,7 +297,7 @@ def generate_token_data(
 def find_datasets(
     task: schema.UDT_Task,
     target_labels: List[str],
-    session: Session = Depends(get_session),
+    session: Session,
 ):
 
     try:
@@ -325,7 +325,7 @@ class GenerationComplete(BaseModel):
     samples_generated: int
 
 
-@data_router.post()
+@data_router.post("/status")
 def generation_complete(
     body: GenerationComplete, session: Session = Depends(get_session)
 ):

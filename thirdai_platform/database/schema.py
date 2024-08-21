@@ -3,6 +3,7 @@ import re
 from datetime import datetime
 
 from sqlalchemy import (
+    ARRAY,
     JSON,
     Boolean,
     Column,
@@ -19,7 +20,10 @@ from sqlalchemy.orm import declarative_base, relationship, validates
 
 SQLDeclarativeBase = declarative_base()
 
-
+class UDT_Task(str, enum.Enum):
+    TEXT = "text"
+    TOKEN = "token"
+    
 class Status(str, enum.Enum):
     not_started = "not_started"
     starting = "starting"
@@ -427,3 +431,14 @@ class WorkflowModel(SQLDeclarativeBase):
             name="unique_workflow_model_component",
         ),
     )
+    
+class Catalog(SQLDeclarativeBase):
+    __tablename__ = "catalog"
+
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    name = Column(String(100), nullable=False)
+    task = Column(ENUM(UDT_Task), nullable=False)
+    num_generated_samples = Column(Integer)
+    target_labels = Column(ARRAY(String), nullable=False)

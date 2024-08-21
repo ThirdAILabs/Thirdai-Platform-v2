@@ -23,16 +23,15 @@ from sqlalchemy.orm import Session
 
 data_router = APIRouter()
 
-
-def get_catalogs(task: schema.UDT_Task, session: Session):
-    query = session.query(schema.Catalog).filter(schema.Catalog.task == task)
-    catalogs: List[schema.Catalog] = query.all()
-    return catalogs
+COLUMNS = {
+    schema.UDT_Task.TEXT: {"source": "text", "target": "label"},
+    schema.UDT_Task.TOKEN: {"source": "source", "target": "target"},
+}
 
 
 def update_tags(tag_sequence: str, tags_to_keep: List[str]):
     tags = tag_sequence.split()
-    updated_tags = ["O" if tag not in tags_to_keep else tag for tag in tags]
+    updated_tags = list(map(lambda tag: "O" if tag not in tags_to_keep else tag, tags))
     return " ".join(updated_tags)
 
 
@@ -40,10 +39,14 @@ def replace_tags_and_write(
     catalog: schema.Catalog, target_labels: List[str], write_path: str
 ):
     train_path = os.path.join(
-        os.getenv("SHARE_DIR"), "datasets", catalog.id, "train.csv"
+        os.getenv("SHARE_DIR"), "datasets", str(catalog.id), "train.csv"
     )
     df = pd.read_csv(train_path)
-    df["target"] = df["target"].apply(update_tags, tags_to_keep=target_labels)
+
+    # TODO(Gautam/pratyush): Pass this source and target column from platform to container to stay consistent with it
+    df[COLUMNS[schema.UDT_Task.TEXT]["target"]] = df[
+        COLUMNS[schema.UDT_Task.TEXT]["target"]
+    ].apply(update_tags, tags_to_keep=target_labels)
     df.to_csv(write_path, mode="a", index=False, header=not os.path.exists(write_path))
     return len(df)
 
@@ -51,11 +54,11 @@ def replace_tags_and_write(
 def prune_labels_and_write(
     catalog: schema.Catalog, target_labels: List[str], write_path: str
 ):
-    train_path = os.path.join(
-        os.getenv("SHARE_DIR"), "datasets", catalog.id, "train.csv"
+    most_suited_dataset = os.path.join(
+        os.getenv("SHARE_DIR"), "datasets", str(catalog.id), "train.csv"
     )
-    df = pd.read_csv(train_path)
-    df = df[df["label"].isin(target_labels)]
+    df = pd.read_csv(most_suited_dataset)
+    df = df[df[COLUMNS[schema.UDT_Task.TEXT]["target"]].isin(target_labels)]
     df.to_csv(write_path, mode="a", index=False, header=not os.path.exists(write_path))
     return len(df)
 
@@ -67,7 +70,7 @@ def prune_and_merge(
     data_id: str,
 ):
     save_dir = os.path.join(os.getenv("SHARE_DIR"), str(data_id))
-    os.mkdir(save_dir)
+    os.makedirs(save_dir, exist_ok=True)
     train_file = os.path.join(save_dir, "train.csv")
     samples_generated = 0
     for catalog in existing_datasets:
@@ -298,7 +301,9 @@ def find_datasets(
 ):
 
     try:
-        catalogs = get_catalogs(task=task, session=session)
+        catalogs: List[schema.Catalog] = (
+            session.query(schema.Catalog).filter(schema.Catalog.task == task).all()
+        )
         # Filtering catalogs based on the target_labels
         most_suited_dataset_catalogs = find_catalogs(
             catalogs, target_labels=target_labels
@@ -309,5 +314,50 @@ def find_datasets(
         traceback.print_exc()
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="unable to find a sample text-dataset",
+            message="unable to find a sample dataset",
         )
+
+
+class GenerationComplete(BaseModel):
+    data_id: str
+    task: schema.UDT_Task
+    target_labels: List[str]
+    samples_generated: int
+
+
+@data_router.post()
+def generation_complete(
+    body: GenerationComplete, session: Session = Depends(get_session)
+):
+    """
+    Mark the training of a model as complete.
+
+    Parameters:
+    - body: The body of the request containing data_id.
+        - Example:
+        ```json
+        {
+            "data_id": "123e4567-e89b-12d3-a456-426614174000",
+            "samples_generated": 100
+        }
+        ```
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response indicating the update status.
+    """
+
+    catalog_entry = schema.Catalog(
+        data_id=body.data_id,
+        name="Generated_data",
+        task=body.task,
+        target_labels=body.target_labels,
+    )
+
+    session.add(catalog_entry)
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully updated"
+    )

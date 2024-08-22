@@ -17,33 +17,61 @@ enum SourceType {
 
 const SemanticSearchQuestions = ({ onCreateModel, stayOnPage }: SemanticSearchQuestionsProps) => {
     const [modelName, setModelName] = useState('');
-    const [sources, setSources] = useState<Array<{ type: string, value: File | null }>>([]);
+    const [sources, setSources] = useState<Array<{ type: string, files: File[] }>>([]);
+    const [fileCount, setFileCount] = useState<number[]>([]);
     const router = useRouter();
     
     const addSource = (type: SourceType) => {
-      setSources(prev => [...prev, {type, value: null}]);
+      setSources(prev => [...prev, {type, files: []}]);
+      setFileCount(prev => [...prev, 0]);
     }
 
-    const setSourceValue = (index: number, value: File) => {
+    const setSourceValue = (index: number, files: FileList) => {
       const newSources = [...sources];
-      newSources[index].value = value;
+      const fileArray = Array.from(files);
+      newSources[index].files = fileArray;
       setSources(newSources);
+
+      const newFileCount = [...fileCount];
+      newFileCount[index] = fileArray.length;
+      setFileCount(newFileCount);
     }
+
+    const setS3SourceValue = (index: number, url: string) => {
+      const newSources = [...sources];
+      const file = new File([], url); // Create a dummy File object with the S3 URL as the name
+      newSources[index].files = [file];
+      setSources(newSources);
+  
+      const newFileCount = [...fileCount];
+      newFileCount[index] = 1; // Since it's a single S3 URL
+      setFileCount(newFileCount);
+    }
+  
   
     const deleteSource = (index: number) => {
       const updatedSources = sources.filter((_, i) => i !== index);
       setSources(updatedSources);
+      setFileCount(prev => prev.filter((_, i) => i !== index));
     };
 
     const makeFileFormData = () => {
       let formData = new FormData();
       const fileDetailsList: Array<{ mode: string; location: string }> = [];
+      let fileCount = 0;
 
-      sources.filter(({value}) => !!value).forEach(({type, value}) => {
-        formData.append('files', value!); // Assert that value is non-null since we've filtered nulls.
-        fileDetailsList.push({ mode: 'unsupervised', location: type });
+      sources.forEach(({type, files}) => {
+        files.forEach(file => {
+          formData.append('files', file);
+          fileDetailsList.push({ mode: 'unsupervised', location: type });
+          fileCount++;
+        });
       });
-  
+
+      if (fileCount === 0) {
+        return null;
+      }
+
       const extraOptionsForm = { retriever: 'finetunable_retriever' };
       formData.append('extra_options_form', JSON.stringify(extraOptionsForm));
       formData.append('file_details_list', JSON.stringify({ file_details: fileDetailsList }));
@@ -65,6 +93,11 @@ const SemanticSearchQuestions = ({ onCreateModel, stayOnPage }: SemanticSearchQu
         console.log(`Submitting model '${modelName}'`);
 
         const formData = makeFileFormData();
+
+        if (!formData) {
+          alert("Please upload at least one file before submitting.");
+          return;
+        }
 
         // Print out all the FormData entries
         formData.forEach((value, key) => {
@@ -105,7 +138,7 @@ const SemanticSearchQuestions = ({ onCreateModel, stayOnPage }: SemanticSearchQu
     }
   }
 
-    console.log(sources);
+    console.log('sources', sources);
 
     return (
       <div>
@@ -128,20 +161,23 @@ const SemanticSearchQuestions = ({ onCreateModel, stayOnPage }: SemanticSearchQu
                 {type === SourceType.S3 && (
                   <Input 
                     className="text-md"
-                    onChange={(e) => setSourceValue(index, new File([], e.target.value))}
+                    onChange={(e) => setS3SourceValue(index, e.target.value)}
                     placeholder="http://s3.amazonaws.com/bucketname/"
                   />
                 )}
                 {type === SourceType.LOCAL && (
-                  <Input
-                    type="file"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setSourceValue(index, e.target.files[0]);
-                      }
-                    }}
-                    multiple
-                  />
+                  <div>
+                    <Input
+                      type="file"
+                      onChange={(e) => {
+                        if (e.target.files) {
+                          setSourceValue(index, e.target.files);
+                        }
+                      }}
+                      multiple
+                    />
+                    {/* <span>{fileCount[index]} files selected</span> */}
+                  </div>
                 )}
                 <Button
                   variant="destructive"

@@ -9,20 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CardDescription } from '@/components/ui/card';
 
-export const thirdaiPlatformBaseUrl = _.trim(process.env.THIRDAI_PLATFORM_BASE_URL!, '/');
-
 type Category = {
   name: string;
   example: string;
   description: string;
 };
-export function getAccessToken(throwIfNotFound: boolean = true): string | null {
-  const accessToken = localStorage.getItem('accessToken');
-  if (!accessToken && throwIfNotFound) {
-    throw new Error('Access token is not available');
-  }
-  return accessToken;
-}
 
 const predefinedChoices = [
   'PHONENUMBER',
@@ -110,14 +101,19 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
       }
     }
 
+    const reviewSuccess = handleReview();
+    if (!reviewSuccess) {
+      return;
+    }
+
     if (isDataGenerating) {
       return;
     }
 
-    // try {
-    //   setIsDataGenerating(true);
+    try {
+      setIsDataGenerating(true);
 
-      const response = await fetch('/endpoints/generate-data-token-classification', {
+      const response = await fetch('/api/generate-data-token-classification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -125,52 +121,22 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
         body: JSON.stringify({ categories }),
       });
 
-    //   if (!response.ok) {
-    //     const errorData = await response.json();
-    //     throw new Error(errorData.error || 'Network response was not ok');
-    //   }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Network response was not ok');
+      }
 
-    //   const result = await response.json();
+      const result = await response.json();
 
-    //   console.log('result', result);
-    //   setGeneratedData(result.syntheticDataPairs);
-    //   setGenerateDataPrompt(result.prompts);
+      console.log('result', result);
+      setGeneratedData(result.syntheticDataPairs);
+      setGenerateDataPrompt(result.prompts);
 
-    //   setIsDataGenerating(false);
-    // } catch (error) {
-    //   console.error('Error generating data:', error);
-    //   setIsDataGenerating(false);
-    // }
-    const tags = categories.map(category => ({
-      name: category.name,
-      examples: [category.example],
-      description: category.description,
-    }));
-
-    let formData = new FormData();
-    formData.append('form', JSON.stringify({
-        domain_prompt: "personal identifiable information",
-        tags: tags,
-        num_sentences_to_generate: 50,
-        num_samples_per_tag: 20
-      }));
-
-    axios.defaults.headers.common.Authorization = `Bearer ${getAccessToken()}`;
-    const task_prompt = "NER model for the given tags"
-    return new Promise((resolve, reject) => {
-      axios
-          .post(`${thirdaiPlatformBaseUrl}/api/data/generate-token-data?task_prompt=${task_prompt}`, formData)
-          .then((res) => {
-              resolve(res.data);
-          })
-          .catch((err) => {
-              if (err.response && err.response.data) {
-                  reject(new Error(err.response.data.detail || 'Failed to generate'));
-              } else {
-                  reject(new Error('Failed to run model'));
-              }
-          });
-    });
+      setIsDataGenerating(false);
+    } catch (error) {
+      console.error('Error generating data:', error);
+      setIsDataGenerating(false);
+    }
   };
 
   const renderTaggedSentence = (pair: { sentence: string; nerData: string[] }) => {

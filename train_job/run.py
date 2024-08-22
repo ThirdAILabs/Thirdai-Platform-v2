@@ -12,9 +12,9 @@ from models.classification_models import (
 )
 from models.finetunable_retriever import FinetunableRetriever
 from models.multiple_mach import MultipleMach
+from models.neural_db_v2 import NeuralDBV2
 from models.shard_mach import ShardMach
 from models.single_mach import SingleMach
-from models.neural_db_v2 import NeuralDBV2
 from variables import (
     GeneralVariables,
     NDBSubType,

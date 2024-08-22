@@ -1,21 +1,20 @@
+import ast
+import json
 import os
+import queue
+import shutil
+import threading
 import time
+import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import List, Tuple
-import json
-import uuid
-import ast
-import shutil
-import queue
-import threading
 
 import thirdai
+from fastapi import Response
 from model import Model
 from thirdai import neural_db_v2 as ndbv2
-from utils import check_disk, list_files
+from utils import check_disk, create_s3_client, get_directory_size, list_files
 from variables import FinetunableRetrieverVariables
-from fastapi import Response
-from utils import create_s3_client, get_directory_size
 
 
 def convert_to_ndb_doc(resource_path: str, display_path: str) -> ndbv2.Document:

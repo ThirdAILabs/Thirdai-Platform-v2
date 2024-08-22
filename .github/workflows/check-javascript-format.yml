@@ -26,15 +26,22 @@ jobs:
         node-version: [20]
     steps:
       - uses: actions/checkout@v3
-      - uses: pnpm/action-setup@v2
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v2
         with:
           version: 8
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
           cache: "pnpm"
+
       - name: Install dependencies
         run: pnpm install -D
-      - name: Check formatting with Prettier
-        run: pnpm prettier:check
+        working-directory: ./frontend
+
+      - name: Check code formatting with Prettier
+        run: pnpm exec prettier . --check
+        working-directory: ./frontend

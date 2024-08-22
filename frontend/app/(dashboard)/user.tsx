@@ -1,4 +1,4 @@
-"use client"
+'use client';
 
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
@@ -42,9 +42,7 @@ export function User() {
         <DropdownMenuSeparator />
         {user ? (
           <DropdownMenuItem>
-            <form
-              action={logout}
-            >
+            <form action={logout}>
               <button type="submit">Sign Out</button>
             </form>
           </DropdownMenuItem>

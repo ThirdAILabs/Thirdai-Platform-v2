@@ -3,20 +3,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 export const POST = async (req: NextRequest) => {
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    return NextResponse.json({ error: 'API key is not defined' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'API key is not defined' },
+      { status: 500 }
+    );
   }
 
   const { question } = await req.json();
 
   if (!question) {
-    return NextResponse.json({ error: 'Question is not valid' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Question is not valid' },
+      { status: 400 }
+    );
   }
 
   const prompt = `
@@ -38,7 +44,7 @@ export const POST = async (req: NextRequest) => {
   try {
     const chatCompletion = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content: prompt }]
     });
 
     const answerContent = chatCompletion.choices[0]?.message?.content;
@@ -49,7 +55,10 @@ export const POST = async (req: NextRequest) => {
     return NextResponse.json({ answer: answerContent });
   } catch (error) {
     console.error('Error during fetch:', error);
-    alert('Error during fetch:' + error)
-    return NextResponse.json({ error: 'Error during fetch: ' + error }, { status: 500 });
+    alert('Error during fetch:' + error);
+    return NextResponse.json(
+      { error: 'Error during fetch: ' + error },
+      { status: 500 }
+    );
   }
 };

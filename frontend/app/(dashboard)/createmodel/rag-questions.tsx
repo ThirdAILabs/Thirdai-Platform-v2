@@ -55,24 +55,31 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
   const handleSubmit = async () => {
     const workflowName = modelName;
     const workflowTypeName = 'rag';
-  
+
     try {
       // Step 1: Create the workflow
-      const workflowResponse = await create_workflow({ name: workflowName, typeName: workflowTypeName });
+      const workflowResponse = await create_workflow({
+        name: workflowName,
+        typeName: workflowTypeName
+      });
       const workflowId = workflowResponse.data.workflow_id;
       console.log('Workflow created:', workflowId);
-  
+
       // Step 2: Prepare the models to be added
       const modelIdentifiers = [];
       const components = [];
-  
+
       // Find and add the semantic search model
       if (ssModelId) {
         modelIdentifiers.push(ssModelId);
         components.push('search');
       } else {
-        console.error(`Semantic search model with identifier ${ssIdentifier} not found.`);
-        alert(`Semantic search model with identifier ${ssIdentifier} not found.`)
+        console.error(
+          `Semantic search model with identifier ${ssIdentifier} not found.`
+        );
+        alert(
+          `Semantic search model with identifier ${ssIdentifier} not found.`
+        );
       }
 
       // Find and add the NER model if it exists
@@ -81,24 +88,24 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
         components.push('nlp');
       } else {
         console.error(`NER model with identifier ${grIdentifier} not found.`);
-        alert(`NER model with identifier ${grIdentifier} not found.`)
+        alert(`NER model with identifier ${grIdentifier} not found.`);
       }
-  
+
       // Step 3: Add the models to the workflow
       if (modelIdentifiers.length > 0) {
         const addModelsResponse = await add_models_to_workflow({
           workflowId,
           modelIdentifiers,
-          components,
+          components
         });
         console.log('Models added to workflow:', addModelsResponse);
       } else {
         console.error('No models to add to the workflow');
-        alert('No models to add to the workflow')
+        alert('No models to add to the workflow');
       }
     } catch (error) {
       console.error('Error during workflow creation or model addition:', error);
-      alert('Error during workflow creation or model addition:' + error)
+      alert('Error during workflow creation or model addition:' + error);
     }
   };
 
@@ -115,7 +122,9 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
               const name = e.target.value;
               if (workflowNames.includes(name)) {
                 // Notify the user about the duplicate name
-                alert("A workflow with the same name has been created. Please choose a different name.");
+                alert(
+                  'A workflow with the same name has been created. Please choose a different name.'
+                );
               } else {
                 setModelName(name);
               }
@@ -124,7 +133,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
             style={{ marginTop: '10px' }}
           />
         </div>
-      ),
+      )
     },
     {
       title: 'Retrieval App',
@@ -134,9 +143,22 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
           {!createdSS && (
             <>
               <CardDescription>Use an existing retrieval app?</CardDescription>
-              <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  gap: '10px',
+                  marginTop: '10px'
+                }}
+              >
                 <Button
-                  variant={ifUseExistingSS ? (ifUseExistingSS === 'Yes' ? 'secondary' : 'outline') : 'default'}
+                  variant={
+                    ifUseExistingSS
+                      ? ifUseExistingSS === 'Yes'
+                        ? 'secondary'
+                        : 'outline'
+                      : 'default'
+                  }
                   onClick={() => {
                     setUseExistingSS('Yes');
                     setCreatedSS(false);
@@ -145,7 +167,13 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                   Yes
                 </Button>
                 <Button
-                  variant={ifUseExistingSS ? (ifUseExistingSS === 'No' ? 'secondary' : 'outline') : 'default'}
+                  variant={
+                    ifUseExistingSS
+                      ? ifUseExistingSS === 'No'
+                        ? 'secondary'
+                        : 'outline'
+                      : 'default'
+                  }
                   onClick={() => {
                     setUseExistingSS('No');
                     setCreatedSS(false);
@@ -159,7 +187,9 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
 
           {ifUseExistingSS === 'Yes' && (
             <div className="mb-4">
-              <CardDescription>Choose from existing semantic search model(s)</CardDescription>
+              <CardDescription>
+                Choose from existing semantic search model(s)
+              </CardDescription>
               <select
                 id="semanticSearchModels"
                 className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
@@ -167,7 +197,9 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 onChange={(e) => {
                   const ssID = e.target.value;
                   setSsIdentifier(ssID);
-                  const ssModel = existingSSmodels.find((model) => `${model.username}/${model.model_name}` === ssID);
+                  const ssModel = existingSSmodels.find(
+                    (model) => `${model.username}/${model.model_name}` === ssID
+                  );
                   if (ssModel) {
                     setSsModelId(ssModel.model_id);
                   }
@@ -175,7 +207,10 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
               >
                 <option value="">-- Please choose a model --</option>
                 {existingSSmodels.map((model, index) => (
-                  <option key={index} value={`${model.username}/${model.model_name}`}>
+                  <option
+                    key={index}
+                    value={`${model.username}/${model.model_name}`}
+                  >
                     {`${model.username}/${model.model_name}`}
                   </option>
                 ))}
@@ -190,34 +225,52 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
               ) : (
                 <div>
                   <SemanticSearchQuestions
-                    workflowNames = {workflowNames}
+                    workflowNames={workflowNames}
                     onCreateModel={(modelID) => {
                       setSsModelId(modelID);
                       setCreatedSS(true);
                     }}
                     stayOnPage={true}
-                    appName = {`${modelName}-Retrieval`}
+                    appName={`${modelName}-Retrieval`}
                   />
                 </div>
               )}
             </>
           )}
         </div>
-      ),
+      )
     },
     {
       title: 'LLM Guardrail',
       content: (
         <div>
-          <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
+          <span
+            className="block text-lg font-semibold"
+            style={{ marginTop: '20px' }}
+          >
             LLM Guardrail
           </span>
           {!createdGR && (
             <>
-              <CardDescription>Would you like to add LLM guardrail?</CardDescription>
-              <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+              <CardDescription>
+                Would you like to add LLM guardrail?
+              </CardDescription>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  gap: '10px',
+                  marginTop: '10px'
+                }}
+              >
                 <Button
-                  variant={ifUseLGR ? (ifUseLGR === 'Yes' ? 'secondary' : 'outline') : 'default'}
+                  variant={
+                    ifUseLGR
+                      ? ifUseLGR === 'Yes'
+                        ? 'secondary'
+                        : 'outline'
+                      : 'default'
+                  }
                   onClick={() => {
                     setIfUseLGR('Yes');
                     setCreatedGR(false);
@@ -226,7 +279,13 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                   Yes
                 </Button>
                 <Button
-                  variant={ifUseLGR ? (ifUseLGR === 'No' ? 'secondary' : 'outline') : 'default'}
+                  variant={
+                    ifUseLGR
+                      ? ifUseLGR === 'No'
+                        ? 'secondary'
+                        : 'outline'
+                      : 'default'
+                  }
                   onClick={() => {
                     setGrIdentifier(null);
                     setIfUseLGR('No');
@@ -240,10 +299,25 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
               {ifUseLGR === 'Yes' && (
                 <>
                   <div style={{ marginTop: '20px' }}>
-                    <CardDescription>Use an existing NER model for LLM guardrail?</CardDescription>
-                    <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+                    <CardDescription>
+                      Use an existing NER model for LLM guardrail?
+                    </CardDescription>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        gap: '10px',
+                        marginTop: '10px'
+                      }}
+                    >
                       <Button
-                        variant={ifUseExistingLGR ? (ifUseExistingLGR === 'Yes' ? 'secondary' : 'outline') : 'default'}
+                        variant={
+                          ifUseExistingLGR
+                            ? ifUseExistingLGR === 'Yes'
+                              ? 'secondary'
+                              : 'outline'
+                            : 'default'
+                        }
                         onClick={() => {
                           setIfUseExistingLGR('Yes');
                           setCreatedGR(false);
@@ -252,7 +326,13 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                         Yes
                       </Button>
                       <Button
-                        variant={ifUseExistingLGR ? (ifUseExistingLGR === 'No' ? 'secondary' : 'outline') : 'default'}
+                        variant={
+                          ifUseExistingLGR
+                            ? ifUseExistingLGR === 'No'
+                              ? 'secondary'
+                              : 'outline'
+                            : 'default'
+                        }
                         onClick={() => {
                           setIfUseExistingLGR('No');
                           setCreatedGR(false);
@@ -265,7 +345,9 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
 
                   {ifUseExistingLGR === 'Yes' && (
                     <div style={{ marginTop: '20px' }}>
-                      <CardDescription>Choose from existing NLP App(s)</CardDescription>
+                      <CardDescription>
+                        Choose from existing NLP App(s)
+                      </CardDescription>
                       <select
                         id="nerModels"
                         className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
@@ -274,7 +356,8 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                           const grID = e.target.value;
                           setGrIdentifier(grID);
                           const grModel = existingNERModels.find(
-                            (model) => `${model.username}/${model.model_name}` === grID
+                            (model) =>
+                              `${model.username}/${model.model_name}` === grID
                           );
                           if (grModel) {
                             setGrModelId(grModel.model_id);
@@ -283,7 +366,10 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                       >
                         <option value="">-- Please choose a model --</option>
                         {existingNERModels.map((model) => (
-                          <option key={model.id} value={`${model.username}/${model.model_name}`}>
+                          <option
+                            key={model.id}
+                            value={`${model.username}/${model.model_name}`}
+                          >
                             {`${model.username}/${model.model_name}`}
                           </option>
                         ))}
@@ -298,13 +384,13 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                       ) : (
                         <div>
                           <NERQuestions
-                            workflowNames = {workflowNames}
+                            workflowNames={workflowNames}
                             onCreateModel={(modelID) => {
                               setGrModelId(modelID);
                               setCreatedGR(true);
                             }}
                             stayOnPage={true}
-                            appName = {`${modelName}-NER`}
+                            appName={`${modelName}-NER`}
                           />
                         </div>
                       )}
@@ -315,32 +401,60 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
             </>
           )}
         </div>
-      ),
+      )
     },
     {
       title: 'Chat',
       content: (
         <div>
-          <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
+          <span
+            className="block text-lg font-semibold"
+            style={{ marginTop: '20px' }}
+          >
             Chat
           </span>
           <div>
             <CardDescription>Choose an LLM option</CardDescription>
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                gap: '10px',
+                marginTop: '10px'
+              }}
+            >
               <Button
-                variant={llmType ? (llmType === 'OpenAI' ? 'secondary' : 'outline') : 'default'}
+                variant={
+                  llmType
+                    ? llmType === 'OpenAI'
+                      ? 'secondary'
+                      : 'outline'
+                    : 'default'
+                }
                 onClick={() => setLlmType('OpenAI')}
               >
                 OpenAI
               </Button>
               <Button
-                variant={llmType ? (llmType === 'Llama' ? 'secondary' : 'outline') : 'default'}
+                variant={
+                  llmType
+                    ? llmType === 'Llama'
+                      ? 'secondary'
+                      : 'outline'
+                    : 'default'
+                }
                 onClick={() => setLlmType('Llama')}
               >
                 Llama
               </Button>
               <Button
-                variant={llmType ? (llmType === 'Self-host' ? 'secondary' : 'outline') : 'default'}
+                variant={
+                  llmType
+                    ? llmType === 'Self-host'
+                      ? 'secondary'
+                      : 'outline'
+                    : 'default'
+                }
                 onClick={() => setLlmType('Self-host')}
               >
                 Self-host
@@ -348,8 +462,8 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
             </div>
           </div>
         </div>
-      ),
-    },
+      )
+    }
   ];
 
   return (
@@ -372,14 +486,25 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
       <div>{steps[currentStep].content}</div>
 
       {/* Step Controls */}
-      <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between' }}>
+      <div
+        style={{
+          marginTop: '20px',
+          display: 'flex',
+          justifyContent: 'space-between'
+        }}
+      >
         {currentStep > 0 && (
-          <Button onClick={() => setCurrentStep(currentStep - 1)}>Previous</Button>
+          <Button onClick={() => setCurrentStep(currentStep - 1)}>
+            Previous
+          </Button>
         )}
         {currentStep < steps.length - 1 ? (
           <Button onClick={() => setCurrentStep(currentStep + 1)}>Next</Button>
         ) : (
-          (ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName) && (
+          ssModelId &&
+          (ifUseLGR === 'No' || grModelId) &&
+          llmType &&
+          modelName && (
             <Link href="/">
               <Button onClick={handleSubmit} style={{ width: '100%' }}>
                 {`${ifUseExistingSS === 'No' || (ifUseLGR === 'Yes' && ifUseExistingLGR === 'No') ? 'Create' : 'Create and Deploy'}`}

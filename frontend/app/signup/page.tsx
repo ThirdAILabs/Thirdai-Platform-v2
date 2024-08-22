@@ -7,10 +7,9 @@ import {
 } from '@/components/ui/card';
 import { signIn } from '@/lib/auth';
 import SignupForm from './signup-form';
-import Link from 'next/link'
+import Link from 'next/link';
 
 export default function SignupPage() {
-
   return (
     <div className="min-h-screen flex justify-center items-start md:items-center p-8">
       <Card className="w-full max-w-sm">
@@ -21,12 +20,10 @@ export default function SignupPage() {
           </CardDescription>
         </CardHeader>
         <CardFooter>
-          <SignupForm/>
+          <SignupForm />
 
           <Link href="/login-email">
-            <button type="button">
-              Log In
-            </button>
+            <button type="button">Log In</button>
           </Link>
         </CardFooter>
       </Card>

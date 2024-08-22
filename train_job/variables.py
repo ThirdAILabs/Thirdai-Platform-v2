@@ -7,6 +7,8 @@ from dataclasses import MISSING, asdict, dataclass, field, fields
 from enum import Enum
 from typing import Dict, List, Optional, Type, TypeVar, Union, get_args, get_origin
 
+from pydantic import root_validator
+
 T = TypeVar("T", bound="EnvLoader")
 
 
@@ -157,12 +159,25 @@ class MachVariables(EnvLoader):
 
 
 @dataclass
-class FinetunableRetrieverVariables(EnvLoader):
+class VersionedEnvLoader(EnvLoader):
+    version: str = "v1"
+
+    @root_validator(pre=True)
+    def validate_and_adjust_for_version(cls, values):
+        if values.get("version") == "v1":
+            # Automatically set on_disk and docs_on_disk to False for version 'v1'
+            values["on_disk"] = False
+            values["docs_on_disk"] = False
+        return values
+
+
+@dataclass
+class FinetunableRetrieverVariables(VersionedEnvLoader):
     on_disk: bool = True
 
 
 @dataclass
-class NeuralDBVariables(EnvLoader):
+class NeuralDBVariables(VersionedEnvLoader):
     num_shards: int = 1
     num_models_per_shard: int = 1
     retriever: RetrieverEnum = RetrieverEnum.FINETUNABLE_RETRIEVER

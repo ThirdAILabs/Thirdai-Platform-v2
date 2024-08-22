@@ -24,6 +24,9 @@ jobs:
     strategy:
       matrix:
         node-version: [20]
+    defaults:
+      run:
+        working-directory: ./frontend
     steps:
       - uses: actions/checkout@v3
 
@@ -37,12 +40,10 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: "pnpm"
-        working-directory: ./frontend
 
       - name: Install dependencies
         run: pnpm install -D
-        working-directory: ./frontend
 
       - name: Check code formatting with Prettier
         run: pnpm exec prettier . --check
-        working-directory: ./frontend
+

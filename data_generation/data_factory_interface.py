@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 
 from llms import llm_classes
 from tqdm import tqdm
+from utils import save_dict
 from variables import GeneralVariables
 
 
@@ -143,3 +144,12 @@ class DataFactory(ABC):
         with open(self.errored_file_location, "a") as errored_fp:
             errored_fp.write(f"\ntext: {text}")
             errored_fp.write("\n" + "=" * 100 + "\n")
+
+    def __del__(self):
+        save_dict(
+            self.save_dir / "llm_usage.json",
+            **{
+                "llm_provider": self.general_variables.llm_provider.value,
+                **self.llm_model.usage,
+            },
+        )

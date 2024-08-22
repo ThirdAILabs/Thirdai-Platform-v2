@@ -1,5 +1,6 @@
 import os
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
@@ -10,6 +11,7 @@ from openai import OpenAI
 class LLMBase(ABC):
     def __init__(self, save_dir: Path):
         self.response_file = save_dir / "response.txt"
+        self.usage = dict()
 
     @abstractmethod
     def completion(
@@ -42,11 +44,16 @@ class OpenAILLM(LLMBase):
         )
 
         res = response.choices[0].message.content
+        usage = dict(response.usage)
         with open(self.response_file, "a") as fp:
             fp.write(f"Prompt: \n{prompt}\n")
             fp.write(f"Response: \n{res}\n")
+            fp.write(f"\nUsage: \n{usage}\n")
             fp.write("=" * 100 + "\n\n")
 
+        self.usage = {
+            key: self.usage.get(key, 0) + value for key, value in usage.items()
+        }
         return res
 
 

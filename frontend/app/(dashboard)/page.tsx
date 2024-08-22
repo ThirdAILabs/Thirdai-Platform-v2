@@ -9,7 +9,7 @@ export default async function ModelsPage({
   searchParams: { q: string; offset: string };
 }) {
   const search = searchParams.q ?? '';
-  const offset = searchParams.offset ?? 5;
+  const offset = parseInt(searchParams.offset, 10) || 0;
 
   return (
     <Tabs defaultValue="all">

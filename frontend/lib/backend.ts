@@ -170,10 +170,9 @@ interface DeploymentResponse {
   status: string;
 }
 
-export function deployModel(values: {
-  deployment_name: string; model_identifier: string, use_llm_guardrail?: boolean, token_model_identifier?: string;
-}):
-  Promise<DeploymentResponse> {
+export function deployModel(values: { deployment_name: string; model_identifier: string, use_llm_guardrail?: boolean, token_model_identifier?: string;
+ }) :
+  Promise<DeploymentResponse>  {
 
   const accessToken = getAccessToken()
 

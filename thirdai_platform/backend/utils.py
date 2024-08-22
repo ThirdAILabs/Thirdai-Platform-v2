@@ -641,18 +641,18 @@ async def restart_generate_job():
     )
 
 
-NEURALDB_DEPLOYMENT_ID = "thirdai-platform-frontend"
+THIRDAI_PLATFORM_FRONTEND_ID = "thirdai-platform-frontend"
 
 
-async def restart_thirdai_platform_ui():
+async def restart_thirdai_platform_frontend():
     nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
-    if nomad_job_exists(NEURALDB_DEPLOYMENT_ID, nomad_endpoint):
-        delete_nomad_job(NEURALDB_DEPLOYMENT_ID, nomad_endpoint)
+    if nomad_job_exists(THIRDAI_PLATFORM_FRONTEND_ID, nomad_endpoint):
+        delete_nomad_job(THIRDAI_PLATFORM_FRONTEND_ID, nomad_endpoint)
     cwd = Path(os.getcwd())
     return submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
         filepath=str(
-            cwd / "backend" / "nomad_jobs" / "neuraldb_deployment_ui_job.hcl.j2"
+            cwd / "backend" / "nomad_jobs" / "thirdai_platform_frontend.hcl.j2"
         ),
         public_model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
         openai_api_key=os.getenv("GENAI_KEY"),
@@ -666,7 +666,7 @@ async def restart_thirdai_platform_ui():
         image_name=os.getenv("FRONTEND_IMAGE_NAME"),
         # Model bazaar dockerfile does not include neuraldb_frontend code,
         # but app_dir is only used if platform == local.
-        app_dir=str(get_root_absolute_path() / "neuraldb_frontend"),
+        app_dir=str(get_root_absolute_path() / "frontend"),
     )
 
 

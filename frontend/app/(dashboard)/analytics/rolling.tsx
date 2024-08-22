@@ -5,7 +5,7 @@ export default function useRollingSamples<T>(
   numSamples: number,
   maxNewSamples: number,
   probabilityNewSamples: number,
-  intervalSeconds: number,
+  intervalSeconds: number
 ): (T & { timestamp: string })[] {
   const randomSamples = (sampleSize: number): T[] => {
     const result: T[] = [];
@@ -49,7 +49,9 @@ export default function useRollingSamples<T>(
     const randomNum = Math.random();
     let numNewSamples = 0;
     if (randomNum < probabilityNewSamples) {
-      numNewSamples = Math.ceil((maxNewSamples / probabilityNewSamples) * randomNum);
+      numNewSamples = Math.ceil(
+        (maxNewSamples / probabilityNewSamples) * randomNum
+      );
     }
     setRollingSamples((prev) =>
       [

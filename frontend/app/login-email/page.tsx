@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useContext, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import {
   CardTitle
 } from '@/components/ui/card';
 import { userEmailLogin } from '@/lib/backend';
-import Link from 'next/link'
+import Link from 'next/link';
 import { UserContext } from '../user_wrapper';
 
 export default function LoginPage() {
@@ -43,7 +43,12 @@ export default function LoginPage() {
         <CardFooter>
           <form onSubmit={handleSubmit} className="w-full">
             <div className="mb-4">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Email
+              </label>
               <input
                 type="email"
                 id="email"
@@ -54,7 +59,12 @@ export default function LoginPage() {
               />
             </div>
             <div className="mb-4">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password</label>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Password
+              </label>
               <input
                 type="password"
                 id="password"
@@ -65,13 +75,13 @@ export default function LoginPage() {
               />
             </div>
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-            
-            <Button type="submit" className="w-full">Login</Button>
+
+            <Button type="submit" className="w-full">
+              Login
+            </Button>
           </form>
           <Link href="/signup">
-            <button type="button">
-              Sign up
-            </button>
+            <button type="button">Sign up</button>
           </Link>
         </CardFooter>
       </Card>

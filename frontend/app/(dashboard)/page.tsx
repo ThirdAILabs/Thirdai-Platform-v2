@@ -28,10 +28,7 @@ export default async function ModelsPage({
         </div>
       </div>
       <TabsContent value="all">
-        <ModelsTable
-          searchStr={search}
-          offset={Number(offset) ?? 0}
-        />
+        <ModelsTable searchStr={search} offset={Number(offset) ?? 0} />
       </TabsContent>
     </Tabs>
   );

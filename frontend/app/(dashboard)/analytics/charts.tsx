@@ -10,12 +10,26 @@ import {
   Tooltip,
   Legend,
   ChartOptions,
-  ChartData,
+  ChartData
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface ChartProps {
   data: ChartData<'line'>;
@@ -26,13 +40,13 @@ export function UsageDurationChart({ data }: ChartProps) {
     responsive: true,
     plugins: {
       legend: {
-        position: 'top' as const,
+        position: 'top' as const
       },
       title: {
         display: true,
-        text: 'Daily/Monthly Usage Duration',
-      },
-    },
+        text: 'Daily/Monthly Usage Duration'
+      }
+    }
   };
 
   return (
@@ -53,20 +67,22 @@ export function UsageFrequencyChart({ data }: ChartProps) {
     responsive: true,
     plugins: {
       legend: {
-        position: 'top' as const,
+        position: 'top' as const
       },
       title: {
         display: true,
-        text: 'Daily/Monthly Usage Frequency',
-      },
-    },
+        text: 'Daily/Monthly Usage Frequency'
+      }
+    }
   };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>User Usage Frequency</CardTitle>
-        <CardDescription>Number of queries, clicks, upvotes, associates</CardDescription>
+        <CardDescription>
+          Number of queries, clicks, upvotes, associates
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Line options={options} data={data} />
@@ -80,13 +96,13 @@ export function ReformulatedQueriesChart({ data }: ChartProps) {
     responsive: true,
     plugins: {
       legend: {
-        position: 'top' as const,
+        position: 'top' as const
       },
       title: {
         display: true,
-        text: 'Reformulated Queries Over Time',
-      },
-    },
+        text: 'Reformulated Queries Over Time'
+      }
+    }
   };
 
   return (

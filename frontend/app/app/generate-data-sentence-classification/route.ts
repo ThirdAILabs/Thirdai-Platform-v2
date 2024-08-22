@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY
 });
 
 const generateExamples = async (prompt: string) => {
@@ -12,9 +12,9 @@ const generateExamples = async (prompt: string) => {
     messages: [
       {
         role: 'system',
-        content: prompt,
-      },
-    ],
+        content: prompt
+      }
+    ]
   });
   const content = response.choices?.[0]?.message?.content;
   if (!content) {
@@ -23,15 +23,18 @@ const generateExamples = async (prompt: string) => {
 
   return content
     .split('\n')
-    .map(example => example.trim().replace(/^[\d.-]+\s*/, ''))
-    .filter(example => example);
+    .map((example) => example.trim().replace(/^[\d.-]+\s*/, ''))
+    .filter((example) => example);
 };
 
 export const POST = async (req: NextRequest) => {
   const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
 
   if (!apiKey) {
-    return NextResponse.json({ error: 'API key is not defined' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'API key is not defined' },
+      { status: 500 }
+    );
   }
 
   const { question, answer, categories } = await req.json();
@@ -41,9 +44,10 @@ export const POST = async (req: NextRequest) => {
   }
 
   const prompts: [string, string][] = [];
-  const generatedExamples: { category: string, examples: string[] }[] = [];
-  const promises = categories.map(async (category: { name: string, example: string }) => {
-    const prompt = `
+  const generatedExamples: { category: string; examples: string[] }[] = [];
+  const promises = categories.map(
+    async (category: { name: string; example: string }) => {
+      const prompt = `
       You are a synthetic data generator for the training of a sentence classification model.
       Specifically, our customer has a problem: ${question}.
       Our solution is ${answer}.
@@ -53,21 +57,28 @@ export const POST = async (req: NextRequest) => {
       The examples should be complete sentences without any numeric numbers, bullet points, or any other extraneous content.
     `;
 
-    prompts.push([prompt, category.name]);
+      prompts.push([prompt, category.name]);
 
-    try {
-      const examples = await generateExamples(prompt);
-      generatedExamples.push({ category: category.name, examples });
-    } catch (error) {
-      console.error(`Error during fetch for category ${category.name}:`, error);
-      throw error;
+      try {
+        const examples = await generateExamples(prompt);
+        generatedExamples.push({ category: category.name, examples });
+      } catch (error) {
+        console.error(
+          `Error during fetch for category ${category.name}:`,
+          error
+        );
+        throw error;
+      }
     }
-  });
+  );
 
   try {
     await Promise.all(promises);
     return NextResponse.json({ generatedExamples, prompts });
   } catch (error) {
-    return NextResponse.json({ error: 'Error generating data' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Error generating data' },
+      { status: 500 }
+    );
   }
 };

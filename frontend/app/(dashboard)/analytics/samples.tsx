@@ -88,21 +88,24 @@ export default function RecentSamples() {
     /* numSamples= */ 5,
     /* maxNewSamples= */ 2,
     /* probabilityNewSamples= */ 0.2,
-    /* intervalSeconds= */ 2);
-  
+    /* intervalSeconds= */ 2
+  );
+
   const recentAssociations = useRollingSamples(
     /* samples= */ associations,
     /* numSamples= */ 5,
     /* maxNewSamples= */ 2,
     /* probabilityNewSamples= */ 0.1,
-    /* intervalSeconds= */ 3);
-  
+    /* intervalSeconds= */ 3
+  );
+
   const recentReformulations = useRollingSamples(
     /* samples= */ reformulations,
     /* numSamples= */ 3,
     /* maxNewSamples= */ 1,
     /* probabilityNewSamples= */ 0.4,
-    /* intervalSeconds= */ 2);
+    /* intervalSeconds= */ 2
+  );
 
   return (
     <div

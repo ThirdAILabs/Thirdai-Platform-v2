@@ -13,7 +13,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
-import { Workflow, validate_workflow, start_workflow, stop_workflow, delete_workflow } from '@/lib/backend';
+import {
+  Workflow,
+  validate_workflow,
+  start_workflow,
+  stop_workflow,
+  delete_workflow
+} from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
 export function WorkFlow({ workflow }: { workflow: Workflow }) {
@@ -23,17 +29,17 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
 
   function goToEndpoint() {
     switch (workflow.type) {
-      case "semantic_search": {
+      case 'semantic_search': {
         let ifGenerationOn = false; // false if semantic search, true if RAG
         const newUrl = `/semantic-search/${workflow.id}?workflowId=${workflow.id}&ifGenerationOn=${ifGenerationOn}`;
         window.open(newUrl, '_blank');
         break;
       }
-      case "nlp": {
+      case 'nlp': {
         router.push(`/token-classification/${workflow.id}`);
         break;
       }
-      case "rag": {
+      case 'rag': {
         let ifGenerationOn = true; // false if semantic search, true if RAG
         const newUrl = `/semantic-search/${workflow.id}?workflowId=${workflow.id}&ifGenerationOn=${ifGenerationOn}`;
         window.open(newUrl, '_blank');
@@ -88,7 +94,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       let hasFailed = false;
       let isInProgress = false;
       let allComplete = true;
-  
+
       for (const model of workflow.models) {
         if (model.deploy_status === 'failed') {
           hasFailed = true;
@@ -100,7 +106,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           allComplete = false; // If any model is not complete, mark allComplete as false
         }
       }
-  
+
       if (hasFailed) {
         setDeployStatus('Failed');
       } else if (isInProgress) {
@@ -116,16 +122,15 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
     }
   }, [workflow.models, workflow.status]);
 
-  useEffect(()=>{
+  useEffect(() => {
     if (workflow.type === 'semantic_search') {
-      setDeployType('Semantic Search')
+      setDeployType('Semantic Search');
     } else if (workflow.type === 'nlp') {
-      setDeployType('Natural Language Processing')
+      setDeployType('Natural Language Processing');
     } else if (workflow.type === 'rag') {
-      setDeployType('Retrieval Augmented Generation')
+      setDeployType('Retrieval Augmented Generation');
     }
-  },[workflow.type])
-
+  }, [workflow.type]);
 
   return (
     <TableRow>
@@ -146,13 +151,11 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       </TableCell>
       <TableCell className="hidden md:table-cell">{deployType}</TableCell>
       <TableCell className="hidden md:table-cell">
-        {
-          new Date(workflow.publish_date).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })
-        }
+        {new Date(workflow.publish_date).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })}
       </TableCell>
       <TableCell className="hidden md:table-cell">
         <Button
@@ -176,40 +179,49 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem>Edit</DropdownMenuItem>
-            <Link href={`/analytics?id=${encodeURIComponent(`${workflow.id}`)}`}>
-                <DropdownMenuItem>
-                    <button type="button">Usage stats</button>
-                </DropdownMenuItem>
-              </Link>
-            {
-              deployStatus === 'Active'
-              &&
-              <>
+            <Link
+              href={`/analytics?id=${encodeURIComponent(`${workflow.id}`)}`}
+            >
               <DropdownMenuItem>
-                <form>
-                  <button type="button"
-                    onClick={async () => {
-                      try {
-                        const response = await stop_workflow(workflow.id);
-                        console.log('Workflow undeployed successfully:', response);
-                        // Optionally, update the UI state to reflect the undeployment
-                        setDeployStatus('Inactive');
-                      } catch (error) {
-                        console.error('Error undeploying workflow:', error);
-                      }
-                    }}
-                  >
-                    Stop Workflow
-                  </button>
-                </form>
+                <button type="button">Usage stats</button>
               </DropdownMenuItem>
+            </Link>
+            {deployStatus === 'Active' && (
+              <>
+                <DropdownMenuItem>
+                  <form>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const response = await stop_workflow(workflow.id);
+                          console.log(
+                            'Workflow undeployed successfully:',
+                            response
+                          );
+                          // Optionally, update the UI state to reflect the undeployment
+                          setDeployStatus('Inactive');
+                        } catch (error) {
+                          console.error('Error undeploying workflow:', error);
+                        }
+                      }}
+                    >
+                      Stop Workflow
+                    </button>
+                  </form>
+                </DropdownMenuItem>
               </>
-            }
+            )}
             <DropdownMenuItem>
               <form>
-                <button type="button"
+                <button
+                  type="button"
                   onClick={async () => {
-                    if (window.confirm('Are you sure you want to delete this workflow?')) {
+                    if (
+                      window.confirm(
+                        'Are you sure you want to delete this workflow?'
+                      )
+                    ) {
                       try {
                         const response = await delete_workflow(workflow.id);
                         console.log('Workflow deleted successfully:', response);

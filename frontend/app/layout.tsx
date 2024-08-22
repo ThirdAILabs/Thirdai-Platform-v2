@@ -5,8 +5,7 @@ import UserWrapper from './user_wrapper';
 
 export const metadata = {
   title: 'ThirdAI Platform',
-  description:
-    'Democratize AI for everyone.',
+  description: 'Democratize AI for everyone.'
 };
 
 export default function RootLayout({
@@ -14,13 +13,10 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-
   return (
     <html lang="en">
       <body className="flex min-h-screen w-full flex-col bg-muted/40">
-        <UserWrapper>
-          {children}
-        </UserWrapper>
+        <UserWrapper>{children}</UserWrapper>
       </body>
       <Analytics />
     </html>

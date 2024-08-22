@@ -168,7 +168,10 @@ def generate_text_data(
     samples_found = 0
     if existing_datasets:
         samples_found = prune_and_merge(
-            schema.UDT_Task.TEXT, existing_datasets, extra_options["target_labels"], data_id
+            schema.UDT_Task.TEXT,
+            existing_datasets,
+            extra_options["target_labels"],
+            data_id,
         )
 
     submit_nomad_job(
@@ -256,7 +259,7 @@ def generate_token_data(
         )
 
     existing_datasets = find_datasets(
-        task=schema.UDT_Task.TOKEN, target_labels=extra_options["tags"], session = session
+        task=schema.UDT_Task.TOKEN, target_labels=extra_options["tags"], session=session
     )
     samples_found = 0
     if existing_datasets:
@@ -318,16 +321,26 @@ def find_datasets(
         )
 
 
-class GenerationComplete(BaseModel):
-    data_id: str
-    task: schema.UDT_Task
-    target_labels: List[str]
-    samples_generated: int
+@data_router.post("/update-catalog")
+def update_status(data_id: str, status: str, session: Session = Depends(get_session)):
+    catalog: schema.Catalog = (
+        session.query(schema.Catalog).filter(schema.Catalog.id == data_id).first()
+    )
+    catalog.status = schema.Status(status)
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK, message="Successfully updated catalog status"
+    )
 
 
-@data_router.post("/status")
-def generation_complete(
-    body: GenerationComplete, session: Session = Depends(get_session)
+@data_router.post("/create-catalog")
+def generation_start(
+    data_id: str,
+    name: str,
+    task: str,
+    target_labels: List[str] = [],
+    session: Session = Depends(get_session),
 ):
     """
     Mark the training of a model as complete.
@@ -348,16 +361,16 @@ def generation_complete(
     """
 
     catalog_entry = schema.Catalog(
-        data_id=body.data_id,
-        name="Generated_data",
-        task=body.task,
-        target_labels=body.target_labels,
+        data_id=data_id,
+        name=name,
+        task=task,
+        target_labels=target_labels,
+        generate_status=schema.Status.not_started,
     )
 
     session.add(catalog_entry)
     session.commit()
 
     return response(
-        status_code=status.HTTP_200_OK,
-        message="Successfully updated"
+        status_code=status.HTTP_200_OK, message="Successfully created catalog"
     )

@@ -134,10 +134,17 @@ class TokenDataFactory(DataFactory):
         sentences_generated=0,  # To resume the generate function incase of midway failure. TODO(Gautam): Incorporate resuming the data_generation task
     ):
         print(f"{sentences_generated = }")
-        
+
         assert sentences_generated < num_sentences_to_generate, "Invalid configuration"
 
         assert_sufficient_examples(tags, tag_examples)
+
+        self.reporter.report_generate_status(
+            data_id=str(self.general_variables.data_id),
+            name="Generated_data",
+            task="token",
+            target_labels=tags,
+        )
 
         attribute_values = self.get_attributes(domain_prompt)
 
@@ -176,6 +183,7 @@ class TokenDataFactory(DataFactory):
 
         random.shuffle(arguments)
         print("len arguments", len(arguments))
+        self.reporter.update_status(self.general_variables.data_id, "in_progress")
         self.write_chunk_size = 40
 
         total_chunks = len(arguments) // self.write_chunk_size + 1
@@ -224,6 +232,7 @@ class TokenDataFactory(DataFactory):
             "num_samples": sentences_generated,
         }
         save_dict(self.config_file_location, **dataset_config)
+        self.reporter.update_status(self.general_variables.data_id, "complete")
 
         return dataset_config
 

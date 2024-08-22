@@ -37,3 +37,41 @@ class Reporter:
         except requests.exceptions.RequestException as exception:
             print(exception)
             raise exception
+
+    def update_status(
+        self,
+        data_id: str,
+        status: str,
+    ):
+        content = self._request(
+            "post",
+            "api/data/update-catalog",
+            params={
+                "data_id": data_id,
+                "status": status,
+            },
+        )
+        print(content)
+
+    def report_generate_status(
+        self, data_id: str, name: int, task: str, target_labels: list[str] = []
+    ):
+        """
+        Report the training status of a specific shard.
+        Args:
+            model_id (str): The ID of the model.
+            shard_num (int): The shard number.
+            status (str): The status of the shard training.
+            message (str, optional): Additional message. Defaults to "".
+        """
+        content = self._request(
+            "post",
+            "api/data/create-catalog",
+            params={
+                "data_id": data_id,
+                "name": name,
+                "task": task,
+                "target_labels": target_labels,
+            },
+        )
+        print(content)

@@ -445,3 +445,4 @@ class Catalog(SQLDeclarativeBase):
     task = Column(ENUM(UDT_Task), nullable=False)
     num_generated_samples = Column(Integer)
     target_labels = Column(ARRAY(String), nullable=False)
+    status = Column(ENUM(Status), nullable=False, default=Status.not_started)

@@ -8,6 +8,7 @@ from resource.util_data import random_prompts, vocab
 from typing import Dict, List, Optional
 
 from llms import llm_classes
+from reporter import Reporter
 from tqdm import tqdm
 from variables import GeneralVariables
 
@@ -15,6 +16,7 @@ from variables import GeneralVariables
 class DataFactory(ABC):
     def __init__(self):
         self.general_variables: GeneralVariables = GeneralVariables.load_from_env()
+        self.reporter: Reporter = Reporter(self.general_variables.model_bazaar_endpoint)
         self.save_dir = (
             Path(self.general_variables.model_bazaar_dir)
             / self.general_variables.data_id

@@ -59,10 +59,10 @@ class Reporter:
         """
         Report the training status of a specific shard.
         Args:
-            model_id (str): The ID of the model.
-            shard_num (int): The shard number.
-            status (str): The status of the shard training.
-            message (str, optional): Additional message. Defaults to "".
+            data (str): The ID catalog.
+            name (int): name of dataset.
+            task (str): udt task.
+            target_labels (List[str], optional): list of tags/labels.
         """
         content = self._request(
             "post",

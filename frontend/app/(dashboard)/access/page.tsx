@@ -12,8 +12,11 @@ import {
   fetchAllModels, fetchAllTeams, fetchAllUsers,
   updateModelAccessLevel,
   createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam, deleteTeamById,
-  deleteUserAccount
+  deleteUserAccount,
+  Workflow, fetchWorkflows
 } from "@/lib/backend";
+import { useContext } from 'react';
+import { UserContext } from '../../user_wrapper';
 
 // Define types for the models, teams, and users
 type Model = {
@@ -58,8 +61,22 @@ type User = {
 };
 
 export default function AccessPage() {
-  const userRole = "Global Admin";
-  const roleDescription = "This role has read and write access to all team members and applications.";
+  const { user } = useContext(UserContext);
+
+  // Determine the user role
+  let userRole = "";
+  let roleDescription = "";
+  
+  if (user?.global_admin) {
+    userRole = "Global Admin";
+    roleDescription = "This role has read and write access to all members, models, and applications.";
+  } else if (user?.teams.some(team => team.role === 'team_admin')) {
+    userRole = "Team Admin";
+    roleDescription = "This role has read and write access to all team members, models, and applications in the team.";
+  } else {
+    userRole = "User"; // Default role if not an admin
+    roleDescription = "This role has limited access based on specific team permissions.";
+  }
 
   // State to manage models, teams, and users
   const [models, setModels] = useState<Model[]>([]);
@@ -343,6 +360,21 @@ export default function AccessPage() {
     getTeams()
   }, [users])
 
+  // State to manage workflows
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+
+  const getWorkflows = async () => {
+    try {
+      const fetchedWorkflows = await fetchWorkflows();
+      setWorkflows(fetchedWorkflows);
+    } catch (error) {
+      console.error('Failed to fetch workflows', error);
+    }
+  };
+
+  useEffect(() => {
+    getWorkflows();
+  }, []);
 
   return (
     <Card>
@@ -358,12 +390,12 @@ export default function AccessPage() {
 
         {/* Models Section */}
         <div className="mb-8">
-          <h3 className="text-lg font-semibold">Apps</h3>
+          <h3 className="text-lg font-semibold">Models</h3>
           <table className="min-w-full bg-white mb-8">
             <thead>
               <tr>
-                <th className="py-2 px-4 text-left">App Name</th>
-                <th className="py-2 px-4 text-left">App Type</th>
+                <th className="py-2 px-4 text-left">Model Name</th>
+                <th className="py-2 px-4 text-left">Model Type</th>
                 <th className="py-2 px-4 text-left">Access Details</th>
               </tr>
             </thead>
@@ -400,6 +432,50 @@ export default function AccessPage() {
                       <div>
                         <div>Owner: {model.owner}</div>
                       </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Workflows Section */}
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold">Workflows</h3>
+          <table className="min-w-full bg-white mb-8">
+            <thead>
+              <tr>
+                <th className="py-2 px-4 text-left">Workflow Name</th>
+                <th className="py-2 px-4 text-left">Type</th>
+                <th className="py-2 px-4 text-left">Status</th>
+                <th className="py-2 px-4 text-left">Created By</th>
+                <th className="py-2 px-4 text-left">Models</th>
+              </tr>
+            </thead>
+            <tbody>
+              {workflows.map((workflow, index) => (
+                <tr key={index} className="border-t">
+                  <td className="py-2 px-4">{workflow.name}</td>
+                  <td className="py-2 px-4">{workflow.type}</td>
+                  <td className="py-2 px-4">{workflow.status}</td>
+                  <td className="py-2 px-4">
+                    <div>Username: {workflow.created_by.username}</div>
+                    <div>Email: {workflow.created_by.email}</div>
+                  </td>
+                  <td className="py-2 px-4">
+                    {workflow.models.length > 0 ? (
+                      workflow.models.map((model, i) => (
+                        <div key={i} className="mb-2">
+                          <div>Model Name: {model.model_name}</div>
+                          <div>Type: {model.type}</div>
+                          {/* <div>Domain: {model.domain}</div> */}
+                          {/* <div>Latency: {model.latency}</div> */}
+                          <div>Published On: {model.publish_date}</div>
+                        </div>
+                      ))
+                    ) : (
+                      <div>No models associated with this workflow</div>
                     )}
                   </td>
                 </tr>

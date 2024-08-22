@@ -173,7 +173,7 @@ export class ModelService {
         })
             .then(this.handleInvalidAuth())
             .then((response) => {
-                console.log('response', response)
+                // console.log('response', response)
                 if (response.ok) {
                     return response.json();
                 } else {
@@ -183,7 +183,7 @@ export class ModelService {
                 }
             })
             .then(({ data }) => {
-                console.log(data);
+                // console.log(data);
                 return data as PIIDetectionResult;
             })
             .catch((e) => {

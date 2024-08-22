@@ -424,6 +424,31 @@ export function stop_workflow(workflowId: string): Promise<StopWorkflowResponse>
   });
 }
 
+interface DeleteWorkflowResponse {
+  status_code: number;
+  message: string;
+}
+
+export async function delete_workflow(workflowId: string): Promise<DeleteWorkflowResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ workflow_id: workflowId });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post<DeleteWorkflowResponse>(`${thirdaiPlatformBaseUrl}/api/workflow/delete?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        console.error('Error deleting workflow:', err);
+        reject(new Error('Failed to delete workflow'));
+      });
+  });
+}
+
+
 
 interface WorkflowModel {
   access_level: string;

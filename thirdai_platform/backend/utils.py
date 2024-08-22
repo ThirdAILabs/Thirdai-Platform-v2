@@ -13,7 +13,7 @@ import requests
 from database import schema
 from fastapi.responses import JSONResponse
 from jinja2 import Template
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field, root_validator, validator
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger("ThirdAI_Platform")
@@ -192,6 +192,48 @@ class UDTExtraOptions(BaseModel):
             values["target_column"] = values.get("target_column", "target")
             values["default_tag"] = values.get("default_tag", "O")
         return values
+
+    @validator("target_labels")
+    def check_target_labels(cls, v, values):
+        sub_type = values.get("sub_type")
+        if sub_type == "token":
+            if not v:
+                raise ValueError("target_labels must be a non-empty list")
+            for label in v:
+                if len(label) == 0:
+                    raise ValueError(
+                        f'target_labels cannot contain empty strings: "{label}" is invalid'
+                    )
+                if " " in label:
+                    raise ValueError(
+                        f'target_labels cannot contain spaces: "{label}" is invalid'
+                    )
+        return v
+
+    @validator("default_tag")
+    def check_default_tag(cls, v, values):
+        sub_type = values.get("sub_type")
+        if sub_type == "token":
+            if not v:
+                raise ValueError("default_tag must be specified")
+            if " " in v:
+                raise ValueError(f'default_tag cannot contain spaces: "{v}" is invalid')
+        return v
+
+    @validator("n_target_classes")
+    def check_n_target_classes(cls, v, values):
+        """
+        Checks if n_target_classes > 0
+        """
+        sub_type = values.get("sub_type")
+        if sub_type == "text":
+            if v is None:
+                raise ValueError("n_target_classes must be specified")
+            if v <= 0:
+                raise ValueError(
+                    f"n_target_classes must be a positive integer: {v} is invalid"
+                )
+        return v
 
 
 class NDBExtraOptions(BaseModel):

@@ -1,6 +1,5 @@
 #!/bin/bash
 
 BASEDIR=$(dirname "$0")
-cd $BASEDIR/..
-black .
-isort . --profile black
+cd $BASEDIR/../frontend
+pnpm exec prettier . --write 

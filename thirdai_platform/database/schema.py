@@ -209,6 +209,22 @@ class Model(SQLDeclarativeBase):
         ), "Model name should only contain alphanumeric characters, underscores, and hyphens"
         return name
 
+    @validates("access_level")
+    def validate_access_level(self, key, access_level):
+        # If access level is 'protected', ensure team_id is not None
+        if access_level == Access.protected and self.team_id is None:
+            raise ValueError("team_id cannot be None when access_level is 'protected'.")
+
+        return access_level
+
+    @validates("team_id")
+    def validate_team_id(self, key, team_id):
+        # For protected access, team_id should not be None
+        if self.access_level == Access.protected and team_id is None:
+            raise ValueError("team_id cannot be None when access_level is 'protected'.")
+
+        return team_id
+
     def get_user_permission(self, user):
         # check whether we can find permission in explicit permissions first
         explicit_permission = next(

@@ -106,8 +106,8 @@ jobs:
         sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
         sudo apt-get update
         sudo apt-get install -y vault
-        echo "HASHICORP_VAULT_ENDPOINT=http://127.0.0.1:8200" >> $GITHUB_ENV
-        echo "HASHICORP_VAULT_TOKEN=00000000-0000-0000-0000-000000000000" >> $GITHUB_ENV
+        echo "VAULT_ADDR=http://127.0.0.1:8200" >> $GITHUB_ENV
+        echo "VAULT_TOKEN=00000000-0000-0000-0000-000000000000" >> $GITHUB_ENV
 
     - name: Start Vault Server
       run: |

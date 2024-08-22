@@ -37,7 +37,8 @@ class TextDataFactory(DataFactory):
                 0, sentence_to_generate_per_target_label, self.generate_at_a_time
             ):
                 samples_to_generate = min(
-                    self.generate_at_a_time, sentence_to_generate_per_target_label - current_sentence_idx
+                    self.generate_at_a_time,
+                    sentence_to_generate_per_target_label - current_sentence_idx,
                 )
                 random_vocab = self.get_random_vocab(
                     user_vocab, k=vocab_per_sentence * samples_to_generate

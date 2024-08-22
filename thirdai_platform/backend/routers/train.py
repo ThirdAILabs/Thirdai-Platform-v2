@@ -232,6 +232,7 @@ def train_ndb(
         else False
     )
 
+    ndb_version = "ndbv2" if extra_options.use_v2 else "ndb"
     try:
         new_model = schema.Model(
             id=model_id,
@@ -239,7 +240,7 @@ def train_ndb(
             train_status=schema.Status.not_started,
             deploy_status=schema.Status.not_started,
             name=model_name,
-            type="ndb",
+            type=ndb_version,
             sub_type="single" if not sharded else "sharded",
             domain=user.domain,
             access_level=schema.Access.private,
@@ -272,7 +273,7 @@ def train_ndb(
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
             base_model_id=("NONE" if not base_model_identifier else str(base_model.id)),
-            type="ndbv2" if extra_options.use_v2 else "ndb",
+            type=ndb_version,
             sub_type="single" if not sharded else "shard_allocation",
         )
 

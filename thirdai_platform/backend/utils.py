@@ -5,7 +5,7 @@ import os
 import re
 import socket
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional
 from urllib.parse import urljoin
 
 import bcrypt
@@ -325,7 +325,7 @@ class NDBExtraOptions(BaseModel):
     validation_metrics: Optional[List[str]] = None
     on_disk: Optional[bool] = None
     docs_on_disk: Optional[bool] = None
-    version: Optional[str] = Field("v1", const=True)
+    version: Optional[Literal["v1"]] = "v1"
 
     class Config:
         extra = "forbid"

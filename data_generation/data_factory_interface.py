@@ -142,7 +142,7 @@ class DataFactory(ABC):
 
     def write_on_errorfile(self, text: str):
         with open(self.errored_file_location, "a") as errored_fp:
-            errored_fp.write(f"\ntext: {text}")
+            errored_fp.write(text)
             errored_fp.write("\n" + "=" * 100 + "\n")
 
     def __del__(self):

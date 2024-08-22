@@ -162,13 +162,13 @@ class MachVariables(EnvLoader):
 class VersionedEnvLoader(EnvLoader):
     version: str = "v1"
 
-    @root_validator(pre=True)
-    def validate_and_adjust_for_version(cls, values):
-        if values.get("version") == "v1":
-            # Automatically set on_disk and docs_on_disk to False for version 'v1'
-            values["on_disk"] = False
-            values["docs_on_disk"] = False
-        return values
+    def __post_init__(self):
+        if self.version == "v1":
+            # Automatically set on_disk and docs_on_disk to False if they exist
+            if hasattr(self, "on_disk"):
+                self.on_disk = False
+            if hasattr(self, "docs_on_disk"):
+                self.docs_on_disk = False
 
 
 @dataclass

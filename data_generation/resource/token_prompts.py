@@ -13,8 +13,8 @@ Additionally, aim to cover a wide range of variations within the {tag} entity to
 
 template_prompt = """You have to generate {k} templatized sentences for the tags: {tags}
 
-Description of the tag {tag}:
-{tag_description}
+Description of the tags:
+{tags_description}
 
 As an example here are two sentences for the tags [GENDER,ENTHNICITY,DISABILITY,SSN]
 
@@ -44,15 +44,15 @@ Following are some sample output format for generation. This is just for example
 {templatized_sentences_examples}
 
 Key Requirements:
--   Mask only the Entities in square brackets.
--   The entities should strictly belong to one of {tags}. Make sure to include at least two entities in each samples. Do not include anything apart from entities in square brackets
--   Give only the generated samples in output and make sure each sample should start on a new line. Do not include any extra new line. 
--   DO NOT include any bulleting or header/footer with any samples. Do not include any quotes or emojis.
--   Give equal weightage to all the tags.
--   {rnd_prompts_str}
+-  Mask only the Entities in square brackets.
+-  The entities should strictly belong to one of {tags}. Make sure to include at least two entities in each samples. Do not include anything apart from entities in square brackets
+-  Give only the generated samples in output and make sure each sample should start on a new line. Do not include any extra new line. 
+-  DO NOT include any bulleting or header/footer with any samples. Do not include any quotes or emojis.
+-  Give equal weightage to all the tags.
+-  {rnd_prompts_str}
 
 ** IMPORTANT POINT:
--  These Entities would be filled later so make sure these samples would make sense after being filled.
-   Incorrect sample: My [SEXUAL_ORIENTATION] and [GENDER] should remain confidential to protect my financial interests.
-   Correct Sample: My sexuality [SEXUAL_ORIENTATION] and gender [GENDER] should remain confidential to protect my financial interests.
+-  These Entities would be filled later so make sure these samples would make sense after being filled. Here are some incorrect and correct samples for the tags [SEXUAL_ORIENTATION, GENDER]
+      Incorrect sample: My [SEXUAL_ORIENTATION] and [GENDER] should remain confidential to protect my financial interests.
+      Correct Sample: My sexuality [SEXUAL_ORIENTATION] and gender [GENDER] should remain confidential to protect my financial interests.
 """

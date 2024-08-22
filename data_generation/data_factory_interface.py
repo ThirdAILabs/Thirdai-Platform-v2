@@ -30,7 +30,15 @@ class DataFactory(ABC):
         self.generation_args_location = self.save_dir / "generation_args.json"
 
         self.generate_at_a_time = 40
-        self.write_chunk_size = 50
+        self.write_chunk_size = 10
+
+        if self.train_file_location.exists():
+            with open(self.train_file_location, "r") as f:
+                self.sentences_generated = (
+                    sum(1 for _ in csv.reader(f)) - 1
+                )  # Exculding the header
+        else:
+            self.sentences_generated = 0
 
     @abstractmethod
     def generate_data(self, **kwargs):
@@ -107,7 +115,6 @@ class DataFactory(ABC):
         self,
         data_points: List[Dict[str, str]],
         fieldnames: List[str],
-        write_fields: bool = True,
         newline: Optional[str] = None,
         encoding: Optional[str] = None,
     ):
@@ -116,7 +123,7 @@ class DataFactory(ABC):
                 self.train_file_location, "a", newline=newline, encoding=encoding
             ) as csv_file:
                 csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-                if write_fields:
+                if self.sentences_generated == 0:
                     csv_writer.writeheader()
                 csv_writer.writerows(data_points)
         except Exception as e:
@@ -125,12 +132,14 @@ class DataFactory(ABC):
                     "\nError while writing on train file " + "-" * 20 + "\n"
                 )
                 traceback.print_exc(file=errored_fp)
-                errored_fp.write("\n" + "=" * 100 + "\n")
-                errored_fp.write("Data-points: \n")
-                errored_fp.write(str(data_points) + "\n")
-                errored_fp.write("\n" + "=" * 100 + "\n")
+                self.write_on_errorfile(
+                    text=f"\n{'=' * 30}\n"
+                    + "Data-points: \n"
+                    + "\n".join(list(map(lambda x: str(x), data_points)))
+                    + f"\n{'=' * 30}\n"
+                )
 
-    def write_to_errorfile(self, text: str):
+    def write_on_errorfile(self, text: str):
         with open(self.errored_file_location, "a") as errored_fp:
             errored_fp.write(f"\ntext: {text}")
             errored_fp.write("\n" + "=" * 100 + "\n")

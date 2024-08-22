@@ -11,11 +11,9 @@ from typing import Dict, List
 from data_factory_interface import DataFactory
 from faker import Faker
 from tqdm import tqdm
-from utils import (
-    assert_sufficient_examples,
-    save_dict,
-    subsample_dictionary,
-)
+from utils import consistent_split, save_dict
+from variables import Entity
+
 
 class TokenDataFactory(DataFactory):
     SOURCE_COLUMN = "source"
@@ -51,83 +49,80 @@ class TokenDataFactory(DataFactory):
                 [self.faker.__getattr__(matched_attr)() for _ in range(num_samples)],
             ),
         )
-    
+
     def get_complete_tag_examples(
         self,
         domain_prompt: str,
-        tag_examples: Dict[str, List[str]],
+        tags: List[Entity],
         total_expected_sentences: int,
         num_samples_per_tag: int,
     ) -> Dict[str, List[str]]:
         complete_tag_examples = defaultdict(list)
 
-        for tag, user_examples in tqdm(
-            tag_examples.items(), desc="Generating Sample for attributes: ", leave=True
-        ):
-            # Adding user examples
-            complete_tag_examples[tag].extend(user_examples)
+        for tag in tqdm(tags, desc="Generating examples for tags: ", leave=False):
+            complete_tag_examples[tag.name].extend(tag.examples)
 
             # Trying to generate more examples from faker
             samples = self.get_fake_tag_values(
-                tag,
+                tag.name,
                 num_samples=total_expected_sentences,
             )
             if samples:
-                complete_tag_examples[tag].extend(samples)
+                complete_tag_examples[tag.name].extend(samples)
                 continue
 
             # Not able to generate by faker so, generating samples by llm
-            sampled_user_examples = random.sample(
-                user_examples, min(3, len(user_examples))
+            sampled_tag_examples = random.sample(
+                tag.examples, k=min(3, len(tag.examples))
             )
-
             response = self.llm_model.completion(
                 prompt=tag_value_prompt.format(
                     domain_prompt=domain_prompt,
                     num_samples_per_tag=num_samples_per_tag,
-                    tag=tag,
-                    tag_example=str(sampled_user_examples),
+                    tag=tag.name,
+                    tag_example=str(sampled_tag_examples),
+                    tag_description=tag.description,
                 )
             )
-            complete_tag_examples[tag].extend(response.split("\n"))
+            complete_tag_examples[tag.name].extend(response.split("\n"))
 
         return complete_tag_examples
 
-    def get_templatized_examples(self, tags: List[str], k: int = 2):
+    def get_templatized_examples(self, tags: List[Entity], k: int = 2):
         return self.llm_model.completion(
-            template_prompt.format(tags=", ".join(tags).replace("'", ""), k=k)
+            template_prompt.format(
+                tags=", ".join([tag.name for tag in tags]),
+                tags_description="\n".join(
+                    [f"{tag.name}: {tag.description}" for tag in tags]
+                ),
+                k=k,
+            )
         )
 
     def generate_data(
         self,
         domain_prompt: str,
-        tags: List[str],
-        tag_examples: Dict[str, List[str]],
-        tag_descriptions: Dict[str, List[str]],
+        tags: List[Entity],
         num_sentences_to_generate: int,
         num_samples_per_tag: int = 4,
-        sentences_generated=0,  # To resume the generate function incase of midway failure. TODO(Gautam): Incorporate resuming the data_generation task
     ):
-        assert sentences_generated < num_sentences_to_generate, "Invalid configuration"
-
-        assert_sufficient_examples(tags, tag_examples)
-
         complete_tag_examples = self.get_complete_tag_examples(
-            domain_prompt, tag_examples, num_sentences_to_generate, num_samples_per_tag
+            domain_prompt, tags, num_sentences_to_generate, num_samples_per_tag
         )  # Here num_sentences_to_generate is used by faker to generate this many value of each tag.
+        save_dict(self.save_dir / "tag_examples.json", **complete_tag_examples)
 
         templatized_sentences_examples = self.get_templatized_examples(
-            tags=random.sample(tags, k=min(10, len(tags)))
+            tags=random.sample(tags, k=min(10, len(tags))), k=2
         )
 
         arguments = []
-        num_sentences_to_generate -= sentences_generated
+        num_sentences_to_generate -= self.sentences_generated
         for current_sentence_idx in range(
             0, num_sentences_to_generate, self.generate_at_a_time
         ):
             # TODO(anyone): we should also add the [user_tag -> examples] in dataset_generation_prompt.
             random_prompts = self.get_random_prompts()
-            
+            sampled_tags = random.sample(tags, k=min(5, len(tags)))
             arguments.append(
                 {
                     "prompt": dataset_generation_prompt.format(
@@ -136,9 +131,12 @@ class TokenDataFactory(DataFactory):
                             self.generate_at_a_time,
                             num_sentences_to_generate - current_sentence_idx,
                         ),
-                        tags=random.sample(tags, k=min(5, len(tags))),
+                        tags=[t.name for t in sampled_tags],
+                        tag_description="\n".join(
+                            [f"{t.name}: {t.description}" for t in sampled_tags]
+                        ),
                         templatized_sentences_examples=templatized_sentences_examples,
-                        rnd_prompts_str="\n -\t".join(random_prompts),
+                        rnd_prompts_str="\n-  ".join(random_prompts),
                     ),
                     "system_prompt": f"You are a helpful assistant designed to generate synthetic data for domain {domain_prompt}.",
                 }
@@ -159,7 +157,7 @@ class TokenDataFactory(DataFactory):
             )
 
             transformed_data_points = [
-                self.fill_and_transform(tags, template, complete_tag_examples)
+                self.fill_and_transform(template, complete_tag_examples)
                 for template_s in generated_templates
                 for template in template_s["response_text"].split("\n")
             ]
@@ -176,10 +174,9 @@ class TokenDataFactory(DataFactory):
                     TokenDataFactory.SOURCE_COLUMN,
                     TokenDataFactory.TARGET_COLUMN,
                 ],
-                write_fields=sentences_generated == 0,
             )
 
-            sentences_generated += len(transformed_data_points)
+            self.sentences_generated += len(transformed_data_points)
 
         dataset_config = {
             "filepath": str(self.train_file_location),
@@ -187,18 +184,16 @@ class TokenDataFactory(DataFactory):
             "task": "TOKEN_CLASSIFICATION",
             "input_feature": TokenDataFactory.SOURCE_COLUMN,
             "target_feature": TokenDataFactory.TARGET_COLUMN,
-            "target_labels": tags,
-            "tag_values": complete_tag_examples,
-            "num_samples": sentences_generated,
+            "target_labels": [tag.name for tag in tags],
+            "num_samples": self.sentences_generated,
         }
         save_dict(self.config_file_location, **dataset_config)
 
         return dataset_config
 
-    def fill_and_transform(
-        self, allowed_tags: List[str], template: str, tag_values: Dict[str, List[str]]
-    ):
-        words = template.split()
+    def fill_and_transform(self, template: str, tag_values: Dict[str, List[str]]):
+        seperator = " "
+        words = consistent_split(template, seperator)
         if not words:
             return
 
@@ -209,16 +204,16 @@ class TokenDataFactory(DataFactory):
             if match:
                 # word is a tag
                 word_tag = match.group(1).upper()
-                if word_tag not in allowed_tags:
-                    self.write_to_errorfile(
-                        text=f"""Word tag {word_tag} not present in the allowed tags {', '.join(allowed_tags)}
-template: {template}
-                    """
+                if word_tag not in tag_values:
+                    self.write_on_errorfile(
+                        text=f"\nWord tag {word_tag} not present in the allowed tags {', '.join(tag_values.keys())}\ntemplate: {template}"
                     )
                     continue
 
-                word_tag_value = random.choice(tag_values[word_tag])
-                source.append(word_tag_value)
+                splitted_word_tag_value = consistent_split(
+                    random.choice(tag_values[word_tag]), seperator
+                )
+                source.extend(splitted_word_tag_value)
 
                 """
                 Extending the [TAG] to match the source text
@@ -227,17 +222,23 @@ template: {template}
                         template = '[NAME] reserved the hall for reunion'
                         word_tag = [NAME]
                         word_tag_value = Jessica vega
+                        splitted_word_tag_value = ['Jessica', 'vega']
 
                     Expected:
                         source = 'Jessica vega reserved the hall for reunion'
                         target = 'NAME NAME O O O O O'
                 """
-                target.extend([word_tag] * len(word_tag_value.split(" ")))
+                target.extend([word_tag] * len(splitted_word_tag_value))
             else:
                 source.append(word)
                 target.append("O")
-
+        if len(source) != len(target):
+            self.write_on_errorfile(
+                text=f"Source and target aren't of the same length {'-' * 30}\n"
+                + f"{source = }\n{target = }\n\n{template = }"
+            )
+            return None
         return {
-            TokenDataFactory.SOURCE_COLUMN: " ".join(source),
-            TokenDataFactory.TARGET_COLUMN: " ".join(target),
+            TokenDataFactory.SOURCE_COLUMN: seperator.join(source),
+            TokenDataFactory.TARGET_COLUMN: seperator.join(target),
         }

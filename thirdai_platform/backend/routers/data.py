@@ -55,14 +55,16 @@ class LLMProvider(str, Enum):
     openai = "openai"
     cohere = "cohere"
 
-class LabelInfo(BaseModel):
-    label_name: str
-    label_examples: List[str]
-    label_description: str
+
+class Entity(BaseModel):
+    name: str
+    examples: List[str]
+    description: str
+
 
 class TextClassificationGenerateArgs(BaseModel):
     samples_per_label: int
-    target_labels: List[LabelInfo]
+    target_labels: List[Entity]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
     vocab_per_sentence: int = 4
@@ -145,7 +147,7 @@ def generate_text_data(
 
 class TokenClassificationGenerateArgs(BaseModel):
     domain_prompt: str
-    tags: List[LabelInfo]
+    tags: List[Entity]
     num_sentences_to_generate: int
     num_samples_per_tag: int = 4
     allocation_cores: Optional[int] = None
@@ -160,6 +162,7 @@ def generate_token_data(
     session: Session = Depends(get_session),
     # authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    # print(f"Received form data: {form}")
     # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:
         extra_options = TokenClassificationGenerateArgs.model_validate_json(

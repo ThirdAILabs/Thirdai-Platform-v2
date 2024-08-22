@@ -1,7 +1,7 @@
 import ast
 import html
 import os
-from dataclasses import MISSING, dataclass, fields
+from dataclasses import MISSING, asdict, dataclass, fields
 from enum import Enum
 from typing import Dict, List, Optional, Type, TypeVar, Union, get_args, get_origin
 
@@ -97,25 +97,37 @@ class GeneralVariables(EnvLoader):
     genai_key: str
     llm_provider: LLMProvider = LLMProvider.openai
 
+
 @dataclass
-class LabelInfo:
-    label_name: str
-    label_examples: List[str]
-    label_description: str
+class Entity:
+    name: str
+    examples: List[str]
+    description: str
+
 
 @dataclass
 class TextGenerationVariables(EnvLoader):
     task_prompt: str
     samples_per_label: int
-    target_labels: List[LabelInfo]
+    target_labels: List[Entity]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
     vocab_per_sentence: int = 4
+
+    def to_dict(self):
+        result = asdict(self)
+        result["target_labels"] = [Entity(**res) for res in result["target_labels"]]
+        return result
 
 
 @dataclass
 class TokenGenerationVariables(EnvLoader):
     domain_prompt: str
-    tags: List[LabelInfo]
+    tags: List[Entity]
     num_sentences_to_generate: int
     num_samples_per_tag: int = 4
+
+    def to_dict(self):
+        result = asdict(self)
+        result["tags"] = [Entity(**res) for res in result["tags"]]
+        return result

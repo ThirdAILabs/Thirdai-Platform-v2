@@ -136,12 +136,41 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
     //   setGeneratedData(result.syntheticDataPairs);
     //   setGenerateDataPrompt(result.prompts);
 
-      setIsDataGenerating(false);
-    } catch (error) {
-      console.error('Error generating data:', error);
-      alert('Error generating data:' + error)
-      setIsDataGenerating(false);
-    }
+    //   setIsDataGenerating(false);
+    // } catch (error) {
+    //   console.error('Error generating data:', error);
+    //   setIsDataGenerating(false);
+    // }
+    const tags = categories.map(category => ({
+      label_name: category.name,
+      label_examples: [category.example],
+      label_description: category.description,
+    }));
+
+    let formData = new FormData();
+    formData.append('form', JSON.stringify({
+        domain_prompt: "To protect personal identifiable information from unauthorized access and exposure.",
+        tags: tags,
+        num_sentences_to_generate: 200,
+        num_samples_per_tag: 20
+      }));
+
+    axios.defaults.headers.common.Authorization = `Bearer ${getAccessToken()}`;
+    const task_prompt = "NER model for the given tags"
+    return new Promise((resolve, reject) => {
+      axios
+          .post(`${thirdaiPlatformBaseUrl}/api/data/generate-token-data?task_prompt=${task_prompt}`, formData)
+          .then((res) => {
+              resolve(res.data);
+          })
+          .catch((err) => {
+              if (err.response && err.response.data) {
+                  reject(new Error(err.response.data.detail || 'Failed to generate'));
+              } else {
+                  reject(new Error('Failed to run model'));
+              }
+          });
+    });
   };
 
   const renderTaggedSentence = (pair: { sentence: string; nerData: string[] }) => {

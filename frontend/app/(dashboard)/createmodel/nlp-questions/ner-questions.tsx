@@ -142,16 +142,16 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
     //   setIsDataGenerating(false);
     // }
     const tags = categories.map(category => ({
-      label_name: category.name,
-      label_examples: [category.example],
-      label_description: category.description,
+      name: category.name,
+      examples: [category.example],
+      description: category.description,
     }));
 
     let formData = new FormData();
     formData.append('form', JSON.stringify({
-        domain_prompt: "To protect personal identifiable information from unauthorized access and exposure.",
+        domain_prompt: "personal identifiable information",
         tags: tags,
-        num_sentences_to_generate: 200,
+        num_sentences_to_generate: 50,
         num_samples_per_tag: 20
       }));
 

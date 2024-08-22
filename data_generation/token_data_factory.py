@@ -252,7 +252,7 @@ class TokenDataFactory(DataFactory):
                     data_points[idx][TokenDataFactory.TARGET_COLUMN].append("O")
 
         # make sure that the source and target is of same length
-        for i in range(self.sentences_per_template):
+        for i in range(len(data_points)):
             data = data_points[i]
             if len(data[TokenDataFactory.SOURCE_COLUMN]) != len(
                 data[TokenDataFactory.TARGET_COLUMN]

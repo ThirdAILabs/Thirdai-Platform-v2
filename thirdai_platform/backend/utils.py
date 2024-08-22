@@ -330,7 +330,7 @@ class NDBExtraOptions(BaseModel):
     class Config:
         extra = "forbid"
 
-    @root_validator
+    @root_validator(pre=True)
     def validate_version_restrictions(cls, values):
         version = values.get("version", "v1")
         on_disk = values.get("on_disk", False)

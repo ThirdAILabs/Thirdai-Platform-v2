@@ -12,6 +12,7 @@ T = TypeVar("T", bound="EnvLoader")
 class TypeEnum(str, Enum):
     NDB = "ndb"
     UDT = "udt"
+    NDBV2 = "ndbv2"
 
 
 class NDBSubType(str, Enum):

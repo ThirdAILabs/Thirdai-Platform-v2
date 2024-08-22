@@ -14,6 +14,7 @@ from models.finetunable_retriever import FinetunableRetriever
 from models.multiple_mach import MultipleMach
 from models.shard_mach import ShardMach
 from models.single_mach import SingleMach
+from models.neural_db_v2 import NeuralDBV2
 from variables import (
     GeneralVariables,
     NDBSubType,
@@ -49,6 +50,9 @@ def main():
         else:
             model = ShardMach()
             model.train()
+    elif general_variables.type == TypeEnum.NDBV2:
+        model = NeuralDBV2()
+        model.train()
     elif general_variables.type == TypeEnum.UDT:
         if general_variables.sub_type == UDTSubType.text:
             model = TextClassificationModel()

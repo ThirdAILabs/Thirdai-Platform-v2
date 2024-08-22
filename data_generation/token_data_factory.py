@@ -139,13 +139,6 @@ class TokenDataFactory(DataFactory):
 
         assert_sufficient_examples(tags, tag_examples)
 
-        self.reporter.report_generate_status(
-            data_id=str(self.general_variables.data_id),
-            name="Generated_data",
-            task="token",
-            target_labels=tags,
-        )
-
         attribute_values = self.get_attributes(domain_prompt)
 
         complete_tag_examples = self.get_complete_tag_examples(
@@ -232,7 +225,6 @@ class TokenDataFactory(DataFactory):
             "num_samples": sentences_generated,
         }
         save_dict(self.config_file_location, **dataset_config)
-        self.reporter.update_status(self.general_variables.data_id, "complete")
 
         return dataset_config
 

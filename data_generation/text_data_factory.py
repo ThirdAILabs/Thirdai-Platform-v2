@@ -32,13 +32,6 @@ class TextDataFactory(DataFactory):
         assert_sufficient_examples(target_labels, examples)
         assert_sufficient_descriptions(target_labels, labels_description)
 
-        self.reporter.report_generate_status(
-            data_id=str(self.general_variables.data_id),
-            name="Generated_data",
-            task="text",
-            target_labels=target_labels,
-        )
-
         prompt_tasks = []
 
         for target_label in target_labels:
@@ -132,8 +125,6 @@ class TextDataFactory(DataFactory):
             "num_samples": sentences_generated,
         }
         save_dict(self.config_file_location, **dataset_config)
-
-        self.reporter.update_status(self.general_variables.data_id, "complete")
 
         return dataset_config
 

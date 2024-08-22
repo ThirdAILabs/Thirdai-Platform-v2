@@ -1,3 +1,4 @@
+"use client"
 
 import "./page.css";
 import styled from "styled-components";

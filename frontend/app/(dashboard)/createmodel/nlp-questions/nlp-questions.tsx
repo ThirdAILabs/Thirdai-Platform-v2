@@ -29,7 +29,7 @@ const NLPQuestions = () => {
     setLoadingAnswer(true);
 
     try {
-      const response = await fetch('/api/which-nlp-use-case', {
+      const response = await fetch('/app/which-nlp-use-case', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

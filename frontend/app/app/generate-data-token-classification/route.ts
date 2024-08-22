@@ -1,4 +1,4 @@
-// app/api/generate-data-token-classification/route.ts
+// app/app/generate-data-token-classification/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 

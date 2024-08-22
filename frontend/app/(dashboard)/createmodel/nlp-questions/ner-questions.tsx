@@ -111,7 +111,7 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
     try {
       setIsDataGenerating(true);
 
-      const response = await fetch('/api/generate-data-token-classification', {
+      const response = await fetch('/app/generate-data-token-classification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

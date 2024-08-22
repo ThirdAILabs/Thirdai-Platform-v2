@@ -68,6 +68,11 @@ class CohereLLM(LLMBase):
 
         response = self.client.chat(model=model_name, message=message)
 
+        with open(self.response_file, "a") as fp:
+            fp.write(f"Prompt: \n{prompt}\n")
+            fp.write(f"Response: \n{response.text}\n")
+            fp.write("=" * 100 + "\n\n")
+
         return response.text
 
 

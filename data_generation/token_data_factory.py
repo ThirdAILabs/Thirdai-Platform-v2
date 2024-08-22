@@ -2,8 +2,6 @@ import random
 import re
 from collections import defaultdict
 from resource.token_prompts import (
-    attribute_dimension_prompt,
-    attribute_value_prompt,
     dataset_generation_prompt,
     tag_value_prompt,
     template_prompt,
@@ -15,11 +13,9 @@ from faker import Faker
 from tqdm import tqdm
 from utils import (
     assert_sufficient_examples,
-    clean_text,
     save_dict,
     subsample_dictionary,
 )
-
 
 class TokenDataFactory(DataFactory):
     SOURCE_COLUMN = "source"
@@ -39,23 +35,6 @@ class TokenDataFactory(DataFactory):
             if not method.startswith("_")
         ]
 
-    def get_attributes(self, domain_prompt: str):
-        response: str = self.llm_model.completion(
-            prompt=attribute_dimension_prompt.format(domain_prompt=domain_prompt),
-        )
-        attributes = response.split("\n")
-
-        attribute_values = {}
-        for attribute in tqdm(attributes, desc="Attributed definition...", leave=True):
-            response = self.llm_model.completion(
-                prompt=attribute_value_prompt.format(
-                    domain_prompt=domain_prompt, attribute=attribute
-                ),
-            )
-            attribute_values[attribute] = response.split("\n")
-
-        return attribute_values
-
     def get_fake_tag_values(self, tag: str, num_samples: int):
         # NOTE: It could be better to have an exact match
         matched_attrs = list(
@@ -68,18 +47,18 @@ class TokenDataFactory(DataFactory):
 
         return list(
             map(
-                lambda x: clean_text(str(x)),
+                lambda x: str(x),
                 [self.faker.__getattr__(matched_attr)() for _ in range(num_samples)],
             ),
         )
-
+    
     def get_complete_tag_examples(
         self,
         domain_prompt: str,
         tag_examples: Dict[str, List[str]],
         total_expected_sentences: int,
         num_samples_per_tag: int,
-    ):
+    ) -> Dict[str, List[str]]:
         complete_tag_examples = defaultdict(list)
 
         for tag, user_examples in tqdm(
@@ -119,26 +98,12 @@ class TokenDataFactory(DataFactory):
             template_prompt.format(tags=", ".join(tags).replace("'", ""), k=k)
         )
 
-    def get_value_requirements(self, attribute_values: Dict[str, List[str]]):
-        subsampled_dict = subsample_dictionary(attribute_values)
-        sampled_keys = random.sample(
-            [*subsampled_dict], k=min(10, len(subsampled_dict))
-        )
-
-        values_requirements = "Take inspiration from the ideas below but do not mimic them directly. Ensure your output revolves around similar topics with some variations for accuracy.\n"
-        for key in sampled_keys:
-            values = subsampled_dict[key]
-            values_requirements += (
-                f"Include the following {key}: {' and '.join(values)}.\n"
-            )
-
-        return values_requirements
-
     def generate_data(
         self,
         domain_prompt: str,
         tags: List[str],
         tag_examples: Dict[str, List[str]],
+        tag_descriptions: Dict[str, List[str]],
         num_sentences_to_generate: int,
         num_samples_per_tag: int = 4,
         sentences_generated=0,  # To resume the generate function incase of midway failure. TODO(Gautam): Incorporate resuming the data_generation task
@@ -146,8 +111,6 @@ class TokenDataFactory(DataFactory):
         assert sentences_generated < num_sentences_to_generate, "Invalid configuration"
 
         assert_sufficient_examples(tags, tag_examples)
-
-        # attribute_values = self.get_attributes(domain_prompt)
 
         complete_tag_examples = self.get_complete_tag_examples(
             domain_prompt, tag_examples, num_sentences_to_generate, num_samples_per_tag
@@ -158,13 +121,13 @@ class TokenDataFactory(DataFactory):
         )
 
         arguments = []
+        num_sentences_to_generate -= sentences_generated
         for current_sentence_idx in range(
             0, num_sentences_to_generate, self.generate_at_a_time
         ):
             # TODO(anyone): we should also add the [user_tag -> examples] in dataset_generation_prompt.
             random_prompts = self.get_random_prompts()
-
-            # values_requirements = self.get_value_requirements(attribute_values)
+            
             arguments.append(
                 {
                     "prompt": dataset_generation_prompt.format(
@@ -173,7 +136,7 @@ class TokenDataFactory(DataFactory):
                             self.generate_at_a_time,
                             num_sentences_to_generate - current_sentence_idx,
                         ),
-                        sampled_tags=random.sample(tags, k=min(5, len(tags))),
+                        tags=random.sample(tags, k=min(5, len(tags))),
                         templatized_sentences_examples=templatized_sentences_examples,
                         rnd_prompts_str="\n -\t".join(random_prompts),
                     ),
@@ -182,8 +145,6 @@ class TokenDataFactory(DataFactory):
             )
 
         random.shuffle(arguments)
-        arguments = arguments[: num_sentences_to_generate - sentences_generated]
-        self.write_chunk_size = 40
 
         total_chunks = len(arguments) // self.write_chunk_size + 1
         for idx in tqdm(
@@ -243,7 +204,6 @@ class TokenDataFactory(DataFactory):
 
         source = []
         target = []
-
         for word in words:
             match = re.search(r"\[(.*?)\]", word)
             if match:

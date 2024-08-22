@@ -55,12 +55,14 @@ class LLMProvider(str, Enum):
     openai = "openai"
     cohere = "cohere"
 
+class LabelInfo(BaseModel):
+    label_name: str
+    label_examples: List[str]
+    label_description: str
 
 class TextClassificationGenerateArgs(BaseModel):
     samples_per_label: int
-    target_labels: List[str]
-    examples: Dict[str, List[str]]
-    labels_description: Dict[str, str]
+    target_labels: List[LabelInfo]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
     vocab_per_sentence: int = 4
@@ -143,8 +145,7 @@ def generate_text_data(
 
 class TokenClassificationGenerateArgs(BaseModel):
     domain_prompt: str
-    tags: List[str]
-    tag_examples: Dict[str, List[str]]
+    tags: List[LabelInfo]
     num_sentences_to_generate: int
     num_samples_per_tag: int = 4
     allocation_cores: Optional[int] = None

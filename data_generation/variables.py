@@ -97,14 +97,17 @@ class GeneralVariables(EnvLoader):
     genai_key: str
     llm_provider: LLMProvider = LLMProvider.openai
 
+@dataclass
+class LabelInfo:
+    label_name: str
+    label_examples: List[str]
+    label_description: str
 
 @dataclass
 class TextGenerationVariables(EnvLoader):
     task_prompt: str
     samples_per_label: int
-    target_labels: List[str]
-    examples: Dict[str, List[str]]
-    labels_description: Dict[str, str]
+    target_labels: List[LabelInfo]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
     vocab_per_sentence: int = 4
@@ -113,7 +116,6 @@ class TextGenerationVariables(EnvLoader):
 @dataclass
 class TokenGenerationVariables(EnvLoader):
     domain_prompt: str
-    tags: List[str]
-    tag_examples: Dict[str, List[str]]
+    tags: List[LabelInfo]
     num_sentences_to_generate: int
     num_samples_per_tag: int = 4

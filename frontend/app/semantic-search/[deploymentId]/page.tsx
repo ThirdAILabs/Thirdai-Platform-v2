@@ -1,4 +1,3 @@
-"use client";
 
 import "./page.css";
 import styled from "styled-components";
@@ -332,7 +331,7 @@ function App() {
         <ModelServiceContext.Provider value={modelService}>
             {modelService && (
                 <Frame $opacity={opacity}>
-                    <div style={{ height: "100%", width: "100%" }}>
+                    <div style={{height: "100%", width: "100%"}}>
 
                         {pdfInfo && (
                             <PdfViewerWrapper>
@@ -467,8 +466,8 @@ function App() {
                                                     checkedIds
                                                 }
                                                 onCheck={onCheck}
-                                                modelService={modelService}
-                                                ifGuardRailOn={ifGuardRailOn}
+                                                modelService = {modelService}
+                                                ifGuardRailOn = {ifGuardRailOn}
                                             />
                                         </Pad>
                                     </Pad>

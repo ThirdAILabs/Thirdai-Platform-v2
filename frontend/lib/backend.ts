@@ -248,6 +248,7 @@ export function create_workflow({ name, typeName }: CreateWorkflowParams): Promi
 
   const params = new URLSearchParams({ name, type_name: typeName });
 
+
   return new Promise((resolve, reject) => {
     axios
       .post(`${thirdaiPlatformBaseUrl}/api/workflow/create?${params.toString()}`)

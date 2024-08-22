@@ -1,10 +1,7 @@
-'use client';
-
 import { genaiQuery } from "./genai";
 import { Box, Chunk, DocChunks } from "./components/pdf_viewer/interfaces";
 import _ from 'lodash';
 
-export const thirdaiPlatformBaseUrl = _.trim(process.env.NEXT_PUBLIC_THIRDAI_PLATFORM_BASE_URL!, '/');
 export const deploymentBaseUrl = _.trim(process.env.NEXT_PUBLIC_DEPLOYMENT_BASE_URL!, '/');
 
 export interface ReferenceJson {

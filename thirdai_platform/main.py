@@ -15,7 +15,7 @@ from backend.routers.train import train_router as train
 from backend.routers.user import user_router as user
 from backend.routers.vault import vault_router as vault
 from backend.routers.workflow import workflow_router as workflow
-from backend.utils import restart_generate_job, restart_thirdai_platform_ui
+from backend.utils import restart_generate_job, restart_thirdai_platform_frontend
 from database.session import get_session
 from database.utils import initialize_default_workflow_types
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,9 +48,9 @@ async def startup_event():
         await restart_generate_job()
         print("Successfully started Generation Job!")
 
-        print("Starting UI job...")
-        await restart_thirdai_platform_ui()
-        print("Successfully started UI job!")
+        print("Launching frontend...")
+        await restart_thirdai_platform_frontend()
+        print("Successfully launched the frontend!")
 
         print("Adding default workflow types")
         with next(get_session()) as session:

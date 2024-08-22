@@ -247,7 +247,7 @@ export default function SearchBar({
 
     return (
         <Container>
-            <SearchArea style={{ marginBottom: "5px" }}>
+            <SearchArea style={{marginBottom: "5px"}}>
                 <Input
                     autoFocus
                     className="text-md"

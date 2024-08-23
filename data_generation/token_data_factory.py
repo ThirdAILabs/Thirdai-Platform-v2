@@ -89,7 +89,6 @@ class TokenDataFactory(DataFactory):
                 return x
             if samples:
                 samples = [stringify_tuples(x) for x in samples]
-                print("Fake samples:", samples)
                 complete_tag_examples[tag].extend(samples)
                 continue
 
@@ -145,12 +144,9 @@ class TokenDataFactory(DataFactory):
 
         attribute_values = self.get_attributes(domain_prompt)
 
-        # print("Tag examples:", tag_examples)
-
         complete_tag_examples = self.get_complete_tag_examples(
             domain_prompt, tag_examples, num_sentences_to_generate, num_samples_per_tag
         )  # Here num_sentences_to_generate is used by faker to generate this many value of each tag.
-        # print("Complete tag examples:", complete_tag_examples)
 
         templatized_sentences_examples = self.get_templatized_examples(
             tags=random.sample(tags, k=min(10, len(tags)))

@@ -63,7 +63,6 @@ def main():
     train_args_dict['extra_options']['target_labels'] = dataset_config['target_labels']
     train_args = json.dumps(train_args_dict)
     launch_train_job(dataset_config['filepath'], train_args)
-    # launch_train_job("/path/to/file", json.dumps({"data_id": "123456"}))
 
 
 if __name__ == "__main__":

@@ -8,6 +8,10 @@
    ```
    docker build -t <image_name>:<tag> .
    ```
+   or, to install a specific version
+   ```
+   docker build --build-arg THIRDIAI_VERSION=<thirdai_version> -t <image_name>:<tag> .
+   ```
 
 3. **Run docker container:**  
    - Go to the `deployment_job` folder 

@@ -18,6 +18,9 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { chartData } from './chart_data';
 import { BAD, GOOD } from './good_bad';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import _ from 'lodash';
 
 export default function AnalyticsPage() {
   const [isClient, setIsClient] = useState(false);
@@ -39,6 +42,9 @@ export default function AnalyticsPage() {
 
   const { usageDuration, usageFrequency, reformulatedQueries } = chartData[key];
 
+  const thirdaiPlatformBaseUrl = _.trim(process.env.THIRDAI_PLATFORM_BASE_URL!, '/');
+  const grafanaUrl = `${thirdaiPlatformBaseUrl}/grafana`;
+
   return (
     <>
       <Card>
@@ -53,6 +59,14 @@ export default function AnalyticsPage() {
             <UsageDurationChart data={usageDuration} />
             <UsageFrequencyChart data={usageFrequency} />
             <ReformulatedQueriesChart data={reformulatedQueries} />
+          </div>
+
+          <div className="mt-4">
+            <Link href={grafanaUrl} passHref>
+              <Button>
+                Go to Grafana
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>

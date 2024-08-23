@@ -477,6 +477,7 @@ class NDBV2Model(NDBModel):
         """
         Inserts documents into the NDB model.
         """
+        # TODO: add flag for upsert
         ndb_docs = create_ndbv2_docs(documents, self.doc_save_path())
 
         source_ids = self.db.insert(ndb_docs)

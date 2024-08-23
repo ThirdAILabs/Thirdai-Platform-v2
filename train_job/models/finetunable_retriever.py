@@ -112,7 +112,7 @@ class FinetunableRetriever(NDBModel):
         Evaluate the FinetunableRetriever model. Not implemented.
         """
         self.logger.warning("Evaluation method called. Not implemented.")
-    
+
     def load_db(self, model_id: str) -> ndb.NeuralDB:
         """
         This method first loads the base NeuralDB using the parent class's `load_db` method.

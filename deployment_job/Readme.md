@@ -35,3 +35,4 @@
     "query": "What is artificial intelligence?",
     "top_k": 1
   }'
+  ```

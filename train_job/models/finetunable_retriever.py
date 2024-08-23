@@ -112,6 +112,31 @@ class FinetunableRetriever(NDBModel):
         Evaluate the FinetunableRetriever model. Not implemented.
         """
         self.logger.warning("Evaluation method called. Not implemented.")
+    
+    def load_db(self, model_id: str) -> ndb.NeuralDB:
+        """
+        This method first loads the base NeuralDB using the parent class's `load_db` method.
+        Since we use an on-disk inverted index, we need to ensure the base NeuralDB is saved
+        in the specified `model_save_path` before making any modifications to it.
+        Steps:
+        1. Load the base NeuralDB using the parent method.
+        2. Save the base NeuralDB to the specified `model_save_path`.
+        3. Reload the NeuralDB from the saved checkpoint to ensure modifications are performed
+        on the correct instance and it doesn't affect the base model index.
+        """
+        db = super().load_db(model_id)
+        db.save(self.model_save_path)
+        return ndb.NeuralDB.from_checkpoint(self.model_save_path)
+
+    def save(self, db: ndb.NeuralDB):
+        """
+        This method checks if the current `model_save_path` already exists. If it does, it implies
+        that the current training started from a pre-existing base model that was saved earlier,
+        so we skip the save operation to avoid redundant saving. Otherwise, it saves the current
+        NeuralDB using the parent class's `save` method.
+        """
+        if not self.model_save_path.exists():
+            super().save(db)
 
     def initialize_db(self) -> ndb.NeuralDB:
         """

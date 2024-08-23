@@ -26,13 +26,14 @@
 4. **Predict endpoint:**
    - The container will be running on `localhost:7888` (assuming `local_port` is `7888`).
    - Run the following `curl` command to make a prediction call:
+   
    ```bash
-   curl -X POST \
-  'http://localhost:7888/predict' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "query": "What is artificial intelligence?",
-    "top_k": 1
-  }'
-  ```
+     curl -X POST \
+       'http://localhost:7888/predict' \
+       -H 'accept: application/json' \
+       -H 'Content-Type: application/json' \
+       -d '{
+         "query": "What is artificial intelligence?",
+         "top_k": 1
+       }'
+     ```

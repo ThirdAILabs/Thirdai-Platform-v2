@@ -62,6 +62,14 @@ class ClassificationModel(Model):
             / model_id
             / "config.json"
         )
+        
+    def get_model_version_path(self, model_id):
+        return (
+            Path(self.general_variables.model_bazaar_dir)
+            / "models"
+            / model_id
+            / "version.txt"
+        )
 
     def load_model(self, model_id):
         return bolt.UniversalDeepTransformer.load(self.get_udt_path(model_id))
@@ -172,6 +180,9 @@ class TokenClassificationModel(ClassificationModel):
         
         with open(self.get_model_config_path(self.general_variables.model_id), 'w') as json_file:
             json.dump(model_config, json_file, indent=4)
+            
+        with open(self.get_model_version_path(self.general_variables.model_id), 'w') as txt_file:
+            txt_file.write(model._get_model().thirdai_version().split("+")[0])
         
     def initialize_model(self):
         target_labels = self.tkn_cls_vars.target_labels

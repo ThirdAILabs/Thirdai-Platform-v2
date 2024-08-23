@@ -3,6 +3,7 @@ Defines NDB model classes for the application.
 """
 
 import copy
+import json
 import logging
 import os
 import pickle
@@ -21,7 +22,6 @@ from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.chunk_stores import constraints
 from thirdai.neural_db_v2.core.types import Chunk
-import json
 
 
 class NDBModel(Model):

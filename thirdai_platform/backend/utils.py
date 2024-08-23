@@ -5,7 +5,7 @@ import os
 import re
 import socket
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional
 from urllib.parse import urljoin
 
 import bcrypt
@@ -276,6 +276,7 @@ class NDBExtraOptions(BaseModel):
     - validation_metrics: Optional list of validation metrics.
     - on_disk: Optional boolean indicating on-disk storage.
     - docs_on_disk: Optional boolean indicating documents on-disk storage.
+    - version: Version of the options (default is "v1").
 
     Config:
     - extra: Forbid extra attributes.
@@ -324,9 +325,23 @@ class NDBExtraOptions(BaseModel):
     validation_metrics: Optional[List[str]] = None
     on_disk: Optional[bool] = None
     docs_on_disk: Optional[bool] = None
+    version: Optional[Literal["v1"]] = "v1"
 
     class Config:
         extra = "forbid"
+
+    @root_validator(pre=True)
+    def validate_version_restrictions(cls, values):
+        version = values.get("version", "v1")
+        on_disk = values.get("on_disk", False)
+        docs_on_disk = values.get("docs_on_disk", False)
+
+        if version == "v1" and (on_disk or docs_on_disk):
+            raise ValueError(
+                "For version 'v1', both 'on_disk' and 'docs_on_disk' must be False."
+            )
+
+        return values
 
 
 def get_model(session: Session, username: str, model_name: str):

@@ -8,7 +8,7 @@ from models.model import Model
 from thirdai import bolt
 from utils import list_files
 from variables import TextClassificationVariables, TokenClassificationVariables
-
+import json
 
 @apply_exception_handler
 class ClassificationModel(Model):
@@ -54,12 +54,17 @@ class ClassificationModel(Model):
             / model_id
             / "model.udt"
         )
+        
+    def get_model_config_path(self, model_id):
+        return (
+            Path(self.general_variables.model_bazaar_dir)
+            / "models"
+            / model_id
+            / "config.json"
+        )
 
     def load_model(self, model_id):
         return bolt.UniversalDeepTransformer.load(self.get_udt_path(model_id))
-
-    def save_model(self, model):
-        model.save(str(self.model_save_path))
 
     def get_model(self):
         if self.general_variables.base_model_id:
@@ -92,6 +97,9 @@ class TextClassificationModel(ClassificationModel):
             target=self.txt_cls_vars.label_column,
             delimiter=self.txt_cls_vars.delimiter,
         )
+    
+    def save_model(self, model):
+        model.save(str(self.model_save_path))
 
     def train(self, **kwargs):
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
@@ -151,6 +159,20 @@ class TokenClassificationModel(ClassificationModel):
         super().__init__()
         self.tkn_cls_vars = TokenClassificationVariables.load_from_env()
 
+    def save_model(self, model):
+        model.save(str(self.model_save_path))
+        
+        model_config = {
+            "thirdai_version": model._get_model().thirdai_version().split("+")[0],
+            "tags": self.tkn_cls_vars.target_labels,
+            "source_column": self.tkn_cls_vars.source_column,
+            "target_column": self.tkn_cls_vars.target_column,
+            "default_tag": self.tkn_cls_vars.default_tag,
+        }
+        
+        with open(self.get_model_config_path(self.general_variables.model_id), 'w') as json_file:
+            json.dump(model_config, json_file, indent=4)
+        
     def initialize_model(self):
         target_labels = self.tkn_cls_vars.target_labels
         default_tag = self.tkn_cls_vars.default_tag

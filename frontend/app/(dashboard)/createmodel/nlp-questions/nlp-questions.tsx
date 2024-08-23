@@ -7,7 +7,11 @@ import { Button } from '@/components/ui/button';
 import { CardDescription } from '@/components/ui/card';
 import { Divider } from '@mui/material';
 
-const NLPQuestions = () => {
+interface NLPQuestionsProps {
+  workflowNames: string[];
+}
+
+const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
   const [question, setQuestion] = useState('');
   const [loadingAnswer, setLoadingAnswer] = useState<boolean>(false);
   const [answer, setAnswer] = useState('');
@@ -20,6 +24,7 @@ const NLPQuestions = () => {
   const submit = async () => {
     if (!question) {
       console.error('Question is not valid');
+      alert('Question is not valid')
       return;
     }
     if (loadingAnswer) {
@@ -45,6 +50,7 @@ const NLPQuestions = () => {
       setAnswer(result.answer);
     } catch (error) {
       console.error('Error during fetch:', error);
+      alert('Error during fetch:' + error)
     } finally {
       setLoadingAnswer(false);
     }
@@ -100,7 +106,7 @@ const NLPQuestions = () => {
           answer.includes('Sentence classification') ? (
             <SCQQuestions question={question} answer={answer} />
           ) : answer.includes('Token classification') ? (
-            <NERQuestions modelGoal={question} />
+            <NERQuestions workflowNames={workflowNames} modelGoal={question} />
           ) : null
         )
       }

@@ -95,15 +95,13 @@ class DataFactory(ABC):
                             traceback.print_exc(file=errored_fp)
                             errored_fp.write("\n" + "=" * 100 + "\n")
         else:
-            for task_id, task in tqdm(
-                enumerate(tasks_prompt), desc="Progress: ", leave=False
-            ):
-                response_text, task_id = self.process_prompt(
-                    prompt=task["prompt"],
-                    task_id=task_id,
-                    system_prompt=task.get("system_prompt"),
+            for task in tqdm(tasks_prompt, desc="Progress: ", leave=False):
+                response_text, kwargs = self.process_prompt(
+                    task["prompt"],
+                    task.get("system_prompt"),
+                    **(task.get("kwargs") or {}),
                 )
-                data_points.append({"response_text": response_text, "task_id": task_id})
+                data_points.append({"response_text": response_text, "kwargs": kwargs})
 
         return data_points
 
@@ -129,4 +127,7 @@ class DataFactory(ABC):
                     "\nError while writing on train file " + "-" * 20 + "\n"
                 )
                 traceback.print_exc(file=errored_fp)
+                errored_fp.write("\n" + "=" * 100 + "\n")
+                errored_fp.write("Data-points: \n")
+                errored_fp.write(str(data_points) + "\n")
                 errored_fp.write("\n" + "=" * 100 + "\n")

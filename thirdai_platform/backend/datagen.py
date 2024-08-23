@@ -1,4 +1,5 @@
 import os
+import traceback
 import uuid
 from enum import Enum
 from pathlib import Path
@@ -13,11 +14,39 @@ from backend.utils import (
     response,
     submit_nomad_job,
 )
+from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
+
+def get_catalogs(task: schema.UDT_Task, session: Session):
+    query = session.query(schema.Catalog).filter(schema.Catalog.task == task)
+    catalogs: List[schema.Catalog] = query.all()
+    return catalogs
+
+
+def find_dataset(
+    catalogs: List[schema.Catalog], target_labels: str, cut_off: float = 0.75
+):
+    def similarity(dataset_labels: List[str], target_labels: List[str]) -> float:
+        if not dataset_labels:
+            return 0.0
+        match_count = len(set(dataset_labels) & set(target_labels))
+        return match_count / len(dataset_labels)
+
+    most_suited_dataset = None
+    max_similarity = -1
+    for catalog in catalogs:
+        if len(catalog.target_labels) >= len(target_labels):
+            sim = similarity(catalog.target_labels, target_labels)
+            if sim >= cut_off and sim > max_similarity:
+                max_similarity = sim
+                most_suited_dataset = catalog
+
+    return most_suited_dataset
+
 
 # Not sure if this will lead to exposure of using openai to generate data
 class LLMProvider(str, Enum):
@@ -172,7 +201,7 @@ def generate_token_data(
             image_name=os.getenv("TRAIN_IMAGE_NAME"),
             train_script=str(get_root_absolute_path() / "data_generation/run.py"),
             task_prompt=task_prompt,
-            data_id=data_id,
+            data_id=str(data_id),
             data_category="token",
             llm_provider=llm_provider.value,
             model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -194,4 +223,50 @@ def generate_token_data(
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=f"Failed to generate data. {e}"
+        )
+
+
+def find_datasets(
+    task: schema.UDT_Task,
+    target_labels: List[str],
+    session: Session = Depends(get_session),
+):
+
+    try:
+        catalogs = get_catalogs(task=task, session=session)
+        # Filtering catalogs based on the target_labels
+        most_suited_dataset_catalog = find_dataset(
+            catalogs, target_labels=target_labels
+        )
+
+        if most_suited_dataset_catalog:
+
+            data = {
+                "dataset_name": most_suited_dataset_catalog.name,
+                "catalog_id": str(most_suited_dataset_catalog.id),
+                "find_status": True,
+                "num_samples": most_suited_dataset_catalog.num_generated_samples,
+            }
+            # TODO(Pratyush/Gautam) convert the existing JSON files to CSV
+            # dataset location will be os.getenv("SHARE_DIR"), "datasets", "catalog_id", "train.csv"),
+
+        if not most_suited_dataset_catalog:
+            data = {
+                "dataset_name": None,
+                "catalog_id": None,
+                "find_status": False,
+                "num_samples": 0,
+            }
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully retrieved the preview of the data",
+            data=data,
+        )
+
+    except Exception as e:
+        traceback.print_exc()
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message="unable to find a sample text-dataset",
         )

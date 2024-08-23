@@ -448,8 +448,6 @@ def train_udt(
             "extra_options": extra_options,
             "base_model_id": ("NONE" if not base_model_identifier else str(base_model.id)),
             "udt_subtype": udt_subtype,
-            "username": user.username,
-            "model_name": new_model.name,
         })
 
         if udt_subtype == "text":
@@ -496,8 +494,6 @@ def train_udt_impl(
     session: Session = Depends(get_session),
 ):  
     args = json.loads(args_json)
-    username = args.pop("username")
-    model_name = args.pop("model_name")
     
     if file_details_list:
         try:
@@ -566,7 +562,9 @@ def train_udt_impl(
             sub_type=args['udt_subtype'],
         )
     except Exception as err:
-        new_model = get_model(session, username=username, model_name=model_name)
+        new_model: schema.Model = (
+            session.query(schema.Model).filter(schema.Model.name == args['model_id']).first()
+        )
         new_model.train_status = schema.Status.failed
         session.commit()
         logger.info(str(err))

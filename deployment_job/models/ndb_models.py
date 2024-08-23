@@ -15,7 +15,7 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List
 
-from file_handler import create_ndb_docs
+from file_handler import create_ndb_docs, create_ndbv2_docs
 from models.model import Model
 from pydantic_models import inputs
 from thirdai import neural_db as ndb
@@ -471,11 +471,30 @@ class NDBV2Model(NDBModel):
         return inputs.SearchResultsNDB(query_text=query, references=results)
 
     @abstractmethod
-    def insert(self, **kwargs: Any) -> List[Dict[str, str]]:
+    def insert(
+        self, documents: List[Dict[str, Any]], token: str, **kwargs: Any
+    ) -> List[Dict[str, str]]:
         """
         Inserts documents into the NDB model.
         """
-        pass
+        ndb_docs = create_ndbv2_docs(documents, self.doc_save_path())
+
+        source_ids = self.db.insert(ndb_docs)
+
+        self.reporter.log(
+            action="insert",
+            model_id=self.general_variables.model_id,
+            access_token=token,
+            train_samples=[{"sources_ids": " ".join([x.doc_id for x in source_ids])}],
+        )
+
+        return [
+            {
+                "source": doc.reference(0).source,
+                "source_id": doc.hash,
+            }
+            for doc in ndb_docs
+        ]
 
     @abstractmethod
     def upvote(

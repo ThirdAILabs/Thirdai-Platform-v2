@@ -508,6 +508,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         /highlighted-pdf?reference_id=123
         ```
         """
+        # TODO: Make this work with v2
         model = get_model()
         reference = model.db._savable_state.documents.reference(reference_id)
         buffer = io.BytesIO(highlighted_pdf_bytes(reference))
@@ -535,6 +536,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         /pdf-blob?source=/path/to/pdf
         ```
         """
+        # TODO: Make this work with v2
         buffer = io.BytesIO(fitz.open(source).tobytes())
         headers = {"Content-Disposition": f'inline; filename="{Path(source).name}"'}
         return Response(
@@ -558,6 +560,7 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         /pdf-chunks?reference_id=123
         ```
         """
+        # TODO: Make this work with v2
         model = get_model()
         reference = model.db.reference(reference_id)
         chunks = new_pdf_chunks(model.db, reference)

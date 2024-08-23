@@ -53,34 +53,17 @@ def convert_to_ndb_doc(resource_path: str, display_path: str) -> ndbv2.Document:
             id_column=os.getenv("CSV_ID_COLUMN", None),
             keyword_columns=ast.literal_eval(os.getenv("CSV_STRONG_COLUMNS", "None")),
             text_columns=ast.literal_eval(os.getenv("CSV_WEAK_COLUMNS", "None")),
-            reference_columns=ast.literal_eval(
-                os.getenv("CSV_REFERENCE_COLUMNS", "None")
-            ),
             doc_metadata=doc_metadata,
+            display_path=display_path,
         )
     else:
         raise TypeError(f"{ext} Document type isn't supported yet.")
 
 
 def preload_chunks(resource_path: str, display_path: str) -> Tuple[ndbv2.Document, str]:
+    # TODO: Add an option for users to set the doc_id
     doc = convert_to_ndb_doc(resource_path=resource_path, display_path=display_path)
     return ndbv2.documents.PrebatchedDoc(doc.chunks(), doc_id=doc.doc_id), resource_path
-
-
-def get_next_doc_version(directory):
-    if not os.path.exists(directory):
-        return 1
-
-    if not os.path.isdir(directory):
-        raise ValueError(f"The provided directory '{directory}' does not exist.")
-
-    subdirs = [
-        int(d)
-        for d in os.listdir(directory)
-        if d.isdigit() and os.path.isdir(os.path.join(directory, d))
-    ]
-
-    return max(subdirs, default=0) + 1
 
 
 def process_file(
@@ -109,15 +92,14 @@ def process_file(
 
         return doc
 
-    doc_id = uuid.uuid4()  # TODO: option to pass this in from user
-    doc_version = get_next_doc_version(os.path.join(doc_save_dir, doc_id))
-    doc_dir = os.path.join(doc_save_dir, doc_id, doc_version)
+    save_artifact_uuid = uuid.uuid4()
+    doc_dir = os.path.join(doc_save_dir, save_artifact_uuid)
     os.makedirs(doc_dir, exist_ok=True)
     shutil.copy(src=file, dst=doc_dir)
 
     return preload_chunks(
         resource_path=os.path.join(doc_dir, os.path.basename(file)),
-        display_path=os.path.join(doc_id, doc_version, os.path.basename(file)),
+        display_path=os.path.join(save_artifact_uuid, os.path.basename(file)),
     )
 
 

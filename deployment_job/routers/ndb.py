@@ -284,15 +284,6 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     message="Name must only contain alphanumeric characters, underscores (_), and hyphens (-). ",
                 )
-
-            is_model_present = model.reporter.check_model_present(
-                token, input.model_name
-            )
-            if is_model_present:
-                return response(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Model name already exists, choose another one.",
-                )
         else:
             if not override_permission:
                 return response(
@@ -301,14 +292,6 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
                 )
         try:
             model.save_ndb(model_id=model_id)
-            if not input.override:
-                model.reporter.save_model(
-                    access_token=token,
-                    model_id=model_id,
-                    base_model_id=general_variables.model_id,
-                    model_name=input.model_name,
-                    metadata={"thirdai_version": str(thirdai.__version__)},
-                )
         except Exception as err:
             traceback.print_exc()
             return response(

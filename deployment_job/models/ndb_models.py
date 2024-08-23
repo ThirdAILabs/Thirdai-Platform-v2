@@ -74,13 +74,6 @@ class NDBModel(Model):
             for text_id_pair in text_id_pairs
         ]
 
-        self.reporter.log(
-            action="upvote",
-            model_id=self.general_variables.model_id,
-            train_samples=train_samples,
-            access_token=kwargs.get("token"),
-        )
-
     def predict(self, **kwargs: Any) -> inputs.SearchResultsNDB:
         """
         Makes a prediction using the NDB model.
@@ -107,13 +100,6 @@ class NDBModel(Model):
             for ref in references
         ]
 
-        self.reporter.log(
-            action="predict",
-            model_id=self.general_variables.model_id,
-            access_token=kwargs.get("token"),
-            train_samples=[{"query": kwargs["query"]}],
-        )
-
         return inputs.SearchResultsNDB(
             query_text=kwargs["query"],
             references=pydantic_references,
@@ -131,12 +117,6 @@ class NDBModel(Model):
         )
 
         train_samples = [pair.dict() for pair in text_pairs]
-        self.reporter.log(
-            action="associate",
-            model_id=self.general_variables.model_id,
-            train_samples=train_samples,
-            access_token=kwargs.get("token"),
-        )
 
     def sources(self) -> List[Dict[str, str]]:
         """
@@ -160,13 +140,6 @@ class NDBModel(Model):
         source_ids: List[str] = kwargs.get("source_ids")
         self.db.delete(source_ids=source_ids)
 
-        self.reporter.log(
-            action="delete",
-            model_id=self.general_variables.model_id,
-            access_token=kwargs.get("token"),
-            train_samples=[{"source_ids": " ".join(source_ids)}],
-        )
-
     def insert(self, **kwargs: Any) -> List[Dict[str, str]]:
         """
         Inserts documents into the NDB model.
@@ -175,13 +148,6 @@ class NDBModel(Model):
         ndb_docs = create_ndb_docs(documents, self.data_dir)
 
         source_ids = self.db.insert(sources=ndb_docs)
-
-        self.reporter.log(
-            action="insert",
-            model_id=self.general_variables.model_id,
-            access_token=kwargs.get("token"),
-            train_samples=[{"sources_ids": " ".join(source_ids)}],
-        )
 
         return [
             {

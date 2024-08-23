@@ -13,6 +13,10 @@ from utils import now
 
 T = TypeVar("T", bound="EnvLoader")
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 class TypeEnum(str, Enum):
     NDB = "ndb"
@@ -103,13 +107,10 @@ class EnvLoader:
 
 @dataclass
 class GeneralVariables(EnvLoader):
-    model_id: str
-    model_bazaar_endpoint: str
-    model_bazaar_dir: str
     license_key: str
-    task_runner_token: str
-    type: TypeEnum = TypeEnum.NDB
-    sub_type: Union[UDTSubtype, NDBSubtype] = NDBSubtype.single
+    checkpoint_dir: str
+    type: TypeEnum = TypeEnum.UDT
+    sub_type: Union[UDTSubtype, NDBSubtype] = UDTSubtype.token
 
     def deployment_permissions(self, token: str):
         deployment_permissions_endpoint = urljoin(

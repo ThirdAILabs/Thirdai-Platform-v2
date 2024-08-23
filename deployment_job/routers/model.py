@@ -22,6 +22,10 @@ if general_variables.license_key == "file_license":
 else:
     thirdai.licensing.activate(general_variables.license_key)
 
+import thirdai
+
+print(thirdai.__version__)
+
 
 # Singleton Practice for Model instances.
 class ModelManager:

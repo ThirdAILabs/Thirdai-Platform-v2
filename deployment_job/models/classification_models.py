@@ -14,12 +14,11 @@ class ClassificationModel(Model):
         if model_path:
             self.model_path = model_path
         else:
-            self.model_path = self.get_udt_path(model_id)
+            self.model_path = self.get_udt_path()
         self.model: bolt.UniversalDeepTransformer = self.load_model()
 
-    def get_udt_path(self, model_id: Optional[str] = None) -> str:
-        model_id = model_id or self.general_variables.model_id
-        return str(self.get_model_dir(model_id) / "model.udt")
+    def get_udt_path(self) -> str:
+        return str(self.get_model_dir() / "model.udt")
 
     def load_model(self):
         return bolt.UniversalDeepTransformer.load(self.model_path)
@@ -41,19 +40,6 @@ class TextClassificationModel(ClassificationModel):
         prediction = self.model.predict({"text": query}, top_k=top_k)
         class_names = [self.model.class_name(x) for x in prediction[0]]
 
-        self.reporter.log(
-            action="predict",
-            model_id=self.general_variables.model_id,
-            access_token=kwargs.get("token"),
-            train_samples=[
-                {
-                    "query": query,
-                    "top_k": str(top_k),
-                    "class_names": ",".join(class_names),
-                }
-            ],
-        )
-
         return inputs.SearchResultsTextClassification(
             query_text=query,
             class_names=class_names,
@@ -73,13 +59,6 @@ class TokenClassificationModel(ClassificationModel):
         predictions = []
         for predicted_tag in predicted_tags:
             predictions.append([x[0] for x in predicted_tag])
-
-        self.reporter.log(
-            action="predict",
-            model_id=self.general_variables.model_id,
-            access_token=kwargs.get("token"),
-            train_samples=[{"query": query, "predictions": ",".join(predictions[0])}],
-        )
 
         return inputs.SearchResultsTokenClassification(
             query_text=query,

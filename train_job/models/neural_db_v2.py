@@ -123,6 +123,8 @@ def process_file(
 
 class NeuralDBV2(Model):
     def __init__(self):
+        super().__init__()
+
         self.retriever_variables: FinetunableRetrieverVariables = (
             FinetunableRetrieverVariables.load_from_env()
         )

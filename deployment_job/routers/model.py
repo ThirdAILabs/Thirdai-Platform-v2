@@ -39,7 +39,6 @@ class ModelManager:
             ValueError: If the model type is invalid.
         """
         if cls._model_instance is None:
-            print("hahahah")
             if general_variables.type == TypeEnum.NDB:
                 if general_variables.sub_type == NDBSubtype.sharded:
                     cls._model_instance = ShardedNDB()
@@ -53,7 +52,6 @@ class ModelManager:
             else:
                 raise ValueError("Invalid model type")
 
-        print(cls._model_instance, type(cls._model_instance))
         return cls._model_instance
 
 

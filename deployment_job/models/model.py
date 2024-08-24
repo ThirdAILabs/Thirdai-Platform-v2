@@ -3,9 +3,11 @@ Defines the abstract base class for models.
 """
 
 import json
+import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+import redis  # type: ignore
 from reporter import Reporter
 from variables import GeneralVariables
 
@@ -32,6 +34,10 @@ class Model(ABC):
         if not self.telemetry_path.exists():
             with open(self.telemetry_path, "w") as f:
                 json.dump([], f)
+
+        redis_host = os.getenv("REDIS_HOST", "localhost")
+        redis_port = int(os.getenv("REDIS_PORT", 6379))
+        self.redis_client = redis.Redis(host=redis_host, port=redis_port, db=0)
 
     @abstractmethod
     def predict(self, **kwargs):

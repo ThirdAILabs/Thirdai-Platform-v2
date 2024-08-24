@@ -39,14 +39,14 @@ def response(
     )
 
 
-def now() -> datetime.datetime:
+def now() -> str:
     """
     Returns the current UTC time without microseconds.
 
     Returns:
-        datetime.datetime: Current UTC time.
+        str: Current UTC time in iso format.
     """
-    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
+    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
 
 
 def delete_deployment_job(

@@ -3,6 +3,7 @@ job "deployment-{{ model_id }}" {
 
   type = "service"
 
+  # Autoscaling enabled
   group "deployment" {
     count = 1
 
@@ -11,12 +12,12 @@ job "deployment-{{ model_id }}" {
       min = 1
       max = "{{ autoscaler_max_count }}"
       policy {
-        cooldown = "3m"
-        evaluation_interval = "1m"
+        cooldown = "1m"
+        evaluation_interval = "30s"
         check "avg_cpu" {
           source = "nomad-apm"
           query = "avg_cpu-allocated"
-          query_window = "3m"
+          query_window = "1m"
           strategy "target-value" {
             target = 70
           }
@@ -28,8 +29,6 @@ job "deployment-{{ model_id }}" {
       port "{{ model_id }}-http" {
         {% if platform == "docker" %}
           to = 80
-        {% elif platform == "local" %}
-          static = {{ port }}
         {% endif %}
       }
     }
@@ -101,7 +100,7 @@ EOF
           ]
         {% elif platform == "local" %}
           command = "{{ python_path }}"
-          args    = ["-m", "uvicorn", "main:app","--app-dir","{{ deployment_app_dir }}","--reload","--host","0.0.0.0","--port","{{ port }}"]
+          args    = ["-m", "uvicorn", "main:app","--app-dir","{{ deployment_app_dir }}","--reload","--host","0.0.0.0","--port","${NOMAD_PORT_{{ model_id | replace("-", "_") }}_http}"]
         {% endif %}
       }
 
@@ -110,6 +109,48 @@ EOF
         memory = {{ memory }}
         memory_max = {{ 4 * memory }}
 
+      }
+    }
+  }
+
+  group "worker" {
+    count = 1  # Number of worker instances
+
+    network {
+      port "http" {}
+    }
+
+    task "worker" {
+      driver = "raw_exec"
+      env {
+        REDIS_HOST = "localhost"
+        REDIS_PORT = "6379"
+        MODEL_ID = "{{ model_id }}"
+        MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
+        LICENSE_KEY = "{{ license_key }}"
+        GENAI_KEY = "{{ genai_key }}"
+        TYPE = "{{ type }}"
+        SUB_TYPE = "{{ sub_type }}"
+        AWS_ACCESS_KEY = "{{ aws_access_key }}"
+        AWS_ACCESS_SECRET = "{{ aws_access_secret }}"
+        {% if platform == "local" %}
+          MODEL_BAZAAR_DIR = "{{ share_dir }}"
+        {% elif platform == "docker" %}  
+          MODEL_BAZAAR_DIR = "/model_bazaar"
+        {% endif %}
+
+        TASK_RUNNER_TOKEN = "${TASK_RUNNER_TOKEN}"
+      }
+
+      config {
+        command = "{{ python_path }}"
+        args = ["{{ deployment_app_dir }}/worker.py"]  # The script that should be run in both platforms
+      }
+
+      resources {
+        cpu = 2400
+        memory = {{ memory }}
+        memory_max = {{ 4 * memory }}
       }
     }
   }

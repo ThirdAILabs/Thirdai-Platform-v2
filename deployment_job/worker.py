@@ -2,11 +2,13 @@ import json
 import logging
 import time
 import traceback
+
 from routers.model import get_model
 from utils import Status, now
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
+
 
 def process_task(task):
     """
@@ -21,7 +23,13 @@ def process_task(task):
         # Update task status to "in_progress"
         task["status"] = Status.in_progress  # Use the enum value for status
         task["last_modified"] = now()  # Convert datetime to string
-        model.redis_client.hset(f"task:{task_id}", mapping={k: json.dumps(v) if isinstance(v, (list, dict)) else v for k, v in task.items()})
+        model.redis_client.hset(
+            f"task:{task_id}",
+            mapping={
+                k: json.dumps(v) if isinstance(v, (list, dict)) else v
+                for k, v in task.items()
+            },
+        )
 
         action = task.get("action")
         model_id = task.get("model_id")
@@ -29,27 +37,41 @@ def process_task(task):
         if action == "upvote":
             text_id_pairs = json.loads(task.get("text_id_pairs", "[]"))  # Decode JSON
             model.upvote(text_id_pairs=text_id_pairs, token=task.get("token"))
-            logging.info(f"Successfully upvoted for model_id: {model_id}, task_id: {task_id}")
+            logging.info(
+                f"Successfully upvoted for model_id: {model_id}, task_id: {task_id}"
+            )
 
         elif action == "associate":
             text_pairs = json.loads(task.get("text_pairs", "[]"))  # Decode JSON
             model.associate(text_pairs=text_pairs, token=task.get("token"))
-            logging.info(f"Successfully associated for model_id: {model_id}, task_id: {task_id}")
+            logging.info(
+                f"Successfully associated for model_id: {model_id}, task_id: {task_id}"
+            )
 
         elif action == "delete":
             source_ids = json.loads(task.get("source_ids", "[]"))  # Decode JSON
             model.delete(source_ids=source_ids, token=task.get("token"))
-            logging.info(f"Successfully deleted sources for model_id: {model_id}, task_id: {task_id}")
+            logging.info(
+                f"Successfully deleted sources for model_id: {model_id}, task_id: {task_id}"
+            )
 
         elif action == "insert":
             documents = json.loads(task.get("documents", "[]"))  # Decode JSON
             model.insert(documents=documents, token=task.get("token"))
-            logging.info(f"Successfully inserted documents for model_id: {model_id}, task_id: {task_id}")
+            logging.info(
+                f"Successfully inserted documents for model_id: {model_id}, task_id: {task_id}"
+            )
 
         # Mark task as completed
         task["status"] = Status.complete
         task["last_modified"] = now()
-        model.redis_client.hset(f"task:{task_id}", mapping={k: json.dumps(v) if isinstance(v, (list, dict)) else v for k, v in task.items()})
+        model.redis_client.hset(
+            f"task:{task_id}",
+            mapping={
+                k: json.dumps(v) if isinstance(v, (list, dict)) else v
+                for k, v in task.items()
+            },
+        )
 
     except Exception as e:
         logging.error(f"Failed to process task {task_id}: {str(e)}")
@@ -58,7 +80,13 @@ def process_task(task):
         task["status"] = Status.failed
         task["last_modified"] = now()
         task["message"] = str(e)
-        model.redis_client.hset(f"task:{task_id}", mapping={k: json.dumps(v) if isinstance(v, (list, dict)) else v for k, v in task.items()})
+        model.redis_client.hset(
+            f"task:{task_id}",
+            mapping={
+                k: json.dumps(v) if isinstance(v, (list, dict)) else v
+                for k, v in task.items()
+            },
+        )
 
 
 def list_all_redis_keys():

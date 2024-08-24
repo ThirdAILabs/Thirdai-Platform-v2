@@ -46,7 +46,9 @@ def now() -> str:
     Returns:
         str: Current UTC time in iso format.
     """
-    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
+    return (
+        datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
+    )
 
 
 def delete_deployment_job(

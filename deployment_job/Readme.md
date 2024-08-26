@@ -17,23 +17,23 @@
 3. **Run docker container:**  
    - Go to the `deployment_job` folder 
    - In this command, replace 
-      -  `local_port` with any available port on your local machine
+      -  `local_port` with any available port on your local machine (default=7889)
       -  `checkpoint_dir`with your model checkpoint directory, containing `model.udt`
-      -  `env_file_path` path to your env file (in step 1)
+      -  `env_file_path` path to your env file (in step 1) (default=.env)
    ```
-   docker run -p <local_port>:80 --env-file <env_file_path> -v <checkpoint_dir>:/pretrained_model <image_name>:<tag>
+   docker run -p 7889:80 --env-file .env -v <checkpoint_dir>:/pretrained_model pratyush3ai/fortanix_policy2:latest
    ```
 
 4. **Predict endpoint:**
    - The container will be running on `localhost:7888` (ex. local_port is 7888)
    - Run the following curl command to make a predict call
    ```
-   curl -X POST \
-  'http://localhost:7889/predict' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "query": "Wei Zhang, identifying as Androgynes highlighted her life as a Guru individual",
-    "top_k": 1
-  }'
+    curl -X POST \
+   'http://localhost:7889/predict' \
+   -H 'accept: application/json' \
+   -H 'Content-Type: application/json' \
+   -d '{
+      "query": "Wei Zhang, identifying as Androgynes highlighted her life as a Guru individual",
+      "top_k": 1
+   }'
    ```

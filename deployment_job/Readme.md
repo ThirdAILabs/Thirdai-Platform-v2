@@ -9,6 +9,11 @@
    docker build -t <image_name>:<tag> .
    ```
 
+   - Pull docker image for policy2
+   ```
+   docker pull pratyush3ai/fortanix_policy2:latest
+   ```
+
 3. **Run docker container:**  
    - Go to the `deployment_job` folder 
    - In this command, replace 
@@ -28,7 +33,7 @@
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
-    "query": "What is artificial intelligence?",
+    "query": "Wei Zhang, identifying as Androgynes highlighted her life as a Guru individual",
     "top_k": 1
   }'
    ```

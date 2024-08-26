@@ -1,5 +1,6 @@
 import asyncio
 import time
+from datetime import datetime
 from functools import wraps
 from queue import Queue
 from threading import Lock, Thread
@@ -10,6 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from reporter import Reporter
+from routers.model import ModelManager, get_model
 from routers.ndb import ndb_router
 from routers.telemetry import telemetry_router  # Import the telemetry router
 from routers.udt import udt_router
@@ -58,21 +60,58 @@ async def async_timer() -> None:
     """
     while True:
         try:
-            await asyncio.wait_for(
-                reset_event.wait(), timeout=900  # 15 minutes = 900 seconds
-            )
-            reset_event.clear()  # clear the event if the endpoint was hit within the timeout period
+            await asyncio.wait_for(reset_event.wait(), timeout=900)
+            reset_event.clear()  # Clear the event if the endpoint was hit within the timeout period
         except asyncio.TimeoutError:
-            response, job_id = delete_deployment_job(
-                general_variables.model_id, general_variables.task_runner_token
+            # Timer expired, initiate shutdown
+            active_workflows_count = reporter.active_workflow_count(
+                model_id=general_variables.model_id
             )
-            if response.status_code == 200:
-                print(f"Job {job_id} stopped successfully")
-            else:
-                print(
-                    f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
+            if active_workflows_count == 0:
+                response, job_id = delete_deployment_job(
+                    general_variables.get_nomad_endpoint(),
+                    general_variables.model_id,
+                    general_variables.task_runner_token,
                 )
-            reset_event.clear()
+                if response.status_code == 200:
+                    print(f"Job {job_id} stopped successfully")
+                else:
+                    print(
+                        f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
+                    )
+                reporter.update_deploy_status(general_variables.model_id, "stopped")
+            reset_event.clear()  # Clear event after handling timeout
+
+
+async def check_for_model_updates():
+    last_loaded_timestamp = None
+    model_id = general_variables.model_id
+    model = get_model()
+
+    while True:
+        try:
+            # Get the current model update timestamp from Redis using model_id
+            current_timestamp = model.redis_client.get(f"model_last_updated:{model_id}")
+            if current_timestamp:
+                current_timestamp = current_timestamp.decode()
+
+                # If the timestamp is newer than the last loaded one, reload the model
+                if not last_loaded_timestamp or datetime.fromisoformat(
+                    current_timestamp
+                ) > datetime.fromisoformat(last_loaded_timestamp):
+                    print(
+                        f"New model update detected at {current_timestamp}. Reloading model..."
+                    )
+                    # when we rest the instance will be cleared, so forcing to load the latest model instance.
+                    ModelManager.reset_instance()
+                    last_loaded_timestamp = current_timestamp
+                    print("Model successfully reloaded.")
+
+        except Exception as e:
+            print(f"Error checking for model update: {str(e)}")
+
+        # Sleep for a short period before checking again
+        await asyncio.sleep(10)  # Adjust the sleep time according to your needs
 
 
 # Include the telemetry router for all deployments
@@ -103,8 +142,10 @@ async def startup_event() -> None:
     Event handler for application startup.
     """
     try:
-        time.sleep(10)
+        await asyncio.sleep(10)
         reporter.update_deploy_status(general_variables.model_id, "complete")
+        asyncio.create_task(async_timer())
+        asyncio.create_task(check_for_model_updates())
     except Exception as e:
         reporter.update_deploy_status(general_variables.model_id, "failed")
         raise e  # Re-raise the exception to propagate it to the main block

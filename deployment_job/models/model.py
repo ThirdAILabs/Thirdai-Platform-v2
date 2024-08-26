@@ -6,8 +6,10 @@ import json
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Dict
 
 import redis  # type: ignore
+from permissions import Permissions
 from reporter import Reporter
 from variables import GeneralVariables
 
@@ -38,6 +40,7 @@ class Model(ABC):
         redis_host = os.getenv("REDIS_HOST", "localhost")
         redis_port = int(os.getenv("REDIS_PORT", 6379))
         self.redis_client = redis.Redis(host=redis_host, port=redis_port, db=0)
+        self.permissions = Permissions()
 
     @abstractmethod
     def predict(self, **kwargs):
@@ -51,3 +54,20 @@ class Model(ABC):
         Returns the directory path for the given model ID.
         """
         return Path(self.general_variables.model_bazaar_dir) / "models" / model_id
+
+    def redis_publish(self, task_id: str, task_data: Dict):
+        # Store task data in Redis Hash
+        self.redis_client.hset(f"task:{task_id}", mapping=task_data)
+
+        # Index task by model_id in Redis Set
+        self.redis_client.sadd(
+            f"tasks_by_model:{self.general_variables.model_id}", task_id
+        )
+
+    @abstractmethod
+    def save(self, **kwargs):
+        pass
+
+    @abstractmethod
+    def load(self, **kwargs):
+        pass

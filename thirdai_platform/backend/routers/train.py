@@ -537,6 +537,9 @@ class TrainComplete(BaseModel):
     model_id: str
     metadata: Dict[str, str]
 
+    class Config:
+        protected_namespaces = ()
+
 
 @train_router.post("/complete")
 def train_complete(

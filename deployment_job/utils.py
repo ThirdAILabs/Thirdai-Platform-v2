@@ -52,7 +52,7 @@ def now() -> str:
 
 
 def delete_deployment_job(
-    model_id: str, task_runner_token: str
+    nomad_endpoint: str, model_id: str, task_runner_token: str
 ) -> Tuple[requests.Response, str]:
     """
     Deletes a job from Nomad.
@@ -65,7 +65,7 @@ def delete_deployment_job(
         Tuple[requests.Response, str]: The response from the delete request and the job ID.
     """
     job_id = f"deployment-{model_id}"
-    job_url = f"http://172.17.0.1:4646/v1/jobs/{job_id}"
+    job_url = f"{nomad_endpoint}/v1/job/{job_id}"
     headers = {"X-Nomad-Token": task_runner_token}
     response = requests.delete(job_url, headers=headers)
     return response, job_id

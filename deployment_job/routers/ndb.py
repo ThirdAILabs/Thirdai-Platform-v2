@@ -109,7 +109,7 @@ def ndb_query(
 @propagate_error
 def ndb_upvote(
     input: inputs.UpvoteInput,
-    token: str = Depends(permissions.verify_write_permission),
+    token: str = Depends(permissions.verify_read_permission),
 ):
     """
     Upvote specific text-id pairs.
@@ -132,28 +132,49 @@ def ndb_upvote(
     ```
     """
     model = get_model()
-    task_id = str(uuid.uuid4())
-    task_data = {
-        "task_id": task_id,
-        "model_id": general_variables.model_id,
-        "action": "upvote",
-        "text_id_pairs": json.dumps(jsonable_encoder(input.text_id_pairs)),
-        "token": token,
-        "status": Status.not_started,
-        "last_modified": now(),
-        "message": "",
-    }
+    train_samples = [
+        {
+            "query_text": text_id_pair.query_text,
+            "reference_id": str(text_id_pair.reference_id),
+            "reference_text": model.db._get_text(text_id_pair.reference_id),
+        }
+        for text_id_pair in input.text_id_pairs
+    ]
 
-    # Store task data in Redis Hash
-    model.redis_client.hset(f"task:{task_id}", mapping=task_data)
+    write_permission = model.permissions.check_write_permission(token=token)
 
-    # Index task by model_id in Redis Set
-    model.redis_client.sadd(f"tasks_by_model:{general_variables.model_id}", task_id)
+    model.reporter.log(
+        action="upvote",
+        model_id=model.general_variables.model_id,
+        train_samples=train_samples,
+        access_token=token,
+        used=True if write_permission else False,
+    )
+
+    if write_permission:
+        task_id = str(uuid.uuid4())
+        task_data = {
+            "task_id": task_id,
+            "model_id": general_variables.model_id,
+            "action": "upvote",
+            "text_id_pairs": json.dumps(jsonable_encoder(input.text_id_pairs)),
+            "token": token,
+            "status": Status.not_started,
+            "last_modified": now(),
+            "message": "",
+        }
+
+        model.redis_publish(task_id=task_id, task_data=task_data)
+
+        return response(
+            status_code=status.HTTP_202_ACCEPTED,
+            message="Upvote task queued successfully.",
+            data={"task_id": task_id},
+        )
 
     return response(
-        status_code=status.HTTP_202_ACCEPTED,
-        message="Upvote task queued successfully.",
-        data={"task_id": task_id},
+        status_code=status.HTTP_200_OK,
+        message="Upvote task logged successfully.",
     )
 
 
@@ -161,7 +182,7 @@ def ndb_upvote(
 @propagate_error
 def ndb_associate(
     input: inputs.AssociateInput,
-    token: str = Depends(permissions.verify_write_permission),
+    token: str = Depends(permissions.verify_read_permission),
 ):
     """
     Associate text pairs in the model.
@@ -184,28 +205,39 @@ def ndb_associate(
     ```
     """
     model = get_model()
-    task_id = str(uuid.uuid4())
-    task_data = {
-        "task_id": task_id,
-        "model_id": general_variables.model_id,
-        "action": "associate",
-        "text_pairs": json.dumps(jsonable_encoder(input.text_pairs)),
-        "token": token,
-        "status": Status.not_started,
-        "last_modified": now(),
-        "message": "",
-    }
+    train_samples = [pair.dict() for pair in input.text_pairs]
+    write_permission = model.permissions.check_write_permission(token=token)
+    model.reporter.log(
+        action="associate",
+        model_id=model.general_variables.model_id,
+        train_samples=train_samples,
+        access_token=token,
+        used=True if write_permission else False,
+    )
+    if write_permission:
+        task_id = str(uuid.uuid4())
+        task_data = {
+            "task_id": task_id,
+            "model_id": general_variables.model_id,
+            "action": "associate",
+            "text_pairs": json.dumps(jsonable_encoder(input.text_pairs)),
+            "token": token,
+            "status": Status.not_started,
+            "last_modified": now(),
+            "message": "",
+        }
 
-    # Store task data in Redis Hash
-    model.redis_client.hset(f"task:{task_id}", mapping=task_data)
+        model.redis_publish(task_id=task_id, task_data=task_data)
 
-    # Index task by model_id in Redis Set
-    model.redis_client.sadd(f"tasks_by_model:{general_variables.model_id}", task_id)
+        return response(
+            status_code=status.HTTP_202_ACCEPTED,
+            message="Associate task queued successfully.",
+            data={"task_id": task_id},
+        )
 
     return response(
-        status_code=status.HTTP_202_ACCEPTED,
-        message="Associate task queued successfully.",
-        data={"task_id": task_id},
+        status_code=status.HTTP_200_OK,
+        message="Associate task logged successfully.",
     )
 
 
@@ -275,11 +307,7 @@ def delete(
         "message": "",
     }
 
-    # Store task data in Redis Hash
-    model.redis_client.hset(f"task:{task_id}", mapping=task_data)
-
-    # Index task by model_id in Redis Set
-    model.redis_client.sadd(f"tasks_by_model:{general_variables.model_id}", task_id)
+    model.redis_publish(task_id=task_id, task_data=task_data)
 
     return response(
         status_code=status.HTTP_202_ACCEPTED,
@@ -344,7 +372,7 @@ def save(
                 message="You don't have permissions to override this model.",
             )
     try:
-        model.save_ndb(model_id=model_id)
+        model.save(model_id=model_id)
         if not input.override:
             model.reporter.save_model(
                 access_token=token,
@@ -434,11 +462,7 @@ def insert(
         "message": "",
     }
 
-    # Store task data in Redis Hash
-    model.redis_client.hset(f"task:{task_id}", mapping=task_data)
-
-    # Index task by model_id in Redis Set
-    model.redis_client.sadd(f"tasks_by_model:{general_variables.model_id}", task_id)
+    model.redis_publish(task_id=task_id, task_data=task_data)
 
     return response(
         status_code=status.HTTP_202_ACCEPTED,

@@ -28,7 +28,7 @@ class ModelManager:
     _model_instance = None
 
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls, write_mode: bool = False):
         """
         Retrieves the appropriate model instance based on general variables.
 
@@ -39,21 +39,34 @@ class ModelManager:
             ValueError: If the model type is invalid.
         """
         if cls._model_instance is None:
-            if general_variables.type == TypeEnum.NDB:
-                if general_variables.sub_type == NDBSubtype.sharded:
-                    cls._model_instance = ShardedNDB()
-                else:
-                    cls._model_instance = SingleNDB()
-            elif general_variables.type == TypeEnum.UDT:
-                if general_variables.sub_type == UDTSubtype.text:
-                    cls._model_instance = TextClassificationModel()
-                else:
-                    cls._model_instance = TokenClassificationModel()
-            else:
-                raise ValueError("Invalid model type")
-
+            cls._model_instance = cls._initialize_model(write_mode)
         return cls._model_instance
 
+    @classmethod
+    def _initialize_model(cls, write_mode: bool):
+        """
+        Initializes and returns the appropriate model instance based on general variables.
+        """
+        if general_variables.type == TypeEnum.NDB:
+            if general_variables.sub_type == NDBSubtype.sharded:
+                return ShardedNDB(write_mode=write_mode)
+            else:
+                return SingleNDB(write_mode=write_mode)
+        elif general_variables.type == TypeEnum.UDT:
+            if general_variables.sub_type == UDTSubtype.text:
+                return TextClassificationModel()
+            else:
+                return TokenClassificationModel()
+        else:
+            raise ValueError("Invalid model type")
 
-def get_model():
-    return ModelManager.get_instance()
+    @classmethod
+    def reset_instance(cls):
+        """
+        Resets the model instance to force reloading of the model.
+        """
+        cls._model_instance = None
+
+
+def get_model(write_mode: bool = False):
+    return ModelManager.get_instance(write_mode=write_mode)

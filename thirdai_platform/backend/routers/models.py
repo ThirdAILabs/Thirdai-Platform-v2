@@ -217,6 +217,9 @@ class SaveNDBDeployedModel(BaseModel):
     model_name: str
     metadata: Dict[str, str]
 
+    class Config:
+        protected_namespaces = ()
+
 
 @model_router.post("/save-deployed")
 def save_deployed_model(

@@ -2,6 +2,7 @@ import json
 import logging
 import time
 import traceback
+from datetime import datetime
 from typing import List
 
 from pydantic import parse_obj_as
@@ -13,6 +14,19 @@ from utils import Status, now
 logging.basicConfig(level=logging.INFO)
 
 
+def update_model_with_timestamp(model_id):
+    model = get_model()
+
+    model.save(model_id=model_id)
+
+    # Update the timestamp in Redis with model_id
+    timestamp = datetime.utcnow().isoformat()
+    model.redis_client.set(f"model_last_updated:{model_id}", timestamp)
+    logging.info(
+        f"Model (ID: {model_id}) updated and saved with timestamp: {timestamp}"
+    )
+
+
 def process_task(task):
     """
     Process a single task based on the task action.
@@ -20,7 +34,7 @@ def process_task(task):
     Args:
         task (dict): The task data fetched from Redis.
     """
-    model = get_model()
+    model = get_model(write_mode=True)
     task_id = task.get("task_id")
     try:
         # Update task status to "in_progress"
@@ -122,6 +136,9 @@ def main():
 
                 # Process the task
                 process_task(task_data)
+
+        if task_ids:
+            update_model_with_timestamp(model_id=model_id)
 
         time.sleep(10)
 

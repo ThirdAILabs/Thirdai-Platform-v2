@@ -2,7 +2,10 @@ import json
 import logging
 import time
 import traceback
+from typing import List
 
+from pydantic import parse_obj_as
+from pydantic_models.inputs import AssociateInputSingle, UpvoteInputSingle
 from routers.model import get_model
 from utils import Status, now
 
@@ -35,28 +38,35 @@ def process_task(task):
         model_id = task.get("model_id")
 
         if action == "upvote":
-            text_id_pairs = json.loads(task.get("text_id_pairs", "[]"))  # Decode JSON
+            # Deserialize and load back into Pydantic model
+            text_id_pairs = parse_obj_as(
+                List[UpvoteInputSingle], task.get("text_id_pairs", "[]")
+            )
             model.upvote(text_id_pairs=text_id_pairs, token=task.get("token"))
             logging.info(
                 f"Successfully upvoted for model_id: {model_id}, task_id: {task_id}"
             )
 
         elif action == "associate":
-            text_pairs = json.loads(task.get("text_pairs", "[]"))  # Decode JSON
+            # Deserialize and load back into Pydantic model
+            text_pairs = parse_obj_as(
+                List[AssociateInputSingle], task.get("text_pairs", "[]")
+            )
             model.associate(text_pairs=text_pairs, token=task.get("token"))
             logging.info(
-                f"Successfully associated for model_id: {model_id}, task_id: {task_id}"
+                f"Successfully associated text pairs for model_id: {model_id}, task_id: {task_id}"
             )
 
         elif action == "delete":
-            source_ids = json.loads(task.get("source_ids", "[]"))  # Decode JSON
+            # Deserialize and load back into Pydantic model
+            source_ids = json.loads(task.get("source_ids", "[]"))
             model.delete(source_ids=source_ids, token=task.get("token"))
             logging.info(
                 f"Successfully deleted sources for model_id: {model_id}, task_id: {task_id}"
             )
 
         elif action == "insert":
-            documents = json.loads(task.get("documents", "[]"))  # Decode JSON
+            documents = task.get("documents", "[]")  # Decode JSON
             model.insert(documents=documents, token=task.get("token"))
             logging.info(
                 f"Successfully inserted documents for model_id: {model_id}, task_id: {task_id}"
@@ -87,22 +97,10 @@ def process_task(task):
                 for k, v in task.items()
             },
         )
-
-
-def list_all_redis_keys():
-    model = get_model()
-    redis_client = model.redis_client
-    all_keys = redis_client.keys("*")
-    print(all_keys, flush=True)
-    # for key in all_keys:
-    #     print(f"Key: {key.decode()}")
-    #     if redis_client.type(key) == b'hash':
-    #         key_data = redis_client.hgetall(key)
-    #         decoded_data = {k.decode(): v.decode() for k, v in key_data.items()}
-    #         print(decoded_data)
-    #     elif redis_client.type(key) == b'set':
-    #         members = redis_client.smembers(key)
-    #         print({member.decode() for member in members})
+    finally:
+        model.redis_client.srem(f"tasks_by_model:{model_id}", task_id)
+        model.redis_client.delete(f"task:{task_id}")
+        logging.info(f"Task {task_id} removed from Redis.")
 
 
 def main():
@@ -111,16 +109,12 @@ def main():
     model_id = model.general_variables.model_id
 
     while True:
-        # Fetch task IDs specific to the current model_id
         task_ids = redis_client.smembers(f"tasks_by_model:{model_id}")
-        print(task_ids)
 
         for task_id in task_ids:
             task_id = task_id.decode()  # Decode bytes to string
-            # Retrieve and deserialize the task data
             task_data = redis_client.hgetall(f"task:{task_id}")
             if task_data:
-                # Decode and deserialize fields as needed
                 task_data = {k.decode(): v.decode() for k, v in task_data.items()}
                 for key in ["text_id_pairs", "text_pairs", "documents", "source_ids"]:
                     if key in task_data:
@@ -129,8 +123,7 @@ def main():
                 # Process the task
                 process_task(task_data)
 
-        time.sleep(10)  # Adjust the sleep time according to your needs
-        list_all_redis_keys()
+        time.sleep(10)
 
 
 if __name__ == "__main__":

@@ -61,7 +61,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       } catch (e) {
         setIsValid(false);
         console.error('Validation failed.', e);
-        alert('Validation failed.' + e)
+        // alert('Validation failed.' + e)
       }
     }, 3000); // Adjust the interval as needed, e.g., every 5 seconds
 
@@ -109,11 +109,11 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       } else if (allComplete) {
         setDeployStatus('Active'); // Models are complete and workflow is active
       } else {
-        setDeployStatus('Ready to Start');
+        setDeployStatus('Starting');
       }
     } else {
       // If no models are present, the workflow is ready to deploy
-      setDeployStatus('Ready to Start');
+      setDeployStatus('Error: Underlying model not present');
     }
   }, [workflow.models, workflow.status]);
 

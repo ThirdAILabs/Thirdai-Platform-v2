@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import { SelectModel } from '@/lib/db';
 import NERQuestions from './nlp-questions/ner-questions';
@@ -8,6 +7,11 @@ import { CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@/components/ui/tooltip';
 
 interface RAGQuestionsProps {
   models: SelectModel[];
@@ -435,11 +439,24 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
           <>
             {(ssModelId && (ifUseLGR === 'No' || grModelId) && modelName) ? (
               <div>
-                <Button onClick={handleSubmit} style={{ width: '100%' }}
-                        disabled={! (!!(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName))}
-                >
-                  Create
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <Button 
+                        onClick={handleSubmit} 
+                        style={{ width: '100%' }}
+                        disabled={!(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName)}
+                      >
+                        Create
+                      </Button>
+                    </div>
+                  </TooltipTrigger>
+                  {!(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName) && (
+                    <TooltipContent side="bottom">
+                      LLM Type is not specified
+                    </TooltipContent>
+                  )}
+                </Tooltip>
               </div>
             ) : (
               <div style={{ color: 'red' }}>{errorMessage}</div>

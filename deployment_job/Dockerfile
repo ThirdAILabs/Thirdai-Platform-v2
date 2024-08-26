@@ -8,11 +8,16 @@ COPY ./requirements.txt /app/requirements.txt
 RUN pip install -r /app/requirements.txt
 
 # Define a build argument with a default value
-ARG THIRDIAI_VERSION=0.9.9
+# Copy your .env file into the Docker image
+COPY .env .
+COPY version.txt .
 
 # Install thirdai package separately since this is the dependency that changes
 # the most often. This allows the other packages to stay cached.
-RUN python3 -m pip install thirdai==$THIRDIAI_VERSION
+
+RUN export THIRDAI_VERSION=$(cat "version.txt") && \
+    echo "Installing thirdai version: $THIRDAI_VERSION" && \
+    python3 -m pip install thirdai==$THIRDAI_VERSION
 
 RUN python3 -m pip install thirdai[neural_db]
 RUN python3 -m pip install -U langchain-community

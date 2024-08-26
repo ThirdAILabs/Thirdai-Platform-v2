@@ -103,7 +103,7 @@ async def check_for_model_updates():
                         f"New model update detected at {current_timestamp}. Reloading model..."
                     )
                     # when we rest the instance will be cleared, so forcing to load the latest model instance.
-                    ModelManager.reset_instance()
+                    ModelManager.reset_instances()
                     last_loaded_timestamp = current_timestamp
                     print("Model successfully reloaded.")
 

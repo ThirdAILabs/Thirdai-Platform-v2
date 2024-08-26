@@ -113,6 +113,7 @@ EOF
     }
   }
 
+  {% if worker_enabled == "true" %}
   group "worker" {
     count = 1  # Number of worker instances
 
@@ -154,4 +155,5 @@ EOF
       }
     }
   }
+  {% endif %}
 }

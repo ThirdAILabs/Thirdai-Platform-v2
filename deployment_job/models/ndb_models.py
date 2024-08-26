@@ -3,17 +3,14 @@ Defines NDB model classes for the application.
 """
 
 import copy
-import logging
 import pickle
 import shutil
 import tempfile
 import traceback
 import uuid
-from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List
 
-from fastapi.encoders import jsonable_encoder
 from file_handler import create_ndb_docs
 from models.model import Model
 from pydantic_models import inputs
@@ -204,7 +201,7 @@ class SingleNDB(NDBModel):
                     shutil.rmtree(backup_path.parent)
 
         except Exception as err:
-            logging.error(f"Failed while saving with error: {err}")
+            self.logger.error(f"Failed while saving with error: {err}")
             traceback.print_exc()
 
             if "backup_path" in locals() and backup_path.exists():
@@ -305,7 +302,7 @@ class ShardedNDB(NDBModel):
                     shutil.rmtree(backup_dir)
 
         except Exception as err:
-            logging.error(f"Failed while saving with error: {err}")
+            self.logger.error(f"Failed while saving with error: {err}")
             traceback.print_exc()
 
             if backup_dir and backup_dir.exists():

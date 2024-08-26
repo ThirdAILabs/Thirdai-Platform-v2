@@ -644,7 +644,7 @@ def process_ndb_task(task):
             )
             model.upvote(text_id_pairs=text_id_pairs, token=task.get("token"))
             model.logger.info(
-                f"Successfully upvoted for model_id: {model_id}, task_id: {task_id}"
+                f"Successfully upvoted for model_id: {model_id}, task_id: {task_id} and task_data: {task}"
             )
 
         elif action == "associate":
@@ -654,7 +654,7 @@ def process_ndb_task(task):
             )
             model.associate(text_pairs=text_pairs, token=task.get("token"))
             model.logger.info(
-                f"Successfully associated text pairs for model_id: {model_id}, task_id: {task_id}"
+                f"Successfully associated text pairs for model_id: {model_id}, task_id: {task_id} and task_data: {task}"
             )
 
         elif action == "delete":
@@ -662,14 +662,14 @@ def process_ndb_task(task):
             source_ids = json.loads(task.get("source_ids", "[]"))
             model.delete(source_ids=source_ids, token=task.get("token"))
             model.logger.info(
-                f"Successfully deleted sources for model_id: {model_id}, task_id: {task_id}"
+                f"Successfully deleted sources for model_id: {model_id}, task_id: {task_id} and task_data: {task}"
             )
 
         elif action == "insert":
             documents = task.get("documents", "[]")  # Decode JSON
             model.insert(documents=documents, token=task.get("token"))
             model.logger.info(
-                f"Successfully inserted documents for model_id: {model_id}, task_id: {task_id}"
+                f"Successfully inserted documents for model_id: {model_id}, task_id: {task_id} and task_data: {task}"
             )
 
         # Mark task as completed
@@ -681,6 +681,9 @@ def process_ndb_task(task):
                 k: json.dumps(v) if isinstance(v, (list, dict)) else v
                 for k, v in task.items()
             },
+        )
+        model.logger.info(
+            f"Successfully updated the status of the task {task_id} to complete"
         )
 
     except Exception as e:

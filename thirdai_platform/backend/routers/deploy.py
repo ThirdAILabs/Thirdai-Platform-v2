@@ -14,7 +14,6 @@ from auth.jwt import (
 from backend.auth_dependencies import is_model_owner
 from backend.utils import (
     delete_nomad_job,
-    get_empty_port,
     get_model_from_identifier,
     get_platform,
     get_python_path,
@@ -23,8 +22,6 @@ from backend.utils import (
     model_accessible,
     response,
     submit_nomad_job,
-    update_json,
-    update_json_list,
 )
 from database import schema
 from database.session import get_session
@@ -32,7 +29,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()

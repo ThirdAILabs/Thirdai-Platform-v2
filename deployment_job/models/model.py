@@ -67,6 +67,8 @@ class Model(ABC):
             f"tasks_by_model:{self.general_variables.model_id}", task_id
         )
 
+        self.logger.info(f"Added task {task_id} with following data {task_data}")
+
     @abstractmethod
     def save(self, **kwargs):
         pass

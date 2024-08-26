@@ -12,7 +12,6 @@ from backend.auth_dependencies import (
 )
 from backend.utils import (
     delete_nomad_job,
-    get_empty_port,
     get_platform,
     get_python_path,
     get_root_absolute_path,

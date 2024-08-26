@@ -1,9 +1,6 @@
 import asyncio
-import time
 from datetime import datetime
 from functools import wraps
-from queue import Queue
-from threading import Lock, Thread
 from typing import Any
 
 import uvicorn
@@ -38,6 +35,8 @@ app.add_middleware(
 # after n minutes, this service will shut down, unless a function that is decorated
 # with @reset_timer is called, in which case the timer restarts.
 reset_event = asyncio.Event()
+
+model = get_model()
 
 
 def reset_timer(endpoint_func):
@@ -74,9 +73,9 @@ async def async_timer() -> None:
                     general_variables.task_runner_token,
                 )
                 if response.status_code == 200:
-                    print(f"Job {job_id} stopped successfully")
+                    model.logger.info(f"Job {job_id} stopped successfully")
                 else:
-                    print(
+                    model.logger.error(
                         f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
                     )
                 reporter.update_deploy_status(general_variables.model_id, "stopped")
@@ -86,7 +85,6 @@ async def async_timer() -> None:
 async def check_for_model_updates():
     last_loaded_timestamp = None
     model_id = general_variables.model_id
-    model = get_model()
 
     while True:
         try:
@@ -99,16 +97,16 @@ async def check_for_model_updates():
                 if not last_loaded_timestamp or datetime.fromisoformat(
                     current_timestamp
                 ) > datetime.fromisoformat(last_loaded_timestamp):
-                    print(
+                    model.logger.info(
                         f"New model update detected at {current_timestamp}. Reloading model..."
                     )
                     # when we rest the instance will be cleared, so forcing to load the latest model instance.
                     ModelManager.reset_instances()
                     last_loaded_timestamp = current_timestamp
-                    print("Model successfully reloaded.")
+                    model.logger.info("Model successfully reloaded.")
 
         except Exception as e:
-            print(f"Error checking for model update: {str(e)}")
+            model.logger.error(f"Error checking for model update: {str(e)}")
 
         # Sleep for a short period before checking again
         await asyncio.sleep(10)  # Adjust the sleep time according to your needs
@@ -148,6 +146,7 @@ async def startup_event() -> None:
         asyncio.create_task(check_for_model_updates())
     except Exception as e:
         reporter.update_deploy_status(general_variables.model_id, "failed")
+        model.logger.error(f"Failed to startup the application, {e}")
         raise e  # Re-raise the exception to propagate it to the main block
 
 
@@ -155,5 +154,5 @@ if __name__ == "__main__":
     try:
         uvicorn.run(app, host="localhost", port=8000)
     except Exception as e:
-        print(f"Uvicorn failed to start: {str(e)}")
+        model.logger.error(f"Uvicorn failed to start: {str(e)}")
         reporter.update_deploy_status(general_variables.model_id, "failed")

@@ -7,6 +7,7 @@ import { create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useRouter } from 'next/navigation';
 
 interface RAGQuestionsProps {
   models: SelectModel[];
@@ -52,6 +53,8 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
 
   // End state variables & func for LLM
 
+  const router = useRouter();
+
   const handleSubmit = async () => {
     const workflowName = modelName;
     const workflowTypeName = 'rag';
@@ -96,6 +99,9 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
         console.error('No models to add to the workflow');
         alert('No models to add to the workflow')
       }
+
+      // Go back home page
+      router.push("/")
     } catch (error) {
       console.error('Error during workflow creation or model addition:', error);
       alert('Error during workflow creation or model addition:' + error)
@@ -427,12 +433,14 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
           <Button onClick={() => setCurrentStep(currentStep + 1)}>Next</Button>
         ) : (
           <>
-            {(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName) ? (
-              <Link href="/">
-                <Button onClick={handleSubmit} style={{ width: '100%' }}>
-                  {`${ifUseExistingSS === 'No' || (ifUseLGR === 'Yes' && ifUseExistingLGR === 'No') ? 'Create' : 'Create and Deploy'}`}
+            {(ssModelId && (ifUseLGR === 'No' || grModelId) && modelName) ? (
+              <div>
+                <Button onClick={handleSubmit} style={{ width: '100%' }}
+                        disabled={! (!!(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName))}
+                >
+                  Create
                 </Button>
-              </Link>
+              </div>
             ) : (
               <div style={{ color: 'red' }}>{errorMessage}</div>
             )}

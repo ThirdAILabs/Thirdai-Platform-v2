@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict
 
 import redis  # type: ignore
+from logger import LoggerConfig
 from permissions import Permissions
 from reporter import Reporter
 from variables import GeneralVariables
@@ -41,6 +42,8 @@ class Model(ABC):
         redis_port = int(os.getenv("REDIS_PORT", 6379))
         self.redis_client = redis.Redis(host=redis_host, port=redis_port, db=0)
         self.permissions = Permissions()
+        logger_file_path = self.data_dir / "deployment.log"
+        self.logger = LoggerConfig(logger_file_path).get_logger("deployment-logger")
 
     @abstractmethod
     def predict(self, **kwargs):

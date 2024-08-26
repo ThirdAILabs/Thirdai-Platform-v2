@@ -175,11 +175,6 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem>Edit</DropdownMenuItem>
-            <Link href={`/analytics?id=${encodeURIComponent(`${workflow.id}`)}`}>
-                <DropdownMenuItem>
-                    <button type="button">Usage stats</button>
-                </DropdownMenuItem>
-              </Link>
             {
               deployStatus === 'Active'
               &&
@@ -199,7 +194,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                       }
                     }}
                   >
-                    Stop Workflow
+                    Stop App
                   </button>
                 </form>
               </DropdownMenuItem>
@@ -220,10 +215,15 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                     }
                   }}
                 >
-                  Delete Workflow
+                  Delete App
                 </button>
               </form>
             </DropdownMenuItem>
+            <Link href={`/analytics?id=${encodeURIComponent(`${workflow.id}`)}`}>
+              <DropdownMenuItem>
+                  <button type="button">Usage stats</button>
+              </DropdownMenuItem>
+            </Link>
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

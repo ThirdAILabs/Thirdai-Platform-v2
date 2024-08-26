@@ -157,11 +157,18 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       </TableCell>
       <TableCell className="hidden md:table-cell">
         <Button
-          onClick={deployStatus === 'Inactive' ? handleDeploy : goToEndpoint}
+          onClick={deployStatus === 'Active' ? goToEndpoint : handleDeploy}
           className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
           style={{ width: '100px' }}
+          disabled={['Failed', 'Starting', 'Error: Underlying model not present'].includes(deployStatus)}
         >
-          {deployStatus === 'Inactive' ? 'Start' : 'Endpoint'}
+          {deployStatus === 'Active' 
+            ? 'Endpoint' 
+            : deployStatus === 'Inactive' 
+            ? 'Start' 
+            : deployStatus === 'Failed' || deployStatus === 'Error: Underlying model not present'
+            ? 'Start'
+            : 'Endpoint'}
         </Button>
       </TableCell>
       <TableCell>

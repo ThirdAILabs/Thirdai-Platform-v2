@@ -159,11 +159,9 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         <Button
           onClick={deployStatus === 'Inactive' ? handleDeploy : goToEndpoint}
           className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+          style={{ width: '100px' }}
         >
-          <span className="sr-only">
-            {deployStatus === 'Inactive' ? 'Start' : 'Go to endpoint'}
-          </span>
-          {deployStatus === 'Inactive' ? 'Start' : 'Go to endpoint'}
+          {deployStatus === 'Inactive' ? 'Start' : 'Endpoint'}
         </Button>
       </TableCell>
       <TableCell>

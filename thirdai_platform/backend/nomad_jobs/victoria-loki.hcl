@@ -21,7 +21,6 @@ job "victoria-loki" {
       mode = "bridge"
 
       port "vicky-http" {
-        static = 8428
         to = 8428
       }
 
@@ -78,7 +77,7 @@ job "victoria-loki" {
         args = [
           "--storageDataPath=/storage",
           "--retentionPeriod=1d",
-          "--httpListenAddr=:8428",
+          "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
           "--promscrape.config=$${NOMAD_TASK_DIR}/prometheus.yaml"
         ]
       }

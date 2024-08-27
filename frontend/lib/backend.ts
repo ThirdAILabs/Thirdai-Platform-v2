@@ -557,11 +557,6 @@ export function userRegister(email: string, password: string, username: string) 
     });
 }
 
-interface TokenClassificationSample {
-  nerData: string[];
-  sentence: string;
-}
-
 
 interface TokenClassificationExample {
   name: string;
@@ -617,6 +612,77 @@ export function trainTokenClassifier(
   formData.append("datagen_options_form", JSON.stringify(tokenClassifierDatagenForm(modelGoal, examples)))
   console.log(modelGoal);
 
+  return new Promise((resolve, reject) => {
+      axios
+          .post(`${thirdaiPlatformBaseUrl}/api/train/udt?model_name=${modelName}&task_prompt=${modelGoal}`, formData)
+          .then((res) => {
+              resolve(res.data);
+          })
+          .catch((err) => {
+              if (err.response && err.response.data) {
+                  reject(new Error(err.response.data.detail || 'Failed to run model'));
+              } else {
+                  reject(new Error('Failed to run model'));
+              }
+          });
+  });
+};
+
+
+interface SentenceClassificationExample {
+  name: string;
+  example: string;
+  description: string;
+}
+
+
+function sentenceClassifierDatagenForm(examples: SentenceClassificationExample[]) {
+  let labelExamples: Record<string, string[]> = {};
+  let labelDescriptions: Record<string, string> = {};
+  examples.forEach(example => {
+    if (!labelExamples[example.name]) {
+      labelExamples[example.name] = [example.example];
+      labelDescriptions[example.name] = example.description;
+    } else {
+      labelExamples[example.name].push(example.example);
+    }
+  })
+  const numSentences = 10_000;
+  return {
+    "samples_per_label": Math.max(Math.ceil(numSentences / Object.keys(labelExamples).length), 50),
+    "target_labels": Object.keys(labelExamples),
+    "examples": labelExamples,
+    "labels_description": labelDescriptions,
+  }
+}
+
+interface TrainSentenceClassifierResponse {
+  status_code: number;
+  message: string;
+  data: {
+    model_id: string;
+    user_id: string;
+  };
+}
+
+
+export function trainSentenceClassifier(
+  modelName: string,
+  modelGoal: string,
+  examples: SentenceClassificationExample[],
+): Promise<TrainTokenClassifierResponse> {
+  // Retrieve the access token from local storage
+  const accessToken = getAccessToken()
+
+  // Set the default authorization header for axios
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const formData = new FormData();
+  formData.append("extra_options_form", JSON.stringify({
+    sub_type: "token",
+  }))
+  formData.append("datagen_options_form", JSON.stringify(sentenceClassifierDatagenForm(examples)))
+  
   return new Promise((resolve, reject) => {
       axios
           .post(`${thirdaiPlatformBaseUrl}/api/train/udt?model_name=${modelName}&task_prompt=${modelGoal}`, formData)

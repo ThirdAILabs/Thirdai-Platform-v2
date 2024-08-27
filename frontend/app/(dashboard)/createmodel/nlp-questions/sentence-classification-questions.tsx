@@ -24,7 +24,7 @@ const predefinedChoices = [
 ];
 
 const SCQQuestions = ({ question, answer }: SCQQuestionsProps) => {
-  const [categories, setCategories] = useState([{ name: '', example: '' }]);
+  const [categories, setCategories] = useState([{ name: '', example: '', description: '' }]);
   const [showReview, setShowReview] = useState(false);
   const [isDataGenerating, setIsDataGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<GeneratedData[]>([]);
@@ -41,7 +41,7 @@ const SCQQuestions = ({ question, answer }: SCQQuestionsProps) => {
   };
 
   const handleAddCategory = () => {
-    setCategories([...categories, { name: '', example: '' }]);
+    setCategories([...categories, { name: '', example: '', description: '' }]);
   };
 
   const handleRemoveCategory = (index: number) => {
@@ -132,23 +132,6 @@ const SCQQuestions = ({ question, answer }: SCQQuestionsProps) => {
     }
   };
 
-  const renderTaggedSentence = (pair: { sentence: string; nerData: string[] }) => {
-    return pair.sentence.split(' ').map((token, idx) => {
-      const tag = pair.nerData[idx];
-      if (tag === 'O') {
-        return (
-          <span key={idx} style={{ padding: '0 4px' }}>
-            {token}
-          </span>
-        );
-      }
-      return (
-        <span key={idx} style={{ padding: '0 4px', backgroundColor: tag === 'AGE' ? '#ffcccb' : '#ccffcc', borderRadius: '4px' }}>
-          {token} <span style={{ fontSize: '0.8em', fontWeight: 'bold', color: tag === 'AGE' ? '#ff0000' : '#00cc00' }}>{tag}</span>
-        </span>
-      );
-    });
-  };
 
   return (
     <div className='p-5'>
@@ -177,6 +160,13 @@ const SCQQuestions = ({ question, answer }: SCQQuestionsProps) => {
               placeholder="Example"
               value={category.example}
               onChange={(e) => handleCategoryChange(index, 'example', e.target.value)}
+            />
+            <input
+              type="text"
+              className='form-input w-full md:w-1/3 md:ml-2 mt-2 md:mt-0 px-3 py-2 border rounded-md'
+              placeholder="Description"
+              value={category.example}
+              onChange={(e) => handleCategoryChange(index, 'description', e.target.value)}
             />
             <button type="button" className='bg-red-500 text-white px-4 py-2 rounded-md md:ml-2 mt-2 md:mt-0' onClick={() => handleRemoveCategory(index)}>
               Remove

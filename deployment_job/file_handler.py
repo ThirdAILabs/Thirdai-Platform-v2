@@ -277,7 +277,7 @@ def process_file(
 
         return doc
 
-    save_artifact_uuid = uuid.uuid4()
+    save_artifact_uuid = str(uuid.uuid4())
     doc_dir = os.path.join(doc_save_dir, save_artifact_uuid)
     os.makedirs(doc_dir, exist_ok=True)
     shutil.copy(src=file, dst=doc_dir)

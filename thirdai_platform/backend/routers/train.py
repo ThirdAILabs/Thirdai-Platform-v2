@@ -233,7 +233,7 @@ def train_ndb(
         else False
     )
 
-    ndb_version = "ndbv2" if extra_options.version == "v1" else "ndb"
+    ndb_version = "ndbv2" if extra_options.get("version") == "v1" else "ndb"
     try:
         new_model = schema.Model(
             id=model_id,

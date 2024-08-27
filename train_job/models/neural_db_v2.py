@@ -11,7 +11,7 @@ from typing import List, Tuple
 
 import thirdai
 from fastapi import Response
-from model import Model
+from models.model import Model
 from thirdai import neural_db_v2 as ndbv2
 from utils import check_disk, create_s3_client, get_directory_size, list_files
 from variables import FinetunableRetrieverVariables
@@ -92,7 +92,7 @@ def process_file(
 
         return doc
 
-    save_artifact_uuid = uuid.uuid4()
+    save_artifact_uuid = str(uuid.uuid4())
     doc_dir = os.path.join(doc_save_dir, save_artifact_uuid)
     os.makedirs(doc_dir, exist_ok=True)
     shutil.copy(src=file, dst=doc_dir)
@@ -141,7 +141,7 @@ class NeuralDBV2(Model):
                         task_queue.put(ndb_file)
                         print(f"Successfully processed {filename}", flush=True)
                 except Exception as e:
-                    print(f"Error processing file {filename}: {e}")
+                    print(f"Error processing file: {e}")
 
     def indexer(self, task_queue: queue.Queue, batch_size: int):
         batch = []

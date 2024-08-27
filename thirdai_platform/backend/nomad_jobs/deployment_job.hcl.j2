@@ -132,11 +132,29 @@ EOF
     count = 1  # Number of worker instances
 
     network {
-      port "http" {}
+      port "{{ model_id }}-worker-http" {}
     }
 
     task "worker" {
-      driver = "raw_exec"
+      {% if platform == "local" %}
+        driver = "raw_exec"
+      {% elif platform == "docker" %}  
+        driver = "docker"
+
+      template {
+        destination = "${NOMAD_SECRETS_DIR}/env.vars"
+        env         = true
+        change_mode = "restart"
+        data        = <<EOF
+{% raw %}
+{{- with nomadVar "nomad/jobs" -}}
+TASK_RUNNER_TOKEN = {{ .task_runner_token }}
+{{- end -}}
+{% endraw %}
+EOF
+      }
+
+      {% endif %}
       env {
         MODEL_ID = "{{ model_id }}"
         MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
@@ -170,6 +188,20 @@ EOF
       }
 
       config {
+        {% if platform == "docker" %}  
+          image = "{{ registry }}/{{ image_name }}:{{ tag }}"
+          image_pull_timeout = "15m"
+          ports = ["{{ model_id }}-worker-http"]
+          group_add = ["4646"]
+          auth {
+            username = "{{ docker_username }}"
+            password = "{{ docker_password }}"
+            server_address = "{{ registry }}"
+          }
+          volumes = [
+            "{{ share_dir }}:/model_bazaar"
+          ]
+        {% endif %}
         command = "{{ python_path }}"
         args = ["{{ deployment_app_dir }}/worker.py"]  # The script that should be run in both platforms
       }

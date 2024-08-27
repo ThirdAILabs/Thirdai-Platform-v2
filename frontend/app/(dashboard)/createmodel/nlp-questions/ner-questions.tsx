@@ -204,6 +204,7 @@ const NERQuestions = ({ workflowNames, modelGoal, onCreateModel, stayOnPage, app
     }
   };
 
+  const [warningMessage, setWarningMessage] = useState("");
 
   return (
     <div>
@@ -214,16 +215,21 @@ const NERQuestions = ({ workflowNames, modelGoal, onCreateModel, stayOnPage, app
         onChange={(e) => {
           const name = e.target.value;
           if (workflowNames.includes(name)) {
-            // Notify the user about the duplicate name
-            alert("A workflow with the same name has been created. Please choose a different name.");
+            setWarningMessage("A workflow with the same name has been created. Please choose a different name.");
           } else {
-            setModelName(name);
+            setWarningMessage(""); // Clear the warning if the name is unique
           }
+          setModelName(name)
         }}
         placeholder="Enter app name"
         style={{ marginTop: "10px" }}
         disabled={appName ? true : false}
       />
+      {warningMessage && (
+        <span style={{ color: "red", marginTop: "10px" }}>
+          {warningMessage}
+        </span>
+      )}
       {
         generatedData.length === 0 && <>
           <span className="block text-lg font-semibold" style={{ marginTop: "20px" }}>Specify Tokens</span>

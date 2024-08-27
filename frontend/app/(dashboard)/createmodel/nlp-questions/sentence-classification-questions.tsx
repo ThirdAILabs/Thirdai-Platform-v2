@@ -2,15 +2,22 @@
 import Link from 'next/link';
 import React, { useState } from 'react';
 import { SelectModel } from '@/lib/db';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { add_models_to_workflow, create_workflow, trainSentenceClassifier } from '@/lib/backend';
+import { useRouter } from 'next/navigation';
 
 interface SCQQuestionsProps {
   question: string;
   answer: string;
+  workflowNames: string[];
 }
 
 type Category = {
   name: string;
   example: string;
+  description: string;
 };
 
 type GeneratedData = {
@@ -23,12 +30,16 @@ const predefinedChoices = [
   'Negative Sentiment',
 ];
 
-const SCQQuestions = ({ question, answer }: SCQQuestionsProps) => {
+const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) => {
+  const [modelName, setModelName] = useState('');
+  const [warningMessage, setWarningMessage] = useState('');
   const [categories, setCategories] = useState([{ name: '', example: '', description: '' }]);
   const [showReview, setShowReview] = useState(false);
   const [isDataGenerating, setIsDataGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<GeneratedData[]>([]);
   const [generateDataPrompt, setGenerateDataPrompt] = useState('');
+
+  const router = useRouter();
 
   const handleCategoryChange = (index: number, field: string, value: string) => {
     const newCategories = categories.map((category, i) => {
@@ -51,7 +62,7 @@ const SCQQuestions = ({ question, answer }: SCQQuestionsProps) => {
   const validateCategories = () => {
     // Check if any category has an empty name or example
     return categories.every((category: Category) => {
-      return category.name && category.example
+      return category.name && category.example && category.description
     });
   };
 
@@ -133,119 +144,181 @@ const SCQQuestions = ({ question, answer }: SCQQuestionsProps) => {
   };
 
 
+  const handleCreateNERModel = async () => {
+    if (!modelName) {
+      alert("Please enter a model name.");
+      return;
+    }
+  
+    try {
+      const modelResponse = await trainSentenceClassifier(modelName, /* modelGoal= */ question, /* examples= */ categories);
+      const modelId = modelResponse.data.model_id;
+
+      // Create workflow after model creation
+      const workflowName = modelName;
+      const workflowTypeName = "nlp"; // Assuming this is the type for NER workflows
+      const workflowResponse = await create_workflow({ name: workflowName, typeName: workflowTypeName });
+      const workflowId = workflowResponse.data.workflow_id;
+
+      // Add the model to the workflow with the appropriate component
+      const addModelsResponse = await add_models_to_workflow({
+        workflowId,
+        modelIdentifiers: [modelId],
+        components: ['nlp'], // Specific to this use case
+      });
+
+      console.log('Workflow and model addition successful:', addModelsResponse);
+
+      router.push("/");
+    } catch (e) {
+      console.log(e || 'Failed to create NER model and workflow');
+    }
+  };
+
+
   return (
-    <div className='p-5'>
-      <h3 className='mb-3 text-lg font-semibold'>Specify Tokens</h3>
-      <form onSubmit={handleSubmit}>
-        {categories.map((category, index) => (
-          <div key={index} className='flex flex-col md:flex-row md:items-center my-2'>
-            <div className="relative w-full md:w-1/3">
-              <input
-                type="text"
-                list={`category-options-${index}`}
-                className="form-input w-full px-3 py-2 border rounded-md"
-                placeholder="Category Name"
-                value={category.name}
-                onChange={(e) => handleCategoryChange(index, 'name', e.target.value)}
+    <div>
+      <span className="block text-lg font-semibold">App Name</span>
+      <Input
+        className="text-md"
+        value={modelName}
+        onChange={(e) => {
+          const name = e.target.value;
+          if (workflowNames.includes(name)) {
+            setWarningMessage("A workflow with the same name has been created. Please choose a different name.");
+          } else {
+            setWarningMessage(""); // Clear the warning if the name is unique
+          }
+          setModelName(name)
+        }}
+        placeholder="Enter app name"
+        style={{ marginTop: "10px" }}
+      />
+      {warningMessage && (
+        <span style={{ color: "red", marginTop: "10px" }}>
+          {warningMessage}
+        </span>
+      )}
+      <span className="block text-lg font-semibold">Specify Tokens</span>
+      <form onSubmit={handleSubmit} style={{ marginTop: "20px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          {categories.map((category, index) => (
+            <div
+              key={index}
+              style={{
+                display: "flex",
+                flexDirection: "row",
+                gap: "10px",
+                justifyContent: "space-between",
+              }}
+            >
+              <div style={{ width: "100%" }}>
+                <Input
+                  list={`category-options-${index}`}
+                  style={{ width: "100%" }}
+                  className="text-md"
+                  placeholder="Category Name"
+                  value={category.name}
+                  onChange={(e) => handleCategoryChange(index, "name", e.target.value)}
+                />
+                <datalist id={`category-options-${index}`}>
+                  {predefinedChoices.map((choice, i) => (
+                    <option key={i} value={choice} />
+                  ))}
+                </datalist>
+              </div>
+              <Input
+                style={{ width: "100%" }}
+                className="text-md"
+                placeholder="Example"
+                value={category.example}
+                onChange={(e) => handleCategoryChange(index, "example", e.target.value)}
               />
-              <datalist id={`category-options-${index}`}>
-                {predefinedChoices.map((choice, i) => (
-                  <option key={i} value={choice} />
-                ))}
-              </datalist>
+              <Input
+                style={{ width: "100%" }}
+                className="text-md"
+                placeholder="Description"
+                value={category.example}
+                onChange={(e) => handleCategoryChange(index, "description", e.target.value)}
+              />
+              <Button
+                variant="destructive"
+                onClick={() => handleRemoveCategory(index)}
+              >
+                Remove
+              </Button>
             </div>
-            <input
-              type="text"
-              className='form-input w-full md:w-1/3 md:ml-2 mt-2 md:mt-0 px-3 py-2 border rounded-md'
-              placeholder="Example"
-              value={category.example}
-              onChange={(e) => handleCategoryChange(index, 'example', e.target.value)}
-            />
-            <input
-              type="text"
-              className='form-input w-full md:w-1/3 md:ml-2 mt-2 md:mt-0 px-3 py-2 border rounded-md'
-              placeholder="Description"
-              value={category.example}
-              onChange={(e) => handleCategoryChange(index, 'description', e.target.value)}
-            />
-            <button type="button" className='bg-red-500 text-white px-4 py-2 rounded-md md:ml-2 mt-2 md:mt-0' onClick={() => handleRemoveCategory(index)}>
-              Remove
-            </button>
-          </div>
-        ))}
-        <button type="button" className='bg-blue-500 text-white px-4 py-2 rounded-md mt-2 mr-2' onClick={handleAddAndReviewCategory}>
-          Add Category
-        </button>
-        <button type="button" className='bg-green-500 text-white px-4 py-2 rounded-md mt-2' onClick={() => { setShowReview(true) }}>Finish and Review</button>
+          ))}
+          <Button
+            style={{ marginTop: "10px", width: "fit-content" }}
+            onClick={handleAddAndReviewCategory}
+          >
+            Add Category
+          </Button>
+          {categories.length > 0 && (
+            <Button
+              variant={isDataGenerating ? "secondary" : "default"}
+              style={{ marginTop: "30px" }}
+              onClick={generateData}
+            >
+              {isDataGenerating ? "Generating data..." : "Generate data"}
+            </Button>
+          )}
+        </div>
       </form>
 
-      {categories.length > 0 && showReview && (
-        <div className='mt-5'>
-          <h3 className='mb-3 text-lg font-semibold'>Review Categories and Examples</h3>
-          <table className='min-w-full bg-white'>
-            <thead>
-              <tr>
-                <th className='py-2 px-4 border-b'>Category Name</th>
-                <th className='py-2 px-4 border-b'>Example</th>
-              </tr>
-            </thead>
-            <tbody>
-              {categories.map((category, index) => (
-                <tr key={index}>
-                  <td className='py-2 px-4 border-b'>{category.name}</td>
-                  <td className='py-2 px-4 border-b'>{category.example}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <button className='bg-blue-500 text-white px-4 py-2 rounded-md mt-2' onClick={generateData}>Generate more data</button>
-        </div>
-      )}
-
       {isDataGenerating && (
-        <div className='flex justify-center mt-5'>
-          <div className='animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500'></div>
+        <div className="flex justify-center mt-5">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       )}
 
       {!isDataGenerating && generatedData.length > 0 && (
-        <div className='mt-5'>
-          <h3 className='mb-3 text-lg font-semibold'>Generated Data</h3>
-
-          <table className='table'>
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Generated Examples</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="mt-5">
+          <h3 className="mb-3 text-lg font-semibold">Generated Data</h3>
+          <Table style={{ marginTop: "10px" }}>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Category</TableHead>
+                <TableHead>Generated Examples</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {generatedData.map((data, index) => (
-                <tr key={index}>
-                  <td>{data.category}</td>
-                  <td>
+                <TableRow key={index}>
+                  <TableCell className="font-medium" align="left">
+                    {data.category}
+                  </TableCell>
+                  <TableCell className="font-medium" align="left">
                     <ul>
                       {data.examples.map((example, i) => (
                         <li key={i}>{example}</li>
                       ))}
                     </ul>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-
-          <div className="flex justify-center">
-            <Link href="/">
-              <button
-                type="button"
-                className="mb-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-                onClick={async () => { }}
-              >
-                Create
-              </button>
-            </Link>
+            </TableBody>
+          </Table>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              gap: "10px",
+              marginTop: "20px",
+            }}
+          >
+            <Button
+              variant="outline"
+              style={{ width: "100%" }}
+              onClick={() => setGeneratedData([])}
+            >
+              Redefine Tokens
+            </Button>
+            <Button style={{ width: "100%" }} onClick={()=>{}}>
+              Create
+            </Button>
           </div>
         </div>
       )}

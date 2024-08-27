@@ -61,7 +61,7 @@ def convert_to_ndb_doc(resource_path: str, display_path: str) -> ndbv2.Document:
 
 
 def preload_chunks(resource_path: str, display_path: str) -> Tuple[ndbv2.Document, str]:
-    # TODO: Add an option for users to set the doc_id
+    # TODO(V2 Support): Add an option for users to set the doc_id
     doc = convert_to_ndb_doc(resource_path=resource_path, display_path=display_path)
     return ndbv2.documents.PrebatchedDoc(doc.chunks(), doc_id=doc.doc_id), resource_path
 
@@ -267,7 +267,7 @@ class NeuralDBV2(Model):
                 return os.stat(path).st_size
             return get_directory_size(path)
 
-        # TODO: update this calculation for on_disk=True
+        # TODO(Nicholas): update this calculation for on_disk=True
         size_in_memory = int(
             get_size(self.db.retriever_path(self.ndb_save_path())) * 1.5
             + get_size(self.db.chunk_store_path(self.ndb_save_path()))

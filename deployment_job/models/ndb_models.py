@@ -500,7 +500,7 @@ class NDBV2Model(NDBModel):
     def insert(
         self, documents: List[Dict[str, Any]], token: str, **kwargs: Any
     ) -> List[Dict[str, str]]:
-        # TODO: add flag for upsert
+        # TODO(V2 Support): add flag for upsert
         ndb_docs = create_ndbv2_docs(documents, self.doc_save_path())
 
         source_ids = self.db.insert(ndb_docs)

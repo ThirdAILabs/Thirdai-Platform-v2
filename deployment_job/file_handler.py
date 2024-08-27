@@ -218,7 +218,7 @@ def convert_to_ndbv2_doc(
 ) -> ndbv2.Document:
     filename, ext = os.path.splitext(resource_path)
 
-    # TODO: add support for unstructured (pptx, eml, txt), and InMemoryText
+    # TODO(V2 Support): add support for unstructured (pptx, eml, txt), and InMemoryText
     if ext == ".pdf":
         return ndbv2.PDF(resource_path, display_path=display_path, **doc_args)
     elif ext == ".docx":
@@ -243,7 +243,7 @@ def convert_to_ndbv2_doc(
 def preload_chunks(
     resource_path: str, display_path: str, doc_args: Dict[str, Any]
 ) -> Tuple[ndbv2.Document, str]:
-    # TODO: Add an option for users to set the doc_id
+    # TODO(V2 Support): Add an option for users to set the doc_id
     doc = convert_to_ndbv2_doc(
         resource_path=resource_path, display_path=display_path, doc_args=doc_args
     )

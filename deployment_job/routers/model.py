@@ -9,7 +9,7 @@ from models.classification_models import (
     TextClassificationModel,
     TokenClassificationModel,
 )
-from models.ndb_models import ShardedNDB, SingleNDB
+from models.ndb_models import NDBV2Model, ShardedNDB, SingleNDB
 from variables import GeneralVariables, NDBSubtype, TypeEnum, UDTSubtype
 
 # Initialize thirdai license
@@ -45,6 +45,8 @@ class ModelManager:
                     cls._model_instance = ShardedNDB()
                 else:
                     cls._model_instance = SingleNDB()
+            elif general_variables.type == TypeEnum.NDBV2:
+                cls._model_instance = NDBV2Model()
             elif general_variables.type == TypeEnum.UDT:
                 if general_variables.sub_type == UDTSubtype.text:
                     cls._model_instance = TextClassificationModel()

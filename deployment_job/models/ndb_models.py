@@ -2,6 +2,7 @@
 Defines NDB model classes for the application.
 """
 
+import ast
 import copy
 import json
 import logging
@@ -13,8 +14,9 @@ import traceback
 import uuid
 from abc import abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
+import fitz
 from file_handler import create_ndb_docs, create_ndbv2_docs
 from models.model import Model
 from pydantic_models import inputs
@@ -22,6 +24,8 @@ from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.chunk_stores import constraints
 from thirdai.neural_db_v2.core.types import Chunk
+
+from ..utils import highlighted_pdf_bytes, new_pdf_chunks, old_pdf_chunks
 
 
 class NDBModel(Model):
@@ -34,14 +38,14 @@ class NDBModel(Model):
         """
         Makes a prediction using the NDB model.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def insert(self, **kwargs: Any) -> List[Dict[str, str]]:
         """
         Inserts documents into the NDB model.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def upvote(
@@ -50,7 +54,7 @@ class NDBModel(Model):
         """
         Upvotes entries in the NDB model.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def associate(
@@ -59,28 +63,44 @@ class NDBModel(Model):
         """
         Associates entries in the NDB model.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def delete(self, source_ids: List[str], token: str, **kwargs: Any) -> None:
         """
         Deletes entries from the NDB model.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def sources(self) -> List[Dict[str, str]]:
         """
         Retrieves sources from the NDB model.
         """
-        pass
+        raise NotImplementedError
+
+    @abstractmethod
+    def highlight_pdf(self, chunk_id: int) -> Tuple[str, Optional[bytes]]:
+        """
+        Returns the document name, and bytes of the pdf document of the given chunk
+        with the chunk highlighted.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def chunks(self, chunk_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Returns information about the source file that contains the given chunk as
+        as well as the other chunks in that file.
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def save_ndb(self, **kwargs: Any) -> None:
         """
         Saves the NDB model.
         """
-        pass
+        raise NotImplementedError
 
 
 class NDBV1Model(NDBModel):
@@ -248,6 +268,17 @@ class NDBV1Model(NDBModel):
             }
             for doc in ndb_docs
         ]
+
+    def highlight_pdf(self, reference_id: int) -> Tuple[str, Optional[bytes]]:
+        reference = self.db._savable_state.documents.reference(reference_id)
+        return reference.source, highlighted_pdf_bytes(reference)
+
+    def chunks(self, reference_id: int) -> Optional[Dict[str, Any]]:
+        reference = self.db.reference(reference_id)
+        chunks = new_pdf_chunks(self.db, reference)
+        if chunks:
+            return chunks
+        return old_pdf_chunks(self.db, reference)
 
 
 class SingleNDB(NDBV1Model):
@@ -436,7 +467,6 @@ class NDBV2Model(NDBModel):
             score=score,
         )
 
-    @abstractmethod
     def predict(
         self,
         query: str,
@@ -445,9 +475,6 @@ class NDBV2Model(NDBModel):
         token: str,
         **kwargs: Any,
     ) -> inputs.SearchResultsNDB:
-        """
-        Makes a prediction using the NDB model.
-        """
         constraints = {
             key: getattr(constraints, constraint["constraint_type"])(
                 **{k: v for k, v in constraint.items() if k != "constraint_type"}
@@ -470,13 +497,9 @@ class NDBV2Model(NDBModel):
 
         return inputs.SearchResultsNDB(query_text=query, references=results)
 
-    @abstractmethod
     def insert(
         self, documents: List[Dict[str, Any]], token: str, **kwargs: Any
     ) -> List[Dict[str, str]]:
-        """
-        Inserts documents into the NDB model.
-        """
         # TODO: add flag for upsert
         ndb_docs = create_ndbv2_docs(documents, self.doc_save_path())
 
@@ -497,13 +520,9 @@ class NDBV2Model(NDBModel):
             for doc in ndb_docs
         ]
 
-    @abstractmethod
     def upvote(
         self, text_id_pairs: List[inputs.UpvoteInputSingle], token: str, **kwargs: Any
     ) -> None:
-        """
-        Upvotes entries in the NDB model.
-        """
         queries = [t.query_text for t in text_id_pairs]
         chunk_ids = [t.reference_id for t in text_id_pairs]
         self.db.upvote(queries=queries, chunk_ids=chunk_ids, **kwargs)
@@ -529,9 +548,6 @@ class NDBV2Model(NDBModel):
     def associate(
         self, text_pairs: List[inputs.AssociateInputSingle], token: str, **kwargs: Any
     ) -> None:
-        """
-        Associates entries in the NDB model.
-        """
         sources = [t.source for t in text_pairs]
         targets = [t.target for t in text_pairs]
         self.db.associate(sources=sources, targets=targets, **kwargs)
@@ -543,11 +559,7 @@ class NDBV2Model(NDBModel):
             access_token=token,
         )
 
-    @abstractmethod
     def delete(self, source_ids: List[str], token: str, **kwargs: Any) -> None:
-        """
-        Deletes entries from the NDB model.
-        """
         for id in source_ids:
             self.db.delete_doc(doc_id=id)
 
@@ -558,11 +570,7 @@ class NDBV2Model(NDBModel):
             train_samples=[{"source_ids": " ".join(source_ids)}],
         )
 
-    @abstractmethod
     def sources(self) -> List[Dict[str, str]]:
-        """
-        Retrieves sources from the NDB model.
-        """
         return sorted(
             [
                 {
@@ -575,12 +583,46 @@ class NDBV2Model(NDBModel):
             key=lambda x: x["source"],
         )
 
-    @abstractmethod
-    def save_ndb(self, model_id: str, **kwargs) -> None:
-        """
-        Saves the NDB model.
-        """
+    def highlight_pdf(self, chunk_id: int) -> Tuple[str, Optional[bytes]]:
+        chunk = self.db.chunk_store.get_chunks([chunk_id])
+        if not chunk:
+            raise ValueError(f"{chunk_id} is not a valid chunk_id")
+        chunk = chunk[0]
 
+        source = self.full_source_path(chunk.document)
+        if "chunk_boxes" not in chunk.metadata:
+            return source, None
+
+        highlights = ast.literal_eval(chunk.metadata["chunk_boxes"])
+        doc = fitz.open(source)
+        for page, bounding_box in highlights:
+            doc[page].add_highlight_annot(fitz.Rect(bounding_box))
+
+        return source, doc.tobytes()
+
+    def chunks(self, chunk_id: int) -> Optional[Dict[str, Any]]:
+        chunk = self.db.chunk_store.get_chunks([chunk_id])
+        if not chunk:
+            raise ValueError(f"{chunk_id} is not a valid chunk_id")
+        chunk = chunk[0]
+        if "chunk_boxes" not in chunk.metadata:
+            return None
+
+        chunk_ids = self.db.chunk_store.get_doc_chunks(
+            doc_id=chunk.doc_id, before_version=chunk.doc_version + 1
+        )
+        chunks = self.db.chunk_store.get_chunks(chunk_ids)
+
+        chunks = list(filter(lambda c: c.doc_version == chunk.doc_version, chunks))
+
+        return {
+            "filename": self.full_source_path(chunk.document),
+            "id": [c.chunk_id for c in chunks],
+            "text": [c.text for c in chunks],
+            "boxes": [ast.literal_eval(c.metadata["chunk_boxes"]) for c in chunks],
+        }
+
+    def save_ndb(self, model_id: str, **kwargs) -> None:
         def ndb_path(model_id: str):
             return self.get_model_dir(model_id) / "model.ndb"
 

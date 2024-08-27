@@ -118,6 +118,7 @@ class TokenDataFactory(DataFactory):
     def train_test_tag_split(
         self,
         tags_example: Dict[str, List[str]],
+        test_size: Optional[float] = None,
         shuffle: bool = True,
         save: bool = True,
     ):
@@ -125,15 +126,15 @@ class TokenDataFactory(DataFactory):
             for _, examples in tags_example.items():
                 random.shuffle(examples)
 
-        if not self.general_variables.test_size:
+        if not test_size:
             if save:
-                save_dict(self.save_dir / "train", "tag_value.json", **tags_example)
+                save_dict(self.save_dir / "train" / "tag_value.json", **tags_example)
 
             return tags_example, None
 
         train_tags, test_tags = {}, {}
         for tag_name, examples in tags_example.items():
-            split_index = int(len(examples) * (1 - self.general_variables.test_size))
+            split_index = int(len(examples) * (1 - test_size))
             train_tags[tag_name] = examples[:split_index]
             test_tags[tag_name] = examples[split_index:]
 
@@ -206,7 +207,7 @@ class TokenDataFactory(DataFactory):
         )
 
         train_tag_examples, test_tag_examples = self.train_test_tag_split(
-            tags_example=complete_tag_examples, shuffle=True, save=True
+            tags_example=complete_tag_examples, test_size = self.general_variables.test_size * 4 ,shuffle=True, save=True
         )
 
         templatized_sentences_examples = self.get_templatized_examples(
@@ -266,7 +267,7 @@ class TokenDataFactory(DataFactory):
                 item
                 for template in train_templates
                 for item in self.fill_and_transform(
-                    template=template, tag_values=train_tag_examples
+                    template=template, tag_values=train_tag_examples, sentences_to_generate=self.sentences_per_template
                 )
             ]
             random.shuffle(train_datapoints)
@@ -279,7 +280,7 @@ class TokenDataFactory(DataFactory):
                     item
                     for template in test_templates
                     for item in self.fill_and_transform(
-                        template=template, tag_values=test_tag_examples
+                        template=template, tag_values=test_tag_examples, sentences_to_generate=1
                     )
                 ]
                 random.shuffle(test_datapoints)
@@ -323,7 +324,7 @@ class TokenDataFactory(DataFactory):
         return dataset_config
 
     def fill_and_transform(
-        self, template: str, tag_values: Dict[str, List[str]]
+        self, template: str, tag_values: Dict[str, List[str]], sentences_to_generate: int
     ) -> List[str]:
         if not template:
             return [None]
@@ -333,7 +334,7 @@ class TokenDataFactory(DataFactory):
 
         data_points = [
             {TokenDataFactory.SOURCE_COLUMN: [], TokenDataFactory.TARGET_COLUMN: []}
-            for _ in range(self.sentences_per_template)
+            for _ in range(sentences_to_generate)
         ]
 
         for word in words:
@@ -348,7 +349,7 @@ class TokenDataFactory(DataFactory):
                     )
                     return [None]
 
-                for idx in range(self.sentences_per_template):
+                for idx in range(sentences_to_generate):
                     splitted_word_tag_value = consistent_split(
                         random.choice(tag_values[word_tag]), seperator
                     )
@@ -373,7 +374,7 @@ class TokenDataFactory(DataFactory):
                         [word_tag] * len(splitted_word_tag_value)
                     )
             else:
-                for idx in range(self.sentences_per_template):
+                for idx in range(sentences_to_generate):
                     data_points[idx][TokenDataFactory.SOURCE_COLUMN].append(word)
                     data_points[idx][TokenDataFactory.TARGET_COLUMN].append("O")
 

@@ -5,8 +5,8 @@ job "redis-server" {
     count = 1
 
     network {
-      port "db" {
-        static = 6379
+      port "redis-http" {
+        to = 6379
       }
     }
 
@@ -15,7 +15,7 @@ job "redis-server" {
 
       config {
         image = "redis:latest"
-        ports = ["db"]
+        ports = ["redis-http"]
       }
 
       resources {
@@ -26,12 +26,12 @@ job "redis-server" {
       service {
         name = "redis"
         provider = "nomad"
-        port = "db"
-        tags = ["traefik.enable=true", "traefik.http.services.redis.loadbalancer.server.port=6379"]
+        port = "redis-http"
+        tags = ["traefik.enable=true"]
 
         check {
           type     = "tcp"
-          port     = "db"
+          port     = "redis-http"
           interval = "10s"
           timeout  = "2s"
         }

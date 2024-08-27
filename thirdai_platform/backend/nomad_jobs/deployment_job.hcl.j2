@@ -66,6 +66,20 @@ EOF
 
       {% endif %}
 
+      template {
+        env         = true
+        destination = "${NOMAD_SECRETS_DIR}/env.vars"
+        data = <<EOF
+{% raw %}
+{{ range nomadService "redis" }}
+REDIS_HOST = {{ .Address }}
+REDIS_PORT = {{ .Port }}
+{{ end }}
+{% endraw %}
+EOF
+        change_mode = "noop"
+      }
+
       env {
         MODEL_ID = "{{ model_id }}"
         MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
@@ -124,8 +138,6 @@ EOF
     task "worker" {
       driver = "raw_exec"
       env {
-        REDIS_HOST = "localhost"
-        REDIS_PORT = "6379"
         MODEL_ID = "{{ model_id }}"
         MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
         LICENSE_KEY = "{{ license_key }}"
@@ -141,6 +153,20 @@ EOF
         {% endif %}
 
         TASK_RUNNER_TOKEN = "${TASK_RUNNER_TOKEN}"
+      }
+
+      template {
+        env         = true
+        destination = "${NOMAD_SECRETS_DIR}/env.vars"
+        data = <<EOF
+{% raw %}
+{{ range nomadService "redis" }}
+REDIS_HOST = {{ .Address }}
+REDIS_PORT = {{ .Port }}
+{{ end }}
+{% endraw %}
+EOF
+        change_mode = "noop"
       }
 
       config {

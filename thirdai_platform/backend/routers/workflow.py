@@ -722,8 +722,8 @@ def start_workflow(
                         )
                     )["boltLicenseKey"],
                     genai_key=(os.getenv("GENAI_KEY", "")),
-                    autoscaling_enabled="false",
-                    autoscaler_max_count="1",
+                    autoscaling_enabled=os.getenv("AUTOSCALING_ENABLED", "false"),
+                    autoscaler_max_count=os.getenv("AUTOSCALER_MAX_COUNT", "1"),
                     memory=memory,
                     type=model.type,
                     sub_type=model.sub_type,

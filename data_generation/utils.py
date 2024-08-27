@@ -25,10 +25,8 @@ def remove_duplicates(words: List[str]):
     return uniques
 
 
-def write_to_csv(path: str, data_points: List[str], header: List[str] = []):
+def write_to_csv(path: str, data_points: List[str], header: List[str]):
     with open(path, "w") as csv_file:
-        writer = csv.writer(csv_file)
-        if header:
-            writer.writerow(header)
-
-        writer.writerows(data_points)
+        csv_writer = csv.DictWriter(csv_file, fieldnames=header)
+        csv_writer.writeheader()
+        csv_writer.writerows(data_points)

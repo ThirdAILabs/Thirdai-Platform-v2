@@ -122,9 +122,8 @@ class TokenDataFactory(DataFactory):
         save: bool = True,
     ):
         if shuffle:
-            tags_example = {
-                key: random.shuffle(value) for key, value in tags_example.items()
-            }
+            for _, examples in tags_example.items():
+                random.shuffle(examples)
 
         if not self.general_variables.test_size:
             if save:
@@ -139,8 +138,8 @@ class TokenDataFactory(DataFactory):
             test_tags[tag_name] = examples[split_index:]
 
         if save:
-            save_dict(self.save_dir / "train", "tag_value.json", **train_tags)
-            save_dict(self.save_dir / "test", "tag_value.json", **test_tags)
+            save_dict(self.save_dir / "train" / "tag_value.json", **train_tags)
+            save_dict(self.save_dir / "test" / "tag_value.json", **test_tags)
 
         return train_tags, test_tags
 
@@ -156,7 +155,7 @@ class TokenDataFactory(DataFactory):
             if save:
                 write_to_csv(
                     path=self.save_dir / "train" / "templates.csv",
-                    data_points=templates,
+                    data_points=[{"template": template} for template in templates],
                     header=["template"],
                 )
 
@@ -170,13 +169,13 @@ class TokenDataFactory(DataFactory):
         if save:
             write_to_csv(
                 path=self.save_dir / "train" / "templates.csv",
+                data_points=[{"template": template} for template in train_templates],
                 header=["template"],
-                texts=train_templates,
             )
             write_to_csv(
                 path=self.save_dir / "test" / "templates.csv",
+                data_points=[{"template": template} for template in test_templates],
                 header=["template"],
-                texts=test_templates,
             )
         return train_templates, test_templates
 
@@ -264,10 +263,11 @@ class TokenDataFactory(DataFactory):
                 templates=templates, shuffle=True, save=True
             )
             train_datapoints = [
-                self.fill_and_transform(
+                item
+                for template in train_templates
+                for item in self.fill_and_transform(
                     template=template, tag_values=train_tag_examples
                 )
-                for template in train_templates
             ]
             random.shuffle(train_datapoints)
             train_datapoints = list(
@@ -276,10 +276,11 @@ class TokenDataFactory(DataFactory):
 
             if test_templates:
                 test_datapoints = [
-                    self.fill_and_transform(
+                    item
+                    for template in test_templates
+                    for item in self.fill_and_transform(
                         template=template, tag_values=test_tag_examples
                     )
-                    for template in test_templates
                 ]
                 random.shuffle(test_datapoints)
                 test_datapoints = list(

@@ -1,5 +1,4 @@
 import csv
-import json
 import random
 import traceback
 from abc import ABC, abstractmethod
@@ -21,12 +20,20 @@ class DataFactory(ABC):
             / "generated_data"
             / self.general_variables.data_id
         )
-        self.save_dir.mkdir(parents=True, exist_ok=True)
         self.llm_model = llm_classes.get(self.general_variables.llm_provider.value)(
             api_key=self.general_variables.genai_key, save_dir=self.save_dir
         )
-        self.train_file_location = self.save_dir / "train.csv"
-        self.test_file_location = self.save_dir / "test.csv"
+
+        self.train_dir = self.save_dir / "train"
+        self.test_dir = self.save_dir / "test"
+        self.train_dir.mkdir(parents=True, exist_ok=True)
+        self.train_file_location = self.train_dir / "train.csv"
+
+        if self.general_variables.test_size:
+            self.test_dir.mkdir(parents=True, exist_ok=True)
+            self.test_file_location = self.test_dir / "test.csv"
+            self.test_sentences_generated = 0
+
         self.errored_file_location = self.save_dir / "traceback.err"
         self.config_file_location = self.save_dir / "config.json"
         self.generation_args_location = self.save_dir / "generation_args.json"
@@ -36,11 +43,11 @@ class DataFactory(ABC):
 
         if self.train_file_location.exists():
             with open(self.train_file_location, "r") as f:
-                self.sentences_generated = (
+                self.train_sentences_generated = (
                     sum(1 for _ in csv.reader(f)) - 1
                 )  # Exculding the header
         else:
-            self.sentences_generated = 0
+            self.train_sentences_generated = 0
 
     @abstractmethod
     def generate_data(self, **kwargs):
@@ -113,7 +120,7 @@ class DataFactory(ABC):
 
         return data_points
 
-    def write_on_training_file(
+    def write_on_file(
         self,
         data_points: List[Dict[str, str]],
         fieldnames: List[str],
@@ -133,9 +140,13 @@ class DataFactory(ABC):
                 encoding=encoding,
             ) as csv_file:
                 csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-                if self.sentences_generated == 0:
+
+                if (is_train_file and self.train_sentences_generated == 0) or (
+                    not is_train_file and self.test_sentences_generated == 0
+                ):
                     csv_writer.writeheader()
                 csv_writer.writerows(data_points)
+
         except Exception as e:
             with open(self.errored_file_location, mode="a") as errored_fp:
                 errored_fp.write(

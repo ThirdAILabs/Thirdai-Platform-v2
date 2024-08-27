@@ -12,7 +12,7 @@ from typing import Dict, List, Optional
 from data_factory_interface import DataFactory
 from faker import Faker
 from tqdm import tqdm
-from utils import consistent_split, load_json, remove_duplicates, save_dict
+from utils import consistent_split, remove_duplicates, save_dict, write_to_csv
 from variables import Entity
 
 
@@ -26,6 +26,7 @@ class TokenDataFactory(DataFactory):
         super().__init__()
         self.faker = Faker()
         self.sentences_per_template = 4
+        self.max_value_per_tag_to_generate = 1000
 
         # All methods present in the faker to generate forged tags. E.g: credit_card_expire(), credit_card_expire(), first_name(), language_name(), ..
         self.faked_methods = [
@@ -79,12 +80,18 @@ class TokenDataFactory(DataFactory):
             sampled_tag_examples = random.sample(
                 tag.examples, k=min(3, len(tag.examples))
             )
-            for _ in range(0, 1000, examples_to_generate_at_a_time):
+            value_per_tag_to_generate = min(
+                self.max_value_per_tag_to_generate, num_examples_to_generate
+            )
+            for idx in range(
+                0, value_per_tag_to_generate, examples_to_generate_at_a_time
+            ):
                 response = self.llm_model.completion(
                     prompt=tag_value_prompt.format(
                         domain_prompt=domain_prompt,
                         num_samples_per_tag=min(
-                            num_examples_to_generate, examples_to_generate_at_a_time
+                            examples_to_generate_at_a_time,
+                            value_per_tag_to_generate - idx,
                         ),
                         tag=tag.name,
                         tag_example=str(sampled_tag_examples),
@@ -114,56 +121,74 @@ class TokenDataFactory(DataFactory):
         shuffle: bool = True,
         save: bool = True,
     ):
+        if shuffle:
+            tags_example = {
+                key: random.shuffle(value) for key, value in tags_example.items()
+            }
+
         if not self.general_variables.test_size:
             if save:
-                save_dict(self.save_dir / "train_tag_examples.json", **tags_example)
+                save_dict(self.save_dir / "train", "tag_value.json", **tags_example)
 
             return tags_example, None
 
-        train, test = {}, {}
+        train_tags, test_tags = {}, {}
         for tag_name, examples in tags_example.items():
-            if shuffle:
-                random.shuffle(examples)
-
             split_index = int(len(examples) * (1 - self.general_variables.test_size))
-            train[tag_name] = examples[:split_index]
-            test[tag_name] = examples[split_index:]
+            train_tags[tag_name] = examples[:split_index]
+            test_tags[tag_name] = examples[split_index:]
 
         if save:
-            save_dict(self.save_dir / "train_tag_examples.json", **train)
-            save_dict(self.save_dir / "test_tag_examples.json", **test)
+            save_dict(self.save_dir / "train", "tag_value.json", **train_tags)
+            save_dict(self.save_dir / "test", "tag_value.json", **test_tags)
 
-        return train, test
+        return train_tags, test_tags
 
-    def train_test_template_split(self, templates: List[str], shuffle: bool = True):
-        random.shuffle(templates)
+    def train_test_template_split(
+        self, templates: List[str], shuffle: bool = True, save: bool = True
+    ):
+        templates = list(filter(lambda x: x not in [None, [], {}, ""], templates))
+
+        if shuffle:
+            random.shuffle(templates)
+
+        if not self.general_variables.test_size:
+            if save:
+                write_to_csv(
+                    path=self.save_dir / "train" / "templates.csv",
+                    data_points=templates,
+                    header=["template"],
+                )
+
+            return templates, None
 
         split_index = int(len(templates) * (1 - self.general_variables.test_size))
-        return templates[:split_index], templates[split_index:]
+        train_templates, test_templates = (
+            templates[:split_index],
+            templates[split_index:],
+        )
+        if save:
+            write_to_csv(
+                path=self.save_dir / "train" / "templates.csv",
+                header=["template"],
+                texts=train_templates,
+            )
+            write_to_csv(
+                path=self.save_dir / "test" / "templates.csv",
+                header=["template"],
+                texts=test_templates,
+            )
+        return train_templates, test_templates
 
     def _templates_to_generate(self, num_sentences_to_generate: int):
         return (
-            num_sentences_to_generate - self.sentences_generated
+            num_sentences_to_generate - self.train_sentences_generated
         ) // self.sentences_per_template
 
     def _subsample_tag(self, tags: List[Entity]):
         # using triangular distribution to favour longer lists by setting mode = high.
         k = math.ceil(random.triangular(low=1, high=len(tags), mode=len(tags)))
         return random.sample(tags, k)
-
-    def _templates_to_generate_this_time(
-        self,
-        max_to_generate: int,
-        min_to_generate: int,
-        num_sampled_tags: int,
-        max_length_of_tags: int,
-        min_length_of_tags: int,
-    ):
-
-        num = min_to_generate + (max_to_generate - min_to_generate) * (
-            max_length_of_tags - num_sampled_tags
-        ) / (max_length_of_tags - min_length_of_tags)
-        return int(num)
 
     def generate_data(
         self,
@@ -200,15 +225,9 @@ class TokenDataFactory(DataFactory):
                 {
                     "prompt": dataset_generation_prompt.format(
                         domain_prompt=domain_prompt,
-                        num_to_generate=self._templates_to_generate_this_time(
-                            max_to_generate=min(
-                                self.generate_at_a_time,
-                                templates_to_generate - current_sentence_idx,
-                            ),
-                            min_to_generate=10,
-                            num_sampled_tags=len(sampled_tags),
-                            max_length_of_tags=len(tags),
-                            min_length_of_tags=2,
+                        num_to_generate=min(
+                            templates_to_generate - current_sentence_idx,
+                            self.generate_at_a_time,
                         ),
                         tags=[t.name for t in sampled_tags],
                         tag_description="\n".join(
@@ -241,67 +260,52 @@ class TokenDataFactory(DataFactory):
                 for template in template_s["response_text"].split("\n")
             ]
 
-            # filtering to remove 'None'
-            all_templates = list(
-                filter(lambda x: x not in [None, [], {}, ""], templates)
+            train_templates, test_templates = self.train_test_template_split(
+                templates=templates, shuffle=True, save=True
+            )
+            train_datapoints = [
+                self.fill_and_transform(
+                    template=template, tag_values=train_tag_examples
+                )
+                for template in train_templates
+            ]
+            random.shuffle(train_datapoints)
+            train_datapoints = list(
+                filter(lambda x: x not in [None, [], {}, ""], train_datapoints)
             )
 
-            if self.general_variables.test_size:
-                train_templates, test_templates = self.train_test_template_split(
-                    templates=all_templates, shuffle=True
-                )
-                training_data_points = [
-                    item
-                    for template in train_templates
-                    for item in self.fill_and_transform(
-                        template=template, tag_values=train_tag_examples
-                    )
-                ]
-                testing_data_points = [
-                    item
-                    for template in test_templates
-                    for item in self.fill_and_transform(
+            if test_templates:
+                test_datapoints = [
+                    self.fill_and_transform(
                         template=template, tag_values=test_tag_examples
                     )
+                    for template in test_templates
                 ]
-
-                testing_data_points = list(
-                    filter(lambda x: x not in [None, [], {}, ""], testing_data_points)
+                random.shuffle(test_datapoints)
+                test_datapoints = list(
+                    filter(lambda x: x not in [None, [], {}, ""], test_datapoints)
                 )
 
-            else:
-                training_data_points = [
-                    self.fill_and_transform(
-                        template=template, tag_values=train_tag_examples
-                    )
-                    for template in all_templates
-                ]
-
-            training_data_points = list(
-                filter(lambda x: x not in [None, [], {}, ""], training_data_points)
-            )
-
-            random.shuffle(training_data_points)
-            self.write_on_training_file(
-                training_data_points,
+            self.write_on_file(
+                train_datapoints,
                 fieldnames=[
                     TokenDataFactory.SOURCE_COLUMN,
                     TokenDataFactory.TARGET_COLUMN,
                 ],
                 is_train_file=True,
             )
+            self.train_sentences_generated += len(train_datapoints)
+
             if self.general_variables.test_size:
-                random.shuffle(testing_data_points)
-                self.write_on_training_file(
-                    testing_data_points,
+                self.write_on_file(
+                    test_datapoints,
                     fieldnames=[
                         TokenDataFactory.SOURCE_COLUMN,
                         TokenDataFactory.TARGET_COLUMN,
                     ],
                     is_train_file=False,
                 )
-
-            self.sentences_generated += len(training_data_points)
+                self.test_sentences_generated += len(test_datapoints)
 
         dataset_config = {
             "filepath": str(self.train_file_location),
@@ -310,7 +314,8 @@ class TokenDataFactory(DataFactory):
             "input_feature": TokenDataFactory.SOURCE_COLUMN,
             "target_feature": TokenDataFactory.TARGET_COLUMN,
             "target_labels": [tag.name for tag in tags],
-            "num_samples": self.sentences_generated,
+            "train_samples": self.train_sentences_generated,
+            "test_samples": self.test_sentences_generated,
         }
         save_dict(self.config_file_location, **dataset_config)
 

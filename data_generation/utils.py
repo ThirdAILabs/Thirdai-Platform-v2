@@ -1,6 +1,8 @@
+import csv
 import json
+import random
 import re
-from typing import List
+from typing import Dict, List, Optional
 
 
 def save_dict(write_to: str, **kwargs):
@@ -23,6 +25,10 @@ def remove_duplicates(words: List[str]):
     return uniques
 
 
-def load_json(path: str):
-    with open(path, "r") as fp:
-        return json.load(fp)
+def write_to_csv(path: str, data_points: List[str], header: List[str] = []):
+    with open(path, "w") as csv_file:
+        writer = csv.writer(csv_file)
+        if header:
+            writer.writerow(header)
+
+        writer.writerows(data_points)

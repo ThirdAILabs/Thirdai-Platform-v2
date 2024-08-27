@@ -26,7 +26,7 @@ class TextDataFactory(DataFactory):
     ):
         total_expected_sentences = samples_per_label * len(target_labels)
         sentence_to_generate_per_target_label = (
-            total_expected_sentences - self.sentences_generated
+            total_expected_sentences - self.train_sentences_generated
         ) // len(target_labels)
 
         prompt_tasks = []
@@ -116,7 +116,7 @@ class TextDataFactory(DataFactory):
             "input_feature": TextDataFactory.SOURCE_COLUMN,
             "target_feature": TextDataFactory.TARGET_COLUMN,
             "target_labels": [t.name for t in target_labels],
-            "num_samples": self.sentences_generated,
+            "num_samples": self.train_sentences_generated,
         }
         save_dict(self.config_file_location, **dataset_config)
 

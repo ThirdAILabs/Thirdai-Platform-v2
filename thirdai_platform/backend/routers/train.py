@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -232,7 +233,7 @@ def train_ndb(
         else False
     )
 
-    ndb_version = "ndbv2" if extra_options.use_v2 else "ndb"
+    ndb_version = "ndbv2" if extra_options.version == "v1" else "ndb"
     try:
         new_model = schema.Model(
             id=model_id,
@@ -250,11 +251,15 @@ def train_ndb(
         session.add(new_model)
         session.commit()
         session.refresh(new_model)
+    except Exception as err:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
+        )
 
-        work_dir = os.getcwd()
-
+    try:
         submit_nomad_job(
-            str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
+            str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
             platform=get_platform(),
             tag=os.getenv("TAG"),
@@ -277,9 +282,11 @@ def train_ndb(
             sub_type="single" if not sharded else "shard_allocation",
         )
 
+        new_model.train_status = schema.Status.starting
+        session.commit()
     except Exception as err:
-        # TODO: change the status of the new model entry to failed
-
+        new_model.train_status = schema.Status.failed
+        session.commit()
         logger.info(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -470,12 +477,18 @@ def train_udt(
         session.add(new_model)
         session.commit()
         session.refresh(new_model)
+    except Exception as err:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
+        )
 
-        work_dir = os.getcwd()
+    work_dir = os.getcwd()
 
-        udt_subtype = extra_options["sub_type"]
-        extra_options.pop("sub_type", None)
+    udt_subtype = extra_options["sub_type"]
+    extra_options.pop("sub_type", None)
 
+    try:
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -500,8 +513,11 @@ def train_udt(
             sub_type=udt_subtype,
         )
 
+        new_model.train_status = schema.Status.starting
+        session.commit()
     except Exception as err:
-        # TODO: change the status of the new model entry to failed
+        new_model.train_status = schema.Status.failed
+        session.commit()
         logger.info(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -707,9 +723,15 @@ def create_shard(
         )
         session.add(new_shard)
         session.commit()
+    except Exception as err:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
+        )
 
-        work_dir = os.getcwd()
+    work_dir = os.getcwd()
 
+    try:
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -733,7 +755,11 @@ def create_shard(
             shard_num=shard_num,
         )
 
+        new_shard.train_status = schema.Status.starting
+        session.commit()
     except Exception as err:
+        new_shard.train_status = schema.Status.failed
+        session.commit()
         logger.info(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

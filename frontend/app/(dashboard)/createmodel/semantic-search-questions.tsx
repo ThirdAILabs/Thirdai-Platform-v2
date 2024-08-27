@@ -6,8 +6,10 @@ import { CardDescription } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 
 interface SemanticSearchQuestionsProps {
+  workflowNames: string[];
   onCreateModel?: (modelID: string) => void;
   stayOnPage?: boolean;
+  appName?: string;
 };
 
 enum SourceType {
@@ -15,8 +17,8 @@ enum SourceType {
   LOCAL = "local",
 }
 
-const SemanticSearchQuestions = ({ onCreateModel, stayOnPage }: SemanticSearchQuestionsProps) => {
-    const [modelName, setModelName] = useState('');
+const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: SemanticSearchQuestionsProps) => {
+    const [modelName, setModelName] = useState(!appName ? '' : appName);
     const [sources, setSources] = useState<Array<{ type: string, files: File[] }>>([]);
     const [fileCount, setFileCount] = useState<number[]>([]);
     const router = useRouter();
@@ -140,16 +142,33 @@ const SemanticSearchQuestions = ({ onCreateModel, stayOnPage }: SemanticSearchQu
 
     console.log('sources', sources);
 
+    const [warningMessage, setWarningMessage] = useState("");
+
     return (
       <div>
         <span className="block text-lg font-semibold">App Name</span>
         <Input 
           className="text-md"
           value={modelName}
-          onChange={(e) => setModelName(e.target.value)}
+          onChange={(e) => {
+            const name = e.target.value;
+            if (workflowNames.includes(name)) {
+              setWarningMessage("A workflow with the same name has been created. Please choose a different name.");
+            } else {
+              setWarningMessage(""); // Clear the warning if the name is unique
+            }
+            setModelName(name)
+          }}
           placeholder="Enter app name"
           style={{marginTop: "10px"}}
+          disabled={appName ? true : false}
         />
+
+        {warningMessage && (
+          <span style={{ color: "red", marginTop: "10px" }}>
+            {warningMessage}
+          </span>
+        )}
 
         <span className="block text-lg font-semibold" style={{marginTop: "20px"}}>Sources</span>
         <CardDescription>Select files to search over.</CardDescription>

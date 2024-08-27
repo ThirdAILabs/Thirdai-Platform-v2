@@ -5,7 +5,7 @@ import os
 import re
 import socket
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional
 from urllib.parse import urljoin
 
 import bcrypt
@@ -276,6 +276,7 @@ class NDBExtraOptions(BaseModel):
     - validation_metrics: Optional list of validation metrics.
     - on_disk: Optional boolean indicating on-disk storage.
     - docs_on_disk: Optional boolean indicating documents on-disk storage.
+    - version: Version of the options (default is "v1").
 
     Config:
     - extra: Forbid extra attributes.
@@ -324,10 +325,23 @@ class NDBExtraOptions(BaseModel):
     validation_metrics: Optional[List[str]] = None
     on_disk: Optional[bool] = None
     docs_on_disk: Optional[bool] = None
-    use_v2: Optional[bool] = None
+    version: Optional[Literal["v1", "v2"]] = "v1"
 
     class Config:
         extra = "forbid"
+
+    @root_validator(pre=True)
+    def validate_version_restrictions(cls, values):
+        version = values.get("version", "v1")
+        on_disk = values.get("on_disk", False)
+        docs_on_disk = values.get("docs_on_disk", False)
+
+        if version == "v1" and (on_disk or docs_on_disk):
+            raise ValueError(
+                "For version 'v1', both 'on_disk' and 'docs_on_disk' must be False."
+            )
+
+        return values
 
 
 def get_model(session: Session, username: str, model_name: str):
@@ -444,6 +458,17 @@ def nomad_job_exists(job_id, nomad_endpoint):
     return response.status_code == 200
 
 
+def get_nomad_job(job_id, nomad_endpoint):
+    headers = {"X-Nomad-Token": TASK_RUNNER_TOKEN}
+    response = requests.get(
+        urljoin(nomad_endpoint, f"v1/job/{job_id}"), headers=headers
+    )
+    if response.status_code == 200:
+        return response.json()
+
+    return None
+
+
 def submit_nomad_job(filepath, nomad_endpoint, **kwargs):
     """
     Submit a generated HCL job file from a Jinja file to Nomad.
@@ -472,6 +497,11 @@ def submit_nomad_job(filepath, nomad_endpoint, **kwargs):
 
     # Submit the JSON job spec to Nomad
     response = requests.post(submit_url, headers=headers, json={"Job": json_payload})
+
+    if response.status_code != 200:
+        raise requests.exceptions.HTTPError(
+            f"Request to nomad service failed. Status code: {response.status_code}, Content: {response.content}"
+        )
 
     return response
 
@@ -627,61 +657,6 @@ def get_empty_port():
     port = sock.getsockname()[1]
     sock.close()
     return port
-
-
-def delete_nomad_job(job_id, nomad_endpoint):
-    """
-    Delete a Nomad job.
-
-    Parameters:
-    - job_id: The ID of the Nomad job.
-    - nomad_endpoint: The Nomad endpoint.
-
-    Returns:
-    - Response: The response from the Nomad API.
-    """
-    job_url = urljoin(nomad_endpoint, f"v1/job/{job_id}")
-    headers = {"X-Nomad-Token": TASK_RUNNER_TOKEN}
-    response = requests.delete(job_url, headers=headers)
-
-    if response.status_code == 200:
-        print(f"Job {job_id} stopped successfully")
-    else:
-        print(
-            f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
-        )
-
-    return response
-
-
-GENERATE_JOB_ID = "llm-generation"
-
-
-async def restart_generate_job():
-    """
-    Restart the LLM generation job.
-
-    Returns:
-    - Response: The response from the Nomad API.
-    """
-    nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
-    if nomad_job_exists(GENERATE_JOB_ID, nomad_endpoint):
-        delete_nomad_job(GENERATE_JOB_ID, nomad_endpoint)
-    cwd = Path(os.getcwd())
-    platform = get_platform()
-    return submit_nomad_job(
-        nomad_endpoint=nomad_endpoint,
-        filepath=str(cwd / "backend" / "nomad_jobs" / "generation_job.hcl.j2"),
-        platform=platform,
-        port=None if platform == "docker" else get_empty_port(),
-        tag=os.getenv("TAG"),
-        registry=os.getenv("DOCKER_REGISTRY"),
-        docker_username=os.getenv("DOCKER_USERNAME"),
-        docker_password=os.getenv("DOCKER_PASSWORD"),
-        image_name=os.getenv("GENERATION_IMAGE_NAME"),
-        python_path=get_python_path(),
-        generate_app_dir=str(get_root_absolute_path() / "llm_generation_job"),
-    )
 
 
 def get_expiry_min(size: int):

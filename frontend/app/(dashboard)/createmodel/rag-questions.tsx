@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import { SelectModel } from '@/lib/db';
 import NERQuestions from './nlp-questions/ner-questions';
@@ -7,8 +6,19 @@ import { create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useRouter } from 'next/navigation';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@/components/ui/tooltip';
 
-const RAGQuestions = ({ models }: { models: SelectModel[] }) => {
+interface RAGQuestionsProps {
+  models: SelectModel[];
+  workflowNames: string[];
+}
+
+const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
   const [currentStep, setCurrentStep] = useState(0);
 
   // Begin state variables & func for source
@@ -47,6 +57,8 @@ const RAGQuestions = ({ models }: { models: SelectModel[] }) => {
 
   // End state variables & func for LLM
 
+  const router = useRouter();
+
   const handleSubmit = async () => {
     const workflowName = modelName;
     const workflowTypeName = 'rag';
@@ -67,6 +79,7 @@ const RAGQuestions = ({ models }: { models: SelectModel[] }) => {
         components.push('search');
       } else {
         console.error(`Semantic search model with identifier ${ssIdentifier} not found.`);
+        alert(`Semantic search model with identifier ${ssIdentifier} not found.`)
       }
 
       // Find and add the NER model if it exists
@@ -75,6 +88,7 @@ const RAGQuestions = ({ models }: { models: SelectModel[] }) => {
         components.push('nlp');
       } else {
         console.error(`NER model with identifier ${grIdentifier} not found.`);
+        // alert(`NER model with identifier ${grIdentifier} not found.`)
       }
   
       // Step 3: Add the models to the workflow
@@ -87,11 +101,18 @@ const RAGQuestions = ({ models }: { models: SelectModel[] }) => {
         console.log('Models added to workflow:', addModelsResponse);
       } else {
         console.error('No models to add to the workflow');
+        alert('No models to add to the workflow')
       }
+
+      // Go back home page
+      router.push("/")
     } catch (error) {
       console.error('Error during workflow creation or model addition:', error);
+      alert('Error during workflow creation or model addition:' + error)
     }
   };
+
+  const [warningMessage, setWarningMessage] = useState("");
 
   const steps = [
     {
@@ -102,10 +123,23 @@ const RAGQuestions = ({ models }: { models: SelectModel[] }) => {
           <Input
             className="text-md"
             value={modelName}
-            onChange={(e) => setModelName(e.target.value)}
+            onChange={(e) => {
+              const name = e.target.value;
+              if (workflowNames.includes(name)) {
+                setWarningMessage("A workflow with the same name has been created. Please choose a different name.");
+              } else {
+                setWarningMessage(""); // Clear the warning if the name is unique
+              }
+              setModelName(name)
+            }}
             placeholder="Enter app name"
             style={{ marginTop: '10px' }}
           />
+          {warningMessage && (
+            <span style={{ color: "red", marginTop: "10px" }}>
+              {warningMessage}
+            </span>
+          )}
         </div>
       ),
     },
@@ -173,11 +207,13 @@ const RAGQuestions = ({ models }: { models: SelectModel[] }) => {
               ) : (
                 <div>
                   <SemanticSearchQuestions
+                    workflowNames = {workflowNames}
                     onCreateModel={(modelID) => {
                       setSsModelId(modelID);
                       setCreatedSS(true);
                     }}
-                    stayOnPage
+                    stayOnPage={true}
+                    appName = {`${modelName}-Retrieval`}
                   />
                 </div>
               )}
@@ -279,11 +315,13 @@ const RAGQuestions = ({ models }: { models: SelectModel[] }) => {
                       ) : (
                         <div>
                           <NERQuestions
+                            workflowNames = {workflowNames}
                             onCreateModel={(modelID) => {
                               setGrModelId(modelID);
                               setCreatedGR(true);
                             }}
-                            stayOnPage
+                            stayOnPage={true}
+                            appName = {`${modelName}-NER`}
                           />
                         </div>
                       )}
@@ -331,6 +369,41 @@ const RAGQuestions = ({ models }: { models: SelectModel[] }) => {
     },
   ];
 
+  // This is for displaying message in case user missed requirements
+  const missingRequirements = [];
+
+  if (!modelName) {
+    missingRequirements.push('App Name is not specified (Step 1)');
+  }
+
+  if (!ssModelId) {
+    missingRequirements.push('Retrieval app is not specified (Step 2)');
+  }
+
+  if (!(ifUseLGR === 'No' || grModelId)) {
+    missingRequirements.push('LLM Guardrail is not specified (Step 3)');
+  }
+
+  if (!llmType) {
+    missingRequirements.push('LLM Type is not specified (Step 4)');
+  }
+
+
+  const errorMessage = missingRequirements.length > 0
+  ? (
+    <div>
+      {`Please go back and specify the following:`}
+      <br />
+      {missingRequirements.map((requirement, index) => (
+        <span key={index}>
+          {'• '}{requirement}
+          <br />
+        </span>
+      ))}
+    </div>
+  )
+  : '';
+
   return (
     <div>
       {/* Step Navigation */}
@@ -351,20 +424,44 @@ const RAGQuestions = ({ models }: { models: SelectModel[] }) => {
       <div>{steps[currentStep].content}</div>
 
       {/* Step Controls */}
-      <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'space-between' }}>
-        {currentStep > 0 && (
+      <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between' }}>
+        {/* Previous Button */}
+        {currentStep > 0 ? (
           <Button onClick={() => setCurrentStep(currentStep - 1)}>Previous</Button>
+        ) : (
+          <div></div> 
         )}
+        
+        {/* Next Button or Create/Deploy Button */}
         {currentStep < steps.length - 1 ? (
           <Button onClick={() => setCurrentStep(currentStep + 1)}>Next</Button>
         ) : (
-          (ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName) && (
-            <Link href="/">
-              <Button onClick={handleSubmit} style={{ width: '100%' }}>
-                {`${ifUseExistingSS === 'No' || (ifUseLGR === 'Yes' && ifUseExistingLGR === 'No') ? 'Create' : 'Create and Deploy'}`}
-              </Button>
-            </Link>
-          )
+          <>
+            {(ssModelId && (ifUseLGR === 'No' || grModelId) && modelName) ? (
+              <div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <Button 
+                        onClick={handleSubmit} 
+                        style={{ width: '100%' }}
+                        disabled={!(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName)}
+                      >
+                        Create
+                      </Button>
+                    </div>
+                  </TooltipTrigger>
+                  {!(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName) && (
+                    <TooltipContent side="bottom">
+                      LLM Type is not specified
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </div>
+            ) : (
+              <div style={{ color: 'red' }}>{errorMessage}</div>
+            )}
+          </>
         )}
       </div>
     </div>

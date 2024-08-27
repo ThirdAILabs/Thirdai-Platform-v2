@@ -60,7 +60,9 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         }
       } catch (e) {
         setIsValid(false);
+        setDeployStatus('Starting')
         console.error('Validation failed.', e);
+        // alert('Validation failed.' + e)
       }
     }, 3000); // Adjust the interval as needed, e.g., every 5 seconds
 
@@ -76,7 +78,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       }
     } catch (e) {
       console.error('Failed to start workflow.', e);
-      alert('Failed to start the workflow.');
+      alert('Failed to start the workflow.' + e);
     }
   };
 
@@ -108,11 +110,11 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       } else if (allComplete) {
         setDeployStatus('Active'); // Models are complete and workflow is active
       } else {
-        setDeployStatus('Ready to Start');
+        setDeployStatus('Starting');
       }
     } else {
       // If no models are present, the workflow is ready to deploy
-      setDeployStatus('Ready to Start');
+      setDeployStatus('Error: Underlying model not present');
     }
   }, [workflow.models, workflow.status]);
 
@@ -156,13 +158,18 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       </TableCell>
       <TableCell className="hidden md:table-cell">
         <Button
-          onClick={deployStatus === 'Inactive' ? handleDeploy : goToEndpoint}
+          onClick={deployStatus === 'Active' ? goToEndpoint : handleDeploy}
           className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+          style={{ width: '100px' }}
+          disabled={['Failed', 'Starting', 'Error: Underlying model not present'].includes(deployStatus)}
         >
-          <span className="sr-only">
-            {deployStatus === 'Inactive' ? 'Start' : 'Go to endpoint'}
-          </span>
-          {deployStatus === 'Inactive' ? 'Start' : 'Go to endpoint'}
+          {deployStatus === 'Active' 
+            ? 'Endpoint' 
+            : deployStatus === 'Inactive' 
+            ? 'Start' 
+            : deployStatus === 'Failed' || deployStatus === 'Error: Underlying model not present'
+            ? 'Start'
+            : 'Endpoint'}
         </Button>
       </TableCell>
       <TableCell>
@@ -176,11 +183,6 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem>Edit</DropdownMenuItem>
-            <Link href={`/analytics?id=${encodeURIComponent(`${workflow.id}`)}`}>
-                <DropdownMenuItem>
-                    <button type="button">Usage stats</button>
-                </DropdownMenuItem>
-              </Link>
             {
               deployStatus === 'Active'
               &&
@@ -196,10 +198,11 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                         setDeployStatus('Inactive');
                       } catch (error) {
                         console.error('Error undeploying workflow:', error);
+                        alert('Error undeploying workflow:' + error)
                       }
                     }}
                   >
-                    Stop Workflow
+                    Stop App
                   </button>
                 </form>
               </DropdownMenuItem>
@@ -215,14 +218,20 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                         console.log('Workflow deleted successfully:', response);
                       } catch (error) {
                         console.error('Error deleting workflow:', error);
+                        alert('Error deleting workflow:' + error)
                       }
                     }
                   }}
                 >
-                  Delete Workflow
+                  Delete App
                 </button>
               </form>
             </DropdownMenuItem>
+            <Link href={`/analytics?id=${encodeURIComponent(`${workflow.id}`)}`}>
+              <DropdownMenuItem>
+                  <button type="button">Usage stats</button>
+              </DropdownMenuItem>
+            </Link>
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

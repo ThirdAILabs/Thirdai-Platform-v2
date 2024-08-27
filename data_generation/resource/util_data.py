@@ -12,10 +12,10 @@ random_prompts = {
     },
     "length_conversion": {
         "prompts": [
-            "reduce/expand the length up to 20 words",
-            "reduce/expand the length up to 40 words",
-            "reduce/expand the length up to 50 words",
-            "reduce/expand the length up to 60 words",
+            "reduce/expand the length up to 50 words for each template",
+            "reduce/expand the length up to 100 words for each template",
+            "reduce/expand the length up to 120 words for each template",
+            "reduce/expand the length up to 150 words for each template",
         ],
         "scores": [0.05, 0.25, 0.35, 0.35],
     },

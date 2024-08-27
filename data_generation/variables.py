@@ -96,6 +96,7 @@ class GeneralVariables(EnvLoader):
     data_category: DataCategory
     genai_key: str
     llm_provider: LLMProvider = LLMProvider.openai
+    test_size: float = 0.01
 
 
 @dataclass
@@ -125,7 +126,7 @@ class TokenGenerationVariables(EnvLoader):
     domain_prompt: str
     tags: List[Entity]
     num_sentences_to_generate: int
-    num_samples_per_tag: int = 4
+    examples_per_tag_to_generate: Optional[int] = None
 
     def to_dict(self):
         result = asdict(self)

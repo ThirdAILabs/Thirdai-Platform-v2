@@ -26,6 +26,7 @@ class DataFactory(ABC):
             api_key=self.general_variables.genai_key, save_dir=self.save_dir
         )
         self.train_file_location = self.save_dir / "train.csv"
+        self.test_file_location = self.save_dir / "test.csv"
         self.errored_file_location = self.save_dir / "traceback.err"
         self.config_file_location = self.save_dir / "config.json"
         self.generation_args_location = self.save_dir / "generation_args.json"
@@ -116,12 +117,20 @@ class DataFactory(ABC):
         self,
         data_points: List[Dict[str, str]],
         fieldnames: List[str],
+        is_train_file: bool = True,
         newline: Optional[str] = None,
         encoding: Optional[str] = None,
     ):
         try:
             with open(
-                self.train_file_location, "a", newline=newline, encoding=encoding
+                (
+                    self.train_file_location
+                    if is_train_file
+                    else self.test_file_location
+                ),
+                "a",
+                newline=newline,
+                encoding=encoding,
             ) as csv_file:
                 csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
                 if self.sentences_generated == 0:

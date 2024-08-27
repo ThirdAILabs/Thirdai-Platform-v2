@@ -46,7 +46,7 @@ job "grafana" {
         GF_AUTH_DISABLE_LOGIN_FORM = "true"
         GF_SERVER_ROOT_URL = "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
         GF_SERVER_SERVE_FROM_SUB_PATH = "true"
-        GF_SERVER_HTTP_PORT   = "$${NOMAD_PORT_http}"
+        GF_SERVER_HTTP_PORT   = "${NOMAD_PORT_http}"
         GF_PATHS_PROVISIONING = "/local/grafana/provisioning"
       }
 

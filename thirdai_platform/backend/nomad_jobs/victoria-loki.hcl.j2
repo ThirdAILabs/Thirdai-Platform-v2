@@ -5,18 +5,6 @@ job "victoria-loki" {
   group "victoria-loki" {
     count = 1
 
-    volume "victoriametrics" {
-      type      = "host"
-      read_only = false
-      source    = "victoriametrics"
-    }
-
-    volume "loki" {
-      type      = "host"
-      read_only = false
-      source    = "loki"
-    }
-
     network {
       mode = "bridge"
 
@@ -26,28 +14,6 @@ job "victoria-loki" {
 
       port "loki_port" {
         to = 3100
-      }
-    }
-
-    task "preprocess" {
-      driver = "exec"
-      lifecycle {
-        hook = "prestart"
-      }
-      config {
-        command = "/bin/sh"
-        args = ["-c", "rm -rf /storage/* /loki_data/*"]
-      }
-      volume_mount {
-        volume      = "victoriametrics"
-        destination = "/storage"
-        read_only   = false
-      }
-
-      volume_mount {
-        volume      = "loki"
-        destination = "/loki_data"
-        read_only   = false
       }
     }
 
@@ -65,12 +31,6 @@ job "victoria-loki" {
         ]
       }
 
-      volume_mount {
-        volume      = "victoriametrics"
-        destination = "/storage"
-        read_only   = false
-      }
-
       config {
         image = "victoriametrics/victoria-metrics:latest"
         ports = ["vicky-http"]
@@ -78,12 +38,17 @@ job "victoria-loki" {
           "--storageDataPath=/storage",
           "--retentionPeriod=1d",
           "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
-          "--promscrape.config=$${NOMAD_TASK_DIR}/prometheus.yaml"
+          "--promscrape.config=${NOMAD_TASK_DIR}/prometheus.yaml"
+        ]
+
+        volumes = [
+          "{{ VM_DATA_DIR }}:/storage"
         ]
       }
 
       template {
         data        = <<EOF
+{% raw %}
 global:
   scrape_interval: 2s
   external_labels:
@@ -102,9 +67,10 @@ scrape_configs:
         regex: "([^:]+):.+"
         target_label: "hostname"
         replacement: "nomad-agent-$1"
+{% endraw %}
 EOF
-        destination = "$${NOMAD_TASK_DIR}/prometheus.yaml"
-        change_mode = "restart"
+        destination = "${NOMAD_TASK_DIR}/prometheus.yaml"
+        change_mode = "noop"
       }
 
       resources {
@@ -116,23 +82,20 @@ EOF
     task "loki" {
       driver = "docker"
 
-      volume_mount {
-        volume      = "loki"
-        destination = "/loki_data"
-        read_only   = false
-      }
-
-      user = "root"
-
       config {
         image = "grafana/loki:3.0.0"
         args = [
           "-config.file",
-          "$${NOMAD_TASK_DIR}/loki.yaml",
+          "${NOMAD_TASK_DIR}/loki.yaml",
         ]
 
+        volumes = [
+          "{{ LOKI_DATA_DIR }}:/loki_data"
+        ]
         ports = ["loki_port"]
+        
       }
+      user = "root"
 
       resources {
         cpu    = 5000
@@ -146,12 +109,11 @@ EOF
         */
       template {
         data            = <<EOF
+{% raw %}
 auth_enabled: false
-
 server:
   http_listen_port: 3100
   grpc_listen_port: 9096
-
 common:
   instance_addr: 127.0.0.1
   path_prefix: /loki_data
@@ -163,26 +125,21 @@ common:
   ring:
     kvstore:
       store: inmemory
-
 frontend:
   max_outstanding_per_tenant: 2048
-
 pattern_ingester:
   enabled: true
-
 limits_config:
   max_global_streams_per_user: 0
   ingestion_rate_mb: 50000
   ingestion_burst_size_mb: 50000
   volume_enabled: true
-
 query_range:
   results_cache:
     cache:
       embedded_cache:
         enabled: true
         max_size_mb: 100
-
 schema_config:
   configs:
     - from: 2020-10-27
@@ -192,22 +149,21 @@ schema_config:
       index:
         prefix: index_
         period: 24h
-
 ruler:
   alertmanager_url: http://localhost:9093
-
 analytics:
   reporting_enabled: false
-
 ingester:
   wal:
     flush_on_shutdown: true
+{% endraw %}
 EOF
-        destination     = "$${NOMAD_TASK_DIR}/loki.yaml"
+        destination     = "${NOMAD_TASK_DIR}/loki.yaml"
+        change_mode = "noop"
       }
 
       service {
-        name = "loki"
+        name = "loki-web"
         port = "loki_port"
         provider = "nomad"
         tags = [

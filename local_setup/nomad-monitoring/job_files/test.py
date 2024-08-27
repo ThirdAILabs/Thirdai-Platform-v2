@@ -11,9 +11,7 @@ logger = logging.getLogger("my-logger")
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
-logger.error(
-    "test-1", extra={"tags": {"group": "victoria-loki", "PER": 21, "ORG": 51}}
-)
+logger.error("test-1", extra={"tags": {"group": "victoria-loki", "PER": 21, "ORG": 51}})
 
 # logger.info(
 #    "test-2",

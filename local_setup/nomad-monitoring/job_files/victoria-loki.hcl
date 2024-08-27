@@ -67,7 +67,7 @@ job "victoria-loki" {
           "--storageDataPath=/storage",
           "--retentionPeriod=1d",
           "--httpListenAddr=:8428",
-          "--promscrape.config=$${NOMAD_TASK_DIR}/prometheus.yml"
+          "--promscrape.config=${NOMAD_TASK_DIR}/prometheus.yml"
         ]
       }
 
@@ -92,7 +92,7 @@ scrape_configs:
         target_label: "hostname"
         replacement: "nomad-agent-$1"
 EOF
-        destination = "$${NOMAD_TASK_DIR}/prometheus.yml"
+        destination = "${NOMAD_TASK_DIR}/prometheus.yml"
         change_mode = "restart"
       }
 
@@ -109,7 +109,7 @@ EOF
         image = "grafana/loki:3.0.0"
         args = [
           "-config.file",
-          "$${NOMAD_TASK_DIR}/loki.yaml",
+          "${NOMAD_TASK_DIR}/loki.yaml",
         ]
 
         volumes = [
@@ -183,7 +183,7 @@ ingester:
   wal:
     flush_on_shutdown: true
 EOF
-        destination     = "$${NOMAD_TASK_DIR}/loki.yaml"
+        destination     = "${NOMAD_TASK_DIR}/loki.yaml"
       }
 
       service {

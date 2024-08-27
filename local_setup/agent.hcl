@@ -2,29 +2,13 @@ bind_addr = "0.0.0.0"
 data_dir  = "/opt/nomad/data"
 
 advertise {
-  http = "192.168.1.6"
-  rpc  = "192.168.1.6"
-  serf = "192.168.1.6"
+  http = "192.168.1.5"
+  rpc  = "192.168.1.5"
+  serf = "192.168.1.5"
 }
 
 client {
   enabled                     = true
-  
-  host_volume "grafana" {
-    path                      = "/opt/nomad/nomad-monitoring/data/grafana"
-    read_only                 = false
-  }
-
-  host_volume "victoriametrics" {
-    path                      = "/opt/nomad/nomad-monitoring/data/victoriametric"
-    read_only                 = false
-  }
-
-  host_volume "loki" {
-    path                      = "/opt/nomad/nomad-monitoring/data/loki"
-    read_only                 = false
-  }
-
 }
 
 server {

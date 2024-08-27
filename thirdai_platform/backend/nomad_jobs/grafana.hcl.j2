@@ -5,34 +5,15 @@ job "grafana" {
   group "grafana" {
     count = 1
 
-    volume "grafana" {
-      type      = "host"
-      read_only = false
-      source    = "grafana"
-    }
-
     network {
       mode = "bridge"
 
       port "grafana-http" {
+        static = 3002
         to = 3000
       }
     }
-    task "preprocess" {
-      driver = "exec"
-      lifecycle {
-        hook = "prestart"
-      }
-      config {
-        command = "/bin/sh"
-        args = ["-c", "rm -rf /var/lib/grafana/*"]
-      }
-      volume_mount {
-        volume      = "grafana"
-        destination = "/var/lib/grafana"
-        read_only   = false
-      }
-    }
+
     task "grafana" {
       driver = "docker"
 
@@ -45,25 +26,29 @@ job "grafana" {
         GF_AUTH_DISABLE_LOGIN_FORM = "true"
         GF_SERVER_ROOT_URL = "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
         GF_SERVER_SERVE_FROM_SUB_PATH = "true"
-        GF_SERVER_HTTP_PORT   = "$${NOMAD_PORT_http}"
+        GF_SERVER_HTTP_PORT   = "${NOMAD_PORT_http}"
         GF_PATHS_PROVISIONING = "/local/grafana/provisioning"
       }
-
-      volume_mount {
-        volume      = "grafana"
-        destination = "/var/lib/grafana"
-        read_only   = false
-      }
-
       user = "root"
 
       config {
         image = "grafana/grafana:main-ubuntu"
         ports = ["grafana-http"]
-
         volumes = [
-            "{{ dashboards }}:/local/dashboards"
+            "{{ dashboards }}:/local/dashboards",
+            "{{ DATA_DIR }}:/var/lib/grafana"
           ]
+      }
+
+      service {
+        name = "grafana"
+        port = "grafana-http"
+        provider = "nomad"
+        tags = [
+          "traefik.enable=true",
+          "traefik.http.routers.modelbazaar-http.rule=PathPrefix(`/grafana`)",
+          "traefik.http.routers.modelbazaar-http.priority=10"
+        ]
       }
 
       resources {
@@ -79,21 +64,19 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
-    {{ range nomadService "vicky-web" }}
-    url: http://{{ .Address }}:{{ .Port }}
-    {{ end }}
+    {{ range nomadService "vicky-web" }}url: http://{{ .Address }}:{{ .Port }}{{ end }}
+    editable: false
+    isDefault: true
   - name: Loki
     type: loki
     access: proxy
-    {{ range nomadService "vicky-web" }}
-    url: http://{{ .Address }}
-    {{ end }}
+    {{ range nomadService "loki-web" }}url: http://{{ .Address }}::{{ .Port }}{{ end }}
     version: 1
-    editable: false
-    isDefault: true
+    editable: true
 {% endraw %}
 EOF
         destination = "/local/grafana/provisioning/datasources/datasources.yaml"
+        change_mode = "noop"
       }
 
       template {
@@ -112,6 +95,7 @@ providers:
 {% endraw %}
 EOF
         destination = "/local/grafana/provisioning/dashboards/dashboards.yaml"
+        change_mode = "noop"
       }
     }
   }

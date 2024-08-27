@@ -18,7 +18,7 @@ job "loki" {
         image = "grafana/loki:3.0.0"
         args = [
           "-config.file",
-          "$${NOMAD_TASK_DIR}/loki.yaml",
+          "${NOMAD_TASK_DIR}/loki.yaml",
         ]
 
         volumes = [
@@ -35,7 +35,7 @@ job "loki" {
 
       template {
         data            = file(abspath("./../configs/loki.yaml"))
-        destination     = "$${NOMAD_TASK_DIR}/loki.yaml"
+        destination     = "${NOMAD_TASK_DIR}/loki.yaml"
       }
 
       service {

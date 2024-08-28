@@ -1,6 +1,5 @@
 import json
 import os
-import sys
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -30,6 +29,7 @@ from backend.utils import (
     update_json,
     validate_name,
 )
+from backend.datagen import generate_text_data, generate_token_data, LLMProvider
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, UploadFile, status
@@ -301,14 +301,16 @@ def train_ndb(
         },
     )
 
+@train_router.post("/")
 
 @train_router.post("/udt")
 def train_udt(
     model_name: str,
-    files: List[UploadFile],
-    file_details_list: Optional[str] = Form(default=None),
+    task_prompt: str,
+    llm_provider: LLMProvider = LLMProvider.openai,
     base_model_identifier: Optional[str] = None,
     extra_options_form: str = Form(default="{}"),
+    datagen_options_form: str = Form(default="{}"),
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
@@ -366,21 +368,6 @@ def train_udt(
     except ValidationError as e:
         return {"error": "Invalid extra options format", "details": str(e)}
 
-    if file_details_list:
-        try:
-            files_info_list = UDTFileDetailsList.parse_raw(file_details_list)
-            files_info = [
-                UDTFileDetails(**detail.dict())
-                for detail in files_info_list.file_details
-            ]
-        except ValidationError as e:
-            return {"error": "Invalid file details list format", "details": str(e)}
-    else:
-        files_info = [
-            UDTFileDetails(mode=FileType.supervised, location=FileLocation.local)
-            for _ in files
-        ]
-
     try:
         license_info = verify_license(
             os.getenv(
@@ -416,13 +403,120 @@ def train_udt(
     model_id = uuid.uuid4()
     data_id = model_id
 
+    # Base model checks
+    base_model = None
+    if base_model_identifier:
+        try:
+            base_model = get_model_from_identifier(base_model_identifier, session)
+            if not base_model.get_user_permission(user):
+                return response(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    message="You do not have access to the specified base model.",
+                )
+        except Exception as error:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=str(error),
+            )
+    try:
+        new_model: schema.Model = schema.Model(
+            id=model_id,
+            user_id=user.id,
+            train_status=schema.Status.not_started,
+            deploy_status=schema.Status.not_started,
+            name=model_name,
+            type="udt",
+            sub_type=extra_options["sub_type"],
+            domain=user.email.split("@")[1],
+            access_level=schema.Access.private,
+            parent_id=base_model.id if base_model else None,
+        )
+
+
+        session.add(new_model)
+        session.commit()
+        session.refresh(new_model)
+
+        work_dir = os.getcwd()
+        udt_subtype = extra_options["sub_type"]
+        extra_options.pop("sub_type", None)
+        train_args = json.dumps({
+            "work_dir": str(work_dir),
+            "model_id": str(model_id),
+            "data_id": str(data_id),
+            "bolt_license_key": str(license_info["boltLicenseKey"]),
+            "extra_options": extra_options,
+            "base_model_id": ("NONE" if not base_model_identifier else str(base_model.id)),
+            "udt_subtype": udt_subtype,
+        })
+
+        if udt_subtype == "text":
+            generate_text_data(
+                task_prompt=task_prompt,
+                data_id=str(data_id),
+                form=datagen_options_form,
+                train_args=train_args,
+                llm_provider=llm_provider,
+            )
+        else:
+            generate_token_data(
+                task_prompt=task_prompt,
+                data_id=str(data_id),
+                form=datagen_options_form,
+                train_args=train_args,
+                llm_provider=llm_provider,
+            )
+
+    except Exception as err:
+        # TODO: change the status of the new model entry to failed
+        new_model.train_status = schema.Status.failed
+        session.commit()
+        logger.info(str(err))
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
+        )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully submitted the job",
+        data={
+            "model_id": str(model_id),
+            "user_id": str(user.id),
+        },
+    )
+
+@train_router.post("/udt-impl")
+def train_udt_impl(
+    files: List[UploadFile],
+    args_json: str = Form('{}'),
+    file_details_list: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):  
+    args = json.loads(args_json)
+    
+    if file_details_list:
+        try:
+            files_info_list = UDTFileDetailsList.parse_raw(file_details_list)
+            files_info = [
+                UDTFileDetails(**detail.dict())
+                for detail in files_info_list.file_details
+            ]
+        except ValidationError as e:
+            return {"error": "Invalid file details list format", "details": str(e)}
+    else:
+        files_info = [
+            UDTFileDetails(mode=FileType.supervised, location=FileLocation.local)
+            for _ in files
+        ]
+
     if len(files) != len(files_info):
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"Given {len(files)} files but for {len(files_info)} files the info has given.",
         )
 
-    filenames = get_files(files, data_id, files_info)
+    filenames = get_files(files, args['data_id'], files_info)
 
     if not isinstance(filenames, list):
         return response(
@@ -442,54 +536,10 @@ def train_udt(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Duplicate filenames received, please ensure each filename is unique.",
         )
-
-    # Base model checks
-    base_model = None
-    if base_model_identifier:
-        try:
-            base_model = get_model_from_identifier(base_model_identifier, session)
-            if not base_model.get_user_permission(user):
-                return response(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    message="You do not have access to the specified base model.",
-                )
-        except Exception as error:
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message=str(error),
-            )
-
-    try:
-        new_model: schema.Model = schema.Model(
-            id=model_id,
-            user_id=user.id,
-            train_status=schema.Status.not_started,
-            deploy_status=schema.Status.not_started,
-            name=model_name,
-            type="udt",
-            sub_type=extra_options["sub_type"],
-            domain=user.email.split("@")[1],
-            access_level=schema.Access.private,
-            parent_id=base_model.id if base_model else None,
-        )
-
-        session.add(new_model)
-        session.commit()
-        session.refresh(new_model)
-    except Exception as err:
-        return response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message=str(err),
-        )
-
-    work_dir = os.getcwd()
-
-    udt_subtype = extra_options["sub_type"]
-    extra_options.pop("sub_type", None)
-
+    
     try:
         submit_nomad_job(
-            str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
+            str(Path(args['work_dir']) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
             platform=get_platform(),
             tag=os.getenv("TAG"),
@@ -498,23 +548,23 @@ def train_udt(
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("TRAIN_IMAGE_NAME"),
             train_script=str(get_root_absolute_path() / "train_job/run.py"),
-            model_id=str(model_id),
-            data_id=str(data_id),
+            model_id=args['model_id'],
+            data_id=args['data_id'],
             model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
             share_dir=os.getenv("SHARE_DIR", None),
-            license_key=license_info["boltLicenseKey"],
-            extra_options=extra_options,
+            license_key=args['bolt_license_key'],
+            extra_options=args['extra_options'],
             python_path=get_python_path(),
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
-            base_model_id=("NONE" if not base_model_identifier else str(base_model.id)),
+            base_model_id=args['base_model_id'],
             type="udt",
-            sub_type=udt_subtype,
+            sub_type=args['udt_subtype'],
         )
-
-        new_model.train_status = schema.Status.starting
-        session.commit()
     except Exception as err:
+        new_model: schema.Model = (
+            session.query(schema.Model).filter(schema.Model.name == args['model_id']).first()
+        )
         new_model.train_status = schema.Status.failed
         session.commit()
         logger.info(str(err))
@@ -522,13 +572,12 @@ def train_udt(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
         )
-
+    
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully submitted the job",
         data={
-            "model_id": str(model_id),
-            "user_id": str(user.id),
+            "model_id": args['model_id'],
         },
     )
 

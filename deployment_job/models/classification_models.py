@@ -34,12 +34,14 @@ class TextClassificationModel(ClassificationModel):
         self, model_id: Optional[str] = None, model_path: Optional[str] = None
     ):
         super().__init__(model_id, model_path)
+        self.num_classes = self.model.predict({"text": "test"}).shape[-1]
 
     def predict(self, **kwargs):
         query = kwargs["query"]
-        top_k = kwargs["top_k"]
+        top_k = min(kwargs["top_k"], self.num_classes)
         prediction = self.model.predict({"text": query}, top_k=top_k)
         class_names = [self.model.class_name(x) for x in prediction[0]]
+        predicted_classes = [(class_name, activation) for class_name, activation in zip(class_names, prediction[1])]
 
         self.reporter.log(
             action="predict",
@@ -56,7 +58,7 @@ class TextClassificationModel(ClassificationModel):
 
         return inputs.SearchResultsTextClassification(
             query_text=query,
-            class_names=class_names,
+            predicted_classes=predicted_classes,
         )
 
 

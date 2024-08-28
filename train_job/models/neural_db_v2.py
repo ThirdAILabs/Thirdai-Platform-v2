@@ -14,7 +14,7 @@ from fastapi import Response
 from models.model import Model
 from thirdai import neural_db_v2 as ndbv2
 from utils import check_disk, create_s3_client, get_directory_size, list_files
-from variables import FinetunableRetrieverVariables
+from variables import CSVDocumentVariables, FinetunableRetrieverVariables
 
 
 def convert_to_ndb_doc(resource_path: str, display_path: str) -> ndbv2.Document:
@@ -48,11 +48,11 @@ def convert_to_ndb_doc(resource_path: str, display_path: str) -> ndbv2.Document:
             doc_metadata=doc_metadata,
         )
     elif ext == ".csv":
+        csv_variables = CSVDocumentVariables.load_from_env()
         return ndbv2.CSV(
             resource_path,
-            id_column=os.getenv("CSV_ID_COLUMN", None),
-            keyword_columns=ast.literal_eval(os.getenv("CSV_STRONG_COLUMNS", "None")),
-            text_columns=ast.literal_eval(os.getenv("CSV_WEAK_COLUMNS", "None")),
+            keyword_columns=csv_variables.csv_strong_columns,
+            text_columns=csv_variables.csv_weak_columns,
             doc_metadata=doc_metadata,
             display_path=display_path,
         )
@@ -63,7 +63,10 @@ def convert_to_ndb_doc(resource_path: str, display_path: str) -> ndbv2.Document:
 def preload_chunks(resource_path: str, display_path: str) -> Tuple[ndbv2.Document, str]:
     # TODO(V2 Support): Add an option for users to set the doc_id
     doc = convert_to_ndb_doc(resource_path=resource_path, display_path=display_path)
-    return ndbv2.documents.PrebatchedDoc(doc.chunks(), doc_id=doc.doc_id), resource_path
+    return (
+        ndbv2.documents.PrebatchedDoc(doc.chunks(), doc_id=doc.doc_id()),
+        resource_path,
+    )
 
 
 def process_file(
@@ -126,22 +129,33 @@ class NeuralDBV2(Model):
     def parser(
         self, files: list[str], task_queue: queue.Queue, doc_save_dir: str, tmp_dir: str
     ):
-        max_cores = os.cpu_count()
-        num_workers = max(1, max_cores - 6)
-        with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            futures = [
-                executor.submit(process_file, file, doc_save_dir, tmp_dir)
-                for file in files
-            ]
+        # max_cores = os.cpu_count()
+        # num_workers = max(1, max_cores - 6)
+        # with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        #     futures = [
+        #         executor.submit(process_file, file, doc_save_dir, tmp_dir)
+        #         for file in files
+        #     ]
 
-            for future in as_completed(futures):
-                try:
-                    ndb_file, filename = future.result()
-                    if ndb_file and not isinstance(ndb_file, str):
-                        task_queue.put(ndb_file)
-                        print(f"Successfully processed {filename}", flush=True)
-                except Exception as e:
-                    print(f"Error processing file: {e}")
+        #     for future in as_completed(futures):
+        #         try:
+        #             ndb_file, filename = future.result()
+        #             if ndb_file and not isinstance(ndb_file, str):
+        #                 task_queue.put(ndb_file)
+        #                 self.logger.info(f"PARSED: {ndb_file.doc_id}")
+        #                 print(f"Successfully processed {filename}", flush=True)
+        #         except Exception as e:
+        #             print(f"Error processing file: {e}")
+
+        results = [process_file(file, doc_save_dir, tmp_dir) for file in files]
+
+        for ndb_file, file_name in results:
+            task_queue.put(ndb_file)
+            self.logger.info(f"PARSED: {ndb_file.doc_id()}")
+
+        task_queue.put(None)
+
+        self.logger.info("PARSER THREAD COMPLETED")
 
     def indexer(self, task_queue: queue.Queue, batch_size: int):
         batch = []
@@ -149,15 +163,26 @@ class NeuralDBV2(Model):
         while True:
             ndb_doc = task_queue.get()
             if ndb_doc is None:
+                self.logger.info("REACHED END OF QUEUE")
                 if batch:
                     self.db.insert(batch)
+                    self.logger.info(
+                        f"INSERTED {[x.doc_id() for x in batch]} NEW SIZE = {self.db.retriever.retriever.size()}"
+                    )
+                self.logger.info("INDEXER BREAKING")
                 break
 
+            self.logger.info(f"POPPED: {ndb_doc.doc_id()}")
             batch.append(ndb_doc)
 
             if len(batch) >= batch_size and task_queue.qsize() == 0:
                 self.db.insert(batch)
+                self.logger.info(
+                    f"INSERTED {[x.doc_id() for x in batch]} NEW SIZE = {self.db.retriever.retriever.size()}"
+                )
                 batch.clear()
+
+        self.logger.info("INDEXER THREAD COMPLETED")
 
     def unsupervised_train(self, files: List[str]):
         self.logger.info("Starting unsupervised training.")
@@ -185,8 +210,8 @@ class NeuralDBV2(Model):
         indexer_thread.start()
 
         parser_thread.join()
-        task_queue.put(None)  # Signal the indexer to exit
-        parser_thread.join()
+        indexer_thread.join()
+
         self.logger.info("Completed unsupervised training.")
 
     def supervised_train(self, files: List[str]):

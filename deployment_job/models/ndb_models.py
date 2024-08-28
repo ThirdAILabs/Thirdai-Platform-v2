@@ -17,15 +17,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import fitz
+import thirdai.neural_db_v2.chunk_stores.constraints as ndbv2_constraints
 from file_handler import create_ndb_docs, create_ndbv2_docs
 from models.model import Model
 from pydantic_models import inputs
 from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
-from thirdai.neural_db_v2.chunk_stores import constraints
 from thirdai.neural_db_v2.core.types import Chunk
-
-from ..utils import highlighted_pdf_bytes, new_pdf_chunks, old_pdf_chunks
+from utils import highlighted_pdf_bytes, new_pdf_chunks, old_pdf_chunks
 
 
 class NDBModel(Model):
@@ -476,7 +475,7 @@ class NDBV2Model(NDBModel):
         **kwargs: Any,
     ) -> inputs.SearchResultsNDB:
         constraints = {
-            key: getattr(constraints, constraint["constraint_type"])(
+            key: getattr(ndbv2_constraints, constraint["constraint_type"])(
                 **{k: v for k, v in constraint.items() if k != "constraint_type"}
             )
             for key, constraint in constraints.items()
@@ -501,7 +500,11 @@ class NDBV2Model(NDBModel):
         self, documents: List[Dict[str, Any]], token: str, **kwargs: Any
     ) -> List[Dict[str, str]]:
         # TODO(V2 Support): add flag for upsert
-        ndb_docs = create_ndbv2_docs(documents, self.doc_save_path())
+        ndb_docs = create_ndbv2_docs(
+            documents=documents,
+            doc_save_dir=self.doc_save_path(),
+            data_dir=self.data_dir,
+        )
 
         source_ids = self.db.insert(ndb_docs)
 

@@ -213,6 +213,10 @@ def create_ndb_docs(
     return ndb_docs
 
 
+def convert_args(args: Dict[str, Any], rename: Dict[str, str], remove: Set[str]):
+    return {rename.get(k, k): v for k, v in args.items() if k not in remove}
+
+
 def convert_to_ndbv2_doc(
     resource_path: str, display_path: str, doc_args: Dict[str, Any]
 ) -> ndbv2.Document:
@@ -220,8 +224,18 @@ def convert_to_ndbv2_doc(
 
     # TODO(V2 Support): add support for unstructured (pptx, eml, txt), and InMemoryText
     if ext == ".pdf":
+        doc_args = convert_args(
+            doc_args,
+            rename={"metadata": "doc_metadata"},
+            remove={"version", "on_disk", "save_extra_info"},
+        )
         return ndbv2.PDF(resource_path, display_path=display_path, **doc_args)
     elif ext == ".docx":
+        doc_args = convert_args(
+            doc_args,
+            rename={"metadata": "doc_metadata"},
+            remove={"on_disk"},
+        )
         return ndbv2.DOCX(resource_path, display_path=display_path, **doc_args)
     elif ext == ".html":
         with open(resource_path, "r", encoding="utf-8") as f:
@@ -231,10 +245,32 @@ def convert_to_ndbv2_doc(
         dummy_response.status_code = 200
         dummy_response._content = html_content.encode("utf-8")
 
+        doc_args = convert_args(
+            doc_args,
+            rename={"metadata": "doc_metadata"},
+            remove={"on_disk", "save_extra_info"},
+        )
         return ndbv2.URL(
             os.path.basename(filename), response=dummy_response, **doc_args
         )
     elif ext == ".csv":
+        doc_args = convert_args(
+            doc_args,
+            rename={
+                "metadata": "doc_metadata",
+                "weak_columns": "text_columns",
+                "strong_columns": "keyword_columns",
+            },
+            remove={
+                "id_column",
+                "reference_columns",
+                "on_disk",
+                "save_extra_info",
+                "has_offset",
+                "use_dask",
+                "blocksize",
+            },
+        )
         return ndbv2.CSV(resource_path, display_path=display_path, **doc_args)
     else:
         raise TypeError(f"{ext} Document type isn't supported yet.")
@@ -247,7 +283,7 @@ def preload_chunks(
     doc = convert_to_ndbv2_doc(
         resource_path=resource_path, display_path=display_path, doc_args=doc_args
     )
-    return ndbv2.documents.PrebatchedDoc(doc.chunks(), doc_id=doc.doc_id), resource_path
+    return ndbv2.documents.PrebatchedDoc(doc.chunks(), doc_id=doc.doc_id())
 
 
 def process_file(
@@ -290,7 +326,7 @@ def process_file(
 
 
 def create_ndbv2_docs(
-    documents: List[Dict[str, Any]], doc_save_dir: str
+    documents: List[Dict[str, Any]], doc_save_dir: str, data_dir: str
 ) -> List[ndb.Document]:
     """
     Creates NDB documents from the provided document dictionaries.
@@ -305,9 +341,15 @@ def create_ndbv2_docs(
     ndb_docs = []
 
     for doc in documents:
+        if doc["location"] == "local":
+            doc_path = os.path.join(data_dir, os.path.basename(doc["path"]))
+        else:
+            doc_path = doc["path"]
+
         ndb_doc = process_file(
-            doc["path"],
+            doc_path,
             doc_save_dir=doc_save_dir,
+            tmp_dir=data_dir,
             doc_args={
                 k: v
                 for k, v in doc.items()

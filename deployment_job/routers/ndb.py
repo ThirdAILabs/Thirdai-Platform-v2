@@ -103,12 +103,15 @@ def create_ndb_router(task_queue, task_lock, tasks) -> APIRouter:
         """
         model = get_model()
         params = base_params.dict()
-        if general_variables.type == TypeEnum.NDB:
+        if (
+            general_variables.type == TypeEnum.NDB
+            or general_variables.type == TypeEnum.NDBV2
+        ):
             extra_params = ndb_params.dict(exclude_unset=True)
             params.update(extra_params)
 
         params["token"] = token
-
+        print("PARAMS:", params)
         results = model.predict(**params)
 
         return response(

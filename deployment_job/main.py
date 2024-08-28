@@ -82,7 +82,7 @@ task_lock = Lock()
 # Include the telemetry router for all deployments
 app.include_router(telemetry_router, prefix=f"/{general_variables.model_id}/telemetry")
 
-if general_variables.type == TypeEnum.NDB:
+if general_variables.type in [TypeEnum.NDB, TypeEnum.NDBV2]:
     ndb_router = create_ndb_router(task_queue, task_lock, tasks)
     app.include_router(ndb_router, prefix=f"/{general_variables.model_id}")
 elif general_variables.type == TypeEnum.UDT:

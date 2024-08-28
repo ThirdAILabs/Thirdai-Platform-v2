@@ -1,36 +1,5 @@
 {
-    "__inputs": [
-      {
-        "name": "DS_PROMETHEUS",
-        "label": "Prometheus",
-        "description": "",
-        "type": "datasource",
-        "pluginId": "prometheus",
-        "pluginName": "Prometheus"
-      }
-    ],
-    "__elements": {},
-    "__requires": [
-      {
-        "type": "grafana",
-        "id": "grafana",
-        "name": "Grafana",
-        "version": "9.1.4"
-      },
-      {
-        "type": "datasource",
-        "id": "prometheus",
-        "name": "Prometheus",
-        "version": "1.0.0"
-      },
-      {
-        "type": "panel",
-        "id": "timeseries",
-        "name": "Time series",
-        "version": ""
-      }
-    ],
-    "annotations": {
+  "annotations": {
     "list": [
       {
         "builtIn": 1,
@@ -50,14 +19,14 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 6,
+  "id": 3,
   "links": [],
   "panels": [
     {
       "datasource": {
-        "default": false,
+        "name": "Loki",
         "type": "loki",
-        "uid": "cduzm5xhya8lcb"
+        "uid": "P8E80F9AEF21F6940"
       },
       "description": "Log of the job $group",
       "fieldConfig": {
@@ -129,17 +98,14 @@
           }
         ]
       },
-      "pluginVersion": "11.2.0-191410",
+      "pluginVersion": "11.3.0-193901",
       "targets": [
         {
           "datasource": {
             "type": "loki",
-            "uid": "cduzm5xhya8lcb"
+            "uid": "P8E80F9AEF21F6940"
           },
-          "direction": "backward",
-          "editorMode": "code",
           "expr": "{group=\"$group\", level=~\"$level|all\"}",
-          "legendFormat": "",
           "queryType": "range",
           "refId": "A"
         }
@@ -148,13 +114,14 @@
       "type": "table"
     }
   ],
+  "refresh": "auto",
   "schemaVersion": 39,
   "tags": [],
   "templating": {
     "list": [
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "Prometheus",
           "value": "PBFA97CFB590B2093"
         },
@@ -173,7 +140,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "local",
           "value": "local"
         },
@@ -201,7 +168,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "default",
           "value": "default"
         },
@@ -229,9 +196,9 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": "loki",
-          "value": "loki"
+          "selected": false,
+          "text": "grafana",
+          "value": "grafana"
         },
         "datasource": {
           "type": "prometheus",
@@ -257,9 +224,9 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": "loki",
-          "value": "loki"
+          "selected": false,
+          "text": "grafana",
+          "value": "grafana"
         },
         "datasource": {
           "type": "prometheus",
@@ -337,6 +304,6 @@
   "timezone": "browser",
   "title": "Loki",
   "uid": "edv6nzu5lx1q8d",
-  "version": 5,
+  "version": 2,
   "weekStart": ""
 }

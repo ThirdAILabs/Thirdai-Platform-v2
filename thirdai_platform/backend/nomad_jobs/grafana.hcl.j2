@@ -29,7 +29,6 @@ job "grafana" {
         GF_SERVER_HTTP_PORT   = "${NOMAD_PORT_http}"
         GF_PATHS_PROVISIONING = "/local/grafana/provisioning"
       }
-      user = "root"
 
       config {
         image = "grafana/grafana:main-ubuntu"
@@ -70,9 +69,9 @@ datasources:
   - name: Loki
     type: loki
     access: proxy
-    {{ range nomadService "loki-web" }}url: http://{{ .Address }}::{{ .Port }}{{ end }}
+    {{ range nomadService "loki-web" }}url: http://{{ .Address }}:{{ .Port }}{{ end }}
     version: 1
-    editable: true
+    editable: false
 {% endraw %}
 EOF
         destination = "/local/grafana/provisioning/datasources/datasources.yaml"

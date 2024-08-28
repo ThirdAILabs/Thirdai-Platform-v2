@@ -29,6 +29,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
+
 from storage import interface, local
 
 model_router = APIRouter()
@@ -590,7 +591,7 @@ def download_public_model(
             message=str(error),
         )
 
-    if model.access_level != "public":
+    if model.access_level != schema.Access.public:
         return response(
             status_code=status.HTTP_403_FORBIDDEN,
             message="You cannot access this model without login.",
@@ -881,14 +882,14 @@ def get_model_permissions(
                         "email": user_team.user.email,
                     }
                 )
-            elif user_team.role == schema.Role.user:
-                permissions_info["read"].append(
-                    {
-                        "user_id": user_team.user.id,
-                        "username": user_team.user.username,
-                        "email": user_team.user.email,
-                    }
-                )
+            permission = model.get_user_permission(user_team.user)
+            permissions_info[str(permission).split(".")[-1]].append(
+                {
+                    "user_id": user_team.user.id,
+                    "username": user_team.user.username,
+                    "email": user_team.user.email,
+                }
+            )
 
     # Deduplicate all permission lists
     permissions_info = {
@@ -906,6 +907,7 @@ def get_model_permissions(
 def update_access_level(
     model_identifier: str,
     access_level: schema.Access,
+    team_id: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     """
@@ -924,6 +926,24 @@ def update_access_level(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Model not found",
         )
+
+    if access_level == schema.Access.protected:
+        if not team_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="team_id is required when setting access level to 'protected'.",
+            )
+
+        # Check if the provided team_id is valid
+        team = session.query(schema.Team).get(team_id)
+        if not team:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="The provided team_id does not exist.",
+            )
+
+        # Assign the team_id to the model
+        model.team_id = team_id
 
     model.access_level = access_level
     session.commit()

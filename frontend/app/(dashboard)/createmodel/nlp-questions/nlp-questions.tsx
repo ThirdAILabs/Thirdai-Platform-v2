@@ -14,8 +14,8 @@ interface NLPQuestionsProps {
 const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
   const [question, setQuestion] = useState("I want to classify the sentiment of my customers' reviews");
   const [loadingAnswer, setLoadingAnswer] = useState<boolean>(false);
-  const [answer, setAnswer] = useState('Sentence classification');
-  const [confirmedAnswer, setConfirmedAnswer] = useState<boolean>(true);
+  const [answer, setAnswer] = useState('');
+  const [confirmedAnswer, setConfirmedAnswer] = useState<boolean>(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuestion(e.target.value);

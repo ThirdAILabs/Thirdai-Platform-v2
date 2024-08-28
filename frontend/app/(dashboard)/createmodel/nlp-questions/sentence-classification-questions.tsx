@@ -31,9 +31,9 @@ const predefinedChoices = [
 ];
 
 const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) => {
-  const [modelName, setModelName] = useState(`${Date.now()}`);
+  const [modelName, setModelName] = useState('');
   const [warningMessage, setWarningMessage] = useState('');
-  const [categories, setCategories] = useState([{ name: 'POSITIVE', example: 'I LOVE CHOCOLATE!!!', description: 'Positive sentiment' }, { name: 'NEGATIVE', example: 'I HATE CHOCOLATE!!!', description: 'Negative sentiment' }]);
+  const [categories, setCategories] = useState([{ name: '', example: '', description: '' }]);
   const [showReview, setShowReview] = useState(false);
   const [isDataGenerating, setIsDataGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<GeneratedData[]>([]);

@@ -1,0 +1,46 @@
+{
+    "openai": {
+        "api_url": "https://api.openai.com/v1/chat/completions",
+        "headers": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer {key}"
+        },
+        "body_template": {
+            "model": "{model}",
+            "messages": [{"role": "user", "content": "{query}"}],
+            "stream": true
+        },
+        "parsing_rules": {
+            "type": "json",
+            "delimiter": "\n",
+            "prefix": "data: ",
+            "content_key": ["choices", 0, "delta", "content"]
+        }
+    },
+    "cohere": {
+        "api_url": "https://api.cohere.com/v1/chat",
+        "headers": {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer {key}"
+        },
+        "body_template": {
+            "message": "{query}",
+            "model": "{model}",
+            "chat_history": [{"role": "USER", "message": "{query}"}],
+            "stream": true
+        },
+        "parsing_rules": {
+            "type": "json",
+            "delimiter": "\n",
+            "condition": {
+                "key": "event_type",
+                "value": "text-generation"
+            },
+            "termination_check": {
+                "key": "is_finished",
+                "value": false
+            },
+            "content_key": ["text"]
+        }
+    }
+}

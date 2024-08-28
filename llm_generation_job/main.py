@@ -1,15 +1,13 @@
-from dotenv import load_dotenv
-
-load_dotenv()
+from typing import Any, Dict
 import os
 from urllib.parse import urljoin
-
 import requests
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from llms import default_keys, model_classes
 from pydantic import ValidationError
+from llms import DynamicLLM
 from pydantic_models import GenerateArgs
+import json
 
 app = FastAPI()
 
@@ -21,94 +19,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Load model configuration from JSON file
+def load_model_config(config_file: str) -> Dict[str, Any]:
+    with open(config_file, "r") as f:
+        return json.load(f)
+
+model_config = load_model_config("model_config.json")
+
+# Initialize default keys
+default_keys = {
+    "openai": os.getenv("OPENAI_KEY", ""),
+    "cohere": os.getenv("COHERE_KEY", ""),
+}
+
+# Register models dynamically based on the loaded configuration
+model_registry = {}
+for provider_name, config in model_config.items():
+    model_registry[provider_name] = lambda config=config: DynamicLLM(config)
 
 @app.websocket("/generate")
 async def generate(websocket: WebSocket):
-    """
-    WebSocket endpoint to generate text using a specified generative AI model.
-
-    Parameters:
-    - WebSocket connection.
-
-    Expected Message Format:
-    ```
-    {
-        "query": "Your input text",
-        "model": "Model name",
-        "provider": "AI provider",
-        "key": "Optional API key"
-    }
-    ```
-
-    Response Messages:
-    - Success message with generated content:
-    ```
-    {
-        "status": "success",
-        "content": "Generated text",
-        "end_of_stream": False
-    }
-    ```
-    - Error message in case of invalid arguments:
-    ```
-    {
-        "status": "error",
-        "detail": "Invalid arguments",
-        "errors": [{"loc": ["field"], "msg": "Error message", "type": "error type"}],
-        "end_of_stream": True
-    }
-    ```
-    - Error message in case of missing API key:
-    ```
-    {
-        "status": "error",
-        "detail": "No generative AI key provided",
-        "end_of_stream": True
-    }
-    ```
-    - Error message in case of unsupported provider:
-    ```
-    {
-        "status": "error",
-        "detail": "Unsupported provider",
-        "end_of_stream": True
-    }
-    ```
-    - Error message in case of an unexpected error:
-    ```
-    {
-        "status": "error",
-        "detail": "Unexpected error",
-        "end_of_stream": True
-    }
-    ```
-
-    Example:
-    1. Client sends:
-    ```
-    {
-        "query": "Tell me a story",
-        "model": "gpt-3",
-        "provider": "openai",
-        "key": "your-api-key"
-    }
-    ```
-
-    2. Server sends (multiple messages as content is generated):
-    ```
-    {
-        "status": "success",
-        "content": "Once upon a time, ",
-        "end_of_stream": False
-    }
-    ...
-    {
-        "status": "success",
-        "content": "they lived happily ever after.",
-        "end_of_stream": True
-    }
-    ```
-    """
     await websocket.accept()
     while True:
         data = await websocket.receive_text()
@@ -142,7 +72,7 @@ async def generate(websocket: WebSocket):
         )
         return
 
-    llm_class = model_classes.get(generate_args.provider.lower())
+    llm_class = model_registry.get(generate_args.provider.lower())
     if llm_class is None:
         await websocket.send_json(
             {

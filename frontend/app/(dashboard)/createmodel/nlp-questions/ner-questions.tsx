@@ -154,7 +154,7 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
     formData.append('form', JSON.stringify({
         domain_prompt: "personal identifiable information.",
         tags: tags,
-        num_sentences_to_generate: 200,
+        num_sentences_to_generate: 1000,
         num_samples_per_tag: 20
       }));
 

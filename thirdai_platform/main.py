@@ -15,7 +15,11 @@ from backend.routers.train import train_router as train
 from backend.routers.user import user_router as user
 from backend.routers.vault import vault_router as vault
 from backend.routers.workflow import workflow_router as workflow
-from backend.startup_jobs import restart_generate_job, restart_llm_cache_job
+from backend.startup_jobs import (
+    restart_generate_job,
+    restart_llm_cache_job,
+    restart_thirdai_platform_frontend,
+)
 from backend.status_sync import sync_job_statuses
 from database.session import get_session
 from database.utils import initialize_default_workflow_types
@@ -50,6 +54,13 @@ async def startup_event():
         print("Successfully started Generation Job!")
     except Exception as error:
         print(f"Failed to start the Generation Job : {error}", file=sys.stderr)
+
+    try:
+        print("Launching frontend...")
+        await restart_thirdai_platform_frontend()
+        print("Successfully launched the frontend!")
+    except Exception as error:
+        print(f"Failed to start the frontend : {error}", file=sys.stderr)
 
     try:
         print("Starting LLM Cache Job...")

@@ -21,7 +21,7 @@ class DataFactory(ABC):
         )
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.llm_model = llm_classes.get(self.general_variables.llm_provider.value)(
-            api_key=self.general_variables.genai_key
+            api_key=self.general_variables.genai_key, save_dir=self.save_dir
         )
         self.train_file_location = self.save_dir / "train.csv"
         self.errored_file_location = self.save_dir / "traceback.err"

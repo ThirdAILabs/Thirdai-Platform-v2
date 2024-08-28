@@ -112,7 +112,7 @@ class TextClassificationModel(ClassificationModel):
                     metrics=self.train_variables.metrics,
                 )
             else:
-                for line in train_file:
+                for line in open(train_file):
                     actual_train_file = line.strip()
                     model.train(
                         actual_train_file,

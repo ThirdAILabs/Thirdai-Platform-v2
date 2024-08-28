@@ -608,6 +608,7 @@ export function trainTokenClassifier(
   const formData = new FormData();
   formData.append("extra_options_form", JSON.stringify({
     sub_type: "token",
+    target_labels: Array.from(new Set(examples.map(x => x.name))),
   }))
   formData.append("datagen_options_form", JSON.stringify(tokenClassifierDatagenForm(modelGoal, examples)))
   console.log(modelGoal);
@@ -670,7 +671,7 @@ export function trainSentenceClassifier(
   modelName: string,
   modelGoal: string,
   examples: SentenceClassificationExample[],
-): Promise<TrainTokenClassifierResponse> {
+): Promise<TrainSentenceClassifierResponse> {
   // Retrieve the access token from local storage
   const accessToken = getAccessToken()
 
@@ -679,7 +680,8 @@ export function trainSentenceClassifier(
 
   const formData = new FormData();
   formData.append("extra_options_form", JSON.stringify({
-    sub_type: "token",
+    sub_type: "text",
+    n_target_classes: Array.from(new Set(examples.map(x => x.name))).length
   }))
   formData.append("datagen_options_form", JSON.stringify(sentenceClassifierDatagenForm(examples)))
   
@@ -687,6 +689,7 @@ export function trainSentenceClassifier(
       axios
           .post(`${thirdaiPlatformBaseUrl}/api/train/udt?model_name=${modelName}&task_prompt=${modelGoal}`, formData)
           .then((res) => {
+              console.log(res);
               resolve(res.data);
           })
           .catch((err) => {

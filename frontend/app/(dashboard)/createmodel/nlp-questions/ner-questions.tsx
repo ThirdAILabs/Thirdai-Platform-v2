@@ -170,6 +170,9 @@ const NERQuestions = ({ workflowNames, modelGoal, onCreateModel, stayOnPage, app
       alert("Please enter a model name.");
       return;
     }
+    if (warningMessage !== '') {
+      return;
+    }
   
     try {
       const modelResponse = await trainTokenClassifier(modelName, modelGoal, categories);
@@ -214,12 +217,15 @@ const NERQuestions = ({ workflowNames, modelGoal, onCreateModel, stayOnPage, app
         value={modelName}
         onChange={(e) => {
           const name = e.target.value;
+          setModelName(name)
+        }}
+        onBlur={(e) => {
+          const name = e.target.value;
           if (workflowNames.includes(name)) {
             setWarningMessage("A workflow with the same name has been created. Please choose a different name.");
           } else {
             setWarningMessage(""); // Clear the warning if the name is unique
           }
-          setModelName(name)
         }}
         placeholder="Enter app name"
         style={{ marginTop: "10px" }}

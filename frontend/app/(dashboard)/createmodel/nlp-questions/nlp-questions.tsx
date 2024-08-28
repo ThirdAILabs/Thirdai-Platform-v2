@@ -12,10 +12,10 @@ interface NLPQuestionsProps {
 }
 
 const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
-  const [question, setQuestion] = useState('');
+  const [question, setQuestion] = useState("I want to classify the sentiment of my customers' reviews");
   const [loadingAnswer, setLoadingAnswer] = useState<boolean>(false);
-  const [answer, setAnswer] = useState('');
-  const [confirmedAnswer, setConfirmedAnswer] = useState<boolean>(false);
+  const [answer, setAnswer] = useState('Sentence classification');
+  const [confirmedAnswer, setConfirmedAnswer] = useState<boolean>(true);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuestion(e.target.value);
@@ -104,7 +104,7 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
       {
         confirmedAnswer && answer && (
           answer.includes('Sentence classification') ? (
-            <SCQQuestions question={question} answer={answer} />
+            <SCQQuestions workflowNames={workflowNames} question={question} answer={answer} />
           ) : answer.includes('Token classification') ? (
             <NERQuestions workflowNames={workflowNames} modelGoal={question} />
           ) : null

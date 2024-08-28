@@ -26,14 +26,14 @@ type GeneratedData = {
 };
 
 const predefinedChoices = [
-  'Positive Sentiment',
-  'Negative Sentiment',
+  'POSITIVE_SENTIMENT',
+  'NEGATIVE_SENTIMENT',
 ];
 
 const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) => {
-  const [modelName, setModelName] = useState('');
+  const [modelName, setModelName] = useState(`${Date.now()}`);
   const [warningMessage, setWarningMessage] = useState('');
-  const [categories, setCategories] = useState([{ name: '', example: '', description: '' }]);
+  const [categories, setCategories] = useState([{ name: 'POSITIVE', example: 'I LOVE CHOCOLATE!!!', description: 'Positive sentiment' }, { name: 'NEGATIVE', example: 'I HATE CHOCOLATE!!!', description: 'Negative sentiment' }]);
   const [showReview, setShowReview] = useState(false);
   const [isDataGenerating, setIsDataGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<GeneratedData[]>([]);
@@ -144,9 +144,12 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
   };
 
 
-  const handleCreateNERModel = async () => {
+  const handleCreateSCModel = async () => {
     if (!modelName) {
       alert("Please enter a model name.");
+      return;
+    }
+    if (warningMessage !== '') {
       return;
     }
   
@@ -184,12 +187,16 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
         value={modelName}
         onChange={(e) => {
           const name = e.target.value;
-          if (workflowNames.includes(name)) {
-            setWarningMessage("A workflow with the same name has been created. Please choose a different name.");
-          } else {
-            setWarningMessage(""); // Clear the warning if the name is unique
-          }
           setModelName(name)
+        }}
+        onBlur={
+          (e) => {
+            const name = e.target.value;
+            if (workflowNames.includes(name)) {
+              setWarningMessage("A workflow with the same name has been created. Please choose a different name.");
+            } else {
+              setWarningMessage(""); // Clear the warning if the name is unique
+            }
         }}
         placeholder="Enter app name"
         style={{ marginTop: "10px" }}
@@ -199,8 +206,8 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
           {warningMessage}
         </span>
       )}
-      <span className="block text-lg font-semibold">Specify Tokens</span>
-      <form onSubmit={handleSubmit} style={{ marginTop: "20px" }}>
+      <span className="block text-lg font-semibold" style={{marginTop: "20px"}}>Specify Classes</span>
+      <form onSubmit={handleSubmit} style={{ marginTop: "10px" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {categories.map((category, index) => (
             <div
@@ -238,7 +245,7 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
                 style={{ width: "100%" }}
                 className="text-md"
                 placeholder="Description"
-                value={category.example}
+                value={category.description}
                 onChange={(e) => handleCategoryChange(index, "description", e.target.value)}
               />
               <Button
@@ -316,7 +323,7 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
             >
               Redefine Tokens
             </Button>
-            <Button style={{ width: "100%" }} onClick={()=>{}}>
+            <Button style={{ width: "100%" }} onClick={handleCreateSCModel}>
               Create
             </Button>
           </div>

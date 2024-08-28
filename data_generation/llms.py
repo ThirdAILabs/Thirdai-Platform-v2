@@ -8,9 +8,6 @@ from openai import OpenAI
 
 
 class LLMBase(ABC):
-    def __init__(self, save_dir: Path):
-        self.response_file = save_dir / "response.txt"
-
     @abstractmethod
     def completion(
         self, prompt: str, system_prompt: Optional[str] = None, **kwargs

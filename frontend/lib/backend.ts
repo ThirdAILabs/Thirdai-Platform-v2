@@ -852,6 +852,67 @@ export function useTokenClassificationEndpoints() {
   };
 }
 
+interface TextClassificationResult {
+  query_text: string;
+  predicted_classes: [string, number][];
+};
+
+export function useTextClassificationEndpoints() {
+  const accessToken = useAccessToken();
+  const params = useParams();
+  const workflowId = params.deploymentId as string;
+  const [workflowName, setWorkflowName] = useState<string>("");
+  const [deploymentUrl, setDeploymentUrl] = useState<string | undefined>();
+  
+  console.log("PARAMS", params);
+
+  useEffect(() => {
+    const init = async () => {
+      const accessToken = getAccessToken();
+      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+  
+      const params = new URLSearchParams({ workflow_id: workflowId });
+      
+
+      axios
+          .get<WorkflowDetailsResponse>(`${thirdaiPlatformBaseUrl}/api/workflow/details?${params.toString()}`)
+          .then((res) => {
+            setWorkflowName(res.data.data.name)
+            for (const model of res.data.data.models) {
+              if (model.component === 'nlp') {
+                setDeploymentUrl(`${deploymentBaseUrl}/${model.model_id}`);
+              }
+            }
+          })
+          .catch((err) => {
+            console.error('Error fetching workflow details:', err);
+            alert('Error fetching workflow details:' + err)
+          });
+    };
+    init();
+  }, []);
+  
+  const predict = async (query: string): Promise<TextClassificationResult> => {
+    // Set the default authorization header for axios
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      const response = await axios.post(`${deploymentUrl}/predict`, {
+        query, top_k: 5
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error predicting tokens:', error);
+      alert('Error predicting tokens:' + error)
+      throw new Error('Failed to predict tokens');
+    }
+  };
+
+  return {
+    workflowName,
+    predict,
+  };
+}
+
 
 export interface DeploymentStatsTable {
   header: string[];

@@ -30,7 +30,11 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         break;
       }
       case "nlp": {
-        router.push(`/token-classification/${workflow.id}`);
+        if (workflow.models[0].sub_type === "token") {
+          router.push(`/token-classification/${workflow.id}`);
+        } else {
+          router.push(`/text-classification/${workflow.id}`);
+        }
         break;
       }
       case "rag": {

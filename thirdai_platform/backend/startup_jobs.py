@@ -44,6 +44,7 @@ async def restart_generate_job():
         generate_app_dir=str(get_root_absolute_path() / "llm_generation_job"),
     )
 
+
 async def restart_thirdai_platform_frontend():
     nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
     if nomad_job_exists(THIRDAI_PLATFORM_FRONTEND_ID, nomad_endpoint):
@@ -69,6 +70,7 @@ async def restart_thirdai_platform_frontend():
         app_dir=str(get_root_absolute_path() / "frontend"),
     )
 
+
 async def restart_llm_cache_job():
     nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
     if nomad_job_exists(LLM_CACHE_JOB_ID, nomad_endpoint):
@@ -90,4 +92,3 @@ async def restart_llm_cache_job():
         python_path=get_python_path(),
         llm_cache_app_dir=str(get_root_absolute_path() / "llm_cache_job"),
     )
-

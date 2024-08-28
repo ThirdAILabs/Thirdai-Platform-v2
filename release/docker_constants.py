@@ -37,4 +37,5 @@ image_base_names = ImageNames(
     DEPLOY_IMAGE_NAME="deployment_job",
     GENERATION_IMAGE_NAME="llm_generation_job",
     FRONTEND_IMAGE_NAME="frontend",
+    LLM_CACHE_IMAGE_NAME="llm_cache_job",
 )

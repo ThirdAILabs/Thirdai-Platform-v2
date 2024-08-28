@@ -1,4 +1,4 @@
-// app/app/which-nlp-use-case/route.ts
+// app/endpoints/which-nlp-use-case/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 

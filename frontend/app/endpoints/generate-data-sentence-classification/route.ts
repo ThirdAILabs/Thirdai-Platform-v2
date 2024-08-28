@@ -1,4 +1,4 @@
-// app/app/generate-data/route.ts
+// app/endpoints/generate-data-sentence-classification/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 

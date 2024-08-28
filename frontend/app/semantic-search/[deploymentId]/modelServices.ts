@@ -1,5 +1,6 @@
 import { genaiQuery } from "./genai";
 import { Box, Chunk, DocChunks } from "./components/pdf_viewer/interfaces";
+import { temporaryCacheToken } from "@/lib/backend";
 import _ from 'lodash';
 
 export const deploymentBaseUrl = _.trim(process.env.NEXT_PUBLIC_DEPLOYMENT_BASE_URL!, '/');
@@ -138,7 +139,18 @@ export class ModelService {
             return response;
         };
     }
+    
+    getModelID(): string {
+        function extractModelIdFromUrl(url: string) {
+            const urlParts = new URL(url);
+            const pathSegments = urlParts.pathname.split('/');
+            return pathSegments[pathSegments.length - 1]; // Assumes the modelId is the last segment
+        }
 
+        const modelId = extractModelIdFromUrl(this.url);
+
+        return modelId
+    }
 
     async sources(): Promise<Source[]> {
         const url = new URL(this.url + "/sources");
@@ -580,10 +592,16 @@ export class ModelService {
         references: ReferenceInfo[],
         websocketRef: React.MutableRefObject<WebSocket | null>,
         onNextWord: (str: string) => void,
+        onComplete?: (finalAnswer: string) => void
     ) {
+        let finalAnswer = ''; // Variable to accumulate the response
+
+        const cache_access_token =  await temporaryCacheToken(this.getModelID());
         const args = {
             query: genaiQuery(question, references, genaiPrompt),
-            key: "sk-PYTWB6gs_ofO44-teXA2rIRGRbJfzqDyNXBalHXKcvT3BlbkFJk5905SK2RVE6_ME8i4Lnp9qULbyPZSyOU0vh2fZfQA" // fill in openai key
+            key: "sk-PYTWB6gs_ofO44-teXA2rIRGRbJfzqDyNXBalHXKcvT3BlbkFJk5905SK2RVE6_ME8i4Lnp9qULbyPZSyOU0vh2fZfQA", // fill in openai key
+            original_query: question,
+            cache_access_token: cache_access_token.access_token
         };
 
         const uri = this.wsUrl + "/generate";
@@ -600,6 +618,7 @@ export class ModelService {
             }
             if (response["status"] === "success") {
                 onNextWord(response["content"]);
+                finalAnswer += response["content"]; // Append each piece of content to the finalAnswer
             }
             if (response["end_of_stream"]) {
                 websocketRef.current!.close();
@@ -616,6 +635,9 @@ export class ModelService {
                 console.log(
                     `Closed cleanly, code=${event.code}, reason=${event.reason}`,
                 );
+                if (typeof onComplete === 'function') {
+                    onComplete(finalAnswer); // Call onComplete with the accumulated finalAnswer
+                }
             } else {
                 console.error(`Connection died`);
                 alert(`Connection died`)

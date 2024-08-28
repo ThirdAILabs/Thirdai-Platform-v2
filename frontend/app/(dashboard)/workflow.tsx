@@ -48,7 +48,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
   const [isValid, setIsValid] = useState(false);
 
   useEffect(() => {
-    const validateInterval = setInterval(async () => {
+    const validateWorkflow = async () => {
       try {
         const validationResponse = await validate_workflow(workflow.id);
         if (validationResponse.status == 'success') {
@@ -62,9 +62,13 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         setIsValid(false);
         setDeployStatus('Starting')
         console.error('Validation failed.', e);
-        // alert('Validation failed.' + e)
       }
-    }, 3000); // Adjust the interval as needed, e.g., every 5 seconds
+    };
+
+    // Call the validation function immediately
+    validateWorkflow();
+
+    const validateInterval = setInterval(validateWorkflow, 3000); // Adjust the interval as needed
 
     return () => clearInterval(validateInterval);
   }, [workflow.id]);
@@ -77,8 +81,9 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         alert('Cannot deploy. The workflow is not valid.');
       }
     } catch (e) {
+      setDeployStatus('Starting')
       console.error('Failed to start workflow.', e);
-      alert('Failed to start the workflow.' + e);
+      // alert('Failed to start the workflow.' + e);
     }
   };
 

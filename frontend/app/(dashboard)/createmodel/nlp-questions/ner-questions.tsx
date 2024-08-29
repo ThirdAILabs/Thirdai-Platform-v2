@@ -242,8 +242,8 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
                   <div style={{ width: "100%" }}>
                     <Input
                       list={`category-options-${index}`}
-                      style={{ width: "100%" }}
-                      className="text-md"
+                      style={{ width: "95%" }}
+                      className="text-sm"
                       placeholder="Category Name"
                       value={category.name}
                       onChange={(e) => handleCategoryChange(index, 'name', e.target.value)}
@@ -255,15 +255,15 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
                     </datalist>
                   </div>
                   <Input
-                    style={{ width: "100%" }}
-                    className="text-md"
+                    style={{ width: "75%" }}
+                    className="text-sm"
                     placeholder="Example"
                     value={category.example}
                     onChange={(e) => handleCategoryChange(index, 'example', e.target.value)}
                   />
                   <Input
-                    style={{ width: "100%" }}
-                    className="text-md"
+                    style={{ width: "130%" }}
+                    className="text-sm"
                     placeholder="What this category is about."
                     value={category.description}
                     onChange={(e) => handleCategoryChange(index, 'description', e.target.value)}

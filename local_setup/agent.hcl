@@ -2,9 +2,9 @@ bind_addr = "0.0.0.0"
 data_dir  = "/opt/nomad/data"
 
 advertise {
-  http = "192.168.1.5"
-  rpc  = "192.168.1.5"
-  serf = "192.168.1.5"
+  http = "172.31.41.228"
+  rpc  = "172.31.41.228"
+  serf = "172.31.41.228"
 }
 
 client {
@@ -13,6 +13,7 @@ client {
 
 server {
   enabled                    = true
+  bootstrap_expect = 1
 }
 
 plugin "docker" {

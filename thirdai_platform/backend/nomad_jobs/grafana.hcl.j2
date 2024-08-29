@@ -13,7 +13,6 @@ job "grafana" {
         to = 3000
       }
     }
-
     task "grafana" {
       driver = "docker"
 
@@ -45,8 +44,8 @@ job "grafana" {
         provider = "nomad"
         tags = [
           "traefik.enable=true",
-          "traefik.http.routers.modelbazaar-http.rule=PathPrefix(`/grafana`)",
-          "traefik.http.routers.modelbazaar-http.priority=10"
+          "traefik.http.routers.grafana-http.rule=PathPrefix(`/grafana`)",
+          "traefik.http.routers.grafana-http.priority=10"
         ]
       }
 
@@ -64,18 +63,16 @@ datasources:
     type: prometheus
     access: proxy
     {{ range nomadService "vicky-web" }}url: http://{{ .Address }}:{{ .Port }}{{ end }}
-    editable: false
     isDefault: true
+    editable: false
   - name: Loki
     type: loki
     access: proxy
     {{ range nomadService "loki-web" }}url: http://{{ .Address }}:{{ .Port }}{{ end }}
-    version: 1
     editable: false
 {% endraw %}
 EOF
         destination = "/local/grafana/provisioning/datasources/datasources.yaml"
-        change_mode = "noop"
       }
 
       template {
@@ -94,7 +91,6 @@ providers:
 {% endraw %}
 EOF
         destination = "/local/grafana/provisioning/dashboards/dashboards.yaml"
-        change_mode = "noop"
       }
     }
   }

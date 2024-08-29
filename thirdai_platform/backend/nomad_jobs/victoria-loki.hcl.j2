@@ -68,9 +68,10 @@ scrape_configs:
         target_label: "hostname"
         replacement: "nomad-agent-$1"
 {% endraw %}
+
+
 EOF
         destination = "${NOMAD_TASK_DIR}/prometheus.yaml"
-        change_mode = "noop"
       }
 
       resources {
@@ -158,7 +159,6 @@ ingester:
 {% endraw %}
 EOF
         destination     = "${NOMAD_TASK_DIR}/loki.yaml"
-        change_mode = "noop"
       }
 
       service {
@@ -167,8 +167,8 @@ EOF
         provider = "nomad"
         tags = [
           "traefik.enable=true",
-          "traefik.http.routers.modelbazaar-http.rule=PathPrefix(`/loki`)",
-          "traefik.http.routers.modelbazaar-http.priority=10"
+          "traefik.http.routers.loki_port.rule=PathPrefix(`/loki`)",
+          "traefik.http.routers.loki_port.priority=10"
         ]
       }
     }

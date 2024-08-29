@@ -11,7 +11,6 @@ job "victoria-loki" {
       port "vicky-http" {
         to = 8428
       }
-
       port "loki_port" {
         to = 3100
       }
@@ -231,13 +230,13 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
-    {{ range nomadService "vicky-web" }}url: http://{{ .Address }}:{{ .Port }}{{ end }}
+    url: http://${NOMAD_ADDR_vicky_http}
     isDefault: true
     editable: false
   - name: Loki
     type: loki
     access: proxy
-    {{ range nomadService "loki-web" }}url: http://{{ .Address }}:{{ .Port }}{{ end }}
+    url: http://${NOMAD_ADDR_loki_port}
     editable: false
 {% endraw %}
 EOF

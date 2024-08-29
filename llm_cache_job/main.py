@@ -6,6 +6,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from permissions import Permissions
+import thirdai
+thirdai.licensing.activate("002099-64C584-3E02C8-7E51A0-DE65D9-V3")
 
 app = FastAPI()
 router = APIRouter()

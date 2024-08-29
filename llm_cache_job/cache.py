@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Optional, Set
 
 from thirdai import neural_db_v2 as ndb
 from thirdai.neural_db_v2.chunk_stores import constraints
+import thirdai
+thirdai.licensing.activate("002099-64C584-3E02C8-7E51A0-DE65D9-V3")
 
 
 class Cache(ABC):

@@ -64,6 +64,34 @@ def udt_query(
     )
 
 
+@udt_router.get("/classes")
+@propagate_error
+def udt_classes(token=Depends(permissions.verify_read_permission)):
+    """
+    Gets a list of output class names.
+    
+    Parameters:
+    - token: str - Authorization token (inferred from permissions dependency).
+
+    Returns:
+    - JSONResponse: {
+        "status_code": int,
+        "message": str,
+        "data": {
+            "classes": List[str]
+        }
+    }
+    """
+    model = get_model()
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successful",
+        data={
+            "classes": model.get_classes()
+        },
+    )
+
+
 @udt_router.get("/stats")
 @propagate_error
 def udt_query(_=Depends(permissions.verify_read_permission)):

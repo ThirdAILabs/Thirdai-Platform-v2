@@ -191,7 +191,7 @@ function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
 }
 
 export default function Interact() {
-  const { predict } = useTokenClassificationEndpoints();
+  const { tags, predict } = useTokenClassificationEndpoints();
 
   const [inputText, setInputText] = useState<string>('');
   const [annotations, setAnnotations] = useState<Token[]>([]);
@@ -225,6 +225,11 @@ export default function Interact() {
     window.addEventListener('mousedown', stopSelectingOnOutsideClick);
     return stopSelectingOnOutsideClick;
   }, []);
+
+  useEffect(() => {
+    console.log(tags)
+    updateTagColors([tags]);
+  }, [tags]);
 
   const handleInputChange = (event: any) => {
     setInputText(event.target.value);

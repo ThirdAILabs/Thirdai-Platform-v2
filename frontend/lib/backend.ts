@@ -651,6 +651,7 @@ export function useTokenClassificationEndpoints() {
   const workflowId = params.deploymentId as string;
   const [workflowName, setWorkflowName] = useState<string>("");
   const [deploymentUrl, setDeploymentUrl] = useState<string | undefined>();
+  const [tags, setTags] = useState<string[]>([]);
 
   console.log("PARAMS", params);
 
@@ -678,6 +679,20 @@ export function useTokenClassificationEndpoints() {
     };
     init();
   }, []);
+
+  useEffect(() => {
+    if (deploymentUrl) {
+      // Set the default authorization header for axios
+      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+      axios.get(`${deploymentUrl}/classes`).then((res) => {
+        setTags(res.data.data.classes)
+      }).catch((e) => {
+        console.error('Error getting tags:', e);
+        alert('Error getting tags:' + e)
+        throw new Error('Failed to get tags');
+      })
+    }
+  }, [deploymentUrl]);
 
   const predict = async (query: string): Promise<TokenClassificationResult> => {
     // Set the default authorization header for axios
@@ -769,6 +784,7 @@ export function useTokenClassificationEndpoints() {
 
   return {
     workflowName,
+    tags,
     predict,
     getStats,
   };

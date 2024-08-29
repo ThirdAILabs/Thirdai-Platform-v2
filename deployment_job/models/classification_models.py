@@ -27,6 +27,10 @@ class ClassificationModel(Model):
     @abstractmethod
     def predict(self, **kwargs):
         pass
+    
+    @abstractmethod
+    def get_classes(self, **kwargs):
+        pass
 
 
 class TextClassificationModel(ClassificationModel):
@@ -34,6 +38,9 @@ class TextClassificationModel(ClassificationModel):
         self, model_id: Optional[str] = None, model_path: Optional[str] = None
     ):
         super().__init__(model_id, model_path)
+        # TODO: This is hacked. Change as to use log storage
+        self.num_classes = self.model.predict({"text": "test"}).shape[-1]
+        self.classes = [self.model.class_name(i) for i in range(self.num_classes)]
 
     def predict(self, **kwargs):
         query = kwargs["query"]
@@ -59,12 +66,19 @@ class TextClassificationModel(ClassificationModel):
             class_names=class_names,
         )
 
+    def get_classes(self, **kwargs):
+        return self.classes
+
 
 class TokenClassificationModel(ClassificationModel):
     def __init__(
         self, model_id: Optional[str] = None, model_path: Optional[str] = None
     ):
         super().__init__(model_id, model_path)
+        # TODO: This is hacked. Change as to use log storage
+        top_k = ((self.model._get_model().num_params() - 2000*100000) - 2000) // 2001 - 1
+        print(self.model.predict({"source": "hello"}, top_k=top_k)[0])
+        self.classes = list(set(tag for tag, score in self.model.predict({"source": "hello"}, top_k=top_k)[0] if tag != 'O'))
 
     def predict(self, **kwargs):
         query = kwargs["query"]
@@ -86,3 +100,6 @@ class TokenClassificationModel(ClassificationModel):
             tokens=query.split(),
             predicted_tags=predictions,
         )
+    
+    def get_classes(self, **kwargs):
+        return self.classes

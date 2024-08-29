@@ -1,19 +1,12 @@
 bind_addr = "0.0.0.0"
 data_dir  = "/opt/nomad/data"
 
-advertise {
-  http = "172.31.41.228"
-  rpc  = "172.31.41.228"
-  serf = "172.31.41.228"
-}
-
 client {
   enabled                     = true
 }
 
 server {
   enabled                    = true
-  bootstrap_expect = 1
 }
 
 plugin "docker" {
@@ -22,12 +15,6 @@ plugin "docker" {
       enabled                = true
     }
     extra_labels             = ["job_name", "job_id", "task_group_name", "task_name", "namespace", "node_name", "node_id"]
-  }
-}
-
-plugin "raw_exec" {
-  config {
-    enabled = true
   }
 }
 

@@ -4,9 +4,7 @@ import logging_loki
 
 logging_loki.emitter.LokiEmitter.level_tag = "level"
 
-handler = logging_loki.LokiHandler(
-    url="http://localhost/loki/api/v1/push", version="1"
-)
+handler = logging_loki.LokiHandler(url="http://localhost/loki/api/v1/push", version="1")
 logger = logging.getLogger("my-logger")
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)

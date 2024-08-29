@@ -79,9 +79,6 @@ class FinetunableRetriever(NDBModel):
         self.logger.info("Training process started.")
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
 
-        import time
-        time.sleep(20)
-
         unsupervised_files = list_files(self.data_dir / "unsupervised")
         supervised_files = list_files(self.data_dir / "supervised")
 

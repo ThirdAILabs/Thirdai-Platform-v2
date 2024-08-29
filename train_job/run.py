@@ -27,7 +27,6 @@ from variables import (
 general_variables: GeneralVariables = GeneralVariables.load_from_env()
 
 
-import time
 
 def main():
     """
@@ -38,7 +37,6 @@ def main():
         if general_variables.sub_type == NDBSubType.single:
             if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
                 model = FinetunableRetriever()
-                time.sleep(20)
                 model.train()
             else:
                 model = SingleMach()

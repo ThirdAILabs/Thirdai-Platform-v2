@@ -6,8 +6,6 @@ job "victoria-loki" {
     count = 1
 
     network {
-      mode = "bridge"
-
       port "vicky-http" {
         to = 8428
       }

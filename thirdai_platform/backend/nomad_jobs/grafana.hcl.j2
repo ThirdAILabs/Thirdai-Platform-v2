@@ -9,7 +9,6 @@ job "grafana" {
       mode = "bridge"
 
       port "grafana-http" {
-        static = 3002
         to = 3000
       }
     }

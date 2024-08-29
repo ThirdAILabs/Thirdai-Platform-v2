@@ -27,7 +27,7 @@ export default function Page() {
     <div className="bg-muted" style={{width: "100%", display: "flex", justifyContent: "center", height: "100vh"}}>
       <Tabs defaultValue="interact" style={{width: "100%"}}>
       <div style={{position: 'fixed', top: '20px', left: '20px'}}>
-        <div className='text-muted-foreground' style={{fontSize: '16px'}}>Token Classification</div>
+        <div className='text-muted-foreground' style={{fontSize: '16px'}}>Text Classification</div>
         <div style={{fontWeight: 'bold', fontSize: '24px'}}>{workflowName}</div>
       </div>
       <Container

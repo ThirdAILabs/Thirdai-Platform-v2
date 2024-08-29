@@ -1,13 +1,11 @@
-job "victoria-loki" {
+job "telemetry" {
   datacenters = ["dc1"]
   type        = "service"
 
-  group "victoria-loki" {
+  group "telemetry" {
     count = 1
 
     network {
-      mode = "bridge"
-
       port "vicky-http" {
         to = 8428
       }

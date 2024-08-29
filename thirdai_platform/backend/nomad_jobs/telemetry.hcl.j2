@@ -228,13 +228,13 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
-    url: http://${NOMAD_ADDR_vicky_http}
+    {{ range nomadService "vicky-web" }}url: http://{{ .Address }}:{{ .Port }}{{ end }}
     isDefault: true
     editable: false
   - name: Loki
     type: loki
     access: proxy
-    url: http://${NOMAD_ADDR_loki_port}
+    {{ range nomadService "loki-web" }}url: http://{{ .Address }}:{{ .Port }}{{ end }}
     editable: false
 {% endraw %}
 EOF

@@ -38,7 +38,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         break;
       }
       case "nlp": {
-        router.push(`/token-classification/${workflow.id}`);
+        const newUrl = `/token-classification/${workflow.id}`;
+        window.open(newUrl, '_blank');
         break;
       }
       case "rag": {

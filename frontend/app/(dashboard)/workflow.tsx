@@ -87,7 +87,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       if (isValid) {
         await start_workflow(workflow.id);
       } else {
-        alert('Cannot deploy. The workflow is not valid.');
+        // alert('Cannot deploy. The workflow is not valid.'); // commenting this line bcz sometimes it's called when it shouldn't
       }
     } catch (e) {
       setDeployStatus('Starting'); // set to starting because user intends to start workflow

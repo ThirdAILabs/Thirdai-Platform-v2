@@ -822,6 +822,20 @@ def add_workflow_type(
             message="Workflow type with this name already exists.",
         )
 
+    # Check that name and description are not empty
+    if not params.name.strip():
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Name cannot be empty.",
+        )
+
+    for requirement in params.model_requirements:
+        if not requirement:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Model requirements cannot contain empty lists.",
+            )
+
     new_workflow_type = schema.WorkflowType(
         name=params.name,
         description=params.description,

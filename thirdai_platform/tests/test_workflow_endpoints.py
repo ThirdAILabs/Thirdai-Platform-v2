@@ -103,13 +103,25 @@ def test_create_and_delete_workflow_type():
     res = client.post(
         "/api/workflow/add-type",
         json={
-            "name": "",
-            "description": "",
+            "name": "empty type",
+            "description": "empty type",
             "model_requirements": [],
         },
         headers=auth_header(admin_jwt),
     )
-    assert res.status_code == 422  # Validation error for missing fields
+    assert res.status_code == 400  # Cannot have empty model requiremnts.
+
+    # Attempt to create workflow type with wrong parameters
+    res = client.post(
+        "/api/workflow/add-type",
+        json={
+            "name": "empty type",
+            "description": "empty type",
+            "model_requireme": {},
+        },
+        headers=auth_header(admin_jwt),
+    )
+    assert res.status_code == 422  # Cannot have empty model requiremnts.
 
     # List workflow types to verify addition
     res = client.get("/api/workflow/types", headers=auth_header(admin_jwt))
@@ -161,7 +173,7 @@ def test_create_and_delete_workflow():
     # Create a new workflow
     res = client.post(
         "/api/workflow/create",
-        json={"name": "Test Workflow", "type_name": "complex_workflow_type"},
+        params={"name": "Test Workflow", "type_name": "complex_workflow_type"},
         headers=auth_header(owner_jwt),
     )
     assert res.status_code == 200
@@ -179,7 +191,7 @@ def test_create_and_delete_workflow():
 
     res = client.post(
         "/api/workflow/delete",
-        json={"workflow_id": workflow_id},
+        params={"workflow_id": workflow_id},
         headers=auth_header(normal_user_jwt),
     )
     assert res.status_code == 403  # Forbidden
@@ -190,7 +202,7 @@ def test_create_and_delete_workflow():
 
     res = client.post(
         "/api/workflow/delete",
-        json={"workflow_id": workflow_id},
+        params={"workflow_id": workflow_id},
         headers=auth_header(admin_jwt),
     )
     assert res.status_code == 200  # Should succeed
@@ -223,7 +235,7 @@ def test_add_and_validate_models_to_workflow():
     # Create a workflow for adding models
     res = client.post(
         "/api/workflow/create",
-        json={"name": "Model Test Workflow", "type_name": "complex_workflow_type"},
+        params={"name": "Model Test Workflow", "type_name": "complex_workflow_type"},
         headers=auth_header(owner_jwt),
     )
     assert res.status_code == 200
@@ -255,7 +267,7 @@ def test_add_and_validate_models_to_workflow():
     # Validate the workflow
     res = client.post(
         "/api/workflow/validate",
-        json={"workflow_id": workflow_id},
+        params={"workflow_id": workflow_id},
         headers=auth_header(owner_jwt),
     )
     assert res.status_code == 200
@@ -288,7 +300,7 @@ def test_add_and_validate_models_to_workflow():
     # Validate the workflow after deletion of a model
     res = client.post(
         "/api/workflow/validate",
-        json={"workflow_id": workflow_id},
+        params={"workflow_id": workflow_id},
         headers=auth_header(owner_jwt),
     )
     assert res.status_code == 400  # Validation should fail due to missing models

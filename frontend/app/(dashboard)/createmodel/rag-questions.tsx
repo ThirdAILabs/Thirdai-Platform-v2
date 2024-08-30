@@ -131,7 +131,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
             onChange={(e) => {
               const name = e.target.value;
               if (workflowNames.includes(name)) {
-                setWarningMessage("A workflow with the same name has been created. Please choose a different name.");
+                setWarningMessage("An App with the same name has been created. Please choose a different name.");
               } else {
                 setWarningMessage(""); // Clear the warning if the name is unique
               }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getUsername, train_ndb, create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -151,6 +151,17 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
 
     const [warningMessage, setWarningMessage] = useState("");
 
+    useEffect(()=>{
+      console.log('appname', appName)
+      if(appName) {
+        if (workflowNames.includes(appName)) {
+          setWarningMessage("An App with the same name has been created. Please choose a different name.");
+        } else {
+          setWarningMessage(""); // Clear the warning if the name is unique
+        }
+      }
+    },[appName])
+
     return (
       <div>
         <span className="block text-lg font-semibold">App Name</span>
@@ -160,7 +171,7 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
           onChange={(e) => {
             const name = e.target.value;
             if (workflowNames.includes(name)) {
-              setWarningMessage("A workflow with the same name has been created. Please choose a different name.");
+              setWarningMessage("An App with the same name has been created. Please choose a different name.");
             } else {
               setWarningMessage(""); // Clear the warning if the name is unique
             }
@@ -168,7 +179,7 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
           }}
           placeholder="Enter app name"
           style={{marginTop: "10px"}}
-          disabled={appName ? true : false}
+          disabled={!!appName && !workflowNames.includes(modelName)} // Use !! to explicitly convert to boolean
         />
 
         {warningMessage && (

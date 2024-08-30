@@ -1,5 +1,5 @@
 // app/NERQuestions.js
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getUsername, trainTokenClassifier, create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
@@ -216,6 +216,17 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
 
   const [warningMessage, setWarningMessage] = useState("");
 
+  useEffect(()=>{
+    console.log('appname', appName)
+    if(appName) {
+      if (workflowNames.includes(appName)) {
+        setWarningMessage("An App with the same name has been created. Please choose a different name.");
+      } else {
+        setWarningMessage(""); // Clear the warning if the name is unique
+      }
+    }
+  },[appName])
+
   return (
     <div>
       <span className="block text-lg font-semibold">App Name</span>
@@ -225,7 +236,7 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
         onChange={(e) => {
           const name = e.target.value;
           if (workflowNames.includes(name)) {
-            setWarningMessage("A workflow with the same name has been created. Please choose a different name.");
+            setWarningMessage("An App with the same name has been created. Please choose a different name.");
           } else {
             setWarningMessage(""); // Clear the warning if the name is unique
           }
@@ -233,7 +244,7 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
         }}
         placeholder="Enter app name"
         style={{ marginTop: "10px" }}
-        disabled={appName ? true : false}
+        disabled={!!appName && !workflowNames.includes(modelName)} // Use !! to explicitly convert to boolean
       />
       {warningMessage && (
         <span style={{ color: "red", marginTop: "10px" }}>

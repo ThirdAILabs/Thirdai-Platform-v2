@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { CardDescription } from '@/components/ui/card';
 
 type Category = {
   name: string;
@@ -75,10 +76,12 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
   };
 
   const handleAddAndReviewCategory = () => {
-    const reviewSuccess = handleReview();
-    if (reviewSuccess) {
-      handleAddCategory();
-    }
+    handleAddCategory();
+
+    // const reviewSuccess = handleReview();
+    // if (reviewSuccess) {
+      // handleAddCategory();
+    // }
   };
 
   const handleRemoveCategory = (index: number) => {
@@ -101,10 +104,10 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
       }
     }
 
-    const reviewSuccess = handleReview();
-    if (!reviewSuccess) {
-      return;
-    }
+    // const reviewSuccess = handleReview();
+    // if (!reviewSuccess) {
+    //   return;
+    // }
 
     if (isDataGenerating) {
       return;
@@ -234,6 +237,7 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
       {
         generatedData.length === 0 && <>
           <span className="block text-lg font-semibold" style={{ marginTop: "20px" }}>Specify Tokens</span>
+          <CardDescription>Define your own categories or select existing ones</CardDescription>
           <form onSubmit={handleSubmit}>
             <div style={{ display: "flex", flexDirection: "column", marginTop: "10px" }}>
 

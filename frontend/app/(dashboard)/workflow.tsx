@@ -150,6 +150,21 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
     }
   },[workflow.type])
 
+  const getBadgeColor = (status: string) => {
+    switch (status) {
+      case 'Active':
+        return 'bg-green-500 text-white'; // Green for good status
+      case 'Starting':
+        return 'bg-yellow-500 text-white'; // Yellow for in-progress status
+      case 'Inactive':
+        return 'bg-gray-500 text-white'; // Gray for inactive status
+      case 'Failed':
+      case 'Error: Underlying model not present':
+        return 'bg-red-500 text-white'; // Red for error statuses
+      default:
+        return 'bg-gray-500 text-white'; // Default to gray if status is unknown
+    }
+  };  
 
   return (
     <TableRow>
@@ -164,7 +179,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       </TableCell>
       <TableCell className="font-medium">{workflow.name}</TableCell>
       <TableCell>
-        <Badge variant="outline" className="capitalize">
+        <Badge variant="outline" className={`capitalize ${getBadgeColor(deployStatus)}`}>
           {deployStatus}
         </Badge>
       </TableCell>

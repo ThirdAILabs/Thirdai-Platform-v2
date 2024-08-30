@@ -177,14 +177,14 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           width="64"
         />
       </TableCell>
-      <TableCell className="font-medium">{workflow.name}</TableCell>
-      <TableCell>
+      <TableCell className="font-medium text-center font-medium">{workflow.name}</TableCell>
+      <TableCell className='text-center font-medium'>
         <Badge variant="outline" className={`capitalize ${getBadgeColor(deployStatus)}`}>
           {deployStatus}
         </Badge>
       </TableCell>
-      <TableCell className="hidden md:table-cell">{deployType}</TableCell>
-      <TableCell className="hidden md:table-cell">
+      <TableCell className="hidden md:table-cell text-center font-medium">{deployType}</TableCell>
+      <TableCell className="hidden md:table-cell text-center font-medium">
         {
           new Date(workflow.publish_date).toLocaleDateString('en-US', {
               year: 'numeric',
@@ -193,10 +193,10 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
             })
         }
       </TableCell>
-      <TableCell className="hidden md:table-cell">
+      <TableCell className="hidden md:table-cell text-center font-medium">
         <Button
           onClick={deployStatus === 'Active' ? goToEndpoint : handleDeploy}
-          className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+          className="text-white focus:ring-4 focus:outline-none font-medium text-sm p-2.5 text-center inline-flex items-center me-2"
           style={{ width: '100px' }}
           disabled={['Failed', 'Starting', 'Error: Underlying model not present'].includes(deployStatus)}
         >
@@ -209,7 +209,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
             : 'Endpoint'}
         </Button>
       </TableCell>
-      <TableCell>
+      <TableCell className='text-center font-medium'>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button aria-haspopup="true" size="icon" variant="ghost">

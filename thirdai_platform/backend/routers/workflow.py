@@ -1,5 +1,6 @@
 import json
 import os
+import traceback
 from collections import defaultdict
 from pathlib import Path
 from typing import List
@@ -26,7 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import verify_license
 from pydantic import BaseModel
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 workflow_router = APIRouter()
@@ -954,7 +955,7 @@ def delete_workflow(
     session: Session = Depends(get_session),
 ):
     """
-    Delete a workflow by its ID.
+    Delete a workflow by its ID and remove its models if they are not used in other workflows.
 
     - **Parameters**:
       - `workflow_id` (str): ID of the workflow to delete.
@@ -962,14 +963,52 @@ def delete_workflow(
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
     """
-    workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
+    try:
+        workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
 
-    session.delete(workflow)
-    session.commit()
+        if not workflow:
+            return response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Workflow not found.",
+            )
+
+        # Store IDs of models used in the workflow before deleting the workflow
+        model_ids = [
+            workflow_model.model_id for workflow_model in workflow.workflow_models
+        ]
+
+        # Delete the workflow
+        session.delete(workflow)
+        session.commit()
+
+        # Find models that are no longer used in any workflows
+        unused_models = (
+            session.query(schema.Model)
+            .filter(schema.Model.id.in_(model_ids))
+            .outerjoin(
+                schema.WorkflowModel,
+                schema.Model.id == schema.WorkflowModel.model_id,
+            )
+            .group_by(schema.Model.id)
+            .having(func.count(schema.WorkflowModel.workflow_id) == 0)
+            .all()
+        )
+
+        # Delete unused models
+        if unused_models:
+            for model in unused_models:
+                session.delete(model)
+            session.commit()
+    except Exception as err:
+        traceback.print_exc()
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=f"Failed to delete the workflow due to {err}",
+        )
 
     return response(
         status_code=status.HTTP_200_OK,
-        message="Workflow deleted successfully.",
+        message="Workflow and unused models deleted successfully.",
     )
 
 

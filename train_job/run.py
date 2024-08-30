@@ -27,7 +27,6 @@ from variables import (
 general_variables: GeneralVariables = GeneralVariables.load_from_env()
 
 
-
 def main():
     """
     Main function to initialize and train the appropriate model based on environment variables.

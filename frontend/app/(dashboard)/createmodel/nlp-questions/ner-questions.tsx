@@ -77,11 +77,6 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
 
   const handleAddAndReviewCategory = () => {
     handleAddCategory();
-
-    // const reviewSuccess = handleReview();
-    // if (reviewSuccess) {
-      // handleAddCategory();
-    // }
   };
 
   const handleRemoveCategory = (index: number) => {
@@ -103,11 +98,6 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
         return;
       }
     }
-
-    // const reviewSuccess = handleReview();
-    // if (!reviewSuccess) {
-    //   return;
-    // }
 
     if (isDataGenerating) {
       return;

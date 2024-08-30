@@ -86,18 +86,14 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
     try {
       if (isValid) {
         await start_workflow(workflow.id);
-      } else {
-        // alert('Cannot deploy. The workflow is not valid.'); // commenting this line bcz sometimes it's called when it shouldn't
       }
     } catch (e) {
       setDeployStatus('Starting'); // set to starting because user intends to start workflow
       console.error('Failed to start workflow.', e);
-      // alert('Failed to start the workflow.' + e);
     }
   };
 
   useEffect(() => {
-    // if (workflow.status === 'inactive' && ! workflowActive) {
     if (workflow.status === 'inactive' && deployStatus != 'Starting') {
       // If the workflow is inactive, we always say it's inactive regardless of model statuses
         // AND If user hasn't tried to start deploy the workflow AND

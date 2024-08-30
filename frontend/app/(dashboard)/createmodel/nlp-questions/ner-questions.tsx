@@ -167,6 +167,8 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
     });
   };
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleCreateNERModel = async () => {
     if (!modelName) {
       alert("Please enter a model name.");
@@ -174,6 +176,8 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
     }
 
     const tags = Array.from(new Set(categories.map(cat => cat.name)));
+
+    setIsLoading(true);
 
     try {
       const modelResponse = await trainTokenClassifier(modelName, generatedData, tags);
@@ -205,6 +209,8 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
       }
     } catch (e) {
       console.log(e || 'Failed to create NER model and workflow');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -338,8 +344,19 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
             <Button variant="outline" style={{ width: "100%" }} onClick={() => setGeneratedData([])}>
               Redefine Tokens
             </Button>
-            <Button style={{ width: "100%" }} onClick={handleCreateNERModel}>
-              Create
+            <Button
+              style={{ width: "100%" }}
+              onClick={handleCreateNERModel}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
+                  <span>Creating...</span>
+                </div>
+              ) : (
+                "Create"
+              )}
             </Button>
           </div>
         </div>

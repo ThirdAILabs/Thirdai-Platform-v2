@@ -22,6 +22,7 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
     const [sources, setSources] = useState<Array<{ type: string, files: File[] }>>([]);
     const [fileCount, setFileCount] = useState<number[]>([]);
     const router = useRouter();
+    const [isLoading, setIsLoading] = useState(false);
     
     const addSource = (type: SourceType) => {
       setSources(prev => [...prev, {type, files: []}]);
@@ -82,13 +83,17 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
     };
 
     const submit = async () => {
+      setIsLoading(true);
+
       try {
         if (!modelName) {
           alert("Please give the app a name. The name cannot have spaces, forward slashes (/) or colons (:).")
+          setIsLoading(false);
           return;
         }
         if (modelName.includes(" ") || modelName.includes("/") || modelName.includes(":")) {
           alert("The app name cannot have spaces, forward slashes (/) or colons (:).")
+          setIsLoading(false);
           return;
         }
 
@@ -98,6 +103,7 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
 
         if (!formData) {
           alert("Please upload at least one file before submitting.");
+          setIsLoading(false);
           return;
         }
 
@@ -137,6 +143,7 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
         }
     } catch (error) {
         console.log(error);
+        setIsLoading(false);
     }
   }
 
@@ -215,8 +222,15 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
         </div>
 
         <div className="flex justify-start">
-          <Button onClick={submit} style={{marginTop: "30px", width: "100%"}}>
-            Create
+          <Button onClick={submit} style={{ marginTop: "30px", width: "100%" }} disabled={isLoading}>
+            {isLoading ? (
+              <div className="flex items-center">
+                <div className='animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2'></div>
+                <span>Creating...</span>
+              </div>
+            ) : (
+              "Create"
+            )}
           </Button>
         </div>
       </div>

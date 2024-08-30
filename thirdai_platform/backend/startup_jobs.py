@@ -116,7 +116,7 @@ async def restart_telemetry_jobs():
         LOKI_DATA_DIR=os.path.join(os.getenv("SHARE_DIR"), "monitoring-data", "loki"),
         dashboards=str(
             cwd.joinpath(
-                "..", "local_setup", "nomad-monitoring", "dashboards"
+                "..", "local_setup", "telemetry_dashboards"
             ).resolve()
         ),
         GRAFANA_DATA_DIR=os.path.join(

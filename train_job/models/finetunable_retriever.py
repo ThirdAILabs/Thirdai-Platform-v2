@@ -36,7 +36,8 @@ class FinetunableRetriever(NDBModel):
         buffer = queue.Queue()
 
         producer_thread = threading.Thread(
-            target=producer, args=(files, buffer, self.data_dir / "unsupervised")
+            target=producer,
+            args=(files, buffer, self.data_dir / "unsupervised"),
         )
 
         consumer_thread = threading.Thread(
@@ -66,7 +67,8 @@ class FinetunableRetriever(NDBModel):
         supervised_sources = self.get_supervised_files(files)
 
         db.supervised_train(
-            supervised_sources, epochs=self.train_variables.supervised_epochs
+            supervised_sources,
+            epochs=self.train_variables.supervised_epochs,
         )
         self.logger.info("Completed supervised training.")
 

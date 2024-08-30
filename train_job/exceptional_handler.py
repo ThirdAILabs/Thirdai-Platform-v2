@@ -36,7 +36,9 @@ def exception_handler(report_method, logger):
                             )
                         else:
                             report_func(
-                                general_variables.model_id, "failed", message=str(e)
+                                general_variables.model_id,
+                                "failed",
+                                message=str(e),
                             )
                 else:
                     print("No reporter or general_variables found in instance")

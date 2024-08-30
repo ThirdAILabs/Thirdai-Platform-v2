@@ -341,7 +341,10 @@ def upload_token(
     try:
         validate_name(model_name)
     except Exception as error:
-        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(error))
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
 
     model_exists = get_model(session, username=user.username, model_name=model_name)
 
@@ -432,9 +435,15 @@ def upload_chunk(
             payload["model_id"], chunk_data, chunk_number, model_type, compressed
         )
     except Exception as error:
-        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(error))
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
 
-    return response(status_code=status.HTTP_200_OK, message="Uploaded chunk")
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Uploaded chunk",
+    )
 
 
 @model_router.post("/upload-commit")
@@ -520,7 +529,10 @@ def upload_commit(
     try:
         storage.commit_upload(payload["model_id"], total_chunks)
     except Exception as error:
-        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(error))
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
 
     user: schema.User = session.query(schema.User).get(payload["user_id"])
 
@@ -542,22 +554,28 @@ def upload_commit(
         session.refresh(new_model)
     except Exception as err:
         return response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
         )
 
     if body.metadata:
         new_metadata = schema.MetaData(
-            model_id=payload["model_id"], general=body.metadata
+            model_id=payload["model_id"],
+            general=json.dumps(body.metadata),
         )
         session.add(new_metadata)
         session.commit()
 
-    return response(status_code=status.HTTP_200_OK, message="Committed model")
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Committed model",
+    )
 
 
 @model_router.get("/public-download")
 def download_public_model(
-    model_identifier: str, session: Session = Depends(get_session)
+    model_identifier: str,
+    session: Session = Depends(get_session),
 ):
     """
     Downloads specified public model. No login required.
@@ -572,7 +590,10 @@ def download_public_model(
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
     except Exception as error:
-        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(error))
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
 
     if model.access_level != schema.Access.public:
         return response(
@@ -624,7 +645,10 @@ def download_model(
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
     except Exception as error:
-        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(error))
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
 
     model.downloads += 1
     session.commit()

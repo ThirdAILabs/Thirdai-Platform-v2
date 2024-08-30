@@ -168,7 +168,10 @@ class NDBFileDetails(BasicFileDetails):
             raise ValueError("Source ids have not been given for all supervised files.")
 
         relations_dict_list = [
-            {"supervised_file": os.path.basename(file_name), "source_id": source_ids[i]}
+            {
+                "supervised_file": os.path.basename(file_name),
+                "source_id": source_ids[i],
+            }
             for i, file_name in enumerate(supervised_filenames)
         ]
 
@@ -413,7 +416,10 @@ class S3StorageHandler(StorageHandler):
                 connect_timeout=5,
                 read_timeout=60,
             )
-            s3_client = boto3.client("s3", config=config)
+            s3_client = boto3.client(
+                "s3",
+                config=config,
+            )
         else:
             config = Config(
                 retries={"max_attempts": 10, "mode": "standard"},

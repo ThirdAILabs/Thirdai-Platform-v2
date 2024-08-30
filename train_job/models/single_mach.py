@@ -122,7 +122,8 @@ class SingleMach(NDBModel):
         self.logger.info("Starting evaluation process.")
         for file in files:
             metrics = db._savable_state.model.model.evaluate(
-                file, metrics=self.train_variables.metrics
+                file,
+                metrics=self.train_variables.metrics,
             )
             self.logger.info(f"For file {file} metrics are {metrics}")
 

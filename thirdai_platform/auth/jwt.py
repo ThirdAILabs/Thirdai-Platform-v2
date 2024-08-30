@@ -37,7 +37,9 @@ def create_access_token(user_id, expiration_min=15):
     payload = TokenPayload(user_id=str(user_id), exp=access_token_expires)
 
     access_token = jwt.encode(
-        payload=payload.dict(), key=os.getenv("JWT_SECRET"), algorithm="HS256"
+        payload=payload.dict(),
+        key=os.getenv("JWT_SECRET"),
+        algorithm="HS256",
     )
     return access_token
 
@@ -61,7 +63,9 @@ def verify_access_token(
         # https://pyjwt.readthedocs.io/en/stable/usage.html#expiration-time-claim-exp
         payload = TokenPayload(
             **jwt.decode(
-                jwt=access_token, key=os.getenv("JWT_SECRET"), algorithms=["HS256"]
+                jwt=access_token,
+                key=os.getenv("JWT_SECRET"),
+                algorithms=["HS256"],
             )
         )
         if payload.user_id is None:

@@ -30,7 +30,9 @@ class NDBSubtype(str, Enum):
 
 
 class EnvLoader:
-    type_mapping = {"TypeEnum": TypeEnum}
+    type_mapping = {
+        "TypeEnum": TypeEnum,
+    }
 
     @classmethod
     def load_from_env(cls: Type[T]) -> T:
@@ -111,7 +113,8 @@ class GeneralVariables(EnvLoader):
 
     def deployment_permissions(self, token: str):
         deployment_permissions_endpoint = urljoin(
-            self.model_bazaar_endpoint, f"api/deploy/permissions/{self.deployment_id}"
+            self.model_bazaar_endpoint,
+            f"api/deploy/permissions/{self.model_id}",
         )
         response = requests.get(
             deployment_permissions_endpoint,

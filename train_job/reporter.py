@@ -45,7 +45,10 @@ class Reporter:
             model_id (str): The ID of the model.
             metadata (Dict[str, str]): Metadata associated with the training job.
         """
-        json_data = {"model_id": model_id, "metadata": metadata}
+        json_data = {
+            "model_id": model_id,
+            "metadata": metadata,
+        }
         content = self._request("post", "api/train/complete", json=json_data)
         print(content)
 

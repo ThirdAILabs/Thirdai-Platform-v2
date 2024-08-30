@@ -17,10 +17,18 @@ class OpenAILLM(LLMBase):
         self, key: str, query: str, model: str
     ) -> AsyncGenerator[str, None]:
         url = "https://api.openai.com/v1/chat/completions"
-        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}"}
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {key}",
+        }
         body = {
             "model": model,
-            "messages": [{"role": "user", "content": query}],
+            "messages": [
+                {
+                    "role": "user",
+                    "content": query,
+                }
+            ],
             "stream": True,
         }
         async with aiohttp.ClientSession() as session:
@@ -51,11 +59,19 @@ class CohereLLM(LLMBase):
         self, key: str, query: str, model: str
     ) -> AsyncGenerator[str, None]:
         url = "https://api.cohere.com/v1/chat"
-        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}"}
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {key}",
+        }
         body = {
             "message": query,
             "model": model,
-            "chat_history": [{"role": "USER", "message": query}],
+            "chat_history": [
+                {
+                    "role": "USER",
+                    "message": query,
+                }
+            ],
             "stream": True,
         }
         async with aiohttp.ClientSession() as session:
@@ -80,7 +96,10 @@ class CohereLLM(LLMBase):
                     raise Exception(f"Cohere API request failed: {error_message}")
 
 
-model_classes = {"openai": OpenAILLM, "cohere": CohereLLM}
+model_classes = {
+    "openai": OpenAILLM,
+    "cohere": CohereLLM,
+}
 
 default_keys = {
     "openai": os.getenv("OPENAI_KEY", ""),

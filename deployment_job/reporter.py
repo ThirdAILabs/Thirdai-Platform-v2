@@ -100,7 +100,9 @@ class Reporter:
         Returns:
             dict: The authentication header.
         """
-        return {"Authorization": f"Bearer {access_token}"}
+        return {
+            "Authorization": f"Bearer {access_token}",
+        }
 
     def check_model_present(self, access_token: str, model_name: str) -> bool:
         """
@@ -116,7 +118,9 @@ class Reporter:
         content = self._request(
             "get",
             "api/model/name-check",
-            params={"name": model_name},
+            params={
+                "name": model_name,
+            },
             headers=self.auth_header(access_token=access_token),
         )
         print(content)
@@ -134,7 +138,10 @@ class Reporter:
         content = self._request(
             "post",
             "api/deploy/update-status",
-            params={"deployment_id": deployment_id, "status": status},
+            params={
+                "model_id": model_id,
+                "status": status,
+            },
         )
         print(content)
 

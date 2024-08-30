@@ -54,11 +54,18 @@ def send_verification_mail(email: str, verification_token: str, username: str):
         verify_link
     )
 
-    Mailer(to=f"{username} <{email}>", subject=subject, body=body)
+    Mailer(
+        to=f"{username} <{email}>",
+        subject=subject,
+        body=body,
+    )
 
 
 @user_router.post("/email-signup-basic")
-def email_signup(body: AccountSignupBody, session: Session = Depends(get_session)):
+def email_signup(
+    body: AccountSignupBody,
+    session: Session = Depends(get_session),
+):
     """
     Sign up a new user with email and password.
 
@@ -113,7 +120,9 @@ def email_signup(body: AccountSignupBody, session: Session = Depends(get_session
 
         if not is_test_environment:
             send_verification_mail(
-                user.email, str(user.verification_token), user.username
+                new_user.email,
+                str(new_user.verification_token),
+                new_user.username,
             )
 
     except Exception as err:
@@ -124,17 +133,18 @@ def email_signup(body: AccountSignupBody, session: Session = Depends(get_session
         message="Successfully signed up via email.",
         data={
             "user": {
-                "username": user.username,
-                "email": user.email,
-                "user_id": str(user.id),
-            }
+                "username": new_user.username,
+                "email": new_user.email,
+                "user_id": str(new_user.id),
+            },
         },
     )
 
 
 @user_router.post("/add-global-admin", dependencies=[Depends(global_admin_only)])
 def add_global_admin(
-    admin_request: AdminRequest, session: Session = Depends(get_session)
+    admin_request: AdminRequest,
+    session: Session = Depends(get_session),
 ):
     """
     Promote a user to global admin.
@@ -173,8 +183,27 @@ def add_global_admin(
     )
 
 
-@user_router.delete("/delete-user", dependencies=[Depends(global_admin_only)])
-def delete_user(admin_request: AdminRequest, session: Session = Depends(get_session)):
+@user_router.post("/delete-global-admin", dependencies=[Depends(global_admin_only)])
+def demote_global_admin(
+    admin_request: AdminRequest,
+    session: Session = Depends(get_session),
+):
+    """
+    Demote a global admin to a regular user.
+
+    Parameters:
+    - admin_request: The request body containing the user's email.
+        - Example:
+        ```json
+        {
+            "email": "user@example.com"
+        }
+        ```
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response indicating the success of the operation.
+    """
     email = admin_request.email
     user: Optional[schema.User] = (
         session.query(schema.User).filter(schema.User.email == email).first()
@@ -383,7 +412,8 @@ class VerifyResetPassword(BaseModel):
 
 @user_router.post("/new-password", include_in_schema=False)
 def reset_password_verify(
-    body: VerifyResetPassword, session: Session = Depends(get_session)
+    body: VerifyResetPassword,
+    session: Session = Depends(get_session),
 ):
     """
     Reset the user's password after verifying the reset code.
@@ -430,7 +460,8 @@ def reset_password_verify(
     session.commit()
 
     return response(
-        status_code=status.HTTP_200_OK, message="Successfully changed the password."
+        status_code=status.HTTP_200_OK,
+        message="Successfully changed the password.",
     )
 
 

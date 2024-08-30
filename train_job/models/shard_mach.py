@@ -121,7 +121,11 @@ class ShardMach(NDBModel):
         Setup logging for training.
         """
         log_path = self.model_dir / f"train-shard-{self.shard_variables.shard_num}.log"
-        thirdai.logging.setup(log_to_stderr=False, path=str(log_path), level="info")
+        thirdai.logging.setup(
+            log_to_stderr=False,
+            path=str(log_path),
+            level="info",
+        )
         self.logger.info(f"Thirdai logging setup completed. Log file: {log_path}")
 
     def load_shard_data(self, data_shard_num: int):
@@ -163,7 +167,9 @@ class ShardMach(NDBModel):
         self.logger.info("Creating unsupervised training manager.")
         if self.unsupervised_checkpoint_config.resume_from_checkpoint:
             datasource_manager = InsertDataManager(
-                checkpoint_dir=None, intro_source=intro_shard, train_source=train_shard
+                checkpoint_dir=None,
+                intro_source=intro_shard,
+                train_source=train_shard,
             )
             self.logger.info("Resuming from checkpoint for unsupervised training.")
 
@@ -356,6 +362,9 @@ class ShardMach(NDBModel):
             file (Path): The path to the test file.
         """
         self.logger.info(f"Evaluating model with file {file}")
-        metrics = model.model.evaluate(str(file), metrics=self.train_variables.metrics)
+        metrics = model.model.evaluate(
+            str(file),
+            metrics=self.train_variables.metrics,
+        )
         self.logger.info(f"For file {file} the metrics are {metrics}")
         print(f"For file {file} the metrics are {metrics}")

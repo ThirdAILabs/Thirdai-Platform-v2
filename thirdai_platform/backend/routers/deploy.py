@@ -270,7 +270,8 @@ def deploy_model(
         session.commit()
         logger.info(traceback.format_exc())
         return response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
         )
 
     return response(
@@ -319,8 +320,10 @@ def deployment_status(
 
 
 @deploy_router.post("/update-status")
-def deployment_status(
-    deployment_id: str, status: schema.Status, session: Session = Depends(get_session)
+def update_deployment_status(
+    model_id: str,
+    status: schema.Status,
+    session: Session = Depends(get_session),
 ):
     """
     Update the status of a deployment.
@@ -393,13 +396,17 @@ def undeploy_model(
     except Exception as err:
         logger.info(str(err))
         return response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
         )
 
     return response(
         status_code=status.HTTP_202_ACCEPTED,
         message="Service is shutting down",
-        data={"status": "queued", "deployment_identifier": deployment_identifier},
+        data={
+            "status": "queued",
+            "model_id": str(model.id),
+        },
     )
 
 
@@ -466,7 +473,9 @@ def log_results(
 
     if not log_entry:
         log_entry = schema.Log(
-            deployment_id=deployment.id, user_id=user.id, action=log_data.action
+            model_id=model.id,
+            user_id=user.id,
+            action=log_data.action,
         )
         session.add(log_entry)
         session.commit()

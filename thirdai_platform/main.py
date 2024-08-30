@@ -66,13 +66,6 @@ async def startup_event():
             print(f"Failed to start the frontend : {error}", file=sys.stderr)
 
     try:
-        print("Launching frontend...")
-        await restart_thirdai_platform_frontend()
-        print("Successfully launched the frontend!")
-    except Exception as error:
-        print(f"Failed to start the frontend : {error}", file=sys.stderr)
-
-    try:
         print("Starting LLM Cache Job...")
         await restart_llm_cache_job()
         print("Successfully started LLM Cache Job!")

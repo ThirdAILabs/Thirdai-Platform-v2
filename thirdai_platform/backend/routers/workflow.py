@@ -829,6 +829,12 @@ def add_workflow_type(
             message="Name cannot be empty.",
         )
 
+    if len(params.model_requirements) == 0:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Model requirements cannot contain empty lists.",
+        )
+
     for requirement in params.model_requirements:
         if not requirement:
             return response(

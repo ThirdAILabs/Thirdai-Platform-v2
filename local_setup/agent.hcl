@@ -7,7 +7,6 @@ client {
 
 server {
   enabled                    = true
-  bootstrap_expect = 1
 }
 
 plugin "docker" {

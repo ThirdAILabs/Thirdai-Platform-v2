@@ -20,10 +20,10 @@ from backend.routers.workflow import workflow_router as workflow
 from backend.startup_jobs import (
     restart_generate_job,
     restart_llm_cache_job,
+    restart_telemetry_jobs,
     restart_thirdai_platform_frontend,
 )
 from backend.status_sync import sync_job_statuses
-from backend.utils import restart_generate_job, restart_telemetry_jobs
 from database.session import get_session
 from database.utils import initialize_default_workflow_types
 from fastapi.middleware.cors import CORSMiddleware

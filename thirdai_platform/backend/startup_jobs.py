@@ -15,6 +15,7 @@ from backend.utils import (
 GENERATE_JOB_ID = "llm-generation"
 THIRDAI_PLATFORM_FRONTEND_ID = "thirdai-platform-frontend"
 LLM_CACHE_JOB_ID = "llm-cache"
+TELEMETRY_ID = "telemetry"
 
 
 async def restart_generate_job():
@@ -92,3 +93,35 @@ async def restart_llm_cache_job():
         python_path=get_python_path(),
         llm_cache_app_dir=str(get_root_absolute_path() / "llm_cache_job"),
     )
+
+
+async def restart_telemetry_jobs():
+    """
+    Restart the telemetry jobs.
+
+    Returns:
+    - Response: The response from the Nomad API.
+    """
+    nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
+    if nomad_job_exists(TELEMETRY_ID, nomad_endpoint):
+        delete_nomad_job(TELEMETRY_ID, nomad_endpoint)
+
+    cwd = Path(os.getcwd())
+    response = submit_nomad_job(
+        nomad_endpoint=nomad_endpoint,
+        filepath=str(cwd / "backend" / "nomad_jobs" / "telemetry.hcl.j2"),
+        VM_DATA_DIR=os.path.join(
+            os.getenv("SHARE_DIR"), "monitoring-data", "victoriametric"
+        ),
+        LOKI_DATA_DIR=os.path.join(os.getenv("SHARE_DIR"), "monitoring-data", "loki"),
+        dashboards=str(
+            cwd.joinpath(
+                "..", "local_setup", "nomad-monitoring", "dashboards"
+            ).resolve()
+        ),
+        GRAFANA_DATA_DIR=os.path.join(
+            os.getenv("SHARE_DIR"), "monitoring-data", "grafana"
+        ),
+    )
+    if response.status_code != 200:
+        raise Exception(f"{response.text}")

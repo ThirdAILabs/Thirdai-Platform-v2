@@ -43,7 +43,7 @@ def test_create_and_delete_workflow_type():
 
     # Create a complex workflow type
     res = client.post(
-        "/workflows/add-type",
+        "/api/workflows/add-type",
         json={
             "name": "complex_workflow_type",
             "description": "A complex workflow type",
@@ -61,7 +61,7 @@ def test_create_and_delete_workflow_type():
 
     # Create a sample workflow type
     res = client.post(
-        "/workflows/add-type",
+        "/api/workflows/add-type",
         json={
             "name": "sample_workflow_type",
             "description": "A sample workflow type",
@@ -77,7 +77,7 @@ def test_create_and_delete_workflow_type():
     normal_user_jwt = res.json()["data"]["access_token"]
 
     res = client.post(
-        "/workflows/add-type",
+        "/api/workflows/add-type",
         json={
             "name": "unauthorized_workflow_type",
             "description": "Should not be created",
@@ -89,7 +89,7 @@ def test_create_and_delete_workflow_type():
 
     # Attempt to create a duplicate workflow type
     res = client.post(
-        "/workflows/add-type",
+        "/api/workflows/add-type",
         json={
             "name": "complex_workflow_type",
             "description": "Duplicate workflow type",
@@ -101,7 +101,7 @@ def test_create_and_delete_workflow_type():
 
     # Attempt to create workflow type with missing fields
     res = client.post(
-        "/workflows/add-type",
+        "/api/workflows/add-type",
         json={
             "name": "",
             "description": "",
@@ -112,7 +112,7 @@ def test_create_and_delete_workflow_type():
     assert res.status_code == 422  # Validation error for missing fields
 
     # List workflow types to verify addition
-    res = client.get("/workflows/types", headers=auth_header(admin_jwt))
+    res = client.get("/api/workflows/types", headers=auth_header(admin_jwt))
     assert res.status_code == 200
     workflow_types = res.json()["data"]["types"]
     assert any(wt["name"] == "complex_workflow_type" for wt in workflow_types)
@@ -123,7 +123,7 @@ def test_create_and_delete_workflow_type():
     )
     # Access control check: Normal user trying to delete workflow type
     res = client.post(
-        "/workflows/delete-type",
+        "/api/workflows/delete-type",
         json={"type_id": sample_workflow_type_id},
         headers=auth_header(normal_user_jwt),
     )
@@ -131,14 +131,14 @@ def test_create_and_delete_workflow_type():
 
     # global admin can delete the workflow
     res = client.post(
-        "/workflows/delete-type",
+        "/api/workflows/delete-type",
         json={"type_id": sample_workflow_type_id},
         headers=auth_header(admin_jwt),
     )
     assert res.status_code == 200
 
     # Verify deletion of sample workflow type
-    res = client.get("/workflows/types", headers=auth_header(admin_jwt))
+    res = client.get("/api/workflows/types", headers=auth_header(admin_jwt))
     workflow_types_after_delete = res.json()["data"]["types"]
     assert not any(
         wt["name"] == "sample_workflow_type" for wt in workflow_types_after_delete
@@ -160,7 +160,7 @@ def test_create_and_delete_workflow():
 
     # Create a new workflow
     res = client.post(
-        "/workflows/create",
+        "/api/workflows/create",
         json={"name": "Test Workflow", "type_name": "complex_workflow_type"},
         headers=auth_header(owner_jwt),
     )
@@ -168,7 +168,7 @@ def test_create_and_delete_workflow():
     workflow_id = res.json()["data"]["workflow_id"]
 
     # Verify that the workflow has been created
-    res = client.get("/workflows/list", headers=auth_header(owner_jwt))
+    res = client.get("/api/workflows/list", headers=auth_header(owner_jwt))
     assert res.status_code == 200
     workflows = res.json()["data"]
     assert any(wf["id"] == workflow_id for wf in workflows)
@@ -178,7 +178,7 @@ def test_create_and_delete_workflow():
     normal_user_jwt = res.json()["data"]["access_token"]
 
     res = client.post(
-        "/workflows/delete",
+        "/api/workflows/delete",
         json={"workflow_id": workflow_id},
         headers=auth_header(normal_user_jwt),
     )
@@ -189,14 +189,14 @@ def test_create_and_delete_workflow():
     admin_jwt = res.json()["data"]["access_token"]
 
     res = client.post(
-        "/workflows/delete",
+        "/api/workflows/delete",
         json={"workflow_id": workflow_id},
         headers=auth_header(admin_jwt),
     )
     assert res.status_code == 200  # Should succeed
 
     # Verify deletion by global admin
-    res = client.get("/workflows/list", headers=auth_header(owner_jwt))
+    res = client.get("/api/workflows/list", headers=auth_header(owner_jwt))
     assert res.status_code == 200
     workflows_after_delete = res.json()["data"]
     assert not any(wf["id"] == workflow_id for wf in workflows_after_delete)
@@ -222,7 +222,7 @@ def test_add_and_validate_models_to_workflow():
 
     # Create a workflow for adding models
     res = client.post(
-        "/workflows/create",
+        "/api/workflows/create",
         json={"name": "Model Test Workflow", "type_name": "complex_workflow_type"},
         headers=auth_header(owner_jwt),
     )
@@ -242,7 +242,7 @@ def test_add_and_validate_models_to_workflow():
 
     # Add models to the workflow
     res = client.post(
-        "/workflows/add-models",
+        "/api/workflows/add-models",
         json={
             "workflow_id": workflow_id,
             "model_ids": [model1_id],
@@ -254,7 +254,7 @@ def test_add_and_validate_models_to_workflow():
 
     # Validate the workflow
     res = client.post(
-        "/workflows/validate",
+        "/api/workflows/validate",
         json={"workflow_id": workflow_id},
         headers=auth_header(owner_jwt),
     )
@@ -263,7 +263,7 @@ def test_add_and_validate_models_to_workflow():
 
     # Access control check: Attempt to delete a model from workflow by non-owner
     res = client.post(
-        "/workflows/delete-models",
+        "/api/workflows/delete-models",
         json={
             "workflow_id": workflow_id,
             "model_ids": [model1_id],
@@ -275,7 +275,7 @@ def test_add_and_validate_models_to_workflow():
 
     # Delete model from workflow by owner
     res = client.post(
-        "/workflows/delete-models",
+        "/api/workflows/delete-models",
         json={
             "workflow_id": workflow_id,
             "model_ids": [model1_id],
@@ -287,7 +287,7 @@ def test_add_and_validate_models_to_workflow():
 
     # Validate the workflow after deletion of a model
     res = client.post(
-        "/workflows/validate",
+        "/api/workflows/validate",
         json={"workflow_id": workflow_id},
         headers=auth_header(owner_jwt),
     )

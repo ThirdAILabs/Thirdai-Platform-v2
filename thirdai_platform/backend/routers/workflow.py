@@ -1101,8 +1101,8 @@ def list_accessible_workflows(
     """
     user: schema.User = authenticated_user.user
 
-    # Build the base query
-    query = session.query(schema.Workflow).join(schema.Workflow.workflow_models)
+    # Build the base query with outer join to include workflows without models
+    query = session.query(schema.Workflow).outerjoin(schema.Workflow.workflow_models)
 
     # Apply conditions based on user's global admin status
     if not user.is_global_admin():

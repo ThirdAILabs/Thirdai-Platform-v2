@@ -144,7 +144,7 @@ def test_create_and_delete_workflow_type():
     # global admin can delete the workflow
     res = client.post(
         "/api/workflow/delete-type",
-        json={"type_id": sample_workflow_type_id},
+        params={"type_id": sample_workflow_type_id},
         headers=auth_header(admin_jwt),
     )
     assert res.status_code == 200

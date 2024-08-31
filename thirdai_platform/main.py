@@ -1,6 +1,5 @@
 import os
 import sys
-import traceback
 
 from dotenv import load_dotenv
 
@@ -59,12 +58,11 @@ async def startup_event():
         print(f"Failed to start the Generation Job : {error}", file=sys.stderr)
 
     try:
-        print("Starting telemetry Job...")
         if os.getenv("TEST_ENVIRONMENT", "True") == "False":
+            print("Starting telemetry Job...")
             await restart_telemetry_jobs()
-        print("Successfully started telemetry Job!")
+            print("Successfully started telemetry Job!")
     except Exception as error:
-        traceback.print_exc()
         print(f"Failed to start the telemetry Job : {error}", file=sys.stderr)
 
     try:

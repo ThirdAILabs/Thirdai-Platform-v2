@@ -178,13 +178,11 @@ def test_create_and_delete_workflow():
     )
     assert res.status_code == 200
     workflow_id = res.json()["data"]["workflow_id"]
-    print(workflow_id)
 
     # Verify that the workflow has been created
     res = client.get("/api/workflow/list", headers=auth_header(owner_jwt))
     assert res.status_code == 200
     workflows = res.json()["data"]
-    print(workflows)
     assert any(wf["id"] == workflow_id for wf in workflows)
 
     # Access control check: Normal user trying to delete a workflow they do not own

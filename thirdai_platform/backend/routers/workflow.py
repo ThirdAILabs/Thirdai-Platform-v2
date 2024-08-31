@@ -1102,23 +1102,13 @@ def list_accessible_workflows(
     user: schema.User = authenticated_user.user
 
     # Build the base query with outer join to include workflows without models
-    query = session.query(schema.Workflow).outerjoin(schema.Workflow.workflow_models)
+    all_workflows = (
+        session.query(schema.Workflow).outerjoin(schema.Workflow.workflow_models).all()
+    )
 
-    # Apply conditions based on user's global admin status
-    if not user.is_global_admin():
-        public_condition = schema.Model.access_level == schema.Access.public
-        protected_condition = and_(
-            schema.Model.access_level == schema.Access.protected,
-            schema.Model.team_id.in_([team.team_id for team in user.teams]),
-        )
-        private_condition = schema.Model.user_id == user.id
-
-        query = query.filter(
-            or_(public_condition, protected_condition, private_condition)
-        )
-
-    # Fetch filtered workflows from the database
-    filtered_workflows = query.all()
+    filtered_workflows = [
+        workflow for workflow in all_workflows if workflow.can_access(user)
+    ]
 
     # Apply the can_access check on the remaining workflows
     accessible_workflows = [

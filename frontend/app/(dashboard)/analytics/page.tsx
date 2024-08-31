@@ -110,13 +110,13 @@ export default function AnalyticsPage() {
             <ReformulatedQueriesChart data={reformulatedQueriesData} />
           </div>
 
-          <div className="mt-4 flex justify-center items-center">
-            <Link href={grafanaUrl} passHref>
-              <Button>
-                See more system stats
-              </Button>
-            </Link>
-          </div>
+          <Link href={grafanaUrl} passHref legacyBehavior>
+            <a target="_blank" rel="noopener noreferrer">
+            <Button>
+              See more system stats
+            </Button>
+            </a>
+          </Link>
         </CardContent>
       </Card>
       

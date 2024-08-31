@@ -17,6 +17,12 @@ THIRDAI_PLATFORM_FRONTEND_ID = "thirdai-platform-frontend"
 LLM_CACHE_JOB_ID = "llm-cache"
 TELEMETRY_ID = "telemetry"
 
+MODEL_BAZAAR_PATH = (
+    "/model_bazaar"
+    if os.path.exists("/.dockerenv")
+    else os.getenv("SHARE_DIR", "/model_bazaar")
+)
+
 
 async def restart_generate_job():
     """
@@ -111,15 +117,12 @@ async def restart_telemetry_jobs():
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "telemetry.hcl.j2"),
         VM_DATA_DIR=os.path.join(
-            os.getenv("SHARE_DIR"), "monitoring-data", "victoriametric"
+            MODEL_BAZAAR_PATH, "monitoring-data", "victoriametric"
         ),
-        LOKI_DATA_DIR=os.path.join(os.getenv("SHARE_DIR"), "monitoring-data", "loki"),
-        dashboards=str(
-            cwd.joinpath("..", "local_setup", "telemetry_dashboards").resolve()
-        ),
-        GRAFANA_DATA_DIR=os.path.join(
-            os.getenv("SHARE_DIR"), "monitoring-data", "grafana"
-        ),
+        LOKI_DATA_DIR=os.path.join(MODEL_BAZAAR_PATH, "monitoring-data", "loki"),
+        dashboards=str(cwd / "telemetry_dashboards"),
+        GRAFANA_DATA_DIR=os.path.join(MODEL_BAZAAR_PATH, "monitoring-data", "grafana"),
+        platform=get_platform(),
     )
     if response.status_code != 200:
         raise Exception(f"{response.text}")

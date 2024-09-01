@@ -59,10 +59,9 @@ async def startup_event():
         print(f"Failed to start the Generation Job : {error}", file=sys.stderr)
 
     try:
-        if os.getenv("TEST_ENVIRONMENT", "True") == "False":
-            print("Starting telemetry Job...")
-            await restart_telemetry_jobs()
-            print("Successfully started telemetry Job!")
+        print("Starting telemetry Job...")
+        await restart_telemetry_jobs()
+        print("Successfully started telemetry Job!")
     except Exception as error:
         print(f"Failed to start the telemetry Job : {error}", file=sys.stderr)
 

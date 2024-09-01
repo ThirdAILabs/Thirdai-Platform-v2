@@ -9,7 +9,7 @@ job "telemetry" {
       port "vicky-http" {
         to = 8428
       }
-      port "loki_port" {
+      port "loki-http" {
         to = 3100
       }
 
@@ -25,11 +25,6 @@ job "telemetry" {
         name     = "vicky-web"
         provider = "nomad"
         port     = "vicky-http"
-        tags = [
-          "traefik.enable=true",
-          "traefik.http.routers.victoriametric-http.rule=PathPrefix(`/victoria-metric`)",
-          "traefik.http.routers.victoriametric-http.priority=10"
-        ]
       }
 
       config {
@@ -97,7 +92,7 @@ EOF
         volumes = [
           "{{ LOKI_DATA_DIR }}:/loki_data"
         ]
-        ports = ["loki_port"]
+        ports = ["loki-http"]
         
       }
 
@@ -167,12 +162,12 @@ EOF
 
       service {
         name = "loki-web"
-        port = "loki_port"
+        port = "loki-http"
         provider = "nomad"
         tags = [
           "traefik.enable=true",
-          "traefik.http.routers.loki_port.rule=PathPrefix(`/loki`)",
-          "traefik.http.routers.loki_port.priority=10"
+          "traefik.http.routers.loki-http.rule=PathPrefix(`/loki`)",
+          "traefik.http.routers.loki-http.priority=10"
         ]
       }
     }

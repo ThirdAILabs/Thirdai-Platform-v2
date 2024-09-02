@@ -458,6 +458,8 @@ def insert(
 
     model = get_model()
 
+    # TODO(YASH): Handle multiple files with same name across multiple calls or single
+    # call, one way is to append task_id along with data_dir.
     validate_files(documents_list, files, model.data_dir)
 
     task_id = str(uuid.uuid4())

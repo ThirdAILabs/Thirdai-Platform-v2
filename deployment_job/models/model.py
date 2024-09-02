@@ -59,6 +59,8 @@ class Model(ABC):
         return Path(self.general_variables.model_bazaar_dir) / "models" / model_id
 
     def redis_publish(self, task_id: str, task_data: Dict):
+        # TODO(Yash): Use sorted sets for insertion so that when we retrieve
+        # we get the tasks in the same insertion order.
         # Store task data in Redis Hash
         self.redis_client.hset(f"task:{task_id}", mapping=task_data)
 

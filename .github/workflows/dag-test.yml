@@ -134,6 +134,11 @@ jobs:
         source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE/thirdai_platform
         nohup uvicorn main:app --reload --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+    
+    - name: Launch Autoscaler and Redis job
+      run: |
+        cd local_setup
+        nohup sudo bash launch_nomad_jobs.sh > nomad_jobs.log 2>&1
 
     - name: Run Tests
       run: |
@@ -152,6 +157,8 @@ jobs:
         cat vault.log
         echo "Uvicorn Logs:"
         cat $GITHUB_WORKSPACE/thirdai_platform/uvicorn.log
+        echo "Autoscaler and redis logs:"
+        cat nomad_jobs.log
 
     - name: Stop Services
       if: always()

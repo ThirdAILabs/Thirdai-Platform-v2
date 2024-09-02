@@ -648,7 +648,7 @@ export function useTokenClassificationEndpoints() {
   const accessToken = useAccessToken();
   const params = useParams();
   console.log(params);
-  const workflowId = params.deploymentId as string;
+  const workflowId = params.workflowId as string;
   const [workflowName, setWorkflowName] = useState<string>("");
   const [deploymentUrl, setDeploymentUrl] = useState<string | undefined>();
   const [tags, setTags] = useState<string[]>([]);

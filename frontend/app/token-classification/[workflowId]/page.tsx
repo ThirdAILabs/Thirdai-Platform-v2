@@ -20,11 +20,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import Fuse from 'fuse.js';
-
-interface Token {
-  text: string;
-  tag: string;
-}
+import UnsavedFeedback from './unsaved-feedback/unsavedFeedbackPanel';
+import useUnsavedFeedback, {
+  TaggedToken
+} from './unsaved-feedback/useUnsavedFeedback';
 
 interface HighlightColor {
   text: string;
@@ -32,8 +31,8 @@ interface HighlightColor {
 }
 
 interface HighlightProps {
-  currentToken: Token;
-  nextToken?: Token | null;
+  currentToken: TaggedToken;
+  nextToken?: TaggedToken | null;
   tagColors: Record<string, HighlightColor>;
   onMouseOver: MouseEventHandler;
   onMouseDown: MouseEventHandler;
@@ -79,7 +78,7 @@ function Highlight({
         }}
         onMouseDown={onMouseDown}
       >
-        {currentToken.text}
+        {currentToken.token}
         {tagColors[currentToken.tag] && nextToken?.tag !== currentToken.tag && (
           <span
             style={{
@@ -190,11 +189,13 @@ function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
   );
 }
 
-export default function Interact() {
-  const { tags, predict } = useTokenClassificationEndpoints();
+export default function Page() {
+  const { workflowName, tags, predict } = useTokenClassificationEndpoints();
+  const [showFeedback, setShowFeedback] = useState<boolean>(false);
 
   const [inputText, setInputText] = useState<string>('');
-  const [annotations, setAnnotations] = useState<Token[]>([]);
+  const { annotation, handleAnnotation, handlePrediction, updatedEntities } =
+    useUnsavedFeedback();
 
   const [tagColors, setTagColors] = useState<Record<string, HighlightColor>>(
     {}
@@ -227,7 +228,7 @@ export default function Interact() {
   }, []);
 
   useEffect(() => {
-    console.log(tags)
+    console.log(tags);
     updateTagColors([tags]);
   }, [tags]);
 
@@ -274,9 +275,9 @@ export default function Interact() {
   const handleRun = () => {
     predict(inputText).then((result) => {
       updateTagColors(result.predicted_tags);
-      setAnnotations(
+      handlePrediction(
         _.zip(result.tokens, result.predicted_tags).map(([text, tag]) => ({
-          text: text as string,
+          token: text as string,
           tag: tag![0] as string
         }))
       );
@@ -284,11 +285,11 @@ export default function Interact() {
   };
 
   const finetuneTags = (newTag: string) => {
-    setAnnotations((prev) =>
-      prev.map(({ text, tag }, idx) =>
+    handleAnnotation(
+      annotation.map(({ token, tag }, idx) =>
         selectedRange && idx >= selectedRange[0] && idx <= selectedRange[1]
-          ? { text, tag: newTag }
-          : { text, tag }
+          ? { token, tag: newTag }
+          : { token, tag }
       )
     );
     updateTagColors([[newTag]]);
@@ -299,101 +300,157 @@ export default function Interact() {
   };
 
   return (
-    <Container
+    <div
+      className="bg-muted"
       style={{
-        textAlign: 'center',
-        paddingTop: '20vh',
-        width: '70%',
-        minWidth: '400px',
-        maxWidth: '800px'
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'start',
+        height: '100vh'
       }}
     >
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        width="100%"
+      <div style={{ margin: '20px' }}>
+        <div className="text-muted-foreground" style={{ fontSize: '16px' }}>
+          Token Classification
+        </div>
+        <div style={{ fontWeight: 'bold', fontSize: '24px' }}>
+          {workflowName}
+        </div>
+      </div>
+      <button onClick={() => setShowFeedback((prev) => !prev)}>Toggle</button>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          justifyContent: 'center',
+          gap: '3vw',
+          width: '100%',
+          marginTop: '5vh'
+        }}
       >
-        <Input
-          autoFocus
-          className='text-md'
-          style={{height: "3rem"}}
-          value={inputText}
-          onChange={handleInputChange}
-          placeholder="Enter your text..."
-          onSubmit={handleRun}
-          onKeyDown={(e) => {
-            if (e.keyCode === 13 && e.shiftKey === false) {
-              e.preventDefault();
-              handleRun();
-            }
-          }}    
-        />
-        <Button size="sm" style={{height: '3rem', marginLeft: '10px', padding: '0 20px'}} onClick={handleRun}>
-            Run
-        </Button>
-      </Box>
-      {annotations.length > 0 && (
-        <Box mt={4}>
-          <Card
-            className="p-7 text-start"
-            style={{ lineHeight: 2 }}
-            onMouseUp={(e) => {
-              setSelecting(false);
-              if (startIndex !== null && endIndex !== null) {
-                setSelectedRange([startIndex, endIndex]);
-                triggers.current[endIndex]?.click();
-              }
+        <div
+          style={{
+            display: 'flex',
+            width: showFeedback ? '65%' : '100%',
+            justifyContent: 'center',
+            transition: '0.25s'
+          }}
+        >
+          <div
+            style={{
+              textAlign: 'center',
+              width: showFeedback ? '100%' : '65%',
+              transition: '0.25s'
             }}
           >
-            {annotations.map((token, index) => {
-              const nextToken =
-                index === annotations.length - 1
-                  ? null
-                  : annotations[index + 1];
-              return (
-                <>
-                  <Highlight
-                    key={index}
-                    currentToken={token}
-                    nextToken={nextToken}
-                    tagColors={tagColors}
-                    onMouseOver={(e) => {
-                      if (selecting) {
-                        setMouseUpIndex(index);
-                      }
-                    }}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      setSelecting(true);
-                      setMouseDownIndex(index);
-                      setMouseUpIndex(index);
-                      setSelectedRange(null);
-                    }}
-                    selecting={
-                      selecting &&
-                      startIndex !== null &&
-                      endIndex !== null &&
-                      index >= startIndex &&
-                      index <= endIndex
+            <Box
+              display="flex"
+              justifyContent="center"
+              alignItems="center"
+              width="100%"
+            >
+              <Input
+                autoFocus
+                className="text-md"
+                style={{ height: '3rem' }}
+                value={inputText}
+                onChange={handleInputChange}
+                placeholder="Enter your text..."
+                onSubmit={handleRun}
+                onKeyDown={(e) => {
+                  if (e.keyCode === 13 && e.shiftKey === false) {
+                    e.preventDefault();
+                    handleRun();
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                style={{
+                  height: '3rem',
+                  marginLeft: '10px',
+                  padding: '0 20px'
+                }}
+                onClick={handleRun}
+              >
+                Run
+              </Button>
+            </Box>
+            {annotation.length > 0 && (
+              <Box mt={4}>
+                <Card
+                  className="p-7 text-start"
+                  style={{ lineHeight: 2 }}
+                  onMouseUp={(e) => {
+                    setSelecting(false);
+                    if (startIndex !== null && endIndex !== null) {
+                      setSelectedRange([startIndex, endIndex]);
+                      triggers.current[endIndex]?.click();
                     }
-                    selected={
-                      selectedRange !== null &&
-                      index >= selectedRange[0] &&
-                      index <= selectedRange[1]
-                    }
-                  />
-                  <TagSelector
-                    open={!!selectedRange && index === selectedRange[1]}
-                    choices={Object.keys(tagColors)}
-                    onSelect={finetuneTags}
-                  />
-                </>
-              );
-            })}
-          </Card>
-        </Box>
-      )}
-    </Container>
+                  }}
+                >
+                  {annotation.map((token, index) => {
+                    const nextToken =
+                      index === annotation.length - 1
+                        ? null
+                        : annotation[index + 1];
+                    return (
+                      <>
+                        <Highlight
+                          key={index}
+                          currentToken={token}
+                          nextToken={nextToken}
+                          tagColors={tagColors}
+                          onMouseOver={(e) => {
+                            if (selecting) {
+                              setMouseUpIndex(index);
+                            }
+                          }}
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            setSelecting(true);
+                            setMouseDownIndex(index);
+                            setMouseUpIndex(index);
+                            setSelectedRange(null);
+                          }}
+                          selecting={
+                            selecting &&
+                            startIndex !== null &&
+                            endIndex !== null &&
+                            index >= startIndex &&
+                            index <= endIndex
+                          }
+                          selected={
+                            selectedRange !== null &&
+                            index >= selectedRange[0] &&
+                            index <= selectedRange[1]
+                          }
+                        />
+                        <TagSelector
+                          open={!!selectedRange && index === selectedRange[1]}
+                          choices={Object.keys(tagColors)}
+                          onSelect={finetuneTags}
+                        />
+                      </>
+                    );
+                  })}
+                </Card>
+              </Box>
+            )}
+          </div>
+        </div>
+        <div style={{ transition: '0.25s', width: showFeedback ? '25%' : '0' }}>
+          <div style={{ width: '25vw' }}>
+            <UnsavedFeedback
+              feedbackEntries={updatedEntities}
+              tagColors={Object.fromEntries(
+                Object.keys(tagColors).map((key) => [key, tagColors[key].tag])
+              )}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

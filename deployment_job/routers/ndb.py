@@ -44,7 +44,7 @@ ndb_router = APIRouter()
 def ndb_query(
     base_params: BaseQueryParams,
     ndb_params: Optional[NDBExtraParams] = NDBExtraParams(),
-    token: str = Depends(permissions.verify_read_permission),
+    token: str = Depends(permissions.verify_permission("read")),
 ):
     """
     Query the NDB model with specified parameters.
@@ -114,7 +114,7 @@ def ndb_query(
 @propagate_error
 def ndb_upvote(
     input: inputs.UpvoteInput,
-    token: str = Depends(permissions.verify_read_permission),
+    token: str = Depends(permissions.verify_permission("read")),
 ):
     """
     Upvote specific text-id pairs.
@@ -146,7 +146,9 @@ def ndb_upvote(
         for text_id_pair in input.text_id_pairs
     ]
 
-    write_permission = model.permissions.check_write_permission(token=token)
+    write_permission = model.permissions.check_permission(
+        token=token, permission_type="write"
+    )
 
     model.reporter.log(
         action="upvote",
@@ -187,7 +189,7 @@ def ndb_upvote(
 @propagate_error
 def ndb_associate(
     input: inputs.AssociateInput,
-    token: str = Depends(permissions.verify_read_permission),
+    token: str = Depends(permissions.verify_permission("read")),
 ):
     """
     Associate text pairs in the model.
@@ -211,7 +213,9 @@ def ndb_associate(
     """
     model = get_model()
     train_samples = [pair.dict() for pair in input.text_pairs]
-    write_permission = model.permissions.check_write_permission(token=token)
+    write_permission = model.permissions.check_permission(
+        token=token, permission_type="write"
+    )
     model.reporter.log(
         action="associate",
         model_id=model.general_variables.model_id,
@@ -248,7 +252,7 @@ def ndb_associate(
 
 @ndb_router.get("/sources")
 @propagate_error
-def get_sources(_=Depends(permissions.verify_read_permission)):
+def get_sources(_=Depends(permissions.verify_permission("read"))):
     """
     Get the sources used in the model.
 
@@ -280,7 +284,7 @@ def get_sources(_=Depends(permissions.verify_read_permission)):
 @propagate_error
 def delete(
     input: inputs.DeleteInput,
-    token: str = Depends(permissions.verify_write_permission),
+    token: str = Depends(permissions.verify_permission("write")),
 ):
     """
     Delete sources from the model.
@@ -324,8 +328,7 @@ def delete(
 @ndb_router.post("/save")
 def save(
     input: inputs.SaveModel,
-    token: str = Depends(permissions.verify_read_permission),
-    override_permission: bool = Depends(permissions.get_owner_permission),
+    token: str = Depends(permissions.verify_permission("read")),
 ):
     """
     Save the current state of the NDB model.
@@ -333,7 +336,6 @@ def save(
     Parameters:
     - input: SaveModel - The input parameters for saving the model.
     - token: str - Authorization token.
-    - override_permission: bool - Whether the user has permission to override the model.
 
     Returns:
     - JSONResponse: Save success message.
@@ -371,6 +373,9 @@ def save(
                 message="Model name already exists, choose another one.",
             )
     else:
+        override_permission = permissions.check_permission(
+            token=token, permission_type="override"
+        )
         if not override_permission:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -404,7 +409,7 @@ def save(
 def insert(
     documents: str = Form(...),
     files: List[UploadFile] = [],
-    token: str = Depends(permissions.verify_write_permission),
+    token: str = Depends(permissions.verify_permission("write")),
 ):
     """
     Insert documents into the model.
@@ -480,7 +485,7 @@ def insert(
 @propagate_error
 def task_status(
     task_id: str,
-    _=Depends(permissions.verify_write_permission),
+    _=Depends(permissions.verify_permission("write")),
 ):
     """
     Get the status of a specific task.
@@ -532,7 +537,9 @@ def task_status(
 
 @ndb_router.get("/highlighted-pdf")
 @propagate_error
-def highlighted_pdf(reference_id: int, _=Depends(permissions.verify_read_permission)):
+def highlighted_pdf(
+    reference_id: int, _=Depends(permissions.verify_permission("read"))
+):
     """
     Get a highlighted PDF based on the reference ID.
 
@@ -558,7 +565,7 @@ def highlighted_pdf(reference_id: int, _=Depends(permissions.verify_read_permiss
 
 @ndb_router.get("/pdf-blob")
 @propagate_error
-def pdf_blob(source: str, _=Depends(permissions.verify_read_permission)):
+def pdf_blob(source: str, _=Depends(permissions.verify_permission("read"))):
     """
     Get the PDF blob from the source.
 
@@ -580,7 +587,7 @@ def pdf_blob(source: str, _=Depends(permissions.verify_read_permission)):
 
 @ndb_router.get("/pdf-chunks")
 @propagate_error
-def pdf_chunks(reference_id: int, _=Depends(permissions.verify_read_permission)):
+def pdf_chunks(reference_id: int, _=Depends(permissions.verify_permission("read"))):
     """
     Get the chunks of a PDF document based on the reference ID.
 

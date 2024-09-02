@@ -1,13 +1,13 @@
-job "llm-generation" {
+job "llm-cache" {
   datacenters = ["dc1"]
 
   type = "service"
 
-  group "generation" {
+  group "llm-cache" {
     count = 1
 
     network {
-      port "generation-http" {
+      port "llm-cache-http" {
         {% if platform == "docker" %}
           to = 80
         {% elif platform == "local" %}
@@ -17,14 +17,14 @@ job "llm-generation" {
     }
 
     service {
-      name = "generation"
-      port = "generation-http"
+      name = "llm-cache"
+      port = "llm-cache-http"
       provider = "nomad"
 
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.generation-http.rule=PathPrefix(`/generate`)",
-        "traefik.http.routers.generation-http.priority=10"
+        "traefik.http.routers.llm-cache-http.rule=PathPrefix(`/cache/`)",
+        "traefik.http.routers.llm-cache-http.priority=10"
       ]
     }
 
@@ -38,27 +38,36 @@ job "llm-generation" {
 
       env {
         MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
+        LICENSE_KEY = "{{ license_key }}"
+        {% if platform == "docker" %}
+        MODEL_BAZAAR_DIR = "/model_bazaar"
+        {% elif platform == "local" %}
+        MODEL_BAZAAR_DIR = "{{ share_dir }}"
+        {% endif %}
       }
-      
+
       config {
         {% if platform == "docker" %}  
           image = "{{ registry }}/{{ image_name }}:{{ tag }}"
           image_pull_timeout = "15m"
-          ports = ["generation-http"]
+          ports = ["llm-cache-http"]
           auth {
             username = "{{ docker_username }}"
             password = "{{ docker_password }}"
             server_address = "{{ registry }}"
           }
+          volumes = [
+            "{{ share_dir }}:/model_bazaar"
+          ]
         {% elif platform == "local" %}
           command = "{{ python_path }}"
-          args    = ["-m", "uvicorn", "main:app","--app-dir","{{ generate_app_dir }}","--reload","--host","0.0.0.0","--port","{{ port }}"]
+          args    = ["-m", "uvicorn", "main:app","--app-dir","{{ llm_cache_app_dir }}","--reload","--host","0.0.0.0","--port","{{ port }}"]
         {% endif %}
       }
 
       resources {
-        cpu = 500
-        memory = 1000
+        cpu = 2400
+        memory = 5000
       }
     }
   }

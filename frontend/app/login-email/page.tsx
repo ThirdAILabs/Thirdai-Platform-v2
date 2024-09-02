@@ -21,6 +21,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(''); // Clear any previous errors
     try {
       const data = await userEmailLogin(email, password, setAccessToken);
       console.log('User logged in successfully:', data);
@@ -28,6 +29,7 @@ export default function LoginPage() {
       window.location.href = '/';
     } catch (err) {
       console.log(err);
+      setError('Login failed. Please check your email and password.');
     }
   };
 
@@ -66,13 +68,13 @@ export default function LoginPage() {
             </div>
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
             
-            <Button type="submit" className="w-full">Login</Button>
+            <div className="flex items-center justify-between mb-4">
+              <Button type="submit" className="w-full">Login</Button>
+              <Link href="/signup" className="ml-4">
+                <Button type="button" className="w-full">Sign up</Button>
+              </Link>
+            </div>
           </form>
-          <Link href="/signup">
-            <button type="button">
-              Sign up
-            </button>
-          </Link>
         </CardFooter>
       </Card>
     </div>

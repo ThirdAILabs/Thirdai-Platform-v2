@@ -27,13 +27,18 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
+
 from storage import interface, local
+
+MODEL_BAZAAR_PATH = (
+    "/model_bazaar"
+    if os.path.exists("/.dockerenv")
+    else os.getenv("SHARE_DIR", "/model_bazaar")
+)
 
 model_router = APIRouter()
 
-storage: interface.StorageInterface = local.LocalStorage(
-    os.getenv("SHARE_DIR", "/model_bazaar")
-)
+storage: interface.StorageInterface = local.LocalStorage(MODEL_BAZAAR_PATH)
 
 
 @model_router.get("/public-list")

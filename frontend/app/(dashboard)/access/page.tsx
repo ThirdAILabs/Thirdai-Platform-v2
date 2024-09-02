@@ -177,13 +177,20 @@ export default function AccessPage() {
   };
 
   // Handle model type change
-  const handleModelTypeChange = async (index: number, newType: 'Private Model' | 'Protected Model' | 'Public Model') => {
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [selectedType, setSelectedType] = useState<'Private Model' | 'Protected Model' | 'Public Model' | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(null); // For team selection
+
+  const handleModelTypeChange = async (index: number) => {
+    if (!selectedType) return;
+  
     try {
       const model = models[index];
       const model_identifier = `${model.owner}/${model.name}`;
-      let access_level: 'private' | 'protected' | 'public';
-
-      switch (newType) {
+      let access_level: 'private' | 'protected' | 'public' = 'private';
+      let team_id: string | undefined;
+  
+      switch (selectedType) {
         case 'Private Model':
           access_level = 'private';
           break;
@@ -393,6 +400,7 @@ export default function AccessPage() {
       setWorkflows(fetchedWorkflows);
     } catch (error) {
       console.error('Failed to fetch workflows', error);
+      alert('Failed to fetch workflows' + error)
     }
   };
 
@@ -428,17 +436,7 @@ export default function AccessPage() {
               {models.map((model, index) => (
                 <tr key={index} className="border-t">
                   <td className="py-2 px-4">{model.name}</td>
-                  <td className="py-2 px-4">
-                    <select
-                      value={model.type}
-                      onChange={(e) => handleModelTypeChange(index, e.target.value as 'Private Model' | 'Protected Model' | 'Public Model')}
-                      className="border border-gray-300 rounded px-2 py-1"
-                    >
-                      <option value="Private Model">Private Model</option>
-                      <option value="Protected Model">Protected Model</option>
-                      <option value="Public Model">Public Model</option>
-                    </select>
-                  </td>
+                  <td className="py-2 px-4">{model.type}</td>
                   <td className="py-2 px-4">
                     {model.type === 'Private Model' && (
                       <div>
@@ -505,50 +503,6 @@ export default function AccessPage() {
                       >
                         Change Access
                       </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Workflows Section */}
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold">Workflows</h3>
-          <table className="min-w-full bg-white mb-8">
-            <thead>
-              <tr>
-                <th className="py-2 px-4 text-left">Workflow Name</th>
-                <th className="py-2 px-4 text-left">Type</th>
-                <th className="py-2 px-4 text-left">Status</th>
-                <th className="py-2 px-4 text-left">Created By</th>
-                <th className="py-2 px-4 text-left">Models</th>
-              </tr>
-            </thead>
-            <tbody>
-              {workflows.map((workflow, index) => (
-                <tr key={index} className="border-t">
-                  <td className="py-2 px-4">{workflow.name}</td>
-                  <td className="py-2 px-4">{workflow.type}</td>
-                  <td className="py-2 px-4">{workflow.status}</td>
-                  <td className="py-2 px-4">
-                    <div>Username: {workflow.created_by.username}</div>
-                    <div>Email: {workflow.created_by.email}</div>
-                  </td>
-                  <td className="py-2 px-4">
-                    {workflow.models.length > 0 ? (
-                      workflow.models.map((model, i) => (
-                        <div key={i} className="mb-2">
-                          <div>Model Name: {model.model_name}</div>
-                          <div>Type: {model.type}</div>
-                          {/* <div>Domain: {model.domain}</div> */}
-                          {/* <div>Latency: {model.latency}</div> */}
-                          <div>Published On: {model.publish_date}</div>
-                        </div>
-                      ))
-                    ) : (
-                      <div>No models associated with this workflow</div>
                     )}
                   </td>
                 </tr>

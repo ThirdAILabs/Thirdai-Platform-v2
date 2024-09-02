@@ -1,7 +1,5 @@
 // app/NERQuestions.js
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import _ from 'lodash';
 import { getUsername, trainTokenClassifier, create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
@@ -9,20 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CardDescription } from '@/components/ui/card';
 
-export const thirdaiPlatformBaseUrl = _.trim(process.env.THIRDAI_PLATFORM_BASE_URL!, '/');
-
 type Category = {
   name: string;
   example: string;
   description: string;
 };
-export function getAccessToken(throwIfNotFound: boolean = true): string | null {
-  const accessToken = localStorage.getItem('accessToken');
-  if (!accessToken && throwIfNotFound) {
-    throw new Error('Access token is not available');
-  }
-  return accessToken;
-}
 
 const predefinedChoices = [
   'PHONENUMBER',
@@ -33,12 +22,14 @@ const predefinedChoices = [
 ];
 
 interface NERQuestionsProps {
+  workflowNames: string[];
   onCreateModel?: (modelId: string) => void;
   stayOnPage?: boolean;
+  appName?: string;
 };
 
-const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
-  const [modelName, setModelName] = useState("");
+const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NERQuestionsProps) => {
+  const [modelName, setModelName] = useState(!appName ? '' : appName);
   const [categories, setCategories] = useState([{ name: '', example: '', description: '' }]);
   const [isDataGenerating, setIsDataGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState([]);
@@ -108,72 +99,38 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
       }
     }
 
-    // const reviewSuccess = handleReview();
-    // if (!reviewSuccess) {
-    //   return;
-    // }
+    if (isDataGenerating) {
+      return;
+    }
 
-    // if (isDataGenerating) {
-    //   return;
-    // }
+    try {
+      setIsDataGenerating(true);
 
-    // try {
-    //   setIsDataGenerating(true);
+      const response = await fetch('/endpoints/generate-data-token-classification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ categories }),
+      });
 
-    //   const response = await fetch('/api/generate-data-token-classification', {
-    //     method: 'POST',
-    //     headers: {
-    //       'Content-Type': 'application/json',
-    //     },
-    //     body: JSON.stringify({ categories }),
-    //   });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Network response was not ok');
+      }
 
-    //   if (!response.ok) {
-    //     const errorData = await response.json();
-    //     throw new Error(errorData.error || 'Network response was not ok');
-    //   }
+      const result = await response.json();
 
-    //   const result = await response.json();
+      console.log('result', result);
+      setGeneratedData(result.syntheticDataPairs);
+      setGenerateDataPrompt(result.prompts);
 
-    //   console.log('result', result);
-    //   setGeneratedData(result.syntheticDataPairs);
-    //   setGenerateDataPrompt(result.prompts);
-
-    //   setIsDataGenerating(false);
-    // } catch (error) {
-    //   console.error('Error generating data:', error);
-    //   setIsDataGenerating(false);
-    // }
-    const tags = categories.map(category => ({
-      name: category.name,
-      examples: [category.example],
-      description: category.description,
-    }));
-
-    let formData = new FormData();
-    formData.append('form', JSON.stringify({
-        domain_prompt: "personal identifiable information.",
-        tags: tags,
-        num_sentences_to_generate: 1000,
-        num_samples_per_tag: 20
-      }));
-
-    axios.defaults.headers.common.Authorization = `Bearer ${getAccessToken()}`;
-    const task_prompt = "NER model for the given tags"
-    return new Promise((resolve, reject) => {
-      axios
-          .post(`${thirdaiPlatformBaseUrl}/api/data/generate-token-data?task_prompt=${task_prompt}`, formData)
-          .then((res) => {
-              resolve(res.data);
-          })
-          .catch((err) => {
-              if (err.response && err.response.data) {
-                  reject(new Error(err.response.data.detail || 'Failed to generate'));
-              } else {
-                  reject(new Error('Failed to run model'));
-              }
-          });
-    });
+      setIsDataGenerating(false);
+    } catch (error) {
+      console.error('Error generating data:', error);
+      alert('Error generating data:' + error)
+      setIsDataGenerating(false);
+    }
   };
 
   const renderTaggedSentence = (pair: { sentence: string; nerData: string[] }) => {
@@ -247,6 +204,7 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
     }
   };
 
+  const [warningMessage, setWarningMessage] = useState("");
 
   useEffect(()=>{
     console.log('appname', appName)
@@ -265,10 +223,24 @@ const NERQuestions = ({ onCreateModel, stayOnPage }: NERQuestionsProps) => {
       <Input
         className="text-md"
         value={modelName}
-        onChange={(e) => setModelName(e.target.value)}
+        onChange={(e) => {
+          const name = e.target.value;
+          if (workflowNames.includes(name)) {
+            setWarningMessage("An App with the same name has been created. Please choose a different name.");
+          } else {
+            setWarningMessage(""); // Clear the warning if the name is unique
+          }
+          setModelName(name)
+        }}
         placeholder="Enter app name"
         style={{ marginTop: "10px" }}
+        disabled={!!appName && !workflowNames.includes(modelName)} // Use !! to explicitly convert to boolean
       />
+      {warningMessage && (
+        <span style={{ color: "red", marginTop: "10px" }}>
+          {warningMessage}
+        </span>
+      )}
       {
         generatedData.length === 0 && <>
           <span className="block text-lg font-semibold" style={{ marginTop: "20px" }}>Specify Tokens</span>

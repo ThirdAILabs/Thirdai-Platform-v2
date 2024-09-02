@@ -189,19 +189,23 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
             })
         }
       </TableCell>
-      <TableCell className="hidden md:table-cell">&apos;N\A&apos;</TableCell>
-      <TableCell className="hidden md:table-cell">
+      <TableCell className="hidden md:table-cell text-center font-medium">
         <Button
-          onClick={deployStatus === 'Inactive' ? handleDeploy : goToEndpoint}
-          className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium text-sm p-2.5 text-center inline-flex items-center me-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+          onClick={deployStatus === 'Active' ? goToEndpoint : handleDeploy}
+          className="text-white focus:ring-4 focus:outline-none font-medium text-sm p-2.5 text-center inline-flex items-center me-2"
+          style={{ width: '100px' }}
+          disabled={['Failed', 'Starting', 'Error: Underlying model not present'].includes(deployStatus)}
         >
-          <span className="sr-only">
-            {deployStatus === 'Inactive' ? 'Start' : 'Go to endpoint'}
-          </span>
-          {deployStatus === 'Inactive' ? 'Start' : 'Go to endpoint'}
+          {deployStatus === 'Active' 
+            ? 'Endpoint' 
+            : deployStatus === 'Inactive' 
+            ? 'Start' 
+            : deployStatus === 'Failed' || deployStatus === 'Error: Underlying model not present'
+            ? 'Start'
+            : 'Endpoint'}
         </Button>
       </TableCell>
-      <TableCell>
+      <TableCell className='text-center font-medium'>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -247,14 +251,20 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                         console.log('Workflow deleted successfully:', response);
                       } catch (error) {
                         console.error('Error deleting workflow:', error);
+                        alert('Error deleting workflow:' + error)
                       }
                     }
                   }}
                 >
-                  Delete Workflow
+                  Delete App
                 </button>
               </form>
             </DropdownMenuItem>
+            <Link href={`/analytics?id=${encodeURIComponent(`${workflow.id}`)}`}>
+              <DropdownMenuItem>
+                  <button type="button">Usage stats</button>
+              </DropdownMenuItem>
+            </Link>
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

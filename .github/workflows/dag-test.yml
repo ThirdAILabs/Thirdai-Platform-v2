@@ -141,7 +141,7 @@ jobs:
     - name: Launch Autoscaler and Redis job
       run: |
         cd local_setup
-        nohup sudo bash launch_nomad_jobs.sh > nomad_jobs.log 2>&1
+        sudo bash launch_nomad_jobs.sh
 
     - name: Run Tests
       run: |

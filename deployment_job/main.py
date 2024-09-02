@@ -83,6 +83,7 @@ async def async_timer() -> None:
 
 
 async def check_for_model_updates():
+    global model
     last_loaded_timestamp = None
     model_id = general_variables.model_id
 
@@ -102,6 +103,7 @@ async def check_for_model_updates():
                     )
                     # when we rest the instance will be cleared, so forcing to load the latest model instance.
                     ModelManager.reset_instances()
+                    model = get_model()
                     last_loaded_timestamp = current_timestamp
                     model.logger.info("Model successfully reloaded.")
 

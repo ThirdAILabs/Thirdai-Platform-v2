@@ -3,6 +3,7 @@ Main module to initialize and retrieve the appropriate model instance.
 """
 
 import os
+import threading
 
 import thirdai
 from models.classification_models import (
@@ -27,6 +28,7 @@ else:
 class ModelManager:
     _read_instance = None
     _write_instance = None
+    _lock = threading.Lock()  # Initialize a lock for thread safety
 
     @classmethod
     def get_instance(cls, write_mode: bool = False):
@@ -42,14 +44,15 @@ class ModelManager:
         Raises:
             ValueError: If the model type is invalid.
         """
-        if write_mode:
-            if cls._write_instance is None:
-                cls._write_instance = cls._initialize_model(write_mode=True)
-            return cls._write_instance
-        else:
-            if cls._read_instance is None:
-                cls._read_instance = cls._initialize_model(write_mode=False)
-            return cls._read_instance
+        with cls._lock:
+            if write_mode:
+                if cls._write_instance is None:
+                    cls._write_instance = cls._initialize_model(write_mode=True)
+                return cls._write_instance
+            else:
+                if cls._read_instance is None:
+                    cls._read_instance = cls._initialize_model(write_mode=False)
+                return cls._read_instance
 
     @classmethod
     def _initialize_model(cls, write_mode: bool):
@@ -74,8 +77,9 @@ class ModelManager:
         """
         Resets both read and write model instances to force reloading of the models.
         """
-        cls._read_instance = None
-        cls._write_instance = None
+        with cls._lock:
+            cls._read_instance = None
+            cls._write_instance = None
 
 
 def get_model(write_mode: bool = False):

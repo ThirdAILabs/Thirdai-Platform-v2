@@ -116,7 +116,7 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
       console.log('sending categories', categories)
 
 
-      const response = await fetch('/api/generate-data-sentence-classification', {
+      const response = await fetch('/endpoints/generate-data-sentence-classification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

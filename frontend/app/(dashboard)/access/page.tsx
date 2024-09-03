@@ -417,9 +417,25 @@ export default function AccessPage() {
 
   const assignAdminToTeam = async () => {
     if (selectedTeamForAddAdmin && newAdmin) {
+      // Find the team ID based on the selected team name
+      const selectedTeam = teams.find(team => team.name === selectedTeamForAddAdmin);
+      
+      if (!selectedTeam) {
+        alert("Selected team not found.");
+        return;
+      }
+  
+      // Find the user email based on the selected admin's name
+      const user = users.find(u => u.name === newAdmin);
+      if (!user) {
+        alert("User not found.");
+        return;
+      }
+  
       try {
-        await assignTeamAdmin(newAdmin, selectedTeamForAddAdmin);
-        alert("Admin added successfully!");
+        // Use the team ID and user email in the API call
+        await assignTeamAdmin(user.email, selectedTeam.id);
+
         // Update state or UI by calling these functions
         await getModels();
         await getUsers();
@@ -429,15 +445,31 @@ export default function AccessPage() {
         alert("Failed to add admin.");
       }
     } else {
-      alert("Please select a team and enter an admin email.");
+      alert("Please select a team and enter an admin name.");
     }
-  };  
+  };
   
   const removeAdminFromTeam = async () => {
     if (selectedTeamForRemoveAdmin && adminToRemove) {
+      // Find the team ID based on the selected team name
+      const selectedTeam = teams.find(team => team.name === selectedTeamForRemoveAdmin);
+      
+      if (!selectedTeam) {
+        alert("Selected team not found.");
+        return;
+      }
+  
+      // Find the user email based on the admin's name to be removed
+      const user = users.find(u => u.name === adminToRemove);
+      if (!user) {
+        alert("User not found.");
+        return;
+      }
+  
       try {
-        await removeTeamAdmin(adminToRemove, selectedTeamForRemoveAdmin);
-        alert("Admin removed successfully!");
+        // Use the team ID and user email in the API call
+        await removeTeamAdmin(user.email, selectedTeam.id);
+
         // Update state or UI by calling these functions
         await getModels();
         await getUsers();
@@ -447,9 +479,9 @@ export default function AccessPage() {
         alert("Failed to remove admin.");
       }
     } else {
-      alert("Please select a team and enter the admin email.");
+      alert("Please select a team and enter the admin name.");
     }
-  };  
+  };
   
   // For single string values
   const handleSingleChange = (setter: React.Dispatch<React.SetStateAction<string>>) => {
@@ -665,7 +697,7 @@ export default function AccessPage() {
                 onChange={handleMultipleChange(setNewTeamMembers)}
                 options={users.map(user => user.name)}
                 multiple={true}
-                placeholder="Team Members (comma separated)"
+                placeholder="Team Members"
               />
               <button
                 onClick={() => {
@@ -701,7 +733,13 @@ export default function AccessPage() {
               <AutocompleteInput
                 value={newMember}
                 onChange={handleSingleChange(setNewMember)}
-                options={selectedTeamForAdd ? teams.find(team => team.name === selectedTeamForAdd)?.members || [] : []}
+                options={
+                  selectedTeamForAdd
+                    ? users
+                        .map(user => user.name)
+                        .filter(userName => !teams.find(team => team.name === selectedTeamForAdd)?.members.includes(userName))
+                    : []
+                }
                 placeholder="New Member"
               />
               <button

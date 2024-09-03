@@ -15,7 +15,9 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   multiple = false,
   placeholder = '',
 }) => {
-  const [inputValue, setInputValue] = useState<string>('');
+  const [inputValue, setInputValue] = useState<string>(
+    typeof value === 'string' ? value : ''
+  );
   const [filteredOptions, setFilteredOptions] = useState<string[]>([]);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -30,11 +32,14 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
 
   const handleOptionClick = (option: string) => {
     if (multiple && Array.isArray(value)) {
-      onChange([...value, option]);
+      if (!value.includes(option)) {
+        onChange([...value, option]);
+      }
+      setInputValue('');
     } else {
       onChange(option);
+      setInputValue(option); // Update the input value with the selected option
     }
-    setInputValue('');
     setFilteredOptions([]);
   };
 
@@ -48,7 +53,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
     <div className="relative">
       <input
         type="text"
-        value={inputValue}
+        value={multiple && Array.isArray(value) ? inputValue : inputValue}
         onChange={handleInputChange}
         placeholder={placeholder}
         className="border border-gray-300 rounded px-2 py-1 mb-2 w-full"

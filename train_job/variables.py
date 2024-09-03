@@ -15,13 +15,13 @@ T = TypeVar("T", bound="EnvLoader")
 class TypeEnum(str, Enum):
     NDB = "ndb"
     UDT = "udt"
-    NDBV2 = "ndbv2"
 
 
 class NDBSubType(str, Enum):
-    shard_allocation = "shard_allocation"
-    shard_train = "shard_train"
-    single = "single"
+    v1_shard_allocation = "v1-shard_allocation"
+    v1_shard_train = "v1-shard_train"
+    v1_single = "v1-single"
+    v2_single = "v2-single"
 
 
 class UDTSubType(str, Enum):
@@ -130,7 +130,7 @@ class GeneralVariables(EnvLoader):
     data_id: str
     base_model_id: Optional[str] = None
     type: TypeEnum = TypeEnum.NDB
-    sub_type: Union[NDBSubType, UDTSubType] = NDBSubType.single
+    sub_type: Union[NDBSubType, UDTSubType] = NDBSubType.v1_single
 
 
 @dataclass

@@ -25,9 +25,10 @@ class UDTSubtype(str, Enum):
     text = "text"
 
 
-class NDBSubtype(str, Enum):
-    single = "single"
-    sharded = "sharded"
+class NDBSubType(str, Enum):
+    v1_single = "v1-single"
+    v1_sharded = "v1-sharded"
+    v2_single = "v2-single"
 
 
 class EnvLoader:
@@ -110,7 +111,7 @@ class GeneralVariables(EnvLoader):
     license_key: str
     task_runner_token: str
     type: TypeEnum = TypeEnum.NDB
-    sub_type: Union[UDTSubtype, NDBSubtype] = NDBSubtype.single
+    sub_type: Union[UDTSubtype, NDBSubType] = NDBSubType.v1_single
 
     def deployment_permissions(self, token: str):
         deployment_permissions_endpoint = urljoin(

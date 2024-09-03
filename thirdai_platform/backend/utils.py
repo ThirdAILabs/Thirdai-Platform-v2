@@ -325,7 +325,7 @@ class NDBExtraOptions(BaseModel):
     validation_metrics: Optional[List[str]] = None
     on_disk: Optional[bool] = None
     docs_on_disk: Optional[bool] = None
-    version: Optional[Literal["v1", "v2"]] = "v1"
+    version: Optional[Literal["v1", "v2"]] = "v2"
 
     class Config:
         extra = "forbid"

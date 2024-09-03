@@ -34,14 +34,17 @@ def main():
     """
     if general_variables.type == TypeEnum.NDB:
         ndb_variables: NeuralDBVariables = NeuralDBVariables.load_from_env()
-        if general_variables.sub_type == NDBSubType.single:
+        if general_variables.sub_type == NDBSubType.v2_single:
+            model = NeuralDBV2()
+            model.train()
+        elif general_variables.sub_type == NDBSubType.v1_single:
             if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
                 model = FinetunableRetriever()
                 model.train()
             else:
                 model = SingleMach()
                 model.train()
-        elif general_variables.sub_type == NDBSubType.shard_allocation:
+        elif general_variables.sub_type == NDBSubType.v1_shard_allocation:
             if ndb_variables.retriever == RetrieverEnum.FINETUNABLE_RETRIEVER:
                 raise ValueError("Currently Not supported")
             else:
@@ -50,9 +53,6 @@ def main():
         else:
             model = ShardMach()
             model.train()
-    elif general_variables.type == TypeEnum.NDBV2:
-        model = NeuralDBV2()
-        model.train()
     elif general_variables.type == TypeEnum.UDT:
         if general_variables.sub_type == UDTSubType.text:
             model = TextClassificationModel()

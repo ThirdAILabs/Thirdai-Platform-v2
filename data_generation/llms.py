@@ -40,7 +40,7 @@ class OpenAILLM(LLMBase):
         response = self.client.chat.completions.create(
             model=model_name,
             messages=messages,
-            temperature=0.8,
+            temperature=0.8,  # TODO (anyone): Choose the temp based on a random distribution
         )
 
         res = response.choices[0].message.content

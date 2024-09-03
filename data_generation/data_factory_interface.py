@@ -62,9 +62,8 @@ class DataFactory(ABC):
         return random.sample(population=vocabulary, k=k)
 
     def get_random_prompts(self, k: int = 1):
-        # Don't have weighted random.choice() functionality.
         return [
-            random.choices(items["prompts"], weights=items["scores"], k=k)[0]
+            ". ".join(random.sample(items["prompts"], k=k))
             for items in random_prompts.values()
         ]
 

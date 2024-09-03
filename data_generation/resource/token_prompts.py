@@ -1,17 +1,14 @@
-tag_value_prompt = """You possess deep expertise in {domain_prompt}. Please generate unique {num_samples_per_tag} diverse samples for the {tag} named entity. Below are some examples of the {tag} entity:
+tag_value_prompt = """You possess deep expertise in {domain_prompt}. Please generate unique {num_samples_per_tag} diverse values for the {tag} named entity. Below are some values of the {tag} entity:
 {tag_example}
 
 Description of the tag {tag}:
 {tag_description}
-
-Ensure each sample starts on a new line without any bullet points, prefixes, quotes, or emojis at the beginning of each sentence.
+Also Cover a wide variations in the format of the tag {tag} value.
+Additionally, aim to cover a wide range of variations within the {tag} entity to ensure the data is as varied and representative as possible.
 
 VERY IMPORTANT:
--  Ensure each sample starts on a new line without any bullet points, prefixes, quotes, or emojis at the beginning of each sentence.
--  Only include the attributes themselves in the output. Each attribute should appear on a new line without any additional new lines.
+-  Ensure each value starts on a new line without any bullet points, prefixes, quotes, or emojis at the beginning of each sentence.
 -  Make sure that the samples are relevant to the context of US citizen.
-
-Additionally, aim to cover a wide range of variations within the {tag} entity to ensure the data is as varied and representative as possible.
 """
 
 template_prompt = """You have to generate {k} templatized sentences for the tags: {tags}
@@ -19,50 +16,39 @@ template_prompt = """You have to generate {k} templatized sentences for the tags
 Description of the tags:
 {tags_description}
 
-As an example here is an example sentences for the tags [CRIMINAL_RECORD, MEDICAL_INFO]
-
-Jasen was charged with [CRIMINAL_RECORD] and the release bond was lowered because of his ailing condition due to [MEDICAL_INFO].
-where,
- - [CRIMINAL_RECORD] could be 'murder'
- - [MEDICAL_INFO] could be 'Stage IV melanoma'.
+Here are example templates for the tags [CARDHOLDER_NAME, EXPIRATION_DATE] on the domain of payment information.
+-   [CARDHOLDER_NAME] and his friend john tried to dupe the credit card company by reporting their transaction with the card [PAN] as fradulent on 9th august.
+-   In the month of december, the card was expired but the expiration date mentioned was [EXPIRATION_DATE].
 
 Key Requirements:
--   Each sentence should start on a new line and with no bulleting, header/footer or any steps involved. 
--   Make sure to include at least two entities in each samples.
--   Make sure to include all the given entity in the templatized sentences.
+-   Each template should start on a new line and with no bulleting, header/footer or any steps involved. 
+-   Make sure to include at least two tags in each sentence.
 
 ** IMPORTANT POINT:
--  These Entities would be filled later so make sure these samples would make sense after being filled. Here are some incorrect and correct samples for the tags [CRIMINAL_RECORD, MEDICAL_INFO]
+-  These Entities would be filled later so make sure these samples would make sense after being filled. Here are some incorrect and correct samples for the tag [MEDICAL_INFO]
       Incorrect sample: My [MEDICAL_INFO] should remain confidential to protect my personal interest.
       Correct Sample: My condition due to [MEDICAL_INFO] should remain confidential to protect my personal interest.
 """
 
-dataset_generation_prompt = """You possess deep expertise in {domain_prompt}. Please generate {num_to_generate} templates of synthetic sentences and associated tags for {domain_prompt}
+dataset_generation_prompt = """The goal is to create a dataset for entity recognition. Please generate {num_to_generate} templates associated with given below tags for {domain_prompt}
             
-VERY IMPORTANT: MAKE SURE identify all named entities occurred that belong to one of the following entity types: 
-{tags}
-
-Description of the tags:
-{tag_description}
-
-When generating the output for the NER task, adhere to the following strict format guidelines to ensure data consistency and format correctness
+Tags with their description and example:
+{tags_info}
 
 Following are some sample output format for generation. This is just for example and you should not mimic this pattern.
 
 {templatized_sentences_examples}
 
 Key Requirements:
--  Mask only the Entities in square brackets.
--  The entities should strictly belong to one of {tags}. Do not include anything apart from entities in square brackets.
--  Make sure not to leave any word that could be labelled as any one of the above tags.
--  Make sure that all the tags are being used in each templates.
--  Give only the generated samples in output and make sure each sample should start on a new line. Do not include any extra new line. 
--  DO NOT include any bulleting or header/footer with any samples. Do not include any quotes or emojis.
--  Give equal weightage to all the tags.
--  {rnd_prompts_str}
+- Include words that could be interpreted as tag but are actually not similar to the examples and not redacting those words.
+- {value_requirements}
+
+Output format:
+-  Each template should be in a newline.
+-  DO NOT include any bulleting, header/footer or enumeration. Do not include any quotes or emojis.
 
 ** IMPORTANT POINT:
--  These Entities would be filled later so make sure these samples would make sense after being filled. Here are some incorrect and correct samples for the tags [CRIMINAL_RECORD, MEDICAL_INFO]
+-  These templates would be filled later so make sure these samples would make sense after being filled. Here are some incorrect and correct templates for the tags MEDICAL_INFO
       Incorrect sample: My [MEDICAL_INFO] should remain confidential to protect my personal interest.
       Correct Sample: My condition due to [MEDICAL_INFO] should remain confidential to protect my personal interest.
 """

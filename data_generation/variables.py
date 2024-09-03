@@ -126,7 +126,7 @@ class TokenGenerationVariables(EnvLoader):
     domain_prompt: str
     tags: List[Entity]
     num_sentences_to_generate: int
-    examples_per_tag_to_generate: Optional[int] = None
+    tag_values_to_generate: Optional[int] = None
 
     def to_dict(self):
         result = asdict(self)

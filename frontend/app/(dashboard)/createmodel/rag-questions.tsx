@@ -29,7 +29,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
   const [createdSS, setCreatedSS] = useState<boolean>(false);
 
   useEffect(() => {
-    setExistingSSmodels(models.filter((model) => model.type === 'ndb'));
+    setExistingSSmodels(models.filter((model) => model.type === 'ndb' || model.type === 'ndbv2'));
   }, [models]);
 
   // End state variables & func for source

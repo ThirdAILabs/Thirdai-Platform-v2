@@ -16,6 +16,7 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { Workflow, validate_workflow, start_workflow, stop_workflow, delete_workflow } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/Modal'
+import { InformationCircleIcon } from '@heroicons/react/solid';
 
 export function WorkFlow({ workflow }: { workflow: Workflow }) {
   const router = useRouter();
@@ -221,7 +222,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           onClick={toggleModal} 
           className="text-gray-400 hover:text-gray-600 text-sm"
         >
-          View Models
+          <InformationCircleIcon className="h-6 w-6" />
         </button>
       </TableCell>
       <TableCell className='text-center font-medium'>
@@ -292,7 +293,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       {showModal && (
         <Modal onClose={toggleModal}>
           <div className="p-4">
-            <h2 className="text-lg font-bold mb-4">Model Details</h2>
+            <h2 className="text-lg font-bold mb-4">App Details</h2>
             {workflow.models.map((model, index) => (
               <div key={index} className="mb-4">
                 <p><strong>Model Name:</strong> {model.model_name}</p>

@@ -141,7 +141,8 @@ jobs:
     - name: Launch Autoscaler and Redis job
       run: |
         cd local_setup
-        sudo bash launch_nomad_jobs.sh
+        NOMAD_PATH=$(which nomad)
+        sudo bash launch_nomad_jobs.sh $NOMAD_PATH
 
     - name: Run Tests
       run: |

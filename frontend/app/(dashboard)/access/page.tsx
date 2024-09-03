@@ -474,6 +474,9 @@ export default function AccessPage() {
         await getModels();
         await getUsers();
         await getTeams();
+
+        setSelectedTeamForRemoveAdmin('');  // Clear the selected team
+        setAdminToRemove('');               // Clear the admin input
       } catch (error) {
         console.error("Error removing admin:", error);
         alert("Failed to remove admin.");
@@ -686,6 +689,7 @@ export default function AccessPage() {
                   className="border border-gray-300 rounded px-4 py-2"
                 />
                 <AutocompleteInput
+                  key={newTeamAdmin}  // Use a dynamic key to force re-render
                   value={newTeamAdmin}
                   onChange={handleSingleChange(setNewTeamAdmin)}
                   options={users.map(user => user.name)}
@@ -730,6 +734,7 @@ export default function AccessPage() {
                   ))}
                 </select>
                 <AutocompleteInput
+                  key={selectedTeamForAdd + newMember}  // Use a key to force re-render
                   value={newMember}
                   onChange={handleSingleChange(setNewMember)}
                   options={
@@ -767,6 +772,7 @@ export default function AccessPage() {
                   ))}
                 </select>
                 <AutocompleteInput
+                  key={selectedTeamForRemove + memberToRemove}  // Use a dynamic key to force re-render
                   value={memberToRemove}
                   onChange={handleSingleChange(setMemberToRemove)}
                   options={selectedTeamForRemove ? teams.find(team => team.name === selectedTeamForRemove)?.members || [] : []}
@@ -798,6 +804,7 @@ export default function AccessPage() {
                   ))}
                 </select>
                 <AutocompleteInput
+                  key={selectedTeamForAddAdmin + newAdmin}  // Use a dynamic key to force re-render
                   value={newAdmin}
                   onChange={handleSingleChange(setNewAdmin)}
                   options={users.map(user => user.name)}
@@ -829,6 +836,7 @@ export default function AccessPage() {
                   ))}
                 </select>
                 <AutocompleteInput
+                  key={selectedTeamForRemoveAdmin + adminToRemove}  // Use a dynamic key to force re-render
                   value={adminToRemove}
                   onChange={handleSingleChange(setAdminToRemove)}
                   options={selectedTeamForRemoveAdmin ? teams.find(team => team.name === selectedTeamForRemoveAdmin)?.members || [] : []}

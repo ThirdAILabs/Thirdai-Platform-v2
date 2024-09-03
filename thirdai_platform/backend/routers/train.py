@@ -38,6 +38,7 @@ from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
+import traceback
 
 train_router = APIRouter()
 
@@ -493,7 +494,12 @@ def train_udt_impl(
     file_details_list: Optional[str] = Form(default=None),
     session: Session = Depends(get_session),
 ):  
-    args = UDTTrainArgs.parse_raw(args_json).dict()
+    try:    
+        args = UDTTrainArgs.parse_raw(args_json).dict()
+        args['extra_options'] = {k: v for k, v in args['extra_options'].items() if v is not None}
+    except ValidationError as e:
+        logger.error(traceback.format_exc())
+        return {"error": "Invalid args format", "details": str(e)}
     
     if file_details_list:
         try:
@@ -509,7 +515,7 @@ def train_udt_impl(
             UDTFileDetails(mode=FileType.supervised, location=FileLocation.nfs)
             for _ in files
         ]
-
+    
     if len(files) != len(files_info):
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -553,7 +559,8 @@ def train_udt_impl(
             model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
             share_dir=os.getenv("SHARE_DIR", None),
             license_key=args['bolt_license_key'],
-            extra_options=args['extra_options'],
+            # Having none values will cause error.
+            extra_options={k: v for k, v in args['extra_options'].items() if v is not None},
             python_path=get_python_path(),
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
@@ -568,6 +575,7 @@ def train_udt_impl(
         new_model.train_status = schema.Status.failed
         session.commit()
         logger.info(str(err))
+        logger.info(traceback.format_exc())
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),

@@ -40,7 +40,7 @@ class TextClassificationModel(ClassificationModel):
         query = kwargs["query"]
         top_k = min(kwargs["top_k"], self.num_classes)
         prediction = self.model.predict({"text": query}, top_k=top_k)
-        predicted_classes = [(self.model.class_id(class_id), activation) for class_id, activation in zip(prediction)]
+        predicted_classes = [(self.model.class_name(class_id), activation) for class_id, activation in zip(*prediction)]
 
         self.reporter.log(
             action="predict",
@@ -50,7 +50,7 @@ class TextClassificationModel(ClassificationModel):
                 {
                     "query": query,
                     "top_k": str(top_k),
-                    "predicted_classes": json.dumps(predicted_classes),
+                    "predicted_classes": ','.join([class_name for class_name, _ in predicted_classes]),
                 }
             ],
         )

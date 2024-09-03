@@ -94,7 +94,7 @@ def generate_text_data(
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("DATA_GENERATION_IMAGE_NAME"),
-            train_script=str(get_root_absolute_path() / "data_generation/run.py"),
+            train_script=str(get_root_absolute_path() / "data_generation_job/run.py"),
             task_prompt=task_prompt,
             data_id=data_id,
             data_category="text",
@@ -104,7 +104,7 @@ def generate_text_data(
             genai_key=os.getenv("GENAI_KEY", None),
             license_key=license_key,
             extra_options=extra_options,
-            train_args=train_args.replace('"', '\"'),
+            train_args=train_args,
             python_path=get_python_path(),
         )
         nomad_response.raise_for_status()
@@ -154,7 +154,7 @@ def generate_token_data(
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("DATA_GENERATION_IMAGE_NAME"),
-            train_script=str(get_root_absolute_path() / "data_generation/run.py"),
+            train_script=str(get_root_absolute_path() / "data_generation_job/run.py"),
             task_prompt=task_prompt,
             data_id=str(data_id),
             data_category="token",
@@ -164,7 +164,7 @@ def generate_token_data(
             genai_key=genai_key,
             license_key=license_key,
             extra_options=extra_options,
-            train_args=train_args.replace('"', '\"'),
+            train_args=train_args,
             python_path=get_python_path(),
         )
         nomad_response.raise_for_status()

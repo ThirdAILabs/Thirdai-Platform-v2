@@ -42,6 +42,9 @@ def setup_logger(
     logger.info("Initialized console logging.")
 
 
+setup_logger()
+
+
 def response(status_code: int, message: str, data={}, success: bool = None):
     """
     Create a JSON response.
@@ -503,6 +506,7 @@ def submit_nomad_job(filepath, nomad_endpoint, **kwargs):
     json_payload_response = requests.post(
         json_payload_url, headers=headers, json=hcl_payload
     )
+    print("response", json_payload_response.status_code, json_payload_response.content)
     json_payload = json_payload_response.json()
 
     # Submit the JSON job spec to Nomad

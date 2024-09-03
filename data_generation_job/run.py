@@ -58,9 +58,14 @@ def main():
     )
     dataset_config = factory.generate_data(**asdict(args))
     train_args_dict = json.loads(general_variables.train_args)
-    train_args_dict['extra_options']['source_column'] = dataset_config['input_feature']
-    train_args_dict['extra_options']['target_column'] = dataset_config['target_feature']
-    train_args_dict['extra_options']['target_labels'] = dataset_config['target_labels']
+    if general_variables.data_category == DataCategory.text:
+        train_args_dict['extra_options']['text_column'] = dataset_config['input_feature']
+        train_args_dict['extra_options']['label_column'] = dataset_config['target_feature']
+        train_args_dict['extra_options']['n_target_classes'] = len(dataset_config['target_labels'])
+    else:
+        train_args_dict['extra_options']['source_column'] = dataset_config['input_feature']
+        train_args_dict['extra_options']['target_column'] = dataset_config['target_feature']
+        train_args_dict['extra_options']['target_labels'] = dataset_config['target_labels']
     train_args = json.dumps(train_args_dict)
     launch_train_job(dataset_config['filepath'], train_args)
 

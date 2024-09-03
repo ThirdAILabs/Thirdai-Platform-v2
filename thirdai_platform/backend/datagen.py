@@ -20,9 +20,7 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 def get_catalogs(task: schema.UDT_Task, session: Session):
-    query = session.query(schema.Catalog).filter(schema.Catalog.task == task)
-    catalogs: List[schema.Catalog] = query.all()
-    return catalogs
+    return session.query(schema.Catalog).filter(schema.Catalog.task == task).all()
 
 
 def find_dataset(
@@ -69,9 +67,9 @@ def generate_text_data(
     data_id: str,
     form: str,
     train_args: str,
+    license_key: str,
     llm_provider: LLMProvider = LLMProvider.openai,
 ):
-    # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:
         extra_options = TextClassificationGenerateArgs.model_validate_json(
             form
@@ -80,59 +78,38 @@ def generate_text_data(
         if extra_options:
             print(f"Extra options for training: {extra_options}")
     except ValidationError as e:
-        return {"error": "Invalid extra options format", "details": str(e)}
-
-    try:
-        license_info = verify_license(
-            os.getenv(
-                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
-            )
-        )
-        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Resource limit reached, cannot allocate new jobs.",
-            )
-    except Exception as e:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"License is not valid. {str(e)}",
-        )
-
+        raise ValueError(f"Invalid extra options format: {e}")
+    
     genai_key = os.getenv("GENAI_KEY")
     if genai_key is None:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Need gen_ai key for data-generation",
+        raise ValueError(f"Need gen_ai key for data-generation")
+    
+    try:
+        nomad_response = submit_nomad_job(
+            str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
+            nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+            platform=get_platform(),
+            tag=os.getenv("TAG"),
+            registry=os.getenv("DOCKER_REGISTRY"),
+            docker_username=os.getenv("DOCKER_USERNAME"),
+            docker_password=os.getenv("DOCKER_PASSWORD"),
+            image_name=os.getenv("DATA_GENERATION_IMAGE_NAME"),
+            train_script=str(get_root_absolute_path() / "data_generation/run.py"),
+            task_prompt=task_prompt,
+            data_id=data_id,
+            data_category="text",
+            llm_provider=llm_provider.value,
+            model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
+            share_dir=os.getenv("SHARE_DIR", None),
+            genai_key=os.getenv("GENAI_KEY", None),
+            license_key=license_key,
+            extra_options=extra_options,
+            train_args=train_args.replace('"', '\"'),
+            python_path=get_python_path(),
         )
-
-    submit_nomad_job(
-        str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
-        nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
-        platform=get_platform(),
-        tag=os.getenv("TAG"),
-        registry=os.getenv("DOCKER_REGISTRY"),
-        docker_username=os.getenv("DOCKER_USERNAME"),
-        docker_password=os.getenv("DOCKER_PASSWORD"),
-        image_name=os.getenv("TRAIN_IMAGE_NAME"),
-        train_script=str(get_root_absolute_path() / "data_generation/run.py"),
-        task_prompt=task_prompt,
-        data_id=data_id,
-        data_category="text",
-        llm_provider=llm_provider.value,
-        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
-        share_dir=os.getenv("SHARE_DIR", None),
-        genai_key=os.getenv("GENAI_KEY", None),
-        license_key=license_info["boltLicenseKey"],
-        extra_options=extra_options,
-        train_args=train_args,
-        python_path=get_python_path(),
-    )
-
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Successfully submitted the data-generation job",
-    )
+        nomad_response.raise_for_status()
+    except Exception as e:
+        raise RuntimeError(f"Failed to generate data. {e}")
 
 
 class TokenClassificationGenerateArgs(BaseModel):
@@ -150,9 +127,9 @@ def generate_token_data(
     data_id: str,
     form: str,
     train_args: str,
+    license_key: str,
     llm_provider: LLMProvider = LLMProvider.openai,
 ):
-    # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:
         extra_options = TokenClassificationGenerateArgs.model_validate_json(
             form
@@ -161,33 +138,13 @@ def generate_token_data(
         if extra_options:
             print(f"Extra options for training: {extra_options}")
     except ValidationError as e:
-        return {"error": "Invalid extra options format", "details": str(e)}
+        raise ValueError(f"Invalid extra options format: {e}")
 
+    genai_key = os.getenv("GENAI_KEY")
+    if genai_key is None:
+        raise ValueError(f"Need gen_ai key for data-generation")
+    
     try:
-        license_info = verify_license(
-            os.getenv(
-                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
-            )
-        )
-        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Resource limit reached, cannot allocate new jobs.",
-            )
-    except Exception as e:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"License is not valid. {str(e)}",
-        )
-
-    try:
-        genai_key = os.getenv("GENAI_KEY")
-        if genai_key is None:
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Need gen_ai key for data-generation",
-            )
-
         nomad_response = submit_nomad_job(
             str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -196,7 +153,7 @@ def generate_token_data(
             registry=os.getenv("DOCKER_REGISTRY"),
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
-            image_name=os.getenv("TRAIN_IMAGE_NAME"),
+            image_name=os.getenv("DATA_GENERATION_IMAGE_NAME"),
             train_script=str(get_root_absolute_path() / "data_generation/run.py"),
             task_prompt=task_prompt,
             data_id=str(data_id),
@@ -205,23 +162,14 @@ def generate_token_data(
             model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
             share_dir=os.getenv("SHARE_DIR", None),
             genai_key=genai_key,
-            license_key=license_info["boltLicenseKey"],
+            license_key=license_key,
             extra_options=extra_options,
             train_args=train_args.replace('"', '\"'),
             python_path=get_python_path(),
         )
         nomad_response.raise_for_status()
-        
-        return response(
-            status_code=status.HTTP_200_OK,
-            message=f"Successfully submitted the data-generation job. {nomad_response.status_code} {nomad_response.content}",
-        )
     except Exception as e:
-        print(traceback.format_exc())
-        return response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message=f"Failed to generate data. {e}"
-        )
+        raise RuntimeError(f"Failed to generate data. {e}")
 
 
 def find_datasets(

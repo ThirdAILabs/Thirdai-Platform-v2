@@ -301,8 +301,6 @@ def train_ndb(
         },
     )
 
-@train_router.post("/")
-
 @train_router.post("/udt")
 def train_udt(
     model_name: str,
@@ -456,6 +454,7 @@ def train_udt(
                 data_id=str(data_id),
                 form=datagen_options_form,
                 train_args=train_args,
+                license_key=license_info["boltLicenseKey"],
                 llm_provider=llm_provider,
             )
         else:
@@ -464,11 +463,11 @@ def train_udt(
                 data_id=str(data_id),
                 form=datagen_options_form,
                 train_args=train_args,
+                license_key=license_info["boltLicenseKey"],
                 llm_provider=llm_provider,
             )
 
     except Exception as err:
-        # TODO: change the status of the new model entry to failed
         new_model.train_status = schema.Status.failed
         session.commit()
         logger.info(str(err))
@@ -506,7 +505,7 @@ def train_udt_impl(
             return {"error": "Invalid file details list format", "details": str(e)}
     else:
         files_info = [
-            UDTFileDetails(mode=FileType.supervised, location=FileLocation.local)
+            UDTFileDetails(mode=FileType.supervised, location=FileLocation.nfs)
             for _ in files
         ]
 
@@ -563,7 +562,7 @@ def train_udt_impl(
         )
     except Exception as err:
         new_model: schema.Model = (
-            session.query(schema.Model).filter(schema.Model.name == args['model_id']).first()
+            session.query(schema.Model).get(args['model_id'])
         )
         new_model.train_status = schema.Status.failed
         session.commit()

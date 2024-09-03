@@ -45,6 +45,7 @@ def main():
         if task_ids:
             update_model_with_timestamp(model_id=model_id)
 
+        # TODO(YASH): We need to reduce this time when we merge the ndbv2
         time.sleep(10)
 
 

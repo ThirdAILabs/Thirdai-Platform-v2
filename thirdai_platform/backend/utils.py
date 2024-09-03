@@ -236,6 +236,16 @@ class UDTExtraOptions(BaseModel):
         return v
 
 
+class UDTTrainArgs(BaseModel):
+    work_dir: str
+    model_id: str
+    data_id: str
+    bolt_license_key: str
+    extra_options: UDTExtraOptions
+    base_model_id: str
+    udt_subtype: str
+
+
 class NDBExtraOptions(BaseModel):
     """
     Model for Neural Database (NDB) extra options.

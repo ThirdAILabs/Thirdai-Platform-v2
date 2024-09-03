@@ -18,6 +18,7 @@ from backend.file_handler import (
 from backend.utils import (
     NDBExtraOptions,
     UDTExtraOptions,
+    UDTTrainArgs,
     get_model,
     get_model_from_identifier,
     get_platform,
@@ -492,7 +493,7 @@ def train_udt_impl(
     file_details_list: Optional[str] = Form(default=None),
     session: Session = Depends(get_session),
 ):  
-    args = json.loads(args_json)
+    args = UDTTrainArgs.parse_raw(args_json).dict()
     
     if file_details_list:
         try:

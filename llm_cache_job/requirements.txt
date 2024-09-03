@@ -3,6 +3,5 @@ fastapi==0.109.2
 gunicorn==20.1.0
 pydantic>=2.0.0
 uvicorn==0.18.2
-python-dotenv
-websockets
-requests<2.32.0
+thirdai[neural_db_v2]
+unstructured[pptx]

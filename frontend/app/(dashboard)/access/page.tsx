@@ -17,6 +17,7 @@ import {
 } from "@/lib/backend";
 import { useContext } from 'react';
 import { UserContext } from '../../user_wrapper';
+import AutocompleteInput from '@/components/ui/AutocompleteInput';
 
 // Define types for the models, teams, and users
 type Model = {
@@ -450,6 +451,23 @@ export default function AccessPage() {
     }
   };  
   
+  // For single string values
+  const handleSingleChange = (setter: React.Dispatch<React.SetStateAction<string>>) => {
+    return (value: string | string[]) => {
+      if (typeof value === 'string') {
+        setter(value);
+      }
+    };
+  };
+
+  // For multiple string values
+  const handleMultipleChange = (setter: React.Dispatch<React.SetStateAction<string[]>>) => {
+    return (value: string | string[]) => {
+      if (Array.isArray(value)) {
+        setter(value);
+      }
+    };
+  };
 
   return (
     <Card>
@@ -636,19 +654,18 @@ export default function AccessPage() {
                 onChange={(e) => setNewTeamName(e.target.value)}
                 className="border border-gray-300 rounded px-2 py-1 mb-2"
               />
-              <input
-                type="text"
-                placeholder="Team Admin"
+              <AutocompleteInput
                 value={newTeamAdmin}
-                onChange={(e) => setNewTeamAdmin(e.target.value)}
-                className="border border-gray-300 rounded px-2 py-1 mb-2"
+                onChange={handleSingleChange(setNewTeamAdmin)}
+                options={users.map(user => user.name)}
+                placeholder="Team Admin"
               />
-              <input
-                type="text"
+              <AutocompleteInput
+                value={newTeamMembers}
+                onChange={handleMultipleChange(setNewTeamMembers)}
+                options={users.map(user => user.name)}
+                multiple={true}
                 placeholder="Team Members (comma separated)"
-                value={newTeamMembers.join(', ')}
-                onChange={(e) => setNewTeamMembers(e.target.value.split(',').map(member => member.trim()))}
-                className="border border-gray-300 rounded px-2 py-1 mb-2 w-[300px]"
               />
               <button
                 onClick={() => {
@@ -681,12 +698,11 @@ export default function AccessPage() {
                   </option>
                 ))}
               </select>
-              <input
-                type="text"
-                placeholder="New Member"
+              <AutocompleteInput
                 value={newMember}
-                onChange={(e) => setNewMember(e.target.value)}
-                className="border border-gray-300 rounded px-2 py-1 mb-2"
+                onChange={handleSingleChange(setNewMember)}
+                options={selectedTeamForAdd ? teams.find(team => team.name === selectedTeamForAdd)?.members || [] : []}
+                placeholder="New Member"
               />
               <button
                 onClick={addMemberToTeam}
@@ -713,12 +729,11 @@ export default function AccessPage() {
                   </option>
                 ))}
               </select>
-              <input
-                type="text"
-                placeholder="Member to Remove"
+              <AutocompleteInput
                 value={memberToRemove}
-                onChange={(e) => setMemberToRemove(e.target.value)}
-                className="border border-gray-300 rounded px-2 py-1 mb-2"
+                onChange={handleSingleChange(setMemberToRemove)}
+                options={selectedTeamForRemove ? teams.find(team => team.name === selectedTeamForRemove)?.members || [] : []}
+                placeholder="Member to Remove"
               />
               <button
                 onClick={removeMemberFromTeam}
@@ -745,12 +760,11 @@ export default function AccessPage() {
                   </option>
                 ))}
               </select>
-              <input
-                type="text"
-                placeholder="New Admin"
+              <AutocompleteInput
                 value={newAdmin}
-                onChange={(e) => setNewAdmin(e.target.value)}
-                className="border border-gray-300 rounded px-2 py-1 mb-2"
+                onChange={handleSingleChange(setNewAdmin)}
+                options={users.map(user => user.name)}
+                placeholder="New Admin"
               />
               <button
                 onClick={assignAdminToTeam}
@@ -777,12 +791,11 @@ export default function AccessPage() {
                   </option>
                 ))}
               </select>
-              <input
-                type="text"
-                placeholder="Admin to Remove"
+              <AutocompleteInput
                 value={adminToRemove}
-                onChange={(e) => setAdminToRemove(e.target.value)}
-                className="border border-gray-300 rounded px-2 py-1 mb-2"
+                onChange={handleSingleChange(setAdminToRemove)}
+                options={selectedTeamForRemoveAdmin ? teams.find(team => team.name === selectedTeamForRemoveAdmin)?.members || [] : []}
+                placeholder="Admin to Remove"
               />
               <button
                 onClick={removeAdminFromTeam}

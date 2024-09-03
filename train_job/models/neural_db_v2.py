@@ -7,7 +7,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import thirdai
 from fastapi import Response
@@ -64,7 +64,7 @@ def preload_chunks(resource_path: str, display_path: str) -> Tuple[ndbv2.Documen
     # TODO(V2 Support): Add an option for users to set the doc_id
     doc = convert_to_ndb_doc(resource_path=resource_path, display_path=display_path)
     return (
-        ndbv2.documents.PrebatchedDoc(doc.chunks(), doc_id=doc.doc_id()),
+        ndbv2.documents.PrebatchedDoc(list(doc.chunks()), doc_id=doc.doc_id()),
         resource_path,
     )
 
@@ -84,8 +84,7 @@ def process_file(
         try:
             s3_client.download_file(bucket_name, prefix, local_file_path)
         except Exception as error:
-            print(f"There was an error downloading the file from s3 : {error}. {file}")
-            return f"There was an error downloading the file from s3 : {error}"
+            raise ValueError(f"Error downloading file '{file}' from s3 : {error}")
 
         doc = preload_chunks(
             resource_path=local_file_path,
@@ -129,33 +128,25 @@ class NeuralDBV2(Model):
     def parser(
         self, files: list[str], task_queue: queue.Queue, doc_save_dir: str, tmp_dir: str
     ):
-        # max_cores = os.cpu_count()
-        # num_workers = max(1, max_cores - 6)
-        # with ProcessPoolExecutor(max_workers=num_workers) as executor:
-        #     futures = [
-        #         executor.submit(process_file, file, doc_save_dir, tmp_dir)
-        #         for file in files
-        #     ]
+        max_cores = os.cpu_count()
+        num_workers = max(1, max_cores - 6)
+        with ProcessPoolExecutor(max_workers=num_workers) as executor:
+            futures = [
+                executor.submit(process_file, file, doc_save_dir, tmp_dir)
+                for file in files
+            ]
 
-        #     for future in as_completed(futures):
-        #         try:
-        #             ndb_file, filename = future.result()
-        #             if ndb_file and not isinstance(ndb_file, str):
-        #                 task_queue.put(ndb_file)
-        #                 self.logger.info(f"PARSED: {ndb_file.doc_id}")
-        #                 print(f"Successfully processed {filename}", flush=True)
-        #         except Exception as e:
-        #             print(f"Error processing file: {e}")
-
-        results = [process_file(file, doc_save_dir, tmp_dir) for file in files]
-
-        for ndb_file, file_name in results:
-            task_queue.put(ndb_file)
-            self.logger.info(f"PARSED: {ndb_file.doc_id()}")
+            for future in as_completed(futures):
+                try:
+                    ndb_file, filename = future.result()
+                    task_queue.put(ndb_file)
+                    self.logger.info(f"Parsed: doc_id={ndb_file.doc_id()} {filename=}")
+                except Exception as e:
+                    self.logger.error(f"Error processing file '{filename}': {e}")
 
         task_queue.put(None)
 
-        self.logger.info("PARSER THREAD COMPLETED")
+        self.logger.info("Parsing processes completed")
 
     def indexer(self, task_queue: queue.Queue, batch_size: int):
         batch = []
@@ -163,26 +154,19 @@ class NeuralDBV2(Model):
         while True:
             ndb_doc = task_queue.get()
             if ndb_doc is None:
-                self.logger.info("REACHED END OF QUEUE")
                 if batch:
                     self.db.insert(batch)
-                    self.logger.info(
-                        f"INSERTED {[x.doc_id() for x in batch]} NEW SIZE = {self.db.retriever.retriever.size()}"
-                    )
-                self.logger.info("INDEXER BREAKING")
+                    self.logger.info(f"Inserted: doc_ids={[x.doc_id() for x in batch]}")
                 break
 
-            self.logger.info(f"POPPED: {ndb_doc.doc_id()}")
             batch.append(ndb_doc)
 
             if len(batch) >= batch_size and task_queue.qsize() == 0:
                 self.db.insert(batch)
-                self.logger.info(
-                    f"INSERTED {[x.doc_id() for x in batch]} NEW SIZE = {self.db.retriever.retriever.size()}"
-                )
+                self.logger.info(f"Inserted: doc_ids={[x.doc_id() for x in batch]}")
                 batch.clear()
 
-        self.logger.info("INDEXER THREAD COMPLETED")
+        self.logger.info("Indexing processes completed")
 
     def unsupervised_train(self, files: List[str]):
         self.logger.info("Starting unsupervised training.")

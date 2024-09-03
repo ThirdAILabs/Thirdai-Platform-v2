@@ -17,7 +17,7 @@ env:
 
 jobs:
   dag_tests:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest-16-cores
     services:
       postgres:
         image: postgres:latest
@@ -161,8 +161,6 @@ jobs:
         cat vault.log
         echo "Uvicorn Logs:"
         cat $GITHUB_WORKSPACE/thirdai_platform/uvicorn.log
-        echo "Autoscaler and redis logs:"
-        cat nomad_jobs.log
 
     - name: Stop Services
       if: always()

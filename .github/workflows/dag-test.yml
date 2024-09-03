@@ -17,7 +17,7 @@ env:
 
 jobs:
   dag_tests:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest-16-cores
     services:
       postgres:
         image: postgres:latest
@@ -36,6 +36,9 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+    
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
 
     - name: Wait for PostgreSQL to be ready
       run: |

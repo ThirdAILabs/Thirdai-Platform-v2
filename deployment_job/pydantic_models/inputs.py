@@ -3,7 +3,7 @@ Defines input models for Pydantic validation and utility functions for conversio
 """
 
 import json
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 from pydantic_models.constraints import Constraints

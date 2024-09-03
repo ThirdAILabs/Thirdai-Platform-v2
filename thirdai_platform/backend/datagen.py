@@ -3,7 +3,6 @@ import traceback
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
-import traceback
 
 from backend.utils import (
     get_platform,

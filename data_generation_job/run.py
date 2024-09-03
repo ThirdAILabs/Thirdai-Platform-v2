@@ -1,12 +1,12 @@
-import os
-from dataclasses import asdict
-
-from utils import save_dict
-from variables import DataCategory, GeneralVariables
-from urllib.parse import urljoin
-import requests
 import io
 import json
+import os
+from dataclasses import asdict
+from urllib.parse import urljoin
+
+import requests
+from utils import save_dict
+from variables import DataCategory, GeneralVariables
 
 # Load general variables from environment
 general_variables: GeneralVariables = GeneralVariables.load_from_env()

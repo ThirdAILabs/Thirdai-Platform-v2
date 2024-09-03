@@ -11,7 +11,7 @@ import {
 import {
   fetchAllModels, fetchAllTeams, fetchAllUsers,
   updateModelAccessLevel,
-  createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam, deleteTeamById,
+  createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam, deleteTeamById, removeTeamAdmin,
   deleteUserAccount,
   Workflow, fetchWorkflows
 } from "@/lib/backend";
@@ -209,9 +209,9 @@ export default function AccessPage() {
       await updateModelAccessLevel(model_identifier, access_level, team_id);
   
       // Update the models state
-      const updatedModels = [...models];
-      updatedModels[index] = { ...model, type: selectedType };
-      setModels(updatedModels);
+      await getModels()
+      await getUsers()
+      await getTeams()
   
       // Reset editing state
       setEditingIndex(null);
@@ -252,8 +252,9 @@ export default function AccessPage() {
       }
 
       // Update the state
-      const newTeam: Team = { id: team_id, name: newTeamName, admin: newTeamAdmin, members: newTeamMembers };
-      setTeams([...teams, newTeam]);
+      await getModels()
+      await getUsers()
+      await getTeams()
 
       // Clear the input fields
       setNewTeamName('');
@@ -288,10 +289,10 @@ export default function AccessPage() {
       await addUserToTeam(user.email, team.id);
 
       // Optionally update the team members state (if needed)
-      const updatedTeams = teams.map(t =>
-        t.id === team.id ? { ...t, members: [...t.members, user.name] } : t
-      );
-      setTeams(updatedTeams)
+      await getModels()
+      await getUsers()
+      await getTeams()
+
       setSelectedTeamForAdd('');  // Clear the selected team
       setNewMember('');     // Clear the new member input
     } catch (error) {
@@ -322,10 +323,10 @@ export default function AccessPage() {
       await deleteUserFromTeam(user.email, team.id);
 
       // Optionally update the team members state (if needed)
-      const updatedTeams = teams.map(t =>
-        t.id === team.id ? { ...t, members: t.members.filter(m => m !== user.name) } : t
-      );
-      setTeams(updatedTeams)
+      await getModels()
+      await getUsers()
+      await getTeams()
+
       setSelectedTeamForRemove('');  // Clear the selected team
       setMemberToRemove(''); // Clear the member input
     } catch (error) {
@@ -407,6 +408,48 @@ export default function AccessPage() {
   useEffect(() => {
     getWorkflows();
   }, []);
+
+  const [newAdmin, setNewAdmin] = useState('');
+  const [adminToRemove, setAdminToRemove] = useState('');
+  const [selectedTeamForRemoveAdmin, setSelectedTeamForRemoveAdmin] = useState('');
+  const [selectedTeamForAddAdmin, setSelectedTeamForAddAdmin] = useState('');
+
+  const assignAdminToTeam = async () => {
+    if (selectedTeamForAddAdmin && newAdmin) {
+      try {
+        await assignTeamAdmin(newAdmin, selectedTeamForAddAdmin);
+        alert("Admin added successfully!");
+        // Update state or UI by calling these functions
+        await getModels();
+        await getUsers();
+        await getTeams();
+      } catch (error) {
+        console.error("Error adding admin:", error);
+        alert("Failed to add admin.");
+      }
+    } else {
+      alert("Please select a team and enter an admin email.");
+    }
+  };  
+  
+  const removeAdminFromTeam = async () => {
+    if (selectedTeamForRemoveAdmin && adminToRemove) {
+      try {
+        await removeTeamAdmin(adminToRemove, selectedTeamForRemoveAdmin);
+        alert("Admin removed successfully!");
+        // Update state or UI by calling these functions
+        await getModels();
+        await getUsers();
+        await getTeams();
+      } catch (error) {
+        console.error("Error removing admin:", error);
+        alert("Failed to remove admin.");
+      }
+    } else {
+      alert("Please select a team and enter the admin email.");
+    }
+  };  
+  
 
   return (
     <Card>
@@ -605,10 +648,16 @@ export default function AccessPage() {
                 placeholder="Team Members (comma separated)"
                 value={newTeamMembers.join(', ')}
                 onChange={(e) => setNewTeamMembers(e.target.value.split(',').map(member => member.trim()))}
-                className="border border-gray-300 rounded px-2 py-1 mb-2"
+                className="border border-gray-300 rounded px-2 py-1 mb-2 w-[300px]"
               />
               <button
-                onClick={createNewTeam}
+                onClick={() => {
+                  if (newTeamAdmin && newTeamMembers.length > 0) {
+                    createNewTeam();
+                  } else {
+                    alert("Please enter both Team Admin and at least one Team Member.");
+                  }
+                }}
                 className="bg-blue-500 text-white px-2 py-1 rounded"
               >
                 Create Team
@@ -676,6 +725,70 @@ export default function AccessPage() {
                 className="bg-red-500 text-white px-2 py-1 rounded"
               >
                 Remove Member
+              </button>
+            </div>
+          </div>
+
+          {/* Add Admin to Team */}
+          <div>
+            <h4 className="text-md font-semibold">Add Admin to Team</h4>
+            <div className="mb-2">
+              <select
+                value={selectedTeamForAddAdmin}
+                onChange={(e) => setSelectedTeamForAddAdmin(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 mb-2"
+              >
+                <option value="">Select Team</option>
+                {teams.map((team) => (
+                  <option key={team.name} value={team.name}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                placeholder="New Admin"
+                value={newAdmin}
+                onChange={(e) => setNewAdmin(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 mb-2"
+              />
+              <button
+                onClick={assignAdminToTeam}
+                className="bg-green-500 text-white px-2 py-1 rounded"
+              >
+                Add Admin
+              </button>
+            </div>
+          </div>
+
+          {/* Remove Admin from Team */}
+          <div>
+            <h4 className="text-md font-semibold">Remove Admin from Team</h4>
+            <div className="mb-2">
+              <select
+                value={selectedTeamForRemoveAdmin}
+                onChange={(e) => setSelectedTeamForRemoveAdmin(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 mb-2"
+              >
+                <option value="">Select Team</option>
+                {teams.map((team) => (
+                  <option key={team.name} value={team.name}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                placeholder="Admin to Remove"
+                value={adminToRemove}
+                onChange={(e) => setAdminToRemove(e.target.value)}
+                className="border border-gray-300 rounded px-2 py-1 mb-2"
+              />
+              <button
+                onClick={removeAdminFromTeam}
+                className="bg-red-500 text-white px-2 py-1 rounded"
+              >
+                Remove Admin
               </button>
             </div>
           </div>

@@ -42,7 +42,7 @@ type Model = {
 type Team = {
   id: string;
   name: string;
-  admin: string;
+  admins: string[];  // Updated to support multiple admins
   members: string[];
 };
 
@@ -149,23 +149,23 @@ export default function AccessPage() {
       console.log('Fetched Teams:', response.data);  // Print out the results
       const teamData = response.data.map((team): Team => {
         const members: string[] = [];
-        let admin = '';
-
-        // Populate members and admin from users and models data
+        const admins: string[] = [];  // Collect multiple admins
+  
+        // Populate members and admins from users and models data
         users.forEach(user => {
           const userTeam = user.teams.find(ut => ut.id === team.id);
           if (userTeam) {
             members.push(user.name);
             if (userTeam.role === 'team_admin') {
-              admin = user.name;
+              admins.push(user.name);  // Add to admins array
             }
           }
         });
-
+  
         return {
           id: team.id,
           name: team.name,
-          admin: admin,
+          admins: admins,  // Store the admins array
           members: members,
         };
       });
@@ -173,7 +173,7 @@ export default function AccessPage() {
       setTeams(teamData);
     } catch (error) {
       console.error('Failed to fetch teams', error);
-      alert('Failed to fetch teams' + error)
+      alert('Failed to fetch teams' + error);
     }
   };
 
@@ -545,7 +545,6 @@ export default function AccessPage() {
                         <div>
                           <div>Owner: {model.owner}</div>
                           <div>Team: {teams.find(team => team.id === model.team)?.name || 'None'}</div>
-                          <div>Team Admin: {model.teamAdmin || 'None'}</div>
                         </div>
                       )}
                       {model.type === 'Public Model' && (
@@ -656,8 +655,12 @@ export default function AccessPage() {
             {teams.map((team, index) => (
               <div key={index} className="bg-gray-100 p-4 rounded-lg shadow-md mb-8">
                 <h4 className="text-lg font-semibold text-gray-800">{team.name}</h4>
-                <div className="text-gray-700 mb-2">Admin: {team.admin}</div>
-                <div className="text-gray-700 mb-2">Members: {team.members.join(', ')}</div>
+                <div className="text-gray-700 mb-2">
+                  <span className="font-semibold">Admins:</span> {team.admins.join(', ')}
+                </div>
+                <div className="text-gray-700 mb-2">
+                  <span className="font-semibold">Members:</span> {team.members.join(', ')}
+                </div>
                 <div className="text-gray-700">
                   <h5 className="text-md font-semibold text-gray-800">Protected Models</h5>
                   <ul className="list-disc pl-5">

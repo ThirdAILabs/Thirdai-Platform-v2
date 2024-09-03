@@ -29,6 +29,7 @@ job "telemetry" {
 
       config {
         image = "victoriametrics/victoria-metrics:latest"
+        group_add = ["4646"]
         ports = ["vicky-http"]
         args = [
           "--storageDataPath=/storage",
@@ -60,7 +61,7 @@ scrape_configs:
         {% if platform == "local" -%}
           - "host.docker.internal:4646"
         {%- else -%}
-          {% raw %}- "${attr.unique.network.ip-address}:4646"{% endraw %}
+          {% raw %}- "{{env "attr.unique.network.ip-address"}}:4646"{% endraw %}
         {%- endif %}
         labels:
           role: agent
@@ -83,7 +84,8 @@ EOF
       driver = "docker"
 
       config {
-        image = "grafana/loki:3.0.0"
+        image = "grafana/loki:main"
+        group_add = ["4646"]
         args = [
           "-config.file",
           "${NOMAD_TASK_DIR}/loki.yaml",
@@ -195,6 +197,7 @@ EOF
 
       config {
         image = "grafana/grafana:main-ubuntu"
+        group_add = ["4646"]
         ports = ["grafana-http"]
         volumes = [
             "{{ dashboards }}:/local/dashboards",

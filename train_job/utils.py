@@ -82,6 +82,17 @@ def list_files_from_s3_txt(file_path: str) -> list[str]:
     return s3_urls
 
 
+def list_files_from_nfs_txt(file_path: str) -> list[str]:
+    """
+    Read a list of NFS file paths from a text file and return the list of files.
+    """
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"The file {file_path} does not exist.")
+
+    with open(file_path, "r") as file:
+        return [line.strip() for line in file]
+
+
 def list_files(file_dir: str) -> list[str]:
     """
     List all files in a directory, including files from S3 URLs listed in 's3_files.txt'.
@@ -94,6 +105,11 @@ def list_files(file_dir: str) -> list[str]:
                     os.path.join(file_dir, "s3_files.txt")
                 )
                 files.extend(s3_file_urls)
+            elif filename == "nfs_files.txt":
+                nfs_file_paths = list_files_from_nfs_txt(
+                    os.path.join(file_dir, "nfs_files.txt")
+                )
+                files.extend(nfs_file_paths)
             elif not filename.endswith("metadata.json"):
                 files.append(os.path.join(file_dir, filename))
 

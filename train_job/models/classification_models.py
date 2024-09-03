@@ -103,25 +103,13 @@ class TextClassificationModel(ClassificationModel):
 
         start_time = time.time()
         for train_file in supervised_files:
-            if not train_file.endswith("nfs_files.txt"):
-                model.train(
-                    train_file,
-                    epochs=self.train_variables.unsupervised_epochs,
-                    learning_rate=self.train_variables.learning_rate,
-                    batch_size=self.train_variables.batch_size,
-                    metrics=self.train_variables.metrics,
-                )
-            else:
-                for line in open(train_file):
-                    actual_train_file = line.strip()
-                    model.train(
-                        actual_train_file,
-                        epochs=self.train_variables.unsupervised_epochs,
-                        learning_rate=self.train_variables.learning_rate,
-                        batch_size=self.train_variables.batch_size,
-                        metrics=self.train_variables.metrics,
-                    )
-                    
+            model.train(
+                train_file,
+                epochs=self.train_variables.unsupervised_epochs,
+                learning_rate=self.train_variables.learning_rate,
+                batch_size=self.train_variables.batch_size,
+                metrics=self.train_variables.metrics,
+            )
         training_time = time.time() - start_time
 
         self.save_model(model)
@@ -186,24 +174,13 @@ class TokenClassificationModel(ClassificationModel):
 
         start_time = time.time()
         for train_file in supervised_files:
-            if not train_file.endswith("nfs_files.txt"):
-                model.train(
-                    train_file,
-                    epochs=self.train_variables.unsupervised_epochs,
-                    learning_rate=self.train_variables.learning_rate,
-                    batch_size=self.train_variables.batch_size,
-                    metrics=self.train_variables.metrics,
-                )
-            else:
-                for line in open(train_file):
-                    actual_train_file = line.strip()
-                    model.train(
-                        actual_train_file,
-                        epochs=self.train_variables.unsupervised_epochs,
-                        learning_rate=self.train_variables.learning_rate,
-                        batch_size=self.train_variables.batch_size,
-                        metrics=self.train_variables.metrics,
-                    )
+            model.train(
+                train_file,
+                epochs=self.train_variables.unsupervised_epochs,
+                learning_rate=self.train_variables.learning_rate,
+                batch_size=self.train_variables.batch_size,
+                metrics=self.train_variables.metrics,
+            )
         training_time = time.time() - start_time
 
         self.save_model(model)

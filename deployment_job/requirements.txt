@@ -17,3 +17,4 @@ unstructured[pptx,eml,txt]
 boto3
 botocore
 colorlog
+redis

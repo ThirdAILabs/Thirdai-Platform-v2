@@ -7,10 +7,12 @@ from collections import defaultdict
 from data_types import (
     DataSamples,
     UserFeedBack,
+    ModelMetadata,
     deserialize_sample_datatype,
     deserialize_userfeedback,
+    deserialize_metadata,
 )
-from schemas import Base, FeedBack, Samples
+from schemas import Base, FeedBack, Samples, MetaData
 from sqlalchemy import create_engine, event, func
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -66,6 +68,16 @@ class Connector:
     @abstractmethod
     def existing_sample_names(self):
         # get unique names in the store
+        pass
+
+    @abstractmethod
+    def insert_metadata(self, name: str, datatype: str, serialized_data: str):
+        # if an entry with the value name exists, updates its serialized data,
+        # else makes a new entry for the metadata in the DB.
+        pass
+
+    @abstractmethod
+    def get_metadata(self, name: str):
         pass
 
 
@@ -198,6 +210,32 @@ class SQLiteConnector(Connector):
 
         return set([name[0] for name in names])
 
+    def insert_metadata(self, name: str, datatype: str, serialized_data: str):
+        session = self.Session()
+
+        existing_metadata = (
+            session.query(MetaData).filter(MetaData.name == name).first()
+        )
+        if existing_metadata:
+            existing_metadata.serialized_data = serialized_data
+        else:
+            new_metadata = MetaData(
+                name=name, datatype=datatype, serialized_data=serialized_data
+            )
+            session.add(new_metadata)
+
+        session.commit()
+
+    def get_metadata(self, name: str):
+        session = self.Session()
+
+        entry = (
+            session.query(MetaData.datatype, MetaData.serialized_data)
+            .filter(MetaData.name == name)
+            .first()
+        )
+        return entry
+
 
 class DataStorage:
     def __init__(self, connector: Connector):
@@ -277,3 +315,16 @@ class DataStorage:
             self._sample_counter[name] = self.connector.get_sample_count(
                 name=name, with_feedback=None
             )
+
+    def insert_metadata(self, metadata: ModelMetadata):
+        self.connector.insert_metadata(
+            name=metadata.name,
+            datatype=metadata.datatype,
+            serialized_data=metadata.serialize(),
+        )
+
+    def get_metadata(self, name):
+        datatype, serialized_data = self.connector.get_metadata(name)
+        return deserialize_metadata(
+            type=datatype, name=name, serialized_data=serialized_data
+        )

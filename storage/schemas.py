@@ -24,3 +24,11 @@ class FeedBack(Base):
 
     serialized_data = Column(String)
     timestamp = Column(DateTime, default=func.current_timestamp())
+
+
+class MetaData(Base):
+    __tablename__ = "metadata"
+    name = Column(String, primary_key=True, index=True)
+    datatype = Column(String)
+    serialized_data = Column(String)
+    timestamp = Column(DateTime, default=func.current_timestamp())

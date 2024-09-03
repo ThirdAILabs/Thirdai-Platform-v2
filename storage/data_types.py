@@ -6,6 +6,7 @@ import typing
 import uuid
 from abc import abstractmethod, abstractproperty, abstractstaticmethod
 from dataclasses import dataclass
+from collections import defaultdict
 
 import pandas as pd
 from sqlalchemy import UUID
@@ -140,6 +141,34 @@ class TokenClassificationFeedBack(UserFeedBack):
         )
 
 
+class ModelMetadata(DataType):
+    def __init__(self, name):
+        self._name = name
+
+    @abstractstaticmethod
+    def deserialize(name: str, repr: str):
+        pass
+
+
+class TagMetadata(DataType):
+    datatype = "token_classification_tags"
+
+    def __init__(self, name, tag_and_status: typing.DefaultDict[str, str]):
+        super.__init__(name)
+        self._tag_and_status = tag_and_status
+
+    def update_tag_status(self, tag, status):
+        self._tag_and_status[tag] = status
+
+    def serialize(self) -> str:
+        return json.dumps({"tag_and_status": self._tag_and_status})
+
+    @staticmethod
+    def deserialize(name, repr):
+        data = defaultdict(str, json.loads(repr))
+        return TagMetadata(name=name, tag_and_status=data)
+
+
 def deserialize_sample_datatype(
     type: str, unique_id: str, name: str, serialized_data: str
 ):
@@ -165,3 +194,10 @@ def deserialize_userfeedback(
         )
 
     raise Exception(f"Cannot deserialize unknown userfeedback type: {type}")
+
+
+def deserialize_metadata(type: str, name: str, serialized_data: str):
+    if type == "token_classification_tag":
+        return TagMetadata.deserialize(name=name, repr=serialized_data)
+
+    raise Exception(f"Cannot deserialize unknown model metadata type: {type}")

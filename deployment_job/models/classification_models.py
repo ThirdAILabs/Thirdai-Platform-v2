@@ -4,7 +4,7 @@ from typing import Optional
 from models.model import Model
 from pydantic_models import inputs
 from thirdai import bolt
-import json
+
 
 class ClassificationModel(Model):
     def __init__(
@@ -40,7 +40,10 @@ class TextClassificationModel(ClassificationModel):
         query = kwargs["query"]
         top_k = min(kwargs["top_k"], self.num_classes)
         prediction = self.model.predict({"text": query}, top_k=top_k)
-        predicted_classes = [(self.model.class_name(class_id), activation) for class_id, activation in zip(*prediction)]
+        predicted_classes = [
+            (self.model.class_name(class_id), activation)
+            for class_id, activation in zip(*prediction)
+        ]
 
         self.reporter.log(
             action="predict",
@@ -50,7 +53,9 @@ class TextClassificationModel(ClassificationModel):
                 {
                     "query": query,
                     "top_k": str(top_k),
-                    "predicted_classes": ','.join([class_name for class_name, _ in predicted_classes]),
+                    "predicted_classes": ",".join(
+                        [class_name for class_name, _ in predicted_classes]
+                    ),
                 }
             ],
         )

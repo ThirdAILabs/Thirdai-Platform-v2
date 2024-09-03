@@ -83,10 +83,12 @@ class TokenDataFactory(DataFactory):
                 tag,
                 num_samples=total_expected_sentences,
             )
+
             def stringify_tuples(x):
                 if isinstance(x, tuple):
                     return " ".join(x)
                 return x
+
             if samples:
                 samples = [stringify_tuples(x) for x in samples]
                 complete_tag_examples[tag].extend(samples)

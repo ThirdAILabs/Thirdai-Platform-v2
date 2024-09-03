@@ -19,6 +19,7 @@ from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
+
 def get_catalogs(task: schema.UDT_Task, session: Session):
     return session.query(schema.Catalog).filter(schema.Catalog.task == task).all()
 
@@ -79,14 +80,19 @@ def generate_text_data(
             print(f"Extra options for training: {extra_options}")
     except ValidationError as e:
         raise ValueError(f"Invalid extra options format: {e}")
-    
+
     genai_key = os.getenv("GENAI_KEY")
     if genai_key is None:
         raise ValueError(f"Need gen_ai key for data-generation")
-    
+
     try:
         nomad_response = submit_nomad_job(
-            str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
+            str(
+                Path(os.getcwd())
+                / "backend"
+                / "nomad_jobs"
+                / "generate_data_job.hcl.j2"
+            ),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
             platform=get_platform(),
             tag=os.getenv("TAG"),
@@ -143,10 +149,15 @@ def generate_token_data(
     genai_key = os.getenv("GENAI_KEY")
     if genai_key is None:
         raise ValueError(f"Need gen_ai key for data-generation")
-    
+
     try:
         nomad_response = submit_nomad_job(
-            str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
+            str(
+                Path(os.getcwd())
+                / "backend"
+                / "nomad_jobs"
+                / "generate_data_job.hcl.j2"
+            ),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
             platform=get_platform(),
             tag=os.getenv("TAG"),

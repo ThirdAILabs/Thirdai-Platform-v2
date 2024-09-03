@@ -303,6 +303,7 @@ def train_ndb(
         },
     )
 
+
 @train_router.post("/udt")
 def train_udt(
     model_name: str,
@@ -432,7 +433,6 @@ def train_udt(
             parent_id=base_model.id if base_model else None,
         )
 
-
         session.add(new_model)
         session.commit()
         session.refresh(new_model)
@@ -440,15 +440,19 @@ def train_udt(
         work_dir = os.getcwd()
         udt_subtype = extra_options["sub_type"]
         extra_options.pop("sub_type", None)
-        train_args = json.dumps({
-            "work_dir": str(work_dir),
-            "model_id": str(model_id),
-            "data_id": str(data_id),
-            "bolt_license_key": str(license_info["boltLicenseKey"]),
-            "extra_options": extra_options,
-            "base_model_id": ("NONE" if not base_model_identifier else str(base_model.id)),
-            "udt_subtype": udt_subtype,
-        })
+        train_args = json.dumps(
+            {
+                "work_dir": str(work_dir),
+                "model_id": str(model_id),
+                "data_id": str(data_id),
+                "bolt_license_key": str(license_info["boltLicenseKey"]),
+                "extra_options": extra_options,
+                "base_model_id": (
+                    "NONE" if not base_model_identifier else str(base_model.id)
+                ),
+                "udt_subtype": udt_subtype,
+            }
+        )
 
         if udt_subtype == "text":
             generate_text_data(
@@ -487,20 +491,23 @@ def train_udt(
         },
     )
 
+
 @train_router.post("/udt-impl")
 def train_udt_impl(
     files: List[UploadFile],
-    args_json: str = Form('{}'),
+    args_json: str = Form("{}"),
     file_details_list: Optional[str] = Form(default=None),
     session: Session = Depends(get_session),
-):  
-    try:    
+):
+    try:
         args = UDTTrainArgs.parse_raw(args_json).dict()
-        args['extra_options'] = {k: v for k, v in args['extra_options'].items() if v is not None}
+        args["extra_options"] = {
+            k: v for k, v in args["extra_options"].items() if v is not None
+        }
     except ValidationError as e:
         logger.error(traceback.format_exc())
         return {"error": "Invalid args format", "details": str(e)}
-    
+
     if file_details_list:
         try:
             files_info_list = UDTFileDetailsList.parse_raw(file_details_list)
@@ -515,14 +522,14 @@ def train_udt_impl(
             UDTFileDetails(mode=FileType.supervised, location=FileLocation.nfs)
             for _ in files
         ]
-    
+
     if len(files) != len(files_info):
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"Given {len(files)} files but for {len(files_info)} files the info has given.",
         )
 
-    filenames = get_files(files, args['data_id'], files_info)
+    filenames = get_files(files, args["data_id"], files_info)
 
     if not isinstance(filenames, list):
         return response(
@@ -542,10 +549,10 @@ def train_udt_impl(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Duplicate filenames received, please ensure each filename is unique.",
         )
-    
+
     try:
         submit_nomad_job(
-            str(Path(args['work_dir']) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
+            str(Path(args["work_dir"]) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
             platform=get_platform(),
             tag=os.getenv("TAG"),
@@ -554,24 +561,24 @@ def train_udt_impl(
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("TRAIN_IMAGE_NAME"),
             train_script=str(get_root_absolute_path() / "train_job/run.py"),
-            model_id=args['model_id'],
-            data_id=args['data_id'],
+            model_id=args["model_id"],
+            data_id=args["data_id"],
             model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
             share_dir=os.getenv("SHARE_DIR", None),
-            license_key=args['bolt_license_key'],
+            license_key=args["bolt_license_key"],
             # Having none values will cause error.
-            extra_options={k: v for k, v in args['extra_options'].items() if v is not None},
+            extra_options={
+                k: v for k, v in args["extra_options"].items() if v is not None
+            },
             python_path=get_python_path(),
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
-            base_model_id=args['base_model_id'],
+            base_model_id=args["base_model_id"],
             type="udt",
-            sub_type=args['udt_subtype'],
+            sub_type=args["udt_subtype"],
         )
     except Exception as err:
-        new_model: schema.Model = (
-            session.query(schema.Model).get(args['model_id'])
-        )
+        new_model: schema.Model = session.query(schema.Model).get(args["model_id"])
         new_model.train_status = schema.Status.failed
         session.commit()
         logger.info(str(err))
@@ -580,12 +587,12 @@ def train_udt_impl(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
         )
-    
+
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully submitted the job",
         data={
-            "model_id": args['model_id'],
+            "model_id": args["model_id"],
         },
     )
 

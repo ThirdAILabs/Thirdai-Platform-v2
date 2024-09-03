@@ -11,6 +11,7 @@ import json
 # Load general variables from environment
 general_variables: GeneralVariables = GeneralVariables.load_from_env()
 
+
 def launch_train_job(file_location: str, train_args: str):
     try:
         api_url = general_variables.model_bazaar_endpoint
@@ -20,12 +21,18 @@ def launch_train_job(file_location: str, train_args: str):
         empty_file.name = file_location
         data = {
             "args_json": train_args,
-            "file_details_list": json.dumps({"file_details": [{"mode": "supervised", "location": "nfs", "is_folder": False}]})
+            "file_details_list": json.dumps(
+                {
+                    "file_details": [
+                        {"mode": "supervised", "location": "nfs", "is_folder": False}
+                    ]
+                }
+            ),
         }
-        files = {
-            'files': (file_location, empty_file, 'text/plain')
-        }
-        response = requests.request("post", url, headers=headers, data=data, files=files)
+        files = {"files": (file_location, empty_file, "text/plain")}
+        response = requests.request(
+            "post", url, headers=headers, data=data, files=files
+        )
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as exception:
@@ -59,15 +66,27 @@ def main():
     dataset_config = factory.generate_data(**asdict(args))
     train_args_dict = json.loads(general_variables.train_args)
     if general_variables.data_category == DataCategory.text:
-        train_args_dict['extra_options']['text_column'] = dataset_config['input_feature']
-        train_args_dict['extra_options']['label_column'] = dataset_config['target_feature']
-        train_args_dict['extra_options']['n_target_classes'] = len(dataset_config['target_labels'])
+        train_args_dict["extra_options"]["text_column"] = dataset_config[
+            "input_feature"
+        ]
+        train_args_dict["extra_options"]["label_column"] = dataset_config[
+            "target_feature"
+        ]
+        train_args_dict["extra_options"]["n_target_classes"] = len(
+            dataset_config["target_labels"]
+        )
     else:
-        train_args_dict['extra_options']['source_column'] = dataset_config['input_feature']
-        train_args_dict['extra_options']['target_column'] = dataset_config['target_feature']
-        train_args_dict['extra_options']['target_labels'] = dataset_config['target_labels']
+        train_args_dict["extra_options"]["source_column"] = dataset_config[
+            "input_feature"
+        ]
+        train_args_dict["extra_options"]["target_column"] = dataset_config[
+            "target_feature"
+        ]
+        train_args_dict["extra_options"]["target_labels"] = dataset_config[
+            "target_labels"
+        ]
     train_args = json.dumps(train_args_dict)
-    launch_train_job(dataset_config['filepath'], train_args)
+    launch_train_job(dataset_config["filepath"], train_args)
 
 
 if __name__ == "__main__":

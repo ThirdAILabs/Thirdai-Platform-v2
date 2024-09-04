@@ -130,6 +130,7 @@ class NeuralDBV2(Model):
     ):
         max_cores = os.cpu_count()
         num_workers = max(1, max_cores - 6)
+        self.logger.info(f"Starting {num_workers} parsing processes")
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
             futures = [
                 executor.submit(process_file, file, doc_save_dir, tmp_dir)
@@ -220,8 +221,19 @@ class NeuralDBV2(Model):
         self.logger.info("Training process started.")
         self.reporter.report_status(self.general_variables.model_id, "in_progress")
 
+        s = time.perf_counter()
         unsupervised_files = list_files(self.data_dir / "unsupervised")
+        e = time.perf_counter()
+        self.logger.info(
+            f"Listed {len(unsupervised_files)} unsupervised files in {e-s:.4f} seconds"
+        )
+
+        s = time.perf_counter()
         supervised_files = list_files(self.data_dir / "supervised")
+        e = time.perf_counter()
+        self.logger.info(
+            f"Listed {len(supervised_files)} supervised files in {e-s:.4f} seconds"
+        )
 
         start_time = time.time()
 

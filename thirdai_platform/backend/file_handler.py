@@ -439,12 +439,9 @@ class S3StorageHandler(StorageHandler):
     ):
         s3_file_path = os.path.join(destination_dir, "s3_files.txt")
         os.makedirs(os.path.dirname(s3_file_path), exist_ok=True)
-        s3_files = self.list_s3_files(file.filename)
-        for s3_file in s3_files:
-            with open(s3_file_path, "a") as s3_file_local:
-                s3_file_local.write(s3_file + "\n")
-            self.validate_file(file_info, s3_file)
-        return s3_files
+        with open(s3_file_path, "a") as s3_file_local:
+            s3_file_local.write(file.filename + "\n")
+        return [file.filename]
 
     def list_s3_files(self, filename):
         bucket_name, prefix = filename.replace("s3://", "").split("/", 1)

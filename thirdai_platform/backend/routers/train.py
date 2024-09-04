@@ -482,7 +482,7 @@ def train_udt(
                 file_details_list=file_details_list,
                 session=session,
             )
-        else:    
+        else:
             got_args = []
             if task_prompt:
                 got_args.append(f"task_prompt")
@@ -492,7 +492,7 @@ def train_udt(
                 got_args.append(f"files")
             if file_details_list:
                 got_args.append(f"file_details_list")
-            
+
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message=f"Either provide files and file_details_list or task_prompt and datagen_options_form. Got {got_args}.",

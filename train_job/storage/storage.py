@@ -217,6 +217,7 @@ class SQLiteConnector(Connector):
             session.query(MetaData).filter(MetaData.name == name).first()
         )
         if existing_metadata:
+            # update the entry in place
             existing_metadata.serialized_data = serialized_data
         else:
             new_metadata = MetaData(
@@ -255,7 +256,7 @@ class DataStorage:
         # if per name buffer size is None then no limit on the number of samples for each name
         # this attribute is to be considered as private so that two different instances of
         # DataStorage with the same connector have same buffer size.
-        self._per_name_buffer_size = 1000
+        self._per_name_buffer_size = 100000
 
     def insert_samples(
         self, samples: typing.List[DataSamples], override_buffer_limit=False
@@ -317,6 +318,8 @@ class DataStorage:
             )
 
     def insert_metadata(self, metadata: ModelMetadata):
+        # updates the serialized data in place if another entry with the same
+        # name exists
         self.connector.insert_metadata(
             name=metadata.name,
             datatype=metadata.datatype,
@@ -324,7 +327,10 @@ class DataStorage:
         )
 
     def get_metadata(self, name):
-        datatype, serialized_data = self.connector.get_metadata(name)
-        return deserialize_metadata(
-            type=datatype, name=name, serialized_data=serialized_data
-        )
+        data = self.connector.get_metadata(name)
+        if data:
+            return deserialize_metadata(
+                type=data[0], name=name, serialized_data=data[1]
+            )
+
+        return None

@@ -8,6 +8,7 @@ import sys
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
+import typing, re
 
 import boto3
 import pandas as pd
@@ -342,3 +343,7 @@ def no_op(*args, **kwargs):
     A no-op function that does nothing.
     """
     pass
+
+
+def consistent_split(text: str, seperator: str = " ") -> typing.List[str]:
+    return re.sub("\s+", seperator, text).strip().split(sep=seperator)

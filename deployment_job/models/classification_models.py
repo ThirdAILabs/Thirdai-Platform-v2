@@ -5,6 +5,12 @@ from models.model import Model
 from pydantic_models import inputs
 from thirdai import bolt
 
+from storage.storage import DataStorage, SQLiteConnector
+from storage.data_types import (
+    TokenClassificationSample,
+    TagMetadata,
+)
+
 
 class ClassificationModel(Model):
     def __init__(
@@ -66,6 +72,8 @@ class TokenClassificationModel(ClassificationModel):
     ):
         super().__init__(model_id, model_path)
 
+        self.load_storage()
+
     def predict(self, **kwargs):
         query = kwargs["query"]
 
@@ -85,4 +93,33 @@ class TokenClassificationModel(ClassificationModel):
             query_text=query,
             tokens=query.split(),
             predicted_tags=predictions,
+        )
+
+    def load_storage(self):
+        data_storage_path = self.data_dir / "data_storage.db"
+        # connector will instantiate an sqlite db at the specified path if it doesn't exist
+        self.data_storage = DataStorage(
+            connector=SQLiteConnector(db_path=data_storage_path)
+        )
+
+    def get_tags(self):
+        # load tags and their status from the storage
+        tag_metadata = self.data_storage.get_metadata("tags_and_status")
+        return list(tag_metadata._tag_and_status.keys())
+
+    def add_tag(self, tag):
+        tag_metadata = self.data_storage.get_metadata("tags_and_status")
+        tag_metadata.update_tag_status(tag, "untrained")
+
+        # update the metadata entry in the DB
+        self.data_storage.insert_metadata(tag_metadata)
+
+    def insert_sample(self, sample: inputs.SearchResultsTokenClassification):
+        token_tag_sample = TokenClassificationSample(
+            name="ner",
+            tokens=sample.tokens,
+            tags=[tag[0] for tag in sample.predicted_tags],
+        )
+        self.data_storage.insert_samples(
+            samples=[token_tag_sample], override_buffer_limit=True
         )

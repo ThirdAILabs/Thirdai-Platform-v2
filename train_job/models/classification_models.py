@@ -2,6 +2,8 @@ import time
 from abc import abstractmethod
 from pathlib import Path
 from collections import defaultdict
+import typing
+import pandas as pd
 
 import thirdai
 from exceptional_handler import apply_exception_handler
@@ -13,7 +15,6 @@ from variables import TextClassificationVariables, TokenClassificationVariables
 
 from storage.storage import DataStorage, SQLiteConnector
 from storage.data_types import (
-    TokenClassificationFeedBack,
     TokenClassificationSample,
     TagMetadata,
 )
@@ -159,15 +160,22 @@ class TokenClassificationModel(ClassificationModel):
     def __init__(self):
         super().__init__()
         self.tkn_cls_vars = TokenClassificationVariables.load_from_env()
-        self.load_storage()
 
     def initialize_model(self):
+        # initializes the storage object for the model
+        self.load_storage()
+
         target_labels = self.tkn_cls_vars.target_labels
         default_tag = self.tkn_cls_vars.default_tag
 
+        # insert the tags into the storage to keep track of their training status
         tags_and_status = defaultdict(str, {"O": "untrained"})
         for label in target_labels:
             tags_and_status[label] = "untrained"
+
+        self.data_storage.insert_metadata(
+            metadata=TagMetadata(name="tags", tag_and_status=tags_and_status)
+        )
 
         return bolt.UniversalDeepTransformer(
             data_types={
@@ -206,6 +214,9 @@ class TokenClassificationModel(ClassificationModel):
         supervised_files = list_files(self.data_dir / "supervised")
         test_files = list_files(self.data_dir / "test")
 
+        # insert samples into data storage for later use
+        self.insert_samples_in_storage(supervised_files)
+
         start_time = time.time()
         for train_file in supervised_files:
             model.train(
@@ -237,6 +248,33 @@ class TokenClassificationModel(ClassificationModel):
                 "latency": str(latency),
             },
         )
+
+    def insert_samples_in_storage(
+        self, supervised_files: typing.List[str], buffer_size=50_000
+    ):
+        # this sampling is not uniform but we assume that there won't be many samples
+        # TODO(Shubh) : make this sampling uniform using reservoir sampling
+        df = pd.DataFrame()
+        for filename in supervised_files:
+            new_df = pd.read_csv(filename)
+            new_df = new_df[
+                [self.tkn_cls_vars.source_column, self.tkn_cls_vars.target_column]
+            ]
+
+            df = pd.concat([df, new_df])
+            df = df.sample(n=min(len(df), buffer_size))
+
+        samples = []
+
+        for index in df.index:
+            row = df.loc[index]
+            tokens = row[self.tkn_cls_vars.source_column].split()
+            tags = row[self.tkn_cls_vars.target_column].split()
+            assert len(tokens) == len(tags)
+            sample = TokenClassificationSample(name="ner", tokens=tokens, tags=tags)
+            samples.append(sample)
+
+        self.data_storage.insert_samples(samples=samples)
 
     def get_latency(self, model) -> float:
 

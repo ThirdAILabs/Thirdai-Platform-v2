@@ -668,7 +668,7 @@ def process_ndb_task(task):
 
         elif action == "delete":
             # Deserialize and load back into Pydantic model
-            source_ids = json.loads(task.get("source_ids", "[]"))
+            source_ids = task.get("source_ids", "[]")
             model.delete(source_ids=source_ids, token=task.get("token"))
             model.logger.info(
                 f"Successfully deleted sources for model_id: {model_id}, task_id: {task_id} and task_data: {task}"

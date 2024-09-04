@@ -11,18 +11,6 @@ from collections import defaultdict
 import pandas as pd
 from sqlalchemy import UUID
 
-"""
-These datatypes are helper objects for storing data into a persistent storage 
-without the hassle of saving and loading the entire object on disk.
-
-Example Usescase:
-
-NER :
-    TokenClassificationSample : Used for storing user provided training data or data generated using our datagen service.
-    TokenClassificationFeedback : Used for storing feedback given by a user about a sample. 
-    TagMetaData : Used for storing what tags are present in the pipeline along with their status (trained/untrained)
-"""
-
 
 class DataType:
 
@@ -165,8 +153,6 @@ class ModelMetadata(DataType):
 class TagMetadata(DataType):
     datatype = "token_classification_tags"
 
-    # names for metadata objects are supposed to be unique
-    # a model should not have metadata of multiple names
     def __init__(self, name, tag_and_status: typing.DefaultDict[str, str]):
         super.__init__(name)
         self._tag_and_status = tag_and_status

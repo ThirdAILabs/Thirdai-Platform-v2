@@ -1,6 +1,7 @@
 import time
 from abc import abstractmethod
 from pathlib import Path
+from collections import defaultdict
 
 import thirdai
 from exceptional_handler import apply_exception_handler
@@ -8,6 +9,14 @@ from models.model import Model
 from thirdai import bolt
 from utils import list_files
 from variables import TextClassificationVariables, TokenClassificationVariables
+
+
+from storage.storage import DataStorage, SQLiteConnector
+from storage.data_types import (
+    TokenClassificationFeedBack,
+    TokenClassificationSample,
+    TagMetadata,
+)
 
 
 @apply_exception_handler
@@ -150,10 +159,16 @@ class TokenClassificationModel(ClassificationModel):
     def __init__(self):
         super().__init__()
         self.tkn_cls_vars = TokenClassificationVariables.load_from_env()
+        self.load_storage()
 
     def initialize_model(self):
         target_labels = self.tkn_cls_vars.target_labels
         default_tag = self.tkn_cls_vars.default_tag
+
+        tags_and_status = defaultdict(str, {"O": "untrained"})
+        for label in target_labels:
+            tags_and_status[label] = "untrained"
+
         return bolt.UniversalDeepTransformer(
             data_types={
                 self.tkn_cls_vars.source_column: bolt.types.text(),
@@ -163,6 +178,25 @@ class TokenClassificationModel(ClassificationModel):
             },
             target=self.tkn_cls_vars.target_column,
         )
+
+    def load_storage(self):
+        data_storage_path = self.data_dir / "data_storage.db"
+        # connector will instantiate an sqlite db at the specified path if it doesn't exist
+        self.data_storage = DataStorage(
+            connector=SQLiteConnector(db_path=data_storage_path)
+        )
+
+    def get_tags(self):
+        # load tags and their status from the storage
+        tag_metadata = self.data_storage.get_metadata("tags_and_status")
+        return list(tag_metadata._tag_and_status.keys())
+
+    def add_tag(self, tag):
+        tag_metadata = self.data_storage.get_metadata("tags_and_status")
+        tag_metadata.update_tag_status(tag, "untrained")
+
+        # update the metadata entry in the DB
+        self.data_storage.insert_metadata(tag_metadata)
 
     def train(self, **kwargs):
         self.reporter.report_status(self.general_variables.model_id, "in_progress")

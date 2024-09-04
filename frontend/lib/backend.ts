@@ -503,6 +503,7 @@ interface WorkflowModel {
   thirdai_version: string;
   training_time: string;
   type: string;
+  train_status: string;
   user_email: string;
   username: string;
 }

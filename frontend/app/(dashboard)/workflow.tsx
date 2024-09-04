@@ -28,7 +28,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
     // Active
     // Starting
     // Error: Underlying model not present
-
+  const [isTrainingIncomplete, setIsTrainingIncomplete] = useState<boolean>(false);
   const [deployType, setDeployType] = useState<string>('');
 
   function goToEndpoint() {
@@ -89,6 +89,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
   const handleDeploy = async () => {
     try {
       if (isValid) {
+        setDeployStatus('Starting'); // set to starting because user intends to start workflow
         await start_workflow(workflow.id);
       }
     } catch (e) {
@@ -98,16 +99,17 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
   };
 
   useEffect(() => {
-    if (workflow.status === 'inactive' && deployStatus != 'Starting') {
-      // If the workflow is inactive, we always say it's inactive regardless of model statuses
-        // AND If user hasn't tried to start deploy the workflow AND
-      setDeployStatus('Inactive');
-    } else if (workflow.models && workflow.models.length > 0) {
+    if (workflow.models && workflow.models.length > 0) {
       let hasFailed = false;
       let isInProgress = false;
       let allComplete = true;
+      let trainingIncomplete = false;
   
       for (const model of workflow.models) {
+        if (model.train_status !== 'complete') {
+          trainingIncomplete = true; // Training is still ongoing for at least one model
+        }
+        
         if (model.deploy_status === 'failed') {
           hasFailed = true;
           break; // If any model has failed, no need to check further
@@ -125,14 +127,19 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         }
       }
   
-      if (hasFailed) {
+      setIsTrainingIncomplete(trainingIncomplete);
+
+      if (trainingIncomplete) {
+        setDeployStatus('Training...');
+      } else if (hasFailed) {
         setDeployStatus('Failed');
       } else if (isInProgress) {
         setDeployStatus('Starting');
       } else if (allComplete) {
         setDeployStatus('Active'); // Models are complete and workflow is active
-      } else {
-        setDeployStatus('Starting');
+      } else if (deployStatus !== 'Starting') {
+        // if user hasn't chosen to start the workflow, we want to set it to Inactive
+        setDeployStatus('Inactive');
       }
     } else {
       // If no models are present, the workflow is ready to deploy
@@ -158,6 +165,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         return 'bg-yellow-500 text-white'; // Yellow for in-progress status
       case 'Inactive':
         return 'bg-gray-500 text-white'; // Gray for inactive status
+      case 'Training...':
+        return 'bg-blue-500 text-white'; // New color for training
       case 'Failed':
       case 'Error: Underlying model not present':
         return 'bg-red-500 text-white'; // Red for error statuses
@@ -206,12 +215,14 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           onClick={deployStatus === 'Active' ? goToEndpoint : handleDeploy}
           className="text-white focus:ring-4 focus:outline-none font-medium text-sm p-2.5 text-center inline-flex items-center me-2"
           style={{ width: '100px' }}
-          disabled={['Failed', 'Starting', 'Error: Underlying model not present'].includes(deployStatus)}
+          disabled={isTrainingIncomplete || ['Failed', 'Starting', 'Error: Underlying model not present'].includes(deployStatus)}
         >
-          {deployStatus === 'Active' 
-            ? 'Endpoint' 
-            : deployStatus === 'Inactive' 
-            ? 'Start' 
+          {isTrainingIncomplete 
+            ? 'Training...' // New text when training is incomplete
+            : deployStatus === 'Active'
+            ? 'Endpoint'
+            : deployStatus === 'Inactive'
+            ? 'Start'
             : deployStatus === 'Failed' || deployStatus === 'Error: Underlying model not present'
             ? 'Start'
             : 'Endpoint'}

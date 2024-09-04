@@ -11,8 +11,8 @@ import pickle
 import shutil
 import tempfile
 import traceback
-import uuid
 from abc import abstractmethod
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -95,7 +95,7 @@ class NDBModel(Model):
         raise NotImplementedError
 
     @abstractmethod
-    def save_ndb(self, **kwargs: Any) -> None:
+    def save(self, **kwargs: Any) -> None:
         """
         Saves the NDB model.
         """
@@ -107,16 +107,16 @@ class NDBV1Model(NDBModel):
     Base class for NeuralDBV1 (NDB) models.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, write_mode: bool = False) -> None:
         """
         Initializes NDB model with paths and NeuralDB.
         """
         super().__init__()
         self.model_path: Path = self.model_dir / "model.ndb"
-        self.db: ndb.NeuralDB = self.load_ndb()
+        self.db: ndb.NeuralDB = self.load(write_mode=write_mode)
 
     @abstractmethod
-    def load_ndb(self) -> ndb.NeuralDB:
+    def load(self, write_mode: bool = False) -> ndb.NeuralDB:
         """
         Loads the NDB model.
         """
@@ -129,7 +129,7 @@ class NDBV1Model(NDBModel):
         return self.get_model_dir(model_id) / "model.ndb"
 
     def upvote(
-        self, text_id_pairs: List[inputs.UpvoteInputSingle], token: str, **kwargs: Any
+        self, text_id_pairs: List[inputs.UpvoteInputSingle], **kwargs: Any
     ) -> None:
         """
         Upvotes entries in the NDB model.
@@ -140,22 +140,6 @@ class NDBV1Model(NDBModel):
                 (text_id_pair.query_text, text_id_pair.reference_id)
                 for text_id_pair in text_id_pairs
             ]
-        )
-
-        train_samples = [
-            {
-                "query_text": text_id_pair.query_text,
-                "reference_id": str(text_id_pair.reference_id),
-                "reference_text": self.db._get_text(text_id_pair.reference_id),
-            }
-            for text_id_pair in text_id_pairs
-        ]
-
-        self.reporter.log(
-            action="upvote",
-            model_id=self.general_variables.model_id,
-            train_samples=train_samples,
-            access_token=token,
         )
 
     def predict(self, query: str, top_k: int, **kwargs: Any) -> inputs.SearchResultsNDB:
@@ -197,7 +181,7 @@ class NDBV1Model(NDBModel):
         )
 
     def associate(
-        self, text_pairs: List[inputs.AssociateInputSingle], token: str, **kwargs: Any
+        self, text_pairs: List[inputs.AssociateInputSingle], **kwargs: Any
     ) -> None:
         """
         Associates entries in the NDB model.
@@ -206,14 +190,6 @@ class NDBV1Model(NDBModel):
             text_pairs=[
                 (text_pair.source, text_pair.target) for text_pair in text_pairs
             ]
-        )
-
-        train_samples = [pair.dict() for pair in text_pairs]
-        self.reporter.log(
-            action="associate",
-            model_id=self.general_variables.model_id,
-            train_samples=train_samples,
-            access_token=token,
         )
 
     def sources(self) -> List[Dict[str, str]]:
@@ -242,6 +218,7 @@ class NDBV1Model(NDBModel):
             model_id=self.general_variables.model_id,
             access_token=token,
             train_samples=[{"source_ids": " ".join(source_ids)}],
+            used=True,
         )
 
     def insert(self, **kwargs: Any) -> List[Dict[str, str]]:
@@ -249,6 +226,7 @@ class NDBV1Model(NDBModel):
         Inserts documents into the NDB model.
         """
         documents = kwargs.get("documents")
+
         ndb_docs = create_ndb_docs(documents, self.data_dir)
 
         source_ids = self.db.insert(sources=ndb_docs)
@@ -257,7 +235,8 @@ class NDBV1Model(NDBModel):
             action="insert",
             model_id=self.general_variables.model_id,
             access_token=kwargs.get("token"),
-            train_samples=[{"sources_ids": " ".join(source_ids)}],
+            train_samples=[({"sources_ids": " ".join(source_ids)})],
+            used=True,
         )
 
         return [
@@ -285,19 +264,19 @@ class SingleNDB(NDBV1Model):
     Single instance of the NDB model.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, write_mode: bool = False) -> None:
         """
         Initializes a single NDB model.
         """
-        super().__init__()
+        super().__init__(write_mode)
 
-    def load_ndb(self) -> ndb.NeuralDB:
+    def load(self, write_mode: bool = False) -> ndb.NeuralDB:
         """
         Loads the NDB model from a model path.
         """
-        return ndb.NeuralDB.from_checkpoint(self.model_path)
+        return ndb.NeuralDB.from_checkpoint(self.model_path, read_only=not write_mode)
 
-    def save_ndb(self, **kwargs: Any) -> None:
+    def save(self, **kwargs: Any) -> None:
         """
         Saves the NDB model to a model path.
         """
@@ -322,7 +301,7 @@ class SingleNDB(NDBV1Model):
                     shutil.rmtree(backup_path.parent)
 
         except Exception as err:
-            logging.error(f"Failed while saving with error: {err}")
+            self.logger.error(f"Failed while saving with error: {err}")
             traceback.print_exc()
 
             if "backup_path" in locals() and backup_path.exists():
@@ -339,17 +318,17 @@ class ShardedNDB(NDBV1Model):
     Sharded instance of the NDB model.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, write_mode: bool = False) -> None:
         """
         Initializes a sharded NDB model.
         """
-        super().__init__()
+        super().__init__(write_mode)
 
-    def load_ndb(self) -> ndb.NeuralDB:
+    def load(self, write_mode: bool = False) -> ndb.NeuralDB:
         """
         Loads the sharded NDB model from model path.
         """
-        db = ndb.NeuralDB.from_checkpoint(self.model_path)
+        db = ndb.NeuralDB.from_checkpoint(self.model_path, read_only=not write_mode)
 
         for i in range(db._savable_state.model.num_shards):
 
@@ -371,7 +350,7 @@ class ShardedNDB(NDBV1Model):
 
         return db
 
-    def save_ndb(self, **kwargs: Any) -> None:
+    def save(self, **kwargs: Any) -> None:
         """
         Saves the sharded NDB model to model path.
         """
@@ -421,7 +400,7 @@ class ShardedNDB(NDBV1Model):
                     shutil.rmtree(backup_dir)
 
         except Exception as err:
-            logging.error(f"Failed while saving with error: {err}")
+            self.logger.error(f"Failed while saving with error: {err}")
             traceback.print_exc()
 
             if backup_dir and backup_dir.exists():
@@ -625,7 +604,7 @@ class NDBV2Model(NDBModel):
             "boxes": [ast.literal_eval(c.metadata["chunk_boxes"]) for c in chunks],
         }
 
-    def save_ndb(self, model_id: str, **kwargs) -> None:
+    def save(self, model_id: str, **kwargs) -> None:
         def ndb_path(model_id: str):
             return self.get_model_dir(model_id) / "model.ndb"
 

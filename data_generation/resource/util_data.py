@@ -114,7 +114,7 @@ random_prompts = {
             "add stylistic elements (figurative language, literary devices, sensory details, dialogue)",
             "add contextual or background information",
             "incorporate specific elements (mystery, suspense, surprise, humor, jargon, rhetorical devices)",
-            "Include datetime in a random format, location, event and related numerical data"
+            "Include datetime in a random format, location, event and related numerical data",
         ],
         "scores": [
             0.1,

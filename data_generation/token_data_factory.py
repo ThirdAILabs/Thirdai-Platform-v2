@@ -7,12 +7,18 @@ from resource.token_prompts import (
     tag_value_prompt,
     template_prompt,
 )
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from data_factory_interface import DataFactory
 from faker import Faker
 from tqdm import tqdm
-from utils import consistent_split, remove_duplicates, save_dict, write_to_csv, update_json
+from utils import (
+    consistent_split,
+    remove_duplicates,
+    save_dict,
+    shuffle_and_filter,
+    write_to_csv,
+)
 from variables import Entity
 
 
@@ -62,29 +68,32 @@ class TokenDataFactory(DataFactory):
         values_to_generate: int,
         generate_at_a_time: int = 100,
     ) -> Dict[str, List[str]]:
-        complete_tag_examples = defaultdict(list)
+        complete_tag_values = defaultdict(list)
 
         for tag in tqdm(tags, desc="Generating values for tags: ", leave=False):
-            complete_tag_examples[tag.name].extend(tag.examples)
+            complete_tag_values[tag.name].extend(tag.examples)
 
             # Trying to generate more examples from faker
             samples = self.get_fake_tag_values(
                 tag.name,
-                num_samples=values_to_generate,
+                num_samples=int(
+                    values_to_generate * 1.5
+                ),  # Assuming after removing duplicates, we'll have `values_to_generate` tag values
             )
             if samples:
-                complete_tag_examples[tag.name].extend(samples)
+                save_dict(
+                    write_to=self.save_dir / "tags_value.json", **complete_tag_values
+                )
+                complete_tag_values[tag.name].extend(samples)
                 continue
 
             # Not able to generate by faker so, generating samples by llm
-            sampled_tag_examples = random.sample(
+            sampled_tag_values = random.sample(
                 tag.examples, k=min(3, len(tag.examples))
             )
 
             arguments = []
-            for idx in range(
-                0, values_to_generate, generate_at_a_time
-            ):
+            for idx in range(0, values_to_generate, generate_at_a_time):
                 arguments.append(
                     {
                         "prompt": tag_value_prompt.format(
@@ -94,13 +103,11 @@ class TokenDataFactory(DataFactory):
                                 values_to_generate - idx,
                             ),
                             tag=tag.name,
-                            tag_example=str(sampled_tag_examples),
+                            tag_example=str(sampled_tag_values),
                             tag_description=tag.description,
                         ),
                     }
                 )
-            
-            random.shuffle(arguments)
             total_chunks = len(arguments) // self.write_chunk_size + 1
 
             # TODO(Gautam): If there are limited values to a tag, only should make call to get those many values atmost.
@@ -108,7 +115,7 @@ class TokenDataFactory(DataFactory):
                 range(0, len(arguments), self.write_chunk_size),
                 desc=f"Generating {tag.name} values: ",
                 total=total_chunks,
-                leave = False
+                leave=False,
             ):
                 chunks_to_process = arguments[idx : idx + self.write_chunk_size]
 
@@ -122,25 +129,17 @@ class TokenDataFactory(DataFactory):
                     for value in res["response_text"].split("\n")
                 ]
 
-                complete_tag_examples[tag.name].extend(
-                    remove_duplicates(generated_tag_values)
-                )
+                complete_tag_values[tag.name].extend(generated_tag_values)
                 save_dict(
-                    write_to = self.save_dir / "tags_value.json", **complete_tag_examples
+                    write_to=self.save_dir / "tags_value.json", **complete_tag_values
                 )
 
-        return complete_tag_examples
-
-    def get_templatized_examples(self, tags: List[Entity], k: int = 2):
-        return self.llm_model.completion(
-            template_prompt.format(
-                tags=", ".join([tag.name for tag in tags]),
-                tags_description="\n".join(
-                    [f"{tag.name}: {tag.description}" for tag in tags]
-                ),
-                k=k,
-            )
-        )
+        complete_tag_values = {
+            tag_name: remove_duplicates(values)
+            for tag_name, values in complete_tag_values.items()
+        }
+        save_dict(write_to=self.save_dir / "tags_value.json", **complete_tag_values)
+        return complete_tag_values
 
     def train_test_tag_split(
         self,
@@ -172,14 +171,18 @@ class TokenDataFactory(DataFactory):
         return train_tags, test_tags
 
     def train_test_template_split(
-        self, templates: List[str], shuffle: bool = True, save: bool = True
+        self,
+        templates: List[str],
+        test_size: float = 0.0,
+        shuffle: bool = True,
+        save: bool = True,
     ):
         templates = list(filter(lambda x: x not in [None, [], {}, ""], templates))
 
         if shuffle:
             random.shuffle(templates)
 
-        if not self.general_variables.test_size:
+        if not test_size:
             if save:
                 write_to_csv(
                     path=self.save_dir / "train" / "templates.csv",
@@ -189,7 +192,7 @@ class TokenDataFactory(DataFactory):
 
             return templates, None
 
-        split_index = int(len(templates) * (1 - self.general_variables.test_size))
+        split_index = int(len(templates) * (1 - test_size))
         train_templates, test_templates = (
             templates[:split_index],
             templates[split_index:],
@@ -212,12 +215,12 @@ class TokenDataFactory(DataFactory):
             num_sentences_to_generate - self.train_sentences_generated
         ) // self.sentences_per_template
 
-    def _subsample_tag(self, tags: List[Entity]):
+    def _subsample_tag(self, tags: List[Entity], k: int = 4):
         # using triangular distribution to favour longer lists by setting mode = high.
         # k = math.ceil(random.triangular(low=1, high=len(tags), mode=len(tags)))
         # return random.sample(tags, k)
 
-        return random.sample(tags, min(len(tags), 4))
+        return random.sample(tags, min(len(tags), k))
 
     def generate_data(
         self,
@@ -231,7 +234,7 @@ class TokenDataFactory(DataFactory):
         tag_values = self.get_complete_tag_values(
             domain_prompt=domain_prompt,
             tags=tags,
-            num_examples_to_generate=tag_values_to_generate
+            values_to_generate=tag_values_to_generate
             or (templates_to_generate * self.sentences_per_template),
         )
 
@@ -242,16 +245,12 @@ class TokenDataFactory(DataFactory):
             save=True,
         )
 
-        templatized_sentences_examples = self.get_templatized_examples(
-            tags=random.sample(tags, k=min(10, len(tags))), k=2
-        )
-
         arguments = []
         for current_sentence_idx in range(
             0, templates_to_generate, self.generate_at_a_time
         ):
             # TODO(anyone): we should also add the [user_tag -> examples] in dataset_generation_prompt.
-            sampled_tags = self._subsample_tag(tags)
+            sampled_tags = self._subsample_tag(tags, k=4)
 
             arguments.append(
                 {
@@ -263,12 +262,17 @@ class TokenDataFactory(DataFactory):
                         ),
                         tags_info="\n\n".join(
                             [
-                                f"Tag: {tag.name}\nDescription: {tag.description} Also possible variation of {tag.name.lower()} fromats.\nExample: {str(random.sample(complete_tag_examples[tag.name], k = 2))} not limited to given but variations as well"
+                                f"""
+Tag: {tag.name}
+Description: {tag.description}. Also include possible variation of {tag.name.lower()} formats.
+Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given but variations as well.
+""".strip(
+                                    "\n"
+                                )
                                 for tag in sampled_tags
                             ]
                         ),
-                        value_requirements="\n- ".join(self.get_random_prompts(k= 2)),
-                        templatized_sentences_examples=templatized_sentences_examples,
+                        value_requirements="\n- ".join(self.get_random_prompts(k=2)),
                     ),
                     "system_prompt": f"You are a helpful assistant designed to generate synthetic data for domain {domain_prompt}.",
                 }
@@ -295,37 +299,18 @@ class TokenDataFactory(DataFactory):
             ]
 
             train_templates, test_templates = self.train_test_template_split(
-                templates=templates, shuffle=True, save=True
+                templates=templates, test_size = self.general_variables.test_size, shuffle=True, save=True
             )
             train_datapoints = [
                 item
                 for template in train_templates
                 for item in self.fill_and_transform(
                     template=template,
-                    tag_values=train_tag_examples,
+                    tag_values=train_tag_values,
                     sentences_to_generate=self.sentences_per_template,
                 )
             ]
-            random.shuffle(train_datapoints)
-            train_datapoints = list(
-                filter(lambda x: x not in [None, [], {}, ""], train_datapoints)
-            )
-
-            if test_templates:
-                test_datapoints = [
-                    item
-                    for template in test_templates
-                    for item in self.fill_and_transform(
-                        template=template,
-                        tag_values=test_tag_examples,
-                        sentences_to_generate=1,
-                    )
-                ]
-                random.shuffle(test_datapoints)
-                test_datapoints = list(
-                    filter(lambda x: x not in [None, [], {}, ""], test_datapoints)
-                )
-
+            train_datapoints = shuffle_and_filter(train_datapoints)
             self.write_on_file(
                 train_datapoints,
                 fieldnames=[
@@ -336,16 +321,28 @@ class TokenDataFactory(DataFactory):
             )
             self.train_sentences_generated += len(train_datapoints)
 
-            # if self.general_variables.test_size:
-            #     self.write_on_file(
-            #         test_datapoints,
-            #         fieldnames=[
-            #             TokenDataFactory.SOURCE_COLUMN,
-            #             TokenDataFactory.TARGET_COLUMN,
-            #         ],
-            #         is_train_file=False,
-            #     )
-            #     self.test_sentences_generated += len(test_datapoints)
+            if test_templates:
+                test_datapoints = [
+                    item
+                    for template in test_templates
+                    for item in self.fill_and_transform(
+                        template=template,
+                        tag_values=test_tag_values,
+                        sentences_to_generate=1,
+                    )
+                ]
+                test_datapoints = shuffle_and_filter(test_datapoints)
+
+                if len(test_datapoints) > 0:
+                    self.write_on_file(
+                        test_datapoints,
+                        fieldnames=[
+                            TokenDataFactory.SOURCE_COLUMN,
+                            TokenDataFactory.TARGET_COLUMN,
+                        ],
+                        is_train_file=False,
+                    )
+                self.test_sentences_generated += len(test_datapoints)
 
         dataset_config = {
             "filepath": str(self.train_file_location),

@@ -149,10 +149,10 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
 
     let formData = new FormData();
     formData.append('form', JSON.stringify({
-        domain_prompt: "personal identifiable information.",
+        domain_prompt: "personal identifiable information",
         tags: tags,
-        num_sentences_to_generate: 20000,
-        num_samples_per_tag: 20
+        num_sentences_to_generate: 300,
+        // tag_values_to_generate: 20
       }));
 
     axios.defaults.headers.common.Authorization = `Bearer ${getAccessToken()}`;

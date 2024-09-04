@@ -17,17 +17,17 @@ Description of the tags:
 {tags_description}
 
 Here are example templates for the tags [CARDHOLDER_NAME, EXPIRATION_DATE] on the domain of payment information.
--   [CARDHOLDER_NAME] and his friend john tried to dupe the credit card company by reporting their transaction with the card [PAN] as fradulent on 9th august.
--   In the month of december, the card was expired but the expiration date mentioned was [EXPIRATION_DATE].
+-  [CARDHOLDER_NAME] and his friend john tried to dupe the credit card company by reporting their transaction with the card [PAN] as fradulent on 9th august.
+-  In the month of december, the card was expired but the expiration date mentioned was [EXPIRATION_DATE].
 
 Key Requirements:
--   Each template should start on a new line and with no bulleting, header/footer or any steps involved. 
--   Make sure to include at least two tags in each sentence.
+-  Each template should start on a new line and with no bulleting, header/footer or any steps involved. 
+-  Make sure to include at least two tags in each sentence.
 
 ** IMPORTANT POINT:
--  These Entities would be filled later so make sure these samples would make sense after being filled. Here are some incorrect and correct samples for the tag [MEDICAL_INFO]
-      Incorrect sample: My [MEDICAL_INFO] should remain confidential to protect my personal interest.
-      Correct Sample: My condition due to [MEDICAL_INFO] should remain confidential to protect my personal interest.
+-  These templates would be filled later so make sure these templates would make sense after being filled. Here is one incorrect & correct templates for the tags [MEDICAL_INFO]
+      Incorrect templates: My [MEDICAL_INFO] should remain confidential to protect my personal interest.
+      Correct templates: My condition due to [MEDICAL_INFO] should remain confidential to protect my personal interest.
 """
 
 dataset_generation_prompt = """The goal is to create a dataset for entity recognition. Please generate {num_to_generate} templates associated with given below tags for {domain_prompt}
@@ -37,10 +37,12 @@ Tags with their description and example:
 
 Following are some sample output format for generation. This is just for example and you should not mimic this pattern.
 
-{templatized_sentences_examples}
+For example, here are some templates for the tags [CARDHOLDER_NAME, EXPIRATION_DATE] on the domain of payment information.
+- [CARDHOLDER_NAME] and his friend john tried to dupe the credit card company by reporting their transaction with the card [PAN] as fradulent on 9th august.
+- In the month of december, the card was expired but the expiration date mentioned was [EXPIRATION_DATE].
 
 Key Requirements:
-- Include words that could be interpreted as tag but are actually not similar to the examples and not redacting those words.
+- Include words that could be interpreted as tag but are actually not, as depicted in the above examples.
 - {value_requirements}
 
 Output format:
@@ -48,7 +50,7 @@ Output format:
 -  DO NOT include any bulleting, header/footer or enumeration. Do not include any quotes or emojis.
 
 ** IMPORTANT POINT:
--  These templates would be filled later so make sure these samples would make sense after being filled. Here are some incorrect and correct templates for the tags MEDICAL_INFO
-      Incorrect sample: My [MEDICAL_INFO] should remain confidential to protect my personal interest.
-      Correct Sample: My condition due to [MEDICAL_INFO] should remain confidential to protect my personal interest.
+-  These templates would be filled later so make sure these templates would make sense after being filled. Here is one incorrect & correct templates for the tags [MEDICAL_INFO]
+      Incorrect templates: My [MEDICAL_INFO] should remain confidential to protect my personal interest.
+      Correct templates: My condition due to [MEDICAL_INFO] should remain confidential to protect my personal interest.
 """

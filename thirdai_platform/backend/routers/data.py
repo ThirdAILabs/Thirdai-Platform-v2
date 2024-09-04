@@ -149,7 +149,7 @@ class TokenClassificationGenerateArgs(BaseModel):
     domain_prompt: str
     tags: List[Entity]
     num_sentences_to_generate: int
-    num_samples_per_tag: int = 4
+    tag_values_to_generate: Optional[int] = None
     allocation_cores: Optional[int] = None
     allocation_memory: Optional[int] = None
 

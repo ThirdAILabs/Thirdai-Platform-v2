@@ -115,13 +115,6 @@ class NDBV1Model(NDBModel):
         self.model_path: Path = self.model_dir / "model.ndb"
         self.db: ndb.NeuralDB = self.load(write_mode=write_mode)
 
-    @abstractmethod
-    def load(self, write_mode: bool = False) -> ndb.NeuralDB:
-        """
-        Loads the NDB model.
-        """
-        pass
-
     def get_ndb_path(self, model_id: str) -> Path:
         """
         Returns the NDB model path for the given model ID.
@@ -423,7 +416,7 @@ class NDBV2Model(NDBModel):
     def __init__(self):
         super().__init__()
 
-        self.db = ndbv2.NeuralDB.load(self.ndb_save_path())
+        self.db = self.load()
 
     def ndb_save_path(self):
         return os.path.join(self.model_dir, "model.ndb")
@@ -603,6 +596,9 @@ class NDBV2Model(NDBModel):
             "text": [c.text for c in chunks],
             "boxes": [ast.literal_eval(c.metadata["chunk_boxes"]) for c in chunks],
         }
+
+    def load(self, **kwargs) -> ndbv2.NeuralDB:
+        return ndbv2.NeuralDB.load(self.ndb_save_path())
 
     def save(self, model_id: str, **kwargs) -> None:
         def ndb_path(model_id: str):

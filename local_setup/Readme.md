@@ -23,7 +23,7 @@ Without this process, it is cumbersome to test out platform changes. We would ha
        pip3 install -r train_job/requirements.txt
        pip3 install -r deployment_job/requirements.txt
        pip3 install -r thirdai_platform/requirements.txt
-       pip3 install -r llm_generation_job/requirements.txt
+       pip3 install -r llm_dispatch_job/requirements.txt
        ```
    - Open a terminal session and run:
      ```
@@ -88,7 +88,13 @@ Without this process, it is cumbersome to test out platform changes. We would ha
       uvicorn main:app --reload --host 0.0.0.0 --port 8000
       ```
 
-8. **Insert existing datasets in DB:**
+8. **Launch Autoscaler Job**
+    - Start the Autoscaler job using the following command, first cd into `local_setup` folder and run
+      ```
+      nomad job run -var="nomad_endpoint=$(nomad agent-info | grep 'known_servers' | awk '{print $3}' | sed 's/:4647//')" autoscaler.nomad
+      ```
+
+9. **Insert existing datasets in DB:**
     - These existing datasets are present in the share directory of blade. 
     - Make sure you are on blade when you insert the datasets
     - Go to `thirdai_platform` folder and run

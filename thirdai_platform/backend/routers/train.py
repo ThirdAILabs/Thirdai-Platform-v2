@@ -307,11 +307,13 @@ def train_ndb(
 @train_router.post("/udt")
 def train_udt(
     model_name: str,
-    task_prompt: str,
-    llm_provider: LLMProvider = LLMProvider.openai,
+    files: Optional[List[UploadFile]] = None,
+    file_details_list: Optional[str] = Form(default=None),
     base_model_identifier: Optional[str] = None,
     extra_options_form: str = Form(default="{}"),
-    datagen_options_form: str = Form(default="{}"),
+    task_prompt: Optional[str] = None,
+    llm_provider: LLMProvider = LLMProvider.openai,
+    datagen_options_form: Optional[str] = Form(default=None),
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
@@ -454,23 +456,46 @@ def train_udt(
             }
         )
 
-        if udt_subtype == "text":
-            generate_text_data(
-                task_prompt=task_prompt,
-                data_id=str(data_id),
-                form=datagen_options_form,
-                train_args=train_args,
-                license_key=license_info["boltLicenseKey"],
-                llm_provider=llm_provider,
+        if task_prompt and datagen_options_form:
+            if udt_subtype == "text":
+                generate_text_data(
+                    task_prompt=task_prompt,
+                    data_id=str(data_id),
+                    form=datagen_options_form,
+                    train_args=train_args,
+                    license_key=license_info["boltLicenseKey"],
+                    llm_provider=llm_provider,
+                )
+            else:
+                generate_token_data(
+                    task_prompt=task_prompt,
+                    data_id=str(data_id),
+                    form=datagen_options_form,
+                    train_args=train_args,
+                    license_key=license_info["boltLicenseKey"],
+                    llm_provider=llm_provider,
+                )
+        elif files and file_details_list:
+            train_udt_impl(
+                files=files,
+                args_json=train_args,
+                file_details_list=file_details_list,
+                session=session,
             )
-        else:
-            generate_token_data(
-                task_prompt=task_prompt,
-                data_id=str(data_id),
-                form=datagen_options_form,
-                train_args=train_args,
-                license_key=license_info["boltLicenseKey"],
-                llm_provider=llm_provider,
+        else:    
+            got_args = []
+            if task_prompt:
+                got_args.append(f"task_prompt")
+            if datagen_options_form:
+                got_args.append(f"datagen_options_form")
+            if files:
+                got_args.append(f"files")
+            if file_details_list:
+                got_args.append(f"file_details_list")
+            
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Either provide files and file_details_list or task_prompt and datagen_options_form. Got {got_args}.",
             )
 
     except Exception as err:

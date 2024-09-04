@@ -68,7 +68,7 @@ EOF
 
       template {
         env         = true
-        destination = "${NOMAD_SECRETS_DIR}/env.vars"
+        destination = "${NOMAD_SECRETS_DIR}/redis_env.vars"
         data = <<EOF
 {% raw %}
 {{ range nomadService "redis" }}
@@ -158,7 +158,7 @@ EOF
 
       template {
         env         = true
-        destination = "${NOMAD_SECRETS_DIR}/env.vars"
+        destination = "${NOMAD_SECRETS_DIR}/redis_env.vars"
         data = <<EOF
 {% raw %}
 {{ range nomadService "redis" }}
@@ -204,7 +204,11 @@ EOF
           ]
         {% endif %}
         command = "{{ python_path }}"
-        args = ["{{ deployment_app_dir }}/worker.py"]  # The script that should be run in both platforms
+        {% if platform == "docker" %}
+          args = ["worker.py"]
+        {% elif platform == "local" %}
+          args = ["{{ deployment_app_dir }}/worker.py"]
+        {% endif %}
       }
 
       resources {

@@ -1,8 +1,9 @@
 import csv
 import json
+import os
 import random
 import re
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 def save_dict(write_to: str, **kwargs):
@@ -10,29 +11,32 @@ def save_dict(write_to: str, **kwargs):
         json.dump(kwargs, fp, indent=4)
 
 
-def assert_sufficient_examples(
-    target_labels: List[str], examples: Dict[str, List[str]]
-):
-    missing_examples = [label for label in target_labels if label not in examples]
-    if missing_examples:
-        raise ValueError(
-            f"Examples are not given for all labels. Labels with missing examples: {', '.join(missing_examples)}"
-        )
+def consistent_split(text: str, seperator: str = " ") -> List[str]:
+    return re.sub("\s+", seperator, text).strip().split(sep=seperator)
 
 
-def assert_sufficient_descriptions(
-    target_labels: List[str], labels_description: Dict[str, str]
-):
-    missing_description = [
-        label for label in target_labels if label not in labels_description
-    ]
-    if missing_description:
-        raise ValueError(
-            f"Descriptions are not given for all labels. Labels with missing descriptions: {', '.join(missing_description)}"
-        )
+def remove_duplicates(words: List[str]):
+    seen = set()
+    uniques = []
+    for item in words:
+        if item and not bool(re.fullmatch(r"^\s*$", item)) and item.lower() not in seen:
+            seen.add(item.lower())
+            uniques.append(item)
+
+    return uniques
 
 
-def subsample_dictionary(data: Dict[str, List[str]], k=2):
-    return {
-        key: random.sample(values, min(k, len(values))) for key, values in data.items()
-    }
+def shuffle_and_filter(data_points: List):
+    random.shuffle(data_points)
+    return list(filter(lambda x: x not in [None, [], {}, ""], data_points))
+
+
+def write_to_csv(path: str, data_points: List[str], header: List[str]):
+    if os.path.exists(path):
+        mode = "a"
+    else:
+        mode = "w"
+    with open(path, mode) as csv_file:
+        csv_writer = csv.DictWriter(csv_file, fieldnames=header)
+        csv_writer.writeheader()
+        csv_writer.writerows(data_points)

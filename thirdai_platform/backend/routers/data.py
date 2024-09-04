@@ -56,11 +56,15 @@ class LLMProvider(str, Enum):
     cohere = "cohere"
 
 
+class Entity(BaseModel):
+    name: str
+    examples: List[str]
+    description: str
+
+
 class TextClassificationGenerateArgs(BaseModel):
     samples_per_label: int
-    target_labels: List[str]
-    examples: Dict[str, List[str]]
-    labels_description: Dict[str, str]
+    target_labels: List[Entity]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
     vocab_per_sentence: int = 4
@@ -74,7 +78,7 @@ def generate_text_data(
     llm_provider: LLMProvider = LLMProvider.openai,
     form: str = Form(default="{}"),
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    # authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:
@@ -143,10 +147,9 @@ def generate_text_data(
 
 class TokenClassificationGenerateArgs(BaseModel):
     domain_prompt: str
-    tags: List[str]
-    tag_examples: Dict[str, List[str]]
+    tags: List[Entity]
     num_sentences_to_generate: int
-    num_samples_per_tag: int = 4
+    tag_values_to_generate: Optional[int] = None
     allocation_cores: Optional[int] = None
     allocation_memory: Optional[int] = None
 
@@ -157,8 +160,9 @@ def generate_token_data(
     llm_provider: LLMProvider = LLMProvider.openai,
     form: str = Form(default="{}"),
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    # authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    # print(f"Received form data: {form}")
     # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:
         extra_options = TokenClassificationGenerateArgs.model_validate_json(

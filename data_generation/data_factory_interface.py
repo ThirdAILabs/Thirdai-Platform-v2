@@ -1,5 +1,4 @@
 import csv
-import json
 import random
 import traceback
 from abc import ABC, abstractmethod
@@ -9,6 +8,7 @@ from typing import Dict, List, Optional
 
 from llms import llm_classes
 from tqdm import tqdm
+from utils import save_dict
 from variables import GeneralVariables
 
 
@@ -17,19 +17,37 @@ class DataFactory(ABC):
         self.general_variables: GeneralVariables = GeneralVariables.load_from_env()
         self.save_dir = (
             Path(self.general_variables.model_bazaar_dir)
+            / "generated_data"
             / self.general_variables.data_id
         )
-        self.save_dir.mkdir(parents=True, exist_ok=True)
         self.llm_model = llm_classes.get(self.general_variables.llm_provider.value)(
-            api_key=self.general_variables.genai_key
+            api_key=self.general_variables.genai_key, save_dir=self.save_dir
         )
-        self.train_file_location = self.save_dir / "train.csv"
+
+        self.train_dir = self.save_dir / "train"
+        self.test_dir = self.save_dir / "test"
+        self.train_dir.mkdir(parents=True, exist_ok=True)
+        self.train_file_location = self.train_dir / "train.csv"
+
+        if self.general_variables.test_size:
+            self.test_dir.mkdir(parents=True, exist_ok=True)
+            self.test_file_location = self.test_dir / "test.csv"
+            self.test_sentences_generated = 0
+
         self.errored_file_location = self.save_dir / "traceback.err"
         self.config_file_location = self.save_dir / "config.json"
         self.generation_args_location = self.save_dir / "generation_args.json"
 
         self.generate_at_a_time = 40
-        self.write_chunk_size = 50
+        self.write_chunk_size = 10
+
+        if self.train_file_location.exists():
+            with open(self.train_file_location, "r") as f:
+                self.train_sentences_generated = (
+                    sum(1 for _ in csv.reader(f)) - 1
+                )  # Exculding the header
+        else:
+            self.train_sentences_generated = 0
 
     @abstractmethod
     def generate_data(self, **kwargs):
@@ -44,9 +62,8 @@ class DataFactory(ABC):
         return random.sample(population=vocabulary, k=k)
 
     def get_random_prompts(self, k: int = 1):
-        # Don't have weighted random.choice() functionality.
         return [
-            random.choices(items["prompts"], weights=items["scores"], k=k)[0]
+            ". ".join(random.sample(items["prompts"], k=k))
             for items in random_prompts.values()
         ]
 
@@ -102,29 +119,56 @@ class DataFactory(ABC):
 
         return data_points
 
-    def write_on_training_file(
+    def write_on_file(
         self,
         data_points: List[Dict[str, str]],
         fieldnames: List[str],
-        write_fields: bool = True,
+        is_train_file: bool = True,
         newline: Optional[str] = None,
         encoding: Optional[str] = None,
     ):
         try:
             with open(
-                self.train_file_location, "a", newline=newline, encoding=encoding
+                (
+                    self.train_file_location
+                    if is_train_file
+                    else self.test_file_location
+                ),
+                "a",
+                newline=newline,
+                encoding=encoding,
             ) as csv_file:
                 csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-                if write_fields:
+
+                if (is_train_file and self.train_sentences_generated == 0) or (
+                    not is_train_file and self.test_sentences_generated == 0
+                ):
                     csv_writer.writeheader()
                 csv_writer.writerows(data_points)
+
         except Exception as e:
             with open(self.errored_file_location, mode="a") as errored_fp:
                 errored_fp.write(
                     "\nError while writing on train file " + "-" * 20 + "\n"
                 )
                 traceback.print_exc(file=errored_fp)
-                errored_fp.write("\n" + "=" * 100 + "\n")
-                errored_fp.write("Data-points: \n")
-                errored_fp.write(str(data_points) + "\n")
-                errored_fp.write("\n" + "=" * 100 + "\n")
+                self.write_on_errorfile(
+                    text=f"\n{'=' * 30}\n"
+                    + "Data-points: \n"
+                    + "\n".join(list(map(lambda x: str(x), data_points)))
+                    + f"\n{'=' * 30}\n"
+                )
+
+    def write_on_errorfile(self, text: str):
+        with open(self.errored_file_location, "a") as errored_fp:
+            errored_fp.write(text)
+            errored_fp.write("\n" + "=" * 100 + "\n")
+
+    def __del__(self):
+        save_dict(
+            self.save_dir / "llm_usage.json",
+            **{
+                "llm_provider": self.general_variables.llm_provider.value,
+                **self.llm_model.usage,
+            },
+        )

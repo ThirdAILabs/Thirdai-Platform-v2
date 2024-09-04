@@ -1,3 +1,4 @@
+import os
 import sys
 
 from dotenv import load_dotenv
@@ -18,6 +19,7 @@ from backend.routers.workflow import workflow_router as workflow
 from backend.startup_jobs import (
     restart_generate_job,
     restart_llm_cache_job,
+    restart_telemetry_jobs,
     restart_thirdai_platform_frontend,
 )
 from backend.status_sync import sync_job_statuses
@@ -58,6 +60,13 @@ async def startup_event():
 
     platform = get_platform()
     if platform == "docker":
+        try:
+            print("Starting telemetry Job...")
+            await restart_telemetry_jobs()
+            print("Successfully started telemetry Job!")
+        except Exception as error:
+            print(f"Failed to start the telemetry Job : {error}", file=sys.stderr)
+
         try:
             print("Launching frontend...")
             await restart_thirdai_platform_frontend()

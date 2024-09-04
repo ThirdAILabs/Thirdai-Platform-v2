@@ -277,7 +277,7 @@ def train_ndb(
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
             base_model_id=("NONE" if not base_model_identifier else str(base_model.id)),
             type="ndb",
-            sub_type=f"{extra_options.get('version')}-{'single' if not sharded else 'shard_allocation'}"
+            sub_type=f"{extra_options.get('version')}-{'single' if not sharded else 'shard_allocation'}",
         )
 
         new_model.train_status = schema.Status.starting

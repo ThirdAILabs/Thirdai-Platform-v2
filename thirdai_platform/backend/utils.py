@@ -330,6 +330,7 @@ class NDBExtraOptions(BaseModel):
 
     class Config:
         extra = "forbid"
+        protected_namespaces = ()
 
     @root_validator(pre=True)
     def validate_version_restrictions(cls, values):

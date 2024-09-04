@@ -307,7 +307,7 @@ def train_ndb(
 @train_router.post("/udt")
 def train_udt(
     model_name: str,
-    files: Optional[List[UploadFile]] = None,
+    files: List[UploadFile] = [],
     file_details_list: Optional[str] = Form(default=None),
     base_model_identifier: Optional[str] = None,
     extra_options_form: str = Form(default="{}"),
@@ -421,6 +421,23 @@ def train_udt(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message=str(error),
             )
+
+    if not (task_prompt and datagen_options_form) and not files:
+        got_args = []
+        if task_prompt:
+            got_args.append(f"task_prompt")
+        if datagen_options_form:
+            got_args.append(f"datagen_options_form")
+        if files:
+            got_args.append(f"files")
+        if file_details_list:
+            got_args.append(f"file_details_list")
+
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Either provide task_prompt and datagen_options_form or files with optional file_details_list. Got {got_args}.",
+        )
+
     try:
         new_model: schema.Model = schema.Model(
             id=model_id,
@@ -475,27 +492,12 @@ def train_udt(
                     license_key=license_info["boltLicenseKey"],
                     llm_provider=llm_provider,
                 )
-        elif files and file_details_list:
+        else:  # files is guaranteed to be provided because we already checked above
             train_udt_impl(
                 files=files,
                 args_json=train_args,
                 file_details_list=file_details_list,
                 session=session,
-            )
-        else:
-            got_args = []
-            if task_prompt:
-                got_args.append(f"task_prompt")
-            if datagen_options_form:
-                got_args.append(f"datagen_options_form")
-            if files:
-                got_args.append(f"files")
-            if file_details_list:
-                got_args.append(f"file_details_list")
-
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Either provide files and file_details_list or task_prompt and datagen_options_form. Got {got_args}.",
             )
 
     except Exception as err:

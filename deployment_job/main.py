@@ -117,7 +117,7 @@ async def check_for_model_updates():
 # Include the telemetry router for all deployments
 app.include_router(telemetry_router, prefix=f"/{general_variables.model_id}/telemetry")
 
-if general_variables.type in [TypeEnum.NDB, TypeEnum.NDBV2]:
+if general_variables.type in TypeEnum.NDB:
     app.include_router(ndb_router, prefix=f"/{general_variables.model_id}")
 elif general_variables.type == TypeEnum.UDT:
     app.include_router(udt_router, prefix=f"/{general_variables.model_id}")

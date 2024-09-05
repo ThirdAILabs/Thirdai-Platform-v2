@@ -17,6 +17,69 @@ job "telemetry" {
         to = 3000
       }
     }
+    task "collectnodes" {
+      lifecycle {
+        hook = "prestart"
+      }
+
+      driver = "raw_exec"
+      config {
+        command = "sh"
+        args = ["${NOMAD_TASK_DIR}/node_discovery.sh"]
+      }
+
+      template {
+        destination = "${NOMAD_TASK_DIR}/node_discovery.sh"
+        perms = 774
+        data = <<EOF
+#!/bin/bash
+
+prometheus_file="${{ SHARE_DIR }}/prometheus.yaml"
+{% raw %}
+cat > "$prometheus_file" <<EOF
+global:
+  scrape_interval: 1s
+  external_labels:
+    env: "dev"
+    cluster: "local"
+
+scrape_configs:
+  - job_name: "nomad-agent"
+    metrics_path: "/v1/metrics?format=prometheus"
+    static_configs:
+      - targets:
+EOF
+{% endraw %}
+curl --header "X-Nomad-Token: ${MANAGEMENT_TOKEN}" http://{{ NOMAD_ENDPOINT }}:4646/v1/nodes | jq -r '.[].Address' | while read -r ip; do
+  echo "        - ${ip}:4646" >> "$prometheus_file"
+done
+{% raw %}
+cat >> "$prometheus_file" <<EOF
+        labels:
+          role: agent
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: "([^:]+):.+"
+        target_label: "hostname"
+        replacement: "nomad-agent-\$1"
+EOF
+{% endraw %}
+EOF
+      }
+    }
+
+    template {
+        destination = "${NOMAD_SECRETS_DIR}/env.vars"
+        env         = true
+        change_mode = "restart"
+        data        = <<EOF
+{% raw %}
+{{- with nomadVar "nomad/jobs" -}}
+MANAGEMENT_TOKEN = {{ .management_token }}
+{{- end -}}
+{% endraw %}
+EOF
+      }
 
     task "victoriametrics" {
       driver = "docker"
@@ -32,7 +95,7 @@ job "telemetry" {
         group_add = ["4646"]
         ports = ["vicky-http"]
         args = [
-          "--storageDataPath=/storage",
+          "--storageDataPath=/model_bazaar/monitoring-data/victoriametric",
           "--retentionPeriod=1d",
           "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
           "--promscrape.config=${NOMAD_TASK_DIR}/prometheus.yaml"
@@ -43,35 +106,6 @@ job "telemetry" {
         volumes = [
           "{{ VM_DATA_DIR }}:/storage"
         ]
-      }
-
-      template {
-        data        = <<EOF
-global:
-  scrape_interval: 2s
-  external_labels:
-    env: "dev"
-    cluster: "local"
-
-scrape_configs:
-  - job_name: "nomad-agent"
-    metrics_path: "/v1/metrics?format=prometheus"
-    static_configs:
-      - targets:
-        {% if platform == "local" -%}
-          - "host.docker.internal:4646"
-        {%- else -%}
-          {% raw %}- "{{env "attr.unique.network.ip-address"}}:4646"{% endraw %}
-        {%- endif %}
-        labels:
-          role: agent
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: "([^:]+):.+"
-        target_label: "hostname"
-        replacement: "nomad-agent-$1"
-EOF
-        destination = "${NOMAD_TASK_DIR}/prometheus.yaml"
       }
 
       resources {

@@ -46,6 +46,14 @@ def add_user_to_team(client, team, user, access_token):
     )
 
 
+def assign_team_admin(client, team, user, access_token):
+    return client.post(
+        "/api/team/assign-team-admin",
+        headers=auth_header(access_token),
+        params={"email": user, "team_id": team},
+    )
+
+
 def upload_model(client, access_token, name, access):
     model = thirdai.neural_db.NeuralDB()
     model.insert([thirdai.neural_db.InMemoryText("test.txt", ["a", "b", "c"])])

@@ -7,21 +7,21 @@ import threading
 import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from typing import List, Optional, Tuple, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 import thirdai
 from config import FileInfo, NDBv2Options, TrainConfig
 from fastapi import Response
 from models.model import Model
+from reporter import Reporter
 from thirdai import neural_db_v2 as ndbv2
 from utils import (
+    check_csv_only,
     check_disk,
     create_s3_client,
-    get_directory_size,
     expand_s3_buckets_and_directories,
-    check_csv_only,
+    get_directory_size,
 )
-from reporter import Reporter
 
 
 def convert_to_ndb_doc(

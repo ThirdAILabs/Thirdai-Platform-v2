@@ -12,8 +12,8 @@ from models.classification_models import (
     TextClassificationModel,
     TokenClassificationModel,
 )
-from models.neural_db_v2 import NeuralDBV2
 from models.finetunable_retriever import FinetunableRetriever
+from models.neural_db_v2 import NeuralDBV2
 from models.single_mach import SingleMach
 from reporter import HttpReporter, Reporter
 

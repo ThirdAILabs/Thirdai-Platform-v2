@@ -170,10 +170,13 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
           value={modelName}
           onChange={(e) => {
             const name = e.target.value;
-            if (workflowNames.includes(name)) {
+            // Check for invalid characters (space or period)
+            if (name.includes(" ") || name.includes(".")) {
+              setWarningMessage("The app name cannot contain spaces or periods ('.'). Please choose a different name.");
+            } else if (workflowNames.includes(name)) {
               setWarningMessage("An App with the same name has been created. Please choose a different name.");
             } else {
-              setWarningMessage(""); // Clear the warning if the name is unique
+              setWarningMessage(""); // Clear the warning if the name is valid
             }
             setModelName(name)
           }}

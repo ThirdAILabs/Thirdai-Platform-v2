@@ -1,16 +1,8 @@
 from __future__ import annotations
+from typing import Optional, List, Dict, Union, ClassVar
+from uuid import uuid4
+from pydantic import BaseModel, Field
 
-import json
-import re
-import typing
-import uuid
-from abc import abstractmethod, abstractproperty, abstractstaticmethod
-from dataclasses import dataclass
-from collections import defaultdict
-from pydantic import BaseModel
-
-import pandas as pd
-from sqlalchemy import UUID
 
 """
 These datatypes are helper objects for storing data into a persistent storage 
@@ -25,202 +17,121 @@ NER :
 """
 
 
-class TagEntity:
+class TagEntity(BaseModel):
     name: str
     status: str = "untrained"
-    examples: typing.List[str] = None
-    description: str = None
-    sample: str = None
+    examples: Optional[List[str]] = None
+    description: Optional[str] = None
+    sample: Optional[str] = None
 
 
-class DataType:
-
-    @abstractmethod
+class SerializableModel(BaseModel):
     def serialize(self) -> str:
-        # can encode the data
-        pass
+        return self.model_dump_json()
 
-    @abstractstaticmethod
-    def deserialize(name: str, repr: str):
-        # can decode the data
-        pass
+    @classmethod
+    def deserialize(cls, repr: str) -> "SerializableModel":
+        return cls.model_validate_json(repr)
+
+
+# Text Classification Sample
+class TextClassificationSample(SerializableModel):
+    datatype: ClassVar[str] = "text_classification"
+    text: str
+    label: str
+
+
+# Token Classification Sample
+class TokenClassificationSample(SerializableModel):
+    datatype: ClassVar[str] = "token_classification"
+    tokens: List[str]
+    tags: List[str]
+
+
+# DataSample containing the actual sample object and metadata
+class DataSample(BaseModel):
+    name: str
+    sample: Union[TextClassificationSample, TokenClassificationSample]
+    unique_id: str = Field(default_factory=lambda: str(uuid4()))
+
+    def serialize_sample(self) -> str:
+        return self.sample.serialize()
+
+    @staticmethod
+    def deserialize(
+        type: str, unique_id: str, name: str, serialized_sample: str
+    ) -> "DataSample":
+        # Deserialize the sample based on its type
+        if type == TextClassificationSample.datatype:
+            sample = TextClassificationSample.deserialize(serialized_sample)
+        elif type == TokenClassificationSample.datatype:
+            sample = TokenClassificationSample.deserialize(serialized_sample)
+        else:
+            raise ValueError(f"Unknown sample type: {type}")
+
+        return DataSample(name=name, sample=sample, unique_id=unique_id)
 
     @property
-    def name(self):
-        return self._name
+    def datatype(self):
+        return self.sample.datatype
 
 
-class DataSample(DataType):
-    def __init__(self, unique_id=None):
-        self._uuid = unique_id if unique_id is not None else str(uuid.uuid4())
+class TokenClassificationFeedBack(SerializableModel):
+    datatype: ClassVar[str] = "token_classification"
+    delimiter: str
+    index_to_label: Dict[int, str]
+
+
+class UserFeedBack(BaseModel):
+    name: str
+    sample_uuid: str
+    feedback: TokenClassificationFeedBack
+
+    def serialize_feedback(self) -> str:
+        return self.feedback.serialize()
+
+    @staticmethod
+    def deserialize(
+        type: str, name: str, sample_uuid: str, serialized_feedback: str
+    ) -> "UserFeedBack":
+        if type == TokenClassificationFeedBack.datatype:
+            feedback = TokenClassificationFeedBack.deserialize(serialized_feedback)
+        else:
+            raise ValueError(f"Unknown feedback type: {type}")
+
+        return UserFeedBack(name=name, sample_uuid=sample_uuid, feedback=feedback)
 
     @property
-    def uuid(self):
-        return self._uuid
-
-    @abstractstaticmethod
-    def deserialize(name: str, repr: str, unique_id: str):
-        # can decode the data
-        pass
+    def datatype(self):
+        return self.feedback.datatype
 
 
-class TextClassificationSample(DataSample):
-    datatype = "text_classification"
+class TagMetadata(SerializableModel):
+    datatype: ClassVar[str] = "token_classification_tags"
+    tag_and_status: Dict[str, TagEntity] = Field(default_factory=dict)
 
-    def __init__(self, name: str, text: str, label: str, unique_id: str = None):
-        super().__init__(unique_id=unique_id)
-
-        self._text = text
-        self._label = label
-        self._name = name
-
-    def serialize(self) -> str:
-        return json.dumps({"text": self._text, "label": self._label})
-
-    @staticmethod
-    def deserialize(name, repr, unique_id) -> str:
-        data = json.loads(repr)
-        return TextClassificationSample(
-            name=name, text=data["text"], label=data["label"], unique_id=unique_id
-        )
+    def update_tag_status(self, tag: str, status: str):
+        if tag in self.tag_and_status:
+            self.tag_and_status[tag].status = status
+        else:
+            raise ValueError(f"Tag {tag} not found")
 
 
-class TokenClassificationSample(DataSample):
-    datatype = "token_classification"
+class ModelMetadata(BaseModel):
+    name: str
+    metadata: TagMetadata
 
-    def __init__(
-        self,
-        name: str,
-        tokens: typing.List[str],
-        tags: typing.List[str],
-        unique_id: str = None,
-    ):
-        super().__init__(unique_id=unique_id)
+    def serialize_metadata(self) -> str:
+        return self.metadata.serialize()
 
-        self._tokens = tokens
-        self._tags = tags
-        self._name = name
+    def deserialize(type: str, name: str, serialized_metadata: str):
+        if type == TagMetadata.datatype:
+            metadata = TagMetadata.deserialize(serialized_metadata)
+        else:
+            raise ValueError(f"Unknown metadata type: {type}")
 
-    def serialize(self) -> str:
-        return json.dumps({"tokens": self._tokens, "tags": self._tags})
-
-    @staticmethod
-    def deserialize(name, repr, unique_id):
-        data = json.loads(repr)
-        return TokenClassificationSample(
-            tokens=data["tokens"], tags=data["tags"], name=name, unique_id=unique_id
-        )
-
-
-class UserFeedBack(DataType):
-    def __init__(self, sample_uuid):
-        # There cannot be a feedback without a corresponding sample
-        self._sample_uuid = sample_uuid
+        return ModelMetadata(name=name, metadata=metadata)
 
     @property
-    def sample_uuid(self):
-        return self._sample_uuid
-
-    @abstractstaticmethod
-    def deserialize(sample_uuid: str, name: str, repr: str):
-        # can decode the data
-        pass
-
-
-class TokenClassificationFeedBack(UserFeedBack):
-    datatype = "token_classification"
-
-    def __init__(
-        self,
-        sample_uuid: str,
-        name: str,
-        delimiter: str,
-        index_to_label: typing.Dict[int, str],
-    ):
-        super().__init__(sample_uuid)
-
-        self._name = name
-        self._delimiter = delimiter
-        self._index_to_label = index_to_label
-
-    def serialize(self) -> str:
-        return json.dumps(
-            {
-                "delimiter": self._delimiter,
-                "index_to_label": self._index_to_label,
-            }
-        )
-
-    @staticmethod
-    def deserialize(sample_uuid, name, repr) -> str:
-        data = json.loads(repr)
-        return TokenClassificationFeedBack(
-            name=name,
-            delimiter=data["delimiter"],
-            index_to_label=data["index_to_label"],
-            sample_uuid=sample_uuid,
-        )
-
-
-class ModelMetadata(DataType):
-    def __init__(self, name):
-        self._name = name
-
-    @abstractstaticmethod
-    def deserialize(name: str, repr: str):
-        pass
-
-
-class TagMetadata(DataType):
-    datatype = "token_classification_tags"
-
-    # names for metadata objects are supposed to be unique
-    # a model should not have metadata of multiple names
-    def __init__(self, name, tag_and_status: typing.Dict[str, TagEntity]):
-        super.__init__(name)
-        self._tag_and_status = tag_and_status
-
-    def update_tag_status(self, tag, status):
-        self._tag_and_status[tag].status = status
-
-    def serialize(self) -> str:
-        return json.dumps({"tag_and_status": self._tag_and_status})
-
-    @staticmethod
-    def deserialize(name, repr):
-        data = defaultdict(str, json.loads(repr))
-        return TagMetadata(name=name, tag_and_status=data)
-
-
-def deserialize_sample_datatype(
-    type: str, unique_id: str, name: str, serialized_data: str
-):
-    if type == "text_classification":
-        return TextClassificationSample.deserialize(
-            name, serialized_data, unique_id=unique_id
-        )
-
-    if type == "token_classification":
-        return TokenClassificationSample.deserialize(
-            name, serialized_data, unique_id=unique_id
-        )
-
-    raise Exception(f"Cannot deserialize unknown sample type: {type}")
-
-
-def deserialize_userfeedback(
-    type: str, sample_uuid: str, name: str, serialized_data: str
-):
-    if type == "token_classification":
-        return TokenClassificationFeedBack.deserialize(
-            sample_uuid=sample_uuid, name=name, repr=serialized_data
-        )
-
-    raise Exception(f"Cannot deserialize unknown userfeedback type: {type}")
-
-
-def deserialize_metadata(type: str, name: str, serialized_data: str):
-    if type == "token_classification_tag":
-        return TagMetadata.deserialize(name=name, repr=serialized_data)
-
-    raise Exception(f"Cannot deserialize unknown model metadata type: {type}")
+    def datatype(self):
+        return self.metadata.datatype

@@ -5,12 +5,9 @@ from abc import abstractmethod
 from collections import defaultdict
 
 from data_types import (
-    DataSamples,
+    DataSample,
     UserFeedBack,
     ModelMetadata,
-    deserialize_sample_datatype,
-    deserialize_userfeedback,
-    deserialize_metadata,
 )
 from schemas import Base, FeedBack, Samples, MetaData
 from sqlalchemy import create_engine, event, func
@@ -231,7 +228,7 @@ class SQLiteConnector(Connector):
         session = self.Session()
 
         entry = (
-            session.query(MetaData.datatype, MetaData.serialized_data)
+            session.query(MetaData.datatype, MetaData.name, MetaData.serialized_data)
             .filter(MetaData.name == name)
             .first()
         )
@@ -259,7 +256,7 @@ class DataStorage:
         self._per_name_buffer_size = 100000
 
     def insert_samples(
-        self, samples: typing.List[DataSamples], override_buffer_limit=False
+        self, samples: typing.List[DataSample], override_buffer_limit=False
     ):
         samples_to_insert = []
         for sample in samples:
@@ -268,7 +265,12 @@ class DataStorage:
                 and self._sample_counter[sample.name] < self._per_name_buffer_size
             ):
                 samples_to_insert.append(
-                    (sample.uuid, sample.datatype, sample.name, sample.serialize())
+                    (
+                        sample.unique_id,
+                        sample.datatype,
+                        sample.name,
+                        sample.serialize_sample(),
+                    )
                 )
 
                 self._sample_counter[sample.name] += 1
@@ -279,8 +281,8 @@ class DataStorage:
         entries = self.connector.get_samples(name, num_samples=num_samples)
 
         return [
-            deserialize_sample_datatype(
-                type=datatype, unique_id=unique_id, name=name, serialized_data=data
+            DataSample.deserialize(
+                type=datatype, unique_id=unique_id, name=name, serialized_sample=data
             )
             for datatype, unique_id, data in entries
         ]
@@ -289,7 +291,9 @@ class DataStorage:
         feedbacks_to_insert = []
 
         for feedback in feedbacks:
-            feedbacks_to_insert.append((feedback.sample_uuid, feedback.serialize()))
+            feedbacks_to_insert.append(
+                (feedback.sample_uuid, feedback.serialize_feedback())
+            )
 
         self.connector.add_feedback(feedbacks_to_insert)
 
@@ -297,8 +301,11 @@ class DataStorage:
         feedbacks = self.connector.get_feedback(name)
 
         return [
-            deserialize_userfeedback(
-                type=datatype, sample_uuid=sample_uuid, name=name, serialized_data=data
+            UserFeedBack.deserialize(
+                type=datatype,
+                name=name,
+                sample_uuid=sample_uuid,
+                serialized_feedback=data,
             )
             for datatype, sample_uuid, data in feedbacks
         ]
@@ -323,14 +330,14 @@ class DataStorage:
         self.connector.insert_metadata(
             name=metadata.name,
             datatype=metadata.datatype,
-            serialized_data=metadata.serialize(),
+            serialized_data=metadata.serialize_metadata(),
         )
 
     def get_metadata(self, name):
         data = self.connector.get_metadata(name)
         if data:
-            return deserialize_metadata(
-                type=data[0], name=name, serialized_data=data[1]
+            return ModelMetadata.deserialize(
+                type=data[0], name=data[1], serialized_metadata=data[2]
             )
 
         return None

@@ -610,16 +610,18 @@ class NDBV2Model(NDBModel):
             **kwargs,
         )
 
-        retriever_name_map = {
-            FinetunableRetriever.__name__: FinetunableRetriever,
-            Mach.__name__: Mach,
-            MachEnsemble.__name__: MachEnsemble,
-        }
+        # retriever_name_map = {
+        #     FinetunableRetriever.__name__: FinetunableRetriever,
+        #     Mach.__name__: Mach,
+        #     MachEnsemble.__name__: MachEnsemble,
+        # }
 
-        if metadata["retriever_name"] not in retriever_name_map:
-            raise ValueError(f"Class name {metadata["retriever_name"]} not found in registry.")
+        # if metadata["retriever_name"] not in retriever_name_map:
+        #     raise ValueError(f"Class name {metadata["retriever_name"]} not found in registry.")
 
-        retriever = retriever_name_map[metadata["retriever_name"]]()
+        # retriever = retriever_name_map[metadata["retriever_name"]]()
+        
+        retriever = FinetunableRetriever()
         retriever.retriever = search.FinetunableRetriever.load(self.ndb_save_path(), read_only=not kwargs["write_mode"])
 
         return ndbv2.NeuralDB(chunk_store=chunk_store, retriever=retriever)

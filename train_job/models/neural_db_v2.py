@@ -142,11 +142,28 @@ class NeuralDBV2(Model):
 
         self.ndb_options: NDBv2Options = self.config.model_options.ndb_options
 
-        if self.ndb_options.on_disk:
-            save_path = self.ndb_save_path()
+        if self.config.base_model_id:
+            base_model_path = os.path.join(
+                self.config.model_bazaar_dir,
+                "models",
+                self.config.base_model_id,
+                "model.ndb",
+            )
+            self.logger.info(f"Starting training from base model: {base_model_path}")
+            shutil.copytree(
+                base_model_path,
+                self.ndb_save_path(),
+                ignore=shutil.ignore_patterns("*.tmpdb"),
+                dirs_exist_ok=True,
+            )
+            self.db = ndbv2.NeuralDB.load(self.ndb_save_path())
         else:
-            save_path = None
-        self.db = ndbv2.NeuralDB(save_path=save_path)
+            self.logger.info("Creating new NDBv2 model")
+            if self.ndb_options.on_disk:
+                save_path = self.ndb_save_path()
+            else:
+                save_path = None
+            self.db = ndbv2.NeuralDB(save_path=save_path)
 
     def ndb_save_path(self):
         return os.path.join(self.model_dir, "model.ndb")

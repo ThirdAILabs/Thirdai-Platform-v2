@@ -84,6 +84,7 @@ def main():
             status="failed",
             message=f"Training failed with error {error}",
         )
+        raise error
 
 
 if __name__ == "__main__":

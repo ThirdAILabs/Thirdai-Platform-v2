@@ -55,13 +55,13 @@ def check_model_presence(client, jwt_token, model_name, should_exist=True):
     assert model_present == should_exist
 
 
-def setup_model(client, jwt_token, model_name, access_level, team_id=None):
+def setup_model(client, jwt_token, model_name, access_level="public", team_id=None):
     """
     Helper function to upload a model and update its access level if needed.
     """
     upload_model(client, jwt_token, model_name, access_level)
 
-    if access_level == "protected":
+    if team_id:
         res = client.post(
             "/api/model/update-access-level",
             params={
@@ -442,7 +442,7 @@ def test_workflow_access_based_on_model_access():
     public_model_id = setup_model(client, global_admin_jwt, "public_model", "public")
 
     protected_model_id = setup_model(
-        client, team_admin_jwt, "protected_model", "protected", team_id
+        client, team_admin_jwt, "protected_model", team_id=team_id
     )
 
     private_model_id = setup_model(client, team_member_jwt, "private_model", "private")

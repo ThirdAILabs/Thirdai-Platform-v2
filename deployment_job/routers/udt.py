@@ -108,3 +108,19 @@ def udt_query(_=Depends(permissions.verify_read_permission)):
             "uptime": int(time.time() - start_time),
         },
     )
+
+
+@udt_router.get("/labels")
+@propagate_error
+def udt_get_labels(_=Depends(permissions.verify_read_permission)):
+    """
+    Returns the labels that are present in the model.
+    """
+    model = get_model()
+    labels = model.get_labels()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successful",
+        data=jsonable_encoder(labels),
+    )

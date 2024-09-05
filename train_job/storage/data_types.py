@@ -7,6 +7,7 @@ import uuid
 from abc import abstractmethod, abstractproperty, abstractstaticmethod
 from dataclasses import dataclass
 from collections import defaultdict
+from pydantic import BaseModel
 
 import pandas as pd
 from sqlalchemy import UUID
@@ -22,6 +23,14 @@ NER :
     TokenClassificationFeedback : Used for storing feedback given by a user about a sample. 
     TagMetaData : Used for storing what tags are present in the pipeline along with their status (trained/untrained)
 """
+
+
+class TagEntity:
+    name: str
+    status: str = "untrained"
+    examples: typing.List[str] = None
+    description: str = None
+    sample: str = None
 
 
 class DataType:
@@ -167,12 +176,12 @@ class TagMetadata(DataType):
 
     # names for metadata objects are supposed to be unique
     # a model should not have metadata of multiple names
-    def __init__(self, name, tag_and_status: typing.DefaultDict[str, str]):
+    def __init__(self, name, tag_and_status: typing.Dict[str, TagEntity]):
         super.__init__(name)
         self._tag_and_status = tag_and_status
 
     def update_tag_status(self, tag, status):
-        self._tag_and_status[tag] = status
+        self._tag_and_status[tag].status = status
 
     def serialize(self) -> str:
         return json.dumps({"tag_and_status": self._tag_and_status})

@@ -104,6 +104,7 @@ class Entity:
     name: str
     examples: List[str]
     description: str
+    sample: str = None
 
 
 @dataclass

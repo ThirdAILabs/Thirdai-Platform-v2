@@ -34,6 +34,21 @@ class ClassificationModel(Model):
     def predict(self, **kwargs):
         pass
 
+    def get_labels(self):
+        raise NotImplementedError(
+            f"The method 'get_labels' is not implemented for the model class type: {self.__class__.__name__}"
+        )
+
+    def add_labels(self, label):
+        raise NotImplementedError(
+            f"The method 'add_labels' is not implemented for the model class type: {self.__class__.__name__}"
+        )
+
+    def insert_sample(self, sample: inputs.BaseModel):
+        raise NotImplementedError(
+            f"The method 'insert_sample' is not implemented for the model class type: {self.__class__.__name__}"
+        )
+
 
 class TextClassificationModel(ClassificationModel):
     def __init__(
@@ -102,14 +117,16 @@ class TokenClassificationModel(ClassificationModel):
             connector=SQLiteConnector(db_path=data_storage_path)
         )
 
-    def get_tags(self):
+    def get_labels(self):
         # load tags and their status from the storage
         tag_metadata = self.data_storage.get_metadata("tags_and_status")
         return list(tag_metadata._tag_and_status.keys())
 
-    def add_tag(self, tag):
+    def add_labels(self, labels):
         tag_metadata = self.data_storage.get_metadata("tags_and_status")
-        tag_metadata.update_tag_status(tag, "untrained")
+
+        for label in labels:
+            tag_metadata.update_tag_status(label, "untrained")
 
         # update the metadata entry in the DB
         self.data_storage.insert_metadata(tag_metadata)

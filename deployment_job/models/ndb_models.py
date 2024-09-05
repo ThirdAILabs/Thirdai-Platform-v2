@@ -607,7 +607,6 @@ class NDBV2Model(NDBModel):
         chunk_store = ndbv2.NeuralDB.load_chunk_store(
             ndbv2.NeuralDB.chunk_store_path(self.ndb_save_path()),
             chunk_store_name=metadata["chunk_store_name"],
-            **kwargs,
         )
 
         # retriever_name_map = {
@@ -620,7 +619,7 @@ class NDBV2Model(NDBModel):
         #     raise ValueError(f"Class name {metadata["retriever_name"]} not found in registry.")
 
         # retriever = retriever_name_map[metadata["retriever_name"]]()
-        
+
         retriever = FinetunableRetriever()
         retriever.retriever = search.FinetunableRetriever.load(self.ndb_save_path(), read_only=not kwargs["write_mode"])
 

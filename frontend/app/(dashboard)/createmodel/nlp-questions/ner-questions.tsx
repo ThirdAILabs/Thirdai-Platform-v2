@@ -265,7 +265,14 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
             <div style={{ display: "flex", flexDirection: "column", marginTop: "10px" }}>
 
               {categories.map((category, index) => (
-                <div key={index} style={{ display: "flex", flexDirection: "row", gap: "10px", justifyContent: "space-between" }}>
+                <div  key={index} 
+                      style={{ 
+                        display: "flex", 
+                        flexDirection: "row", 
+                        gap: "10px", 
+                        justifyContent: "space-between",
+                        marginBottom: "10px", // Adds gap between rows
+                      }}>
                   <div style={{ width: "100%" }}>
                     <Input
                       list={`category-options-${index}`}

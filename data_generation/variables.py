@@ -102,6 +102,7 @@ class GeneralVariables(EnvLoader):
 @dataclass
 class Entity:
     name: str
+    status: str = "untrained"
     examples: List[str]
     description: str
     sample: str = None

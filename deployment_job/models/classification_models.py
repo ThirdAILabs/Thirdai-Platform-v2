@@ -1,12 +1,18 @@
 from abc import abstractmethod
-from typing import Optional
+from typing import Optional, Union
 
 from models.model import Model
 from pydantic_models import inputs
 from thirdai import bolt
 
 from storage.storage import DataStorage, SQLiteConnector
-from storage.data_types import TokenClassificationSample, TagMetadata, DataSample
+from storage.data_types import (
+    TextClassificationSample,
+    TokenClassificationSample,
+    TagMetadata,
+    DataSample,
+    LabelEntityList,
+)
 
 
 class ClassificationModel(Model):
@@ -36,12 +42,14 @@ class ClassificationModel(Model):
             f"The method 'get_labels' is not implemented for the model class type: {self.__class__.__name__}"
         )
 
-    def add_labels(self, label):
+    def add_labels(self, labels: LabelEntityList):
         raise NotImplementedError(
             f"The method 'add_labels' is not implemented for the model class type: {self.__class__.__name__}"
         )
 
-    def insert_sample(self, sample: inputs.BaseModel):
+    def insert_sample(
+        self, sample: Union[TokenClassificationSample, TextClassificationSample]
+    ):
         raise NotImplementedError(
             f"The method 'insert_sample' is not implemented for the model class type: {self.__class__.__name__}"
         )
@@ -119,12 +127,11 @@ class TokenClassificationModel(ClassificationModel):
         tag_metadata = self.data_storage.get_metadata("tags_and_status")
         return list(tag_metadata._tag_and_status.keys())
 
-    def add_labels(self, labels):
-        tag_metadata = self.data_storage.get_metadata("tags_and_status")
+    def add_labels(self, labels: LabelEntityList):
+        tag_metadata: TagMetadata = self.data_storage.get_metadata("tags_and_status")
 
         for label in labels:
-            tag_metadata.update_tag_status(label, "untrained")
-
+            tag_metadata.add_tag(label)
         # update the metadata entry in the DB
         self.data_storage.insert_metadata(tag_metadata)
 

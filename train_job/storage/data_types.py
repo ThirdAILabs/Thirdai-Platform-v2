@@ -17,7 +17,7 @@ NER :
 """
 
 
-class TagEntity(BaseModel):
+class LabelEntity(BaseModel):
     name: str
     status: str = "untrained"
     examples: Optional[List[str]] = None
@@ -25,8 +25,8 @@ class TagEntity(BaseModel):
     sample: Optional[str] = None
 
 
-class TagEntityList(BaseModel):
-    tags: List[TagEntity]
+class LabelEntityList(BaseModel):
+    tags: List[LabelEntity]
 
 
 class SerializableModel(BaseModel):
@@ -112,7 +112,7 @@ class UserFeedBack(BaseModel):
 
 class TagMetadata(SerializableModel):
     datatype: ClassVar[str] = "token_classification_tags"
-    tag_and_status: Dict[str, TagEntity] = Field(default_factory=dict)
+    tag_and_status: Dict[str, LabelEntity] = Field(default_factory=dict)
 
     def update_tag_status(self, tag: str, status: str):
         if tag in self.tag_and_status:
@@ -120,7 +120,7 @@ class TagMetadata(SerializableModel):
         else:
             raise ValueError(f"Tag {tag} not found")
 
-    def add_tag(self, tag: TagEntity):
+    def add_tag(self, tag: LabelEntity):
         if tag in self.tag_and_status:
             raise Exception(f"Tag {tag.name} is already present in the Tag List")
 

@@ -18,8 +18,8 @@ from storage.data_types import (
     TokenClassificationSample,
     DataSample,
     TagMetadata,
-    TagEntity,
-    TagEntityList,
+    LabelEntity,
+    LabelEntityList,
 )
 
 
@@ -172,9 +172,9 @@ class TokenClassificationModel(ClassificationModel):
         default_tag = self.tkn_cls_vars.default_tag
 
         # insert the tags into the storage to keep track of their training status
-        tags_and_status = {"O": TagEntity(name="O")}
+        tags_and_status = {"O": LabelEntity(name="O")}
         for label in target_labels:
-            tags_and_status[label] = TagEntity(name=label)
+            tags_and_status[label] = LabelEntityList(name=label)
 
         self.data_storage.insert_metadata(
             metadata=TagMetadata(name="tags", tag_and_status=tags_and_status)
@@ -202,7 +202,7 @@ class TokenClassificationModel(ClassificationModel):
         tag_metadata = self.data_storage.get_metadata("tags_and_status")
         return list(tag_metadata._tag_and_status.keys())
 
-    def add_labels(self, labels: TagEntityList):
+    def add_labels(self, labels: LabelEntityList):
         tag_metadata: TagMetadata = self.data_storage.get_metadata("tags_and_status")
 
         for label in labels:

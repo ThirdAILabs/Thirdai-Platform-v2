@@ -333,7 +333,7 @@ class DataStorage:
             serialized_data=metadata.serialize_metadata(),
         )
 
-    def get_metadata(self, name):
+    def get_metadata(self, name) -> ModelMetadata:
         data = self.connector.get_metadata(name)
         if data:
             return ModelMetadata.deserialize(

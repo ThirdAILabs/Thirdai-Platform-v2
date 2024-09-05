@@ -6,10 +6,7 @@ from pydantic_models import inputs
 from thirdai import bolt
 
 from storage.storage import DataStorage, SQLiteConnector
-from storage.data_types import (
-    TokenClassificationSample,
-    TagMetadata,
-)
+from storage.data_types import TokenClassificationSample, TagMetadata, DataSample
 
 
 class ClassificationModel(Model):
@@ -131,12 +128,8 @@ class TokenClassificationModel(ClassificationModel):
         # update the metadata entry in the DB
         self.data_storage.insert_metadata(tag_metadata)
 
-    def insert_sample(self, sample: inputs.SearchResultsTokenClassification):
-        token_tag_sample = TokenClassificationSample(
-            name="ner",
-            tokens=sample.tokens,
-            tags=[tag[0] for tag in sample.predicted_tags],
-        )
+    def insert_sample(self, sample: TokenClassificationSample):
+        token_tag_sample = DataSample(name="ner", sample=sample)
         self.data_storage.insert_samples(
             samples=[token_tag_sample], override_buffer_limit=True
         )

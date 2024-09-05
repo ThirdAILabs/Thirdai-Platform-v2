@@ -25,6 +25,10 @@ class TagEntity(BaseModel):
     sample: Optional[str] = None
 
 
+class TagEntityList(BaseModel):
+    tags: List[TagEntity]
+
+
 class SerializableModel(BaseModel):
     def serialize(self) -> str:
         return self.model_dump_json()
@@ -115,6 +119,12 @@ class TagMetadata(SerializableModel):
             self.tag_and_status[tag].status = status
         else:
             raise ValueError(f"Tag {tag} not found")
+
+    def add_tag(self, tag: TagEntity):
+        if tag in self.tag_and_status:
+            raise Exception(f"Tag {tag.name} is already present in the Tag List")
+
+        self.tag_and_status[tag.name] = tag
 
 
 class ModelMetadata(BaseModel):

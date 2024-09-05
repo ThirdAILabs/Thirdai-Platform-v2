@@ -24,6 +24,8 @@ from pydantic_models import inputs
 from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.core.types import Chunk
+from thirdai.neural_db_v2.retrievers import FinetunableRetriever, Mach, MachEnsemble
+from thirdai import search
 from utils import highlighted_pdf_bytes, new_pdf_chunks, old_pdf_chunks
 
 
@@ -598,7 +600,29 @@ class NDBV2Model(NDBModel):
         }
 
     def load(self, **kwargs) -> ndbv2.NeuralDB:
-        return ndbv2.NeuralDB.load(self.ndb_save_path())
+
+        with open(ndbv2.NeuralDB.metadata_path(self.ndb_save_path()), "r") as f:
+            metadata = json.load(f)
+
+        chunk_store = ndbv2.NeuralDB.load_chunk_store(
+            ndbv2.NeuralDB.chunk_store_path(self.ndb_save_path()),
+            chunk_store_name=metadata["chunk_store_name"],
+            **kwargs,
+        )
+
+        retriever_name_map = {
+            FinetunableRetriever.__name__: FinetunableRetriever,
+            Mach.__name__: Mach,
+            MachEnsemble.__name__: MachEnsemble,
+        }
+
+        if metadata["retriever_name"] not in retriever_name_map:
+            raise ValueError(f"Class name {metadata["retriever_name"]} not found in registry.")
+
+        retriever = retriever_name_map[metadata["retriever_name"]]()
+        retriever.retriever = search.FinetunableRetriever.load(self.ndb_save_path(), read_only=not kwargs["write_mode"])
+
+        return ndbv2.NeuralDB(chunk_store=chunk_store, retriever=retriever)
 
     def save(self, model_id: str, **kwargs) -> None:
         def ndb_path(model_id: str):

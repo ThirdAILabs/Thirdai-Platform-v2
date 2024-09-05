@@ -621,7 +621,7 @@ class NDBV2Model(NDBModel):
         # retriever = retriever_name_map[metadata["retriever_name"]]()
 
         retriever = FinetunableRetriever()
-        retriever.retriever = search.FinetunableRetriever.load(self.ndb_save_path(), read_only=not kwargs["write_mode"])
+        retriever.retriever = search.FinetunableRetriever.load(os.path.join(self.ndb_save_path(), "retriever"), read_only=not kwargs["write_mode"])
 
         return ndbv2.NeuralDB(chunk_store=chunk_store, retriever=retriever)
 

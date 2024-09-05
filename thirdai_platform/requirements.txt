@@ -25,7 +25,8 @@ starlette
 httpx
 Authlib
 google-auth-oauthlib
-thirdai[all]
+thirdai
 langchain_openai
 hvac
 nltk
+jinja2

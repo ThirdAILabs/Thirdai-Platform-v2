@@ -178,6 +178,7 @@ async def restart_telemetry_jobs():
         LOKI_DATA_DIR=os.path.join(SHARE_DIR, "monitoring-data", "loki"),
         dashboards=os.path.join(SHARE_DIR, "telemetry_dashboards"),
         GRAFANA_DATA_DIR=os.path.join(SHARE_DIR, "monitoring-data", "grafana"),
+        NOMAD_ENDPOINT =f"{os.getenv('PRIVATE_MODEL_BAZAAR_ENDPOINT').rstrip('/')}:4646",
         platform=get_platform(),
     )
     if response.status_code != 200:

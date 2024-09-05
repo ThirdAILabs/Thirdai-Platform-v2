@@ -51,7 +51,7 @@ scrape_configs:
 EOF
 {% endraw %}
 curl --header "X-Nomad-Token: ${MANAGEMENT_TOKEN}" http://{{ NOMAD_ENDPOINT }}:4646/v1/nodes | jq -r '.[].Address' | while read -r ip; do
-  echo "        - ${ip}:4646" >> "$prometheus_file"
+  echo "        - \"${ip}:4646\"" >> "$prometheus_file"
 done
 {% raw %}
 cat >> "$prometheus_file" <<EOF

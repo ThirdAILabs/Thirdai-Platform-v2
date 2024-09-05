@@ -10,7 +10,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import List, Optional, Tuple, Dict, Any
 
 import thirdai
-from config import FileInfo, NDBv2Options
+from config import FileInfo, NDBv2Options, TrainConfig
 from fastapi import Response
 from models.model import Model
 from thirdai import neural_db_v2 as ndbv2
@@ -21,6 +21,7 @@ from utils import (
     expand_s3_buckets_and_directories,
     check_csv_only,
 )
+from reporter import Reporter
 
 
 def convert_to_ndb_doc(
@@ -136,8 +137,8 @@ def process_file(
 
 
 class NeuralDBV2(Model):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config: TrainConfig, reporter: Reporter):
+        super().__init__(config=config, reporter=reporter)
 
         self.ndb_options: NDBv2Options = self.config.model_options.ndb_options
 
@@ -209,7 +210,7 @@ class NeuralDBV2(Model):
         check_csv_only(all_files)
         return all_files
 
-    def unsupervised_train(self, files: List[str]):
+    def unsupervised_train(self, files: List[FileInfo]):
         self.logger.info("Starting unsupervised training.")
         task_queue = queue.Queue()
 
@@ -239,15 +240,15 @@ class NeuralDBV2(Model):
 
         self.logger.info("Completed unsupervised training.")
 
-    def supervised_train(self, files: List[str]):
+    def supervised_train(self, files: List[FileInfo]):
         self.logger.info("Starting supervised training.")
 
         for file in files:
             supervised_dataset = ndbv2.supervised.CsvSupervised(
-                file,
-                query_column=os.getenv("CSV_QUERY_COLUMN", None),
-                id_column=os.getenv("CSV_ID_COLUMN", None),
-                id_delimiter=os.getenv("CSV_ID_DELIMITER", None),
+                file.path,
+                query_column=file.options.get("csv_query_column"),
+                id_column=file.options.get("csv_id_column"),
+                id_delimiter=file.options.get("csv_id_delimiter"),
             )
 
             self.db.supervised_train(supervised_dataset)

@@ -8,6 +8,7 @@ from config import (
     NDBData,
     NDBOptions,
     NDBv1Options,
+    NDBv2Options,
     TextClassificationOptions,
     TokenClassificationOptions,
     TrainConfig,
@@ -18,6 +19,7 @@ from reporter import Reporter
 from run import get_model
 from thirdai import bolt, licensing
 from thirdai import neural_db as ndb
+from thirdai import neural_db_v2 as ndbv2
 
 pytestmark = [pytest.mark.unit]
 
@@ -46,11 +48,7 @@ def create_tmp_model_bazaar_dir():
     shutil.rmtree(MODEL_BAZAAR_DIR)
 
 
-@pytest.mark.parametrize(
-    "ndb_options",
-    [NDBv1Options(), NDBv1Options(retriever="mach", mach_options={})],
-)
-def test_ndb_train(ndb_options):
+def run_train_job(ndb_options):
     licensing.activate(THIRDAI_LICENSE)
 
     source_id = ndb.CSV(
@@ -106,11 +104,27 @@ def test_ndb_train(ndb_options):
 
     model.train()
 
-    db = ndb.NeuralDB.from_checkpoint(
-        os.path.join(MODEL_BAZAAR_DIR, "models", "ndb_123", "model.ndb")
-    )
+    return os.path.join(MODEL_BAZAAR_DIR, "models", "ndb_123", "model.ndb")
+
+
+@pytest.mark.parametrize(
+    "ndb_options",
+    [NDBv1Options(), NDBv1Options(retriever="mach", mach_options={})],
+)
+def test_ndbv1_train(ndb_options):
+    db_path = run_train_job(ndb_options)
+
+    db = ndb.NeuralDB.from_checkpoint(db_path)
 
     assert len(db.sources()) == 3
+
+
+def test_ndbv2_train():
+    db_path = run_train_job(ndb_options=NDBv2Options())
+
+    db = ndbv2.NeuralDB.load(db_path)
+
+    assert len(db.documents()) == 3
 
 
 def test_udt_text_train():

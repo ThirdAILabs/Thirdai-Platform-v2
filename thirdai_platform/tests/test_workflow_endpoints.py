@@ -75,7 +75,9 @@ def setup_model(
         )
         assert res.status_code == 200
 
-    res = client.get("/api/model/public-list", params={"name": model_name})
+    res = client.get(
+        "/api/model/list", params={"name": model_name}, headers=auth_header(jwt_token)
+    )
     assert res.status_code == 200
     return res.json()["data"][0]["model_id"]
 

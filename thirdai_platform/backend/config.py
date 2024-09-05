@@ -80,6 +80,9 @@ class NDBOptions(BaseModel):
         NDBv1Options(), discriminator="ndb_sub_type"
     )
 
+    class Config:
+        protected_namespaces = ()
+
 
 class NDBData(BaseModel):
     model_type: Literal[ModelType.NDB] = ModelType.NDB
@@ -87,6 +90,9 @@ class NDBData(BaseModel):
     unsupervised_files: List[FileInfo]
     supervised_files: List[FileInfo] = []
     test_files: List[FileInfo] = []
+
+    class Config:
+        protected_namespaces = ()
 
     @model_validator(mode="after")
     def check_nonempty(self):
@@ -137,12 +143,18 @@ class UDTOptions(BaseModel):
 
     train_options: UDTTrainOptions = UDTTrainOptions()
 
+    class Config:
+        protected_namespaces = ()
+
 
 class UDTData(BaseModel):
     model_type: Literal[ModelType.UDT] = ModelType.UDT
 
     supervised_files: List[FileInfo]
     test_files: List[FileInfo] = []
+
+    class Config:
+        protected_namespaces = ()
 
     @model_validator(mode="after")
     def check_nonempty(self):
@@ -170,6 +182,9 @@ class TrainConfig(BaseModel):
     )
 
     data: Union[NDBData, UDTData] = Field(..., discriminator="model_type")
+
+    class Config:
+        protected_namespaces = ()
 
     @model_validator(mode="after")
     def check_model_data_match(self):

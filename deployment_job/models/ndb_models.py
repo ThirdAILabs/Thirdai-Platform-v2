@@ -413,10 +413,10 @@ def try_convert_to_json(value: Any) -> str:
 
 
 class NDBV2Model(NDBModel):
-    def __init__(self):
+    def __init__(self, write_mode: bool = False):
         super().__init__()
 
-        self.db = self.load()
+        self.db = self.load(write_mode=write_mode)
 
     def ndb_save_path(self):
         return os.path.join(self.model_dir, "model.ndb")

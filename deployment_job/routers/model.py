@@ -61,7 +61,7 @@ class ModelManager:
         """
         if general_variables.type == TypeEnum.NDB:
             if general_variables.sub_type == NDBSubType.v2_single:
-                return NDBV2Model()
+                return NDBV2Model(write_mode=write_mode)
             elif general_variables.sub_type == NDBSubType.v1_sharded:
                 return ShardedNDB(write_mode=write_mode)
             else:

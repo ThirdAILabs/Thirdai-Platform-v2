@@ -365,6 +365,8 @@ def test_add_and_validate_models_to_workflow():
     )
     assert res.status_code == 404  # Validation should fail due to missing models
 
+    delete_workflow(client, owner_jwt, workflow_id, expected_status_code=200)
+
 
 def test_delete_workflow_delete_models():
     from main import app

@@ -97,8 +97,12 @@ Without this process, it is cumbersome to test out platform changes. We would ha
 
     - Once Docker Desktop is installed, open it and follow these steps:
       - Go to **Settings > Resources > File Sharing**.
-      - Add the `/opt/nomad` directory to the file-sharing list.
-      - Change the ownership of this directory to your user account.
+      - Change the ownership of the `/opt/nomad` directory to your user account, Add the `/opt/nomad` directory to the file-sharing list.
+      - You can change the ownership by running following command `sudo chown -R $(whoami) /opt/nomad`
+      - Once you have done these changes, restart the docker desktop.
+      - Now navigate to your nomad UI, go to clients and select your local client and see the driver status 
+        
+        ![screenshot](local_setup/Nomad_driver_status.png)
 
 9. **Launch Frontend**
 

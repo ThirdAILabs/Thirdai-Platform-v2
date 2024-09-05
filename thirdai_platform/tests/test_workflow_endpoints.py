@@ -1,7 +1,15 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from .utils import auth_header, create_user, login, upload_model
+from .utils import (
+    add_user_to_team,
+    assign_team_admin,
+    auth_header,
+    create_team,
+    create_user,
+    login,
+    upload_model,
+)
 
 pytestmark = [pytest.mark.unit]
 
@@ -47,6 +55,29 @@ def check_model_presence(client, jwt_token, model_name, should_exist=True):
     assert model_present == should_exist
 
 
+def setup_model(client, jwt_token, model_name, access_level, team_id=None):
+    """
+    Helper function to upload a model and update its access level if needed.
+    """
+    upload_model(client, jwt_token, model_name, access_level)
+
+    if access_level == "protected":
+        res = client.post(
+            "/api/model/update-access-level",
+            params={
+                "model_identifier": f"{jwt_token}/{model_name}",
+                "access_level": "protected",
+                "team_id": team_id,
+            },
+            headers=auth_header(jwt_token),
+        )
+        assert res.status_code == 200
+
+    res = client.get("/api/model/public-list", params={"name": model_name})
+    assert res.status_code == 200
+    return res.json()["data"][0]["model_id"]
+
+
 ### Setup: Create Users ###
 
 
@@ -67,6 +98,10 @@ def setup_users():
 
     # Create normal user
     res = create_user(client, "normal-user", "normal-user@mail.com", "normal-password")
+    assert res.status_code == 200
+
+    # Team Admin User
+    res = create_user(client, "team-admin", "team-admin@mail.com", "admin-password")
     assert res.status_code == 200
 
 
@@ -271,12 +306,7 @@ def test_add_and_validate_models_to_workflow():
         client, owner_jwt, "Model Test Workflow", "complex_workflow_type"
     )
 
-    # Upload models required for workflow
-    upload_model(client, owner_jwt, "model_1", "public")
-
-    res = client.get("/api/model/public-list", params={"name": "model_1"})
-    assert res.status_code == 200
-    model1_id = res.json()["data"][0]["model_id"]
+    model1_id = setup_model(client, owner_jwt, "model_1", "public")
 
     # Add models to the workflow
     res = client.post(
@@ -350,12 +380,7 @@ def test_delete_workflow_delete_models():
         client, owner_jwt, "Model Test Workflow 2", "complex_workflow_type"
     )
 
-    # Upload models required for workflow
-    upload_model(client, owner_jwt, "model_a", "public")
-
-    res = client.get("/api/model/public-list", params={"name": "model_a"})
-    assert res.status_code == 200
-    model_id = res.json()["data"][0]["model_id"]
+    model_id = setup_model(client, owner_jwt, "model_a", "public")
 
     # Add model to both workflows
     for workflow_id in [workflow_id_1, workflow_id_2]:
@@ -377,3 +402,95 @@ def test_delete_workflow_delete_models():
     # Delete workflow 1 and check model presence
     delete_workflow(client, owner_jwt, workflow_id_1, expected_status_code=200)
     check_model_presence(client, owner_jwt, "model_a", should_exist=False)
+
+
+def test_workflow_access_based_on_model_access():
+    from main import app
+
+    client = TestClient(app)
+
+    # Login as Global admin
+    res = login(client, username="admin@mail.com", password="password")
+    assert res.status_code == 200
+    global_admin_jwt = res.json()["data"]["access_token"]
+
+    # Login as team admin
+    res = login(client, username="team-admin@mail.com", password="admin-password")
+    assert res.status_code == 200
+    team_admin_jwt = res.json()["data"]["access_token"]
+
+    # Login as team member
+    res = login(client, username="workflow-owner@mail.com", password="owner-password")
+    assert res.status_code == 200
+    team_member_jwt = res.json()["data"]["access_token"]
+
+    # Login as normal user
+    res = login(client, username="normal-user@mail.com", password="normal-password")
+    assert res.status_code == 200
+    normal_user_jwt = res.json()["data"]["access_token"]
+
+    res = create_team(client, "Team A", global_admin_jwt)
+    assert res.status_code == 200
+    team_id = res.json()["data"]["team_id"]
+
+    res = assign_team_admin(client, team_id, "team-admin@mail.com", global_admin_jwt)
+    assert res.status_code == 200
+
+    res = add_user_to_team(client, team_id, "workflow-owner@mail.com", team_admin_jwt)
+    assert res.status_code == 200
+
+    public_model_id = setup_model(client, global_admin_jwt, "public_model", "public")
+
+    protected_model_id = setup_model(
+        client, team_admin_jwt, "protected_model", "protected", team_id
+    )
+
+    private_model_id = setup_model(client, team_member_jwt, "private_model", "private")
+
+    workflow_public_id = create_workflow(
+        client, global_admin_jwt, "Public Workflow", "complex_workflow_type"
+    )
+    workflow_protected_id = create_workflow(
+        client, team_admin_jwt, "Protected Workflow", "complex_workflow_type"
+    )
+    workflow_private_id = create_workflow(
+        client, team_member_jwt, "Private Workflow", "complex_workflow_type"
+    )
+
+    # Add models to workflows
+    for model_id, jwt, workflow_id in [
+        (public_model_id, global_admin_jwt, workflow_public_id),
+        (protected_model_id, team_admin_jwt, workflow_protected_id),
+        (private_model_id, team_member_jwt, workflow_private_id),
+    ]:
+        res = client.post(
+            "/api/workflow/add-models",
+            json={
+                "workflow_id": workflow_id,
+                "model_ids": [model_id],
+                "components": ["search"],
+            },
+            headers=auth_header(jwt),
+        )
+        assert res.status_code == 200
+
+    for user_jwt, expected_workflows in [
+        (
+            global_admin_jwt,
+            ["Public Workflow", "Protected Workflow", "Private Workflow"],
+        ),
+        (team_admin_jwt, ["Protected Workflow", "Public Workflow"]),
+        (
+            team_member_jwt,
+            ["Public Workflow", "Private Workflow", "Protected Workflow"],
+        ),
+        (normal_user_jwt, ["Public Workflow"]),
+    ]:
+        res = client.get("/api/workflow/list", headers=auth_header(user_jwt))
+        assert res.status_code == 200
+        accessible_workflows = [wf["name"] for wf in res.json()["data"]]
+
+        # Assert that only the expected workflows are listed
+        assert set(accessible_workflows) == set(
+            expected_workflows
+        ), f"Failed for user {user_jwt}"

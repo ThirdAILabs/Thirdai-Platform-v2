@@ -28,6 +28,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
     // Active
     // Starting
     // Error: Underlying model not present
+    // Training failed
+    // Training...
   const [isTrainingIncomplete, setIsTrainingIncomplete] = useState<boolean>(false);
   const [deployType, setDeployType] = useState<string>('');
 
@@ -104,15 +106,20 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       let isInProgress = false;
       let allComplete = true;
       let trainingIncomplete = false;
+      let trainingFailed = false; // New variable to track training failure
   
       for (const model of workflow.models) {
+        if (model.train_status === 'failed') {
+          trainingFailed = true; // At least one model has a failed training status
+          break; // No need to check further
+        }
         if (model.train_status !== 'complete') {
           trainingIncomplete = true; // Training is still ongoing for at least one model
         }
         
         if (model.deploy_status === 'failed') {
           hasFailed = true;
-          break; // If any model has failed, no need to check further
+          break; // If any model has failed deployment, no need to check further
         } else if (model.deploy_status === 'in_progress') {
           isInProgress = true;
           allComplete = false; // If any model is in progress, not all can be complete
@@ -128,8 +135,10 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       }
   
       setIsTrainingIncomplete(trainingIncomplete);
-
-      if (trainingIncomplete) {
+  
+      if (trainingFailed) {
+        setDeployStatus('Training failed'); // Set the new deploy status for failed training
+      } else if (trainingIncomplete) {
         setDeployStatus('Training...');
       } else if (hasFailed) {
         setDeployStatus('Failed');
@@ -166,7 +175,9 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       case 'Inactive':
         return 'bg-gray-500 text-white'; // Gray for inactive status
       case 'Training...':
-        return 'bg-blue-500 text-white'; // New color for training
+        return 'bg-blue-500 text-white';
+      case 'Training failed': // New case for training failed
+        return 'bg-red-500 text-white';
       case 'Failed':
       case 'Error: Underlying model not present':
         return 'bg-red-500 text-white'; // Red for error statuses
@@ -215,15 +226,17 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           onClick={deployStatus === 'Active' ? goToEndpoint : handleDeploy}
           className="text-white focus:ring-4 focus:outline-none font-medium text-sm p-2.5 text-center inline-flex items-center me-2"
           style={{ width: '100px' }}
-          disabled={isTrainingIncomplete || ['Failed', 'Starting', 'Error: Underlying model not present'].includes(deployStatus)}
+          disabled={isTrainingIncomplete || ['Failed', 'Starting', 'Error: Underlying model not present', 'Training failed'].includes(deployStatus)}
         >
-          {isTrainingIncomplete 
-            ? 'Training...' // New text when training is incomplete
+          {deployStatus === 'Training failed' // Check explicitly for 'Training failed'
+            ? 'Training Failed' // Show 'Training Failed' text
+            : isTrainingIncomplete
+            ? 'Training...'
             : deployStatus === 'Active'
             ? 'Endpoint'
             : deployStatus === 'Inactive'
             ? 'Start'
-            : deployStatus === 'Failed' || deployStatus === 'Error: Underlying model not present'
+            : ['Failed', 'Error: Underlying model not present'].includes(deployStatus)
             ? 'Start'
             : 'Endpoint'}
         </Button>

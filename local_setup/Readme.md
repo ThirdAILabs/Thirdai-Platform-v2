@@ -118,3 +118,35 @@ Extra steps that may help:
 ### Setting up HashiCorp Vault
 You can use the following instructions to set it up:
 https://waytohksharma.medium.com/install-hashicorp-vault-on-mac-fdbd8cd9113b
+
+
+### Generating static documentation
+
+We currently use Sphinx to generate our API documentation. However, Sphinx has known compatibility issues with the latest OpenAPI 3.1.0 specification, leading to problems in rendering the documentation correctly. Until this issue is resolved, we will use a temporary solution by generating static documentation using **ReDoc CLI**.
+
+### Temporary Solution: Generating Static Documentation with ReDoc CLI
+
+To generate static API documentation using **ReDoc CLI**, follow these steps:
+
+1. **Install ReDoc CLI:**
+
+   Make sure you have Node.js and npm installed. Then, install ReDoc CLI globally:
+
+   ```bash
+   npm install -g redoc-cli
+2. **Generate the Static HTML Documentation:**
+  
+    Run the following command to generate the static HTML documentation:
+
+    ```bash
+    redoc-cli bundle http://localhost:8000/openapi.json -o ./redoc-static.html
+    ```
+    This command fetches the OpenAPI schema from your running FastAPI instance and generates a redoc-static.html file.
+
+    http://localhost:8000/openapi.json: URL to your OpenAPI schema.
+-o ./redoc-static.html: Output file path where the static HTML will be saved.
+
+3. **See the documentation:**
+
+    Now you can see the documentation by running ```open redoc-static.html```
+    

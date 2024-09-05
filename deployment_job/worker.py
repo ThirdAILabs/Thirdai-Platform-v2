@@ -4,7 +4,7 @@ from datetime import datetime
 
 from routers.model import get_model
 from routers.ndb import process_ndb_task
-from variables import TypeEnum
+from variables import ModelType
 
 
 def update_model_with_timestamp(model_id):
@@ -37,7 +37,7 @@ def main():
                     if key in task_data:
                         task_data[key] = json.loads(task_data[key])
 
-                if model.general_variables.type == TypeEnum.NDB:
+                if model.general_variables.type == ModelType.NDB:
                     process_ndb_task(task_data)
                 else:
                     break

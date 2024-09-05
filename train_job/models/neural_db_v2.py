@@ -7,32 +7,44 @@ import threading
 import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 
 import thirdai
+from config import FileInfo, NDBv2Options
 from fastapi import Response
 from models.model import Model
 from thirdai import neural_db_v2 as ndbv2
-from utils import check_disk, create_s3_client, get_directory_size, list_files
-from variables import CSVDocumentVariables, FinetunableRetrieverVariables
+from utils import (
+    check_disk,
+    create_s3_client,
+    get_directory_size,
+    expand_s3_buckets_and_directories,
+    check_csv_only,
+)
 
 
-def convert_to_ndb_doc(resource_path: str, display_path: str) -> ndbv2.Document:
+def convert_to_ndb_doc(
+    resource_path: str,
+    display_path: str,
+    doc_id: Optional[str],
+    metadata: Optional[Dict[str, Any]],
+    options: Dict[str, Any],
+) -> ndbv2.Document:
     filename, ext = os.path.splitext(resource_path)
 
-    json_file_path = f"{filename}_metadata.json"
-    doc_metadata = None
-
-    if os.path.exists(json_file_path):
-        with open(json_file_path, "r") as json_file:
-            doc_metadata = json.load(json_file)
     if ext == ".pdf":
         return ndbv2.PDF(
-            resource_path, doc_metadata=doc_metadata, display_path=display_path
+            resource_path,
+            doc_metadata=metadata,
+            display_path=display_path,
+            doc_id=doc_id,
         )
     elif ext == ".docx":
         return ndbv2.DOCX(
-            resource_path, doc_metadata=doc_metadata, display_path=display_path
+            resource_path,
+            doc_metadata=metadata,
+            display_path=display_path,
+            doc_id=doc_id,
         )
     elif ext == ".html":
         with open(resource_path, "r", encoding="utf-8") as f:
@@ -45,24 +57,36 @@ def convert_to_ndb_doc(resource_path: str, display_path: str) -> ndbv2.Document:
         return ndbv2.URL(
             os.path.basename(filename),
             response=dummy_response,
-            doc_metadata=doc_metadata,
+            doc_metadata=metadata,
+            doc_id=doc_id,
         )
     elif ext == ".csv":
-        csv_variables = CSVDocumentVariables.load_from_env()
         return ndbv2.CSV(
             resource_path,
-            keyword_columns=csv_variables.csv_strong_columns,
-            text_columns=csv_variables.csv_weak_columns,
-            doc_metadata=doc_metadata,
+            keyword_columns=options.get("csv_strong_columns", []),
+            text_columns=options.get("csv_weak_columns", []),
+            doc_metadata=metadata,
             display_path=display_path,
+            doc_id=doc_id,
         )
     else:
         raise TypeError(f"{ext} Document type isn't supported yet.")
 
 
-def preload_chunks(resource_path: str, display_path: str) -> Tuple[ndbv2.Document, str]:
-    # TODO(V2 Support): Add an option for users to set the doc_id
-    doc = convert_to_ndb_doc(resource_path=resource_path, display_path=display_path)
+def preload_chunks(
+    resource_path: str,
+    display_path: str,
+    doc_id: Optional[str],
+    metadata: Optional[Dict[str, Any]],
+    options: Dict[str, Any],
+) -> Tuple[ndbv2.Document, str]:
+    doc = convert_to_ndb_doc(
+        resource_path=resource_path,
+        display_path=display_path,
+        doc_id=doc_id,
+        metadata=metadata,
+        options=options,
+    )
     return (
         ndbv2.documents.PrebatchedDoc(list(doc.chunks()), doc_id=doc.doc_id()),
         resource_path,
@@ -70,38 +94,44 @@ def preload_chunks(resource_path: str, display_path: str) -> Tuple[ndbv2.Documen
 
 
 def process_file(
-    file: str, doc_save_dir: str, tmp_dir: str
+    doc: FileInfo, doc_save_dir: str, tmp_dir: str
 ) -> Tuple[ndbv2.Document, str]:
     """
     Process a file, downloading it from S3 if necessary, and convert it to an NDB file.
     """
-    if file.startswith("s3://"):
+    if doc.path.startswith("s3://"):
         s3_client = create_s3_client()
-        bucket_name, prefix = file.replace("s3://", "").split("/", 1)
+        bucket_name, prefix = doc.path.replace("s3://", "").split("/", 1)
         local_file_path = os.path.join(tmp_dir, os.path.basename(prefix))
 
         # Download the file from S3
         try:
             s3_client.download_file(bucket_name, prefix, local_file_path)
         except Exception as error:
-            raise ValueError(f"Error downloading file '{file}' from s3 : {error}")
+            raise ValueError(f"Error downloading file '{doc.path}' from s3 : {error}")
 
-        doc = preload_chunks(
+        ndb_doc = preload_chunks(
             resource_path=local_file_path,
             display_path=f"/{bucket_name}.s3.amazonaws.com/{prefix}",
+            doc_id=doc.doc_id,
+            metadata=doc.metadata,
+            options=doc.options,
         )
         os.remove(local_file_path)
 
-        return doc
+        return ndb_doc
 
     save_artifact_uuid = str(uuid.uuid4())
     doc_dir = os.path.join(doc_save_dir, save_artifact_uuid)
     os.makedirs(doc_dir, exist_ok=True)
-    shutil.copy(src=file, dst=doc_dir)
+    shutil.copy(src=doc.path, dst=doc_dir)
 
     return preload_chunks(
-        resource_path=os.path.join(doc_dir, os.path.basename(file)),
-        display_path=os.path.join(save_artifact_uuid, os.path.basename(file)),
+        resource_path=os.path.join(doc_dir, os.path.basename(doc.path)),
+        display_path=os.path.join(save_artifact_uuid, os.path.basename(doc.path)),
+        doc_id=doc.doc_id,
+        metadata=doc.metadata,
+        options=doc.options,
     )
 
 
@@ -109,11 +139,9 @@ class NeuralDBV2(Model):
     def __init__(self):
         super().__init__()
 
-        self.retriever_variables: FinetunableRetrieverVariables = (
-            FinetunableRetrieverVariables.load_from_env()
-        )
+        self.ndb_options: NDBv2Options = self.config.model_options.ndb_options
 
-        if self.retriever_variables.on_disk:
+        if self.ndb_options.on_disk:
             save_path = self.ndb_save_path()
         else:
             save_path = None
@@ -126,7 +154,11 @@ class NeuralDBV2(Model):
         return os.path.join(self.ndb_save_path(), "documents")
 
     def parser(
-        self, files: list[str], task_queue: queue.Queue, doc_save_dir: str, tmp_dir: str
+        self,
+        files: list[FileInfo],
+        task_queue: queue.Queue,
+        doc_save_dir: str,
+        tmp_dir: str,
     ):
         max_cores = os.cpu_count()
         num_workers = max(1, max_cores - 6)
@@ -168,6 +200,14 @@ class NeuralDBV2(Model):
                 batch.clear()
 
         self.logger.info("Indexing processes completed")
+
+    def unsupervised_files(self) -> List[FileInfo]:
+        return expand_s3_buckets_and_directories(self.config.data.unsupervised_files)
+
+    def supervised_files(self) -> List[FileInfo]:
+        all_files = expand_s3_buckets_and_directories(self.config.data.supervised_files)
+        check_csv_only(all_files)
+        return all_files
 
     def unsupervised_train(self, files: List[str]):
         self.logger.info("Starting unsupervised training.")
@@ -219,17 +259,17 @@ class NeuralDBV2(Model):
         Train the NeuralDB with unsupervised and supervised data.
         """
         self.logger.info("Training process started.")
-        self.reporter.report_status(self.general_variables.model_id, "in_progress")
+        self.reporter.report_status(self.config.model_id, "in_progress")
 
         s = time.perf_counter()
-        unsupervised_files = list_files(self.data_dir / "unsupervised")
+        unsupervised_files = self.unsupervised_files()
         e = time.perf_counter()
         self.logger.info(
             f"Listed {len(unsupervised_files)} unsupervised files in {e-s:.4f} seconds"
         )
 
         s = time.perf_counter()
-        supervised_files = list_files(self.data_dir / "supervised")
+        supervised_files = self.supervised_files()
         e = time.perf_counter()
         self.logger.info(
             f"Listed {len(supervised_files)} supervised files in {e-s:.4f} seconds"
@@ -239,17 +279,13 @@ class NeuralDBV2(Model):
 
         if unsupervised_files:
             self.logger.info(f"Found {len(unsupervised_files)} unsupervised files.")
-            check_disk(
-                self.db, self.general_variables.model_bazaar_dir, unsupervised_files
-            )
+            check_disk(self.db, self.config.model_bazaar_dir, unsupervised_files)
             self.unsupervised_train(unsupervised_files)
             self.logger.info("Completed Unsupervised Training")
 
         if supervised_files:
             self.logger.info(f"Found {len(supervised_files)} supervised files.")
-            check_disk(
-                self.db, self.general_variables.model_bazaar_dir, supervised_files
-            )
+            check_disk(self.db, self.config.model_bazaar_dir, supervised_files)
             self.supervised_train(supervised_files)
             self.logger.info("Completed Supervised Training")
 
@@ -269,7 +305,7 @@ class NeuralDBV2(Model):
         self.logger.warning("Evaluation method called. Not implemented.")
 
     def save(self):
-        if not self.retriever_variables.on_disk:
+        if not self.ndb_options.on_disk:
             self.db.save(self.ndb_save_path())
 
     def get_latency(self) -> float:
@@ -300,7 +336,7 @@ class NeuralDBV2(Model):
         self.logger.info("Finalizing training process.")
 
         self.reporter.report_complete(
-            model_id=self.general_variables.model_id,
+            model_id=self.config.model_id,
             metadata={
                 "num_params": str(self.db.retriever.retriever.size()),
                 "size": str(get_directory_size(self.ndb_save_path())),

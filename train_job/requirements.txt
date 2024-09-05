@@ -3,6 +3,6 @@ uvicorn
 boto3
 pandas
 requests
-thirdai[neural_db]
+thirdai[neural_db_v2]
 colorlog
 pydantic

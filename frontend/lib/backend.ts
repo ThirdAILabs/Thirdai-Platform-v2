@@ -503,6 +503,7 @@ interface WorkflowModel {
   thirdai_version: string;
   training_time: string;
   type: string;
+  train_status: string;
   user_email: string;
   username: string;
 }
@@ -1009,6 +1010,27 @@ export async function assignTeamAdmin(email: string, team_id: string) {
       });
   });
 }
+
+export async function removeTeamAdmin(email: string, team_id: string) {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ email, team_id });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/team/remove-team-admin?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+
 
 
 export async function deleteUserFromTeam(email: string, team_id: string): Promise<void> {

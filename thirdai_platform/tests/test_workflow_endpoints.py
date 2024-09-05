@@ -304,3 +304,99 @@ def test_add_and_validate_models_to_workflow():
         headers=auth_header(owner_jwt),
     )
     assert res.status_code == 404  # Validation should fail due to missing models
+
+
+def test_delete_workflow_delete_models():
+    from main import app
+
+    client = TestClient(app)
+
+    # Log in as workflow owner
+    res = login(client, username="workflow-owner@mail.com", password="owner-password")
+    assert res.status_code == 200
+    owner_jwt = res.json()["data"]["access_token"]
+
+    # Create a workflow 1
+    res = client.post(
+        "/api/workflow/create",
+        params={"name": "Model Test Workflow 1", "type_name": "complex_workflow_type"},
+        headers=auth_header(owner_jwt),
+    )
+    assert res.status_code == 200
+    workflow_id_1 = res.json()["data"]["workflow_id"]
+
+    # Create a workflow 2
+    res = client.post(
+        "/api/workflow/create",
+        params={"name": "Model Test Workflow 2", "type_name": "complex_workflow_type"},
+        headers=auth_header(owner_jwt),
+    )
+    assert res.status_code == 200
+    workflow_id_2 = res.json()["data"]["workflow_id"]
+
+    # Upload models required for workflow
+    upload_model(client, owner_jwt, "model_a", "public")
+
+    res = client.get("/api/model/public-list", params={"name": "model_a"})
+    assert res.status_code == 200
+
+    data = res.json()["data"]
+    assert len(data) == 1
+
+    model_id = data[0]["model_id"]
+
+    res = client.post(
+        "/api/workflow/add-models",
+        json={
+            "workflow_id": workflow_id_1,
+            "model_ids": [model_id],
+            "components": ["search"],
+        },
+        headers=auth_header(owner_jwt),
+    )
+    assert res.status_code == 200
+
+    res = client.post(
+        "/api/workflow/add-models",
+        json={
+            "workflow_id": workflow_id_2,
+            "model_ids": [model_id],
+            "components": ["search"],
+        },
+        headers=auth_header(owner_jwt),
+    )
+    assert res.status_code == 200
+
+    res = client.post(
+        "/api/workflow/delete",
+        params={"workflow_id": workflow_id_2},
+        headers=auth_header(owner_jwt),
+    )
+    assert res.status_code == 200
+
+    res = client.get(
+        "/api/model/name-check",
+        params={"name": "model_a"},
+        headers=auth_header(owner_jwt),
+    )
+
+    assert res.status_code == 200
+    data = res.json()["data"]
+    assert data["model_present"]
+
+    res = client.post(
+        "/api/workflow/delete",
+        params={"workflow_id": workflow_id_1},
+        headers=auth_header(owner_jwt),
+    )
+    assert res.status_code == 200
+
+    res = client.get(
+        "/api/model/name-check",
+        params={"name": "model_a"},
+        headers=auth_header(owner_jwt),
+    )
+
+    assert res.status_code == 200
+    data = res.json()["data"]
+    assert not data["model_present"]

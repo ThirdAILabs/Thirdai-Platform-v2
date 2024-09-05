@@ -11,7 +11,7 @@ from models.classification_models import (
     TokenClassificationModel,
 )
 from models.ndb_models import ShardedNDB, SingleNDB
-from variables import GeneralVariables, NDBSubtype, TypeEnum, UDTSubtype
+from variables import GeneralVariables, ModelType, NDBSubType, UDTSubType
 
 # Initialize thirdai license
 general_variables: GeneralVariables = GeneralVariables.load_from_env()
@@ -59,16 +59,18 @@ class ModelManager:
         """
         Initializes and returns the appropriate model instance based on general variables.
         """
-        if general_variables.type == TypeEnum.NDB:
-            if general_variables.sub_type == NDBSubtype.sharded:
-                return ShardedNDB(write_mode=write_mode)
-            else:
+        if general_variables.type == ModelType.NDB:
+            if general_variables.sub_type == NDBSubType.v1:
                 return SingleNDB(write_mode=write_mode)
-        elif general_variables.type == TypeEnum.UDT:
-            if general_variables.sub_type == UDTSubtype.text:
-                return TextClassificationModel()
             else:
+                raise ValueError("NDBv2 is not yet supported")
+        elif general_variables.type == ModelType.UDT:
+            if general_variables.sub_type == UDTSubType.text:
+                return TextClassificationModel()
+            elif general_variables.sub_type == UDTSubType.token:
                 return TokenClassificationModel()
+            else:
+                raise ValueError("Invalid UDT sub type.")
         else:
             raise ValueError("Invalid model type")
 

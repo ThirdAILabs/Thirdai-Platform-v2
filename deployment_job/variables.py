@@ -14,24 +14,24 @@ from utils import now
 T = TypeVar("T", bound="EnvLoader")
 
 
-class TypeEnum(str, Enum):
+class ModelType(str, Enum):
     NDB = "ndb"
     UDT = "udt"
 
 
-class UDTSubtype(str, Enum):
+class UDTSubType(str, Enum):
     token = "token"
     text = "text"
 
 
-class NDBSubtype(str, Enum):
-    single = "single"
-    sharded = "sharded"
+class NDBSubType(str, Enum):
+    v1 = "v1"
+    v2 = "v2"
 
 
 class EnvLoader:
     type_mapping = {
-        "TypeEnum": TypeEnum,
+        "ModelType": ModelType,
     }
 
     @classmethod
@@ -108,8 +108,8 @@ class GeneralVariables(EnvLoader):
     model_bazaar_dir: str
     license_key: str
     task_runner_token: str
-    type: TypeEnum = TypeEnum.NDB
-    sub_type: Union[UDTSubtype, NDBSubtype] = NDBSubtype.single
+    type: ModelType = ModelType.NDB
+    sub_type: Union[UDTSubType, NDBSubType] = NDBSubType.v1
 
     def deployment_permissions(self, token: str):
         deployment_permissions_endpoint = urljoin(

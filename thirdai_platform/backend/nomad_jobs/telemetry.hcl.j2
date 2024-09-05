@@ -95,10 +95,10 @@ EOF
         group_add = ["4646"]
         ports = ["vicky-http"]
         args = [
-          "--storageDataPath=/model_bazaar/monitoring-data/victoriametric",
+          "--storageDataPath=/storage",
           "--retentionPeriod=1d",
           "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
-          "--promscrape.config=${NOMAD_TASK_DIR}/prometheus.yaml"
+          "--promscrape.config={{ SHARE_DIR }}/prometheus.yaml"
         ]
         {% if platform == "local" -%}
         extra_hosts = ["host.docker.internal:host-gateway"]

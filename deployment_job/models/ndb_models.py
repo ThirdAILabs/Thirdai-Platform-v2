@@ -597,8 +597,11 @@ class NDBV2Model(NDBModel):
             "boxes": [ast.literal_eval(c.metadata["chunk_boxes"]) for c in chunks],
         }
 
-    def load(self, **kwargs) -> ndbv2.NeuralDB:
-        return ndbv2.NeuralDB.load(self.ndb_save_path())
+    def load(self, write_mode: bool = False, **kwargs) -> ndbv2.NeuralDB:
+        self.logger.info(
+            f"Loading NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}"
+        )
+        return ndbv2.NeuralDB.load(self.ndb_save_path(), read_only=not write_mode)
 
     def save(self, model_id: str, **kwargs) -> None:
         def ndb_path(model_id: str):

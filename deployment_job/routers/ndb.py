@@ -141,7 +141,8 @@ def ndb_upvote(
         {
             "query_text": text_id_pair.query_text,
             "reference_id": str(text_id_pair.reference_id),
-            "reference_text": model.db._get_text(text_id_pair.reference_id),
+            "reference_text": "TODO(Nicholas): fix this",
+            # "reference_text": model.db._get_text(text_id_pair.reference_id),
         }
         for text_id_pair in input.text_id_pairs
     ]

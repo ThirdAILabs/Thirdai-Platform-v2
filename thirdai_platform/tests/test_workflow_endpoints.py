@@ -430,7 +430,7 @@ def test_workflow_access_based_on_model_access():
     normal_user_jwt = res.json()["data"]["access_token"]
 
     res = create_team(client, "Team A", global_admin_jwt)
-    assert res.status_code == 200
+    assert res.status_code == 201
     team_id = res.json()["data"]["team_id"]
 
     res = assign_team_admin(client, team_id, "team-admin@mail.com", global_admin_jwt)

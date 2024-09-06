@@ -146,15 +146,11 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         setDeployStatus('Starting');
         return;
       } else if (workflow.status === 'inactive' && deployStatus != 'Starting') {
-        // If the workflow is inactive, we always say it's inactive regardless of model statuses
-          // AND If user hasn't tried to start deploy the workflow AND
+        // if user hasn't chosen to start the workflow, we want to set it to Inactive
         setDeployStatus('Inactive');
         return;
       } else if (allComplete) {
         setDeployStatus('Active'); // Models are complete and workflow is active
-      } else if (workflow.status === 'inactive' && deployStatus !== 'Starting') {
-        // if user hasn't chosen to start the workflow, we want to set it to Inactive
-        setDeployStatus('Inactive');
       }
     } else {
       // If no models are present, the workflow is ready to deploy

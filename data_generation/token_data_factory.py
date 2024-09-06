@@ -8,6 +8,7 @@ from resource.token_prompts import (
     template_prompt,
 )
 from typing import Any, Dict, List, Optional
+import numpy as np
 
 from data_factory_interface import DataFactory
 from faker import Faker
@@ -215,12 +216,28 @@ class TokenDataFactory(DataFactory):
             num_sentences_to_generate - self.train_sentences_generated
         ) // self.sentences_per_template
 
-    def _subsample_tag(self, tags: List[Entity], k: int = 4):
+    def _subsample_tag(
+        self, tags: List[Entity], k: int = 4, untrained_tag_weight_multiplier: int = 4
+    ):
         # using triangular distribution to favour longer lists by setting mode = high.
         # k = math.ceil(random.triangular(low=1, high=len(tags), mode=len(tags)))
         # return random.sample(tags, k)
 
-        return random.sample(tags, min(len(tags), k))
+        sampling_weights = np.array(
+            [
+                untrained_tag_weight_multiplier if tag.status == "untrained" else 1
+                for tag in tags
+            ]
+        )
+
+        selected_indices = np.random.choice(
+            len(tags),
+            size=min(len(tags), k),
+            replace=False,
+            p=sampling_weights / sampling_weights.sum(),
+        )
+
+        return [tags[i] for i in selected_indices]
 
     def generate_data(
         self,
@@ -299,7 +316,10 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
             ]
 
             train_templates, test_templates = self.train_test_template_split(
-                templates=templates, test_size = self.general_variables.test_size, shuffle=True, save=True
+                templates=templates,
+                test_size=self.general_variables.test_size,
+                shuffle=True,
+                save=True,
             )
             train_datapoints = [
                 item

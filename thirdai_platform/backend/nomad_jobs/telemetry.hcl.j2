@@ -1,7 +1,7 @@
 job "telemetry" {
   datacenters = ["dc1"]
   type        = "service"
-
+  {% set nomad_monitoring_dir = "/model_bazaar/nomad-monitoring" %}
   group "telemetry" {
     count = 1
 
@@ -17,49 +17,30 @@ job "telemetry" {
         to = 3000
       }
     }
+    {% if platform == "docker" -%}
     task "collectnodes" {
       lifecycle {
         hook = "prestart"
       }
 
-      driver = "raw_exec"
-      config {
-        command = "sh"
-        args = ["${NOMAD_TASK_DIR}/node_discovery.sh"]
+      driver = "docker"
+      env {
+        MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
+        MANAGEMENT_TOKEN = "${MANAGEMENT_TOKEN}"
+        PROMFILE = "/model_bazaar/node_discovery/prometheus.yaml"
       }
-
-      template {
-        destination = "${NOMAD_TASK_DIR}/node_discovery.sh"
-        perms = 774
-        data = <<EOH
-#!/bin/bash
-
-prometheus_file="${{ SHARE_DIR }}/prometheus.yaml"
-cat > "$prometheus_file" <<EOF
-global:
-  scrape_interval: 1s
-  external_labels:
-    env: "dev"
-    cluster: "local"
-
-scrape_configs:
-  - job_name: "nomad-agent"
-    metrics_path: "/v1/metrics?format=prometheus"
-    static_configs:
-      - targets:
-curl --header "X-Nomad-Token: ${MANAGEMENT_TOKEN}" {{ PRIVATE_MODEL_BAZAAR_ENDPOINT }}:4646/v1/nodes | jq -r '.[].Address' | while read -r ip; do
-  echo "        - \"${ip}:4646\"" >> "$prometheus_file"
-done
-cat >> "$prometheus_file" <<EOF
-        labels:
-          role: agent
-    relabel_configs:
-      - source_labels: [__address__]
-        regex: "([^:]+):.+"
-        target_label: "hostname"
-        replacement: "nomad-agent-\$1"
-EOF
-EOH
+      config {
+        image = "{{ registry }}/{{ image_name }}:{{ tag }}"
+        image_pull_timeout = "15m"
+        group_add = ["4646"]
+        auth {
+            username = "{{ docker_username }}"
+            password = "{{ docker_password }}"
+            server_address = "{{ registry }}"
+          }
+        volumes = [
+            "{{ share_dir }}:/model_bazaar"
+          ]
       }
 
     template {
@@ -67,14 +48,15 @@ EOH
         env         = true
         change_mode = "restart"
         data        = <<EOF
-{% raw %}
+{% raw -%}
 {{- with nomadVar "nomad/jobs" -}}
 MANAGEMENT_TOKEN = {{ .management_token }}
 {{- end -}}
-{% endraw %}
+{%- endraw %}
 EOF
       }
     }
+    {%- endif %}
     task "victoriametrics" {
       driver = "docker"
 
@@ -89,7 +71,7 @@ EOF
         group_add = ["4646"]
         ports = ["vicky-http"]
         args = [
-          "--storageDataPath=/model_bazaar/nomad-monitoring/victoriametric",
+          "--storageDataPath={{ nomad_monitoring_dir }}/victoriametric",
           "--retentionPeriod=1d",
           "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
           "--promscrape.config=/model_bazaar/prometheus.yaml"
@@ -98,7 +80,7 @@ EOF
         extra_hosts = ["host.docker.internal:host-gateway"]
         {%- endif %}
         volumes = [
-          "{{ SHARE_DIR }}:/model_bazaar"
+          "{{ share_dir }}:/model_bazaar"
         ]
       }
 
@@ -109,7 +91,6 @@ EOF
     }
 
     task "loki" {
-      {% set loki_data_dir = "/model_bazaar/nomad-monitoring/loki" %}
       driver = "docker"
 
       config {
@@ -121,7 +102,7 @@ EOF
         ]
 
         volumes = [
-          "{{ SHARE_DIR }}:/model_bazaar"
+          "{{ share_dir }}:/model_bazaar"
         ]
         ports = ["loki-http"]
         
@@ -145,11 +126,11 @@ server:
   grpc_listen_port: 9096
 common:
   instance_addr: 127.0.0.1
-  path_prefix: {{ loki_data_dir }}
+  path_prefix: {{ nomad_monitoring_dir }}/loki
   storage:
     filesystem:
-      chunks_directory: {{ loki_data_dir }}/chunks
-      rules_directory: {{ loki_data_dir }}/rules
+      chunks_directory: {{ nomad_monitoring_dir }}/loki/chunks
+      rules_directory: {{ nomad_monitoring_dir }}/loki/rules
   replication_factor: 1
   ring:
     kvstore:
@@ -220,7 +201,7 @@ EOF
         GF_SERVER_SERVE_FROM_SUB_PATH = "true"
         GF_SERVER_HTTP_PORT   = "${NOMAD_PORT_http}"
         GF_PATHS_PROVISIONING = "/local/grafana/provisioning"
-        GF_PATHS_DATA = "/model_bazaar/nomad-monitoring/grafana"
+        GF_PATHS_DATA = "{{ nomad_monitoring_dir }}/grafana"
       }
 
       config {
@@ -228,7 +209,7 @@ EOF
         group_add = ["4646"]
         ports = ["grafana-http"]
         volumes = [
-          "{{ SHARE_DIR }}:/model_bazaar"
+          "{{ share_dir }}:/model_bazaar"
         ]
       }
 

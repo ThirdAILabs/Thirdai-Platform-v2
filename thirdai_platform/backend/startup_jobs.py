@@ -158,6 +158,7 @@ async def restart_llm_cache_job():
         license_key=license_info["boltLicenseKey"],
     )
 
+
 async def restart_telemetry_jobs():
     """
     Restart the telemetry jobs.
@@ -173,9 +174,14 @@ async def restart_telemetry_jobs():
     response = submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "telemetry.hcl.j2"),
-        PRIVATE_MODEL_BAZAAR_ENDPOINT =f"{os.getenv('PRIVATE_MODEL_BAZAAR_ENDPOINT').rstrip('/')}",
-        SHARE_DIR=os.getenv("SHARE_DIR"),
         platform=get_platform(),
+        tag=os.getenv("TAG"),
+        registry=os.getenv("DOCKER_REGISTRY"),
+        docker_username=os.getenv("DOCKER_USERNAME"),
+        docker_password=os.getenv("DOCKER_PASSWORD"),
+        image_name=os.getenv("NODE_DISCOVERY_IMAGE_NAME"),
+        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+        share_dir=os.getenv("SHARE_DIR"),
     )
     if response.status_code != 200:
         raise Exception(f"{response.text}")

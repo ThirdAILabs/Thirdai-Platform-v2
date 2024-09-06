@@ -127,7 +127,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           allComplete = false; // If any model is not complete, mark allComplete as false
 
           // if user previously has specified they want to start workflow
-          if (deployStatus == 'Starting') {
+          if (workflow.status == 'active') {
             console.log('user previously specified they want to start workflow, automatically deploy model.')
             handleDeploy(); // automatically deploy model
           }
@@ -144,9 +144,15 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         setDeployStatus('Failed');
       } else if (isInProgress) {
         setDeployStatus('Starting');
+        return;
+      } else if (workflow.status === 'inactive' && deployStatus != 'Starting') {
+        // If the workflow is inactive, we always say it's inactive regardless of model statuses
+          // AND If user hasn't tried to start deploy the workflow AND
+        setDeployStatus('Inactive');
+        return;
       } else if (allComplete) {
         setDeployStatus('Active'); // Models are complete and workflow is active
-      } else if (deployStatus !== 'Starting') {
+      } else if (workflow.status === 'inactive' && deployStatus !== 'Starting') {
         // if user hasn't chosen to start the workflow, we want to set it to Inactive
         setDeployStatus('Inactive');
       }

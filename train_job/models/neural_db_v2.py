@@ -101,14 +101,14 @@ def process_file(
     Process a file, downloading it from S3 if necessary, and convert it to an NDB file.
     """
     if doc.path.startswith("s3://"):
-        s3_client = create_s3_client()
-        bucket_name, prefix = doc.path.replace("s3://", "").split("/", 1)
-        local_file_path = os.path.join(tmp_dir, os.path.basename(prefix))
-
-        # Download the file from S3
         try:
+            s3_client = create_s3_client()
+            bucket_name, prefix = doc.path.replace("s3://", "").split("/", 1)
+            local_file_path = os.path.join(tmp_dir, os.path.basename(prefix))
+
             s3_client.download_file(bucket_name, prefix, local_file_path)
         except Exception as error:
+            print(f"Error downloading file '{doc.path}' from s3 : {error}")
             raise ValueError(f"Error downloading file '{doc.path}' from s3 : {error}")
 
         ndb_doc = preload_chunks(
@@ -139,6 +139,8 @@ def process_file(
 class NeuralDBV2(Model):
     def __init__(self, config: TrainConfig, reporter: Reporter):
         super().__init__(config=config, reporter=reporter)
+
+        self.logger.info(f"THIRDAI VERSION {thirdai.__version__}")
 
         self.ndb_options: NDBv2Options = self.config.model_options.ndb_options
 
@@ -173,13 +175,13 @@ class NeuralDBV2(Model):
 
     def parser(
         self,
-        files: list[FileInfo],
+        files: List[FileInfo],
         task_queue: queue.Queue,
         doc_save_dir: str,
         tmp_dir: str,
     ):
         max_cores = os.cpu_count()
-        num_workers = max(1, max_cores - 6)
+        num_workers = max(1, min(max_cores - 6, 10))
         self.logger.info(f"Starting {num_workers} parsing processes")
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
             futures = [
@@ -191,7 +193,7 @@ class NeuralDBV2(Model):
                 try:
                     ndb_file, filename = future.result()
                     task_queue.put(ndb_file)
-                    self.logger.info(f"Parsed: doc_id={ndb_file.doc_id()} {filename=}")
+                    self.logger.info(f"Parsed: doc_id={ndb_file.doc_id()} queue_size={task_queue.qsize()} {filename=}")
                 except Exception as e:
                     self.logger.error(f"Error processing file '{filename}': {e}")
 
@@ -207,14 +209,15 @@ class NeuralDBV2(Model):
             if ndb_doc is None:
                 if batch:
                     self.db.insert(batch)
-                    self.logger.info(f"Inserted: doc_ids={[x.doc_id() for x in batch]}")
+                    self.logger.info(f"Inserted final batch: size={len(batch)} queue_size={task_queue.qsize()} doc_ids={[x.doc_id() for x in batch]}")
                 break
 
             batch.append(ndb_doc)
 
-            if len(batch) >= batch_size and task_queue.qsize() == 0:
+            if len(batch) >= batch_size:
+            # if len(batch) >= batch_size and task_queue.qsize() == 0:
                 self.db.insert(batch)
-                self.logger.info(f"Inserted: doc_ids={[x.doc_id() for x in batch]}")
+                self.logger.info(f"Inserted batch: size={len(batch)} queue_size={task_queue.qsize()} doc_ids={[x.doc_id() for x in batch]}")
                 batch.clear()
 
         self.logger.info("Indexing processes completed")
@@ -231,6 +234,7 @@ class NeuralDBV2(Model):
         self.logger.info("Starting unsupervised training.")
         task_queue = queue.Queue()
 
+        os.makedirs(self.data_dir / "unsupervised", exist_ok=True)
         parser_thread = threading.Thread(
             target=self.parser,
             args=(
@@ -243,7 +247,7 @@ class NeuralDBV2(Model):
 
         indexer_thread = threading.Thread(
             target=self.indexer,
-            args=(task_queue, 50),
+            args=(task_queue, 100),
         )
 
         self.logger.info(

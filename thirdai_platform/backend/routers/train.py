@@ -32,7 +32,7 @@ train_router = APIRouter()
 
 class JobOptions(BaseModel):
     allocation_cores: int = Field(1, gt=0)
-    allocation_memory: int = Field(6800, gt=500)
+    allocation_memory: int = Field(15000, gt=500)
 
 
 @train_router.post("/ndb")

@@ -318,13 +318,26 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         <Modal onClose={toggleModal}>
           <div className="p-4">
             <h2 className="text-lg font-bold mb-4">App Details</h2>
-            {workflow.models.map((model, index) => (
-              <div key={index} className="mb-4">
-                <p><strong>Model Name:</strong> {model.model_name}</p>
-                <p><strong>Size on Disk:</strong> {formatBytesToMB(model.size)}</p>
-                <p><strong>Size in Memory:</strong> {formatBytesToMB(model.size_in_memory)}</p>
-              </div>
-            ))}
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-auto border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-200">
+                    <th className="border px-4 py-2 text-left">Model Name</th>
+                    <th className="border px-4 py-2 text-left">Size on Disk (MB)</th>
+                    <th className="border px-4 py-2 text-left">Size in Memory (MB)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workflow.models.map((model, index) => (
+                    <tr key={index} className="hover:bg-gray-100">
+                      <td className="border px-4 py-2">{model.model_name}</td>
+                      <td className="border px-4 py-2">{formatBytesToMB(model.size)}</td>
+                      <td className="border px-4 py-2">{formatBytesToMB(model.size_in_memory)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </Modal>
       )}

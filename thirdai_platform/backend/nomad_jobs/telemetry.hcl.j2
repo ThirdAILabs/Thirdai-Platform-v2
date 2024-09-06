@@ -2,6 +2,7 @@ job "telemetry" {
   datacenters = ["dc1"]
   type        = "service"
   {% set nomad_monitoring_dir = "/model_bazaar/nomad-monitoring" %}
+  {% set promfile = "/model_bazaar/node_discovery/prometheus.yaml" %}
   group "telemetry" {
     count = 1
 
@@ -27,7 +28,7 @@ job "telemetry" {
       env {
         MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
         MANAGEMENT_TOKEN = "${MANAGEMENT_TOKEN}"
-        PROMFILE = "/model_bazaar/node_discovery/prometheus.yaml"
+        PROMFILE = "{{ promfile }}"
       }
       config {
         image = "{{ registry }}/{{ image_name }}:{{ tag }}"
@@ -74,7 +75,7 @@ EOF
           "--storageDataPath={{ nomad_monitoring_dir }}/victoriametric",
           "--retentionPeriod=1d",
           "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
-          "--promscrape.config=/model_bazaar/prometheus.yaml"
+          "--promscrape.config={{ promfile }}"
         ]
         {% if platform == "local" -%}
         extra_hosts = ["host.docker.internal:host-gateway"]

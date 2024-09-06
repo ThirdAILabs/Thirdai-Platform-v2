@@ -125,7 +125,7 @@ UDT:
       deployment: udt_deploy
 
 UDT_DATAGEN:
-  config: [token, text]
+  config: [token_with_datagen, text_with_datagen  ]
   check_udt_train_with_datagen:
     dependencies: []
     params:

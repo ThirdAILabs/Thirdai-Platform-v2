@@ -611,7 +611,7 @@ function tokenClassifierDatagenForm(modelGoal: string, examples: TokenClassifica
   const numSentences = 10_000;
   return {
     'domain_prompt': modelGoal,
-    'tags': examples.map(example => example.name),
+    'tags': Object.keys(tagExamples),
     'tag_examples': tagExamples,
     'num_sentences_to_generate': numSentences,
     'num_samples_per_tag': Math.max(Math.ceil(numSentences / Object.keys(tagExamples).length), 50),

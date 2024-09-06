@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import math
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
@@ -359,6 +360,101 @@ class ModelBazaar:
 
         self.await_train(model)
         return model
+
+    def train_udt_with_datagen(
+        self,
+        model_name: str,
+        task_prompt: str,
+        sub_type: str,
+        examples: List[Tuple[str, str, str]],
+        is_async: bool = False,
+        base_model_identifier: Optional[str] = None,
+        train_extra_options: Optional[dict] = None,
+    ):
+        """
+        Initiates training for a model with datagen and returns a Model instance.
+
+        Args:
+            model_name (str): The name of the model.
+            examples (List[Tuple[str, str, str]]): A list of examples for training as (category, example, description) triplets.
+            is_async (bool): Whether training should be asynchronous (default is False).
+            base_model_identifier (Optional[str]): The identifier of the base model.
+            train_extra_options (Dict[str, Any]): Extra options for training.
+
+        Returns:
+            Model: A Model instance.
+        """
+        url = urljoin(self._base_url, f"train/udt")
+        form = []
+        
+        train_extra_options = train_extra_options or {}
+        train_extra_options["target_labels"] = list(set([category for category, _, _ in examples]))
+        form.append(
+            (
+                "extra_options_form",
+                (None, json.dumps(train_extra_options), "application/json"),
+            )
+        )
+
+        category_examples = {}
+        category_descriptions = {}
+        for category, example, description in examples:
+            if category not in category_examples:
+                category_examples[category] = [example]
+                category_descriptions[category] = description
+            else:
+                category_examples[category].append(example)
+        
+        if sub_type == "text":
+            datagen_options = {
+                "samples_per_label": max(math.ceil(10_000 / len(category_examples)), 50),
+                "target_labels": list(category_examples.keys()),
+                "examples": category_examples,
+                "labels_description": category_descriptions,
+            }
+        else:
+            datagen_options = {
+                "domain_prompt": task_prompt,
+                "tags": list(category_examples.keys()),
+                "tag_examples": category_examples,
+                "num_sentences_to_generate": 10_000,
+                "num_samples_per_tag": max(math.ceil(10_000 / len(category_examples)), 50),
+            }
+        form.append(
+            (
+                "datagen_options_form",
+                (None, json.dumps(datagen_options), "application/json"),
+            )
+        )
+
+        response = http_post_with_error(
+            url,
+            params={
+                "model_name": model_name,
+                "task_prompt": task_prompt,
+                "base_model_identifier": base_model_identifier,
+            },
+            files=form,
+            headers=auth_header(self._access_token),
+        )
+        print(response.content)
+        response_content = json.loads(response.content)
+        if response_content["status"] != "success":
+            raise Exception(response_content["message"])
+
+        model = Model(
+            model_identifier=create_model_identifier(
+                model_name=model_name, author_username=self._username
+            ),
+            model_id=response_content["data"]["model_id"],
+        )
+
+        if is_async:
+            return model
+
+        self.await_train(model)
+        return model
+
 
     def train_status(self, model: Model):
         """

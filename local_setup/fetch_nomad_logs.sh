@@ -19,15 +19,13 @@ fi
 
 # Loop through all jobs to fetch their logs
 for job in $NOMAD_JOBS; do
-  echo "Fetching allocations for job: $job"
-
   # Fetch stdout logs
-  $NOMAD_PATH alloc logs -job "$job"  > "${alloc_id}_stdout.log"
-  echo "STDOUT Logs for allocation $alloc_id:"
-  cat "${alloc_id}_stdout.log"
+  $NOMAD_PATH alloc logs -job "$job"  > "${job}_stdout.log"
+  echo "STDOUT Logs for allocation $job:"
+  cat "${job}_stdout.log"
 
   # Fetch stderr logs
-  $NOMAD_PATH alloc logs -job --stderr "$job"> "${alloc_id}_stderr.log"
-  echo "STDERR Logs for allocation $alloc_id:"
-  cat "${alloc_id}_stderr.log"
+  $NOMAD_PATH alloc logs -job --stderr "$job"> "${job}_stderr.log"
+  echo "STDERR Logs for allocation $job:"
+  cat "${job}_stderr.log"
 done

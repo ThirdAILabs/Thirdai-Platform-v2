@@ -13,7 +13,7 @@ from routers.ndb import ndb_router
 from routers.telemetry import telemetry_router  # Import the telemetry router
 from routers.udt import udt_router
 from utils import delete_deployment_job
-from variables import GeneralVariables, TypeEnum
+from variables import GeneralVariables, ModelType
 
 general_variables = GeneralVariables.load_from_env()
 reporter = Reporter(general_variables.model_bazaar_endpoint)
@@ -117,9 +117,9 @@ async def check_for_model_updates():
 # Include the telemetry router for all deployments
 app.include_router(telemetry_router, prefix=f"/{general_variables.model_id}/telemetry")
 
-if general_variables.type == TypeEnum.NDB:
+if general_variables.type == ModelType.NDB:
     app.include_router(ndb_router, prefix=f"/{general_variables.model_id}")
-elif general_variables.type == TypeEnum.UDT:
+elif general_variables.type == ModelType.UDT:
     app.include_router(udt_router, prefix=f"/{general_variables.model_id}")
 
 

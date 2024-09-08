@@ -3,7 +3,7 @@ import os
 import time
 import math
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 from client.clients import BaseClient, Login, Model, NeuralDBClient, UDTClient
@@ -146,11 +146,12 @@ class ModelBazaar:
         supervised_docs: Optional[List[Tuple[str, str]]] = None,
         test_doc: Optional[str] = None,
         doc_type: str = "local",
-        sharded: bool = False,
         is_async: bool = False,
         base_model_identifier: Optional[str] = None,
-        train_extra_options: Optional[dict] = None,
+        model_options: Optional[dict] = None,
         metadata: Optional[List[Dict[str, str]]] = None,
+        doc_options: Dict[str, Dict[str, Any]] = {},
+        job_options: Optional[dict] = None,
     ):
         """
         Initiates training for a model and returns a Model instance.
@@ -182,58 +183,53 @@ class ModelBazaar:
             if len(metadata) != len(unsupervised_docs):
                 raise ValueError("Metadata is not provided for all unsupervised files.")
 
-        file_details_list = []
-        docs = []
-
-        if unsupervised_docs and metadata:
-            for doc, meta in zip(unsupervised_docs, metadata):
-                docs.append(doc)
-                file_details_list.append(
-                    {"mode": "unsupervised", "location": doc_type, "metadata": meta}
-                )
-        elif unsupervised_docs:
-            for doc in unsupervised_docs:
-                docs.append(doc)
-                file_details_list.append({"mode": "unsupervised", "location": doc_type})
-
-        if supervised_docs:
-            for sup_file, source_id in supervised_docs:
-                docs.append(sup_file)
-                file_details_list.append(
-                    {"mode": "supervised", "location": doc_type, "source_id": source_id}
-                )
-
-        if test_doc:
-            docs.append(test_doc)
-            file_details_list.append({"mode": "test", "location": doc_type})
+        file_info = {
+            "unsupervised_files": [
+                {
+                    "path": doc,
+                    "location": doc_type,
+                    "metadata": metadata[i] if metadata else None,
+                    "options": doc_options.get(doc, {}),
+                }
+                for i, doc in enumerate(unsupervised_docs)
+            ],
+            "supervised_files": [
+                {
+                    "path": sup_file,
+                    "doc_id": source_id,
+                    "location": doc_type,
+                    "options": doc_options.get(sup_file, {}),
+                }
+                for sup_file, source_id in supervised_docs
+            ],
+            "test_files": (
+                [{"path": test_doc, "location": doc_type}] if test_doc else []
+            ),
+        }
 
         url = urljoin(self._base_url, f"train/ndb")
-        files = [
-            (
-                ("files", open(file_path, "rb"))
-                if doc_type == "local"
-                else ("files", (file_path, "don't care"))
-            )
-            for file_path in docs
-        ]
-        if train_extra_options:
+
+        all_file_paths = (
+            unsupervised_docs
+            + [x[0] for x in (supervised_docs or [])]
+            + ([test_doc] if test_doc else [])
+        )
+        if doc_type == "local":
+            files = [("files", open(file_path, "rb")) for file_path in all_file_paths]
+        else:
+            files = []
+
+        if model_options:
             files.append(
-                (
-                    "extra_options_form",
-                    (None, json.dumps(train_extra_options), "application/json"),
-                )
+                ("model_options", (None, json.dumps(model_options), "application/json"))
             )
 
-        files.append(
-            (
-                "file_details_list",
-                (
-                    None,
-                    json.dumps({"file_details": file_details_list}),
-                    "application/json",
-                ),
+        files.append(("file_info", (None, json.dumps(file_info), "application/json")))
+
+        if job_options:
+            files.append(
+                ("job_options", (None, json.dumps(job_options), "application/json"))
             )
-        )
 
         response = http_post_with_error(
             url,
@@ -270,7 +266,8 @@ class ModelBazaar:
         doc_type: str = "local",
         is_async: bool = False,
         base_model_identifier: Optional[str] = None,
-        train_extra_options: Optional[dict] = None,
+        model_options: Optional[dict] = None,
+        job_options: Optional[dict] = None,
     ):
         """
         Initiates training for a model and returns a Model instance.
@@ -307,32 +304,33 @@ class ModelBazaar:
             file_details_list.append({"mode": "test", "location": doc_type})
 
         url = urljoin(self._base_url, f"train/udt")
-        files = [
-            (
-                ("files", open(file_path, "rb"))
-                if doc_type == "local"
-                else ("files", (file_path, "don't care"))
-            )
-            for file_path in docs
-        ]
-        if train_extra_options:
+
+        file_info = {
+            "supervised_files": [
+                {"path": sup_file, "location": doc_type} for sup_file in supervised_docs
+            ],
+            "test_files": (
+                [{"path": test_doc, "location": doc_type}] if test_doc else []
+            ),
+        }
+
+        all_file_paths = supervised_docs + ([test_doc] if test_doc else [])
+        if doc_type == "local":
+            files = [("files", open(file_path, "rb")) for file_path in all_file_paths]
+        else:
+            files = []
+
+        if model_options:
             files.append(
-                (
-                    "extra_options_form",
-                    (None, json.dumps(train_extra_options), "application/json"),
-                )
+                ("model_options", (None, json.dumps(model_options), "application/json"))
             )
 
-        files.append(
-            (
-                "file_details_list",
-                (
-                    None,
-                    json.dumps({"file_details": file_details_list}),
-                    "application/json",
-                ),
+        files.append(("file_info", (None, json.dumps(file_info), "application/json")))
+
+        if job_options:
+            files.append(
+                ("job_options", (None, json.dumps(job_options), "application/json"))
             )
-        )
 
         response = http_post_with_error(
             url,
@@ -369,33 +367,29 @@ class ModelBazaar:
         examples: List[Tuple[str, str, str]],
         is_async: bool = False,
         base_model_identifier: Optional[str] = None,
-        train_extra_options: Optional[dict] = None,
+        datagen_job_options: Optional[dict] = None,
+        train_job_options:  Optional[dict] = None,
     ):
         """
         Initiates training for a model with datagen and returns a Model instance.
 
         Args:
             model_name (str): The name of the model.
+            task_prompt (str): A prompt that describes the downstream task to the LLM.
+            sub_type (str): "text" or "token" for text and token classification respectively.
             examples (List[Tuple[str, str, str]]): A list of examples for training as (category, example, description) triplets.
             is_async (bool): Whether training should be asynchronous (default is False).
             base_model_identifier (Optional[str]): The identifier of the base model.
-            train_extra_options (Dict[str, Any]): Extra options for training.
+            datagen_job_options (Dict[str, Any]): Resource allocation options for the datagen job.
+            train_job_options (Dict[str, Any]): Resource allocation options for the training job.
 
         Returns:
             Model: A Model instance.
         """
-        url = urljoin(self._base_url, f"train/udt")
+        url = urljoin(self._base_url, f"train/nlp-datagen")
+
         form = []
         
-        train_extra_options = train_extra_options or {}
-        train_extra_options["target_labels"] = list(set([category for category, _, _ in examples]))
-        form.append(
-            (
-                "extra_options_form",
-                (None, json.dumps(train_extra_options), "application/json"),
-            )
-        )
-
         category_examples = {}
         category_descriptions = {}
         for category, example, description in examples:
@@ -407,6 +401,7 @@ class ModelBazaar:
         
         if sub_type == "text":
             datagen_options = {
+                "sub_type": "text",
                 "samples_per_label": max(math.ceil(10_000 / len(category_examples)), 50),
                 "target_labels": list(category_examples.keys()),
                 "examples": category_examples,
@@ -414,24 +409,30 @@ class ModelBazaar:
             }
         else:
             datagen_options = {
+                "sub_type": "token",
                 "domain_prompt": task_prompt,
                 "tags": list(category_examples.keys()),
                 "tag_examples": category_examples,
                 "num_sentences_to_generate": 10_000,
                 "num_samples_per_tag": max(math.ceil(10_000 / len(category_examples)), 50),
             }
+
         form.append(
             (
-                "datagen_options_form",
-                (None, json.dumps(datagen_options), "application/json"),
+                "datagen_options",
+                (None, json.dumps({"task_prompt": task_prompt, "datagen_options": datagen_options}), "application/json"),
             )
         )
+
+        if datagen_job_options:
+            form.append(("datagen_job_options", (None, json.dumps(datagen_job_options), "application/json")))
+        if train_job_options:
+            form.append(("train_job_options", (None, json.dumps(train_job_options), "application/json")))
 
         response = http_post_with_error(
             url,
             params={
                 "model_name": model_name,
-                "task_prompt": task_prompt,
                 "base_model_identifier": base_model_identifier,
             },
             files=form,

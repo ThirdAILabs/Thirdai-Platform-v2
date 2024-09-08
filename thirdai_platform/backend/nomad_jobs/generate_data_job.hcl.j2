@@ -53,7 +53,7 @@ job "GenerateData-{{ data_id }}" {
       }
 
       resources {
-        cpu = {{ extra_options.get('allocation__cores', 1) * 2400 }}
+        cpu = {{ extra_options.get('allocation_cores', 1) * 2400 }}
         memory = {{ extra_options.get('allocation_memory', '6800') }}
       }
     }

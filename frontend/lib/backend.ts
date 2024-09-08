@@ -503,6 +503,7 @@ interface WorkflowModel {
   thirdai_version: string;
   training_time: string;
   type: string;
+  train_status: string;
   user_email: string;
   username: string;
 }
@@ -610,6 +611,7 @@ function tokenClassifierDatagenForm(modelGoal: string, examples: TokenClassifica
   })
   const numSentences = 10_000;
   return {
+    "sub_type": "token",
     'domain_prompt': modelGoal,
     'tags': Object.keys(tagExamples),
     'tag_examples': tagExamples,
@@ -640,16 +642,14 @@ export function trainTokenClassifier(
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   const formData = new FormData();
-  formData.append("extra_options_form", JSON.stringify({
-    sub_type: "token",
-    target_labels: Array.from(new Set(examples.map(x => x.name))),
+  formData.append("datagen_options", JSON.stringify({
+    task_prompt: modelGoal,
+    datagen_options: tokenClassifierDatagenForm(modelGoal, examples),
   }))
-  formData.append("datagen_options_form", JSON.stringify(tokenClassifierDatagenForm(modelGoal, examples)))
-  console.log(modelGoal);
 
   return new Promise((resolve, reject) => {
       axios
-          .post(`${thirdaiPlatformBaseUrl}/api/train/udt?model_name=${modelName}&task_prompt=${modelGoal}`, formData)
+          .post(`${thirdaiPlatformBaseUrl}/api/train/nlp-datagen?model_name=${modelName}`, formData)
           .then((res) => {
               resolve(res.data);
           })
@@ -684,6 +684,7 @@ function sentenceClassifierDatagenForm(examples: SentenceClassificationExample[]
   })
   const numSentences = 10_000;
   return {
+    "sub_type": "text",
     "samples_per_label": Math.max(Math.ceil(numSentences / Object.keys(labelExamples).length), 50),
     "target_labels": Object.keys(labelExamples),
     "examples": labelExamples,
@@ -713,11 +714,10 @@ export function trainSentenceClassifier(
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   const formData = new FormData();
-  formData.append("extra_options_form", JSON.stringify({
-    sub_type: "text",
-    n_target_classes: Array.from(new Set(examples.map(x => x.name))).length
+  formData.append("datagen_options", JSON.stringify({
+    task_prompt: modelGoal,
+    datagen_options: sentenceClassifierDatagenForm(examples),
   }))
-  formData.append("datagen_options_form", JSON.stringify(sentenceClassifierDatagenForm(examples)))
   
   return new Promise((resolve, reject) => {
       axios
@@ -1148,6 +1148,27 @@ export async function assignTeamAdmin(email: string, team_id: string) {
       });
   });
 }
+
+export async function removeTeamAdmin(email: string, team_id: string) {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ email, team_id });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/team/remove-team-admin?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+
 
 
 export async function deleteUserFromTeam(email: string, team_id: string): Promise<void> {

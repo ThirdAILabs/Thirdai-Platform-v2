@@ -12,26 +12,27 @@ from variables import DataCategory, GeneralVariables
 general_variables: GeneralVariables = GeneralVariables.load_from_env()
 
 
-def launch_train_job(file_location: str, train_args: str):
+def launch_train_job(file_location: str, udt_options: dict):
     try:
         api_url = general_variables.model_bazaar_endpoint
         headers = {"User-Agent": "Datagen job"}
-        url = urljoin(api_url, "api/train/udt-impl")
-        empty_file = io.BytesIO(b"")
-        empty_file.name = file_location
+        url = urljoin(api_url, "api/train/datagen-callback")
         data = {
-            "args_json": train_args,
-            "file_details_list": json.dumps(
+            "data_id": general_variables.data_id,
+            "file_info": json.dumps(
                 {
-                    "file_details": [
-                        {"mode": "supervised", "location": "nfs", "is_folder": False}
+                    "supervised_files": [
+                        {"path": file_location, "location": "nfs"}
                     ]
                 }
             ),
+            "model_options": {
+                "model_type": "udt",
+                "udt_options": udt_options
+            }
         }
-        files = {"files": (file_location, empty_file, "text/plain")}
         response = requests.request(
-            "post", url, headers=headers, data=data, files=files
+            "post", url, headers=headers, data=data
         )
         response.raise_for_status()
         return response.json()
@@ -64,29 +65,23 @@ def main():
         **{"data_id": general_variables.data_id, **asdict(args)}
     )
     dataset_config = factory.generate_data(**asdict(args))
-    train_args_dict = json.loads(general_variables.train_args)
+    
     if general_variables.data_category == DataCategory.text:
-        train_args_dict["extra_options"]["text_column"] = dataset_config[
-            "input_feature"
-        ]
-        train_args_dict["extra_options"]["label_column"] = dataset_config[
-            "target_feature"
-        ]
-        train_args_dict["extra_options"]["n_target_classes"] = len(
-            dataset_config["target_labels"]
-        )
+        udt_options = {
+            "udt_sub_type": "text",
+            "text_column": dataset_config["input_feature"],
+            "label_column": dataset_config["target_feature"],
+            "n_target_classes": len(dataset_config["target_labels"]),
+        }
     else:
-        train_args_dict["extra_options"]["source_column"] = dataset_config[
-            "input_feature"
-        ]
-        train_args_dict["extra_options"]["target_column"] = dataset_config[
-            "target_feature"
-        ]
-        train_args_dict["extra_options"]["target_labels"] = dataset_config[
-            "target_labels"
-        ]
-    train_args = json.dumps(train_args_dict)
-    launch_train_job(dataset_config["filepath"], train_args)
+        udt_options = {
+            "udt_sub_type": "token",
+            "source_column": dataset_config["input_feature"],
+            "target_column": dataset_config["target_feature"],
+            "target_labels": dataset_config["target_labels"],
+        }
+
+    launch_train_job(dataset_config["filepath"], udt_options)
 
 
 if __name__ == "__main__":

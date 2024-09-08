@@ -11,6 +11,7 @@ from backend.utils import (
     response,
     submit_nomad_job,
 )
+from backend.config import DatagenOptions, JobOptions, UDTSubType, LLMProvider
 from database import schema
 from database.session import get_session
 from fastapi import Depends, status
@@ -44,10 +45,30 @@ def find_dataset(
     return most_suited_dataset
 
 
-# Not sure if this will lead to exposure of using openai to generate data
-class LLMProvider(str, Enum):
-    openai = "openai"
-    cohere = "cohere"
+def generate_data_for_train_job(
+    data_id: str,
+    license_key: str,
+    options: DatagenOptions,
+    job_options: JobOptions,
+):
+    options_dict = options.datagen_options.model_dump()
+    del options_dict['sub_type']
+    if options.datagen_options.sub_type == UDTSubType.text:
+        generate_text_data(
+            task_prompt=options.task_prompt,
+            data_id=data_id,
+            license_key=license_key,
+            llm_provider=options.llm_provider,
+            options=TextClassificationGenerateArgs(**options_dict, **job_options.model_dump()),
+        )
+    else:
+        generate_token_data(
+            task_prompt=options.task_prompt,
+            data_id=data_id,
+            license_key=license_key,
+            llm_provider=options.llm_provider,
+            options=TokenClassificationGenerateArgs(**options_dict, **job_options.model_dump()),
+        )
 
 
 class TextClassificationGenerateArgs(BaseModel):
@@ -65,15 +86,12 @@ class TextClassificationGenerateArgs(BaseModel):
 def generate_text_data(
     task_prompt: str,
     data_id: str,
-    form: str,
-    train_args: str,
     license_key: str,
-    llm_provider: LLMProvider = LLMProvider.openai,
+    llm_provider: LLMProvider,
+    options: TextClassificationGenerateArgs,
 ):
     try:
-        extra_options = TextClassificationGenerateArgs.model_validate_json(
-            form
-        ).model_dump()
+        extra_options = TextClassificationGenerateArgs.model_validate(options).model_dump()
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
             print(f"Extra options for training: {extra_options}")
@@ -109,7 +127,6 @@ def generate_text_data(
             genai_key=os.getenv("GENAI_KEY", None),
             license_key=license_key,
             extra_options=extra_options,
-            train_args=train_args,
             python_path=get_python_path(),
         )
         nomad_response.raise_for_status()
@@ -130,15 +147,12 @@ class TokenClassificationGenerateArgs(BaseModel):
 def generate_token_data(
     task_prompt: str,
     data_id: str,
-    form: str,
-    train_args: str,
     license_key: str,
-    llm_provider: LLMProvider = LLMProvider.openai,
+    llm_provider: LLMProvider,
+    options: TokenClassificationGenerateArgs,
 ):
     try:
-        extra_options = TokenClassificationGenerateArgs.model_validate_json(
-            form
-        ).model_dump()
+        extra_options = TokenClassificationGenerateArgs.model_validate(options).model_dump()
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
             print(f"Extra options for training: {extra_options}")
@@ -174,7 +188,6 @@ def generate_token_data(
             genai_key=genai_key,
             license_key=license_key,
             extra_options=extra_options,
-            train_args=train_args,
             python_path=get_python_path(),
         )
         nomad_response.raise_for_status()

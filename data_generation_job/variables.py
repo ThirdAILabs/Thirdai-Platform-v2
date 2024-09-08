@@ -96,7 +96,7 @@ class GeneralVariables(EnvLoader):
     data_id: str
     data_category: DataCategory
     genai_key: str
-    train_args: str
+    train_job_options: dict
     llm_provider: LLMProvider = LLMProvider.openai
 
 

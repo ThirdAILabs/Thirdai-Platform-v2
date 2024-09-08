@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getUsername, train_ndb, create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
     const [sources, setSources] = useState<Array<{ type: string, files: File[] }>>([]);
     const [fileCount, setFileCount] = useState<number[]>([]);
     const router = useRouter();
+    const [isLoading, setIsLoading] = useState(false);
     
     const addSource = (type: SourceType) => {
       setSources(prev => [...prev, {type, files: []}]);
@@ -59,13 +60,13 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
 
     const makeFileFormData = () => {
       let formData = new FormData();
-      const fileDetailsList: Array<{ mode: string; location: string }> = [];
+      const unsupervisedFiles: Array<{ path: string; location: string }> = [];
       let fileCount = 0;
 
       sources.forEach(({type, files}) => {
         files.forEach(file => {
           formData.append('files', file);
-          fileDetailsList.push({ mode: 'unsupervised', location: type });
+          unsupervisedFiles.push({ path: file.name, location: type });
           fileCount++;
         });
       });
@@ -74,21 +75,25 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
         return null;
       }
 
-      const extraOptionsForm = { retriever: 'finetunable_retriever' };
-      formData.append('extra_options_form', JSON.stringify(extraOptionsForm));
-      formData.append('file_details_list', JSON.stringify({ file_details: fileDetailsList }));
+      const modelOptionsForm = { ndb_options: { ndb_sub_type: 'v1', retriever: 'finetunable_retriever' } };
+      formData.append('model_options', JSON.stringify(modelOptionsForm));
+      formData.append('file_info', JSON.stringify({ unsupervised_files: unsupervisedFiles }));
 
       return formData;
     };
 
     const submit = async () => {
+      setIsLoading(true);
+
       try {
         if (!modelName) {
           alert("Please give the app a name. The name cannot have spaces, forward slashes (/) or colons (:).")
+          setIsLoading(false);
           return;
         }
         if (modelName.includes(" ") || modelName.includes("/") || modelName.includes(":")) {
           alert("The app name cannot have spaces, forward slashes (/) or colons (:).")
+          setIsLoading(false);
           return;
         }
 
@@ -98,6 +103,7 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
 
         if (!formData) {
           alert("Please upload at least one file before submitting.");
+          setIsLoading(false);
           return;
         }
 
@@ -137,12 +143,24 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
         }
     } catch (error) {
         console.log(error);
+        setIsLoading(false);
     }
   }
 
     console.log('sources', sources);
 
     const [warningMessage, setWarningMessage] = useState("");
+
+    useEffect(()=>{
+      console.log('appname', appName)
+      if(appName) {
+        if (workflowNames.includes(appName)) {
+          setWarningMessage("An App with the same name has been created. Please choose a different name.");
+        } else {
+          setWarningMessage(""); // Clear the warning if the name is unique
+        }
+      }
+    },[appName])
 
     return (
       <div>
@@ -152,16 +170,31 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
           value={modelName}
           onChange={(e) => {
             const name = e.target.value;
-            if (workflowNames.includes(name)) {
-              setWarningMessage("A workflow with the same name has been created. Please choose a different name.");
-            } else {
-              setWarningMessage(""); // Clear the warning if the name is unique
+            const regexPattern = /^[\w-]+$/;
+            let warningMessage = "";
+        
+            // Check if the name contains spaces or periods
+            if (name.includes(" ")) {
+              warningMessage = "The app name cannot contain spaces. Please remove the spaces.";
+            } else if (name.includes(".")) {
+              warningMessage = "The app name cannot contain periods ('.'). Please remove the periods.";
+            } 
+            // Check if the name contains invalid characters (not matching the regex)
+            else if (!regexPattern.test(name)) {
+              warningMessage = "The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.";
+            } 
+            // Check if the name is already taken
+            else if (workflowNames.includes(name)) {
+              warningMessage = "An app with the same name already exists. Please choose a different name.";
             }
-            setModelName(name)
+        
+            // Update the warning message or clear it if valid
+            setWarningMessage(warningMessage);
+            setModelName(name);
           }}
           placeholder="Enter app name"
           style={{marginTop: "10px"}}
-          disabled={appName ? true : false}
+          disabled={!!appName && !workflowNames.includes(modelName)} // Use !! to explicitly convert to boolean
         />
 
         {warningMessage && (
@@ -215,8 +248,15 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
         </div>
 
         <div className="flex justify-start">
-          <Button onClick={submit} style={{marginTop: "30px", width: "100%"}}>
-            Create
+          <Button onClick={submit} style={{ marginTop: "30px", width: "100%" }} disabled={isLoading}>
+            {isLoading ? (
+              <div className="flex items-center">
+                <div className='animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2'></div>
+                <span>Creating...</span>
+              </div>
+            ) : (
+              "Create"
+            )}
           </Button>
         </div>
       </div>

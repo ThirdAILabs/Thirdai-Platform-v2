@@ -1,10 +1,11 @@
 // app/NERQuestions.js
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getUsername, trainTokenClassifier, create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { CardDescription } from '@/components/ui/card';
 
 type Category = {
   name: string;
@@ -75,10 +76,7 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
   };
 
   const handleAddAndReviewCategory = () => {
-    const reviewSuccess = handleReview();
-    if (reviewSuccess) {
-      handleAddCategory();
-    }
+    handleAddCategory();
   };
 
   const handleRemoveCategory = (index: number) => {
@@ -101,11 +99,6 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
       }
     }
 
-    const reviewSuccess = handleReview();
-    if (!reviewSuccess) {
-      return;
-    }
-
     if (isDataGenerating) {
       return;
     }
@@ -113,7 +106,7 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
     try {
       setIsDataGenerating(true);
 
-      const response = await fetch('/api/generate-data-token-classification', {
+      const response = await fetch('/endpoints/generate-data-token-classification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -164,6 +157,8 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
     });
   };
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleCreateNERModel = async () => {
     if (!modelName) {
       alert("Please enter a model name.");
@@ -171,6 +166,8 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
     }
 
     const tags = Array.from(new Set(categories.map(cat => cat.name)));
+
+    setIsLoading(true);
 
     try {
       const modelResponse = await trainTokenClassifier(modelName, generatedData, tags);
@@ -202,10 +199,23 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
       }
     } catch (e) {
       console.log(e || 'Failed to create NER model and workflow');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const [warningMessage, setWarningMessage] = useState("");
+
+  useEffect(()=>{
+    console.log('appname', appName)
+    if(appName) {
+      if (workflowNames.includes(appName)) {
+        setWarningMessage("An App with the same name has been created. Please choose a different name.");
+      } else {
+        setWarningMessage(""); // Clear the warning if the name is unique
+      }
+    }
+  },[appName])
 
   return (
     <div>
@@ -215,16 +225,32 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
         value={modelName}
         onChange={(e) => {
           const name = e.target.value;
-          if (workflowNames.includes(name)) {
-            setWarningMessage("A workflow with the same name has been created. Please choose a different name.");
-          } else {
-            setWarningMessage(""); // Clear the warning if the name is unique
+          const regexPattern = /^[\w-]+$/;
+          let warningMessage = "";
+      
+          // Check if the name contains spaces
+          if (name.includes(" ")) {
+            warningMessage = "The app name cannot contain spaces. Please remove the spaces.";
+          } 
+          // Check if the name contains periods
+          else if (name.includes(".")) {
+            warningMessage = "The app name cannot contain periods ('.'). Please remove the periods.";
+          } 
+          // Check if the name contains invalid characters based on the regex pattern
+          else if (!regexPattern.test(name)) {
+            warningMessage = "The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.";
+          } 
+          // Check if the name already exists in the workflow
+          else if (workflowNames.includes(name)) {
+            warningMessage = "An app with the same name already exists. Please choose a different name.";
           }
-          setModelName(name)
+          // Set the warning message or clear it if the name is valid
+          setWarningMessage(warningMessage);
+          setModelName(name);
         }}
         placeholder="Enter app name"
         style={{ marginTop: "10px" }}
-        disabled={appName ? true : false}
+        disabled={!!appName && !workflowNames.includes(modelName)} // Use !! to explicitly convert to boolean
       />
       {warningMessage && (
         <span style={{ color: "red", marginTop: "10px" }}>
@@ -234,16 +260,24 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
       {
         generatedData.length === 0 && <>
           <span className="block text-lg font-semibold" style={{ marginTop: "20px" }}>Specify Tokens</span>
+          <CardDescription>Define your own categories or select existing ones</CardDescription>
           <form onSubmit={handleSubmit}>
             <div style={{ display: "flex", flexDirection: "column", marginTop: "10px" }}>
 
               {categories.map((category, index) => (
-                <div key={index} style={{ display: "flex", flexDirection: "row", gap: "10px", justifyContent: "space-between" }}>
+                <div  key={index} 
+                      style={{ 
+                        display: "flex", 
+                        flexDirection: "row", 
+                        gap: "10px", 
+                        justifyContent: "space-between",
+                        marginBottom: "10px", // Adds gap between rows
+                      }}>
                   <div style={{ width: "100%" }}>
                     <Input
                       list={`category-options-${index}`}
-                      style={{ width: "100%" }}
-                      className="text-md"
+                      style={{ width: "95%" }}
+                      className="text-sm"
                       placeholder="Category Name"
                       value={category.name}
                       onChange={(e) => handleCategoryChange(index, 'name', e.target.value)}
@@ -255,15 +289,15 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
                     </datalist>
                   </div>
                   <Input
-                    style={{ width: "100%" }}
-                    className="text-md"
+                    style={{ width: "75%" }}
+                    className="text-sm"
                     placeholder="Example"
                     value={category.example}
                     onChange={(e) => handleCategoryChange(index, 'example', e.target.value)}
                   />
                   <Input
-                    style={{ width: "100%" }}
-                    className="text-md"
+                    style={{ width: "130%" }}
+                    className="text-sm"
                     placeholder="What this category is about."
                     value={category.description}
                     onChange={(e) => handleCategoryChange(index, 'description', e.target.value)}
@@ -334,8 +368,19 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
             <Button variant="outline" style={{ width: "100%" }} onClick={() => setGeneratedData([])}>
               Redefine Tokens
             </Button>
-            <Button style={{ width: "100%" }} onClick={handleCreateNERModel}>
-              Create
+            <Button
+              style={{ width: "100%" }}
+              onClick={handleCreateNERModel}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
+                  <span>Creating...</span>
+                </div>
+              ) : (
+                "Create"
+              )}
             </Button>
           </div>
         </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SelectModel } from '@/lib/db';
 import NERQuestions from './nlp-questions/ner-questions';
 import SemanticSearchQuestions from './semantic-search-questions';
-import { create_workflow, add_models_to_workflow } from '@/lib/backend';
+import { create_workflow, add_models_to_workflow, set_gen_ai_provider } from '@/lib/backend';
 import { CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,7 +59,11 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
 
   const router = useRouter();
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleSubmit = async () => {
+    setIsLoading(true);
+
     const workflowName = modelName;
     const workflowTypeName = 'rag';
   
@@ -104,11 +108,39 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
         alert('No models to add to the workflow')
       }
 
+      // Step 4: Set the generation AI provider based on the selected LLM type
+      let provider = '';
+      switch (llmType) {
+        case 'OpenAI':
+          provider = 'openai';
+          break;
+        case 'On-prem':
+          provider = 'on-prem';
+          break;
+        case 'Self-host':
+          provider = 'self-host';
+          break;
+        default:
+          // handle 
+      }
+
+      if (provider) {
+        const setProviderResponse = await set_gen_ai_provider({
+          workflowId,
+          provider,
+        });
+        console.log('Generation AI provider set:', setProviderResponse);
+      } else {
+        console.error('Invalid LLM type selected');
+        alert('Invalid LLM type selected');
+      }
+
       // Go back home page
       router.push("/")
     } catch (error) {
       console.error('Error during workflow creation or model addition:', error);
       alert('Error during workflow creation or model addition:' + error)
+      setIsLoading(false);
     }
   };
 
@@ -125,12 +157,29 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
             value={modelName}
             onChange={(e) => {
               const name = e.target.value;
-              if (workflowNames.includes(name)) {
-                setWarningMessage("A workflow with the same name has been created. Please choose a different name.");
-              } else {
-                setWarningMessage(""); // Clear the warning if the name is unique
+              const regexPattern = /^[\w-]+$/;
+              let warningMessage = "";
+        
+              // Check if the name contains spaces
+              if (name.includes(" ")) {
+                warningMessage = "The app name cannot contain spaces. Please remove the spaces.";
+              } 
+              // Check if the name contains periods
+              else if (name.includes(".")) {
+                warningMessage = "The app name cannot contain periods ('.'). Please remove the periods.";
+              } 
+              // Check if the name contains invalid characters (doesn't match the regex pattern)
+              else if (!regexPattern.test(name)) {
+                warningMessage = "The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.";
+              } 
+              // Check if the name is already in use
+              else if (workflowNames.includes(name)) {
+                warningMessage = "An app with the same name already exists. Please choose a different name.";
               }
-              setModelName(name)
+        
+              // Set the warning message or clear it if the name is valid
+              setWarningMessage(warningMessage);
+              setModelName(name);
             }}
             placeholder="Enter app name"
             style={{ marginTop: '10px' }}
@@ -351,10 +400,10 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 OpenAI
               </Button>
               <Button
-                variant={llmType ? (llmType === 'Llama' ? 'secondary' : 'outline') : 'default'}
-                onClick={() => setLlmType('Llama')}
+                variant={llmType ? (llmType === 'On-prem' ? 'secondary' : 'outline') : 'default'}
+                onClick={() => setLlmType('On-prem')}
               >
-                Llama
+                On-prem
               </Button>
               <Button
                 variant={llmType ? (llmType === 'Self-host' ? 'secondary' : 'outline') : 'default'}
@@ -442,12 +491,22 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div>
-                      <Button 
-                        onClick={handleSubmit} 
+                      <Button
+                        onClick={handleSubmit}
                         style={{ width: '100%' }}
-                        disabled={!(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName)}
+                        disabled={
+                          isLoading || 
+                          !(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName)
+                        }
                       >
-                        Create
+                        {isLoading ? (
+                          <div className="flex items-center justify-center">
+                            <div className='animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2'></div>
+                            <span>Creating...</span>
+                          </div>
+                        ) : (
+                          "Create"
+                        )}
                       </Button>
                     </div>
                   </TooltipTrigger>

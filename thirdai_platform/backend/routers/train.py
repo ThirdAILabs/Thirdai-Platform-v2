@@ -32,6 +32,11 @@ from sqlalchemy.orm import Session
 train_router = APIRouter()
 
 
+class JobOptions(BaseModel):
+    allocation_cores: int = Field(1, gt=0)
+    allocation_memory: int = Field(6800, gt=500)
+
+
 @train_router.post("/ndb")
 def train_ndb(
     model_name: str,

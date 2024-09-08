@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Union
 
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.docstore.document import Document
 from langchain.vectorstores import NeuralDBVectorStore
+from .ndbv2_vectorstore import NeuralDBV2VectorStore
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain_core.language_models.llms import LLM
 from langchain_core.messages import AIMessage
@@ -11,12 +12,13 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableBranch, RunnablePassthrough
 from thirdai import neural_db as ndb
+from thirdai import neural_db_v2 as ndbv2
 
 
 class ChatInterface(ABC):
     def __init__(
         self,
-        db: ndb.NeuralDB,
+        db: Union[ndb.NeuralDB, ndbv2.NeuralDB],
         chat_history_sql_uri: str,
         top_k: int = 5,
         chat_prompt: str = "Answer the user's questions based on the below context:",
@@ -24,7 +26,13 @@ class ChatInterface(ABC):
         **kwargs
     ):
         self.chat_history_sql_uri = chat_history_sql_uri
-        vectorstore = NeuralDBVectorStore(db)
+        if isinstance(db, ndb.NeuralDB):
+            vectorstore = NeuralDBVectorStore(db)
+        elif isinstance(db, ndbv2.NeuralDB):
+            vectorstore = NeuralDBV2VectorStore(db)
+        else:
+            raise ValueError(f"Cannot support db of type {type(db)}")
+        
         retriever = vectorstore.as_retriever(search_kwargs={"k": top_k})
 
         query_transform_prompt = ChatPromptTemplate.from_messages(

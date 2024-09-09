@@ -31,7 +31,7 @@ def main():
         factory.generation_args_location,
         **{"data_id": general_variables.data_id, **asdict(args)}
     )
-    dataset_config = factory.generate_data(**args.to_dict())
+    factory.generate_data(**args.to_dict())
 
 
 if __name__ == "__main__":

@@ -8,8 +8,8 @@ from typing import Dict, List, Optional
 
 from llms import llm_classes
 from tqdm import tqdm
-from utils import save_dict
-from variables import GeneralVariables
+from utils import count_csv_lines, save_dict
+from variables import Entity, GeneralVariables
 
 
 class DataFactory(ABC):
@@ -20,6 +20,7 @@ class DataFactory(ABC):
             / "generated_data"
             / self.general_variables.data_id
         )
+        self.save_dir.mkdir(parents=True, exist_ok=True)
         self.llm_model = llm_classes.get(self.general_variables.llm_provider.value)(
             api_key=self.general_variables.genai_key, save_dir=self.save_dir
         )
@@ -42,36 +43,51 @@ class DataFactory(ABC):
         self.write_chunk_size = 10
 
         if self.train_file_location.exists():
-            with open(self.train_file_location, "r") as f:
-                self.train_sentences_generated = (
-                    sum(1 for _ in csv.reader(f)) - 1
-                )  # Exculding the header
+            self.train_sentences_generated = count_csv_lines(self.train_file_location)
         else:
             self.train_sentences_generated = 0
 
+        if self.test_file_location.exists():
+            self.train_sentences_generated = count_csv_lines(self.test_file_location)
+        else:
+            self.train_sentences_generated = 0
+
+    # Override this function to generate the data from LLM
     @abstractmethod
     def generate_data(self, **kwargs):
         pass
 
+    # Override this function to transform the LLM generated data to the format that can be ingested by UDT.
     @abstractmethod
     def fill_and_transform(self, **kwargs):
         pass
 
-    def get_random_vocab(self, user_vocab: Optional[str] = None, k: int = 1):
-        vocabulary = vocab + (user_vocab if user_vocab is not None else [])
-        return random.sample(population=vocabulary, k=k)
+    ## Function to get random vocab and prompt to improve variability and randomness in the dataset
+    def get_random_vocab(self, k: int = 1):
+        return random.sample(population=vocab, k=k)
 
     def get_random_prompts(self, k: int = 1):
         return [
-            ". ".join(random.sample(items["prompts"], k=k))
-            for items in random_prompts.values()
+            ". ".join(random.sample(prompts, k=k))
+            for prompts in random_prompts.values()
         ]
+
+    # ------------------------------------------------
 
     def process_prompt(
         self, prompt: str, system_prompt: Optional[str] = None, **kwargs
     ):
         texts_of = self.llm_model.completion(prompt=prompt, system_prompt=system_prompt)
         return texts_of, kwargs
+
+    """
+    Function to process the prompts parallely
+    args: task_prompt: List of prompts to process, List[Dict[str, str]]
+        Format of each argument:
+            prompt: Generation prompt to the LLM.
+            system_prompt: system prompt to the LLM.
+            kwargs: It is being used to store additional info about the prompt. It is not passed to LLM and returned as it is. (visit text_data_factory to see how it is being used)
+    """
 
     def run_and_collect_results(
         self, tasks_prompt: List[Dict[str, str]], parallelize: bool = False
@@ -119,51 +135,19 @@ class DataFactory(ABC):
 
         return data_points
 
-    def write_on_file(
-        self,
-        data_points: List[Dict[str, str]],
-        fieldnames: List[str],
-        is_train_file: bool = True,
-        newline: Optional[str] = None,
-        encoding: Optional[str] = None,
-    ):
-        try:
-            with open(
-                (
-                    self.train_file_location
-                    if is_train_file
-                    else self.test_file_location
-                ),
-                "a",
-                newline=newline,
-                encoding=encoding,
-            ) as csv_file:
-                csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+    # TODO (Gautam)
+    """
+    Define a function `collect_argument()` that collects all the arguments 
+    """
 
-                if (is_train_file and self.train_sentences_generated == 0) or (
-                    not is_train_file and self.test_sentences_generated == 0
-                ):
-                    csv_writer.writeheader()
-                csv_writer.writerows(data_points)
-
-        except Exception as e:
-            with open(self.errored_file_location, mode="a") as errored_fp:
-                errored_fp.write(
-                    "\nError while writing on train file " + "-" * 20 + "\n"
-                )
-                traceback.print_exc(file=errored_fp)
-                self.write_on_errorfile(
-                    text=f"\n{'=' * 30}\n"
-                    + "Data-points: \n"
-                    + "\n".join(list(map(lambda x: str(x), data_points)))
-                    + f"\n{'=' * 30}\n"
-                )
-
+    # Common function to report any error during any stage of pipeline
     def write_on_errorfile(self, text: str):
         with open(self.errored_file_location, "a") as errored_fp:
+            errored_fp.write("\n" + "=" * 100 + "\n")
             errored_fp.write(text)
             errored_fp.write("\n" + "=" * 100 + "\n")
 
+    # Save the llm usage statistics
     def __del__(self):
         save_dict(
             self.save_dir / "llm_usage.json",

@@ -41,6 +41,9 @@ def setup_logger(
     logger.info("Initialized console logging.")
 
 
+setup_logger()
+
+
 def response(status_code: int, message: str, data={}, success: bool = None):
     """
     Create a JSON response.

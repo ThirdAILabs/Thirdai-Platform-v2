@@ -16,9 +16,8 @@ def launch_train_job(file_location: str, udt_options: dict):
     try:
         api_url = general_variables.model_bazaar_endpoint
         headers = {"User-Agent": "Datagen job"}
-        url = urljoin(api_url, "api/train/datagen-callback")
+        url = urljoin(api_url, f"api/train/datagen-callback?data_id={general_variables.data_id}&secret_token={general_variables.secret_token}")
         data = {
-            "data_id": general_variables.data_id,
             "file_info": json.dumps(
                 {
                     "supervised_files": [
@@ -26,10 +25,12 @@ def launch_train_job(file_location: str, udt_options: dict):
                     ]
                 }
             ),
-            "model_options": {
-                "model_type": "udt",
-                "udt_options": udt_options
-            }
+            "model_options": json.dumps(
+                {
+                    "model_type": "udt",
+                    "udt_options": udt_options
+                }
+            )
         }
         response = requests.request(
             "post", url, headers=headers, data=data

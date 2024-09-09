@@ -227,6 +227,6 @@ class TrainConfig(BaseModel):
 
     @model_validator(mode="after")
     def check_model_data_match(self):
-        if self.model_options.model_type != self.data.model_type:
+        if self.model_options.model_type.value not in self.data.model_data_type.value:
             raise ValueError("Model and data fields don't match")
         return self

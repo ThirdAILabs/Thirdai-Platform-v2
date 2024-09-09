@@ -721,7 +721,7 @@ export function trainSentenceClassifier(
   
   return new Promise((resolve, reject) => {
       axios
-          .post(`${thirdaiPlatformBaseUrl}/api/train/udt?model_name=${modelName}&task_prompt=${modelGoal}`, formData)
+      .post(`${thirdaiPlatformBaseUrl}/api/train/nlp-datagen?model_name=${modelName}`, formData)
           .then((res) => {
               console.log(res);
               resolve(res.data);

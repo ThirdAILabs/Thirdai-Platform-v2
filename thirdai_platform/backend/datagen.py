@@ -47,6 +47,7 @@ def find_dataset(
 
 def generate_data_for_train_job(
     data_id: str,
+    secret_token: str,
     license_key: str,
     options: DatagenOptions,
     job_options: JobOptions,
@@ -57,6 +58,7 @@ def generate_data_for_train_job(
         generate_text_data(
             task_prompt=options.task_prompt,
             data_id=data_id,
+            secret_token=secret_token,
             license_key=license_key,
             llm_provider=options.llm_provider,
             options=TextClassificationGenerateArgs(**options_dict, **job_options.model_dump()),
@@ -65,6 +67,7 @@ def generate_data_for_train_job(
         generate_token_data(
             task_prompt=options.task_prompt,
             data_id=data_id,
+            secret_token=secret_token,
             license_key=license_key,
             llm_provider=options.llm_provider,
             options=TokenClassificationGenerateArgs(**options_dict, **job_options.model_dump()),
@@ -86,6 +89,7 @@ class TextClassificationGenerateArgs(BaseModel):
 def generate_text_data(
     task_prompt: str,
     data_id: str,
+    secret_token: str,
     license_key: str,
     llm_provider: LLMProvider,
     options: TextClassificationGenerateArgs,
@@ -125,6 +129,7 @@ def generate_text_data(
             model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
             share_dir=os.getenv("SHARE_DIR", None),
             genai_key=os.getenv("GENAI_KEY", None),
+            secret_token=secret_token,
             license_key=license_key,
             extra_options=extra_options,
             python_path=get_python_path(),
@@ -147,6 +152,7 @@ class TokenClassificationGenerateArgs(BaseModel):
 def generate_token_data(
     task_prompt: str,
     data_id: str,
+    secret_token: str,
     license_key: str,
     llm_provider: LLMProvider,
     options: TokenClassificationGenerateArgs,
@@ -186,6 +192,7 @@ def generate_token_data(
             model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
             share_dir=os.getenv("SHARE_DIR", None),
             genai_key=genai_key,
+            secret_token=secret_token,
             license_key=license_key,
             extra_options=extra_options,
             python_path=get_python_path(),

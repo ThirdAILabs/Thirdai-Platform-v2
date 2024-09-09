@@ -94,9 +94,9 @@ class GeneralVariables(EnvLoader):
     model_bazaar_dir: str
     model_bazaar_endpoint: str
     data_id: str
+    secret_token: str
     data_category: DataCategory
     genai_key: str
-    train_job_options: dict
     llm_provider: LLMProvider = LLMProvider.openai
 
 

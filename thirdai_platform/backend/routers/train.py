@@ -32,11 +32,6 @@ from sqlalchemy.orm import Session
 train_router = APIRouter()
 
 
-class JobOptions(BaseModel):
-    allocation_cores: int = Field(1, gt=0)
-    allocation_memory: int = Field(6800, gt=500)
-
-
 @train_router.post("/ndb")
 def train_ndb(
     model_name: str,
@@ -317,7 +312,7 @@ def nlp_datagen(
         data=data,
         job_options=train_job_options,
     )
-
+    
     config_path = os.path.join(
         config.model_bazaar_dir, "models", str(model_id), "train_config.json"
     )
@@ -351,8 +346,8 @@ def nlp_datagen(
     try:
         # TODO: Ideally train job options are saved in the database instead of passed around to the datagen service
         generate_data_for_train_job(
-            model_id=model_id,
             data_id=data_id,
+            secret_token=secret_token,
             license_key=license_info["boltLicenseKey"],
             options=datagen_options,
             job_options=datagen_job_options)
@@ -379,7 +374,8 @@ def nlp_datagen(
 @train_router.post("/datagen-callback")
 def datagen_callback(
     data_id: str,
-    files: List[UploadFile],
+    secret_token: str,
+    files: List[UploadFile] = [],
     file_info: Optional[str] = Form(default="{}"),
     model_options: str = Form(default="{}"),
     session: Session = Depends(get_session),
@@ -410,6 +406,22 @@ def datagen_callback(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"License is not valid. {str(e)}",
         )
+
+    # We know this mapping is true because we set this in the nlp-datagen endpoint.
+    model_id = data_id
+    
+    config_path = os.path.join(
+        model_bazaar_path(), "models", str(model_id), "train_config.json"
+    )
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+    with open(config_path, "r") as file:
+        config = TrainConfig.model_validate_json(file.read())
+    
+    if secret_token != config.data.secret_token:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Invalid datagen secret key.",
+        )
     
     try:
         data = UDTData(
@@ -428,16 +440,6 @@ def datagen_callback(
         )
     except Exception as error:
         return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(error))
-
-    # We know this mapping is true because we set this in the nlp-datagen endpoint.
-    model_id = data_id
-
-    config_path = os.path.join(
-        model_bazaar_path(), "models", str(model_id), "train_config.json"
-    )
-    os.makedirs(os.path.dirname(config_path), exist_ok=True)
-    with open(config_path, "r") as file:
-        config = TrainConfig.model_validate_json(file.read())
 
     # Update the config's model_options and data
     config.model_options = model_options
@@ -494,7 +496,7 @@ def datagen_callback(
 @train_router.post("/udt")
 def train_udt(
     model_name: str,
-    files: List[UploadFile],
+    files: List[UploadFile]=[],
     file_info: Optional[str] = Form(default="{}"),
     base_model_identifier: Optional[str] = None,
     model_options: str = Form(default="{}"),

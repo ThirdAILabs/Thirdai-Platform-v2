@@ -44,7 +44,7 @@ class UDTFunctions:
             job_options=UDTFunctions.build_job_options(config),
             doc_type=config.doc_type,
         )
-    
+
     @staticmethod
     def check_udt_train_with_datagen(inputs: Dict[str, Any]) -> Any:
         logging.info(f"Running Udt with datagen with {inputs}")

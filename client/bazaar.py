@@ -1,7 +1,7 @@
 import json
+import math
 import os
 import time
-import math
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
@@ -368,7 +368,7 @@ class ModelBazaar:
         is_async: bool = False,
         base_model_identifier: Optional[str] = None,
         datagen_job_options: Optional[dict] = None,
-        train_job_options:  Optional[dict] = None,
+        train_job_options: Optional[dict] = None,
     ):
         """
         Initiates training for a model with datagen and returns a Model instance.
@@ -389,7 +389,7 @@ class ModelBazaar:
         url = urljoin(self._base_url, f"train/nlp-datagen")
 
         form = []
-        
+
         category_examples = {}
         category_descriptions = {}
         for category, example, description in examples:
@@ -398,11 +398,13 @@ class ModelBazaar:
                 category_descriptions[category] = description
             else:
                 category_examples[category].append(example)
-        
+
         if sub_type == "text":
             datagen_options = {
                 "sub_type": "text",
-                "samples_per_label": max(math.ceil(10_000 / len(category_examples)), 50),
+                "samples_per_label": max(
+                    math.ceil(10_000 / len(category_examples)), 50
+                ),
                 "target_labels": list(category_examples.keys()),
                 "examples": category_examples,
                 "labels_description": category_descriptions,
@@ -414,20 +416,38 @@ class ModelBazaar:
                 "tags": list(category_examples.keys()),
                 "tag_examples": category_examples,
                 "num_sentences_to_generate": 10_000,
-                "num_samples_per_tag": max(math.ceil(10_000 / len(category_examples)), 50),
+                "num_samples_per_tag": max(
+                    math.ceil(10_000 / len(category_examples)), 50
+                ),
             }
 
         form.append(
             (
                 "datagen_options",
-                (None, json.dumps({"task_prompt": task_prompt, "datagen_options": datagen_options}), "application/json"),
+                (
+                    None,
+                    json.dumps(
+                        {"task_prompt": task_prompt, "datagen_options": datagen_options}
+                    ),
+                    "application/json",
+                ),
             )
         )
 
         if datagen_job_options:
-            form.append(("datagen_job_options", (None, json.dumps(datagen_job_options), "application/json")))
+            form.append(
+                (
+                    "datagen_job_options",
+                    (None, json.dumps(datagen_job_options), "application/json"),
+                )
+            )
         if train_job_options:
-            form.append(("train_job_options", (None, json.dumps(train_job_options), "application/json")))
+            form.append(
+                (
+                    "train_job_options",
+                    (None, json.dumps(train_job_options), "application/json"),
+                )
+            )
 
         response = http_post_with_error(
             url,
@@ -455,7 +475,6 @@ class ModelBazaar:
 
         self.await_train(model)
         return model
-
 
     def train_status(self, model: Model):
         """

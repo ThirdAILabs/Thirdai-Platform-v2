@@ -1,13 +1,26 @@
 import json
 import os
-import uuid
 import secrets
+import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access
-from backend.config import NDBData, NDBOptions, TrainConfig, UDTData, UDTOptions, DatagenOptions, JobOptions, ModelType, UDTGeneratedData, UDTSubType, TokenClassificationOptions, TextClassificationOptions
+from backend.config import (
+    DatagenOptions,
+    JobOptions,
+    ModelType,
+    NDBData,
+    NDBOptions,
+    TextClassificationOptions,
+    TokenClassificationOptions,
+    TrainConfig,
+    UDTData,
+    UDTGeneratedData,
+    UDTOptions,
+    UDTSubType,
+)
 from backend.datagen import generate_data_for_train_job
 from backend.file_handler import download_local_files, model_bazaar_path
 from backend.utils import (
@@ -237,7 +250,7 @@ def nlp_datagen(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Invalid options format: " + str(e),
         )
-    
+
     try:
         license_info = verify_license(
             os.getenv(
@@ -289,16 +302,20 @@ def nlp_datagen(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message=str(error),
             )
-    
+
     try:
         data = UDTGeneratedData(secret_token=secret_token)
     except Exception as error:
         return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(error))
 
     if datagen_options.datagen_options.sub_type == UDTSubType.text:
-        placeholder_udt_options = TextClassificationOptions(text_column="", label_column="", n_target_classes=0)
+        placeholder_udt_options = TextClassificationOptions(
+            text_column="", label_column="", n_target_classes=0
+        )
     else:
-        placeholder_udt_options = TokenClassificationOptions(target_labels=[], source_column="", target_column="")
+        placeholder_udt_options = TokenClassificationOptions(
+            target_labels=[], source_column="", target_column=""
+        )
 
     config = TrainConfig(
         model_bazaar_dir=model_bazaar_path(),
@@ -312,7 +329,7 @@ def nlp_datagen(
         data=data,
         job_options=train_job_options,
     )
-    
+
     config_path = os.path.join(
         config.model_bazaar_dir, "models", str(model_id), "train_config.json"
     )
@@ -350,7 +367,8 @@ def nlp_datagen(
             secret_token=secret_token,
             license_key=license_info["boltLicenseKey"],
             options=datagen_options,
-            job_options=datagen_job_options)
+            job_options=datagen_job_options,
+        )
 
     except Exception as err:
         new_model.train_status = schema.Status.failed
@@ -368,7 +386,7 @@ def nlp_datagen(
             "model_id": str(model_id),
             "user_id": str(user.id),
         },
-    ) 
+    )
 
 
 @train_router.post("/datagen-callback")
@@ -409,20 +427,20 @@ def datagen_callback(
 
     # We know this mapping is true because we set this in the nlp-datagen endpoint.
     model_id = data_id
-    
+
     config_path = os.path.join(
         model_bazaar_path(), "models", str(model_id), "train_config.json"
     )
     os.makedirs(os.path.dirname(config_path), exist_ok=True)
     with open(config_path, "r") as file:
         config = TrainConfig.model_validate_json(file.read())
-    
+
     if secret_token != config.data.secret_token:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"Invalid datagen secret key.",
         )
-    
+
     try:
         data = UDTData(
             supervised_files=download_local_files(
@@ -490,13 +508,12 @@ def datagen_callback(
             "user_id": str(model.user_id),
         },
     )
-    
 
 
 @train_router.post("/udt")
 def train_udt(
     model_name: str,
-    files: List[UploadFile]=[],
+    files: List[UploadFile] = [],
     file_info: Optional[str] = Form(default="{}"),
     base_model_identifier: Optional[str] = None,
     model_options: str = Form(default="{}"),

@@ -163,7 +163,6 @@ class TokenWithDatagen(Config):
         ("name", "Tharun Medini", "a person's name"),
         ("phone", "9876543210", "a phone number"),
     ]
-    
 
 
 class Dummy(Config):

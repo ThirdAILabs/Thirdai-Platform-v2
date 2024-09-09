@@ -4,6 +4,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from backend.config import DatagenOptions, JobOptions, LLMProvider, UDTSubType
 from backend.utils import (
     get_platform,
     get_python_path,
@@ -11,7 +12,6 @@ from backend.utils import (
     response,
     submit_nomad_job,
 )
-from backend.config import DatagenOptions, JobOptions, UDTSubType, LLMProvider
 from database import schema
 from database.session import get_session
 from fastapi import Depends, status
@@ -53,7 +53,7 @@ def generate_data_for_train_job(
     job_options: JobOptions,
 ):
     options_dict = options.datagen_options.model_dump()
-    del options_dict['sub_type']
+    del options_dict["sub_type"]
     if options.datagen_options.sub_type == UDTSubType.text:
         generate_text_data(
             task_prompt=options.task_prompt,
@@ -61,7 +61,9 @@ def generate_data_for_train_job(
             secret_token=secret_token,
             license_key=license_key,
             llm_provider=options.llm_provider,
-            options=TextClassificationGenerateArgs(**options_dict, **job_options.model_dump()),
+            options=TextClassificationGenerateArgs(
+                **options_dict, **job_options.model_dump()
+            ),
         )
     else:
         generate_token_data(
@@ -70,7 +72,9 @@ def generate_data_for_train_job(
             secret_token=secret_token,
             license_key=license_key,
             llm_provider=options.llm_provider,
-            options=TokenClassificationGenerateArgs(**options_dict, **job_options.model_dump()),
+            options=TokenClassificationGenerateArgs(
+                **options_dict, **job_options.model_dump()
+            ),
         )
 
 
@@ -95,7 +99,9 @@ def generate_text_data(
     options: TextClassificationGenerateArgs,
 ):
     try:
-        extra_options = TextClassificationGenerateArgs.model_validate(options).model_dump()
+        extra_options = TextClassificationGenerateArgs.model_validate(
+            options
+        ).model_dump()
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
             print(f"Extra options for training: {extra_options}")
@@ -158,7 +164,9 @@ def generate_token_data(
     options: TokenClassificationGenerateArgs,
 ):
     try:
-        extra_options = TokenClassificationGenerateArgs.model_validate(options).model_dump()
+        extra_options = TokenClassificationGenerateArgs.model_validate(
+            options
+        ).model_dump()
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
             print(f"Extra options for training: {extra_options}")

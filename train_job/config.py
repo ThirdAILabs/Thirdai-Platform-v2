@@ -193,9 +193,9 @@ class DatagenOptions(BaseModel):
     task_prompt: str
     llm_provider: LLMProvider = LLMProvider.openai
 
-    datagen_options: Union[TokenClassificationDatagenOptions, TextClassificationDatagenOptions] = Field(
-        ..., discriminator="sub_type"
-    )    
+    datagen_options: Union[
+        TokenClassificationDatagenOptions, TextClassificationDatagenOptions
+    ] = Field(..., discriminator="sub_type")
 
 
 class JobOptions(BaseModel):
@@ -223,7 +223,9 @@ class TrainConfig(BaseModel):
     datagen_options: Optional[DatagenOptions] = None
     job_options: JobOptions
 
-    data: Union[NDBData, UDTData, UDTGeneratedData] = Field(..., discriminator="model_data_type")
+    data: Union[NDBData, UDTData, UDTGeneratedData] = Field(
+        ..., discriminator="model_data_type"
+    )
 
     @model_validator(mode="after")
     def check_model_data_match(self):

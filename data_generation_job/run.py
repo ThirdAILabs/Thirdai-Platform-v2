@@ -16,25 +16,19 @@ def launch_train_job(file_location: str, udt_options: dict):
     try:
         api_url = general_variables.model_bazaar_endpoint
         headers = {"User-Agent": "Datagen job"}
-        url = urljoin(api_url, f"api/train/datagen-callback?data_id={general_variables.data_id}&secret_token={general_variables.secret_token}")
+        url = urljoin(
+            api_url,
+            f"api/train/datagen-callback?data_id={general_variables.data_id}&secret_token={general_variables.secret_token}",
+        )
         data = {
             "file_info": json.dumps(
-                {
-                    "supervised_files": [
-                        {"path": file_location, "location": "nfs"}
-                    ]
-                }
+                {"supervised_files": [{"path": file_location, "location": "nfs"}]}
             ),
             "model_options": json.dumps(
-                {
-                    "model_type": "udt",
-                    "udt_options": udt_options
-                }
-            )
+                {"model_type": "udt", "udt_options": udt_options}
+            ),
         }
-        response = requests.request(
-            "post", url, headers=headers, data=data
-        )
+        response = requests.request("post", url, headers=headers, data=data)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as exception:
@@ -63,10 +57,10 @@ def main():
     # Saving the args first
     save_dict(
         factory.generation_args_location,
-        **{"data_id": general_variables.data_id, **asdict(args)}
+        **{"data_id": general_variables.data_id, **asdict(args)},
     )
     dataset_config = factory.generate_data(**asdict(args))
-    
+
     if general_variables.data_category == DataCategory.text:
         udt_options = {
             "udt_sub_type": "text",

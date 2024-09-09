@@ -86,7 +86,7 @@ def preload_chunks(
     )
     return (
         ndbv2.documents.PrebatchedDoc(list(doc.chunks()), doc_id=doc.doc_id()),
-        resource_path,
+        display_path,
     )
 
 

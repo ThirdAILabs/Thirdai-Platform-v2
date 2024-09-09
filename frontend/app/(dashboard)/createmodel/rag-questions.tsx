@@ -365,6 +365,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                         <div>
                           <NERQuestions
                             workflowNames = {workflowNames}
+                            modelGoal="Model to detect sensitive PII"
                             onCreateModel={(modelID) => {
                               setGrModelId(modelID);
                               setCreatedGR(true);

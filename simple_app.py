@@ -1,17 +1,20 @@
 import gradio as gr
+import operations as op
 
 
 # INTERACT WITH API #################################################################################
 
 
-def signin(username, password):
+def signin(email, password):
+    """Should return auth token"""
     # TODO: Replace mock implementation. See "login" in operations.ipynb
-    if username == "admin" and password == "admin":
+    if email == "admin" and password == "admin":
         return "token"
     else:
         return None
 
-def pull_models_and_workflows(token):
+def pull_models_and_workflows(model_name_prefix, token):
+    """Should return list of models and workflows as JSON"""
     # TODO: Replace mock implementation. See "list_models" in operations.ipynb
     models = [
         {"id": "model1", "name": "Model 1"},
@@ -24,18 +27,25 @@ def pull_models_and_workflows(token):
     ]
     return models, workflows
 
-def create_model(model_name, base_model_id, documents, token):
+def deploy(username, model_name, token):
+    """Should return deployment status"""
     # TODO: Replace mock implementation. See "Use Cases" document for details.
+    return "Deployment not implemented"
+
+def create_model(model_name, base_model_id, documents, token):
+    """Should return ID of newly created model"""
     new_model_id = f"{model_name}_{base_model_id}_{len(documents)}"
     return new_model_id
 
 def get_references(retriever_id, query, token):
+    """Should return references from retrieval model"""
     # TODO: Replace mock implementation. See "Use Cases" document for details.
     import random
     num_refs = random.randint(3, 10)
     return [{"content": f"Reference {i} for query: {query}. Retriever ID: {retriever_id}. Token: {token}"} for i in range(num_refs)]
 
-def generate_answer(guardrail_id, references, token):
+async def generate_answer(guardrail_id, query, references, token):
+    """Generates an answer to answer the query using provided references"""
     # TODO: Replace mock implementation. See "Use Cases" document for details.
     import time
     words = f"Token: {token}. Generated answer using guardrail {guardrail_id} based on {len(references)} references: "
@@ -50,32 +60,46 @@ def generate_answer(guardrail_id, references, token):
 
 def signin_tab(state):
     with gr.Column():
-        username = gr.Textbox(label="Username")
+        email = gr.Textbox(label="Email")
         password = gr.Textbox(label="Password")
         signin_button = gr.Button("Sign In")
         status = gr.Textbox(label="Status")
     
-    def process_signin(username, password, state):
-        token = signin(username, password)
+    def process_signin(email, password, state):
+        token = signin(email, password)
         if token:
             status = "Sign-in successful"
         else:
             status = "Invalid credentials"
         return [status, {"token": token, **state}]
     
-    signin_button.click(process_signin, inputs=[username, password, state], outputs=[status, state])
+    signin_button.click(process_signin, inputs=[email, password, state], outputs=[status, state])
 
 
 def models_tab(state):
     with gr.Column():
+        model_name_prefix = gr.Textbox(label="Model Name Prefix")
         pull_button = gr.Button("Pull models and workflows")
         models_json = gr.JSON(label="Models")
         workflows_json = gr.JSON(label="Workflows")
 
-    def process_pull_models_and_workflows(state):
-        return pull_models_and_workflows(state['token'])
+    def process_pull_models_and_workflows(model_name_prefix, state):
+        return pull_models_and_workflows(model_name_prefix, state['token'])
 
-    pull_button.click(process_pull_models_and_workflows, inputs=[state], outputs=[models_json, workflows_json])
+    pull_button.click(process_pull_models_and_workflows, inputs=[model_name_prefix, state], outputs=[models_json, workflows_json])
+
+def deploy_tab(state):
+    with gr.Column():
+        username = gr.Textbox(label="Username")
+        model_name = gr.Textbox(label="Model name")
+        deploy_button = gr.Button("Deploy")
+        deployment_status = gr.Textbox(label="Deployment Status")
+
+    def process_deploy(username, modelname, state):
+        response = deploy(username, model_name, state['token'])
+        return response
+
+    deploy_button.click(process_deploy, inputs=[username, model_name, state], outputs=[deployment_status])
 
 def create_tab(state):
     with gr.Column():
@@ -108,37 +132,36 @@ def interact_tab(state):
         references = get_references(retriever_id, query, state.get('token', ''))
         return [gr.JSON(value=r, visible=True) for r in references] + [gr.JSON(visible=False) for _ in range(max_num_references - len(references))]
         
-    def process_generate_answer(guardrail_id, state, *reference_boxes):
+    async def process_generate_answer(guardrail_id, state, query, *reference_boxes):
         generated_so_far = ""
-        for word in generate_answer(guardrail_id, reference_boxes, state.get('token', '')):
+        async for word in generate_answer(guardrail_id, query, reference_boxes, state.get('token', '')):
             generated_so_far += word
             yield generated_so_far
 
     query.submit(process_query, inputs=[retriever_id, query, state], outputs=reference_boxes).then(
-        process_generate_answer, inputs=[guardrail_id, state, *reference_boxes], outputs=[generated_answer]
+        process_generate_answer, inputs=[guardrail_id, state, query, *reference_boxes], outputs=[generated_answer]
     )
     submit_button.click(process_query, inputs=[retriever_id, query, state], outputs=reference_boxes).then(
-        process_generate_answer, inputs=[guardrail_id, state, *reference_boxes], outputs=[generated_answer]
+        process_generate_answer, inputs=[guardrail_id, state, query, *reference_boxes], outputs=[generated_answer]
     )
     
 
-def create_app():
-    with gr.Blocks() as app:
-        gr.State({})
-        state = gr.State({})
+with gr.Blocks() as demo:
+    gr.State({})
+    state = gr.State({})
 
-        with gr.Tabs():
-            with gr.TabItem("Sign In"):
-                signin_tab(state)
-            with gr.TabItem("Models"):
-                models_tab(state)
-            with gr.TabItem("Create"):
-                create_tab(state)
-            with gr.TabItem("Interact"):
-                interact_tab(state)
+    with gr.Tabs():
+        with gr.TabItem("Sign In"):
+            signin_tab(state)
+        with gr.TabItem("Models"):
+            models_tab(state)
+        with gr.TabItem("Deploy"):
+            deploy_tab(state)
+        with gr.TabItem("Create"):
+            create_tab(state)
+        with gr.TabItem("Interact"):
+            interact_tab(state)
 
-    return app
 
 if __name__ == "__main__":
-    app = create_app()
-    app.launch()
+    demo.launch()

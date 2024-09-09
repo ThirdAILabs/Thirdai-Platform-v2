@@ -221,7 +221,7 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
                 }
             )
 
-            return arguments
+        return arguments
 
     def generate_data(
         self,
@@ -231,7 +231,6 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
         tag_values_to_generate: Optional[int] = None,
     ):
         templates_to_generate = self._templates_to_generate(num_sentences_to_generate)
-
         """
         Generating the tag values
         Example: 
@@ -292,6 +291,7 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
                 data_points=templates, test_size=self.general_variables.test_size
             )
 
+            print(f"{len(train_templates) = }, {len(test_templates) = }")
             # Saving the train and test templates
             if train_templates:
                 # It should always be present, but incase test_size is set to 1.0
@@ -346,15 +346,14 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
                 ]
                 test_datapoints = shuffle_and_filter(test_datapoints)
 
-                if len(test_datapoints) > 0:
-                    self.write_on_file(
+                if test_datapoints:
+                    write_to_csv(
                         self.test_file_location,
                         test_datapoints,
                         fieldnames=[
                             TokenDataFactory.SOURCE_COLUMN,
                             TokenDataFactory.TARGET_COLUMN,
                         ],
-                        is_train_file=False,
                     )
                 self.test_sentences_generated += len(test_datapoints)
 

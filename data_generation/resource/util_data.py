@@ -52,16 +52,14 @@ random_prompts = {
         "Rewrite it ensuring the most frequent words are used sparingly",
         "Rewrite it focusing on diverse vocabulary, avoiding repetition of any word more than once",
     ],
-    "others": {
-        "prompts": [
-            "enhance descriptions (add adjectives, adverbs)",
-            "modify sentence structure (change, invert, rearrange, add clauses)",
-            "add stylistic elements (figurative language, literary devices, sensory details, dialogue)",
-            "add contextual or background information",
-            "incorporate specific elements (mystery, suspense, surprise, humor, jargon, rhetorical devices)",
-            "Include datetime in a random format, location, event and related numerical data",
-        ]
-    },
+    "prompts": [
+        "enhance descriptions (add adjectives, adverbs)",
+        "modify sentence structure (change, invert, rearrange, add clauses)",
+        "add stylistic elements (figurative language, literary devices, sensory details, dialogue)",
+        "add contextual or background information",
+        "incorporate specific elements (mystery, suspense, surprise, humor, jargon, rhetorical devices)",
+        "Include datetime in a random format, location, event and related numerical data",
+    ],
 }
 
 vocab = [

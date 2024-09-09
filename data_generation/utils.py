@@ -11,8 +11,8 @@ def save_dict(write_to: str, **kwargs):
         json.dump(kwargs, fp, indent=4)
 
 
-def consistent_split(text: str, seperator: str = " ") -> List[str]:
-    return re.sub("\s+", seperator, text).strip().split(sep=seperator)
+def consistent_split(text: str, separator: str = " ") -> List[str]:
+    return re.sub("\s+", separator, text).strip().split(sep=separator)
 
 
 def remove_duplicates(words: List[str]):

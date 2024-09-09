@@ -35,8 +35,6 @@ dataset_generation_prompt = """The goal is to create a dataset for entity recogn
 Tags with their description and example:
 {tags_info}
 
-Following are some sample output format for generation. This is just for example and you should not mimic this pattern.
-
 For example, here are some templates for the tags [CARDHOLDER_NAME, EXPIRATION_DATE] on the domain of payment information.
 - [CARDHOLDER_NAME] and his friend john tried to dupe the credit card company by reporting their transaction with the card [PAN] as fradulent on 9th august.
 - In the month of december, the card was expired but the expiration date mentioned was [EXPIRATION_DATE].

@@ -42,8 +42,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         break;
       }
       case "nlp": {
-        const newUrl = `/token-classification/${workflow.id}`;
-        window.open(newUrl, '_blank');
+        const prefix = workflow.models[0].sub_type === "token" ? "/token-classification" : "/text-classification";
+        window.open(`${prefix}/${workflow.id}`, '_blank');  
         break;
       }
       case "rag": {

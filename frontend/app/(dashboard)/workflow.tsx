@@ -261,7 +261,11 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem>Edit</DropdownMenuItem>
+            <DropdownMenuItem onClick={()=>{
+              router.push(`/editworkflow/${workflow.id}`);
+            }}>
+              Configure App
+            </DropdownMenuItem>        
             {
               deployStatus === 'Active'
               &&

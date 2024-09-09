@@ -508,7 +508,7 @@ interface WorkflowModel {
   username: string;
 }
 
-interface WorkflowDetailsResponse {
+export interface WorkflowDetailsResponse {
   status_code: number;
   message: string;
   data: {

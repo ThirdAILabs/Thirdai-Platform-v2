@@ -604,10 +604,11 @@ export class ModelService {
     ) {
         let finalAnswer = ''; // Variable to accumulate the response
 
+        const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
         const cache_access_token =  await temporaryCacheToken(this.getModelID());
         const args: any = {
             query: genaiQuery(question, references, genaiPrompt),
-            key: "sk-PYTWB6gs_ofO44-teXA2rIRGRbJfzqDyNXBalHXKcvT3BlbkFJk5905SK2RVE6_ME8i4Lnp9qULbyPZSyOU0vh2fZfQA", // fill in openai key
+            key: apiKey,
             original_query: question,
             cache_access_token: cache_access_token.access_token
         };

@@ -410,6 +410,7 @@ export default function AccessPage() {
     getWorkflows();
   }, []);
 
+  // Handle team level change
   const [newAdmin, setNewAdmin] = useState('');
   const [adminToRemove, setAdminToRemove] = useState('');
   const [selectedTeamForRemoveAdmin, setSelectedTeamForRemoveAdmin] = useState('');
@@ -503,6 +504,53 @@ export default function AccessPage() {
       }
     };
   };
+
+  // Handle OpenAI key change
+  const [apiKey, setApiKey] = useState('');   // Display the masked API key
+  const [newApiKey, setNewApiKey] = useState(''); // For storing the new API key
+  const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    // Fetch the existing OpenAI API key (masked)
+    async function fetchApiKey() {
+      const response = await fetch('/endpoints/get_openai_key');
+      const data = await response.json();
+      if (data.apiKey) {
+        setApiKey(data.apiKey); // set masked API key
+      }
+    }
+  
+    fetchApiKey();
+  }, []);  
+
+  const handleSave = async () => {
+    if (!newApiKey) {
+      alert('Please enter a new OpenAI API Key');
+      return;
+    }
+  
+    setLoading(true);
+  
+    const response = await fetch('/endpoints/change_openai_key', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ newApiKey }),
+    });
+  
+    const data = await response.json();
+    if (data.success) {
+      setSuccessMessage('OpenAI API Key successfully updated!');
+      setApiKey(`sk-${newApiKey.slice(-4)}`);
+      setNewApiKey('') // clear the openai key field
+    } else {
+      alert('Error updating API Key');
+    }
+  
+    setLoading(false);
+  };  
 
   return (
     <div className="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen">
@@ -879,6 +927,34 @@ export default function AccessPage() {
               </div>
             ))}
           </div>
+
+          {/* OpenAI key Section */}
+          <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
+            <h4 className="text-lg font-semibold text-gray-800">Change OpenAI API Key</h4>
+            <div className="mt-4">
+              <label className="block text-gray-700">Current Organization OpenAI API Key (masked):</label>
+              <p className="bg-gray-200 p-2 rounded">{apiKey || 'Loading...'}</p>
+            </div>
+            <div className="mt-4">
+              <label className="block text-gray-700">New OpenAI API Key:</label>
+              <input
+                type="text"
+                placeholder="sk-..."
+                value={newApiKey}
+                onChange={(e) => setNewApiKey(e.target.value)}
+                className="border border-gray-300 rounded px-4 py-2 w-full"
+              />
+            </div>
+            <button
+              onClick={handleSave}
+              className={`mt-4 bg-blue-500 text-white px-4 py-2 rounded ${loading ? 'cursor-not-allowed' : ''}`}
+              disabled={loading}
+            >
+              {loading ? 'Saving...' : 'Save'}
+            </button>
+            {successMessage && <p className="text-green-500 mt-4">{successMessage}</p>}
+          </div>
+
         </CardContent>
       </Card>
     </div>

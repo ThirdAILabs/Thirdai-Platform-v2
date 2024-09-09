@@ -291,7 +291,6 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
                 data_points=templates, test_size=self.general_variables.test_size
             )
 
-            print(f"{len(train_templates) = }, {len(test_templates) = }")
             # Saving the train and test templates
             if train_templates:
                 # It should always be present, but incase test_size is set to 1.0

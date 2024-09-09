@@ -10,7 +10,9 @@ class ModelType(str, Enum):
     UDT = "udt"
 
 
-class ModelDataType(str, ModelType):
+class ModelDataType(str, Enum):
+    NDB = "ndb"
+    UDT = "udt"
     UDT_DATAGEN = "udt_datagen"
 
 
@@ -156,7 +158,7 @@ class UDTData(BaseModel):
 
 
 class UDTGeneratedData(BaseModel):
-    model_data_type: Literal[ModelDataType.UDT] = ModelDataType.UDT_DATAGEN
+    model_data_type: Literal[ModelDataType.UDT_DATAGEN] = ModelDataType.UDT_DATAGEN
     secret_token: str
 
 
@@ -166,7 +168,7 @@ class LLMProvider(str, Enum):
 
 
 class TextClassificationDatagenOptions(BaseModel):
-    sub_type: UDTSubType
+    sub_type: Literal[UDTSubType.text] = UDTSubType.text
 
     samples_per_label: int
     target_labels: List[str]
@@ -178,7 +180,7 @@ class TextClassificationDatagenOptions(BaseModel):
 
 
 class TokenClassificationDatagenOptions(BaseModel):
-    sub_type: UDTSubType
+    sub_type: Literal[UDTSubType.token] = UDTSubType.token
 
     domain_prompt: str
     tags: List[str]

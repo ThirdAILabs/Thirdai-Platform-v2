@@ -1,0 +1,195 @@
+name: Docker tests
+
+# Kills old jobs from the same pr if we push a new commit
+# See https://stackoverflow.com/questions/66335225/how-to-cancel-previous-runs-in-the-pr-when-you-push-new-commitsupdate-the-curre
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  # push:
+  #   branches: [ main ]
+  # pull_request:
+  #   branches: [ main ]
+  # workflow_dispatch: # Allows manual triggering of the workflow
+
+jobs:
+  build_docker_images:
+    runs-on: ubuntu-latest
+    environment:
+      name: docker_tests
+    
+    outputs:
+      version: ${{ steps.generate_version.outputs.version }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      # Generate random version number in format 123.123.123
+      - name: Generate random version
+        id: generate_version
+        run: |
+          version=$(shuf -i 100-999 -n 3 | paste -sd '.')
+          echo "Generated version: $version"
+          echo "::set-output name=version::$version"
+
+      # Build and push docker images to automate testsuite registry
+      - name: Build and push docker images to automate testsuite registry
+        run: |
+          cd release
+          pip install -r requirements.txt
+          python3 push.py -b docker_tests --config config.yaml --no-cache --dont-update-latest --version ${{ steps.generate_version.outputs.version }}
+
+  restart_modelbazaar:
+    runs-on: self-hosted
+    environment:
+      name: docker_tests
+
+    needs: build_docker_images
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install thirdai package
+        run: |
+          pip3 install thirdai --force-reinstall
+
+      - name: Restart Model Bazaar Job
+        run: |
+          python3 -m headless.restart_modelbazaar --base-url ${{ secrets.BASE_URL }}
+
+  test:
+    strategy:
+      fail-fast: false
+
+    runs-on: self-hosted
+    
+    environment:
+      name: docker_tests
+
+    needs: restart_modelbazaar
+
+    steps:
+      - name: Delay before running tests
+        run: sleep 180  # Wait for 3 minutes (180 seconds)
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install thirdai package
+        run: |
+          pip3 install thirdai --force-reinstall
+
+      - name: Generate random run name
+        id: random-run-name
+        run: |
+          echo "::set-output name=name::test_$(python3 -c "import secrets; print(secrets.token_urlsafe(8))")"
+
+      - name: Run tests
+        run: |
+          python3 -m headless.run --base-url ${{ secrets.BASE_URL }} --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }}
+
+  restore_original_alembic_version:
+    runs-on: ubuntu-latest
+
+    needs: test
+
+    if: success() || failure()
+
+    environment:
+      name: testsuite_blade
+
+    steps:
+      - name: Check if running on main branch
+        id: check_branch
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "::set-output name=skip_steps::true"
+          else
+            echo "::set-output name=skip_steps::false"
+          fi
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+        if: steps.check_branch.outputs.skip_steps == 'false'
+    
+      - name: Install git
+        run: |
+          pip install gitpython
+        if: steps.check_branch.outputs.skip_steps == 'false'
+
+      - name: Checkout current branch
+        uses: actions/checkout@v3
+        if: steps.check_branch.outputs.skip_steps == 'false'
+
+      - name: Latest alembic version
+        id: version
+        run: |
+          alembic_version=$(python latest_version.py)
+          echo "::set-output name=alembic_version::$alembic_version"
+          echo "$alembic_version"
+        if: steps.check_branch.outputs.skip_steps == 'false'
+
+      - name: Install requirements
+        run: |
+          cd model_bazaar
+          pip install -r requirements.txt
+        if: steps.check_branch.outputs.skip_steps == 'false'
+
+      - name: Revert Back to original alembic version
+        env:
+          DATABASE_URI: ${{ secrets.DATABASE_URI }}
+        run: |
+          cd model_bazaar
+          alembic downgrade ${{ steps.version.outputs.alembic_version }}
+        if: steps.check_branch.outputs.skip_steps == 'false'
+
+  delete_docker_images:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: testsuite_blade
+
+    needs: [ test, build_docker_images ]
+
+    if: success() || failure()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Delete docker images
+        run: |
+          cd release
+          pip install -r requirements.txt
+          echo "PUSH_USERNAME=${{ secrets.PUSH_USERNAME }}" >> .env
+          echo "PUSH_PASSWORD=${{ secrets.PUSH_PASSWORD }}" >> .env
+          echo "PULL_USERNAME=${{ secrets.PULL_USERNAME }}" >> .env
+          echo "PULL_PASSWORD=${{ secrets.PULL_PASSWORD }}" >> .env
+          version="${{ needs.build_docker_images.outputs.version }}"
+          echo "Deleting Docker images for version: $version"
+          python3 docker_remove.py -b automate-testsuite --version "$version" --application_id ${{ secrets.APPLICATION_ID }} --tenant_id ${{ secrets.TENANT_ID }} --secret ${{ secrets.SECRET }}

@@ -67,7 +67,6 @@ def main():
     reporter = HttpReporter(config.model_bazaar_endpoint)
 
     try:
-
         if config.license_key == "file_license":
             thirdai.licensing.set_path(
                 os.path.join(config.model_bazaar_dir, "license/license.serialized")

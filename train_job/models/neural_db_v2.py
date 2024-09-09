@@ -1,9 +1,5 @@
-import ast
-import json
 import os
-import queue
 import shutil
-import threading
 import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -173,130 +169,6 @@ class NeuralDBV2(Model):
     def doc_save_path(self):
         return os.path.join(self.ndb_save_path(), "documents")
 
-    # def parser(
-    #     self,
-    #     files: List[FileInfo],
-    #     task_queue: queue.Queue,
-    #     doc_save_dir: str,
-    #     tmp_dir: str,
-    # ):
-    #     max_cores = os.cpu_count()
-    #     num_workers = max(1, min(max_cores - 6, 10))
-    #     self.logger.info(f"Starting {num_workers} parsing processes")
-    #     with ProcessPoolExecutor(max_workers=num_workers) as executor:
-    #         futures = [
-    #             executor.submit(process_file, file, doc_save_dir, tmp_dir)
-    #             for file in files
-    #         ]
-
-    #         for future in as_completed(futures):
-    #             try:
-    #                 ndb_file, filename = future.result()
-    #                 task_queue.put(ndb_file)
-    #                 self.logger.info(f"Parsed: doc_id={ndb_file.doc_id()} queue_size={task_queue.qsize()} {filename=}")
-    #             except Exception as e:
-    #                 self.logger.error(f"Error processing file '{filename}': {e}")
-
-    #     task_queue.put(None)
-
-    #     self.logger.info("Parsing processes completed")
-
-    # def indexer(self, task_queue: queue.Queue, batch_size: int):
-    #     batch = []
-
-    #     while True:
-    #         ndb_doc = task_queue.get()
-    #         if ndb_doc is None:
-    #             if batch:
-    #                 self.db.insert(batch)
-    #                 self.logger.info(f"Inserted final batch: size={len(batch)} queue_size={task_queue.qsize()} doc_ids={[x.doc_id() for x in batch]}")
-    #             break
-
-    #         batch.append(ndb_doc)
-
-    #         if len(batch) >= batch_size:
-    #         # if len(batch) >= batch_size and task_queue.qsize() == 0:
-    #             self.db.insert(batch)
-    #             self.logger.info(f"Inserted batch: size={len(batch)} queue_size={task_queue.qsize()} doc_ids={[x.doc_id() for x in batch]}")
-    #             batch.clear()
-
-    #     self.logger.info("Indexing processes completed")
-
-    # def parser(
-    #     self,
-    #     files: List[FileInfo],
-    #     task_queue: queue.Queue,
-    #     doc_save_dir: str,
-    #     tmp_dir: str,
-    # ):
-    #     max_cores = os.cpu_count()
-    #     num_workers = max(1, min(max_cores - 2, 10))
-    #     self.logger.info(f"Starting {num_workers} parsing processes")
-
-    #     batch_size = 500
-    #     batches = [files[i : i + batch_size] for i in range(0, len(files), batch_size)]
-    #     assert len(batches) > 0
-
-    #     with ProcessPoolExecutor(max_workers=num_workers) as executor:
-
-    #         batch_idx = 0
-
-    #         current_batch = [
-    #             executor.submit(process_file, file, doc_save_dir, tmp_dir)
-    #             for file in batches[batch_idx]
-    #         ]
-
-    #         while current_batch:
-    #             batch_idx += 1
-    #             if batch_idx < len(batches):
-    #                 next_batch = [
-    #                     executor.submit(process_file, file, doc_save_dir, tmp_dir)
-    #                     for file in batches[batch_idx]
-    #                 ]
-    #             else:
-    #                 next_batch = None
-
-    #             for future in as_completed(current_batch):
-    #                 try:
-    #                     ndb_file, filename = future.result()
-    #                     task_queue.put(ndb_file)
-    #                     self.logger.info(
-    #                         f"Parsed: doc_id={ndb_file.doc_id()} queue_size={task_queue.qsize()} {filename=}"
-    #                     )
-    #                 except Exception as e:
-    #                     self.logger.error(f"Error processing file: {e}")
-
-    #             current_batch = next_batch
-
-    #     task_queue.put(None)
-
-    #     self.logger.info("Parsing processes completed")
-
-    # def indexer(self, task_queue: queue.Queue, batch_size: int):
-    #     batch = []
-
-    #     while True:
-    #         ndb_doc = task_queue.get()
-    #         if ndb_doc is None:
-    #             if batch:
-    #                 self.db.insert(batch)
-    #                 self.logger.info(
-    #                     f"Inserted final batch: size={len(batch)} queue_size={task_queue.qsize()} doc_ids={[x.doc_id() for x in batch]}"
-    #                 )
-    #             break
-
-    #         batch.append(ndb_doc)
-
-    #         if len(batch) >= batch_size:
-    #             # if len(batch) >= batch_size and task_queue.qsize() == 0:
-    #             self.db.insert(batch)
-    #             self.logger.info(
-    #                 f"Inserted batch: size={len(batch)} queue_size={task_queue.qsize()} doc_ids={[x.doc_id() for x in batch]}"
-    #             )
-    #             batch.clear()
-
-    #     self.logger.info("Indexing processes completed")
-
     def unsupervised_files(self) -> List[FileInfo]:
         return expand_s3_buckets_and_directories(self.config.data.unsupervised_files)
 
@@ -305,41 +177,8 @@ class NeuralDBV2(Model):
         check_csv_only(all_files)
         return all_files
 
-    # def unsupervised_train(self, files: List[FileInfo]):
-    #     self.logger.info("Starting unsupervised training.")
-    #     task_queue = queue.Queue()
-
-    #     os.makedirs(self.data_dir / "unsupervised", exist_ok=True)
-    #     parser_thread = threading.Thread(
-    #         target=self.parser,
-    #         args=(
-    #             files[:500],  # files
-    #             task_queue,  # task_queue
-    #             self.doc_save_path(),  # doc_save_dir
-    #             self.data_dir / "unsupervised",  # tmp_dir
-    #         ),
-    #     )
-
-    #     indexer_thread = threading.Thread(
-    #         target=self.indexer,
-    #         args=(task_queue, 100),
-    #     )
-
-    #     self.logger.info(
-    #         "Starting parser and indexer threads for unsupervised training."
-    #     )
-    #     parser_thread.start()
-    #     indexer_thread.start()
-
-    #     parser_thread.join()
-    #     indexer_thread.join()
-
-    #     self.logger.info("Completed unsupervised training.")
-
-    def unsupervised_train(self, files: List[FileInfo]):
+    def unsupervised_train(self, files: List[FileInfo], batch_size=100):
         self.logger.info("Starting unsupervised training.")
-
-        batch_size = 100
 
         os.makedirs(self.data_dir / "unsupervised", exist_ok=True)
 
@@ -354,7 +193,7 @@ class NeuralDBV2(Model):
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
             futures = [
                 executor.submit(process_file, file, doc_save_dir, tmp_dir)
-                for file in files[:1000]
+                for file in files
             ]
 
             batch = []
@@ -362,18 +201,19 @@ class NeuralDBV2(Model):
                 try:
                     ndb_doc, filename = future.result()
                     batch.append(ndb_doc)
+                    self.logger.debug(
+                        f"Parsed document: doc_id={ndb_doc.doc_id()} {filename=}"
+                    )
                 except Exception as e:
                     self.logger.error(f"Error processing file: {e}")
 
                 if len(batch) == batch_size:
-                    # print(f"MAIN {os.getpid()} {memory_usage():.3f} Mb")
                     self.db.insert(batch)
                     docs_indexed += len(batch)
                     self.logger.info(f"Inserted {docs_indexed} docs")
                     batch.clear()
 
             if len(batch) > 0:
-                # print(f"MAIN {os.getpid()} {memory_usage():.3f} Mb")
                 self.db.insert(batch)
                 docs_indexed += len(batch)
                 self.logger.info(f"Inserted {docs_indexed} docs")

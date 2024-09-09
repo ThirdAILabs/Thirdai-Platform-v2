@@ -324,7 +324,6 @@ class ShardedNDB(NDBV1Model):
         db = ndb.NeuralDB.from_checkpoint(self.model_path, read_only=not write_mode)
 
         for i in range(db._savable_state.model.num_shards):
-
             models = []
 
             for j in range(db._savable_state.model.num_models_per_shard):

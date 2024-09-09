@@ -230,7 +230,6 @@ def find_datasets(
     target_labels: List[str],
     session: Session = Depends(get_session),
 ):
-
     try:
         catalogs = get_catalogs(task=task, session=session)
         # Filtering catalogs based on the target_labels
@@ -239,7 +238,6 @@ def find_datasets(
         )
 
         if most_suited_dataset_catalog:
-
             data = {
                 "dataset_name": most_suited_dataset_catalog.name,
                 "catalog_id": str(most_suited_dataset_catalog.id),

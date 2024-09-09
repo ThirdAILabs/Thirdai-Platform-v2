@@ -1,5 +1,13 @@
 azure:
   branches:
+    ndbv2-debug:
+      pull_credentials:
+        password: uqlhFXdnUMtpQdW8XCwdt4OD7UTrdkYvE2CUmEWgol+ACRDvCxlh
+        username: thirdaiplatform-pull-ndbv2-debug
+      push_credentials:
+        password: go9PMjMjmOj5WN8GhrTjGAgBOfKCq1Coh/zTiikJYh+ACRAQHPtm
+        username: thirdaiplatform-push-ndbv2-debug
+      version: 0.2.0
     on-prem-llm:
       pull_credentials:
         password: lZit7mOLUB2e7j/Ak50OXCHer4EdaCUDZ8EVHbQnJj+ACRAP/xev

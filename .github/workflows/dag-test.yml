@@ -162,6 +162,8 @@ jobs:
         echo "Uvicorn Logs:"
         cat $GITHUB_WORKSPACE/thirdai_platform/uvicorn.log
 
+        bash local_setup/fetch_nomad_logs.sh
+
     - name: Stop Services
       if: always()
       run: |

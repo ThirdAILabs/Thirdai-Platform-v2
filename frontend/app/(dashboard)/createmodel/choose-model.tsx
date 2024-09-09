@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { SelectModel } from '@/lib/db';
 import RAGQuestions from './rag-questions';
 import NLPQuestions from './nlp-questions/nlp-questions';
+import DocumentClassificationQuestions from './document-class-questions';
 import SemanticSearchQuestions from './semantic-search-questions';
 import { fetchPublicModels, fetchPrivateModels, fetchPendingModels,
           fetchWorkflows, Workflow
@@ -70,6 +71,7 @@ export default function ChooseProblem() {
   const RETRIEVAL = "Retrieval"
   const NLP = "Natural Language Processing"
   const RAG = "Retrieval Augmented Generation"
+  const DOC_CLASSIFICATION = "Document Classification";
 
   return (
     <>
@@ -78,7 +80,7 @@ export default function ChooseProblem() {
         <CardDescription>Please select the app type based on your use case.</CardDescription>
         <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
           {
-            [RETRIEVAL, NLP, RAG].map((type, index) => {
+            [RETRIEVAL, NLP, RAG, DOC_CLASSIFICATION].map((type, index) => {
               const variant = (
                 !modelType
                   ? "default"
@@ -104,6 +106,7 @@ export default function ChooseProblem() {
             {modelType === RAG && <RAGQuestions models={privateModels} workflowNames={workflowNames} />}
             {modelType === NLP && <NLPQuestions workflowNames={workflowNames} />}
             {modelType === RETRIEVAL && <SemanticSearchQuestions workflowNames={workflowNames} />}
+            {modelType === DOC_CLASSIFICATION && <DocumentClassificationQuestions workflowNames={workflowNames} />} {/* New Component */}
           </div>
         )}
       </div>

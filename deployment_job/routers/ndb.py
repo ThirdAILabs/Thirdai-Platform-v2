@@ -114,7 +114,7 @@ def ndb_query(
 @propagate_error
 def update_chat_settings(
     settings: inputs.ChatSettings,
-    _=Depends(permissions.verify_write_permission),
+    _=Depends(permissions.verify_permission("write")),
 ):
     model = get_model()
 
@@ -129,7 +129,7 @@ def update_chat_settings(
 @propagate_error
 def get_chat_history(
     input: inputs.ChatHistoryInput,
-    token=Depends(permissions.verify_read_permission),
+    token=Depends(permissions.verify_permission("read")),
 ):
     model = get_model()
     if not model.chat:
@@ -161,7 +161,7 @@ def get_chat_history(
 @ndb_router.post("/chat")
 @propagate_error
 def chat(
-    input: inputs.ChatInput, token=Depends(permissions.verify_read_permission)
+    input: inputs.ChatInput, token=Depends(permissions.verify_permission("read"))
 ):
     model = get_model()
     if not model.chat:

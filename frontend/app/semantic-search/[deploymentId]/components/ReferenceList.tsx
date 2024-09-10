@@ -59,10 +59,11 @@ export default function ReferenceList({
         <Container>
             <Header>References</Header>
             <Spacer $height="10px" />
-            {references.map((ref) => (
+            {references.map((ref, referenceIdx) => (
                 <Fragment key={ref.id}>
                     <Reference
                         info={ref}
+                        referenceIdx={referenceIdx}
                         onOpen={() => onOpen(ref)}
                         onUpvote={() => onUpvote(ref.id, ref.content)}
                         onDownvote={() => onDownvote(ref.id, ref.content)}

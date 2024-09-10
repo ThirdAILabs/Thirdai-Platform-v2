@@ -88,18 +88,6 @@ NDB:
     dependencies: [check_deployment_ndb_2]
     params:
       deployment: deploy_ndb_2
-  
-  delete_model:
-    dependencies: [undeploy]
-    params:
-      model: check_unsupervised_supervised
-  
-  delete_model_unsupervised:
-    function: delete_model
-    dependencies: [undeploy_2]
-    params:
-      model: check_unsupervised
-
 
   check_supervised:
     dependencies: [await_train_2]
@@ -114,6 +102,23 @@ NDB:
   await_train_supervised:
     function: await_train
     dependencies: [check_supervised]
+    params:
+      model: check_supervised
+
+  delete_model:
+    dependencies: [undeploy]
+    params:
+      model: check_unsupervised_supervised
+  
+  delete_model_unsupervised:
+    function: delete_model
+    dependencies: [undeploy_2]
+    params:
+      model: check_unsupervised
+
+  delete_model_supervised:
+    function: delete_model
+    dependencies: [await_train_supervised]
     params:
       model: check_supervised
 

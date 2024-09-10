@@ -284,7 +284,8 @@ class NDBFunctions:
                 os.path.join(config.base_path, config.test_paths[0]) if test else None
             ),
             doc_options={
-                doc: NDBFunctions.build_doc_options(config) for doc in [sup_docs[0][0]]
+                doc: NDBFunctions.build_doc_options(config)
+                for doc in [sup_docs[0][0], sup_docs[0][1]]
             },
             job_options=NDBFunctions.build_job_options(config),
         )

@@ -59,6 +59,7 @@ class TextDataFactory(DataFactory):
                 arguments.append(
                     {"prompt": prompt, "kwargs": {"target_label": target_label.name}}
                 )
+        return arguments
 
     def generate_data(
         self,

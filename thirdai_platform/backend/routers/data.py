@@ -67,7 +67,7 @@ class TextClassificationGenerateArgs(BaseModel):
     target_labels: List[Entity]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
-    vocab_per_sentence: int = 4
+    vocab_per_sentence: int = 2
     allocation_cores: Optional[int] = None
     allocation_memory: Optional[int] = None
 
@@ -126,7 +126,7 @@ def generate_text_data(
         docker_username=os.getenv("DOCKER_USERNAME"),
         docker_password=os.getenv("DOCKER_PASSWORD"),
         image_name=os.getenv("TRAIN_IMAGE_NAME"),
-        train_script=str(get_root_absolute_path() / "data_generation/run.py"),
+        train_script=str(get_root_absolute_path() / "data_generation_job/run.py"),
         task_prompt=task_prompt,
         data_id=str(data_id),
         data_category="text",
@@ -209,7 +209,7 @@ def generate_token_data(
         docker_username=os.getenv("DOCKER_USERNAME"),
         docker_password=os.getenv("DOCKER_PASSWORD"),
         image_name=os.getenv("TRAIN_IMAGE_NAME"),
-        train_script=str(get_root_absolute_path() / "data_generation/run.py"),
+        train_script=str(get_root_absolute_path() / "data_generation_job/run.py"),
         task_prompt=task_prompt,
         data_id=str(data_id),
         data_category="token",

@@ -8,7 +8,6 @@ from data_factory_interface import DataFactory
 from faker import Faker
 from tqdm import tqdm
 from utils import (
-    consistent_split,
     remove_duplicates,
     save_dict,
     shuffle_and_filter,
@@ -84,7 +83,6 @@ class TokenDataFactory(DataFactory):
                 return x
 
             if samples:
-                samples = [stringify_tuples(x) for x in samples]
                 save_dict(
                     write_to=self.save_dir / "tags_value.json", **complete_tag_values
                 )
@@ -182,10 +180,6 @@ class TokenDataFactory(DataFactory):
         ) // self.sentences_per_template
 
     def _subsample_tag(self, tags: List[Entity], k: int = 4):
-        # using triangular distribution to favour longer lists by setting mode = high.
-        # k = math.ceil(random.triangular(low=1, high=len(tags), mode=len(tags)))
-        # return random.sample(tags, k)
-
         return random.sample(tags, min(len(tags), k))
 
     def collect_arguments(
@@ -297,7 +291,6 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
             train_templates, test_templates = train_test_split(
                 data_points=templates, test_size=self.general_variables.test_size
             )
-
             # Saving the train and test templates
             if train_templates:
                 # It should always be present, but incase test_size is set to 1.0
@@ -315,29 +308,30 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
                     fieldnames=["template"],
                 )
 
-            # Filling the train-templates with the train-tag-values and saving it.
-            train_datapoints = [
-                item
-                for template in train_templates
-                for item in self.fill_and_transform(
-                    template=template,
-                    tag_values=train_tag_values,
-                    sentences_to_generate=self.sentences_per_template,
-                )
-            ]
-            train_datapoints = shuffle_and_filter(train_datapoints)
+            if train_templates:
+                # Filling the train-templates with the train-tag-values and saving it.
+                train_datapoints = [
+                    item
+                    for template in train_templates
+                    for item in self.fill_and_transform(
+                        template=template,
+                        tag_values=train_tag_values,
+                        sentences_to_generate=self.sentences_per_template,
+                    )
+                ]
+                train_datapoints = shuffle_and_filter(train_datapoints)
 
-            if train_datapoints:
-                # It should always be present, but incase test_size is set to 1.0
-                write_to_csv(
-                    self.train_file_location,
-                    train_datapoints,
-                    fieldnames=[
-                        TokenDataFactory.SOURCE_COLUMN,
-                        TokenDataFactory.TARGET_COLUMN,
-                    ],
-                )
-                self.train_sentences_generated += len(train_datapoints)
+                if train_datapoints:
+                    # It should always be present, but incase test_size is set to 1.0
+                    write_to_csv(
+                        self.train_file_location,
+                        train_datapoints,
+                        fieldnames=[
+                            TokenDataFactory.SOURCE_COLUMN,
+                            TokenDataFactory.TARGET_COLUMN,
+                        ],
+                    )
+                    self.train_sentences_generated += len(train_datapoints)
 
             # Filling the test-templates with the test-tag-values and saving it.
             if test_templates:
@@ -376,6 +370,8 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
         }
         save_dict(self.config_file_location, **dataset_config)
 
+        return dataset_config
+
     def fill_and_transform(
         self,
         template: str,
@@ -386,7 +382,7 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
             return [None]
 
         seperator = " "
-        words = consistent_split(template, seperator)
+        words = template.split(sep=seperator)
 
         data_points = [
             {TokenDataFactory.SOURCE_COLUMN: [], TokenDataFactory.TARGET_COLUMN: []}
@@ -406,8 +402,8 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
                     return [None]
 
                 for idx in range(sentences_to_generate):
-                    splitted_word_tag_value = consistent_split(
-                        random.choice(tag_values[word_tag]), seperator
+                    splitted_word_tag_value = random.choice(tag_values[word_tag]).split(
+                        sep=seperator
                     )
                     data_points[idx][TokenDataFactory.SOURCE_COLUMN].extend(
                         splitted_word_tag_value
@@ -437,8 +433,8 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
                     data_points[idx][TokenDataFactory.TARGET_COLUMN].append("O")
 
         # make sure that the source and target is of same length
-        for i in range(len(data_points)):
-            data = data_points[i]
+        sentences = []
+        for data in data_points:
             if len(data[TokenDataFactory.SOURCE_COLUMN]) != len(
                 data[TokenDataFactory.TARGET_COLUMN]
             ):
@@ -448,13 +444,16 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
                     + f"target: {data[TokenDataFactory.TARGET_COLUMN]}\n"
                     + f"\n\ntemplate: {template}\n"
                 )
-                data_points.pop(i)
             else:
-                data[TokenDataFactory.SOURCE_COLUMN] = seperator.join(
-                    data[TokenDataFactory.SOURCE_COLUMN]
-                )
-                data[TokenDataFactory.TARGET_COLUMN] = seperator.join(
-                    data[TokenDataFactory.TARGET_COLUMN]
+                sentences.append(
+                    {
+                        TokenDataFactory.SOURCE_COLUMN: seperator.join(
+                            data[TokenDataFactory.SOURCE_COLUMN]
+                        ),
+                        TokenDataFactory.TARGET_COLUMN: seperator.join(
+                            data[TokenDataFactory.TARGET_COLUMN]
+                        ),
+                    }
                 )
 
-        return data_points
+        return sentences

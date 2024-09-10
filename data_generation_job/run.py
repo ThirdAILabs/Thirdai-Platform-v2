@@ -59,7 +59,7 @@ def main():
         factory.generation_args_location,
         **{"data_id": general_variables.data_id, **asdict(args)},
     )
-    dataset_config = factory.generate_data(**asdict(args))
+    dataset_config = factory.generate_data(**args.to_dict())
 
     if general_variables.data_category == DataCategory.text:
         udt_options = {

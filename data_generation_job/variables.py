@@ -98,7 +98,7 @@ class GeneralVariables(EnvLoader):
     data_category: DataCategory
     genai_key: str
     llm_provider: LLMProvider = LLMProvider.openai
-    test_size: float = 0.1
+    test_size: float = 0.05
 
 
 @dataclass

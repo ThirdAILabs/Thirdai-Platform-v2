@@ -179,6 +179,8 @@ class ModelBazaar:
         if not unsupervised_docs and not supervised_docs:
             raise ValueError("Both the unsupervised and supervised docs are empty.")
 
+        unsupervised_docs = unsupervised_docs or []
+
         if metadata and unsupervised_docs:
             if len(metadata) != len(unsupervised_docs):
                 raise ValueError("Metadata is not provided for all unsupervised files.")
@@ -636,3 +638,12 @@ class ModelBazaar:
         download_files_from_s3(bucket_name, local_dir)
 
         print("Backup and restore operations completed successfully.")
+
+    def delete(self, model_identifier: str):
+        response = http_post_with_error(
+            urljoin(self._base_url, "model/delete"),
+            headers=auth_header(self._access_token),
+            params={"model_identifier": model_identifier},
+        )
+
+        print(f"Successfully deleted the model {model_identifier}")

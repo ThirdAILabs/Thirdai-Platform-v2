@@ -162,6 +162,17 @@ class CommonFunctions:
         )
         flow.bazaar_client.await_train(model)
 
+    @staticmethod
+    def delete_model(inputs: Dict[str, Any]):
+        """
+        Delete the given model
+        """
+
+        logging.info(f"Deleting the model with inputs: {inputs}")
+        model = inputs.get("model")
+        flow.bazaar_client.delete(model_identifier=model.model_identifier)
+        logging.info(f"Deleted the model {model.model_identifier}")
+
 
 class NDBFunctions:
     @staticmethod
@@ -250,6 +261,42 @@ class NDBFunctions:
             ),
             doc_options={
                 doc: NDBFunctions.build_doc_options(config) for doc in unsup_docs
+            },
+            job_options=NDBFunctions.build_job_options(config),
+        )
+
+    @staticmethod
+    def check_supervised(inputs: Dict[str, Any]) -> Any:
+        logging.info(f"Running supervised with {inputs}")
+        run_name = inputs.get("run_name")
+        config: Config = inputs.get("config")
+        base_model = inputs.get("base_model", None)
+        file_num = inputs.get("file_num", 0)
+        test = inputs.get("test", False)
+        dag_name = inputs.get("dag_name")
+
+        base_model_identifier = base_model.model_identifier if base_model else None
+
+        sup_docs = [
+            (
+                os.path.join(config.base_path, config.supervised_paths[file_num]),
+                os.path.join(config.base_path, config.unsupervised_paths[file_num]),
+            )
+        ]
+
+        return flow.train(
+            model_name=f"{run_name}_{dag_name}_{config.name}_supervised",
+            supervised_docs=sup_docs,
+            model_options=NDBFunctions.build_model_options(config),
+            doc_type=config.doc_type,
+            nfs_base_path=config.nfs_original_base_path,
+            base_model_identifier=base_model_identifier,
+            test_doc=(
+                os.path.join(config.base_path, config.test_paths[0]) if test else None
+            ),
+            doc_options={
+                doc: NDBFunctions.build_doc_options(config)
+                for doc in [sup_docs[0][0], sup_docs[0][1]]
             },
             job_options=NDBFunctions.build_job_options(config),
         )

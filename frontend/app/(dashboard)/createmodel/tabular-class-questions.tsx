@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import Papa from 'papaparse';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CardDescription } from '@/components/ui/card';
@@ -8,6 +9,20 @@ interface TabularClassificationQuestionsProps {
   onCreateModel?: (modelID: string) => void;
   stayOnPage?: boolean;
   appName?: string;
+}
+
+type ColumnType = 'string' | 'number' | 'boolean' | 'date';
+
+interface DetectedColumn {
+  name: string;
+  type: ColumnType;
+}
+
+const detectColumnType = (values: string[]): ColumnType => {
+  if (values.every((val) => !isNaN(Number(val)))) return 'number';
+  if (values.every((val) => val === 'true' || val === 'false')) return 'boolean';
+  if (values.every((val) => !isNaN(Date.parse(val)))) return 'date';
+  return 'string';
 };
 
 const TabularClassificationQuestions: React.FC<TabularClassificationQuestionsProps> = ({
@@ -20,53 +35,72 @@ const TabularClassificationQuestions: React.FC<TabularClassificationQuestionsPro
   const [warningMessage, setWarningMessage] = useState<string>('');
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [columns, setColumns] = useState<DetectedColumn[]>([]);
+  const [targetColumn, setTargetColumn] = useState<string | null>(null);
 
+  // Parse the CSV file and detect column names and types
   const handleCsvFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; // Access the first file
+    const file = e.target.files?.[0];
     if (file && file.type === 'text/csv') {
       setCsvFile(file);
       setWarningMessage('');
+
+      // Parse the CSV file
+      Papa.parse(file, {
+        header: true, // Parse the file as a header row
+        skipEmptyLines: true,
+        complete: (results) => {
+          const data = results.data as Record<string, string>[]; // Data is an array of objects
+          if (data.length > 0) {
+            // Extract the header (column names)
+            const header = Object.keys(data[0]);
+            // Detect the types based on the first few rows of data
+            const detectedColumns: DetectedColumn[] = header.map((col) => {
+              const values = data.map((row) => row[col]);
+              return { name: col, type: detectColumnType(values) };
+            });
+            setColumns(detectedColumns); // Set the columns with names and types
+            setTargetColumn(null); // Reset target column
+          }
+        },
+        error: (err) => {
+          console.error('Error parsing CSV file:', err);
+        },
+      });
     } else {
       setWarningMessage('Please upload a valid CSV file.');
     }
   };
 
-  useEffect(() => {
-    if (appName && workflowNames.includes(appName)) {
-      setWarningMessage("An app with the same name already exists. Please choose a different name.");
-    } else {
-      setWarningMessage('');
-    }
-  }, [appName, workflowNames]);
-
+  // Handle form submission
   const submit = async () => {
     if (!modelName) {
       setWarningMessage('Please give the app a name.');
       return;
     }
 
-    if (!csvFile) {
+    if (!csvFile || columns.length === 0) {
       setWarningMessage('Please upload a CSV file.');
       return;
     }
 
+    if (!targetColumn) {
+      setWarningMessage('Please select a target column.');
+      return;
+    }
+
     setIsLoading(true);
-    
-    // Logic to handle form submission, such as API call to create the app or workflow
+
+    // Your form submission logic goes here
     try {
-      // Example logic
-      // const formData = new FormData();
-      // formData.append('file', csvFile);
-      // const response = await submitFormData(formData);
+      console.log('Submitting form with:', { modelName, csvFile, targetColumn });
 
       if (onCreateModel) {
-        // Assuming `response.data.model_id` is returned from the API
         onCreateModel('model_id_example');
       }
 
       if (!stayOnPage) {
-        // Redirect to a different page if required
-        // router.push("/");
+        // Redirect logic here
       }
     } catch (error) {
       console.error('Error submitting the form:', error);
@@ -104,27 +138,53 @@ const TabularClassificationQuestions: React.FC<TabularClassificationQuestionsPro
         disabled={!!appName && !workflowNames.includes(modelName)}
       />
 
-      {warningMessage && (
-        <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>
-      )}
+      {warningMessage && <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>}
 
       <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>Upload CSV File</span>
       <CardDescription>Upload a CSV file for tabular classification.</CardDescription>
 
       <div style={{ marginTop: '10px' }}>
         <Input type="file" accept=".csv" onChange={handleCsvFileChange} />
-        {csvFile && (
-          <span style={{ marginTop: '10px', display: 'block' }}>
-            Selected file: {csvFile.name}
-          </span>
-        )}
+        {csvFile && <span style={{ marginTop: '10px', display: 'block' }}>Selected file: {csvFile.name}</span>}
       </div>
+
+      {columns.length > 0 && (
+        <>
+          <div style={{ marginTop: '20px' }}>
+            <span className="block text-lg font-semibold">Detected Columns</span>
+            <ul>
+              {columns.map((col) => (
+                <li key={col.name}>
+                  {col.name}: {col.type}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div style={{ marginTop: '20px' }}>
+            <span className="block text-lg font-semibold">Select Target Column</span>
+            <CardDescription>Select the target prediction column from the detected columns.</CardDescription>
+            <select
+              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+              value={targetColumn || ''}
+              onChange={(e) => setTargetColumn(e.target.value)}
+            >
+              <option value="" disabled>Select a target column</option>
+              {columns.map((col) => (
+                <option key={col.name} value={col.name}>
+                  {col.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </>
+      )}
 
       <div className="flex justify-start">
         <Button
           onClick={submit}
           style={{ marginTop: '30px', width: '100%' }}
-          disabled={isLoading || !csvFile || !!warningMessage}
+          disabled={isLoading || !csvFile || !!warningMessage || !targetColumn}
         >
           {isLoading ? (
             <div className="flex items-center">

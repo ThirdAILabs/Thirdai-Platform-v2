@@ -88,6 +88,18 @@ NDB:
     dependencies: [check_deployment_ndb_2]
     params:
       deployment: deploy_ndb_2
+  
+  delete_model:
+    dependencies: [undeploy]
+    params:
+      model: check_unsupervised_supervised
+  
+  delete_model_unsupervised:
+    function: delete_model
+    dependencies: [undeploy_2]
+    params:
+      model: check_unsupervised
+
 
 UDT:
   config: [token, text]
@@ -124,8 +136,13 @@ UDT:
     params:
       deployment: udt_deploy
 
+  delete_model:
+    dependencies: [undeploy]
+    params:
+      model: check_udt_train
+
 UDT_DATAGEN:
-  config: [token_with_datagen, text_with_datagen  ]
+  config: [token_with_datagen, text_with_datagen]
   check_udt_train_with_datagen:
     dependencies: []
     params:
@@ -158,6 +175,11 @@ UDT_DATAGEN:
     dependencies: [check_search]
     params:
       deployment: udt_deploy
+  
+  delete_model:
+    dependencies: [undeploy]
+    params:
+      model: check_udt_train_with_datagen
 
 GlobalAdmin:
   config: dummy

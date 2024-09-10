@@ -3,7 +3,7 @@ Defines input models for Pydantic validation and utility functions for conversio
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 from pydantic_models.constraints import Constraints
@@ -76,7 +76,7 @@ class DeleteInput(BaseModel):
 
 class SearchResultsTextClassification(BaseModel):
     query_text: str
-    class_names: List[str]
+    predicted_classes: List[Tuple[str, float]]
 
 
 class SearchResultsTokenClassification(BaseModel):
@@ -92,6 +92,9 @@ class SaveModel(BaseModel):
 
     override: bool
     model_name: Optional[str] = None
+
+    class Config:
+        protected_namespaces = ()
 
 
 def convert_reference_to_pydantic(input: Any, context_radius: int) -> Reference:

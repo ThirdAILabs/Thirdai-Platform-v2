@@ -77,7 +77,14 @@ class TokenDataFactory(DataFactory):
                     values_to_generate * 1.5
                 ),  # Assuming after removing duplicates, we'll have `values_to_generate` tag values
             )
+
+            def stringify_tuples(x):
+                if isinstance(x, tuple):
+                    return " ".join(x)
+                return x
+
             if samples:
+                samples = [stringify_tuples(x) for x in samples]
                 save_dict(
                     write_to=self.save_dir / "tags_value.json", **complete_tag_values
                 )

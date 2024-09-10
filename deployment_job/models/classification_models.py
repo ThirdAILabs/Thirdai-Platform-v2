@@ -15,14 +15,17 @@ class ClassificationModel(Model):
             self.model_path = model_path
         else:
             self.model_path = self.get_udt_path(model_id)
-        self.model: bolt.UniversalDeepTransformer = self.load_model()
+        self.model: bolt.UniversalDeepTransformer = self.load()
 
     def get_udt_path(self, model_id: Optional[str] = None) -> str:
         model_id = model_id or self.general_variables.model_id
         return str(self.get_model_dir(model_id) / "model.udt")
 
-    def load_model(self):
+    def load(self):
         return bolt.UniversalDeepTransformer.load(self.model_path)
+
+    def save(self, model_id):
+        self.model.save(self.get_udt_path(model_id))
 
     @abstractmethod
     def predict(self, **kwargs):
@@ -34,12 +37,16 @@ class TextClassificationModel(ClassificationModel):
         self, model_id: Optional[str] = None, model_path: Optional[str] = None
     ):
         super().__init__(model_id, model_path)
+        self.num_classes = self.model.predict({"text": "test"}).shape[-1]
 
     def predict(self, **kwargs):
         query = kwargs["query"]
-        top_k = kwargs["top_k"]
+        top_k = min(kwargs["top_k"], self.num_classes)
         prediction = self.model.predict({"text": query}, top_k=top_k)
-        class_names = [self.model.class_name(x) for x in prediction[0]]
+        predicted_classes = [
+            (self.model.class_name(class_id), activation)
+            for class_id, activation in zip(*prediction)
+        ]
 
         self.reporter.log(
             action="predict",
@@ -49,14 +56,16 @@ class TextClassificationModel(ClassificationModel):
                 {
                     "query": query,
                     "top_k": str(top_k),
-                    "class_names": ",".join(class_names),
+                    "predicted_classes": ",".join(
+                        [class_name for class_name, _ in predicted_classes]
+                    ),
                 }
             ],
         )
 
         return inputs.SearchResultsTextClassification(
             query_text=query,
-            class_names=class_names,
+            predicted_classes=predicted_classes,
         )
 
 

@@ -43,6 +43,9 @@ def setup_logger(
     logger.info("Initialized console logging.")
 
 
+setup_logger()
+
+
 def response(status_code: int, message: str, data={}, success: bool = None):
     """
     Create a JSON response.
@@ -99,6 +102,7 @@ def get_high_level_model_info(result: schema.Model):
         "access_level": result.access_level,
         "domain": result.domain,
         "type": result.type,
+        "train_status": result.train_status,
         "deploy_status": result.deploy_status,
         "team_id": str(result.team_id),
         "model_id": str(result.id),
@@ -237,6 +241,16 @@ class UDTExtraOptions(BaseModel):
         return v
 
 
+class UDTTrainArgs(BaseModel):
+    work_dir: str
+    model_id: str
+    data_id: str
+    bolt_license_key: str
+    extra_options: UDTExtraOptions
+    base_model_id: str
+    udt_subtype: str
+
+
 class NDBExtraOptions(BaseModel):
     """
     Model for Neural Database (NDB) extra options.
@@ -330,6 +344,7 @@ class NDBExtraOptions(BaseModel):
 
     class Config:
         extra = "forbid"
+        protected_namespaces = ()
 
     @root_validator(pre=True)
     def validate_version_restrictions(cls, values):

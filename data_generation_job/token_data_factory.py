@@ -59,7 +59,7 @@ class TokenDataFactory(DataFactory):
     # Function to generate the tag_values by using faker library or LLM calls.
     def get_tag_values(
         self,
-        domain_prompt: str,
+        task_prompt: str,
         tags: List[Entity],
         values_to_generate: int,
         generate_at_a_time: int = 100,
@@ -99,7 +99,7 @@ class TokenDataFactory(DataFactory):
                 arguments.append(
                     {
                         "prompt": tag_value_prompt.format(
-                            domain_prompt=domain_prompt,
+                            task_prompt=task_prompt,
                             num_samples_per_tag=min(
                                 generate_at_a_time,
                                 values_to_generate - idx,
@@ -186,9 +186,11 @@ class TokenDataFactory(DataFactory):
         self,
         tags: List[Entity],
         templates_to_generate: int,
-        domain_prompt: str,
+        task_prompt: str,
         tag_values: Dict[str, List[str]],
     ):
+        extended_tag_description = self.get_extended_description(entities=tags)
+
         arguments = []
         for current_sentence_idx in range(
             0, templates_to_generate, self.generate_at_a_time
@@ -199,7 +201,7 @@ class TokenDataFactory(DataFactory):
             arguments.append(
                 {
                     "prompt": dataset_generation_prompt.format(
-                        domain_prompt=domain_prompt,
+                        task_prompt=task_prompt,
                         num_to_generate=min(
                             templates_to_generate - current_sentence_idx,
                             self.generate_at_a_time,
@@ -208,7 +210,7 @@ class TokenDataFactory(DataFactory):
                             [
                                 f"""
 Tag: {tag.name}
-Description: {tag.description}. Also include possible variation of {tag.name.lower()} formats.
+Description: {tag.description}. {extended_tag_description[tag.name]}
 Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given but variations as well.
 """.strip(
                                     "\n"
@@ -218,7 +220,7 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
                         ),
                         value_requirements="\n- ".join(self.get_random_prompts(k=2)),
                     ),
-                    "system_prompt": f"You are a helpful assistant designed to generate synthetic data for domain {domain_prompt}.",
+                    "system_prompt": f"You are a helpful assistant designed to generate synthetic data for domain {task_prompt}.",
                 }
             )
 
@@ -226,7 +228,7 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
 
     def generate_data(
         self,
-        domain_prompt: str,
+        task_prompt: str,
         tags: List[Entity],
         num_sentences_to_generate: int,
         tag_values_to_generate: Optional[int] = None,
@@ -241,7 +243,7 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
             CVV = [285, 569,..]
         """
         tag_values = self.get_tag_values(
-            domain_prompt=domain_prompt,
+            task_prompt=task_prompt,
             tags=tags,
             values_to_generate=tag_values_to_generate
             or (templates_to_generate * self.sentences_per_template),
@@ -259,7 +261,7 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
         arguments = self.collect_arguments(
             tags=tags,
             templates_to_generate=templates_to_generate,
-            domain_prompt=domain_prompt,
+            task_prompt=task_prompt,
             tag_values=tag_values,
         )
 

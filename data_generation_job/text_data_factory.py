@@ -24,6 +24,8 @@ class TextDataFactory(DataFactory):
         user_prompts: Optional[List[str]] = None,
         vocab_per_sentence: int = 4,
     ):
+        extended_tag_description = self.get_extended_description(entities=target_labels)
+
         arguments = []
         for target_label in target_labels:
             for current_sentence_idx in range(
@@ -47,8 +49,8 @@ class TextDataFactory(DataFactory):
                 prompt = datagen_prompt.format(
                     task_prompt=task_prompt,
                     samples_to_generate=samples_to_generate,
-                    label_to_generate=target_label.name,
-                    label_description=f"{target_label.name}: {target_label.description}",
+                    label_name=target_label.name,
+                    label_description=f"{target_label.description}. {extended_tag_description[target_label.name]}",
                     examples=label_examples,
                     user_prompts=(
                         ("\n".join(user_prompts) + "\n\n") if user_prompts else ""

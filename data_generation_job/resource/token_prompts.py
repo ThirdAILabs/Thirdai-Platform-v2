@@ -1,4 +1,4 @@
-tag_value_prompt = """You possess deep expertise in {domain_prompt}. Please generate unique {num_samples_per_tag} diverse values for the {tag} named entity. Below are some values of the {tag} entity:
+tag_value_prompt = """You possess deep expertise in {task_prompt}. Please generate unique {num_samples_per_tag} diverse values for the {tag} named entity. Below are some values of the {tag} entity:
 {tag_example}
 
 Description of the tag {tag}:
@@ -30,7 +30,7 @@ Key Requirements:
       Correct templates: My condition due to [MEDICAL_INFO] should remain confidential to protect my personal interest.
 """
 
-dataset_generation_prompt = """The goal is to create a dataset for entity recognition. Please generate {num_to_generate} templates associated with given below tags for {domain_prompt}
+dataset_generation_prompt = """The goal is to create a dataset for entity recognition. Please generate {num_to_generate} templates associated with given below tags for {task_prompt}
             
 Tags with their description and example:
 {tags_info}

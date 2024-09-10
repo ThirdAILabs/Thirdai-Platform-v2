@@ -3,6 +3,7 @@ import random
 import traceback
 from abc import ABC, abstractmethod
 from pathlib import Path
+from resource.common_prompts import extended_description_prompt
 from resource.util_data import random_prompts, vocab
 from typing import Dict, List, Optional
 
@@ -140,6 +141,21 @@ class DataFactory(ABC):
     """
     Define a function `collect_argument()` that collects all the arguments 
     """
+
+    # common function to get the extended description of tag/label
+    def get_extended_description(self, entities: List[Entity]) -> Dict[str, str]:
+        return {
+            entity.name: self.process_prompt(
+                prompt=extended_description_prompt.format(
+                    attribute_name=entity.name,
+                    attribute_user_description=entity.description,
+                    attribute_examples=str(
+                        random.sample(entity.examples, k=min(2, len(entity.examples)))
+                    ),
+                )
+            )[0]
+            for entity in entities
+        }
 
     # Common function to report any error during any stage of pipeline
     def write_on_errorfile(self, text: str):

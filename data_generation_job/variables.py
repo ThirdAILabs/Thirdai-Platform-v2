@@ -125,7 +125,7 @@ class TextGenerationVariables(EnvLoader):
 
 @dataclass
 class TokenGenerationVariables(EnvLoader):
-    domain_prompt: str
+    task_prompt: str
     tags: List[Entity]
     num_sentences_to_generate: int
     tag_values_to_generate: Optional[int] = None

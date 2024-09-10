@@ -44,7 +44,7 @@ jobs:
         run: |
           cd release
           pip install -r requirements.txt
-          python3 push.py -b docker_tests --config config.yaml --no-cache --version ${{ steps.generate_version.outputs.version }}
+          python3 push.py -b docker_tests --config config.yaml --no-cache --dont-update-scope --version ${{ steps.generate_version.outputs.version }}
 
   restart_modelbazaar:
     runs-on: self-hosted
@@ -113,8 +113,8 @@ jobs:
 
     needs: test
 
-    # This condition ensures that the job runs only if the branch is not 'main'.
-    if: github.ref != 'refs/heads/main'
+    # # This condition ensures that the job runs only if the branch is not 'main'.
+    # if: github.ref != 'refs/heads/main'
 
     environment:
       name: docker_tests
@@ -177,4 +177,4 @@ jobs:
           pip install -r requirements.txt
           version="${{ needs.build_docker_images.outputs.version }}"
           echo "Deleting Docker images for version: $version"
-          python3 docker_remove.py -b docker_tests --version "$version" --application_id ${{ secrets.APPLICATION_ID }} --tenant_id ${{ secrets.TENANT_ID }} --secret ${{ secrets.SECRET }} --config config.yaml
+          python3 docker_remove.py -b docker_tests --version "$version" --client_id ${{ secrets.APPLICATION_ID }} --tenant_id ${{ secrets.TENANT_ID }} --secret ${{ secrets.SECRET }} --config config.yaml

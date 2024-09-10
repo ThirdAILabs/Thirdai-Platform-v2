@@ -24,7 +24,7 @@ if __name__ == "__main__":
         help="Delete the docker images of this version for the provided branch.",
     )
     parser.add_argument(
-        "--application_id",
+        "--client_id",
         required=True,
         type=str,
     )

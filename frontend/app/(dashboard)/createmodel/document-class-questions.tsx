@@ -111,9 +111,9 @@ export default function DocumentClassificationQuestions({ workflowNames }: Docum
         setSources(updatedSources);
     };
 
-    return (
-        <div>
-        <span className="block text-lg font-semibold">Document Classification Model</span>
+return (
+    <div>
+        <span className="block text-lg font-semibold">App Name</span>
         <Input
             className="text-md"
             value={modelName}
@@ -197,6 +197,6 @@ export default function DocumentClassificationQuestions({ workflowNames }: Docum
             Create
             </Button>
         </div>
-        </div>
-    );
+    </div>
+);
 }

@@ -7,7 +7,7 @@ import yaml
 from azure_provider import AzureProvider
 from cloud_provider_interface import CloudProviderInterface
 from docker_constants import image_base_names
-from utils import Credentials, image_name_for_branch
+from utils import Credentials, image_name_for_branch, load_config
 
 
 def get_args() -> argparse.Namespace:
@@ -196,20 +196,6 @@ def push_images(
             provider.push_image(
                 image_id, provider.get_full_image_name(name, branch, "latest")
             )
-
-
-def load_config(config_path: str) -> dict:
-    """
-    Load the YAML configuration file.
-
-    :param config_path: Path to the configuration file
-    :return: Configuration dictionary
-    """
-    if os.path.exists(config_path):
-        with open(config_path, "r") as file:
-            return yaml.safe_load(file)
-    else:
-        return {"provider": "azure", "azure": {"registry": "", "branches": {}}}
 
 
 def save_config(config_path: str, config: dict) -> None:

@@ -162,7 +162,7 @@ def normalize_s3_uri(s3_uri):
 
 def read_access_token():
     task_runner_token_path = os.path.join(
-        "/opt/neuraldb_enterprise/nomad_data/", "task_runner_token.txt"
+        "/opt/thirdai_platform/nomad_data/", "task_runner_token.txt"
     )
     try:
         # Open the token file for reading

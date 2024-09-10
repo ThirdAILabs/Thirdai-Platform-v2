@@ -1,10 +1,10 @@
+import multiprocessing as mp
 import os
 import shutil
-import time
 import threading
+import time
 import uuid
 from concurrent.futures import ProcessPoolExecutor, as_completed
-import multiprocessing as mp
 from typing import Any, Dict, List, Optional, Tuple
 
 import thirdai
@@ -138,7 +138,13 @@ def process_file(
     )[0]
 
 
-def parse_docs(docs: List[FileInfo], doc_save_dir: str, tmp_dir: str, task_queue: mp.Queue, job_id: int):
+def parse_docs(
+    docs: List[FileInfo],
+    doc_save_dir: str,
+    tmp_dir: str,
+    task_queue: mp.Queue,
+    job_id: int,
+):
     s3_client = None
 
     print(f"Starting worker process {job_id}")
@@ -154,7 +160,9 @@ def parse_docs(docs: List[FileInfo], doc_save_dir: str, tmp_dir: str, task_queue
                 s3_client.download_file(bucket_name, prefix, local_file_path)
             except Exception as error:
                 print(f"Error downloading file '{doc.path}' from s3 : {error}")
-                raise ValueError(f"Error downloading file '{doc.path}' from s3 : {error}")
+                raise ValueError(
+                    f"Error downloading file '{doc.path}' from s3 : {error}"
+                )
 
             ndb_doc, _ = preload_chunks(
                 resource_path=local_file_path,
@@ -181,7 +189,9 @@ def parse_docs(docs: List[FileInfo], doc_save_dir: str, tmp_dir: str, task_queue
             task_queue.put(ndb_doc)
     end = time.perf_counter()
 
-    print(f"Finishing worker process {job_id} parsed {len(docs)} docs in {end-start:.3f} s")
+    print(
+        f"Finishing worker process {job_id} parsed {len(docs)} docs in {end-start:.3f} s"
+    )
 
 
 class NeuralDBV2(Model):
@@ -228,7 +238,7 @@ class NeuralDBV2(Model):
         all_files = expand_s3_buckets_and_directories(self.config.data.supervised_files)
         check_csv_only(all_files)
         return all_files
-    
+
     def unsupervised_train(self, files: List[FileInfo], batch_size=500):
         self.logger.info("Starting unsupervised training.")
 
@@ -239,17 +249,27 @@ class NeuralDBV2(Model):
 
         docs_indexed = 0
 
-        batches = [files[i:i+batch_size] for i in range(0, len(files), batch_size)]
+        batches = [files[i : i + batch_size] for i in range(0, len(files), batch_size)]
         with mp.Pool(processes=n_jobs) as pool:
             first_batch_start = time.perf_counter()
-            curr_batch = pool.starmap(process_file, [(doc, doc_save_dir, tmp_dir) for doc in batches[0]], chunksize=10)
+            curr_batch = pool.starmap(
+                process_file,
+                [(doc, doc_save_dir, tmp_dir) for doc in batches[0]],
+                chunksize=10,
+            )
             first_batch_end = time.perf_counter()
-            self.logger.info(f"Parsed first batch {first_batch_end - first_batch_start:.3f}s")
+            self.logger.info(
+                f"Parsed first batch {first_batch_end - first_batch_start:.3f}s"
+            )
 
             for i in range(len(batches)):
                 start = time.perf_counter()
-                if i+1 < len(batches):
-                    next_batch = pool.starmap_async(process_file, [(doc, doc_save_dir, tmp_dir) for doc in batches[i+1]], chunksize=10)
+                if i + 1 < len(batches):
+                    next_batch = pool.starmap_async(
+                        process_file,
+                        [(doc, doc_save_dir, tmp_dir) for doc in batches[i + 1]],
+                        chunksize=10,
+                    )
                 else:
                     next_batch = None
 
@@ -264,7 +284,9 @@ class NeuralDBV2(Model):
                     curr_batch = next_batch.get()
 
                 end = time.perf_counter()
-                self.logger.info(f"Inserted batch time={end-start:.3f} insert_time={index_end-index_start:.3f} total_docs={docs_indexed}")
+                self.logger.info(
+                    f"Inserted batch time={end-start:.3f} insert_time={index_end-index_start:.3f} total_docs={docs_indexed}"
+                )
 
         self.logger.info("Completed unsupervised training.")
 
@@ -297,9 +319,9 @@ class NeuralDBV2(Model):
     #     os.makedirs(self.data_dir / "unsupervised", exist_ok=True)
 
     #     docs_indexed = 0
-        
+
     #     task_queue = mp.Queue(maxsize=4 * batch_size)
-        
+
     #     parsing_jobs = threading.Thread(target=self.start_parsing_jobs, args=(files, task_queue))
     #     parsing_jobs.start()
 
@@ -322,7 +344,6 @@ class NeuralDBV2(Model):
     #     parsing_jobs.join()
 
     #     self.logger.info("Completed unsupervised training.")
-
 
     # def unsupervised_train(self, files: List[FileInfo], batch_size=100):
     #     self.logger.info("Starting unsupervised training.")

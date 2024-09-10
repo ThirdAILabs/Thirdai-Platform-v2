@@ -9,8 +9,8 @@ from openai import OpenAI
 
 
 class LLMBase(ABC):
-    def __init__(self, save_dir: Path):
-        self.response_file = save_dir / "response.txt"
+    def __init__(self, response_file: Optional[Path] = None):
+        self.response_file = response_file
         self.usage = dict()
 
     @abstractmethod
@@ -21,8 +21,8 @@ class LLMBase(ABC):
 
 
 class OpenAILLM(LLMBase):
-    def __init__(self, api_key: str, save_dir: Path):
-        super().__init__(save_dir)
+    def __init__(self, api_key: str, response_file: Optional[Path] = None):
+        super().__init__(response_file)
         self.client = OpenAI(api_key=api_key)
 
     def completion(
@@ -45,11 +45,12 @@ class OpenAILLM(LLMBase):
 
         res = response.choices[0].message.content
         usage = dict(response.usage)
-        with open(self.response_file, "a") as fp:
-            fp.write(f"Prompt: \n{prompt}\n")
-            fp.write(f"Response: \n{res}\n")
-            fp.write(f"\nUsage: \n{usage}\n")
-            fp.write("=" * 100 + "\n\n")
+        if self.response_file:
+            with open(self.response_file, "a") as fp:
+                fp.write(f"Prompt: \n{prompt}\n")
+                fp.write(f"Response: \n{res}\n")
+                fp.write(f"\nUsage: \n{usage}\n")
+                fp.write("=" * 100 + "\n\n")
 
         self.usage = {
             key: self.usage.get(key, 0) + value for key, value in usage.items()
@@ -58,8 +59,8 @@ class OpenAILLM(LLMBase):
 
 
 class CohereLLM(LLMBase):
-    def __init__(self, api_key: str, save_dir: Path):
-        super().__init__(save_dir)
+    def __init__(self, api_key: str, response_file: Optional[Path] = None):
+        super().__init__(response_file)
         self.client = cohere.Client(api_key=api_key)
 
     def completion(
@@ -75,10 +76,11 @@ class CohereLLM(LLMBase):
 
         response = self.client.chat(model=model_name, message=message)
 
-        with open(self.response_file, "a") as fp:
-            fp.write(f"Prompt: \n{prompt}\n")
-            fp.write(f"Response: \n{response.text}\n")
-            fp.write("=" * 100 + "\n\n")
+        if self.response_file:
+            with open(self.response_file, "a") as fp:
+                fp.write(f"Prompt: \n{prompt}\n")
+                fp.write(f"Response: \n{response.text}\n")
+                fp.write("=" * 100 + "\n\n")
 
         return response.text
 

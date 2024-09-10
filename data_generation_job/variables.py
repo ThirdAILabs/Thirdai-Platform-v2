@@ -92,11 +92,13 @@ class EnvLoader:
 @dataclass
 class GeneralVariables(EnvLoader):
     model_bazaar_dir: str
+    model_bazaar_endpoint: str
     data_id: str
+    secret_token: str
     data_category: DataCategory
     genai_key: str
     llm_provider: LLMProvider = LLMProvider.openai
-    test_size: float = 0.1
+    test_size: float = 0.05
 
 
 @dataclass
@@ -125,7 +127,7 @@ class TextGenerationVariables(EnvLoader):
 
 @dataclass
 class TokenGenerationVariables(EnvLoader):
-    domain_prompt: str
+    task_prompt: str
     tags: List[Entity]
     num_sentences_to_generate: int
     tag_values_to_generate: Optional[int] = None

@@ -7,11 +7,11 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  # push:
-  #   branches: [ main ]
-  # pull_request:
-  #   branches: [ main ]
-  # workflow_dispatch: # Allows manual triggering of the workflow
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
   build_docker_images:
@@ -84,7 +84,7 @@ jobs:
 
     steps:
       - name: Delay before running tests
-        run: sleep 120  # Wait for 2 minutes (280 seconds)
+        run: sleep 150  # Wait for 2 1/2 minutes (150 seconds)
 
       - name: Checkout code
         uses: actions/checkout@v2

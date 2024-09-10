@@ -110,6 +110,7 @@ def ndb_query(
         data=jsonable_encoder(results),
     )
 
+
 @ndb_router.post("/update-chat-settings")
 @propagate_error
 def update_chat_settings(
@@ -124,6 +125,7 @@ def update_chat_settings(
         status_code=status.HTTP_200_OK,
         message="Successfully updated chat settings",
     )
+
 
 @ndb_router.post("/get-chat-history")
 @propagate_error
@@ -158,11 +160,10 @@ def get_chat_history(
         data=chat_history,
     )
 
+
 @ndb_router.post("/chat")
 @propagate_error
-def chat(
-    input: inputs.ChatInput, token=Depends(permissions.verify_permission("read"))
-):
+def chat(input: inputs.ChatInput, token=Depends(permissions.verify_permission("read"))):
     model = get_model()
     if not model.chat:
         raise Exception(

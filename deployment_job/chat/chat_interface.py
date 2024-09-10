@@ -4,7 +4,6 @@ from typing import List, Union
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.docstore.document import Document
 from langchain.vectorstores import NeuralDBVectorStore
-from .ndbv2_vectorstore import NeuralDBV2VectorStore
 from langchain_community.chat_message_histories import SQLChatMessageHistory
 from langchain_core.language_models.llms import LLM
 from langchain_core.messages import AIMessage
@@ -13,6 +12,8 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableBranch, RunnablePassthrough
 from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
+
+from .ndbv2_vectorstore import NeuralDBV2VectorStore
 
 
 class ChatInterface(ABC):
@@ -23,7 +24,7 @@ class ChatInterface(ABC):
         top_k: int = 5,
         chat_prompt: str = "Answer the user's questions based on the below context:",
         query_reformulation_prompt: str = "Given the above conversation, generate a search query that would help retrieve relevant sources for responding to the last message.",
-        **kwargs
+        **kwargs,
     ):
         self.chat_history_sql_uri = chat_history_sql_uri
         if isinstance(db, ndb.NeuralDB):
@@ -32,7 +33,7 @@ class ChatInterface(ABC):
             vectorstore = NeuralDBV2VectorStore(db)
         else:
             raise ValueError(f"Cannot support db of type {type(db)}")
-        
+
         retriever = vectorstore.as_retriever(search_kwargs={"k": top_k})
 
         query_transform_prompt = ChatPromptTemplate.from_messages(

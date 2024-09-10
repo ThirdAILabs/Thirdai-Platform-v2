@@ -16,9 +16,9 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from chat import llm_providers
 import fitz
 import thirdai.neural_db_v2.chunk_stores.constraints as ndbv2_constraints
+from chat import llm_providers
 from file_handler import create_ndb_docs, create_ndbv2_docs
 from models.model import Model
 from pydantic_models import inputs

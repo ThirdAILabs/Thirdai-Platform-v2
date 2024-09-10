@@ -99,7 +99,7 @@ def process_file(
     Process a file, downloading it from S3 if necessary, and convert it to an NDB file.
     """
     if doc.path.startswith("s3://"):
-        print(f"{os.getpid()} Starting to download {doc.path} from s3", flush=True)
+        # print(f"{os.getpid()} Starting to download {doc.path} from s3", flush=True)
         try:
             s3_client = create_s3_client()
             bucket_name, prefix = doc.path.replace("s3://", "").split("/", 1)
@@ -110,7 +110,7 @@ def process_file(
             print(f"Error downloading file '{doc.path}' from s3 : {error}")
             raise ValueError(f"Error downloading file '{doc.path}' from s3 : {error}")
 
-        print(f"{os.getpid()} Finished downloading {doc.path} from s3", flush=True)
+        # print(f"{os.getpid()} Finished downloading {doc.path} from s3", flush=True)
         ndb_doc = preload_chunks(
             resource_path=local_file_path,
             display_path=f"/{bucket_name}.s3.amazonaws.com/{prefix}",
@@ -119,10 +119,10 @@ def process_file(
             options=doc.options,
         )
 
-        print(f"{os.getpid()} Finished loading chunks {doc.path}", flush=True)
+        # print(f"{os.getpid()} Finished loading chunks {doc.path}", flush=True)
         os.remove(local_file_path)
-        print(f"{os.getpid()} Returning results {doc.path}", flush=True)
-        return ndb_doc
+        # print(f"{os.getpid()} Returning results {doc.path}", flush=True)
+        return ndb_doc[0]
 
     save_artifact_uuid = str(uuid.uuid4())
     doc_dir = os.path.join(doc_save_dir, save_artifact_uuid)
@@ -135,7 +135,7 @@ def process_file(
         doc_id=doc.doc_id,
         metadata=doc.metadata,
         options=doc.options,
-    )
+    )[0]
 
 
 def parse_docs(docs: List[FileInfo], doc_save_dir: str, tmp_dir: str, task_queue: mp.Queue, job_id: int):
@@ -229,60 +229,99 @@ class NeuralDBV2(Model):
         check_csv_only(all_files)
         return all_files
     
-    def start_parsing_jobs(self, files: List[FileInfo], task_queue: mp.Queue):
+    def unsupervised_train(self, files: List[FileInfo], batch_size=500):
+        self.logger.info("Starting unsupervised training.")
+
         n_jobs = max(1, min(os.cpu_count() - 6, 20))
-        chunksize = (len(files) + n_jobs - 1) // n_jobs
 
         doc_save_dir = self.doc_save_path()
         tmp_dir = self.data_dir / "unsupervised"
 
-        self.logger.info(f"Starting {n_jobs} parsing jobs")
-
-        processes = []
-        for i in range(0, len(files), chunksize):
-            p = mp.Process(
-                target=parse_docs, args=(files[i:i+chunksize], doc_save_dir, tmp_dir, task_queue, len(processes))
-            )
-            p.start()
-            processes.append(p)
-
-        for p in processes:
-            p.join()
-
-        task_queue.put(None)
-        self.logger.info("Parsing jobs completed")
-
-    def unsupervised_train(self, files: List[FileInfo], batch_size=100):
-        self.logger.info("Starting unsupervised training.")
-
-        os.makedirs(self.data_dir / "unsupervised", exist_ok=True)
-
         docs_indexed = 0
-        
-        task_queue = mp.Queue(maxsize=4 * batch_size)
-        
-        parsing_jobs = threading.Thread(target=self.start_parsing_jobs, args=(files, task_queue))
-        parsing_jobs.start()
 
-        batch = []
-        while 1:
-            doc = task_queue.get()
-            if doc is None:
-                if batch:
-                    self.db.insert(batch)
-                    docs_indexed += len(batch)
-                    self.logger.info(f"Inserted {docs_indexed} docs")
-                break
-            batch.append(doc)
-            if len(batch) == batch_size:
-                self.db.insert(batch)
-                docs_indexed += len(batch)
-                batch.clear()
-                self.logger.info(f"Inserted {docs_indexed} docs")
+        batches = [files[i:i+batch_size] for i in range(0, len(files), batch_size)]
+        with mp.Pool(processes=n_jobs) as pool:
+            first_batch_start = time.perf_counter()
+            curr_batch = pool.starmap(process_file, [(doc, doc_save_dir, tmp_dir) for doc in batches[0]], chunksize=10)
+            first_batch_end = time.perf_counter()
+            self.logger.info(f"Parsed first batch {first_batch_end - first_batch_start:.3f}s")
 
-        parsing_jobs.join()
+            for i in range(len(batches)):
+                start = time.perf_counter()
+                if i+1 < len(batches):
+                    next_batch = pool.starmap_async(process_file, [(doc, doc_save_dir, tmp_dir) for doc in batches[i+1]], chunksize=10)
+                else:
+                    next_batch = None
+
+                index_start = time.perf_counter()
+                self.db.insert(curr_batch)
+                index_end = time.perf_counter()
+
+                docs_indexed += len(curr_batch)
+
+                if next_batch:
+                    next_batch.wait()
+                    curr_batch = next_batch.get()
+
+                end = time.perf_counter()
+                self.logger.info(f"Inserted batch time={end-start:.3f} insert_time={index_end-index_start:.3f} total_docs={docs_indexed}")
 
         self.logger.info("Completed unsupervised training.")
+
+    # def start_parsing_jobs(self, files: List[FileInfo], task_queue: mp.Queue):
+    #     n_jobs = max(1, min(os.cpu_count() - 6, 20))
+    #     chunksize = (len(files) + n_jobs - 1) // n_jobs
+
+    #     doc_save_dir = self.doc_save_path()
+    #     tmp_dir = self.data_dir / "unsupervised"
+
+    #     self.logger.info(f"Starting {n_jobs} parsing jobs")
+
+    #     processes = []
+    #     for i in range(0, len(files), chunksize):
+    #         p = mp.Process(
+    #             target=parse_docs, args=(files[i:i+chunksize], doc_save_dir, tmp_dir, task_queue, len(processes))
+    #         )
+    #         p.start()
+    #         processes.append(p)
+
+    #     for p in processes:
+    #         p.join()
+
+    #     task_queue.put(None)
+    #     self.logger.info("Parsing jobs completed")
+
+    # def unsupervised_train(self, files: List[FileInfo], batch_size=100):
+    #     self.logger.info("Starting unsupervised training.")
+
+    #     os.makedirs(self.data_dir / "unsupervised", exist_ok=True)
+
+    #     docs_indexed = 0
+        
+    #     task_queue = mp.Queue(maxsize=4 * batch_size)
+        
+    #     parsing_jobs = threading.Thread(target=self.start_parsing_jobs, args=(files, task_queue))
+    #     parsing_jobs.start()
+
+    #     batch = []
+    #     while 1:
+    #         doc = task_queue.get()
+    #         if doc is None:
+    #             if batch:
+    #                 self.db.insert(batch)
+    #                 docs_indexed += len(batch)
+    #                 self.logger.info(f"Inserted {docs_indexed} docs")
+    #             break
+    #         batch.append(doc)
+    #         if len(batch) == batch_size:
+    #             self.db.insert(batch)
+    #             docs_indexed += len(batch)
+    #             batch.clear()
+    #             self.logger.info(f"Inserted {docs_indexed} docs")
+
+    #     parsing_jobs.join()
+
+    #     self.logger.info("Completed unsupervised training.")
 
 
     # def unsupervised_train(self, files: List[FileInfo], batch_size=100):

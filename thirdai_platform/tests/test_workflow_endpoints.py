@@ -252,6 +252,8 @@ def test_create_and_delete_workflow():
     owner_jwt = res.json()["data"]["access_token"]
 
     # Create a new workflow
+    # This assumes that `complex_worklfow_type` has already been added in the previous
+    # test and all the subsequent tests uses that.
     workflow_id = create_workflow(
         client, owner_jwt, "Test Workflow", "complex_workflow_type"
     )

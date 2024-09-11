@@ -3,7 +3,7 @@ import os
 import traceback
 from collections import defaultdict
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import (
@@ -27,7 +27,7 @@ from database.session import get_session
 from fastapi import APIRouter, Depends, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import verify_license
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
@@ -754,6 +754,21 @@ class WorkflowTypeParams(BaseModel):
     description: str
     model_requirements: List[List[dict]]  # Updated to list of list of dictionaries
 
+    @validator("name")
+    def name_must_not_be_empty(cls, v):
+        if not v.strip():
+            raise ValueError("Name cannot be empty.")
+        return v
+
+    @validator("model_requirements")
+    def requirements_must_not_be_empty(cls, v):
+        if not v:
+            raise ValueError("Model requirements cannot contain empty lists.")
+        for requirement_group in v:
+            if not requirement_group:
+                raise ValueError("Model requirements cannot contain empty groups.")
+        return v
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -824,26 +839,6 @@ def add_workflow_type(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Workflow type with this name already exists.",
         )
-
-    # Check that name and description are not empty
-    if not params.name.strip():
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="Name cannot be empty.",
-        )
-
-    if len(params.model_requirements) == 0:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="Model requirements cannot contain empty lists.",
-        )
-
-    for requirement in params.model_requirements:
-        if not requirement:
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="Model requirements cannot contain empty lists.",
-            )
 
     new_workflow_type = schema.WorkflowType(
         name=params.name,
@@ -979,7 +974,7 @@ def delete_workflow(
     session: Session = Depends(get_session),
 ):
     """
-    Delete a workflow by its ID and remove its models if they are not used in other workflows.
+    Delete a workflow by its ID.
 
     - **Parameters**:
       - `workflow_id` (str): ID of the workflow to delete.
@@ -996,33 +991,6 @@ def delete_workflow(
                 message="Workflow not found.",
             )
 
-        # Store IDs of models used in the workflow before deleting the workflow
-        model_ids = [
-            workflow_model.model_id for workflow_model in workflow.workflow_models
-        ]
-
-        # Delete the workflow
-        session.delete(workflow)
-        session.commit()
-
-        # Find models that are no longer used in any workflows
-        unused_models = (
-            session.query(schema.Model)
-            .filter(schema.Model.id.in_(model_ids))
-            .outerjoin(
-                schema.WorkflowModel,
-                schema.Model.id == schema.WorkflowModel.model_id,
-            )
-            .group_by(schema.Model.id)
-            .having(func.count(schema.WorkflowModel.workflow_id) == 0)
-            .all()
-        )
-
-        # Delete unused models
-        if unused_models:
-            for model in unused_models:
-                session.delete(model)
-            session.commit()
     except Exception as err:
         traceback.print_exc()
         return response(
@@ -1032,7 +1000,7 @@ def delete_workflow(
 
     return response(
         status_code=status.HTTP_200_OK,
-        message="Workflow and unused models deleted successfully.",
+        message="Workflow deleted successfully.",
     )
 
 
@@ -1209,32 +1177,39 @@ def get_workflow_type_details(
     )
 
 
-@workflow_router.get("/active-count")
-def get_active_workflows_count(
+@workflow_router.get("/count")
+def get_workflow_count(
     model_id: str,
+    status_filter: Optional[schema.WorkflowStatus] = None,
     session: Session = Depends(get_session),
 ):
     """
-    Get the count of active workflows associated with a specific model by its identifier.
+    Get the count of workflows associated with a specific model by its identifier and status.
+
     - **Parameters**:
       - `model_id` (str): The identifier of the model to check.
+      - `status_filter` (WorkflowStatus, optional): The status filter to apply (e.g., "active", "inactive").
+        If not provided, counts all workflows.
+
     - **Returns**:
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
-      - `data` (dict): Count of active workflows associated with the model.
+      - `data` (dict): Count of workflows associated with the model.
+
     **Example Request**:
     ```json
     {
-        "model_id": "UUID of the model"
+        "model_id": "UUID of the model",
+        "status_filter": "active"
     }
     ```
     **Example Response**:
     ```json
     {
         "status_code": 200,
-        "message": "Active workflows count retrieved successfully.",
+        "message": "Workflows count retrieved successfully.",
         "data": {
-            "active_workflows_count": 3
+            "workflows_count": 3
         }
     }
     ```
@@ -1247,21 +1222,21 @@ def get_active_workflows_count(
             message="Model not found.",
         )
 
-    # Count the active workflows that are using the model
-    active_workflows_count = (
+    # Base query to count workflows associated with the model
+    query = (
         session.query(schema.Workflow)
         .join(schema.Workflow.workflow_models)
-        .filter(
-            schema.WorkflowModel.model_id == model.id,
-            schema.Workflow.status == schema.WorkflowStatus.active,
-        )
-        .count()
+        .filter(schema.WorkflowModel.model_id == model.id)
     )
+
+    # Apply status filter based on the value of status_filter
+    if status_filter:
+        query = query.filter(schema.Workflow.status == status_filter)
+
+    workflows_count = query.count()
 
     return response(
         status_code=status.HTTP_200_OK,
-        message="Active workflows count retrieved successfully.",
-        data={
-            "active_workflows_count": active_workflows_count,
-        },
+        message="Workflows count retrieved successfully.",
+        data={"workflows_count": workflows_count},
     )

@@ -25,6 +25,7 @@ from pydantic_models import inputs
 from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.core.types import Chunk
+import traceback
 from utils import highlighted_pdf_bytes, new_pdf_chunks, old_pdf_chunks
 
 
@@ -115,6 +116,7 @@ class NDBV1Model(NDBModel):
         super().__init__()
         self.model_path: Path = self.model_dir / "model.ndb"
         self.db: ndb.NeuralDB = self.load(write_mode=write_mode)
+        self.set_chat()
 
     def get_ndb_path(self, model_id: str) -> Path:
         """
@@ -243,17 +245,17 @@ class NDBV1Model(NDBModel):
 
     def set_chat(self, **kwargs):
         try:
-            sqlite_db_path = self.data_dir.parent / "chat_history.db"
+            sqlite_db_path = os.path.join(self.model_dir, "chat_history.db")
 
             chat_history_sql_uri = f"sqlite:///{sqlite_db_path}"
 
             llm_chat_interface = llm_providers.get(kwargs.get("provider", "openai"))
 
             self.chat = llm_chat_interface(
-                db=self.db, chat_history_sql_uri=chat_history_sql_uri, **kwargs
+                db=self.db, chat_history_sql_uri=chat_history_sql_uri, key=self.general_variables.genai_key, **kwargs
             )
         except Exception as err:
-            print(str(err))
+            traceback.print_exc()
             self.chat = None
 
     def highlight_pdf(self, reference_id: int) -> Tuple[str, Optional[bytes]]:
@@ -432,6 +434,7 @@ class NDBV2Model(NDBModel):
         super().__init__()
 
         self.db = self.load(write_mode=write_mode)
+        self.set_chat()
 
     def ndb_save_path(self):
         return os.path.join(self.model_dir, "model.ndb")
@@ -572,6 +575,21 @@ class NDBV2Model(NDBModel):
             ],
             key=lambda x: x["source"],
         )
+
+    def set_chat(self, **kwargs):
+        try:
+            sqlite_db_path = os.path.join(self.model_dir, "chat_history.db")
+
+            chat_history_sql_uri = f"sqlite:///{sqlite_db_path}"
+
+            llm_chat_interface = llm_providers.get(kwargs.get("provider", "openai"))
+
+            self.chat = llm_chat_interface(
+                db=self.db, chat_history_sql_uri=chat_history_sql_uri, key=self.general_variables.genai_key, **kwargs
+            )
+        except Exception as err:
+            traceback.print_exc()
+            self.chat = None
 
     def highlight_pdf(self, chunk_id: int) -> Tuple[str, Optional[bytes]]:
         chunk = self.db.chunk_store.get_chunks([chunk_id])

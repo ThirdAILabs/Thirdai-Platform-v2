@@ -227,14 +227,14 @@ class NeuralDBV2VectorStore(VectorStore):
             references = self.db.search(query=query, top_k=k, **kwargs)
             return [
                 Document(
-                    page_content=ref.text,
+                    page_content=chunk.keywords + " " + chunk.text,
                     metadata={
-                        "document": ref.document,
-                        "metadata": ref.metadata,
-                        "score": ref.score,
+                        "document": chunk.document,
+                        "metadata": chunk.metadata,
+                        "score": score,
                     },
                 )
-                for ref in references
+                for chunk, score in references
             ]
         except Exception as e:
             raise ValueError(f"Error while retrieving documents: {e}") from e

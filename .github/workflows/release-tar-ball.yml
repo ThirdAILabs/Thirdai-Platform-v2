@@ -13,9 +13,16 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v2
 
-      - name: Clone ThirdAI Platform repository
+      - name: Set up SSH for cloning
         run: |
-          git clone https://github.com/ThirdAILabs/platform.git
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PLATFORM_INSTALLATION_DEPLOY_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Clone Platform Installation Ansible Scripts
+        run: |
+          git clone git@github.com:ThirdAILabs/platform.git
           cd platform
           git fetch --all
           git checkout upload-model

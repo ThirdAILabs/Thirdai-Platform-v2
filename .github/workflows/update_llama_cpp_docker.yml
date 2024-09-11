@@ -1,37 +1,37 @@
-name: Weekly Llama.cpp Image Update
+# name: Weekly Llama.cpp Image Update
 
-on:
-  schedule:
-    - cron: '0 18 * * 1'  # This will run the job at 18:00 UTC (6:00 PM UTC) every Monday
-  
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+# on:
+#   schedule:
+#     - cron: '0 18 * * 1'  # This will run the job at 18:00 UTC (6:00 PM UTC) every Monday
 
-# How to set up credentials for GH actions:
-# https://learn.microsoft.com/en-us/azure/container-instances/container-instances-github-action#configure-github-workflow
+#   # Allows you to run this workflow manually from the Actions tab
+#   workflow_dispatch:
 
-jobs:
-  update-llama-cpp:
-    runs-on: ubuntu-latest
-    steps:
-      - name: 'Azure Login'
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+# # How to set up credentials for GH actions:
+# # https://learn.microsoft.com/en-us/azure/container-instances/container-instances-github-action#configure-github-workflow
 
-      - name: 'Pull Llama.cpp Image from GitHub Container Registry'
-        run: docker pull ghcr.io/ggerganov/llama.cpp:server
+# jobs:
+#   update-llama-cpp:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: 'Azure Login'
+#         uses: azure/login@v1
+#         with:
+#           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: 'Tag Llama.cpp Image for ACR'
-        run: docker tag ghcr.io/ggerganov/llama.cpp:server ${{ secrets.REGISTRY_LOGIN_SERVER }}/llama.cpp:server
+#       - name: 'Pull Llama.cpp Image from GitHub Container Registry'
+#         run: docker pull ghcr.io/ggerganov/llama.cpp:server
 
-      - name: 'Azure Docker Login'
-        uses: azure/docker-login@v1
-        with:
-          login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+#       - name: 'Tag Llama.cpp Image for ACR'
+#         run: docker tag ghcr.io/ggerganov/llama.cpp:server ${{ secrets.REGISTRY_LOGIN_SERVER }}/llama.cpp:server
 
-      - name: 'Push Image to ACR'
-        run: docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/llama.cpp:server
+#       - name: 'Azure Docker Login'
+#         uses: azure/docker-login@v1
+#         with:
+#           login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+#           username: ${{ secrets.REGISTRY_USERNAME }}
+#           password: ${{ secrets.REGISTRY_PASSWORD }}
+
+#       - name: 'Push Image to ACR'
+#         run: docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/llama.cpp:server
 

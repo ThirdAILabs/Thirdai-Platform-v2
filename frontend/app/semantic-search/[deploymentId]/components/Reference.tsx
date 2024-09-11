@@ -113,9 +113,10 @@ const VoteButtonsContainer = styled.section`
 
 interface ReferenceProps {
     info: ReferenceInfo;
+    referenceIdx:number;
     onOpen: MouseEventHandler<any>;
-    onUpvote: MouseEventHandler<any>;
-    onDownvote: MouseEventHandler<any>;
+    onUpvote: () => void;
+    onDownvote: () => void;
     checked: boolean;
     onCheck: () => void;
     modelService: ModelService;
@@ -124,6 +125,7 @@ interface ReferenceProps {
 
 export default function Reference({
     info,
+    referenceIdx,
     onOpen,
     onUpvote,
     onDownvote,
@@ -226,7 +228,7 @@ export default function Reference({
                         UIComponent: 'Header',
                         UI: 'Reference',
                         data: {
-                            id: info.id,
+                            referenceIdx: referenceIdx,
                             sourceURL: info.sourceURL,
                             sourceName: info.sourceName,
                             content: info.content,
@@ -295,12 +297,64 @@ export default function Reference({
                         onChange={onCheck}
                     />
                     <Spacer $height="10px" />
-                    <UpvoteButton onClick={onUpvote} />
+                    <UpvoteButton onClick={()=>{
+                        onUpvote()
+
+                        // Create a telemetry event
+                        const event = {
+                            UserAction: 'Upvote Reference',
+                            UIComponent: 'Header',
+                            UI: 'Reference',
+                            data: {
+                                referenceIdx: referenceIdx,
+                                sourceURL: info.sourceURL,
+                                sourceName: info.sourceName,
+                                content: info.content,
+                                metadata: info.metadata
+                            }
+                        };
+
+                        // Record the event
+                        modelService.recordEvent(event)
+                            .then(data => {
+                                console.log("Event recorded successfully:", data);
+                            })
+                            .catch(error => {
+                                console.error("Error recording event:", error);
+                                alert("Error recording event:" + error)
+                            });
+                    }} />
                     <Spacer $height="10px" />
-                    <DownvoteButton onClick={onDownvote} />
+                    <DownvoteButton onClick={()=>{
+                        onDownvote()
+
+                        // Create a telemetry event
+                        const event = {
+                            UserAction: 'Downvote Reference',
+                            UIComponent: 'Header',
+                            UI: 'Reference',
+                            data: {
+                                referenceIdx: referenceIdx,
+                                sourceURL: info.sourceURL,
+                                sourceName: info.sourceName,
+                                content: info.content,
+                                metadata: info.metadata
+                            }
+                        };
+
+                        // Record the event
+                        modelService.recordEvent(event)
+                            .then(data => {
+                                console.log("Event recorded successfully:", data);
+                            })
+                            .catch(error => {
+                                console.error("Error recording event:", error);
+                                alert("Error recording event:" + error)
+                            });
+                    }} />
                 </VoteButtonsContainer>
                 <Spacer $height={padding.card} />
-                <CopyButton toCopy={info.content} />
+                <CopyButton toCopy={info.content} referenceIdx = {referenceIdx} />
             </ButtonsContainer>
         </Card>
     );

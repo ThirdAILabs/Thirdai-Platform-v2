@@ -19,7 +19,7 @@ const StyledCopy = styled(Copy)`
     }
 `;
 
-export default function CopyButton({ toCopy }: { toCopy: string }) {
+export default function CopyButton({ toCopy, referenceIdx }: { toCopy: string, referenceIdx: number }) {
     const modelService = useContext<ModelService | null>(ModelServiceContext);
 
     function copyToClipboard() {
@@ -32,6 +32,7 @@ export default function CopyButton({ toCopy }: { toCopy: string }) {
 
                 // Create a telemetry event
                 const event = {
+                    referenceIdx: referenceIdx,
                     UserAction: 'Copy',
                     UIComponent: 'CopyButton',
                     UI: 'Clipboard',

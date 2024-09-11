@@ -56,7 +56,7 @@ jobs:
     environment:
       name: docker_tests
 
-    needs: build_docker_images
+    # needs: build_docker_images
 
     steps:
       - name: Checkout code

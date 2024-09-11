@@ -39,9 +39,9 @@ jobs:
         run: |
           cp ./packaging/driver.sh ./driver.sh
 
-      - name: Copy config.yaml to parent directory
+      - name: Copy config.yml to parent directory
         run: |
-          cp ./platform/config.yaml ./config.yaml
+          cp ./platform/config.yml ./config.yml
 
       - name: Copy README.md to parent directory
         run: |
@@ -49,7 +49,7 @@ jobs:
 
       - name: Package platform, model, driver, config, and README into tarball
         run: |
-          tar -czvf thirdai-platform-package.tar.gz ./platform ./models/qwen2-0_5b-instruct-fp16.gguf ./driver.sh ./config.yaml ./README.md
+          tar -czvf thirdai-platform-package.tar.gz ./platform ./models/qwen2-0_5b-instruct-fp16.gguf ./driver.sh ./config.yml ./README.md
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3

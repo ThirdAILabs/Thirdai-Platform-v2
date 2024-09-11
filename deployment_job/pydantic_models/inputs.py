@@ -159,7 +159,7 @@ class ChatHistoryInput(BaseModel):
 
 class ChatSettings(BaseModel):
     top_k: int = 5
-    model: str = "gpt-3.5-turbo"
+    model: str = "gpt-4o-mini"
     provider: str = "openai"
     key: str = None
     temperature: float = 0.2

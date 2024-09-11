@@ -25,7 +25,6 @@ from pydantic_models import inputs
 from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.core.types import Chunk
-import traceback
 from utils import highlighted_pdf_bytes, new_pdf_chunks, old_pdf_chunks
 
 
@@ -252,7 +251,10 @@ class NDBV1Model(NDBModel):
             llm_chat_interface = llm_providers.get(kwargs.get("provider", "openai"))
 
             self.chat = llm_chat_interface(
-                db=self.db, chat_history_sql_uri=chat_history_sql_uri, key=self.general_variables.genai_key, **kwargs
+                db=self.db,
+                chat_history_sql_uri=chat_history_sql_uri,
+                key=self.general_variables.genai_key,
+                **kwargs,
             )
         except Exception as err:
             traceback.print_exc()
@@ -578,7 +580,10 @@ class NDBV2Model(NDBModel):
             llm_chat_interface = llm_providers.get(kwargs.get("provider", "openai"))
 
             self.chat = llm_chat_interface(
-                db=self.db, chat_history_sql_uri=chat_history_sql_uri, key=self.general_variables.genai_key, **kwargs
+                db=self.db,
+                chat_history_sql_uri=chat_history_sql_uri,
+                key=self.general_variables.genai_key,
+                **kwargs,
             )
         except Exception as err:
             traceback.print_exc()

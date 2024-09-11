@@ -12,16 +12,16 @@ from langchain_core.vectorstores import VectorStore
 class NeuralDBV2VectorStore(VectorStore):
     """Vectorstore that uses ThirdAI's NeuralDB.
 
-    To use, you should have the ``thirdai[neural_db]`` python package installed.
+    To use, you should have the ``thirdai[neural_db_v2]`` python package installed.
 
     Example:
         .. code-block:: python
 
             from langchain_community.vectorstores import NeuralDBVectorStore
-            from thirdai import neural_db as ndb
+            from thirdai import neural_db_v2 as ndb
 
             db = ndb.NeuralDB()
-            vectorstore = NeuralDBVectorStore(db=db)
+            vectorstore = NeuralDBV2VectorStore(db=db)
     """
 
     def __init__(self, db: Any) -> None:
@@ -63,9 +63,9 @@ class NeuralDBV2VectorStore(VectorStore):
         Example:
             .. code-block:: python
 
-                from langchain_community.vectorstores import NeuralDBVectorStore
+                from langchain_community.vectorstores import NeuralDBV2VectorStore
 
-                vectorstore = NeuralDBVectorStore.from_scratch(
+                vectorstore = NeuralDBV2VectorStore.from_scratch(
                     thirdai_key="your-thirdai-key",
                 )
 
@@ -89,7 +89,7 @@ class NeuralDBV2VectorStore(VectorStore):
         thirdai_key: Optional[str] = None,
     ):
         """
-        Create a NeuralDBVectorStore with a base model from a saved checkpoint
+        Create a NeuralDBV2VectorStore with a base model from a saved checkpoint
 
         To use, set the ``THIRDAI_KEY`` environment variable with your ThirdAI
         API key, or pass ``thirdai_key`` as a named parameter.

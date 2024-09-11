@@ -20,11 +20,7 @@ THIRDAI_PLATFORM_FRONTEND_ID = "thirdai-platform-frontend"
 LLM_CACHE_JOB_ID = "llm-cache"
 TELEMETRY_ID = "telemetry"
 
-MODEL_BAZAAR_PATH = (
-    "/model_bazaar"
-    if os.path.exists("/.dockerenv")
-    else os.getenv("SHARE_DIR", "/model_bazaar")
-)
+SHARE_DIR = os.getenv("SHARE_DIR")
 
 
 async def restart_generate_job():
@@ -178,13 +174,14 @@ async def restart_telemetry_jobs():
     response = submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "telemetry.hcl.j2"),
-        VM_DATA_DIR=os.path.join(
-            MODEL_BAZAAR_PATH, "monitoring-data", "victoriametric"
-        ),
-        LOKI_DATA_DIR=os.path.join(MODEL_BAZAAR_PATH, "monitoring-data", "loki"),
-        dashboards=str(cwd / "telemetry_dashboards"),
-        GRAFANA_DATA_DIR=os.path.join(MODEL_BAZAAR_PATH, "monitoring-data", "grafana"),
         platform=get_platform(),
+        tag=os.getenv("TAG"),
+        registry=os.getenv("DOCKER_REGISTRY"),
+        docker_username=os.getenv("DOCKER_USERNAME"),
+        docker_password=os.getenv("DOCKER_PASSWORD"),
+        image_name=os.getenv("NODE_DISCOVERY_IMAGE_NAME"),
+        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+        share_dir=os.getenv("SHARE_DIR"),
     )
     if response.status_code != 200:
         raise Exception(f"{response.text}")

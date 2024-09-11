@@ -160,7 +160,7 @@ jobs:
 
     needs: [ test, build_docker_images ]
 
-    if: success() || failure()
+    # if: success() || failure()
 
     steps:
       - name: Checkout code

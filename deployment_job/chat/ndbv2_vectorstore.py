@@ -178,7 +178,7 @@ class NeuralDBV2VectorStore(VectorStore):
         """
         sources = self._preprocess_sources(sources)
         self.db.insert(
-            sources=sources,
+            sources,
             **kwargs,
         )
 
@@ -212,6 +212,10 @@ class NeuralDBV2VectorStore(VectorStore):
                         "automatically. For other formats, please use the "
                         "appropriate document object from the ThirdAI library."
                     )
+        preprocessed_sources = [
+            ndb.documents.PrebatchedDoc(list(doc.chunks()))
+            for doc in preprocessed_sources
+        ]
         return preprocessed_sources
 
     def similarity_search(

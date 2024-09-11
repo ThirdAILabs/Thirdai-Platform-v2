@@ -26,7 +26,8 @@ Before running the script, ensure the following are installed on your machine:
    After downloading the `thirdai-platform-package.tar.gz`, extract it:
 
    ```bash
-   tar -xzvf thirdai-platform-package.tar.gz
+   mkdir -p my_folder
+   tar -xzvf thirdai-platform-package.tar.gz -C my_folder
    ```
 
    This will extract the following files and directories:

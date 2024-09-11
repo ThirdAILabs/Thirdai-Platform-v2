@@ -991,6 +991,9 @@ def delete_workflow(
                 message="Workflow not found.",
             )
 
+        session.delete(workflow)
+        session.commit()
+
     except Exception as err:
         traceback.print_exc()
         return response(

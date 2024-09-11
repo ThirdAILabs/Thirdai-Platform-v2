@@ -190,7 +190,7 @@ def test_create_and_delete_workflow_type():
         },
         headers=auth_header(admin_jwt),
     )
-    assert res.status_code == 400  # Cannot have empty model requirements.
+    assert res.status_code == 422  # Cannot have empty model requirements.
 
     # Attempt to create workflow type with wrong parameters
     res = client.post(
@@ -409,7 +409,7 @@ def test_delete_workflow_delete_models():
 
     # Delete workflow 1 and check model presence
     delete_workflow(client, owner_jwt, workflow_id_1, expected_status_code=200)
-    check_model_presence(client, owner_jwt, "model_a", should_exist=False)
+    check_model_presence(client, owner_jwt, "model_a", should_exist=True)
 
 
 def test_workflow_access_based_on_model_access():

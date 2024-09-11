@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Function to install Ansible if not present
 function install_ansible() {
     if ! command -v ansible-playbook &> /dev/null; then
         echo "Ansible not found, installing..."
@@ -19,13 +18,10 @@ function install_ansible() {
     fi
 }
 
-# Install Ansible if needed
 install_ansible
 
-# Variables
 VERBOSE=0  # Default: No verbose mode
 
-# Parse arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -v|--verbose) VERBOSE=1 ;;   # Enable verbose mode if -v or --verbose is passed

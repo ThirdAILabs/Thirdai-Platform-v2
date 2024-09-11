@@ -45,6 +45,11 @@ jobs:
           cd release
           pip install -r requirements.txt
           python3 push.py -b docker_tests --config config.yaml --no-cache --dont-update-scope --version ${{ steps.generate_version.outputs.version }}
+      
+      - name: Cleanup Docker after build
+        if: always() # Run this step regardless of success or failure
+        run: |
+          docker system prune -af --volumes
 
   restart_modelbazaar:
     runs-on: self-hosted

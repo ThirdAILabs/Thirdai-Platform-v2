@@ -578,7 +578,9 @@ export default function AccessPage() {
                 </tr>
               </thead>
               <tbody>
-                {models.map((model, index) => (
+                {models
+                .sort((a, b) => a.name.localeCompare(b.name)) // Sort models by name alphabetically
+                .map((model, index) => (
                   <tr key={index} className="border-t">
                     <td className="py-3 px-4 text-gray-800">{model.name}</td>
                     <td className="py-3 px-4 text-gray-800">{model.type}</td>
@@ -669,7 +671,9 @@ export default function AccessPage() {
                 </tr>
               </thead>
               <tbody>
-                {workflows.map((workflow, index) => (
+                {workflows
+                .sort((a, b) => a.name.localeCompare(b.name)) // Sort workflows by name alphabetically
+                .map((workflow, index) => (
                   <tr key={index} className="border-t">
                     <td className="py-3 px-4 text-gray-800">{workflow.name}</td>
                     <td className="py-3 px-4 text-gray-800">{workflow.type}</td>
@@ -700,7 +704,9 @@ export default function AccessPage() {
           {/* Teams Section */}
           <div className="mb-12">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Teams</h3>
-            {teams.map((team, index) => (
+            {teams
+            .sort((a, b) => a.name.localeCompare(b.name)) // Sort teams by name alphabetically
+            .map((team, index) => (
               <div key={index} className="bg-gray-100 p-4 rounded-lg shadow-md mb-8">
                 <h4 className="text-lg font-semibold text-gray-800">{team.name}</h4>
                 <div className="text-gray-700 mb-2">
@@ -906,7 +912,9 @@ export default function AccessPage() {
           {/* Users Section */}
           <div className="mb-12">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Users</h3>
-            {users.map((user, index) => (
+            {users
+            .sort((a, b) => a.name.localeCompare(b.name)) // Sort users by name alphabetically
+            .map((user, index) => (
               <div key={index} className="bg-gray-100 p-4 rounded-lg shadow-md mb-8">
                 <h4 className="text-lg font-semibold text-gray-800">{user.name}</h4>
                 <div className="text-gray-700 mb-2">Role: {user.role}</div>

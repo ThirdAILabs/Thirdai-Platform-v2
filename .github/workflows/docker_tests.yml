@@ -123,7 +123,6 @@ jobs:
         run: |
           python3 -m headless.run_locally --base-url ${{ secrets.BASE_URL }} --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag NDB
           python3 -m headless.run_locally --base-url ${{ secrets.BASE_URL }} --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag UDT
-          python3 -m headless.run_locally --base-url ${{ secrets.BASE_URL }} --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag UDT_DATAGEN
       
       - name: Cleanup SHARE_DIR Folder
         if: always()

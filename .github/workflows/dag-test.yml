@@ -166,6 +166,9 @@ jobs:
 
         bash local_setup/fetch_nomad_logs.sh
 
+        ls -la $HOME/nfs/dir
+        ls $HOME/nfs/dir
+
     - name: Stop Services
       if: always()
       run: |

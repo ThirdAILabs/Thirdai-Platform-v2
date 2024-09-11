@@ -3,11 +3,6 @@ import sys
 from abc import ABC
 from typing import Optional
 
-base_path = os.getenv("SHARE_DIR")
-if not base_path:
-    print("Error: SHARE_DIR environment variable is not set.")
-    sys.exit(1)
-
 
 class Config(ABC):
     """
@@ -45,7 +40,7 @@ class Config(ABC):
 
     name: str = None
 
-    base_path: str = base_path
+    base_path: str
     doc_type: str = "local"
     nfs_original_base_path: str = "/opt/neuraldb_enterprise/"
     unsupervised_paths: list[str] = []
@@ -77,6 +72,13 @@ class Config(ABC):
     sub_type: str = "text"
     n_classes: Optional[int] = None
     target_labels: list[str] = None
+
+    def __init__(self):
+        # Perform base_path check when initializing the configuration
+        self.base_path = os.getenv("SHARE_DIR")
+        if not self.base_path:
+            print("Error: SHARE_DIR environment variable is not set.")
+            sys.exit(1)
 
 
 class Scifact(Config):

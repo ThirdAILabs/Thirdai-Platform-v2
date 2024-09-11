@@ -174,7 +174,7 @@ jobs:
     environment:
       name: docker_tests
 
-    needs: [ test, build_docker_images ]
+    needs: [ test ]
 
     # if: success() || failure()
 

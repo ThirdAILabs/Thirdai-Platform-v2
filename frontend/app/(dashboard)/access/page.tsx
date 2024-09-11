@@ -557,7 +557,7 @@ export default function AccessPage() {
       <Card className="shadow-lg">
         <CardHeader className="bg-blue-500 text-white p-6 rounded-t-lg">
           <CardTitle className="text-2xl font-bold">Manage Access</CardTitle>
-          <CardDescription>View all personnel and their access.</CardDescription>
+          <CardDescription className="text-white">View all personnel and their access.</CardDescription>
         </CardHeader>
         <CardContent className="p-6 bg-white rounded-b-lg">
           <div className="mb-8">

@@ -34,7 +34,7 @@ fi
 
 echo "Using config file at $CONFIG_PATH"
 
-QWEN_MODEL_PATH="platform/models/qwen2-0_5b-instruct-fp16.gguf"
+QWEN_MODEL_PATH="models/qwen2-0_5b-instruct-fp16.gguf"
 
 if [ ! -f "$QWEN_MODEL_PATH" ]; then
     echo "WARNING: Model file not found at $QWEN_MODEL_PATH. The playbook will proceed without it."

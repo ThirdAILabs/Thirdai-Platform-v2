@@ -1,7 +1,6 @@
 import json
 import os
 import traceback
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
@@ -29,6 +28,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()
@@ -457,7 +457,6 @@ def log_results(
     new_log = {
         "train_samples": log_data.train_samples,
         "used": str(log_data.used),
-        "timestamp": str(datetime.utcnow().isoformat()),
     }
 
     log_entry = schema.Log(
@@ -477,6 +476,7 @@ def log_results(
 def get_deployment_info(
     model_identifier: str,
     require_raw_logs: bool = False,
+    limit: Optional[int] = None,
     session: Session = Depends(get_session),
 ):
     """
@@ -502,10 +502,15 @@ def get_deployment_info(
             message=str(error),
         )
 
-    # Fetch all logs for the model
-    logs = session.query(schema.Log).filter(schema.Log.model_id == model.id).all()
+    query = (
+        session.query(schema.Log)
+        .filter(schema.Log.model_id == model.id)
+        .order_by(desc(schema.Log.timestamp))
+    )
+    if limit is not None:
+        query = query.limit(limit)
+    logs = query.all()
 
-    # Aggregate logs by user_id, action
     aggregated_logs = {}
     for log in logs:
         key = (log.user_id, log.action)
@@ -523,7 +528,6 @@ def get_deployment_info(
                 log.data.get("train_samples", [])
             )
 
-    # Prepare the response data
     deployment_info = {
         "name": model.name,
         "status": model.deploy_status,

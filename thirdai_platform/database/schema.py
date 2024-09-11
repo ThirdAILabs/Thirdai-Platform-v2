@@ -330,6 +330,7 @@ class Log(SQLDeclarativeBase):
     action = Column(String, nullable=False)
     count = Column(Integer, nullable=False, default=0)
     data = Column(JSON, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow().isoformat(), nullable=True)
 
     user = relationship("User", back_populates="logs")
 

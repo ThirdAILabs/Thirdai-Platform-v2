@@ -14,72 +14,72 @@ on:
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
-  build_docker_images:
-    runs-on: self-hosted
-    environment:
-      name: docker_tests
+  # build_docker_images:
+  #   runs-on: self-hosted
+  #   environment:
+  #     name: docker_tests
     
-    outputs:
-      version: ${{ steps.generate_version.outputs.version }}
+  #   outputs:
+  #     version: ${{ steps.generate_version.outputs.version }}
     
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v2
 
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
+  #     - name: Set up Python 3.9
+  #       uses: actions/setup-python@v2
+  #       with:
+  #         python-version: 3.9
 
-      # Generate random version number in format 123.123.123
-      - name: Generate random version
-        id: generate_version
-        run: |
-          version=$(shuf -i 100-999 -n 3 | paste -sd '.')
-          echo "Generated version: $version"
-          echo "::set-output name=version::$version"
+  #     # Generate random version number in format 123.123.123
+  #     - name: Generate random version
+  #       id: generate_version
+  #       run: |
+  #         version=$(shuf -i 100-999 -n 3 | paste -sd '.')
+  #         echo "Generated version: $version"
+  #         echo "::set-output name=version::$version"
 
-      # Build and push docker images to automate testsuite registry
-      - name: Build and push docker images to automate testsuite registry
-        run: |
-          cd release
-          pip install -r requirements.txt
-          python3 push.py -b docker_tests --config config.yaml --no-cache --dont-update-scope --version ${{ steps.generate_version.outputs.version }}
+  #     # Build and push docker images to automate testsuite registry
+  #     - name: Build and push docker images to automate testsuite registry
+  #       run: |
+  #         cd release
+  #         pip install -r requirements.txt
+  #         python3 push.py -b docker_tests --config config.yaml --no-cache --dont-update-scope --version ${{ steps.generate_version.outputs.version }}
       
-      - name: Cleanup Docker after build
-        if: always() # Run this step regardless of success or failure
-        run: |
-          docker system prune -af --volumes
+  #     - name: Cleanup Docker after build
+  #       if: always() # Run this step regardless of success or failure
+  #       run: |
+  #         docker system prune -af --volumes
 
-  restart_modelbazaar:
-    runs-on: self-hosted
-    environment:
-      name: docker_tests
+  # restart_modelbazaar:
+  #   runs-on: self-hosted
+  #   environment:
+  #     name: docker_tests
 
-    needs: build_docker_images
+  #   needs: build_docker_images
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v2
 
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
+  #     - name: Set up Python 3.9
+  #       uses: actions/setup-python@v2
+  #       with:
+  #         python-version: 3.9
 
-      - name: Install requirements
-        run: |
-          cd headless
-          pip install -r requirements.txt
+  #     - name: Install requirements
+  #       run: |
+  #         cd headless
+  #         pip install -r requirements.txt
       
-      - name: SHARE_DIR env variable
-        run: |
-          mkdir -p $HOME/nfs/dir
-          echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
+  #     - name: SHARE_DIR env variable
+  #       run: |
+  #         mkdir -p $HOME/nfs/dir
+  #         echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
 
-      - name: Restart Model Bazaar Job
-        run: |
-          python3 -m headless.restart_modelbazaar
+  #     - name: Restart Model Bazaar Job
+  #       run: |
+  #         python3 -m headless.restart_modelbazaar
 
   test:
     strategy:
@@ -131,73 +131,73 @@ jobs:
           echo "Cleaning up SHARE_DIR folder..."
           rm -rf $HOME/nfs/dir
 
-  restore_original_alembic_version:
-    runs-on: ubuntu-latest
+  # restore_original_alembic_version:
+  #   runs-on: ubuntu-latest
 
-    needs: test
+  #   needs: test
 
-    # # This condition ensures that the job runs only if the branch is not 'main'.
-    if: github.ref != 'refs/heads/main'
+  #   # # This condition ensures that the job runs only if the branch is not 'main'.
+  #   if: github.ref != 'refs/heads/main'
 
-    environment:
-      name: docker_tests
+  #   environment:
+  #     name: docker_tests
 
-    steps:
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
+  #   steps:
+  #     - name: Set up Python 3.9
+  #       uses: actions/setup-python@v2
+  #       with:
+  #         python-version: 3.9
 
-      - name: Install git
-        run: |
-          pip install gitpython
+  #     - name: Install git
+  #       run: |
+  #         pip install gitpython
 
-      - name: Checkout current branch
-        uses: actions/checkout@v3
+  #     - name: Checkout current branch
+  #       uses: actions/checkout@v3
 
-      - name: Latest alembic version in main
-        id: version
-        run: |
-          alembic_version=$(python alembic_version.py)
-          echo "::set-output name=alembic_version::$alembic_version"
-          echo "$alembic_version"
+  #     - name: Latest alembic version in main
+  #       id: version
+  #       run: |
+  #         alembic_version=$(python alembic_version.py)
+  #         echo "::set-output name=alembic_version::$alembic_version"
+  #         echo "$alembic_version"
 
-      - name: Install requirements
-        run: |
-          cd thirdai_platform
-          pip install -r requirements.txt
+  #     - name: Install requirements
+  #       run: |
+  #         cd thirdai_platform
+  #         pip install -r requirements.txt
 
-      - name: Revert Back to original alembic version
-        env:
-          DATABASE_URI: ${{ secrets.DATABASE_URI }}
-        run: |
-          cd thirdai_platform
-          alembic downgrade ${{ steps.version.outputs.alembic_version }}
+  #     - name: Revert Back to original alembic version
+  #       env:
+  #         DATABASE_URI: ${{ secrets.DATABASE_URI }}
+  #       run: |
+  #         cd thirdai_platform
+  #         alembic downgrade ${{ steps.version.outputs.alembic_version }}
 
 
-  delete_docker_images:
-    runs-on: ubuntu-latest
+  # delete_docker_images:
+  #   runs-on: ubuntu-latest
 
-    environment:
-      name: docker_tests
+  #   environment:
+  #     name: docker_tests
 
-    needs: [ test , build_docker_images]
+  #   needs: [ test , build_docker_images]
 
-    # if: success() || failure()
+  #   # if: success() || failure()
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v2
 
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
+  #     - name: Set up Python 3.9
+  #       uses: actions/setup-python@v2
+  #       with:
+  #         python-version: 3.9
 
-      - name: Delete docker images
-        run: |
-          cd release
-          pip install -r requirements.txt
-          version="${{ needs.build_docker_images.outputs.version }}"
-          echo "Deleting Docker images for version: $version"
-          python3 docker_remove.py -b docker_tests --version "$version" --client_id ${{ secrets.APPLICATION_ID }} --tenant_id ${{ secrets.TENANT_ID }} --secret ${{ secrets.SECRET }} --config config.yaml
+  #     - name: Delete docker images
+  #       run: |
+  #         cd release
+  #         pip install -r requirements.txt
+  #         version="${{ needs.build_docker_images.outputs.version }}"
+  #         echo "Deleting Docker images for version: $version"
+  #         python3 docker_remove.py -b docker_tests --version "$version" --client_id ${{ secrets.APPLICATION_ID }} --tenant_id ${{ secrets.TENANT_ID }} --secret ${{ secrets.SECRET }} --config config.yaml

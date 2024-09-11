@@ -41,7 +41,7 @@ jobs:
 
       - name: Copy config.yaml to parent directory
         run: |
-          cp ./platform/playbooks/config.yaml ./config.yaml
+          cp ./platform/config.yaml ./config.yaml
 
       - name: Copy README.md to parent directory
         run: |

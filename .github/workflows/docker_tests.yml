@@ -90,7 +90,7 @@ jobs:
     environment:
       name: docker_tests
 
-    needs: restart_modelbazaar
+    # needs: restart_modelbazaar
 
     steps:
       - name: Delay before running tests

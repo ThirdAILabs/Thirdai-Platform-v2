@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/card';
 import {
   fetchAllModels, fetchAllTeams, fetchAllUsers,
-  updateModelAccessLevel,
+  updateModelAccessLevel, deleteModel,
   createTeam, addUserToTeam, assignTeamAdmin, deleteUserFromTeam, deleteTeamById, removeTeamAdmin,
   deleteUserAccount,
   Workflow, fetchWorkflows
@@ -221,6 +221,28 @@ export default function AccessPage() {
     } catch (error) {
       console.error('Failed to update model access level', error);
       alert('Failed to update model access level' + error)
+    }
+  };
+  
+  const handleDeleteModel = async (index: number) => {
+    const model = models[index];
+    const model_identifier = `${model.owner}/${model.name}`;
+  
+    try {
+      // Confirm deletion with the user
+      const isConfirmed = window.confirm(`Are you sure you want to delete the model "${model.name}"?`);
+      if (!isConfirmed) return;
+  
+      // Call the API to delete the model
+      await deleteModel(model_identifier);
+  
+      // Optionally, refresh the models after deletion
+      await getModels();
+      await getUsers();
+      await getTeams();
+    } catch (error) {
+      console.error('Failed to delete model', error);
+      alert('Failed to delete model: ' + error);
     }
   };
   
@@ -575,11 +597,11 @@ export default function AccessPage() {
                   <th className="py-3 px-4 text-left text-gray-700">Model Type</th>
                   <th className="py-3 px-4 text-left text-gray-700">Access Details</th>
                   <th className="py-3 px-4 text-left text-gray-700">Edit Model Access</th>
+                  <th className="py-3 px-4 text-left text-gray-700">Delete Model</th>
                 </tr>
               </thead>
               <tbody>
                 {models
-                .sort((a, b) => a.name.localeCompare(b.name)) // Sort models by name alphabetically
                 .map((model, index) => (
                   <tr key={index} className="border-t">
                     <td className="py-3 px-4 text-gray-800">{model.name}</td>
@@ -651,6 +673,15 @@ export default function AccessPage() {
                         </button>
                       )}
                     </td>
+
+                    <td className="py-3 px-4">
+                      <button
+                        onClick={() => handleDeleteModel(index)}
+                        className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                      >
+                        Delete
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -672,7 +703,6 @@ export default function AccessPage() {
               </thead>
               <tbody>
                 {workflows
-                .sort((a, b) => a.name.localeCompare(b.name)) // Sort workflows by name alphabetically
                 .map((workflow, index) => (
                   <tr key={index} className="border-t">
                     <td className="py-3 px-4 text-gray-800">{workflow.name}</td>
@@ -705,7 +735,6 @@ export default function AccessPage() {
           <div className="mb-12">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Teams</h3>
             {teams
-            .sort((a, b) => a.name.localeCompare(b.name)) // Sort teams by name alphabetically
             .map((team, index) => (
               <div key={index} className="bg-gray-100 p-4 rounded-lg shadow-md mb-8">
                 <h4 className="text-lg font-semibold text-gray-800">{team.name}</h4>
@@ -913,7 +942,6 @@ export default function AccessPage() {
           <div className="mb-12">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Users</h3>
             {users
-            .sort((a, b) => a.name.localeCompare(b.name)) // Sort users by name alphabetically
             .map((user, index) => (
               <div key={index} className="bg-gray-100 p-4 rounded-lg shadow-md mb-8">
                 <h4 className="text-lg font-semibold text-gray-800">{user.name}</h4>

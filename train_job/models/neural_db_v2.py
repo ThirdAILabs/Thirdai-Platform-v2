@@ -1,8 +1,8 @@
+import multiprocessing as mp
 import os
 import shutil
 import time
 import uuid
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional, Tuple
 
 import thirdai
@@ -84,13 +84,10 @@ def preload_chunks(
         metadata=metadata,
         options=options,
     )
-    return (
-        ndbv2.documents.PrebatchedDoc(list(doc.chunks()), doc_id=doc.doc_id()),
-        display_path,
-    )
+    return ndbv2.documents.PrebatchedDoc(list(doc.chunks()), doc_id=doc.doc_id())
 
 
-def process_file(
+def parse_doc(
     doc: FileInfo, doc_save_dir: str, tmp_dir: str
 ) -> Tuple[ndbv2.Document, str]:
     """
@@ -114,17 +111,17 @@ def process_file(
             metadata=doc.metadata,
             options=doc.options,
         )
-        os.remove(local_file_path)
 
+        os.remove(local_file_path)
         return ndb_doc
 
     save_artifact_uuid = str(uuid.uuid4())
-    doc_dir = os.path.join(doc_save_dir, save_artifact_uuid)
-    os.makedirs(doc_dir, exist_ok=True)
-    shutil.copy(src=doc.path, dst=doc_dir)
+    artifact_dir = os.path.join(doc_save_dir, save_artifact_uuid)
+    os.makedirs(artifact_dir, exist_ok=True)
+    shutil.copy(src=doc.path, dst=artifact_dir)
 
     return preload_chunks(
-        resource_path=os.path.join(doc_dir, os.path.basename(doc.path)),
+        resource_path=os.path.join(artifact_dir, os.path.basename(doc.path)),
         display_path=os.path.join(save_artifact_uuid, os.path.basename(doc.path)),
         doc_id=doc.doc_id,
         metadata=doc.metadata,
@@ -148,6 +145,9 @@ class NeuralDBV2(Model):
                 "model.ndb",
             )
             self.logger.info(f"Starting training from base model: {base_model_path}")
+            # It seems like this can cause an issue if it runs at the same time as
+            # a deployment job starts because the DB files are modified by the deployment
+            # job which can cause errors during copying.
             shutil.copytree(
                 base_model_path,
                 self.ndb_save_path(),
@@ -177,46 +177,56 @@ class NeuralDBV2(Model):
         check_csv_only(all_files)
         return all_files
 
-    def unsupervised_train(self, files: List[FileInfo], batch_size=100):
+    def unsupervised_train(self, files: List[FileInfo], batch_size=500):
         self.logger.info("Starting unsupervised training.")
 
-        os.makedirs(self.data_dir / "unsupervised", exist_ok=True)
+        n_jobs = max(1, min(os.cpu_count() - 6, 20))
 
-        num_workers = max(1, min(os.cpu_count() - 6, 20))
-        self.logger.info(f"Starting {num_workers} parsing processes")
+        self.logger.info(f"Using {n_jobs} parsing jobs")
 
         doc_save_dir = self.doc_save_path()
         tmp_dir = self.data_dir / "unsupervised"
 
         docs_indexed = 0
 
-        with ProcessPoolExecutor(max_workers=num_workers) as executor:
-            futures = [
-                executor.submit(process_file, file, doc_save_dir, tmp_dir)
-                for file in files
-            ]
+        batches = [files[i : i + batch_size] for i in range(0, len(files), batch_size)]
+        with mp.Pool(processes=n_jobs) as pool:
+            first_batch_start = time.perf_counter()
+            curr_batch = pool.starmap(
+                parse_doc,
+                [(doc, doc_save_dir, tmp_dir) for doc in batches[0]],
+                chunksize=10,
+            )
+            first_batch_end = time.perf_counter()
+            self.logger.info(
+                f"Parsed first batch time={first_batch_end - first_batch_start:.3f}s"
+            )
 
-            batch = []
-            for future in as_completed(futures):
-                try:
-                    ndb_doc, filename = future.result()
-                    batch.append(ndb_doc)
-                    self.logger.debug(
-                        f"Parsed document: doc_id={ndb_doc.doc_id()} {filename=}"
+            for i in range(len(batches)):
+                start = time.perf_counter()
+                if i + 1 < len(batches):
+                    next_batch = pool.starmap_async(
+                        parse_doc,
+                        [(doc, doc_save_dir, tmp_dir) for doc in batches[i + 1]],
+                        chunksize=10,
                     )
-                except Exception as e:
-                    self.logger.error(f"Error processing file: {e}")
+                else:
+                    next_batch = None
 
-                if len(batch) == batch_size:
-                    self.db.insert(batch)
-                    docs_indexed += len(batch)
-                    self.logger.info(f"Inserted {docs_indexed} docs")
-                    batch.clear()
+                index_start = time.perf_counter()
+                self.db.insert(curr_batch)
+                index_end = time.perf_counter()
 
-            if len(batch) > 0:
-                self.db.insert(batch)
-                docs_indexed += len(batch)
-                self.logger.info(f"Inserted {docs_indexed} docs")
+                docs_indexed += len(curr_batch)
+
+                if next_batch:
+                    next_batch.wait()
+                    curr_batch = next_batch.get()
+
+                end = time.perf_counter()
+                self.logger.info(
+                    f"Inserted batch time={end-start:.3f} insert_time={index_end-index_start:.3f} total_docs={docs_indexed}"
+                )
 
         self.logger.info("Completed unsupervised training.")
 

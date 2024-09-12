@@ -136,6 +136,13 @@ jobs:
         echo "PLATFORM=local" >> $GITHUB_ENV
         echo "TEST_ENVIRONMENT=True" >> $GITHUB_ENV
     
+    - name: Export Environment Variables for Sudo
+      run: |
+        # Export all variables from the environment file to the shell
+        set -a
+        source $GITHUB_ENV
+        set +a
+    
     - name: Launch Backend
       run: |
         source ${{ github.workspace }}/venv/bin/activate

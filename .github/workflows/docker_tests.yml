@@ -43,13 +43,14 @@ jobs:
           echo "Generated version: $version"
           echo "::set-output name=version::$version"
 
-      # Build and push docker images to automate testsuite registry
-      - name: Build and push docker images to automate testsuite registry
+      # Build and push docker images to docker tests repository
+      - name: Build and push docker images to docker tests repository
         run: |
           cd release
           pip install -r requirements.txt
           python3 push.py -b docker_tests --config config.yaml --no-cache --dont-update-scope --version ${{ steps.generate_version.outputs.version }}
       
+      # This is to clean up local docker builds to free up storage.
       - name: Cleanup Docker after build
         if: always() # Run this step regardless of success or failure
         run: |

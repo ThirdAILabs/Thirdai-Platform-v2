@@ -5,7 +5,6 @@ from dataclasses import asdict
 from urllib.parse import urljoin
 
 import requests
-
 from utils import load_dict
 from variables import DataCategory, GeneralVariables
 

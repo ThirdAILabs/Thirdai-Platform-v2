@@ -4,15 +4,14 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-from faker import Faker
-from tqdm import tqdm
-
 from data_factory_interface import DataFactory
+from faker import Faker
 from prompt_resources.token_prompts import (
     dataset_generation_prompt,
     dataset_generation_prompt_with_sample,
     tag_value_prompt,
 )
+from tqdm import tqdm
 from utils import (
     remove_duplicates,
     save_dict,

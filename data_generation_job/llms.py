@@ -5,7 +5,6 @@ from typing import Optional
 
 import cohere
 from openai import OpenAI
-
 from utils import save_dict
 
 

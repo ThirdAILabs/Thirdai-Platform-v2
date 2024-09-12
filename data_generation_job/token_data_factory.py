@@ -197,9 +197,6 @@ class TokenDataFactory(DataFactory):
     def _subsample_tag(
         self, tags, k: int = 4, untrained_tag_weight_multiplier: int = 4
     ):
-        # using triangular distribution to favour longer lists by setting mode = high.
-        # k = math.ceil(random.triangular(low=1, high=len(tags), mode=len(tags)))
-        # return random.sample(tags, k)
 
         sampling_weights = np.array(
             [

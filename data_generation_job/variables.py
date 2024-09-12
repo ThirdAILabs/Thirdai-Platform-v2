@@ -5,6 +5,8 @@ from dataclasses import MISSING, asdict, dataclass, fields
 from enum import Enum
 from typing import Dict, List, Optional, Type, TypeVar, Union, get_args, get_origin
 
+from pydantic import BaseModel
+
 T = TypeVar("T", bound="EnvLoader")
 
 
@@ -91,26 +93,22 @@ class EnvLoader:
 
 @dataclass
 class GeneralVariables(EnvLoader):
-    model_bazaar_dir: str
+    task_prompt: str
+    storage_dir: str
     model_bazaar_endpoint: str
-    data_id: str
-    secret_token: str
     data_category: DataCategory
     genai_key: str
     llm_provider: LLMProvider = LLMProvider.openai
     test_size: float = 0.05
 
 
-@dataclass
-class Entity:
+class Entity(BaseModel):
     name: str
     examples: List[str]
     description: str
 
 
-@dataclass
-class TextGenerationVariables(EnvLoader):
-    task_prompt: str
+class TextGenerationVariables(BaseModel):
     samples_per_label: int
     target_labels: List[Entity]
     user_vocab: Optional[List[str]] = None
@@ -118,19 +116,17 @@ class TextGenerationVariables(EnvLoader):
     vocab_per_sentence: int = 4
 
     def to_dict(self):
-        result = asdict(self)
-        result["target_labels"] = [Entity(**res) for res in result["target_labels"]]
+        result = self.model_dump()
+        result["target_labels"] = self.target_labels
         return result
 
 
-@dataclass
-class TokenGenerationVariables(EnvLoader):
-    task_prompt: str
+class TokenGenerationVariables(BaseModel):
     tags: List[Entity]
     num_sentences_to_generate: int
-    tag_values_to_generate: Optional[int] = None
+    num_samples_per_tag: Optional[int] = None
 
     def to_dict(self):
-        result = asdict(self)
-        result["tags"] = [Entity(**res) for res in result["tags"]]
+        result = self.model_dump()
+        result["tags"] = self.tags
         return result

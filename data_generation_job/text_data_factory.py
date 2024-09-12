@@ -46,6 +46,9 @@ class TextDataFactory(DataFactory):
                     )
                 )
 
+                min_sample_len = random.randint(10, 20)
+                offset = random.randint(5, 20)
+
                 prompt = datagen_prompt.format(
                     task_prompt=task_prompt,
                     samples_to_generate=samples_to_generate,
@@ -57,6 +60,8 @@ class TextDataFactory(DataFactory):
                     ),
                     random_prompts="\n".join(self.get_random_prompts()),
                     random_vocab=str(random_vocab),
+                    min_sample_len=min_sample_len,
+                    max_sample_len=min_sample_len + offset,
                 )
                 arguments.append(
                     {"prompt": prompt, "kwargs": {"target_label": target_label.name}}

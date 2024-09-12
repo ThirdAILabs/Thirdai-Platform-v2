@@ -16,12 +16,7 @@ from variables import Entity, GeneralVariables
 class DataFactory(ABC):
     def __init__(self):
         self.general_variables: GeneralVariables = GeneralVariables.load_from_env()
-        self.save_dir = (
-            Path(self.general_variables.model_bazaar_dir)
-            / "generated_data"
-            / self.general_variables.data_id
-        )
-        self.save_dir.mkdir(parents=True, exist_ok=True)
+        self.save_dir = Path(self.general_variables.storage_dir)
         self.llm_model = llm_classes.get(self.general_variables.llm_provider.value)(
             api_key=self.general_variables.genai_key,
             response_file=self.save_dir / "response.txt",
@@ -41,7 +36,10 @@ class DataFactory(ABC):
         self.config_file_location = self.save_dir / "config.json"
         self.generation_args_location = self.save_dir / "generation_args.json"
 
+        # These many samples would be asked to generate from an LLM call.
         self.generate_at_a_time = 40
+
+        # These many LLM call's reponse would be written out at a time.
         self.write_chunk_size = 10
 
         if self.train_file_location.exists():
@@ -64,6 +62,7 @@ class DataFactory(ABC):
     def fill_and_transform(self, **kwargs):
         pass
 
+    # ------------------------------------------------
     ## Function to get random vocab and prompt to improve variability and randomness in the dataset
     def get_random_vocab(self, k: int = 1):
         return random.sample(population=vocab, k=k)

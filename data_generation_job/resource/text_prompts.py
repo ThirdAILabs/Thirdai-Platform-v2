@@ -4,24 +4,23 @@ Generate {samples_to_generate} training samples for above task for the label "{l
 The data generated should strictly follow the description: 
 {label_name}: {label_description}
 
-DO NOT include any bulleting or prefix at start of each sentence and each. Do not include any quotes or emojis.
-
-
-VERY IMPORTANT POINT: Give only the sentences in output and make sure each sentence should start on a new line. Do not include any extra new line.
-
+Output Format:
+- Each sample should be in a newline.
+- DO NOT include any enumeration, bulleting, prefix/suffix or any processes involved. Do not include any quotes or emojis.
 
 Ensure that the data is diverse enough to capture different genres and dialects.
 Do not include the label in sentences.
+Try to generate samples containing {min_sample_len} to {max_sample_len} number of words.
 
 Following are some of the sample data points for reference:
 {examples}
 
-GENERATED SAMPLES MUST BE VERY DIFFERENT FROM THE ABOVE SAMPLES
+Don't generate these exact examples.
 
 {user_prompts}
 You can refer to these prompt to include diversity:
 {random_prompts}
 
-Sentences should have following words to generate diverse examples:
+You can following words to generate diverse samples:
 {random_vocab}
 """

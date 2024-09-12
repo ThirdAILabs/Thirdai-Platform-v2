@@ -61,12 +61,11 @@ class TokenDataFactory(DataFactory):
         task_prompt: str,
         tag: Entity,
         values_to_generate: int,
-        generate_at_a_time: int = 100
+        complete_tag_values: Dict[str, List[str]],
+        generate_at_a_time: int = 100,
     ):
-        sampled_tag_values = random.sample(
-                tag.examples, k=min(3, len(tag.examples))
-            )
-        
+        sampled_tag_values = random.sample(tag.examples, k=min(3, len(tag.examples)))
+
         # Collecting prompts
         arguments = []
         for idx in range(0, values_to_generate, generate_at_a_time):
@@ -86,14 +85,14 @@ class TokenDataFactory(DataFactory):
             )
         total_chunks = len(arguments) // self.write_chunk_size + 1
 
-        # Making llm call with collected prompts parallely.
-        # TODO(Gautam): If there are limited values to a tag, only should make call to get those many values atmost.
+        # Making llm call with collected prompts parallelly.
         for idx in tqdm(
             range(0, len(arguments), self.write_chunk_size),
             desc=f"Generating {tag.name} values: ",
             total=total_chunks,
             leave=False,
         ):
+            # TODO(Gautam): If there are limited values to a tag, only should make call to get those many values atmost.
             chunks_to_process = arguments[idx : idx + self.write_chunk_size]
 
             responses: List[Dict[str, Any]] = self.run_and_collect_results(
@@ -107,9 +106,8 @@ class TokenDataFactory(DataFactory):
             ]
 
             complete_tag_values[tag.name].extend(generated_tag_values)
-            save_dict(
-                write_to=self.save_dir / "tags_value.json", **complete_tag_values
-            )
+            save_dict(write_to=self.save_dir / "tags_value.json", **complete_tag_values)
+
     # Function to generate the tag_values by using faker library or LLM calls.
     def get_tag_values(
         self,
@@ -139,9 +137,13 @@ class TokenDataFactory(DataFactory):
                 continue
 
             # Not able to generate by faker so, generating samples by llm
-            
-
-            
+            samples = self.get_tag_values_from_llm(
+                task_prompt=task_prompt,
+                tag=tag,
+                values_to_generate=values_to_generate,
+                complete_tag_values=complete_tag_values,
+                generate_at_a_time=generate_at_a_time,
+            )
 
         complete_tag_values = {
             tag_name: remove_duplicates(values)
@@ -189,7 +191,7 @@ class TokenDataFactory(DataFactory):
     def _subsample_tag(self, tags: List[Entity], k: int = 4):
         return random.sample(tags, min(len(tags), k))
 
-    def collect_arguments(
+    def collect_prompts(
         self,
         tags: List[Entity],
         templates_to_generate: int,
@@ -238,7 +240,7 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
         task_prompt: str,
         tags: List[Entity],
         num_sentences_to_generate: int,
-        tag_values_to_generate: Optional[int] = None,
+        num_samples_per_tag: Optional[int] = None,
     ):
         templates_to_generate = self._templates_to_generate(num_sentences_to_generate)
         """
@@ -252,7 +254,7 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
         tag_values = self.get_tag_values(
             task_prompt=task_prompt,
             tags=tags,
-            values_to_generate=tag_values_to_generate
+            values_to_generate=num_samples_per_tag
             or (templates_to_generate * self.sentences_per_template),
         )
 
@@ -264,8 +266,8 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
             save=True,
         )
 
-        # Creating a prompt list to be executed parallely.
-        arguments = self.collect_arguments(
+        # Creating a prompt list to be executed parallelly.
+        arguments = self.collect_prompts(
             tags=tags,
             templates_to_generate=templates_to_generate,
             task_prompt=task_prompt,
@@ -281,7 +283,7 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
         ):
             chunks_to_process = arguments[idx : idx + self.write_chunk_size]
 
-            # parallely make the {self.write_chunk_size} number of LLM calls.
+            # parallelly make the {self.write_chunk_size} number of LLM calls.
             generated_templates: List[Dict[str, Any]] = self.run_and_collect_results(
                 tasks_prompt=chunks_to_process, parallelize=True
             )

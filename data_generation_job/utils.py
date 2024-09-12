@@ -11,6 +11,11 @@ def save_dict(write_to: str, **kwargs):
         json.dump(kwargs, fp, indent=4)
 
 
+def load_dict(path: str):
+    with open(path, "r") as fp:
+        return json.load(fp)
+
+
 def remove_duplicates(words: List[str]):
     seen = set()
     uniques = []

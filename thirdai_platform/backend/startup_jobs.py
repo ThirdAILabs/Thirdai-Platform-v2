@@ -1,7 +1,7 @@
 import os
+import shutil
 import uuid
 from pathlib import Path
-import shutil
 
 from backend.utils import (
     delete_nomad_job,
@@ -173,9 +173,16 @@ async def restart_telemetry_jobs():
 
     cwd = Path(os.getcwd())
 
-    if os.path.exists(os.path.join(MODEL_BAZAAR_PATH, "telemetry", "telemetry_dashboards")):
-        shutil.rmtree(os.path.join(MODEL_BAZAAR_PATH, "telemetry", "telemetry_dashboards"))
-    shutil.copytree(os.path.join(cwd, "telemetry_dashboards"), os.path.join(MODEL_BAZAAR_PATH, "telemetry", "telemetry_dashboards"))
+    if os.path.exists(
+        os.path.join(MODEL_BAZAAR_PATH, "telemetry", "telemetry_dashboards")
+    ):
+        shutil.rmtree(
+            os.path.join(MODEL_BAZAAR_PATH, "telemetry", "telemetry_dashboards")
+        )
+    shutil.copytree(
+        os.path.join(cwd, "telemetry_dashboards"),
+        os.path.join(MODEL_BAZAAR_PATH, "telemetry", "telemetry_dashboards"),
+    )
 
     response = submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
@@ -190,7 +197,7 @@ async def restart_telemetry_jobs():
         share_dir=os.getenv("SHARE_DIR"),
         python_path=get_python_path(),
         node_discovery_script=str(get_root_absolute_path() / "node_discovery/run.py"),
-        model_bazaar_path=MODEL_BAZAAR_PATH.rstrip("/")
+        model_bazaar_path=MODEL_BAZAAR_PATH.rstrip("/"),
     )
     if response.status_code != 200:
         raise Exception(f"{response.text}")

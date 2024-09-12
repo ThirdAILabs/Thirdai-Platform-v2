@@ -179,6 +179,8 @@ class ModelBazaar:
         if not unsupervised_docs and not supervised_docs:
             raise ValueError("Both the unsupervised and supervised docs are empty.")
 
+        unsupervised_docs = unsupervised_docs or []
+
         if metadata and unsupervised_docs:
             if len(metadata) != len(unsupervised_docs):
                 raise ValueError("Metadata is not provided for all unsupervised files.")
@@ -412,7 +414,7 @@ class ModelBazaar:
         else:
             datagen_options = {
                 "sub_type": "token",
-                "domain_prompt": task_prompt,
+                "task_prompt": task_prompt,
                 "tags": list(category_examples.keys()),
                 "tag_examples": category_examples,
                 "num_sentences_to_generate": 10_000,

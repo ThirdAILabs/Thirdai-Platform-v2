@@ -107,14 +107,12 @@ export type TelemetryEventPackage = {
 
 export class ModelService {
     url: string;
-    wsUrl: string;
     sessionId: string;
     authToken: string | null;
     tokenModelUrl: string;
 
     constructor(url: string, tokenModelUrl: string, sessionId: string) {
         this.url = url;
-        this.wsUrl = deploymentBaseUrl.replace("http", "ws");
         this.sessionId = sessionId;
         this.tokenModelUrl = tokenModelUrl;
         this.authToken = window.localStorage.getItem(
@@ -139,7 +137,7 @@ export class ModelService {
             return response;
         };
     }
-    
+
     getModelID(): string {
         function extractModelIdFromUrl(url: string) {
             const urlParts = new URL(url);
@@ -597,9 +595,9 @@ export class ModelService {
         question: string,
         genaiPrompt: string,
         references: ReferenceInfo[],
-        websocketRef: React.MutableRefObject<WebSocket | null>,
         onNextWord: (str: string) => void,
         genAiProvider?: string,
+        workflowId?: string,
         onComplete?: (finalAnswer: string) => void
     ) {
         let finalAnswer = ''; // Variable to accumulate the response
@@ -613,49 +611,60 @@ export class ModelService {
             cache_access_token: cache_access_token.access_token
         };
 
-        if (genAiProvider) {
-            args.provider = genAiProvider;
+
+        let cache_access_token = null;
+        try {
+            cache_access_token = await temporaryCacheToken(this.getModelID());
+        } catch (error) {
+            console.error("Error getting cache access token:", error);
         }
 
-        const uri = this.wsUrl + "/llm-dispatch/generate";
-        websocketRef.current = new WebSocket(uri);
+        try {
+            const args = {
+                query: genaiQuery(question, references, genaiPrompt),
+                key: "sk-PYTWB6gs_ofO44-teXA2rIRGRbJfzqDyNXBalHXKcvT3BlbkFJk5905SK2RVE6_ME8i4Lnp9qULbyPZSyOU0vh2fZfQA",
+                provider: genAiProvider,
+                workflow_id: workflowId,
+                original_query: question,
+                cache_access_token: cache_access_token,
+            };
 
-        websocketRef.current.onopen = async function (event) {
-            websocketRef.current!.send(JSON.stringify(args));
-        };
+            const uri = deploymentBaseUrl + "/llm-dispatch/generate"
+            const response = await fetch(uri, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(args)
+            });
 
-        websocketRef.current.onmessage = function (event) {
-            const response = JSON.parse(event.data);
-            if (response["status"] === "error") {
-                onNextWord(response["detail"]);
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
             }
-            if (response["status"] === "success") {
-                onNextWord(response["content"]);
-                finalAnswer += response["content"]; // Append each piece of content to the finalAnswer
-            }
-            if (response["end_of_stream"]) {
-                websocketRef.current!.close();
-            }
-        };
-
-        websocketRef.current.onerror = function (error) {
-            console.error("Generation Error:", error);
-            alert("Generation Error:" + error)
-        };
-
-        websocketRef.current.onclose = function (event) {
-            if (event.wasClean) {
-                console.log(
-                    `Closed cleanly, code=${event.code}, reason=${event.reason}`,
-                );
-                if (typeof onComplete === 'function') {
-                    onComplete(finalAnswer); // Call onComplete with the accumulated finalAnswer
+    
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+    
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    break;
                 }
-            } else {
-                console.error(`Connection died`);
-                alert(`Connection died`)
+    
+                const newData = decoder.decode(value, { stream: true });
+                finalAnswer += newData;
+    
+                onNextWord(newData);
             }
-        };
+
+            if (onComplete) {
+                onComplete(finalAnswer);
+            }
+        } catch (error) {
+            console.error("Generation Error:", error);
+            alert("Generation Error:" + error);
+            onNextWord("An error occurred during generation.");
+        }
     }
 
     getChatHistory(): Promise<ChatMessage[]> {

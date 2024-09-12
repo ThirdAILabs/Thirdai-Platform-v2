@@ -1,8 +1,14 @@
 import random
 import re
 from collections import defaultdict
-from resource.token_prompts import dataset_generation_prompt, tag_value_prompt
+from resource.token_prompts import (
+    dataset_generation_prompt,
+    tag_value_prompt,
+    dataset_generation_prompt_with_sample,
+)
 from typing import Any, Dict, List, Optional
+import random
+import numpy as np
 
 from data_factory_interface import DataFactory
 from faker import Faker
@@ -14,7 +20,7 @@ from utils import (
     train_test_split,
     write_to_csv,
 )
-from variables import Entity
+from variables import Entity, NERSample
 
 
 class TokenDataFactory(DataFactory):
@@ -188,8 +194,28 @@ class TokenDataFactory(DataFactory):
             num_sentences_to_generate - self.train_sentences_generated
         ) // self.sentences_per_template
 
-    def _subsample_tag(self, tags: List[Entity], k: int = 4):
-        return random.sample(tags, min(len(tags), k))
+    def _subsample_tag(
+        self, tags, k: int = 4, untrained_tag_weight_multiplier: int = 4
+    ):
+        # using triangular distribution to favour longer lists by setting mode = high.
+        # k = math.ceil(random.triangular(low=1, high=len(tags), mode=len(tags)))
+        # return random.sample(tags, k)
+
+        sampling_weights = np.array(
+            [
+                untrained_tag_weight_multiplier if tag.status == "untrained" else 1
+                for tag in tags
+            ]
+        )
+
+        selected_indices = np.random.choice(
+            len(tags),
+            size=min(len(tags), k),
+            replace=False,
+            p=sampling_weights / sampling_weights.sum(),
+        )
+
+        return [tags[i] for i in selected_indices]
 
     def collect_prompts(
         self,
@@ -235,45 +261,13 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
 
         return arguments
 
-    def generate_data(
+    def generate_synthetic_data_for_prompts(
         self,
-        task_prompt: str,
-        tags: List[Entity],
-        num_sentences_to_generate: int,
-        num_samples_per_tag: Optional[int] = None,
+        arguments: List[Dict[str, str]],
+        train_tag_values: Dict[str, List[str]],
+        test_tag_values: Dict[str, List[str]],
+        tags,
     ):
-        templates_to_generate = self._templates_to_generate(num_sentences_to_generate)
-        """
-        Generating the tag values
-        Example: 
-            Tags: [CREDIT_CARD_NUMBER, CVV]
-
-            CREDIT_CARD_NUMBER = [568598651245, 7895-7895-3526-9184,..]
-            CVV = [285, 569,..]
-        """
-        tag_values = self.get_tag_values(
-            task_prompt=task_prompt,
-            tags=tags,
-            values_to_generate=num_samples_per_tag
-            or (templates_to_generate * self.sentences_per_template),
-        )
-
-        # Splitting the tag values into train and test set.
-        train_tag_values, test_tag_values = self.train_test_tag_split(
-            tag_values=tag_values,
-            test_size=self.general_variables.test_size * self.sentences_per_template,
-            shuffle=True,
-            save=True,
-        )
-
-        # Creating a prompt list to be executed parallelly.
-        arguments = self.collect_prompts(
-            tags=tags,
-            templates_to_generate=templates_to_generate,
-            task_prompt=task_prompt,
-            tag_values=tag_values,
-        )
-
         random.shuffle(arguments)
         total_chunks = len(arguments) // self.write_chunk_size + 1
         for idx in tqdm(
@@ -382,6 +376,141 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
         save_dict(self.config_file_location, **dataset_config)
 
         return dataset_config
+
+    def generate_data(
+        self,
+        task_prompt: str,
+        tags: List[Entity],
+        num_sentences_to_generate: int,
+        num_samples_per_tag: Optional[int] = None,
+    ):
+        templates_to_generate = self._templates_to_generate(num_sentences_to_generate)
+        """
+        Generating the tag values
+        Example: 
+            Tags: [CREDIT_CARD_NUMBER, CVV]
+
+            CREDIT_CARD_NUMBER = [568598651245, 7895-7895-3526-9184,..]
+            CVV = [285, 569,..]
+        """
+        tag_values = self.get_tag_values(
+            task_prompt=task_prompt,
+            tags=tags,
+            values_to_generate=num_samples_per_tag
+            or (templates_to_generate * self.sentences_per_template),
+        )
+
+        # Splitting the tag values into train and test set.
+        train_tag_values, test_tag_values = self.train_test_tag_split(
+            tag_values=tag_values,
+            test_size=self.general_variables.test_size * self.sentences_per_template,
+            shuffle=True,
+            save=True,
+        )
+
+        # Creating a prompt list to be executed parallelly.
+        arguments = self.collect_prompts(
+            tags=tags,
+            templates_to_generate=templates_to_generate,
+            task_prompt=task_prompt,
+            tag_values=tag_values,
+        )
+
+        self.generate_synthetic_data_for_prompts(
+            arguments, train_tag_values, test_tag_values, tags
+        )
+
+    def generate_data_using_samples(
+        self,
+        task_prompt: str,
+        tags: List[Entity],
+        num_sentences_to_generate: int,
+        templates_per_sample: int,
+        tag_values_to_generate: Optional[int] = None,
+        samples: List[NERSample] = None,
+    ):
+        templates_to_generate = self._templates_to_generate(num_sentences_to_generate)
+
+        if samples is None:
+            samples = []
+
+        tags_dict = {tag.name: tag for tag in tags}
+
+        for sample in samples:
+            tag_examples = sample.get_values()
+            for tag in tag_examples.keys():
+                if tag not in tags_dict:
+                    tags_dict[tag] = Entity(
+                        name=tag,
+                        examples=tag_examples[tag],
+                        description="NA",
+                        status="untrained",
+                    )
+                else:
+                    examples = tags_dict[tag].examples
+                    if len(examples) < 50:
+                        examples += tag_examples[tag]
+
+        tag_values = self.get_tag_values(
+            task_prompt,
+            list(tags_dict.values()),
+            values_to_generate=tag_values_to_generate
+            or (templates_to_generate * self.sentences_per_template),
+        )
+
+        train_tag_values, test_tag_values = self.train_test_tag_split(
+            tag_values=tag_values,
+            test_size=self.general_variables.test_size * self.sentences_per_template,
+            shuffle=True,
+            save=True,
+        )
+
+        tag_descriptions = self.get_extended_description(list(tags_dict.values()))
+
+        prompts = []
+
+        for sample in samples:
+            sample_tags = sample.get_tags()
+            sample_tags = [tags_dict[tag] for tag in sample_tags]
+
+            prompt = dataset_generation_prompt_with_sample.format(
+                task_prompt=task_prompt,
+                num_to_generate=templates_per_sample,
+                tags_info="\n\n".join(
+                    [
+                        f"""
+Tag : {tag.name}
+Description : {tag.description if tag.description != 'NA' else ''} {tag_descriptions[tag.name]}
+Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given but variations as well.
+""".strip(
+                            "\n"
+                        )
+                        for tag in sample_tags
+                    ]
+                ),
+                value_requirements="\n- ".join(self.get_random_prompts(k=2)),
+            )
+
+            system_prompt = (
+                f"You are a helpful assistant designed to generate synthetic data for domain {task_prompt}.",
+            )
+
+            prompts.append({"prompt": prompt, "system_prompt": system_prompt})
+
+            current_sentence_index += self.generate_at_a_time
+
+        token_prompts = self.collect_arguments(
+            tags=tags,
+            templates_to_generate=templates_to_generate,
+            task_prompt=task_prompt,
+            tag_values=tag_values,
+        )
+
+        combined_prompts = prompts + token_prompts
+
+        self.generate_synthetic_data_for_prompts(
+            combined_prompts, train_tag_values, test_tag_values, tags
+        )
 
     def fill_and_transform(
         self,

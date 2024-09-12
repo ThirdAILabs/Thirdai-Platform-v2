@@ -36,7 +36,12 @@ app.add_middleware(
 # with @reset_timer is called, in which case the timer restarts.
 reset_event = asyncio.Event()
 
-model = get_model()
+# We have a case where we copy the ndb model for base model training and
+# read the model for deployment we face the open database issue.
+try:
+    model = get_model()
+except Exception as err:
+    reporter.update_deploy_status(general_variables.model_id, "failed")
 
 
 def reset_timer(endpoint_func):

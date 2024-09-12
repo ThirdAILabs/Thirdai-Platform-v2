@@ -1,18 +1,18 @@
 import random
 import re
 from collections import defaultdict
-from prompt_resources.token_prompts import (
-    dataset_generation_prompt,
-    tag_value_prompt,
-    dataset_generation_prompt_with_sample,
-)
 from typing import Any, Dict, List, Optional
-import random
-import numpy as np
 
-from data_factory_interface import DataFactory
+import numpy as np
 from faker import Faker
 from tqdm import tqdm
+
+from data_factory_interface import DataFactory
+from prompt_resources.token_prompts import (
+    dataset_generation_prompt,
+    dataset_generation_prompt_with_sample,
+    tag_value_prompt,
+)
 from utils import (
     remove_duplicates,
     save_dict,

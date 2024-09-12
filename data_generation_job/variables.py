@@ -1,8 +1,8 @@
 import ast
 import html
 import os
-from dataclasses import MISSING, asdict, dataclass, fields
 from collections import defaultdict
+from dataclasses import MISSING, asdict, dataclass, fields
 from enum import Enum
 from typing import Dict, List, Optional, Type, TypeVar, Union, get_args, get_origin
 

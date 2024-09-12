@@ -11,6 +11,8 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
@@ -18,10 +20,12 @@ jobs:
     runs-on: self-hosted
     environment:
       name: docker_tests
-    
+
+    if: github.event_name != 'pull_request'
+
     outputs:
       version: ${{ steps.generate_version.outputs.version }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -56,6 +60,8 @@ jobs:
     environment:
       name: docker_tests
 
+    if: github.event_name != 'pull_request'
+
     needs: build_docker_images
 
     steps:
@@ -86,6 +92,8 @@ jobs:
       fail-fast: false
 
     runs-on: self-hosted
+
+    if: github.event_name != 'pull_request'
     
     environment:
       name: docker_tests
@@ -135,8 +143,8 @@ jobs:
 
     needs: test
 
-    # # This condition ensures that the job runs only if the branch is not 'main'.
-    if: github.ref != 'refs/heads/main'
+    # This condition ensures that the job runs only if the branch is not 'main' and it's not a pull request.
+    if: github.ref != 'refs/heads/main' && github.event_name != 'pull_request'
 
     environment:
       name: docker_tests
@@ -180,9 +188,9 @@ jobs:
     environment:
       name: docker_tests
 
-    needs: [ test , build_docker_images]
+    needs: [ test , build_docker_images ]
 
-    if: success() || failure()
+    if: always() && github.event_name != 'pull_request'
 
     steps:
       - name: Checkout code

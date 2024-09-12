@@ -3,8 +3,8 @@ import random
 import traceback
 from abc import ABC, abstractmethod
 from pathlib import Path
-from resource.common_prompts import extended_description_prompt
-from resource.util_data import random_prompts, vocab
+from prompt_resources.common_prompts import extended_description_prompt
+from prompt_resources.util_data import random_prompts, vocab
 from typing import Dict, List, Optional
 
 from llms import llm_classes

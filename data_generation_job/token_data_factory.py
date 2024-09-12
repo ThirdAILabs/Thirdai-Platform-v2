@@ -1,7 +1,7 @@
 import random
 import re
 from collections import defaultdict
-from resource.token_prompts import (
+from prompt_resources.token_prompts import (
     dataset_generation_prompt,
     tag_value_prompt,
     dataset_generation_prompt_with_sample,

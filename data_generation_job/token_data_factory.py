@@ -293,9 +293,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
                 value_requirements="\n- ".join(self.get_random_prompts(k=2)),
             )
 
-            system_prompt = (
-                f"You are a helpful assistant designed to generate synthetic data for domain {task_prompt}.",
-            )
+            system_prompt = f"You are a helpful assistant designed to generate synthetic data for domain {task_prompt}."
 
             prompts.append({"prompt": prompt, "system_prompt": system_prompt})
 
@@ -430,8 +428,6 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
 
         if samples is None:
             samples = []
-        else:
-            samples = [NERSample.model_validate(sample) for sample in samples]
 
         tags_dict = {tag.name: tag for tag in tags}
 

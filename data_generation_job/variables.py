@@ -132,19 +132,11 @@ class NERSample(BaseModel):
         # Example -> My name is [NAME]
         example = []
 
-        past_tokens = []
         for index, (token, tag) in enumerate(zip(self.tokens, self.tags)):
-            if index + 1 >= len(self.tokens) or tag != self.tags[index + 1]:
-                past_tokens.append(token)
-                if tag == "O":
-                    example += past_tokens
-                else:
-                    example += [f"[{tag}]"]
-
-                past_tokens = []
-
-            else:
-                past_tokens.append(token)
+            if tag == "O":
+                example.append(token)
+            elif index + 1 == len(self.tokens) or tag != self.tags[index + 1]:
+                example.append(f"[{tag}]")
 
         return " ".join(example)
 
@@ -184,4 +176,5 @@ class TokenGenerationVariables(BaseModel):
     def to_dict(self):
         result = self.model_dump()
         result["tags"] = self.tags
+        result["samples"] = self.samples
         return result

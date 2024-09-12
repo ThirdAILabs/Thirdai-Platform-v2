@@ -16,6 +16,14 @@ azure:
         password: c3P3qKGzI2dBE6fiKJfF+zHos70aRFcJ6vVLZh+zq0+ACRCEzI7T
         username: thirdaiplatform-push-release-test
       version: 0.0.18
+    telemetry:
+      pull_credentials:
+        password: vqBynEGfXK7Ft2l9jG7DAjUi6zPb3iffhT29aSptpn+ACRAX5UO5
+        username: thirdaiplatform-pull-telemetry
+      push_credentials:
+        password: 88H32TGUQ9Qgk60ipNW9Z2vfgtD7ZTZ3KSLCweWa0A+ACRAvBEe3
+        username: thirdaiplatform-push-telemetry
+      version: 0.0.2
     test_1:
       pull_credentials:
         password: lfhxcL/qmrYP24rIH2vmRNSYV9ZlNCfxJyQI6E3kVi+ACRDjUz22

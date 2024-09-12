@@ -22,13 +22,14 @@ const predefinedChoices = [
 ];
 
 interface NERQuestionsProps {
+  modelGoal: string;
   workflowNames: string[];
   onCreateModel?: (modelId: string) => void;
   stayOnPage?: boolean;
   appName?: string;
 };
 
-const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NERQuestionsProps) => {
+const NERQuestions = ({ workflowNames, modelGoal, onCreateModel, stayOnPage, appName }: NERQuestionsProps) => {
   const [modelName, setModelName] = useState(!appName ? '' : appName);
   const [categories, setCategories] = useState([{ name: '', example: '', description: '' }]);
   const [isDataGenerating, setIsDataGenerating] = useState(false);
@@ -164,13 +165,14 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
       alert("Please enter a model name.");
       return;
     }
-
-    const tags = Array.from(new Set(categories.map(cat => cat.name)));
-
+    if (warningMessage !== '') {
+      return;
+    }
+  
     setIsLoading(true);
 
     try {
-      const modelResponse = await trainTokenClassifier(modelName, generatedData, tags);
+      const modelResponse = await trainTokenClassifier(modelName, modelGoal, categories);
       const modelId = modelResponse.data.model_id;
 
       // This is called from RAG
@@ -224,6 +226,10 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
         className="text-md"
         value={modelName}
         onChange={(e) => {
+          const name = e.target.value;
+          setModelName(name)
+        }}
+        onBlur={(e) => {
           const name = e.target.value;
           const regexPattern = /^[\w-]+$/;
           let warningMessage = "";
@@ -355,7 +361,7 @@ const NERQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: NER
 
       {!isDataGenerating && generatedData.length > 0 && (
         <div className='mt-5'>
-          <h3 className='mb-3 text-lg font-semibold'>Generated Data</h3>
+          <h3 className='mb-3 text-lg font-semibold'>Example Generated Data</h3>
           <div>
             {generatedData.map((pair, index) => (
               <div key={index} className='my-2'>

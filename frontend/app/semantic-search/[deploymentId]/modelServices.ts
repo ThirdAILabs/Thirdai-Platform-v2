@@ -600,19 +600,19 @@ export class ModelService {
         workflowId?: string,
         onComplete?: (finalAnswer: string) => void
     ) {
-        let finalAnswer = '';
-
-        let cache_access_token = null;
-        try {
-            cache_access_token = await temporaryCacheToken(this.getModelID());
-        } catch (error) {
-            console.error("Error getting cache access token:", error);
-        }
+        let finalAnswer = ''; // Variable to accumulate the response
 
         try {
-            const args = {
+            const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
+            let cache_access_token = null;
+            try {
+                cache_access_token = await temporaryCacheToken(this.getModelID());
+            } catch (error) {
+                console.error("Error getting cache access token:", error);
+            }
+            const args: any = {
                 query: genaiQuery(question, references, genaiPrompt),
-                key: "sk-PYTWB6gs_ofO44-teXA2rIRGRbJfzqDyNXBalHXKcvT3BlbkFJk5905SK2RVE6_ME8i4Lnp9qULbyPZSyOU0vh2fZfQA",
+                key: apiKey,
                 provider: genAiProvider,
                 workflow_id: workflowId,
                 original_query: question,
@@ -632,7 +632,7 @@ export class ModelService {
                 throw new Error('Network response was not ok');
             }
     
-            const reader = response.body.getReader();
+            const reader = response.body!.getReader();
             const decoder = new TextDecoder('utf-8');
     
             while (true) {

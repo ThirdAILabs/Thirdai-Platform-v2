@@ -268,26 +268,28 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
         tag_values: Dict[str, List[str]],
     ):
         prompts = []
-
         for sample in samples:
             sample_tags = sample.get_tags()
             sample_tags = [tags_dict[tag] for tag in sample_tags]
 
-            prompt = dataset_generation_prompt_with_sample.format(
-                task_prompt=task_prompt,
-                num_to_generate=templates_per_sample,
-                tags_info="\n\n".join(
-                    [
-                        f"""
+            tag_info = "\n\n".join(
+                [
+                    f"""
 Tag : {tag.name}
 Description : {tag.description if tag.description != 'NA' else ''} {tag_descriptions[tag.name]}
 Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given but variations as well.
 """.strip(
-                            "\n"
-                        )
-                        for tag in sample_tags
-                    ]
-                ),
+                        "\n"
+                    )
+                    for tag in sample_tags
+                ]
+            )
+
+            prompt = dataset_generation_prompt_with_sample.format(
+                task_prompt=task_prompt,
+                sample=sample.get_example_template(),
+                num_to_generate=templates_per_sample,
+                tags_info=tag_info,
                 value_requirements="\n- ".join(self.get_random_prompts(k=2)),
             )
 
@@ -296,6 +298,8 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
             )
 
             prompts.append({"prompt": prompt, "system_prompt": system_prompt})
+
+        return prompts
 
     def generate_synthetic_data_for_prompts(
         self,
@@ -418,7 +422,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
         task_prompt: str,
         tags: List[Entity],
         num_sentences_to_generate: int,
-        tag_values_to_generate: Optional[int] = None,
+        num_samples_per_tag: Optional[int] = None,
         samples: List[NERSample] = None,
         templates_per_sample: int = 4,
     ):
@@ -426,6 +430,8 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
 
         if samples is None:
             samples = []
+        else:
+            samples = [NERSample.model_validate(sample) for sample in samples]
 
         tags_dict = {tag.name: tag for tag in tags}
 
@@ -450,7 +456,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
         tag_values = self.get_tag_values(
             task_prompt,
             list(tags_dict.values()),
-            values_to_generate=tag_values_to_generate
+            values_to_generate=num_samples_per_tag
             or (templates_to_generate * self.sentences_per_template),
         )
 

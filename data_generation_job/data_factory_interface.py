@@ -163,13 +163,3 @@ class DataFactory(ABC):
             errored_fp.write("\n" + "=" * 100 + "\n")
             errored_fp.write(text)
             errored_fp.write("\n" + "=" * 100 + "\n")
-
-    # Save the llm usage statistics
-    def __del__(self):
-        save_dict(
-            self.save_dir / "llm_usage.json",
-            **{
-                "llm_provider": self.general_variables.llm_provider.value,
-                **self.llm_model.usage,
-            },
-        )

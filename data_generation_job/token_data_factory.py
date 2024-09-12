@@ -37,7 +37,7 @@ class TokenDataFactory(DataFactory):
         ]
 
     # Function to generate the tag_values by faker library
-    def get_fake_tag_values(self, tag: str, num_samples: int):
+    def get_tag_values_from_faker(self, tag: str, num_samples: int):
         # NOTE: It could be better to have an exact match
         matched_attrs = list(
             filter(lambda method: tag.lower() == method.lower(), self.faked_methods)
@@ -56,6 +56,60 @@ class TokenDataFactory(DataFactory):
             ),
         )
 
+    def get_tag_values_from_llm(
+        self,
+        task_prompt: str,
+        tag: Entity,
+        values_to_generate: int,
+        generate_at_a_time: int = 100
+    ):
+        sampled_tag_values = random.sample(
+                tag.examples, k=min(3, len(tag.examples))
+            )
+        
+        # Collecting prompts
+        arguments = []
+        for idx in range(0, values_to_generate, generate_at_a_time):
+            arguments.append(
+                {
+                    "prompt": tag_value_prompt.format(
+                        task_prompt=task_prompt,
+                        num_samples_per_tag=min(
+                            generate_at_a_time,
+                            values_to_generate - idx,
+                        ),
+                        tag=tag.name,
+                        tag_example=str(sampled_tag_values),
+                        tag_description=tag.description,
+                    ),
+                }
+            )
+        total_chunks = len(arguments) // self.write_chunk_size + 1
+
+        # Making llm call with collected prompts parallely.
+        # TODO(Gautam): If there are limited values to a tag, only should make call to get those many values atmost.
+        for idx in tqdm(
+            range(0, len(arguments), self.write_chunk_size),
+            desc=f"Generating {tag.name} values: ",
+            total=total_chunks,
+            leave=False,
+        ):
+            chunks_to_process = arguments[idx : idx + self.write_chunk_size]
+
+            responses: List[Dict[str, Any]] = self.run_and_collect_results(
+                tasks_prompt=chunks_to_process, parallelize=True
+            )
+
+            generated_tag_values = [
+                value.strip()
+                for res in responses
+                for value in res["response_text"].split("\n")
+            ]
+
+            complete_tag_values[tag.name].extend(generated_tag_values)
+            save_dict(
+                write_to=self.save_dir / "tags_value.json", **complete_tag_values
+            )
     # Function to generate the tag_values by using faker library or LLM calls.
     def get_tag_values(
         self,
@@ -70,17 +124,12 @@ class TokenDataFactory(DataFactory):
             complete_tag_values[tag.name].extend(tag.examples)
 
             # Trying to generate more examples from faker
-            samples = self.get_fake_tag_values(
+            samples = self.get_tag_values_from_faker(
                 tag.name,
                 num_samples=int(
                     values_to_generate * 1.5
                 ),  # Assuming after removing duplicates, we'll have `values_to_generate` tag values
             )
-
-            def stringify_tuples(x):
-                if isinstance(x, tuple):
-                    return " ".join(x)
-                return x
 
             if samples:
                 save_dict(
@@ -90,51 +139,9 @@ class TokenDataFactory(DataFactory):
                 continue
 
             # Not able to generate by faker so, generating samples by llm
-            sampled_tag_values = random.sample(
-                tag.examples, k=min(3, len(tag.examples))
-            )
+            
 
-            arguments = []
-            for idx in range(0, values_to_generate, generate_at_a_time):
-                arguments.append(
-                    {
-                        "prompt": tag_value_prompt.format(
-                            task_prompt=task_prompt,
-                            num_samples_per_tag=min(
-                                generate_at_a_time,
-                                values_to_generate - idx,
-                            ),
-                            tag=tag.name,
-                            tag_example=str(sampled_tag_values),
-                            tag_description=tag.description,
-                        ),
-                    }
-                )
-            total_chunks = len(arguments) // self.write_chunk_size + 1
-
-            # TODO(Gautam): If there are limited values to a tag, only should make call to get those many values atmost.
-            for idx in tqdm(
-                range(0, len(arguments), self.write_chunk_size),
-                desc=f"Generating {tag.name} values: ",
-                total=total_chunks,
-                leave=False,
-            ):
-                chunks_to_process = arguments[idx : idx + self.write_chunk_size]
-
-                responses: List[Dict[str, Any]] = self.run_and_collect_results(
-                    tasks_prompt=chunks_to_process, parallelize=True
-                )
-
-                generated_tag_values = [
-                    value.strip()
-                    for res in responses
-                    for value in res["response_text"].split("\n")
-                ]
-
-                complete_tag_values[tag.name].extend(generated_tag_values)
-                save_dict(
-                    write_to=self.save_dir / "tags_value.json", **complete_tag_values
-                )
+            
 
         complete_tag_values = {
             tag_name: remove_duplicates(values)

@@ -1,6 +1,5 @@
-import os
+from utils import save_dict
 from abc import ABC, abstractmethod
-from collections import defaultdict
 from pathlib import Path
 from typing import Optional
 
@@ -9,8 +8,9 @@ from openai import OpenAI
 
 
 class LLMBase(ABC):
-    def __init__(self, response_file: Optional[Path] = None):
+    def __init__(self, response_file: Optional[Path] = None, usage_stats: Optional[str] = None):
         self.response_file = response_file
+        self.usage_file = usage_stats
         self.usage = dict()
 
     @abstractmethod
@@ -21,7 +21,7 @@ class LLMBase(ABC):
 
 
 class OpenAILLM(LLMBase):
-    def __init__(self, api_key: str, response_file: Optional[Path] = None):
+    def __init__(self, api_key: str, response_file: Optional[Path] = None, usage_stats: Optional[str] = None):
         super().__init__(response_file)
         self.client = OpenAI(api_key=api_key)
 
@@ -51,15 +51,21 @@ class OpenAILLM(LLMBase):
                 fp.write(f"Response: \n{res}\n")
                 fp.write(f"\nUsage: \n{usage}\n")
                 fp.write("=" * 100 + "\n\n")
+        
+        if model_name not in self.usage:
+            self.usage[model_name] = {}
 
-        self.usage = {
-            key: self.usage.get(key, 0) + value for key, value in usage.items()
-        }
+        self.usage[model_name].update({
+            key: self.usage[model_name].get(key, 0) + value for key, value in usage.items()
+        })
+
+        if self.usage_file:
+            save_dict(self.usage_file, **self.usage)
         return res
 
 
 class CohereLLM(LLMBase):
-    def __init__(self, api_key: str, response_file: Optional[Path] = None):
+    def __init__(self, api_key: str, response_file: Optional[Path] = None, usage_stats: Optional[str] = None):
         super().__init__(response_file)
         self.client = cohere.Client(api_key=api_key)
 

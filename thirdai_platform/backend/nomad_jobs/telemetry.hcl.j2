@@ -1,8 +1,9 @@
 job "telemetry" {
   datacenters = ["dc1"]
   type        = "service"
-  {% set nomad_monitoring_dir = "/model_bazaar/nomad-monitoring" %}
-  {% set promfile = "/model_bazaar/node_discovery/prometheus.yaml" %}
+  {% set telemetry_dir = "/model_bazaar/telemetry" %}
+  {% set promfile = "/model_bazaar/telemetry/prometheus.yaml" %}
+  {% set local_promfile = model_bazaar_path + "/telemetry/prometheus.yaml" %}
   group "telemetry" {
     count = 1
 
@@ -13,51 +14,59 @@ job "telemetry" {
       port "loki-http" {
         to = 3100
       }
-
       port "grafana-http" {
         to = 3000
       }
     }
-    {% if platform == "docker" -%}
     task "collectnodes" {
       lifecycle {
         hook = "prestart"
       }
 
-      driver = "docker"
+      {% if platform == "docker" %}
+        driver = "docker"
+      {% elif platform == "local" %}
+        driver = "raw_exec"
+      {% endif %}
       env {
-        MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
+        NOMAD_IP = "${attr.unique.network.ip-address}"
         MANAGEMENT_TOKEN = "${MANAGEMENT_TOKEN}"
-        PROMFILE = "{{ promfile }}"
+        PROMFILE = "{{ local_promfile }}"
       }
       config {
-        image = "{{ registry }}/{{ image_name }}:{{ tag }}"
-        image_pull_timeout = "15m"
-        group_add = ["4646"]
-        auth {
+        {% if platform == "docker" %}
+          image = "{{ registry }}/{{ image_name }}:{{ tag }}"
+          image_pull_timeout = "15m"
+          group_add = ["4646"]
+          auth {
             username = "{{ docker_username }}"
             password = "{{ docker_password }}"
             server_address = "{{ registry }}"
           }
-        volumes = [
+          volumes = [
             "{{ share_dir }}:/model_bazaar"
           ]
+        {% elif platform == "local" %}
+          command = "{{ python_path }}"
+          args    = ["{{ node_discovery_script }}"]
+        {% endif %}
       }
 
-    template {
-        destination = "${NOMAD_SECRETS_DIR}/env.vars"
-        env         = true
-        change_mode = "restart"
-        data        = <<EOF
+      {% if platform == "docker" %}
+        template {
+            destination = "${NOMAD_SECRETS_DIR}/env.vars"
+            env         = true
+            change_mode = "restart"
+            data        = <<EOF
 {% raw -%}
 {{- with nomadVar "nomad/jobs" -}}
 MANAGEMENT_TOKEN = {{ .management_token }}
 {{- end -}}
 {%- endraw %}
 EOF
-      }
+        }
+      {% endif %}
     }
-    {%- endif %}
     task "victoriametrics" {
       driver = "docker"
 
@@ -72,7 +81,7 @@ EOF
         group_add = ["4646"]
         ports = ["vicky-http"]
         args = [
-          "--storageDataPath={{ nomad_monitoring_dir }}/victoriametric",
+          "--storageDataPath={{ telemetry_dir }}/victoriametric",
           "--retentionPeriod=1d",
           "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
           "--promscrape.config={{ promfile }}"
@@ -99,7 +108,7 @@ EOF
         group_add = ["4646"]
         args = [
           "-config.file",
-          "${NOMAD_TASK_DIR}/loki.yaml",
+          "${NOMAD_ALLOC_DIR}/loki.yaml",
         ]
 
         volumes = [
@@ -114,11 +123,6 @@ EOF
         memory = 200
       }
 
-      /*
-        Date: 19/08/2024
-        Cannot use "data            = file(abspath("./../configs/loki.yaml"))" because file function only works via CLI currently.
-        https://github.com/hashicorp/nomad/issues/19648#issuecomment-1881052624
-        */
       template {
         data            = <<EOF
 auth_enabled: false
@@ -127,11 +131,11 @@ server:
   grpc_listen_port: 9096
 common:
   instance_addr: 127.0.0.1
-  path_prefix: {{ nomad_monitoring_dir }}/loki
+  path_prefix: {{ telemetry_dir }}/loki
   storage:
     filesystem:
-      chunks_directory: {{ nomad_monitoring_dir }}/loki/chunks
-      rules_directory: {{ nomad_monitoring_dir }}/loki/rules
+      chunks_directory: {{ telemetry_dir }}/loki/chunks
+      rules_directory: {{ telemetry_dir }}/loki/rules
   replication_factor: 1
   ring:
     kvstore:
@@ -168,7 +172,7 @@ ingester:
   wal:
     flush_on_shutdown: true
 EOF
-        destination     = "${NOMAD_TASK_DIR}/loki.yaml"
+        destination     = "${NOMAD_ALLOC_DIR}/loki.yaml"
       }
 
       service {
@@ -202,7 +206,7 @@ EOF
         GF_SERVER_SERVE_FROM_SUB_PATH = "true"
         GF_SERVER_HTTP_PORT   = "${NOMAD_PORT_http}"
         GF_PATHS_PROVISIONING = "/local/grafana/provisioning"
-        GF_PATHS_DATA = "{{ nomad_monitoring_dir }}/grafana"
+        GF_PATHS_DATA = "{{ telemetry_dir }}/grafana"
       }
 
       config {
@@ -269,7 +273,7 @@ providers:
     allowUiUpdates: true
     options:
       foldersFromFilesStructure: true
-      path: /model_bazaar/telemetry_dashboards
+      path: /model_bazaar/telemetry/telemetry_dashboards
 {%- endraw %}
 EOF
         destination = "/local/grafana/provisioning/dashboards/dashboards.yaml"

@@ -9,7 +9,7 @@ general_variables: GeneralVariables = GeneralVariables.load_from_env()
 
 
 def run():
-    nomad_url = f"{general_variables.model_bazaar_endpoint.rstrip('/')}:4646/v1/nodes"
+    nomad_url = f"http://{general_variables.nomad_ip.rstrip('/')}:4646/v1/nodes"
 
     # Fetch the node data from Nomad
     headers = {"X-Nomad-Token": general_variables.management_token}

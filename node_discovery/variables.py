@@ -37,6 +37,6 @@ class EnvLoader:
 
 @dataclass
 class GeneralVariables(EnvLoader):
-    model_bazaar_endpoint: str
+    nomad_ip: str
     management_token: str
     promfile: str

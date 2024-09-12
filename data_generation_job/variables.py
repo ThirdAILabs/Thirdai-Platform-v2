@@ -2,6 +2,7 @@ import ast
 import html
 import os
 from dataclasses import MISSING, asdict, dataclass, fields
+from collections import defaultdict
 from enum import Enum
 from typing import Dict, List, Optional, Type, TypeVar, Union, get_args, get_origin
 
@@ -104,10 +105,9 @@ class GeneralVariables(EnvLoader):
 @dataclass
 class Entity:
     name: str
-    status: str = "untrained"
     examples: List[str]
     description: str
-    sample: str = None
+    status: str = "untrained"
 
 
 @dataclass
@@ -123,6 +123,52 @@ class TextGenerationVariables(EnvLoader):
         result = asdict(self)
         result["target_labels"] = [Entity(**res) for res in result["target_labels"]]
         return result
+
+
+@dataclass
+class NERSample:
+    tokens: List[str]
+    tags: List[str]
+
+    def get_example_template(self) -> str:
+        example = []
+
+        past_tokens = []
+        for index, (token, tag) in enumerate(zip(self.tokens, self.tags)):
+            if index + 1 >= len(self.tokens) or tag != self.tags[index + 1]:
+                past_tokens.append(token)
+                if tag == "O":
+                    example += past_tokens
+                else:
+                    example += [f"[{tag}]"]
+
+                past_tokens = []
+
+            else:
+                past_tokens.append(token)
+
+        return " ".join(example)
+
+    def get_tags(self) -> set:
+        return set([tag for tag in self.tags if tag != "O"])
+
+    def get_values(self) -> dict:
+
+        examples = defaultdict(list)
+        past_tokens = []
+
+        for index, (token, tag) in enumerate(zip(self.tokens, self.tags)):
+            if index + 1 >= len(self.tokens) or tag != self.tags[index + 1]:
+                past_tokens.append(token)
+                if tag != "O":
+                    examples[tag].append(" ".join(past_tokens))
+
+                past_tokens = []
+
+            else:
+                past_tokens.append(token)
+
+        return examples
 
 
 @dataclass

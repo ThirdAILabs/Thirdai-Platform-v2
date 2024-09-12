@@ -1,5 +1,5 @@
 import random
-from resource.text_prompts import datagen_prompt
+from prompt_resources.text_prompts import datagen_prompt
 from typing import Dict, List, Optional
 
 from data_factory_interface import DataFactory

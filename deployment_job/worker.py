@@ -4,7 +4,7 @@ from datetime import datetime
 
 from routers.model import get_model
 from routers.ndb import process_ndb_task
-from variables import ModelType
+from variables import ModelType, NDBSubType
 
 
 def update_model_with_timestamp(model_id):
@@ -42,11 +42,19 @@ def main():
                 else:
                     break
 
-        if task_ids:
-            update_model_with_timestamp(model_id=model_id)
+        if not (
+            model.general_variables.type == ModelType.NDB
+            and model.general_variables.sub_type == NDBSubType.v2
+            and model.general_variables.model_options()
+            .get("ndb_options", {})
+            .get("on_disk", False)
+        ):
+            if task_ids:
+                update_model_with_timestamp(model_id=model_id)
 
-        # TODO(YASH): We need to reduce this time when we merge the ndbv2
-        time.sleep(10)
+            time.sleep(10)
+        else:
+            time.sleep(1)
 
 
 if __name__ == "__main__":

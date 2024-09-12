@@ -1,9 +1,11 @@
 import ast
 import datetime
 import html
+import json
 import os
 from dataclasses import MISSING, asdict, dataclass, fields
 from enum import Enum
+from pathlib import Path
 from typing import Dict, Optional, Type, TypeVar, Union, get_args, get_origin
 from urllib.parse import urljoin
 
@@ -151,6 +153,22 @@ class GeneralVariables(EnvLoader):
 
         # Rebuild the URL while keeping the original scheme and hostname
         return urlunparse((parsed_url.scheme, nomad_netloc, "", "", "", ""))
+
+    def model_options(self):
+        # We save the model options in train_config.
+        train_config_path = (
+            Path(self.model_bazaar_dir) / "models" / self.model_id / "train_config.json"
+        )
+
+        if not train_config_path.exists():
+            raise ValueError(
+                f"Cannot find file train_config.json at {train_config_path.absolute()}"
+            )
+
+        with open(train_config_path, "r") as f:
+            train_config = json.load(f)
+
+        return train_config.get("model_options", {})
 
 
 def merge_dataclasses_to_dict(*instances) -> dict:

@@ -13,7 +13,7 @@ from routers.ndb import ndb_router
 from routers.telemetry import telemetry_router  # Import the telemetry router
 from routers.udt import udt_router
 from utils import delete_deployment_job
-from variables import GeneralVariables, ModelType
+from variables import GeneralVariables, ModelType, NDBSubType
 
 general_variables = GeneralVariables.load_from_env()
 reporter = Reporter(general_variables.model_bazaar_endpoint)
@@ -145,7 +145,13 @@ async def startup_event() -> None:
         await asyncio.sleep(10)
         reporter.update_deploy_status(general_variables.model_id, "complete")
         asyncio.create_task(async_timer())
-        asyncio.create_task(check_for_model_updates())
+        model_options = general_variables.model_options()
+        if not (
+            general_variables.type == ModelType.NDB
+            and general_variables.sub_type == NDBSubType.v2
+            and model_options.get("ndb_options", {}).get("on_disk", False)
+        ):
+            asyncio.create_task(check_for_model_updates())
     except Exception as e:
         reporter.update_deploy_status(general_variables.model_id, "failed")
         model.logger.error(f"Failed to startup the application, {e}")

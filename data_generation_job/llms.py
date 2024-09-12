@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
+from threading import Lock
 from typing import Optional
 
 import cohere
@@ -9,11 +10,14 @@ from utils import save_dict
 
 class LLMBase(ABC):
     def __init__(
-        self, response_file: Optional[Path] = None, usage_stats: Optional[str] = None
+        self,
+        response_file: Optional[Path] = None,
+        record_usage_at: Optional[Path] = None,
     ):
         self.response_file = response_file
-        self.usage_file = usage_stats
+        self.usage_file = record_usage_at
         self.usage = dict()
+        self.lock = Lock()
 
     @abstractmethod
     def completion(
@@ -22,18 +26,19 @@ class LLMBase(ABC):
         pass
 
     def update_usage_stat(self, model_name: str, current_usage: dict):
-        if model_name not in self.usage:
-            self.usage[model_name] = {}
+        with self.lock:
+            if model_name not in self.usage:
+                self.usage[model_name] = {}
 
-        self.usage[model_name].update(
-            {
-                key: self.usage[model_name].get(key, 0) + value
-                for key, value in current_usage.items()
-            }
-        )
+            self.usage[model_name].update(
+                {
+                    key: self.usage[model_name].get(key, 0) + value
+                    for key, value in current_usage.items()
+                }
+            )
 
-        if self.usage_file:
-            save_dict(self.usage_file, **self.usage)
+            if self.usage_file:
+                save_dict(self.usage_file, **self.usage)
 
 
 class OpenAILLM(LLMBase):
@@ -41,9 +46,9 @@ class OpenAILLM(LLMBase):
         self,
         api_key: str,
         response_file: Optional[Path] = None,
-        usage_stats: Optional[str] = None,
+        record_usage_at: Optional[Path] = None,
     ):
-        super().__init__(response_file)
+        super().__init__(response_file, record_usage_at)
         self.client = OpenAI(api_key=api_key)
 
     def completion(
@@ -81,10 +86,10 @@ class CohereLLM(LLMBase):
     def __init__(
         self,
         api_key: str,
-        response_file: Optional[Path] = None,
-        usage_stats: Optional[str] = None,
+        response_file: Optional[str] = None,
+        record_usage_at: Optional[str] = None,
     ):
-        super().__init__(response_file)
+        super().__init__(response_file, record_usage_at)
         self.client = cohere.Client(api_key=api_key)
 
     def completion(

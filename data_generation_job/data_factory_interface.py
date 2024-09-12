@@ -20,6 +20,7 @@ class DataFactory(ABC):
         self.llm_model = llm_classes.get(self.general_variables.llm_provider.value)(
             api_key=self.general_variables.genai_key,
             response_file=self.save_dir / "response.txt",
+            record_usage_at=self.save_dir / "llm_usage.json",
         )
 
         self.train_dir = self.save_dir / "train"

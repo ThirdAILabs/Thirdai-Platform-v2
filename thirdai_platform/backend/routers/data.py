@@ -242,6 +242,7 @@ def generate_token_data(
         image_name=os.getenv("TRAIN_IMAGE_NAME"),
         train_script=str(get_root_absolute_path() / "data_generation_job/run.py"),
         task_prompt=task_prompt,
+        data_id=str(data_id),
         storage_dir=storage_dir,
         data_category="token",
         llm_provider=llm_provider.value,

@@ -11,25 +11,6 @@ VERY IMPORTANT:
 -  Make sure that the samples are relevant to the context of US citizen.
 """
 
-template_prompt = """You have to generate {k} templatized sentences for the tags: {tags}
-
-Description of the tags:
-{tags_description}
-
-Here are example templates for the tags [CARDHOLDER_NAME, EXPIRATION_DATE] on the domain of payment information.
--  [CARDHOLDER_NAME] and his friend john tried to dupe the credit card company by reporting their transaction with the card [PAN] as fradulent on 9th august.
--  In the month of december, the card was expired but the expiration date mentioned was [EXPIRATION_DATE].
-
-Key Requirements:
--  Each template should start on a new line and with no bulleting, header/footer or any steps involved. 
--  Make sure to include at least two tags in each sentence.
-
-** IMPORTANT POINT:
--  These templates would be filled later so make sure these templates would make sense after being filled. Here is one incorrect & correct templates for the tags [MEDICAL_INFO]
-      Incorrect templates: My [MEDICAL_INFO] should remain confidential to protect my personal interest.
-      Correct templates: My condition due to [MEDICAL_INFO] should remain confidential to protect my personal interest.
-"""
-
 dataset_generation_prompt = """The goal is to create a dataset for entity recognition. Please generate {num_to_generate} templates associated with given below tags for {task_prompt}
             
 Tags with their description and example:

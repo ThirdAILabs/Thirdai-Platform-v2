@@ -29,7 +29,7 @@ def remove_duplicates(words: List[str]):
 
 def shuffle_and_filter(data_points: List):
     random.shuffle(data_points)
-    return list(filter(lambda x: x not in [None, [], {}, ""], data_points))
+    return list(filter(lambda x: x not in [None, [], {}, "", " "], data_points))
 
 
 def write_to_csv(

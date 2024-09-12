@@ -72,11 +72,12 @@ class OpenAILLM(LLMBase):
         res = response.choices[0].message.content
         usage = dict(response.usage)
         if self.response_file:
-            with open(self.response_file, "a") as fp:
-                fp.write(f"Prompt: \n{prompt}\n")
-                fp.write(f"Response: \n{res}\n")
-                fp.write(f"\nUsage: \n{usage}\n")
-                fp.write("=" * 100 + "\n\n")
+            with self.lock:
+                with open(self.response_file, "a") as fp:
+                    fp.write(f"Prompt: \n{prompt}\n")
+                    fp.write(f"Response: \n{res}\n")
+                    fp.write(f"\nUsage: \n{usage}\n")
+                    fp.write("=" * 100 + "\n\n")
 
         self.update_usage_stat(model_name, usage)
         return res
@@ -106,10 +107,11 @@ class CohereLLM(LLMBase):
         response = self.client.chat(model=model_name, message=message)
 
         if self.response_file:
-            with open(self.response_file, "a") as fp:
-                fp.write(f"Prompt: \n{prompt}\n")
-                fp.write(f"Response: \n{response.text}\n")
-                fp.write("=" * 100 + "\n\n")
+            with self.lock:
+                with open(self.response_file, "a") as fp:
+                    fp.write(f"Prompt: \n{prompt}\n")
+                    fp.write(f"Response: \n{response.text}\n")
+                    fp.write("=" * 100 + "\n\n")
 
         return response.text
 

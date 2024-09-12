@@ -292,7 +292,7 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
             Processing to convert each llm call's generated text to a list of templates
             """
             templates = [
-                template
+                template.strip('" ')
                 for template_s in generated_templates
                 for template in template_s["response_text"].split("\n")
             ]

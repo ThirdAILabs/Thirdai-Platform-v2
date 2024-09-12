@@ -65,7 +65,6 @@ jobs:
         sudo pip install -r thirdai_platform/requirements.txt
         sudo pip install -r train_job/requirements.txt
         sudo pip install -r data_generation_job/requirements.txt
-        echo "PYTHON_PATH=${{ github.workspace }}/venv/bin/python" >> $GITHUB_WORKSPACE/.env
     
     - name: Update openssl
       run: |
@@ -82,7 +81,6 @@ jobs:
       run: |
         NOMAD_PATH=$(which nomad)
         nohup sudo $NOMAD_PATH agent -dev -config="local_setup/agent.hcl" > nomad.log 2>&1 &
-        echo "NOMAD_ENDPOINT=http://localhost:4646/" >> $GITHUB_WORKSPACE/.env
     
     - name: Verify Nomad Cluster
       run: |
@@ -100,8 +98,6 @@ jobs:
         cd local_setup
         nohup sudo bash launch_traefik.sh > traefik.log 2>&1 &
         cd ..
-        echo "PUBLIC_MODEL_BAZAAR_ENDPOINT=http://localhost:80/" >> $GITHUB_WORKSPACE/.env
-        echo "PRIVATE_MODEL_BAZAAR_ENDPOINT=http://localhost:80/" >> $GITHUB_WORKSPACE/.env
 
     - name: Install Vault
       run: |
@@ -109,8 +105,6 @@ jobs:
         sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
         sudo apt-get update
         sudo apt-get install -y vault
-        echo "HASHICORP_VAULT_ENDPOINT=http://127.0.0.1:8200" >> $GITHUB_WORKSPACE/.env
-        echo "HASHICORP_VAULT_TOKEN=00000000-0000-0000-0000-000000000000" >> $GITHUB_WORKSPACE/.env
 
     - name: Start Vault Server
       run: nohup sudo vault server --dev --dev-root-token-id="00000000-0000-0000-0000-000000000000" > vault.log 2>&1 &
@@ -121,7 +115,7 @@ jobs:
         sudo chmod -R 777 $HOME/nfs/dir
         sudo chmod +t $HOME/nfs/dir
         sudo chmod g+s $HOME/nfs/dir
-        echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_WORKSPACE/.env
+        echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
 
     - name: Write All Environment Variables to .env File
       run: |
@@ -141,6 +135,7 @@ jobs:
         echo "HASHICORP_VAULT_ENDPOINT=http://127.0.0.1:8200" >> $GITHUB_WORKSPACE/.env
         echo "HASHICORP_VAULT_TOKEN=00000000-0000-0000-0000-000000000000" >> $GITHUB_WORKSPACE/.env
         echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_WORKSPACE/.env
+        echo "PYTHON_PATH=${{ github.workspace }}/venv/bin/python" >> $GITHUB_WORKSPACE/.env
 
     - name: Launch Backend
       run: |

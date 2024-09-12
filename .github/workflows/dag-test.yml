@@ -69,6 +69,11 @@ jobs:
         sudo pip install -r train_job/requirements.txt
         sudo pip install -r data_generation_job/requirements.txt
         echo "PYTHON_PATH=${{ github.workspace }}/venv/bin/python" >> $GITHUB_ENV
+    
+    - name: Update openssl
+      run: |
+        sudo pip install --upgrade cryptography pyopenssl
+        sudo apt-get install --only-upgrade openssl
 
     - name: Setup `nomad`
       uses: hashicorp/setup-nomad@main

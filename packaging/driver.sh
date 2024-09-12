@@ -12,6 +12,10 @@ function install_ansible() {
             fi
         elif [[ "$OSTYPE" == "darwin"* ]]; then
             brew install ansible
+        else
+            echo "Unsupported OS: $OSTYPE"
+            echo "Please download and install Ansible manually for your operating system."
+            exit 1
         fi
     else
         echo "Ansible is already installed"

@@ -123,23 +123,13 @@ class TextGenerationVariables(BaseModel):
         return result
 
 
-class TokenGenerationVariables(BaseModel):
-    tags: List[Entity]
-    num_sentences_to_generate: int
-    num_samples_per_tag: Optional[int] = None
-
-    def to_dict(self):
-        result = self.model_dump()
-        result["tags"] = self.tags
-        return result
-
-
 class NERSample(BaseModel):
     tokens: List[str]
     tags: List[str]
 
     def get_example_template(self) -> str:
         # templatizes the sample for passing to LLM
+        # Example -> My name is [NAME]
         example = []
 
         past_tokens = []
@@ -181,3 +171,17 @@ class NERSample(BaseModel):
                 past_tokens.append(token)
 
         return examples
+
+
+class TokenGenerationVariables(BaseModel):
+    tags: List[Entity]
+    num_sentences_to_generate: int
+    num_samples_per_tag: Optional[int] = None
+    # example NER samples
+    samples: List[NERSample] = None
+    templates_per_sample: int = 10
+
+    def to_dict(self):
+        result = self.model_dump()
+        result["tags"] = self.tags
+        return result

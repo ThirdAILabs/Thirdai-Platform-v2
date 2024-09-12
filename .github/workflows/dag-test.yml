@@ -61,13 +61,13 @@ jobs:
       run: |
         python -m venv ${{ github.workspace }}/venv
         source venv/bin/activate
-        pip install -r deployment_job/requirements.txt
-        pip install -r docs/requirements.txt
-        pip install -r headless/requirements.txt
-        pip install -r llm_dispatch_job/requirements.txt
-        pip install -r thirdai_platform/requirements.txt
-        pip install -r train_job/requirements.txt
-        pip install -r data_generation_job/requirements.txt
+        sudo pip install -r deployment_job/requirements.txt
+        sudo pip install -r docs/requirements.txt
+        sudo pip install -r headless/requirements.txt
+        sudo pip install -r llm_dispatch_job/requirements.txt
+        sudo pip install -r thirdai_platform/requirements.txt
+        sudo pip install -r train_job/requirements.txt
+        sudo pip install -r data_generation_job/requirements.txt
         echo "PYTHON_PATH=${{ github.workspace }}/venv/bin/python" >> $GITHUB_ENV
 
     - name: Setup `nomad`
@@ -135,7 +135,7 @@ jobs:
       run: |
         source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE/thirdai_platform
-        nohup uvicorn main:app --reload --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+        nohup sudo uvicorn main:app --reload --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
     
     - name: List files in local_setup
       run: ls -la local_setup
@@ -165,9 +165,6 @@ jobs:
         cat $GITHUB_WORKSPACE/thirdai_platform/uvicorn.log
 
         bash local_setup/fetch_nomad_logs.sh
-
-        ls -la $HOME/nfs/dir
-        ls $HOME/nfs/dir
 
     - name: Stop Services
       if: always()

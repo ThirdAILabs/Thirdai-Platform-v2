@@ -259,7 +259,7 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
         <div style={{display: "flex", gap: "10px", marginTop: "10px"}}>
           <Button onClick={() => addSource(SourceType.LOCAL)}>Add Local File</Button>
           <Button onClick={() => addSource(SourceType.S3)}>Add S3 File</Button>
-          <Button onClick={() => addSource(SourceType.NSF)}>Add NSF File</Button> {/* New button for NSF */}
+          {/* <Button onClick={() => addSource(SourceType.NSF)}>Add NSF File</Button> */}
         </div>
 
         <div className="flex justify-start">

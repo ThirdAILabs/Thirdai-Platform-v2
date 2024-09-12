@@ -71,10 +71,11 @@ export default function ChooseProblem() {
   const RETRIEVAL = "Retrieval"
   const NLP = "Natural Language Processing"
   const RAG = "Retrieval Augmented Generation"
-  const DOC_CLASSIFICATION = "Document Classification";
-  const TABULAR_CLASSIFICATION = "Tabular Classification";
+  // const DOC_CLASSIFICATION = "Document Classification";
+  // const TABULAR_CLASSIFICATION = "Tabular Classification";
 
-  const useCases = [RETRIEVAL, NLP, RAG, DOC_CLASSIFICATION, TABULAR_CLASSIFICATION];
+  // const useCases = [RETRIEVAL, NLP, RAG, DOC_CLASSIFICATION, TABULAR_CLASSIFICATION];
+  const useCases = [RETRIEVAL, NLP, RAG];
 
   return (
     <>
@@ -108,8 +109,8 @@ export default function ChooseProblem() {
             {modelType === RAG && <RAGQuestions models={privateModels} workflowNames={workflowNames} />}
             {modelType === NLP && <NLPQuestions workflowNames={workflowNames} />}
             {modelType === RETRIEVAL && <SemanticSearchQuestions workflowNames={workflowNames} />}
-            {modelType === DOC_CLASSIFICATION && <DocumentClassificationQuestions workflowNames={workflowNames} />}
-            {modelType === TABULAR_CLASSIFICATION && <TabularClassificationQuestions workflowNames={workflowNames} />}
+            {/* {modelType === DOC_CLASSIFICATION && <DocumentClassificationQuestions workflowNames={workflowNames} />} */}
+            {/* {modelType === TABULAR_CLASSIFICATION && <TabularClassificationQuestions workflowNames={workflowNames} />} */}
           </div>
         )}
       </div>

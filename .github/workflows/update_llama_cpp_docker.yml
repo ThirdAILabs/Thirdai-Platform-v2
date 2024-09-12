@@ -2,8 +2,8 @@ name: Weekly Llama.cpp Image Update
 
 on:
   schedule:
-    - cron: "0 18 * * 1" # This will run the job at 18:00 UTC (6:00 PM UTC) every Monday
-
+    - cron: '0 18 * * 1'  # This will run the job at 18:00 UTC (6:00 PM UTC) every Monday
+  
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -14,23 +14,23 @@ jobs:
   update-llama-cpp:
     runs-on: ubuntu-latest
     steps:
-      - name: "Azure Login"
+      - name: 'Azure Login'
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: "Pull Llama.cpp Image from GitHub Container Registry"
+      - name: 'Pull Llama.cpp Image from GitHub Container Registry'
         run: docker pull ghcr.io/ggerganov/llama.cpp:server
 
-      - name: "Tag Llama.cpp Image for ACR"
+      - name: 'Tag Llama.cpp Image for ACR'
         run: docker tag ghcr.io/ggerganov/llama.cpp:server ${{ secrets.REGISTRY_LOGIN_SERVER }}/llama.cpp:server
 
-      - name: "Azure Docker Login"
+      - name: 'Azure Docker Login'
         uses: azure/docker-login@v1
         with:
           login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: "Push Image to ACR"
+      - name: 'Push Image to ACR'
         run: docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/llama.cpp:server

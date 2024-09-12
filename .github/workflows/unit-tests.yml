@@ -8,14 +8,14 @@ concurrency:
 
 env:
   PRODUCT_VERSION: "latest"
-
+  
 # Controls when the workflow will run
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -34,8 +34,8 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
+          --health-interval 10s 
+          --health-timeout 5s 
           --health-retries 5
     steps:
       - uses: actions/checkout@v2
@@ -57,7 +57,7 @@ jobs:
           NOMAD_PATH=$(which nomad)
           nohup sudo $NOMAD_PATH agent -dev -config="local_setup/agent.hcl" > nomad.log 2>&1 &
           echo "NOMAD_ENDPOINT=http://localhost:4646/" >> $GITHUB_ENV
-
+      
       - name: Verify Nomad Cluster
         run: |
           NOMAD_PATH=$(which nomad)
@@ -117,14 +117,14 @@ jobs:
   train-job-unit-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+    - uses: actions/checkout@v2
 
-      - name: install dependencies
-        run: |
-          pip3 install -r train_job/requirements.txt
-          pip3 install pytest
-          pip3 install pyopenssl --upgrade
+    - name: install dependencies
+      run: |
+        pip3 install -r train_job/requirements.txt
+        pip3 install pytest
+        pip3 install pyopenssl --upgrade
 
-      - name: run unit tests
-        run: |
-          python3 -m pytest ./train_job -v
+    - name: run unit tests
+      run: |
+        python3 -m pytest ./train_job -v

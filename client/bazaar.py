@@ -393,7 +393,7 @@ class ModelBazaar:
         form = []
 
         entities = [
-            {"name": item[0], "examples": item[1], "description": item[2]}
+            {"name": item[0], "examples": [item[1]], "description": item[2]}
             for item in examples
         ]
         # category_examples = {}
@@ -407,6 +407,7 @@ class ModelBazaar:
 
         if sub_type == "text":
             datagen_options = {
+                "task_prompt": task_prompt,
                 "sub_type": "text",
                 "samples_per_label": max(math.ceil(10_000 / len(entities)), 50),
                 "target_labels": entities,
@@ -416,7 +417,7 @@ class ModelBazaar:
                 "sub_type": "token",
                 "task_prompt": task_prompt,
                 "tags": entities,
-                "num_sentences_to_generate": 10_000,
+                "num_sentences_to_generate": 5_000,
                 "num_samples_per_tag": max(math.ceil(10_000 / len(entities)), 50),
             }
 

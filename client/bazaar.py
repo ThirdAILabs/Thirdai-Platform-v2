@@ -366,7 +366,7 @@ class ModelBazaar:
         model_name: str,
         task_prompt: str,
         sub_type: str,
-        examples: List[Tuple[str, List[str], str]],
+        examples: List[Tuple[str, str, str]],
         is_async: bool = False,
         base_model_identifier: Optional[str] = None,
         datagen_job_options: Optional[dict] = None,

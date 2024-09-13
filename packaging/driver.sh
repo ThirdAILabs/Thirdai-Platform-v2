@@ -1,16 +1,24 @@
 #!/bin/bash
 
 function install_ansible() {
+    # Check if ansible-playbook is installed
     if ! command -v ansible-playbook &> /dev/null; then
         echo "Ansible not found, installing..."
 
+        # Install Ansible based on the OS
         if [[ "$OSTYPE" == "linux-gnu"* ]]; then
             if [ -f /etc/debian_version ]; then
-                sudo apt update && sudo apt install -y ansible
+                echo "Installing Ansible on Ubuntu/Debian..."
+                sudo apt update
+                sudo apt install -y software-properties-common
+                sudo add-apt-repository --yes --update ppa:ansible/ansible
+                sudo apt install -y ansible
             elif [ -f /etc/redhat-release ]; then
-                sudo dnf install -y ansible
+                echo "Installing Ansible on CentOS/RHEL..."
+                sudo dnf install -y ansible-navigator ansible-core ansible-builder ansible-runner ansible-sdk
             fi
         elif [[ "$OSTYPE" == "darwin"* ]]; then
+            echo "Installing Ansible on macOS..."
             brew install ansible
         else
             echo "Unsupported OS: $OSTYPE"
@@ -20,7 +28,16 @@ function install_ansible() {
     else
         echo "Ansible is already installed"
     fi
+
+    # Install required Ansible Galaxy collections
+    echo "Installing required Ansible Galaxy collections..."
+    ansible-galaxy collection install community.general
+    ansible-galaxy collection install ansible.posix
+    ansible-galaxy collection install community.docker
+
+    echo "All required Ansible Galaxy collections are installed."
 }
+
 
 install_ansible
 

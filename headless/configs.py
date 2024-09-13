@@ -1,7 +1,7 @@
 import os
 import sys
 from abc import ABC
-from typing import Optional
+from typing import List, Optional
 
 base_path = os.getenv("SHARE_DIR")
 if not base_path:
@@ -145,9 +145,9 @@ class TextWithDatagen(Config):
     sub_type: str = "text"
     name: str = "text_with_datagen"
     task_prompt: str = "Analyze the sentiment of product reviews"
-    examples: list[tuple[str, str, str]] = [
-        ("good", "This is a good product", "a good review"),
-        ("bad", "This is a bad product", "a bad review"),
+    examples: list[tuple[str, List[str], str]] = [
+        ("good", ["This is a good product"], "a good review"),
+        ("bad", ["This is a bad product"], "a bad review"),
     ]
 
 
@@ -159,9 +159,9 @@ class TokenWithDatagen(Config):
     sub_type: str = "token"
     name: str = "token_with_datagen"
     task_prompt: str = "Extract name and phone number from a text"
-    examples: list[tuple[str, str, str]] = [
-        ("name", "Tharun Medini", "a person's name"),
-        ("phone", "9876543210", "a phone number"),
+    examples: list[tuple[str, List[str], str]] = [
+        ("name", ["Tharun Medini"], "a person's name"),
+        ("phone", ["9876543210"], "a phone number"),
     ]
 
 

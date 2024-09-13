@@ -94,10 +94,12 @@ class EnvLoader:
 @dataclass
 class GeneralVariables(EnvLoader):
     task_prompt: str
+    data_id: str
     storage_dir: str
     model_bazaar_endpoint: str
     data_category: DataCategory
     genai_key: str
+    secret_token: str
     llm_provider: LLMProvider = LLMProvider.openai
     test_size: float = 0.05
 

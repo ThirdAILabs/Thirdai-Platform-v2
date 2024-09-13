@@ -76,7 +76,7 @@ def main():
             "target_labels": dataset_config["target_labels"],
         }
 
-    # launch_train_job(dataset_config["filepath"], udt_options)
+    launch_train_job(dataset_config["filepath"], udt_options)
 
 
 if __name__ == "__main__":

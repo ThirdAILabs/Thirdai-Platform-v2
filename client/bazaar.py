@@ -366,7 +366,7 @@ class ModelBazaar:
         model_name: str,
         task_prompt: str,
         sub_type: str,
-        examples: List[Tuple[str, str, str]],
+        examples: List[Tuple[str, List[str], str]],
         is_async: bool = False,
         base_model_identifier: Optional[str] = None,
         datagen_job_options: Optional[dict] = None,
@@ -392,35 +392,32 @@ class ModelBazaar:
 
         form = []
 
-        category_examples = {}
-        category_descriptions = {}
-        for category, example, description in examples:
-            if category not in category_examples:
-                category_examples[category] = [example]
-                category_descriptions[category] = description
-            else:
-                category_examples[category].append(example)
+        entities = [
+            {"name": item[0], "examples": item[1], "description": item[2]}
+            for item in examples
+        ]
+        # category_examples = {}
+        # category_descriptions = {}
+        # for category, example, description in examples:
+        #     if category not in category_examples:
+        #         category_examples[category] = [example]
+        #         category_descriptions[category] = description
+        #     else:
+        #         category_examples[category].append(example)
 
         if sub_type == "text":
             datagen_options = {
                 "sub_type": "text",
-                "samples_per_label": max(
-                    math.ceil(10_000 / len(category_examples)), 50
-                ),
-                "target_labels": list(category_examples.keys()),
-                "examples": category_examples,
-                "labels_description": category_descriptions,
+                "samples_per_label": max(math.ceil(10_000 / len(entities)), 50),
+                "target_labels": entities,
             }
         else:
             datagen_options = {
                 "sub_type": "token",
                 "task_prompt": task_prompt,
-                "tags": list(category_examples.keys()),
-                "tag_examples": category_examples,
+                "tags": entities,
                 "num_sentences_to_generate": 10_000,
-                "num_samples_per_tag": max(
-                    math.ceil(10_000 / len(category_examples)), 50
-                ),
+                "num_samples_per_tag": max(math.ceil(10_000 / len(entities)), 50),
             }
 
         form.append(

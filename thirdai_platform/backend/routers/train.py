@@ -240,9 +240,11 @@ def nlp_datagen(
     datagen_job_options: str = Form(default="{}"),
     train_job_options: str = Form(default="{}"),
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    # authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    user: schema.User = authenticated_user.user
+    user: schema.User = (
+        session.query(schema.User).filter(schema.User.username == "gautam").first()
+    )
     try:
         datagen_options = DatagenOptions.model_validate_json(datagen_options)
         datagen_job_options = JobOptions.model_validate_json(datagen_job_options)

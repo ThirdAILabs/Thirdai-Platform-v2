@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urljoin
@@ -317,7 +318,7 @@ class NeuralDBClient(BaseClient):
             headers=auth_header(self.login_instance.access_token),
         )
 
-        return json.loads(response.content)["data"]
+        return response.json()["data"]["task_id"]
 
     @check_deployment_decorator
     def task_status(self, task_id: str):
@@ -336,6 +337,29 @@ class NeuralDBClient(BaseClient):
         )
 
         return json.loads(response.content)["data"]
+
+    def await_task(self, task_id: str, poll_interval: int = 5):
+        """
+        Waits for a task to complete.
+
+        Args:
+            task_id (str): The ID of the task to wait for.
+            poll_interval (int): Time in seconds between status checks.
+
+        Raises:
+            Exception: If the task fails.
+        """
+        while True:
+            task_status = self.task_status(task_id)
+            status = task_status.get("status")
+            if status == "success":
+                return
+            elif status == "failed":
+                message = task_status.get("message", "No message")
+                raise Exception(f"Task {task_id} failed. Reason: {message}")
+            else:
+                # status is 'in_progress' or other statuses
+                time.sleep(poll_interval)
 
     @check_deployment_decorator
     def delete(self, source_ids: List[str]):
@@ -364,6 +388,8 @@ class NeuralDBClient(BaseClient):
             json={"text_pairs": text_pairs},
             headers=auth_header(self.login_instance.access_token),
         )
+
+        return response.json()["data"]["task_id"]
 
     @check_deployment_decorator
     def save_model(self, override: bool = True, model_name: Optional[str] = None):
@@ -402,6 +428,8 @@ class NeuralDBClient(BaseClient):
         )
 
         print("Successfully upvoted the specified search result.")
+
+        return response.json()["data"]["task_id"]
 
     @check_deployment_decorator
     def sources(self) -> List[Dict[str, str]]:

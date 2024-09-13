@@ -15,7 +15,7 @@ function install_ansible() {
                 sudo apt install -y ansible
             elif [ -f /etc/redhat-release ]; then
                 echo "Installing Ansible on CentOS/RHEL..."
-                sudo dnf install -y ansible-navigator ansible-core ansible-builder ansible-runner ansible-sdk
+                sudo dnf install -y ansible
             fi
         elif [[ "$OSTYPE" == "darwin"* ]]; then
             echo "Installing Ansible on macOS..."

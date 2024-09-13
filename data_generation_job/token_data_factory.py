@@ -105,7 +105,7 @@ class TokenDataFactory(DataFactory):
                 for value in res["response_text"].split("\n")
             ]
 
-            complete_tag_values[tag.name].extend(generated_tag_values)
+            complete_tag_values[tag.name.upper()].extend(generated_tag_values)
             save_dict(write_to=self.save_dir / "tags_value.json", **complete_tag_values)
 
     # Function to generate the tag_values by using faker library or LLM calls.
@@ -119,7 +119,7 @@ class TokenDataFactory(DataFactory):
         complete_tag_values = defaultdict(list)
 
         for tag in tqdm(tags, desc="Generating values for tags: ", leave=False):
-            complete_tag_values[tag.name].extend(tag.examples)
+            complete_tag_values[tag.name.upper()].extend(tag.examples)
 
             # Trying to generate more examples from faker
             samples = self.get_tag_values_from_faker(
@@ -133,7 +133,7 @@ class TokenDataFactory(DataFactory):
                 save_dict(
                     write_to=self.save_dir / "tags_value.json", **complete_tag_values
                 )
-                complete_tag_values[tag.name].extend(samples)
+                complete_tag_values[tag.name.upper()].extend(samples)
                 continue
 
             # Not able to generate by faker so, generating samples by llm
@@ -375,7 +375,7 @@ Example: {str(random.sample(tag_values[tag.name], k = 2))} not limited to given 
             "task": "TOKEN_CLASSIFICATION",
             "input_feature": TokenDataFactory.SOURCE_COLUMN,
             "target_feature": TokenDataFactory.TARGET_COLUMN,
-            "target_labels": [tag.name for tag in tags],
+            "target_labels": [tag.name.upper() for tag in tags],
             "train_samples": self.train_sentences_generated,
             "test_samples": self.test_sentences_generated,
         }

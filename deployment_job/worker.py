@@ -45,9 +45,9 @@ def main():
         if not (
             model.general_variables.type == ModelType.NDB
             and model.general_variables.sub_type == NDBSubType.v2
-            and model.general_variables.model_options()
-            .get("ndb_options", {})
-            .get("on_disk", False)
+            and model.general_variables.model_options.get("ndb_options", {}).get(
+                "on_disk", False
+            )
         ):
             if task_ids:
                 update_model_with_timestamp(model_id=model_id)

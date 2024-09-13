@@ -3,7 +3,7 @@ import datetime
 import html
 import json
 import os
-from dataclasses import MISSING, asdict, dataclass, fields
+from dataclasses import MISSING, asdict, dataclass, field, fields
 from enum import Enum
 from pathlib import Path
 from typing import Dict, Optional, Type, TypeVar, Union, get_args, get_origin
@@ -42,6 +42,9 @@ class EnvLoader:
         env_vars: Dict[str, Optional[Union[str, int, float, bool]]] = {}
 
         for f in fields(cls):
+            if not f.init:
+                continue  # Skip fields that are not initialized via __init__
+
             value = os.getenv(f.name.upper())
             if value is None or value.lower() == "none":
                 if f.default is MISSING and f.default_factory is MISSING:
@@ -114,6 +117,10 @@ class GeneralVariables(EnvLoader):
     sub_type: Union[UDTSubType, NDBSubType] = NDBSubType.v2
     llm_provider: str = "openai"
     genai_key: Optional[str] = None
+    _model_options: dict = field(init=False, repr=False)
+
+    def __post_init__(self):
+        self._model_options = self._load_model_options()
 
     def deployment_permissions(self, token: str):
         deployment_permissions_endpoint = urljoin(
@@ -156,7 +163,7 @@ class GeneralVariables(EnvLoader):
         # Rebuild the URL while keeping the original scheme and hostname
         return urlunparse((parsed_url.scheme, nomad_netloc, "", "", "", ""))
 
-    def model_options(self):
+    def _load_model_options(self):
         # We save the model options in train_config.
         train_config_path = (
             Path(self.model_bazaar_dir) / "models" / self.model_id / "train_config.json"
@@ -171,6 +178,10 @@ class GeneralVariables(EnvLoader):
             train_config = json.load(f)
 
         return train_config.get("model_options", {})
+
+    @property
+    def model_options(self):
+        return self._model_options
 
 
 def merge_dataclasses_to_dict(*instances) -> dict:

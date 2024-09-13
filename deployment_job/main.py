@@ -145,7 +145,7 @@ async def startup_event() -> None:
         await asyncio.sleep(10)
         reporter.update_deploy_status(general_variables.model_id, "complete")
         asyncio.create_task(async_timer())
-        model_options = general_variables.model_options()
+        model_options = general_variables.model_options
         if not (
             general_variables.type == ModelType.NDB
             and general_variables.sub_type == NDBSubType.v2

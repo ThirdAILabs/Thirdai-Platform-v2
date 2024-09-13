@@ -109,7 +109,7 @@ class Entity(BaseModel):
     examples: List[str]
     description: str
 
-    @field_validator('name', mode='before')
+    @field_validator("name", mode="before")
     def uppercase_name(cls, v):
         return v.upper()
 

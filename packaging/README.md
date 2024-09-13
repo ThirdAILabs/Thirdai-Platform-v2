@@ -62,6 +62,6 @@ Before running the script, ensure the following are installed on your machine:
 
 ### Troubleshooting
 
-- **Permission Denied**: If you encounter a "permission denied" error while running the script, ensure that the script has executable permissions by running the `chmod +x driver.sh` command.
+- **Permission Denied**: If you encounter a "permission denied" error while running the script, ensure that the script has executable permissions by running the `chmod +x driver.sh` command. If you are using a `.pem` key for SSH, make sure the key file's permission is set to `400` by running `chmod 400 your-key.pem`.
 - **Config File Not Found**: Ensure that the path to the `config.yml` file is correct and that the file exists at the specified location.
 - **Ansible Errors**: If Ansible encounters errors during execution, review the output carefully. Ensure that your system has internet access for package installation and model downloading.

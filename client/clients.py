@@ -336,7 +336,7 @@ class NeuralDBClient(BaseClient):
             headers=auth_header(self.login_instance.access_token),
         )
 
-        return json.loads(response.content)["data"]
+        return json.loads(response.content)["data"]["task"]
 
     def await_task(self, task_id: str, poll_interval: int = 5):
         """
@@ -352,7 +352,7 @@ class NeuralDBClient(BaseClient):
         while True:
             task_status = self.task_status(task_id)
             status = task_status.get("status")
-            if status == "success":
+            if status == "complete":
                 return
             elif status == "failed":
                 message = task_status.get("message", "No message")

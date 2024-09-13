@@ -29,7 +29,6 @@ function install_ansible() {
         echo "Ansible is already installed"
     fi
 
-    # Install required Ansible Galaxy collections
     echo "Installing required Ansible Galaxy collections..."
     ansible-galaxy collection install community.general
     ansible-galaxy collection install ansible.posix

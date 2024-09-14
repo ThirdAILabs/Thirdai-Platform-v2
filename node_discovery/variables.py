@@ -40,3 +40,4 @@ class GeneralVariables(EnvLoader):
     model_bazaar_endpoint: str
     management_token: str
     promfile: str
+    platform: str

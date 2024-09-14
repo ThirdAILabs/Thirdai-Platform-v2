@@ -1,10 +1,15 @@
 job "telemetry" {
   datacenters = ["dc1"]
   type        = "service"
-  {% set nomad_monitoring_dir = "/model_bazaar/nomad-monitoring" %}
-  {% set promfile = "/model_bazaar/node_discovery/prometheus.yaml" %}
+  {% set nomad_monitoring_dir = "/model_bazaar/nomad-monitoring" -%}
+  {%- set promfile = "node_discovery/prometheus.yaml" %}
   group "telemetry" {
     count = 1
+
+    constraint {
+      attribute = "${node.class}"
+      value     = "client"
+    }
 
     network {
       port "vicky-http" {
@@ -18,19 +23,27 @@ job "telemetry" {
         to = 3000
       }
     }
-    {% if platform == "docker" -%}
     task "collectnodes" {
       lifecycle {
         hook = "prestart"
       }
-
+      {% if platform == "docker" -%}
       driver = "docker"
+      {%- else -%}
+      driver = "raw_exec"
+      {%- endif %}
       env {
         MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
         MANAGEMENT_TOKEN = "${MANAGEMENT_TOKEN}"
-        PROMFILE = "{{ promfile }}"
+        {% if platform == "local" -%}
+        PROMFILE = "{{ share_dir }}/nomad-monitoring/{{ promfile }}"
+        {%- else -%}
+        PROMFILE = "{{ nomad_monitoring_dir }}/{{ promfile }}"
+        {%- endif %}
+        PLATFORM = "{{ platform }}"
       }
       config {
+        {% if platform == "docker" -%}
         image = "{{ registry }}/{{ image_name }}:{{ tag }}"
         image_pull_timeout = "15m"
         group_add = ["4646"]
@@ -42,8 +55,13 @@ job "telemetry" {
         volumes = [
             "{{ share_dir }}:/model_bazaar"
           ]
+        {%- else -%}
+        command = "{{ python_path }}"
+        args    = ["{{ node_discovery_script }}"]
+        {%- endif %}
       }
 
+    {% if platform == "docker" -%}
     template {
         destination = "${NOMAD_SECRETS_DIR}/env.vars"
         env         = true
@@ -56,8 +74,8 @@ MANAGEMENT_TOKEN = {{ .management_token }}
 {%- endraw %}
 EOF
       }
-    }
     {%- endif %}
+  }
     task "victoriametrics" {
       driver = "docker"
 
@@ -75,7 +93,7 @@ EOF
           "--storageDataPath={{ nomad_monitoring_dir }}/victoriametric",
           "--retentionPeriod=1d",
           "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
-          "--promscrape.config={{ promfile }}"
+          "--promscrape.config={{ nomad_monitoring_dir }}/{{ promfile }}"
         ]
         {% if platform == "local" -%}
         extra_hosts = ["host.docker.internal:host-gateway"]
@@ -84,7 +102,6 @@ EOF
           "{{ share_dir }}:/model_bazaar"
         ]
       }
-
       resources {
         cpu    = 256
         memory = 600
@@ -259,7 +276,6 @@ EOF
 
       template {
         data        = <<EOF
-{% raw -%}
 apiVersion: 1
 providers:
   - name: dashboards
@@ -269,8 +285,7 @@ providers:
     allowUiUpdates: true
     options:
       foldersFromFilesStructure: true
-      path: /model_bazaar/telemetry_dashboards
-{%- endraw %}
+      path: /model_bazaar/nomad-monitoring/telemetry_dashboards
 EOF
         destination = "/local/grafana/provisioning/dashboards/dashboards.yaml"
       }

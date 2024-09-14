@@ -292,6 +292,12 @@ def submit_nomad_job(filepath, nomad_endpoint, **kwargs):
     is_jinja = filepath_ext == "j2"
     hcl_payload = get_hcl_payload(filepath, is_jinja=is_jinja, **kwargs)
 
+    if "tele" in filepath:
+        with open(
+            "/Users/gautamsharma/Desktop/files/ThirdAI/temp/telemetry/temp.hcl", "w"
+        ) as fp:
+            fp.write(hcl_payload["JobHCL"])
+
     # Before submitting a job to nomad, we must convert the HCL file to JSON
     json_payload_response = requests.post(
         json_payload_url, headers=headers, json=hcl_payload

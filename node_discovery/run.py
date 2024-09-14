@@ -9,14 +9,19 @@ general_variables: GeneralVariables = GeneralVariables.load_from_env()
 
 
 def run():
-    nomad_url = f"{general_variables.model_bazaar_endpoint.rstrip('/')}:4646/v1/nodes"
+    if general_variables.platform == "local":
+        targets = ["host.docker.internal:4646"]
+    else:
+        nomad_url = (
+            f"{general_variables.model_bazaar_endpoint.rstrip('/')}:4646/v1/nodes"
+        )
 
-    # Fetch the node data from Nomad
-    headers = {"X-Nomad-Token": general_variables.management_token}
-    response = requests.get(nomad_url, headers=headers)
-    nodes = response.json()
+        # Fetch the node data from Nomad
+        headers = {"X-Nomad-Token": general_variables.management_token}
+        response = requests.get(nomad_url, headers=headers)
+        nodes = response.json()
 
-    targets = [f"{node['Address']}:4646" for node in nodes]
+        targets = [f"{node['Address']}:4646" for node in nodes]
 
     # Prometheus template
     prometheus_config = {

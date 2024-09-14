@@ -1,5 +1,5 @@
 import os
-import uuid
+import shutil
 from pathlib import Path
 
 from backend.utils import (
@@ -20,7 +20,11 @@ THIRDAI_PLATFORM_FRONTEND_ID = "thirdai-platform-frontend"
 LLM_CACHE_JOB_ID = "llm-cache"
 TELEMETRY_ID = "telemetry"
 
-SHARE_DIR = os.getenv("SHARE_DIR")
+MODEL_BAZAAR_PATH = (
+    "/model_bazaar"
+    if os.path.exists("/.dockerenv")
+    else os.getenv("SHARE_DIR", "/model_bazaar")
+)
 
 
 async def restart_generate_job():
@@ -171,6 +175,11 @@ async def restart_telemetry_jobs():
         delete_nomad_job(TELEMETRY_ID, nomad_endpoint)
 
     cwd = Path(os.getcwd())
+    shutil.copytree(
+        str(cwd / "telemetry_dashboards"),
+        os.path.join(MODEL_BAZAAR_PATH, "nomad-monitoring", "telemetry_dashboards"),
+        dirs_exist_ok=True,
+    )
     response = submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "telemetry.hcl.j2"),
@@ -182,6 +191,8 @@ async def restart_telemetry_jobs():
         image_name=os.getenv("NODE_DISCOVERY_IMAGE_NAME"),
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
         share_dir=os.getenv("SHARE_DIR"),
+        python_path=get_python_path(),
+        node_discovery_script=str(get_root_absolute_path() / "node_discovery/run.py"),
     )
     if response.status_code != 200:
         raise Exception(f"{response.text}")

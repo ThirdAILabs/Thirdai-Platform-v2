@@ -75,18 +75,6 @@ class OpenAILLM(LLMBase):
                         self.usage[model_name].get(key, 0) + current_usage[key]
                     )
 
-                if "completion_tokens_details" not in self.usage[model_name]:
-                    self.usage[model_name]["completion_tokens_details"] = {}
-
-                self.usage[model_name]["completion_tokens_details"][
-                    "reasoning_tokens"
-                ] = (
-                    self.usage[model_name]["completion_tokens_details"].get(
-                        "reasoning_tokens", 0
-                    )
-                    + current_usage["completion_tokens_details"]["reasoning_tokens"]
-                )
-
                 save_dict(self.usage_file, **self.usage)
 
         return res

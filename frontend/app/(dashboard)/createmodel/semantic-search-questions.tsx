@@ -15,6 +15,7 @@ interface SemanticSearchQuestionsProps {
 enum SourceType {
   S3 = "s3",
   LOCAL = "local",
+  NSF = "nsf",
 }
 
 const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, appName }: SemanticSearchQuestionsProps) => {
@@ -50,7 +51,17 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
       newFileCount[index] = 1; // Since it's a single S3 URL
       setFileCount(newFileCount);
     }
-  
+
+    const setNSFSourceValue = (index: number, path: string) => {
+      const newSources = [...sources];
+      const file = new File([], path); // Create a dummy File object with the NSF path as the name
+      newSources[index].files = [file];
+      setSources(newSources);
+    
+      const newFileCount = [...fileCount];
+      newFileCount[index] = 1; // It's a single path
+      setFileCount(newFileCount);
+    };  
   
     const deleteSource = (index: number) => {
       const updatedSources = sources.filter((_, i) => i !== index);
@@ -60,13 +71,13 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
 
     const makeFileFormData = () => {
       let formData = new FormData();
-      const fileDetailsList: Array<{ mode: string; location: string }> = [];
+      const unsupervisedFiles: Array<{ path: string; location: string }> = [];
       let fileCount = 0;
 
       sources.forEach(({type, files}) => {
         files.forEach(file => {
           formData.append('files', file);
-          fileDetailsList.push({ mode: 'unsupervised', location: type });
+          unsupervisedFiles.push({ path: file.name, location: type });
           fileCount++;
         });
       });
@@ -75,9 +86,9 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
         return null;
       }
 
-      const extraOptionsForm = { retriever: 'finetunable_retriever' };
-      formData.append('extra_options_form', JSON.stringify(extraOptionsForm));
-      formData.append('file_details_list', JSON.stringify({ file_details: fileDetailsList }));
+      const modelOptionsForm = { ndb_options: { ndb_sub_type: 'v1', retriever: 'finetunable_retriever' } };
+      formData.append('model_options', JSON.stringify(modelOptionsForm));
+      formData.append('file_info', JSON.stringify({ unsupervised_files: unsupervisedFiles }));
 
       return formData;
     };
@@ -170,12 +181,27 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
           value={modelName}
           onChange={(e) => {
             const name = e.target.value;
-            if (workflowNames.includes(name)) {
-              setWarningMessage("An App with the same name has been created. Please choose a different name.");
-            } else {
-              setWarningMessage(""); // Clear the warning if the name is unique
+            const regexPattern = /^[\w-]+$/;
+            let warningMessage = "";
+        
+            // Check if the name contains spaces or periods
+            if (name.includes(" ")) {
+              warningMessage = "The app name cannot contain spaces. Please remove the spaces.";
+            } else if (name.includes(".")) {
+              warningMessage = "The app name cannot contain periods ('.'). Please remove the periods.";
+            } 
+            // Check if the name contains invalid characters (not matching the regex)
+            else if (!regexPattern.test(name)) {
+              warningMessage = "The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.";
+            } 
+            // Check if the name is already taken
+            else if (workflowNames.includes(name)) {
+              warningMessage = "An app with the same name already exists. Please choose a different name.";
             }
-            setModelName(name)
+        
+            // Update the warning message or clear it if valid
+            setWarningMessage(warningMessage);
+            setModelName(name);
           }}
           placeholder="Enter app name"
           style={{marginTop: "10px"}}
@@ -213,13 +239,16 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
                       }}
                       multiple
                     />
-                    {/* <span>{fileCount[index]} files selected</span> */}
                   </div>
                 )}
-                <Button
-                  variant="destructive"
-                  onClick={() => deleteSource(index)}
-                >
+                {type === SourceType.NSF && ( // New input for NSF server path
+                  <Input
+                    className="text-md"
+                    onChange={(e) => setNSFSourceValue(index, e.target.value)}
+                    placeholder="Enter NSF server file path"
+                  />
+                )}
+                <Button variant="destructive" onClick={() => deleteSource(index)}>
                   Delete
                 </Button>
               </div>
@@ -230,6 +259,7 @@ const SemanticSearchQuestions = ({ workflowNames, onCreateModel, stayOnPage, app
         <div style={{display: "flex", gap: "10px", marginTop: "10px"}}>
           <Button onClick={() => addSource(SourceType.LOCAL)}>Add Local File</Button>
           <Button onClick={() => addSource(SourceType.S3)}>Add S3 File</Button>
+          {/* <Button onClick={() => addSource(SourceType.NSF)}>Add NSF File</Button> */}
         </div>
 
         <div className="flex justify-start">

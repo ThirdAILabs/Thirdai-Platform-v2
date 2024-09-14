@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import fitz
+import jwt
 import thirdai
 from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
 from fastapi.encoders import jsonable_encoder
@@ -110,6 +111,87 @@ def ndb_query(
     )
 
 
+@ndb_router.post("/update-chat-settings")
+@propagate_error
+def update_chat_settings(
+    settings: inputs.ChatSettings,
+    _=Depends(permissions.verify_permission("write")),
+):
+    model = get_model()
+
+    model.set_chat(**(settings.dict()))
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully updated chat settings",
+    )
+
+
+@ndb_router.post("/get-chat-history")
+@propagate_error
+def get_chat_history(
+    input: inputs.ChatHistoryInput,
+    token=Depends(permissions.verify_permission("read")),
+):
+    model = get_model()
+    if not model.chat:
+        raise Exception(
+            "Chat is not enabled. Please provide an GenAI key to enable chat."
+        )
+
+    if not input.session_id:
+        try:
+            # Use logged-in user id as the chat session id if no other session id is provided
+            session_id = jwt.decode(token, options={"verify_signature": False})[
+                "user_id"
+            ]
+        except:
+            raise Exception(
+                "Must provide a session ID or be logged in to use chat feature"
+            )
+    else:
+        session_id = input.session_id
+
+    chat_history = {"chat_history": model.chat.get_chat_history(session_id)}
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successful",
+        data=chat_history,
+    )
+
+
+@ndb_router.post("/chat")
+@propagate_error
+def chat(input: inputs.ChatInput, token=Depends(permissions.verify_permission("read"))):
+    model = get_model()
+    if not model.chat:
+        raise Exception(
+            "Chat is not enabled. Please provide an GENAI key to enable chat."
+        )
+
+    if not input.session_id:
+        try:
+            # Use logged-in user id as the chat session id if no other session id is provided
+            session_id = jwt.decode(token, options={"verify_signature": False})[
+                "user_id"
+            ]
+        except:
+            raise Exception(
+                "Must provide a session ID or be logged in to use chat feature"
+            )
+    else:
+        session_id = input.session_id
+
+    chat_result = {"response": model.chat.chat(input.user_input, session_id)}
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successful",
+        data=chat_result,
+    )
+
+
 @ndb_router.post("/upvote")
 @propagate_error
 def ndb_upvote(
@@ -141,7 +223,8 @@ def ndb_upvote(
         {
             "query_text": text_id_pair.query_text,
             "reference_id": str(text_id_pair.reference_id),
-            "reference_text": model.db._get_text(text_id_pair.reference_id),
+            "reference_text": "TODO(Nicholas): fix this",
+            # "reference_text": model.db._get_text(text_id_pair.reference_id),
         }
         for text_id_pair in input.text_id_pairs
     ]
@@ -557,11 +640,9 @@ def highlighted_pdf(
     ```
     """
     model = get_model()
-    reference = model.db._savable_state.documents.reference(reference_id)
-    buffer = io.BytesIO(highlighted_pdf_bytes(reference))
-    headers = {
-        "Content-Disposition": f'inline; filename="{Path(reference.source).name}"'
-    }
+    source, pdf_bytes = model.highlight_pdf(reference_id)
+    buffer = io.BytesIO(pdf_bytes)
+    headers = {"Content-Disposition": f'inline; filename="{Path(source).name}"'}
     return Response(buffer.getvalue(), headers=headers, media_type="application/pdf")
 
 
@@ -605,11 +686,7 @@ def pdf_chunks(reference_id: int, _=Depends(permissions.verify_permission("read"
     ```
     """
     model = get_model()
-    reference = model.db.reference(reference_id)
-    chunks = new_pdf_chunks(model.db, reference)
-    if not chunks:
-        chunks = old_pdf_chunks(model.db, reference)
-    if chunks:
+    if chunks := model.chunks(reference_id):
         return response(
             status_code=status.HTTP_200_OK,
             message="Successful",

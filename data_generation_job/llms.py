@@ -69,16 +69,11 @@ class OpenAILLM(LLMBase):
             with self.lock:
                 if model_name not in self.usage:
                     self.usage[model_name] = {}
-                self.usage[model_name]["completion_tokens"] = (
-                    self.usage[model_name].get("", 0)
-                    + current_usage["completion_tokens"]
-                )
-                self.usage[model_name]["prompt_tokens"] = (
-                    self.usage[model_name].get("", 0) + current_usage["prompt_tokens"]
-                )
-                self.usage[model_name]["total_tokens"] = (
-                    self.usage[model_name].get("", 0) + current_usage["total_tokens"]
-                )
+
+                for key in ["completion_tokens", "prompt_tokens", "total_tokens"]:
+                    self.usage[model_name][key] = (
+                        self.usage[model_name].get(key, 0) + current_usage[key]
+                    )
 
                 if "completion_tokens_details" not in self.usage[model_name]:
                     self.usage[model_name]["completion_tokens_details"] = {}

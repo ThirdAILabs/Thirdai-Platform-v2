@@ -152,7 +152,7 @@ async def restart_llm_cache_job():
         docker_password=os.getenv("DOCKER_PASSWORD"),
         image_name=os.getenv("LLM_CACHE_IMAGE_NAME"),
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
-        share_dir=SHARE_DIR,
+        share_dir=os.getenv("SHARE_DIR"),
         python_path=get_python_path(),
         llm_cache_app_dir=str(get_root_absolute_path() / "llm_cache_job"),
         license_key=license_info["boltLicenseKey"],
@@ -174,12 +174,14 @@ async def restart_telemetry_jobs():
     response = submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "telemetry.hcl.j2"),
-        VM_DATA_DIR=os.path.join(SHARE_DIR, "monitoring-data", "victoriametric"),
-        LOKI_DATA_DIR=os.path.join(SHARE_DIR, "monitoring-data", "loki"),
-        dashboards=os.path.join(SHARE_DIR, "telemetry_dashboards"),
-        GRAFANA_DATA_DIR=os.path.join(SHARE_DIR, "monitoring-data", "grafana"),
-        NOMAD_ENDPOINT =f"{os.getenv('PRIVATE_MODEL_BAZAAR_ENDPOINT').rstrip('/')}",
         platform=get_platform(),
+        tag=os.getenv("TAG"),
+        registry=os.getenv("DOCKER_REGISTRY"),
+        docker_username=os.getenv("DOCKER_USERNAME"),
+        docker_password=os.getenv("DOCKER_PASSWORD"),
+        image_name=os.getenv("NODE_DISCOVERY_IMAGE_NAME"),
+        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+        share_dir=os.getenv("SHARE_DIR"),
     )
     if response.status_code != 200:
         raise Exception(f"{response.text}")

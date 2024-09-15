@@ -3,7 +3,6 @@ data_dir  = "/opt/nomad/data"
 
 client {
   enabled                     = true
-  node_class = "client"
 }
 
 server {

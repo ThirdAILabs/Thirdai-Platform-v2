@@ -6,10 +6,13 @@ job "telemetry" {
   group "telemetry" {
     count = 1
 
+    {% if platform == "docker" -%}
     constraint {
       attribute = "${node.class}"
-      value     = "client"
+      value     = "web_ingress"
+      operator = "!="
     }
+    {%- endif %}
 
     network {
       port "vicky-http" {

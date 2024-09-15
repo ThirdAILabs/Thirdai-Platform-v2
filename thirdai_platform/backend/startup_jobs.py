@@ -175,15 +175,17 @@ async def restart_telemetry_jobs():
         delete_nomad_job(TELEMETRY_ID, nomad_endpoint)
 
     cwd = Path(os.getcwd())
-    shutil.copytree(
-        str(cwd / "telemetry_dashboards"),
-        os.path.join(MODEL_BAZAAR_PATH, "nomad-monitoring", "telemetry_dashboards"),
-        dirs_exist_ok=True,
-    )
+    platform = get_platform()
+    if platform == "local":
+        shutil.copytree(
+            str(cwd / "telemetry_dashboards"),
+            os.path.join(MODEL_BAZAAR_PATH, "nomad-monitoring", "telemetry_dashboards"),
+            dirs_exist_ok=True,
+        )
     response = submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "telemetry.hcl.j2"),
-        platform=get_platform(),
+        platform=platform,
         tag=os.getenv("TAG"),
         registry=os.getenv("DOCKER_REGISTRY"),
         docker_username=os.getenv("DOCKER_USERNAME"),

@@ -50,7 +50,7 @@ jobs:
               "tenantId": "${{ secrets.TENANT_ID }}"
             }
 
-      # Generate random version number in format 123.123.123
+      # Generate random version number in format 123.123.123 
       - name: Generate random version
         id: generate_version
         run: |

@@ -175,3 +175,19 @@ class Reporter:
             headers=self.auth_header(access_token=access_token),
         )
         print(content)
+
+    def active_workflow_count(
+        self,
+        model_id: str,
+    ):
+        content = self._request(
+            "get",
+            "api/workflow/count",
+            params={
+                "model_id": model_id,
+                "status_filter": "active",
+            },
+        )
+        print(content)
+
+        return content["data"]["workflows_count"]

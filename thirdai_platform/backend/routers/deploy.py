@@ -14,7 +14,6 @@ from auth.jwt import (
 from backend.auth_dependencies import is_model_owner
 from backend.utils import (
     delete_nomad_job,
-    get_empty_port,
     get_model_from_identifier,
     get_platform,
     get_python_path,
@@ -23,8 +22,6 @@ from backend.utils import (
     model_accessible,
     response,
     submit_nomad_job,
-    update_json,
-    update_json_list,
 )
 from database import schema
 from database.session import get_session
@@ -32,7 +29,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()
@@ -141,6 +137,7 @@ def deploy_model(
     memory: Optional[int] = None,
     autoscaling_enabled: bool = False,
     autoscaler_max_count: int = 1,
+    llm_provider: Optional[str] = None,
     genai_key: Optional[str] = None,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
@@ -233,10 +230,10 @@ def deploy_model(
             )
         memory = (size_in_memory // 1000000) + 1000  # MB required for deployment
 
-    try:
-        work_dir = os.getcwd()
-        platform = get_platform()
+    work_dir = os.getcwd()
+    platform = get_platform()
 
+    try:
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "deployment_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -246,13 +243,13 @@ def deploy_model(
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("DEPLOY_IMAGE_NAME"),
-            port=None if platform == "docker" else get_empty_port(),
             deployment_app_dir=str(get_root_absolute_path() / "deployment_job"),
             model_id=str(model.id),
             model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
             share_dir=os.getenv("SHARE_DIR", None),
             license_key=license_info["boltLicenseKey"],
             genai_key=(genai_key or os.getenv("GENAI_KEY", "")),
+            llm_provider=(llm_provider or os.getenv("LLM_PROVIDER", "openai")),
             autoscaling_enabled=("true" if autoscaling_enabled else "false"),
             autoscaler_max_count=str(autoscaler_max_count),
             memory=memory,
@@ -261,11 +258,11 @@ def deploy_model(
             python_path=get_python_path(),
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+            worker_enabled=("true" if model.type == "ndb" else "false"),
         )
 
-        model.deploy_status = schema.Status.in_progress
+        model.deploy_status = schema.Status.starting
         session.commit()
-
     except Exception as err:
         model.deploy_status = schema.Status.failed
         session.commit()
@@ -417,82 +414,13 @@ class LogData(BaseModel):
     train_samples: List[Dict[str, str]]
     used: bool
 
-
-@deploy_router.post("/log")
-def log_results(
-    log_data: LogData,
-    session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
-):
-    """
-    Log training results for a deployment.
-
-    Parameters:
-    - log_data: The log data to save (body).
-    - session: The database session (dependency).
-    - authenticated_user: The authenticated user (dependency).
-
-    Example Usage:
-    ```json
-    {
-        "model_id": "model_id",
-        "action": "train",
-        "train_samples": [
-            {"input": "data1", "output": "label1"},
-            {"input": "data2", "output": "label2"}
-        ],
-        "used": true
-    }
-    ```
-    """
-    user: schema.User = authenticated_user.user
-    model: schema.Model = (
-        session.query(schema.Model).filter(schema.Model.id == log_data.model_id).first()
-    )
-
-    if not model:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="No model with this id",
-        )
-
-    log_entry = (
-        session.query(schema.Log)
-        .filter(
-            schema.Log.model_id == log_data.model_id,
-            schema.Log.user_id == user.id,
-            schema.Log.action == log_data.action,
-        )
-        .first()
-    )
-
-    new_log = {
-        "train_samples": log_data.train_samples,
-        "used": str(log_data.used),
-        "timestamp": str(datetime.utcnow().isoformat()),
-    }
-
-    if not log_entry:
-        log_entry = schema.Log(
-            model_id=model.id,
-            user_id=user.id,
-            action=log_data.action,
-        )
-        session.add(log_entry)
-        session.commit()
-        session.refresh(log_entry)
-
-    log_entry.log_entries = update_json_list(log_entry.log_entries, new_log)
-    log_entry.count += len(log_data.train_samples)
-    session.commit()
-
-    return {"message": "Log entry added successfully"}
+    class Config:
+        protected_namespaces = ()
 
 
 @deploy_router.get("/info", dependencies=[Depends(is_model_owner)])
 def get_deployment_info(
     model_identifier: str,
-    require_raw_logs: bool = False,
     session: Session = Depends(get_session),
 ):
     """
@@ -500,13 +428,11 @@ def get_deployment_info(
 
     Parameters:
     - model_identifier: The identifier of the model.
-    - require_raw_logs: Whether to include raw logs in the response (query parameter).
 
     Example Usage:
     ```json
     {
         "model_identifier": "username/modelname",
-        "require_raw_logs": false
     }
     ```
     """
@@ -518,22 +444,11 @@ def get_deployment_info(
             message=str(error),
         )
 
-    logs = session.query(schema.Log).filter_by(schema.Log.model_id == model.id)
-
     # Prepare the response data
     deployment_info = {
         "name": model.name,
         "status": model.deploy_status,
         "model_id": str(model.id),
-        "logs": [
-            {
-                "user_id": str(log.user_id),
-                "action": log.action,
-                "count": log.count,
-                **({"log_entries": log.log_entries} if require_raw_logs else {}),
-            }
-            for log in logs
-        ],
     }
 
     return response(

@@ -3,6 +3,7 @@ import time
 from fastapi import APIRouter, Depends, status
 from fastapi.encoders import jsonable_encoder
 from permissions import Permissions
+from prometheus_client import Summary
 from pydantic_models.inputs import BaseQueryParams, SearchResultsTokenClassification
 from routers.model import get_model
 from throughput import Throughput
@@ -20,11 +21,15 @@ queries_ingested = Throughput()
 queries_ingested_bytes = Throughput()
 
 
+udt_predict_metric = Summary("udt_predict", "UDT predictions")
+
+
 @udt_router.post("/predict")
 @propagate_error
+@udt_predict_metric.time()
 def udt_query(
     base_params: BaseQueryParams,
-    token=Depends(permissions.verify_read_permission),
+    token=Depends(permissions.verify_permission("read")),
 ):
     """
     Predicts the output based on the provided query parameters.
@@ -66,7 +71,7 @@ def udt_query(
 
 @udt_router.get("/stats")
 @propagate_error
-def udt_query(_=Depends(permissions.verify_read_permission)):
+def udt_query(_=Depends(permissions.verify_permission("read"))):
     """
     Returns statistics about the deployment such as the number of tokens identified, number of
     queries ingested, and total size of queries ingested.

@@ -13,6 +13,7 @@ boto3
 # app
 gunicorn
 fastapi==0.109.2
+fastapi_utils
 fastapi[all]
 uvicorn
 fsspec
@@ -24,7 +25,8 @@ starlette
 httpx
 Authlib
 google-auth-oauthlib
-thirdai[all]
+thirdai
 langchain_openai
 hvac
 nltk
+jinja2

@@ -6,11 +6,13 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
+from backend.config import JobOptions
 from backend.utils import (
     get_platform,
     get_python_path,
     get_root_absolute_path,
     response,
+    save_dict,
     submit_nomad_job,
 )
 from database import schema
@@ -21,6 +23,10 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 data_router = APIRouter()
+
+
+def model_bazaar_path():
+    return "/model_bazaar" if os.path.exists("/.dockerenv") else os.getenv("SHARE_DIR")
 
 
 def get_catalogs(task: schema.UDT_Task, session: Session):
@@ -56,36 +62,44 @@ class LLMProvider(str, Enum):
     cohere = "cohere"
 
 
+class Entity(BaseModel):
+    name: str
+    examples: List[str]
+    description: str
+
+
 class TextClassificationGenerateArgs(BaseModel):
     samples_per_label: int
-    target_labels: List[str]
-    examples: Dict[str, List[str]]
-    labels_description: Dict[str, str]
+    target_labels: List[Entity]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
-    vocab_per_sentence: int = 4
-    allocation_cores: Optional[int] = None
-    allocation_memory: Optional[int] = None
+    vocab_per_sentence: int = 2
 
 
 @data_router.post("/generate-text-data")
 def generate_text_data(
     task_prompt: str,
     llm_provider: LLMProvider = LLMProvider.openai,
-    form: str = Form(default="{}"),
+    datagen_form: str = Form(default="{}"),
+    job_form: str = Form(default="{}"),
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    # authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:
-        extra_options = TextClassificationGenerateArgs.model_validate_json(
-            form
-        ).model_dump()
+        extra_options = JobOptions.model_validate_json(job_form).model_dump()
+        datagen_options: TextClassificationGenerateArgs = (
+            TextClassificationGenerateArgs.model_validate_json(datagen_form)
+        )
+
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
             print(f"Extra options for training: {extra_options}")
     except ValidationError as e:
-        return {"error": "Invalid extra options format", "details": str(e)}
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Invalid option format\nDetails: {str(e)}",
+        )
 
     try:
         license_info = verify_license(
@@ -113,6 +127,14 @@ def generate_text_data(
             message=f"Need gen_ai key for data-generation",
         )
 
+    # Dump the datagen option in the storage dir
+    storage_dir = os.path.join(model_bazaar_path(), "generated_data", str(data_id))
+    os.makedirs(storage_dir, exist_ok=True)
+    save_dict(
+        datagen_options.model_dump(),
+        os.path.join(storage_dir, "generation_args.json"),
+    )
+
     submit_nomad_job(
         str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
         nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -122,9 +144,10 @@ def generate_text_data(
         docker_username=os.getenv("DOCKER_USERNAME"),
         docker_password=os.getenv("DOCKER_PASSWORD"),
         image_name=os.getenv("TRAIN_IMAGE_NAME"),
-        train_script=str(get_root_absolute_path() / "data_generation/run.py"),
+        train_script=str(get_root_absolute_path() / "data_generation_job/run.py"),
         task_prompt=task_prompt,
         data_id=str(data_id),
+        storage_dir=storage_dir,
         data_category="text",
         llm_provider=llm_provider.value,
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -142,11 +165,9 @@ def generate_text_data(
 
 
 class TokenClassificationGenerateArgs(BaseModel):
-    domain_prompt: str
-    tags: List[str]
-    tag_examples: Dict[str, List[str]]
+    tags: List[Entity]
     num_sentences_to_generate: int
-    num_samples_per_tag: int = 4
+    num_samples_per_tag: Optional[int] = None
     allocation_cores: Optional[int] = None
     allocation_memory: Optional[int] = None
 
@@ -155,20 +176,26 @@ class TokenClassificationGenerateArgs(BaseModel):
 def generate_token_data(
     task_prompt: str,
     llm_provider: LLMProvider = LLMProvider.openai,
-    form: str = Form(default="{}"),
+    datagen_form: str = Form(default="{}"),
+    job_form: str = Form(default="{}"),
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    # authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    # print(f"Received form data: {form}")
     # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:
-        extra_options = TokenClassificationGenerateArgs.model_validate_json(
-            form
-        ).model_dump()
+        extra_options = JobOptions.model_validate_json(job_form).model_dump()
+        datagen_options: TokenClassificationGenerateArgs = (
+            TokenClassificationGenerateArgs.model_validate_json(datagen_form)
+        )
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
             print(f"Extra options for training: {extra_options}")
     except ValidationError as e:
-        return {"error": "Invalid extra options format", "details": str(e)}
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Invalid option format\nDetails: {str(e)}",
+        )
 
     try:
         license_info = verify_license(
@@ -196,6 +223,14 @@ def generate_token_data(
             message=f"Need gen_ai key for data-generation",
         )
 
+    # Dump the datagen option in the storage dir
+    storage_dir = os.path.join(model_bazaar_path(), "generated_data", str(data_id))
+    os.makedirs(storage_dir, exist_ok=True)
+    save_dict(
+        datagen_options.model_dump(),
+        os.path.join(storage_dir, "generation_args.json"),
+    )
+
     submit_nomad_job(
         str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "generate_data_job.hcl.j2"),
         nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
@@ -205,9 +240,10 @@ def generate_token_data(
         docker_username=os.getenv("DOCKER_USERNAME"),
         docker_password=os.getenv("DOCKER_PASSWORD"),
         image_name=os.getenv("TRAIN_IMAGE_NAME"),
-        train_script=str(get_root_absolute_path() / "data_generation/run.py"),
+        train_script=str(get_root_absolute_path() / "data_generation_job/run.py"),
         task_prompt=task_prompt,
         data_id=str(data_id),
+        storage_dir=storage_dir,
         data_category="token",
         llm_provider=llm_provider.value,
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),

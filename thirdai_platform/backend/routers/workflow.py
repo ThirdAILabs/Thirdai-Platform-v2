@@ -1,8 +1,9 @@
 import json
 import os
+import traceback
 from collections import defaultdict
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import (
@@ -10,23 +11,24 @@ from backend.auth_dependencies import (
     is_workflow_accessible,
     is_workflow_owner,
 )
+from backend.startup_jobs import start_on_prem_generate_job
 from backend.utils import (
     delete_nomad_job,
-    get_empty_port,
     get_platform,
     get_python_path,
     get_root_absolute_path,
+    get_workflow,
     list_workflow_models,
     response,
     submit_nomad_job,
 )
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import verify_license
-from pydantic import BaseModel
-from sqlalchemy import and_, or_
+from pydantic import BaseModel, validator
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 workflow_router = APIRouter()
@@ -164,13 +166,15 @@ class WorkflowParams(BaseModel):
     components: List[str]  # Added to match components with models
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "workflow_id": "f84b8f1d-76e1-4d9b-bb1a-8f8d5d6f1a3c",
                 "model_ids": ["model1_id", "model2_id"],
                 "components": ["search", "guardrail"],  # Example components
             }
         }
+
+        protected_namespaces = ()
 
 
 @workflow_router.post("/add-models")
@@ -212,22 +216,7 @@ def add_models(
     }
     ```
     """
-    workflow: schema.Workflow = session.query(schema.Workflow).get(body.workflow_id)
-
-    if not workflow:
-        return response(
-            status_code=status.HTTP_404_NOT_FOUND,
-            message="Workflow not found.",
-        )
-
-    if (
-        workflow.user_id != authenticated_user.user.id
-        and not authenticated_user.user.is_global_admin()
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have owner permissions to this workflow",
-        )
+    workflow = get_workflow(session, body.workflow_id, authenticated_user)
 
     for model_id, component in zip(body.model_ids, body.components):
         model: schema.Model = session.query(schema.Model).get(model_id)
@@ -264,6 +253,29 @@ def add_models(
         status_code=status.HTTP_200_OK,
         message="Models added to workflow successfully.",
         data={"models": jsonable_encoder(list_workflow_models(workflow=workflow))},
+    )
+
+
+class WorkflowGenAIModel(BaseModel):
+    workflow_id: str
+    provider: str
+
+
+@workflow_router.post("/set-gen-ai-provider")
+def set_gen_ai_provider(
+    body: WorkflowGenAIModel,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    workflow = get_workflow(session, body.workflow_id, authenticated_user)
+
+    workflow.gen_ai_provider = body.provider
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successful",
+        success=True,
     )
 
 
@@ -305,22 +317,7 @@ def delete_models(
     }
     ```
     """
-    workflow: schema.Workflow = session.query(schema.Workflow).get(body.workflow_id)
-
-    if not workflow:
-        return response(
-            status_code=status.HTTP_404_NOT_FOUND,
-            message="Workflow not found.",
-        )
-
-    if (
-        workflow.user_id != authenticated_user.user.id
-        and not authenticated_user.user.is_global_admin()
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have owner permissions to this workflow",
-        )
+    workflow = get_workflow(session, body.workflow_id, authenticated_user)
 
     for model_id, component in zip(body.model_ids, body.components):
         model: schema.Model = session.query(schema.Model).get(model_id)
@@ -597,7 +594,7 @@ def stop_workflow(
 
 
 @workflow_router.post("/start", dependencies=[Depends(is_workflow_owner)])
-def start_workflow(
+async def start_workflow(
     workflow_id: str,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
@@ -692,10 +689,10 @@ def start_workflow(
                 )
             memory = (size_in_memory // 1000000) + 1000  # MB required for deployment
 
-            try:
-                work_dir = os.getcwd()
-                platform = get_platform()
+            work_dir = os.getcwd()
+            platform = get_platform()
 
+            try:
                 submit_nomad_job(
                     str(
                         Path(work_dir)
@@ -710,7 +707,6 @@ def start_workflow(
                     docker_username=os.getenv("DOCKER_USERNAME"),
                     docker_password=os.getenv("DOCKER_PASSWORD"),
                     image_name=os.getenv("DEPLOY_IMAGE_NAME"),
-                    port=None if platform == "docker" else get_empty_port(),
                     deployment_app_dir=str(get_root_absolute_path() / "deployment_job"),
                     model_id=str(model.id),
                     model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
@@ -722,23 +718,29 @@ def start_workflow(
                         )
                     )["boltLicenseKey"],
                     genai_key=(os.getenv("GENAI_KEY", "")),
-                    autoscaling_enabled="false",
-                    autoscaler_max_count="1",
+                    autoscaling_enabled=str(
+                        os.getenv("AUTOSCALING_ENABLED", "false")
+                    ).lower(),
+                    autoscaler_max_count=os.getenv("AUTOSCALER_MAX_COUNT", "1"),
                     memory=memory,
                     type=model.type,
                     sub_type=model.sub_type,
                     python_path=get_python_path(),
                     aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
                     aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+                    worker_enabled=("true" if model.type == "ndb" else "false"),
                 )
 
-                model.deploy_status = schema.Status.in_progress
+                model.deploy_status = schema.Status.starting
                 session.commit()
-
             except Exception as err:
                 model.deploy_status = schema.Status.failed
+                workflow.status = schema.WorkflowStatus.inactive
                 session.commit()
                 raise Exception(str(err))
+
+    if workflow.gen_ai_provider == "on-prem":
+        await start_on_prem_generate_job(restart_if_exists=False)
 
     return response(
         status_code=status.HTTP_202_ACCEPTED,
@@ -752,8 +754,23 @@ class WorkflowTypeParams(BaseModel):
     description: str
     model_requirements: List[List[dict]]  # Updated to list of list of dictionaries
 
+    @validator("name")
+    def name_must_not_be_empty(cls, v):
+        if not v.strip():
+            raise ValueError("Name cannot be empty.")
+        return v
+
+    @validator("model_requirements")
+    def requirements_must_not_be_empty(cls, v):
+        if not v:
+            raise ValueError("Model requirements cannot contain empty lists.")
+        for requirement_group in v:
+            if not requirement_group:
+                raise ValueError("Model requirements cannot contain empty groups.")
+        return v
+
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "semantic_search",
                 "description": "Semantic search workflow",
@@ -769,6 +786,8 @@ class WorkflowTypeParams(BaseModel):
                 ],
             }
         }
+
+        protected_namespaces = ()
 
 
 @workflow_router.post("/add-type", dependencies=[Depends(global_admin_only)])
@@ -936,6 +955,7 @@ def get_workflow_details(
         "name": workflow.name,
         "type": workflow.workflow_type.name,
         "type_id": str(workflow.type_id),
+        "gen_ai_provider": workflow.gen_ai_provider,
         "status": workflow.status,
         "publish_date": str(workflow.published_date),
         "models": jsonable_encoder(list_workflow_models(workflow=workflow)),
@@ -962,10 +982,24 @@ def delete_workflow(
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
     """
-    workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
+    try:
+        workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
 
-    session.delete(workflow)
-    session.commit()
+        if not workflow:
+            return response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="Workflow not found.",
+            )
+
+        session.delete(workflow)
+        session.commit()
+
+    except Exception as err:
+        traceback.print_exc()
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=f"Failed to delete the workflow due to {err}",
+        )
 
     return response(
         status_code=status.HTTP_200_OK,
@@ -1042,24 +1076,14 @@ def list_accessible_workflows(
     """
     user: schema.User = authenticated_user.user
 
-    # Build the base query
-    query = session.query(schema.Workflow).join(schema.Workflow.workflow_models)
+    # Build the base query with outer join to include workflows without models
+    all_workflows = (
+        session.query(schema.Workflow).outerjoin(schema.Workflow.workflow_models).all()
+    )
 
-    # Apply conditions based on user's global admin status
-    if not user.is_global_admin():
-        public_condition = schema.Model.access_level == schema.Access.public
-        protected_condition = and_(
-            schema.Model.access_level == schema.Access.protected,
-            schema.Model.team_id.in_([team.team_id for team in user.teams]),
-        )
-        private_condition = schema.Model.user_id == user.id
-
-        query = query.filter(
-            or_(public_condition, protected_condition, private_condition)
-        )
-
-    # Fetch filtered workflows from the database
-    filtered_workflows = query.all()
+    filtered_workflows = [
+        workflow for workflow in all_workflows if workflow.can_access(user)
+    ]
 
     # Apply the can_access check on the remaining workflows
     accessible_workflows = [
@@ -1075,6 +1099,7 @@ def list_accessible_workflows(
             "status": workflow.status,
             "models": jsonable_encoder(list_workflow_models(workflow=workflow)),
             "publish_date": str(workflow.published_date),
+            "gen_ai_provider": workflow.gen_ai_provider,
             "created_by": {
                 "id": str(workflow.user.id),
                 "username": workflow.user.username,
@@ -1152,4 +1177,69 @@ def get_workflow_type_details(
         status_code=status.HTTP_200_OK,
         message="Workflow type details retrieved successfully.",
         data=jsonable_encoder(workflow_type_data),
+    )
+
+
+@workflow_router.get("/count")
+def get_workflow_count(
+    model_id: str,
+    status_filter: Optional[schema.WorkflowStatus] = None,
+    session: Session = Depends(get_session),
+):
+    """
+    Get the count of workflows associated with a specific model by its identifier and status.
+
+    - **Parameters**:
+      - `model_id` (str): The identifier of the model to check.
+      - `status_filter` (WorkflowStatus, optional): The status filter to apply (e.g., "active", "inactive").
+        If not provided, counts all workflows.
+
+    - **Returns**:
+      - `status_code` (int): HTTP status code.
+      - `message` (str): Response message.
+      - `data` (dict): Count of workflows associated with the model.
+
+    **Example Request**:
+    ```json
+    {
+        "model_id": "UUID of the model",
+        "status_filter": "active"
+    }
+    ```
+    **Example Response**:
+    ```json
+    {
+        "status_code": 200,
+        "message": "Workflows count retrieved successfully.",
+        "data": {
+            "workflows_count": 3
+        }
+    }
+    ```
+    """
+    model: schema.Model = session.query(schema.Model).get(model_id)
+
+    if not model:
+        return response(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="Model not found.",
+        )
+
+    # Base query to count workflows associated with the model
+    query = (
+        session.query(schema.Workflow)
+        .join(schema.Workflow.workflow_models)
+        .filter(schema.WorkflowModel.model_id == model.id)
+    )
+
+    # Apply status filter based on the value of status_filter
+    if status_filter:
+        query = query.filter(schema.Workflow.status == status_filter)
+
+    workflows_count = query.count()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Workflows count retrieved successfully.",
+        data={"workflows_count": workflows_count},
     )

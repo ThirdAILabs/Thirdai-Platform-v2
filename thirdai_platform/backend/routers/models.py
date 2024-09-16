@@ -1,8 +1,6 @@
 import json
 import os
-import traceback
 import uuid
-from datetime import datetime
 from typing import Annotated, Dict, Optional, Union
 
 from auth.jwt import AuthenticatedUser, verify_access_token
@@ -29,13 +27,18 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
+
 from storage import interface, local
+
+MODEL_BAZAAR_PATH = (
+    "/model_bazaar"
+    if os.path.exists("/.dockerenv")
+    else os.getenv("SHARE_DIR", "/model_bazaar")
+)
 
 model_router = APIRouter()
 
-storage: interface.StorageInterface = local.LocalStorage(
-    os.getenv("SHARE_DIR", "/model_bazaar")
-)
+storage: interface.StorageInterface = local.LocalStorage(MODEL_BAZAAR_PATH)
 
 
 @model_router.get("/public-list")
@@ -216,6 +219,9 @@ class SaveNDBDeployedModel(BaseModel):
     base_model_id: str
     model_name: str
     metadata: Dict[str, str]
+
+    class Config:
+        protected_namespaces = ()
 
 
 @model_router.post("/save-deployed")

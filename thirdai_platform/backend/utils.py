@@ -5,15 +5,14 @@ import os
 import re
 import socket
 from pathlib import Path
-from typing import List, Optional
 from urllib.parse import urljoin
 
 import bcrypt
 import requests
 from database import schema
+from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
 from jinja2 import Template
-from pydantic import BaseModel, Field, root_validator, validator
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger("ThirdAI_Platform")
@@ -40,6 +39,9 @@ def setup_logger(
 
     logger.setLevel(level)
     logger.info("Initialized console logging.")
+
+
+setup_logger()
 
 
 def response(status_code: int, message: str, data={}, success: bool = None):
@@ -98,6 +100,7 @@ def get_high_level_model_info(result: schema.Model):
         "access_level": result.access_level,
         "domain": result.domain,
         "type": result.type,
+        "train_status": result.train_status,
         "deploy_status": result.deploy_status,
         "team_id": str(result.team_id),
         "model_id": str(result.id),
@@ -142,191 +145,6 @@ def validate_name(name):
     regex_pattern = "^[\w-]+$"
     if not re.match(regex_pattern, name):
         raise ValueError("name is not valid")
-
-
-class UDTExtraOptions(BaseModel):
-    """
-    Model for User Defined Type (UDT) extra options.
-
-    Attributes:
-    - allocation_cores: Optional number of cores to allocate.
-    - allocation_memory: Optional amount of memory to allocate.
-    - sub_type: Optional subtype of the UDT.
-    - target_labels: List of target labels.
-    - source_column: Optional source column name.
-    - target_column: Optional target column name.
-    - default_tag: Optional default tag.
-    - delimiter: Optional delimiter (default is ',').
-    - text_column: Optional text column name (default is 'text').
-    - label_column: Optional label column name (default is 'label').
-    - n_target_classes: Optional number of target classes.
-
-    Validators:
-    - set_fields_based_on_type: Sets default values based on the subtype.
-    """
-
-    allocation_cores: Optional[int] = None
-    allocation_memory: Optional[int] = None
-
-    sub_type: Optional[str] = None
-    target_labels: List[str] = None
-    source_column: Optional[str] = None
-    target_column: Optional[str] = None
-    default_tag: Optional[str] = None
-    delimiter: Optional[str] = None
-    text_column: Optional[str] = None
-    label_column: Optional[str] = None
-    n_target_classes: Optional[int] = None
-
-    @root_validator(pre=True)
-    def set_fields_based_on_type(cls, values):
-        sub_type = values.get("sub_type")
-        if sub_type == "text":
-            values["delimiter"] = values.get("delimiter", ",")
-            values["text_column"] = values.get("text_column", "text")
-            values["label_column"] = values.get("label_column", "label")
-            values["n_target_classes"] = values.get("n_target_classes", None)
-        elif sub_type == "token":
-            values["target_labels"] = values.get("target_labels", [])
-            values["source_column"] = values.get("source_column", "source")
-            values["target_column"] = values.get("target_column", "target")
-            values["default_tag"] = values.get("default_tag", "O")
-        return values
-
-    @validator("target_labels")
-    def check_target_labels(cls, v, values):
-        sub_type = values.get("sub_type")
-        if sub_type == "token":
-            if not v:
-                raise ValueError("target_labels must be a non-empty list")
-            for label in v:
-                if len(label) == 0:
-                    raise ValueError(
-                        f'target_labels cannot contain empty strings: "{label}" is invalid'
-                    )
-                if " " in label:
-                    raise ValueError(
-                        f'target_labels cannot contain spaces: "{label}" is invalid'
-                    )
-        return v
-
-    @validator("default_tag")
-    def check_default_tag(cls, v, values):
-        sub_type = values.get("sub_type")
-        if sub_type == "token":
-            if not v:
-                raise ValueError("default_tag must be specified")
-            if " " in v:
-                raise ValueError(f'default_tag cannot contain spaces: "{v}" is invalid')
-        return v
-
-    @validator("n_target_classes")
-    def check_n_target_classes(cls, v, values):
-        """
-        Checks if n_target_classes > 0
-        """
-        sub_type = values.get("sub_type")
-        if sub_type == "text":
-            if v is None:
-                raise ValueError("n_target_classes must be specified")
-            if v <= 0:
-                raise ValueError(
-                    f"n_target_classes must be a positive integer: {v} is invalid"
-                )
-        return v
-
-
-class NDBExtraOptions(BaseModel):
-    """
-    Model for Neural Database (NDB) extra options.
-
-    Attributes:
-    - num_models_per_shard: Optional number of models per shard (default is 1).
-    - num_shards: Optional number of shards (default is 1).
-    - allocation_cores: Optional number of cores to allocate.
-    - allocation_memory: Optional amount of memory to allocate.
-    - model_cores: Optional number of cores for the model.
-    - model_memory: Optional amount of memory for the model.
-    - priority: Optional priority of the job.
-    - csv_id_column: Optional CSV ID column name.
-    - csv_strong_columns: Optional list of strong columns.
-    - csv_weak_columns: Optional list of weak columns.
-    - csv_reference_columns: Optional list of reference columns.
-    - fhr: Optional FHR value.
-    - embedding_dim: Optional embedding dimension.
-    - output_dim: Optional output dimension.
-    - max_in_memory_batches: Optional maximum number of in-memory batches.
-    - extreme_num_hashes: Optional number of extreme hashes.
-    - num_classes: Optional number of classes.
-    - csv_query_column: Optional CSV query column name.
-    - csv_id_delimiter: Optional CSV ID delimiter.
-    - learning_rate: Optional learning rate.
-    - batch_size: Optional batch size.
-    - unsupervised_epochs: Optional number of unsupervised epochs.
-    - supervised_epochs: Optional number of supervised epochs.
-    - tokenizer: Optional tokenizer.
-    - hidden_bias: Optional boolean indicating hidden bias.
-    - retriever: Optional retriever to use.
-    - unsupervised_train: Optional boolean indicating unsupervised training.
-    - disable_finetunable_retriever: Optional boolean to disable finetunable retriever.
-    - checkpoint_interval: Optional checkpoint interval.
-    - fast_approximation: Optional boolean indicating fast approximation.
-    - num_buckets_to_sample: Optional number of buckets to sample.
-    - metrics: Optional list of metrics.
-    - validation_metrics: Optional list of validation metrics.
-    - on_disk: Optional boolean indicating on-disk storage.
-    - docs_on_disk: Optional boolean indicating documents on-disk storage.
-
-    Config:
-    - extra: Forbid extra attributes.
-    """
-
-    # ----shard specific training params----
-    num_models_per_shard: Optional[int] = Field(1, gt=0)
-    num_shards: Optional[int] = Field(1, gt=0)
-    allocation_cores: Optional[int] = None
-    allocation_memory: Optional[int] = None
-
-    # ----shard agnostic training params----
-    model_cores: Optional[int] = None
-    model_memory: Optional[int] = None
-    priority: Optional[int] = None
-    csv_id_column: Optional[str] = None
-    csv_strong_columns: Optional[List[str]] = None
-    csv_weak_columns: Optional[List[str]] = None
-    csv_reference_columns: Optional[List[str]] = None
-    fhr: Optional[int] = None
-    embedding_dim: Optional[int] = None
-    output_dim: Optional[int] = None
-    max_in_memory_batches: Optional[int] = None
-    extreme_num_hashes: Optional[int] = None
-    num_classes: Optional[int] = None
-
-    csv_query_column: Optional[str] = None
-    csv_id_delimiter: Optional[str] = None
-
-    learning_rate: Optional[float] = None
-    batch_size: Optional[int] = None
-    unsupervised_epochs: Optional[int] = None
-    supervised_epochs: Optional[int] = None
-
-    tokenizer: Optional[str] = None
-    hidden_bias: Optional[bool] = None
-    # This flag is for which retriever to use.
-    retriever: Optional[str] = None
-    unsupervised_train: Optional[bool] = None
-    # This flag is to disable inverted index in supervised training.
-    disable_finetunable_retriever: Optional[bool] = None
-    checkpoint_interval: Optional[int] = None
-    fast_approximation: Optional[bool] = None
-    num_buckets_to_sample: Optional[int] = None
-    metrics: Optional[List[str]] = None
-    validation_metrics: Optional[List[str]] = None
-    on_disk: Optional[bool] = None
-    docs_on_disk: Optional[bool] = None
-
-    class Config:
-        extra = "forbid"
 
 
 def get_model(session: Session, username: str, model_name: str):
@@ -443,6 +261,17 @@ def nomad_job_exists(job_id, nomad_endpoint):
     return response.status_code == 200
 
 
+def get_nomad_job(job_id, nomad_endpoint):
+    headers = {"X-Nomad-Token": TASK_RUNNER_TOKEN}
+    response = requests.get(
+        urljoin(nomad_endpoint, f"v1/job/{job_id}"), headers=headers
+    )
+    if response.status_code == 200:
+        return response.json()
+
+    return None
+
+
 def submit_nomad_job(filepath, nomad_endpoint, **kwargs):
     """
     Submit a generated HCL job file from a Jinja file to Nomad.
@@ -467,10 +296,18 @@ def submit_nomad_job(filepath, nomad_endpoint, **kwargs):
     json_payload_response = requests.post(
         json_payload_url, headers=headers, json=hcl_payload
     )
+
+    json_payload_response.raise_for_status()
+
     json_payload = json_payload_response.json()
 
     # Submit the JSON job spec to Nomad
     response = requests.post(submit_url, headers=headers, json={"Job": json_payload})
+
+    if response.status_code != 200:
+        raise requests.exceptions.HTTPError(
+            f"Request to nomad service failed. Status code: {response.status_code}, Content: {response.content}"
+        )
 
     return response
 
@@ -628,61 +465,6 @@ def get_empty_port():
     return port
 
 
-def delete_nomad_job(job_id, nomad_endpoint):
-    """
-    Delete a Nomad job.
-
-    Parameters:
-    - job_id: The ID of the Nomad job.
-    - nomad_endpoint: The Nomad endpoint.
-
-    Returns:
-    - Response: The response from the Nomad API.
-    """
-    job_url = urljoin(nomad_endpoint, f"v1/job/{job_id}")
-    headers = {"X-Nomad-Token": TASK_RUNNER_TOKEN}
-    response = requests.delete(job_url, headers=headers)
-
-    if response.status_code == 200:
-        print(f"Job {job_id} stopped successfully")
-    else:
-        print(
-            f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
-        )
-
-    return response
-
-
-GENERATE_JOB_ID = "llm-generation"
-
-
-async def restart_generate_job():
-    """
-    Restart the LLM generation job.
-
-    Returns:
-    - Response: The response from the Nomad API.
-    """
-    nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
-    if nomad_job_exists(GENERATE_JOB_ID, nomad_endpoint):
-        delete_nomad_job(GENERATE_JOB_ID, nomad_endpoint)
-    cwd = Path(os.getcwd())
-    platform = get_platform()
-    return submit_nomad_job(
-        nomad_endpoint=nomad_endpoint,
-        filepath=str(cwd / "backend" / "nomad_jobs" / "generation_job.hcl.j2"),
-        platform=platform,
-        port=None if platform == "docker" else get_empty_port(),
-        tag=os.getenv("TAG"),
-        registry=os.getenv("DOCKER_REGISTRY"),
-        docker_username=os.getenv("DOCKER_USERNAME"),
-        docker_password=os.getenv("DOCKER_PASSWORD"),
-        image_name=os.getenv("GENERATION_IMAGE_NAME"),
-        python_path=get_python_path(),
-        generate_app_dir=str(get_root_absolute_path() / "llm_generation_job"),
-    )
-
-
 def get_expiry_min(size: int):
     """
     This is a helper function to calculate the expiry time for the signed
@@ -699,3 +481,29 @@ def list_workflow_models(workflow: schema.Workflow):
         model_info["component"] = workflow_model.component  # Append the component info
         models_info.append(model_info)
     return models_info
+
+
+def get_workflow(session, workflow_id, authenticated_user):
+    workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
+
+    if not workflow:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workflow not found.",
+        )
+
+    if (
+        workflow.user_id != authenticated_user.user.id
+        and not authenticated_user.user.is_global_admin()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have owner permissions to this workflow",
+        )
+
+    return workflow
+
+
+def save_dict(obj: dict, path: str):
+    with open(path, "w") as fp:
+        json.dump(obj, fp, indent=4)

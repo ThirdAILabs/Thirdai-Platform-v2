@@ -3,7 +3,7 @@ Defines input models for Pydantic validation and utility functions for conversio
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 from pydantic_models.constraints import Constraints
@@ -57,6 +57,17 @@ class UpvoteInput(BaseModel):
     text_id_pairs: List[UpvoteInputSingle]
 
 
+class ImplicitFeedbackInput(BaseModel):
+    """
+    Represents a implicit feedback sample for upvoting based on user interations.
+    """
+
+    query_text: str
+    reference_id: int = Field(..., ge=0)
+
+    event_desc: str
+
+
 class SearchResultsNDB(BaseModel):
     """
     Represents the search results including the query and references.
@@ -76,7 +87,7 @@ class DeleteInput(BaseModel):
 
 class SearchResultsTextClassification(BaseModel):
     query_text: str
-    class_names: List[str]
+    predicted_classes: List[Tuple[str, float]]
 
 
 class SearchResultsTokenClassification(BaseModel):
@@ -92,6 +103,9 @@ class SaveModel(BaseModel):
 
     override: bool
     model_name: Optional[str] = None
+
+    class Config:
+        protected_namespaces = ()
 
 
 def convert_reference_to_pydantic(input: Any, context_radius: int) -> Reference:
@@ -143,3 +157,24 @@ class NDBExtraParams(BaseModel):
     rerank_threshold: float = 1.5
     top_k_threshold: Optional[int] = None
     constraints: Constraints = Field(default_factory=Constraints)
+
+
+class ChatInput(BaseModel):
+    user_input: str
+    session_id: Optional[str] = None
+
+
+class ChatHistoryInput(BaseModel):
+    session_id: Optional[str] = None
+
+
+class ChatSettings(BaseModel):
+    top_k: int = 5
+    model: str = "gpt-4o-mini"
+    provider: str = "openai"
+    key: str = None
+    temperature: float = 0.2
+    chat_prompt: str = "Answer the user's questions based on the below context:"
+    query_reformulation_prompt: str = (
+        "Given the above conversation, generate a search query that would help retrieve relevant sources for responding to the last message."
+    )

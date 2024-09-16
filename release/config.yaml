@@ -1,5 +1,29 @@
 azure:
   branches:
+    mshift:
+      pull_credentials:
+        password: uGpzj1Ylkgc+PBbQ5e3r1nEFC+BtiQK2cNeFdRW1NP+ACRCsrcq2
+        username: thirdaiplatform-pull-mshift
+      push_credentials:
+        password: 6DSwbtoUZpFEsAEdV6bL9VpVK+8qJoRcn8li7VRgAz+ACRDNRKRx
+        username: thirdaiplatform-push-mshift
+      version: 0.0.12
+    on-prem-llm:
+      pull_credentials:
+        password: lZit7mOLUB2e7j/Ak50OXCHer4EdaCUDZ8EVHbQnJj+ACRAP/xev
+        username: thirdaiplatform-pull-on-prem-llm
+      push_credentials:
+        password: /6WCAtZuvdhWPyw2VTArrXEgaxOf/5J0NJHoXfflGX+ACRAcpvWw
+        username: thirdaiplatform-push-on-prem-llm
+      version: 0.0.6
+    release-test:
+      pull_credentials:
+        password: ivG00o0TTx10TZDh6Y4chVxDEGR92h0ib4uA5WjF2H+ACRC95ggs
+        username: thirdaiplatform-pull-release-test
+      push_credentials:
+        password: c3P3qKGzI2dBE6fiKJfF+zHos70aRFcJ6vVLZh+zq0+ACRCEzI7T
+        username: thirdaiplatform-push-release-test
+      version: 0.0.18
     test_1:
       pull_credentials:
         password: lfhxcL/qmrYP24rIH2vmRNSYV9ZlNCfxJyQI6E3kVi+ACRDjUz22

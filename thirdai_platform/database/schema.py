@@ -102,7 +102,6 @@ class User(SQLDeclarativeBase):
         "UserTeam", back_populates="user", cascade="all, delete-orphan"
     )
     models = relationship("Model", back_populates="user", cascade="all, delete-orphan")
-    logs = relationship("Log", back_populates="user", cascade="all, delete-orphan")
     workflows = relationship(
         "Workflow", back_populates="user", cascade="all, delete-orphan"
     )
@@ -197,6 +196,13 @@ class Model(SQLDeclarativeBase):
     model_permissions = relationship(
         "ModelPermission", back_populates="model", cascade="all, delete-orphan"
     )
+
+    # TODO support sharded model names
+    def get_train_job_name(self):
+        return f"train-{self.id}-{self.type}-{self.sub_type}"
+
+    def get_deployment_name(self):
+        return f"deployment-{self.id}"
 
     def get_default_permission(self):
         return self.default_permission
@@ -308,32 +314,6 @@ class ModelShard(SQLDeclarativeBase):
     model = relationship("Model", back_populates="model_shards")
 
 
-class Log(SQLDeclarativeBase):
-    __tablename__ = "logs"
-
-    model_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("models.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-    )
-    action = Column(String, primary_key=True)
-    count = Column(Integer, nullable=False, default=0)
-    log_entries = Column(JSON, nullable=True)
-
-    user = relationship("User", back_populates="logs")
-
-    __table_args__ = (
-        Index("log_model_index", "model_id"),
-        Index("log_user_index", "user_id"),
-        UniqueConstraint(
-            "model_id", "user_id", "action", name="unique_model_user_action"
-        ),
-    )
-
-
 class WorkflowType(SQLDeclarativeBase):
     __tablename__ = "workflow_types"
 
@@ -369,6 +349,7 @@ class Workflow(SQLDeclarativeBase):
     workflow_models = relationship(
         "WorkflowModel", back_populates="workflow", cascade="all, delete-orphan"
     )
+    gen_ai_provider = Column(String(256), nullable=True)
     workflow_type = relationship("WorkflowType")
 
     __table_args__ = (

@@ -5,12 +5,11 @@ from abc import abstractmethod
 from collections import defaultdict
 
 from data_types import (
-    DataSamples,
+    DataSample,
     UserFeedBack,
-    deserialize_sample_datatype,
-    deserialize_userfeedback,
+    ModelMetadata,
 )
-from schemas import Base, FeedBack, Samples
+from schemas import Base, FeedBack, Samples, MetaData
 from sqlalchemy import create_engine, event, func
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -68,6 +67,16 @@ class Connector:
         # get unique names in the store
         pass
 
+    @abstractmethod
+    def insert_metadata(self, name: str, datatype: str, serialized_data: str):
+        # if an entry with the value name exists, updates its serialized data,
+        # else makes a new entry for the metadata in the DB.
+        pass
+
+    @abstractmethod
+    def get_metadata(self, name: str):
+        pass
+
 
 class SQLiteConnector(Connector):
     def __init__(self, db_path: str):
@@ -106,6 +115,7 @@ class SQLiteConnector(Connector):
         session.commit()
 
     def get_sample_count(self, name: str, with_feedback: bool = None):
+
         session = self.Session()
         if with_feedback is None:
             return (
@@ -197,6 +207,33 @@ class SQLiteConnector(Connector):
 
         return set([name[0] for name in names])
 
+    def insert_metadata(self, name: str, datatype: str, serialized_data: str):
+        session = self.Session()
+
+        existing_metadata = (
+            session.query(MetaData).filter(MetaData.name == name).first()
+        )
+        if existing_metadata:
+            # update the entry in place
+            existing_metadata.serialized_data = serialized_data
+        else:
+            new_metadata = MetaData(
+                name=name, datatype=datatype, serialized_data=serialized_data
+            )
+            session.add(new_metadata)
+
+        session.commit()
+
+    def get_metadata(self, name: str):
+        session = self.Session()
+
+        entry = (
+            session.query(MetaData.datatype, MetaData.name, MetaData.serialized_data)
+            .filter(MetaData.name == name)
+            .first()
+        )
+        return entry
+
 
 class DataStorage:
     def __init__(self, connector: Connector):
@@ -216,10 +253,10 @@ class DataStorage:
         # if per name buffer size is None then no limit on the number of samples for each name
         # this attribute is to be considered as private so that two different instances of
         # DataStorage with the same connector have same buffer size.
-        self._per_name_buffer_size = 1000
+        self._per_name_buffer_size = 100000
 
     def insert_samples(
-        self, samples: typing.List[DataSamples], override_buffer_limit=False
+        self, samples: typing.List[DataSample], override_buffer_limit=False
     ):
         samples_to_insert = []
         for sample in samples:
@@ -228,7 +265,12 @@ class DataStorage:
                 and self._sample_counter[sample.name] < self._per_name_buffer_size
             ):
                 samples_to_insert.append(
-                    (sample.uuid, sample.datatype, sample.name, sample.serialize())
+                    (
+                        sample.unique_id,
+                        sample.datatype,
+                        sample.name,
+                        sample.serialize_sample(),
+                    )
                 )
 
                 self._sample_counter[sample.name] += 1
@@ -239,8 +281,8 @@ class DataStorage:
         entries = self.connector.get_samples(name, num_samples=num_samples)
 
         return [
-            deserialize_sample_datatype(
-                type=datatype, unique_id=unique_id, name=name, serialized_data=data
+            DataSample.deserialize(
+                type=datatype, unique_id=unique_id, name=name, serialized_sample=data
             )
             for datatype, unique_id, data in entries
         ]
@@ -249,7 +291,9 @@ class DataStorage:
         feedbacks_to_insert = []
 
         for feedback in feedbacks:
-            feedbacks_to_insert.append((feedback.sample_uuid, feedback.serialize()))
+            feedbacks_to_insert.append(
+                (feedback.sample_uuid, feedback.serialize_feedback())
+            )
 
         self.connector.add_feedback(feedbacks_to_insert)
 
@@ -257,8 +301,11 @@ class DataStorage:
         feedbacks = self.connector.get_feedback(name)
 
         return [
-            deserialize_userfeedback(
-                type=datatype, sample_uuid=sample_uuid, name=name, serialized_data=data
+            UserFeedBack.deserialize(
+                type=datatype,
+                name=name,
+                sample_uuid=sample_uuid,
+                serialized_feedback=data,
             )
             for datatype, sample_uuid, data in feedbacks
         ]
@@ -276,3 +323,21 @@ class DataStorage:
             self._sample_counter[name] = self.connector.get_sample_count(
                 name=name, with_feedback=None
             )
+
+    def insert_metadata(self, metadata: ModelMetadata):
+        # updates the serialized data in place if another entry with the same
+        # name exists
+        self.connector.insert_metadata(
+            name=metadata.name,
+            datatype=metadata.datatype,
+            serialized_data=metadata.serialize_metadata(),
+        )
+
+    def get_metadata(self, name) -> ModelMetadata:
+        data = self.connector.get_metadata(name)
+        if data:
+            return ModelMetadata.deserialize(
+                type=data[0], name=data[1], serialized_metadata=data[2]
+            )
+
+        return None

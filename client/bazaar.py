@@ -638,3 +638,12 @@ class ModelBazaar:
         download_files_from_s3(bucket_name, local_dir)
 
         print("Backup and restore operations completed successfully.")
+
+    def delete(self, model_identifier: str):
+        response = http_post_with_error(
+            urljoin(self._base_url, "model/delete"),
+            headers=auth_header(self._access_token),
+            params={"model_identifier": model_identifier},
+        )
+
+        print(f"Successfully deleted the model {model_identifier}")

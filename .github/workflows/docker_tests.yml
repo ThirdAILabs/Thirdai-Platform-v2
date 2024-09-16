@@ -105,7 +105,7 @@ jobs:
       - name: Run Docker container
         run: |
           docker run -d -p 3000:3000 --name nextjs_container thirdaiplatform.azurecr.io/frontend_docker_tests:latest
-          sleep 20  # Wait for the server to start
+          sleep 60  # Wait for the server to start
 
       - name: Test application endpoint
         run: |

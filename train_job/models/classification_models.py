@@ -20,7 +20,6 @@ from utils import (
     check_csv_only,
     check_local_nfs_only,
     expand_s3_buckets_and_directories,
-    list_files,
 )
 
 from storage.storage import DataStorage, SQLiteConnector

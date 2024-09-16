@@ -2,8 +2,7 @@ name: Release Job
 
 on:
   push:
-    branches:
-      - release-tar-ball
+    branches: [main]
 
 jobs:
   package:

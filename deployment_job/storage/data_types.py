@@ -23,6 +23,8 @@ class LabelStatus(str, Enum):
     trained = "trained"  # if the model has already been trained on the label
     uninserted = "uninserted"  # if label is scheduled to be added to the model
 
+    untrained = "untrained"  # if the label is present in the model but not trained
+
 
 class LabelEntity(BaseModel):
     name: str

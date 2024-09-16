@@ -10,6 +10,14 @@ from throughput import Throughput
 from utils import propagate_error, response
 from variables import GeneralVariables
 
+from typing import Union
+
+from storage.data_types import (
+    TextClassificationSample,
+    TokenClassificationSample,
+    LabelEntityList,
+)
+
 udt_router = APIRouter()
 permissions = Permissions()
 general_variables = GeneralVariables.load_from_env()
@@ -113,3 +121,63 @@ def udt_query(_=Depends(permissions.verify_permission("read"))):
             "uptime": int(time.time() - start_time),
         },
     )
+
+
+@udt_router.get("/get_labels")
+@propagate_error
+def udt_get_labels(_=Depends(permissions.verify_read_permission)):
+    """
+    Returns the labels that are present in the model.
+    Parameters:
+    - token: str - Authorization token (inferred from permissions dependency).
+    Returns:
+    -JSONResponse: Response object returning the labels present in the model.
+    """
+    model = get_model()
+    labels = model.get_labels()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successful",
+        data=jsonable_encoder(labels),
+    )
+
+
+@udt_router.post("/add_labels")
+@propagate_error
+def udt_add_labels(
+    params: LabelEntityList, depends=Depends(permissions.verify_write_permission)
+):
+    """
+    Add new labels to the model.
+    Parameters:
+    - params: LabelEntityList - A list of LabelEntity specifying the name of the label and description for generating synthetic data for the label.
+    - token: str - Authorization token (inferred from permissions dependency).
+    Returns:
+    - JSONResponse: Status specifying whether or not the request to add labels was successful.
+    """
+
+    model = get_model()
+    model.add_labels(labels=params)
+
+    return response(status_code=status.HTTP_200_OK, message="Successful")
+
+
+@udt_router.post("/insert_sample")
+@propagate_error
+def udt_insert_sample(
+    params: Union[TokenClassificationSample, TextClassificationSample],
+    _=Depends(permissions.verify_write_permission),
+):
+    """
+    Adds a sample to the data storage associated with the job.
+    Parameters:
+    - params: Union[TokenClassificationSample, TextClassificationSample] - A text or a token classification sample.
+    - token: str - Authorization token (inferred from permissions dependency).
+    Returns:
+    - JSONResponse: Status specifying whether or not the request to add samples was successful.
+    """
+    model = get_model()
+    model.insert_sample(params)
+
+    return response(status_code=status.HTTP_200_OK, message="Successful")

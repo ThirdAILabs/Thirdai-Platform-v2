@@ -15,12 +15,7 @@ from config import (
 )
 from exceptional_handler import apply_exception_handler
 from models.model import Model
-from storage.data_types import (
-    DataSample,
-    LabelEntity,
-    LabelStatus,
-    TagMetadata,
-)
+from storage.data_types import DataSample, LabelEntity, LabelStatus, TagMetadata
 from storage.storage import DataStorage, SQLiteConnector
 from thirdai import bolt
 from utils import (

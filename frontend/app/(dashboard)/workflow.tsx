@@ -198,6 +198,9 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
     return (parseInt(bytes) / (1024 * 1024)).toFixed(2) + ' MB';
   };
 
+  // Find the model where component === "search"
+  const searchModel = workflow.models.find(model => model.component === "search");
+
   return (
     <TableRow>
       <TableCell className="hidden sm:table-cell">
@@ -305,11 +308,16 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 </button>
               </form>
             </DropdownMenuItem>
-            <Link href={`/analytics?id=${encodeURIComponent(`${workflow.id}`)}`}>
-              <DropdownMenuItem>
-                  <button type="button">Usage stats</button>
-              </DropdownMenuItem>
-            </Link>
+            {
+              searchModel &&
+              <Link
+                href={`/analytics?id=${encodeURIComponent(workflow.id)}&username=${encodeURIComponent(searchModel.username)}&model_name=${encodeURIComponent(searchModel.model_name)}`}
+              >
+                <DropdownMenuItem>
+                  <button type="button">Search usage stats</button>
+                </DropdownMenuItem>
+              </Link> 
+            }
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

@@ -14,6 +14,10 @@ from langchain_core.runnables import RunnableBranch, RunnablePassthrough
 from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+
 
 class ChatInterface(ABC):
     def __init__(
@@ -80,13 +84,37 @@ class ChatInterface(ABC):
     def llm(self) -> LLM:
         raise NotImplementedError()
 
-    @staticmethod
-    def parse_retriever_output(documents: List[Document]):
+    def parse_retriever_output(self, documents: List[Document]):
         top_k_docs = documents
+        filtered_docs = []
 
-        # The chatbot currently doesn't utilize any metadata, so we delete it to save memory
+        for doc in top_k_docs:
+            metadata = doc.metadata.get('metadata', {})
+
+            doc_id = doc.metadata.get('id', '')
+            file_path = doc.metadata.get('source', '')
+            page = metadata.get('page', 1)  # Default to 1 if page not specified
+
+            filtered_doc_info = {
+                'reference_type': 'File',
+                'id': doc_id,
+                'file_path': file_path,
+                'page': page
+            }
+
+            filtered_docs.append(filtered_doc_info)
+
+        # Clear metadata to save memory
         for doc in top_k_docs:
             doc.metadata = {}
+
+        # Log the extracted references
+        logging.info(
+            f"Extracted References: {filtered_docs}"
+        )
+
+        # Optionally, store the references if needed later
+        self.references = filtered_docs
 
         return top_k_docs
 
@@ -108,9 +136,18 @@ class ChatInterface(ABC):
             session_id=session_id, connection_string=self.chat_history_sql_uri
         )
         chat_history.add_user_message(user_input)
+
+        # Invoke the conversational retrieval chain
         response = self.conversational_retrieval_chain.invoke(
             {"messages": chat_history.messages}
         )
+
+        # Add AI's response to the chat history
         chat_history.add_ai_message(response["answer"])
+
+        # Log the references
+        logging.info(
+            f"References for this chat: {self.references}"
+        )
 
         return response["answer"]

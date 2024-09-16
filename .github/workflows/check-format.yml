@@ -61,7 +61,7 @@ jobs:
           cache-dependency-path: ./frontend/pnpm-lock.yaml
 
       - name: Install dependencies
-        run: pnpm install -D
+        run: pnpm install
 
       - name: Check code formatting with Prettier
         run: pnpm exec prettier . --check

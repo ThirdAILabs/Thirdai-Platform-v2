@@ -5,6 +5,20 @@ import { retrain_ndb, delete_models, add_models_to_workflow, stop_workflow } fro
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 
+function generateTimestamp(): string {
+    const now = new Date();
+    
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+    const day = String(now.getDate()).padStart(2, '0');
+    
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    
+    return `${year}${month}${day}_${hours}${minutes}${seconds}`;
+}
+
 export default function UpdateButton() {
     const params = useSearchParams();
     const router = useRouter();
@@ -53,11 +67,16 @@ export default function UpdateButton() {
         setLoading(true);
         setError(null);
 
-        // Generate a new model name
-        const new_model_name = `${model_name}_new`;
+        // Generate a new model name using the current timestamp
+        const timestamp = generateTimestamp();
+        const new_model_name = `${model_name}_${timestamp}`;
 
         try {
-            // Step 1: Retrain the model to create a new model
+            // Step 1: Stop the old workflow
+            const stopData = await stop_workflow(workflowId);
+            console.log("Workflow stopped successfully:", stopData);
+
+            // Step 2: Retrain the model to create a new model
             const retrainParams = {
                 model_name: new_model_name,
                 base_model_identifier: base_model_identifier,
@@ -68,7 +87,7 @@ export default function UpdateButton() {
 
             const new_model_id = retrainData.data.model_id; // Adjust based on backend response
 
-            // Step 2: Delete the old model from the workflow
+            // Step 3: Delete the old model from the workflow
             const deleteParams = {
                 workflow_id: workflowId,
                 model_ids: [old_model_id],
@@ -77,7 +96,7 @@ export default function UpdateButton() {
             const deleteData = await delete_models(deleteParams);
             console.log("Old model deleted successfully:", deleteData);
 
-            // Step 3: Add the new model to the workflow
+            // Step 4: Add the new model to the workflow
             const addParams = {
                 workflowId: workflowId,
                 modelIdentifiers: [new_model_id],
@@ -85,11 +104,6 @@ export default function UpdateButton() {
             };
             const addData = await add_models_to_workflow(addParams);
             console.log("New model added successfully:", addData);
-
-            // Step 4: Stop the old workflow
-            const stopData = await stop_workflow(workflowId);
-            console.log("Workflow stopped successfully:", stopData);
-
 
             // Optionally, update the UI or navigate
             router.push(`/analytics?id=${encodeURIComponent(`${workflowId}-updated`)}&username=${encodeURIComponent(username)}&model_name=${encodeURIComponent(new_model_name)}`);

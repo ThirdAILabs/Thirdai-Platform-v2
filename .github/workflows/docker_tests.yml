@@ -100,11 +100,11 @@ jobs:
 
       - name: Pull Docker image
         run: |
-          docker pull thirdaiplatform.azurecr.io/frontend_docker_tests:v543.423.287
+          docker pull thirdaiplatform.azurecr.io/frontend_docker_tests:latest
 
       - name: Run Docker container
         run: |
-          docker run -d -p 3000:3000 --name nextjs_container thirdaiplatform.azurecr.io/frontend_docker_tests:v543.423.287
+          docker run -d -p 3000:3000 --name nextjs_container thirdaiplatform.azurecr.io/frontend_docker_tests:latest
           sleep 20  # Wait for the server to start
 
       - name: Test application endpoint

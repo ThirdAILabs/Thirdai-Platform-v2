@@ -64,4 +64,4 @@ jobs:
         run: pnpm install
 
       - name: Check code formatting with Prettier
-        run: pnpm exec prettier --config .prettierrc --ignore-path .prettierignore . --write
+        run: pnpm exec prettier --config .prettierrc --ignore-path .prettierignore . --check

@@ -21,7 +21,7 @@ jobs:
     environment:
       name: docker_tests
 
-    # if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request'
 
     outputs:
       version: ${{ steps.generate_version.outputs.version }}
@@ -41,6 +41,8 @@ jobs:
       
       - name: Azure Login
         uses: azure/login@v2
+        # Get these credentials from azure portal by creating the an app in App registrations and creating 
+        # a secret within it, Give this app owner role for the thirdaiplatform registry.
         with:
           creds: |
             {
@@ -76,7 +78,7 @@ jobs:
     environment:
       name: docker_tests
 
-    # if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request'
 
     needs: build_docker_images
 
@@ -109,7 +111,7 @@ jobs:
 
     runs-on: self-hosted
 
-    # if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request'
     
     environment:
       name: docker_tests
@@ -166,8 +168,7 @@ jobs:
     needs: test
 
     # This condition ensures that the job runs only if the branch is not 'main' and it's not a pull request.
-    # if: github.ref != 'refs/heads/main' && github.event_name != 'pull_request'
-    if: github.ref != 'refs/heads/main'
+    if: github.ref != 'refs/heads/main' && github.event_name != 'pull_request'
 
     environment:
       name: docker_tests
@@ -213,8 +214,7 @@ jobs:
 
     needs: test
 
-    # if: always() && github.event_name != 'pull_request'
-    if: always()
+    if: always() && github.event_name != 'pull_request'
 
     steps:
       - name: Checkout code
@@ -241,8 +241,7 @@ jobs:
 
     needs: delete_docker_images
 
-    # if: always() && github.event_name != 'pull_request'
-    if: always()
+    if: always() && github.event_name != 'pull_request'
 
     steps:
       - name: Checkout code

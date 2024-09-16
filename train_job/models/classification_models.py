@@ -18,10 +18,8 @@ from models.model import Model
 from storage.data_types import (
     DataSample,
     LabelEntity,
-    LabelEntityList,
     LabelStatus,
     TagMetadata,
-    TokenClassificationSample,
 )
 from storage.storage import DataStorage, SQLiteConnector
 from thirdai import bolt
@@ -188,6 +186,9 @@ class TokenClassificationModel(ClassificationModel):
 
         # insert the tags into the storage to keep track of their training status
         tags_and_status = {"O": LabelEntity(name="O")}
+
+        target_labels = self.tkn_cls_vars.target_labels
+
         for label in target_labels:
             tags_and_status[label] = LabelEntity(
                 name=label, status=LabelStatus.untrained
@@ -197,7 +198,6 @@ class TokenClassificationModel(ClassificationModel):
             metadata=TagMetadata(name="tags", tag_and_status=tags_and_status)
         )
 
-        target_labels = self.tkn_cls_vars.target_labels
         default_tag = self.tkn_cls_vars.default_tag
         return bolt.UniversalDeepTransformer(
             data_types={

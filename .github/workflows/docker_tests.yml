@@ -71,58 +71,6 @@ jobs:
   #       run: |
   #         docker system prune -af --volumes
 
-  test_nextjs_app:
-    runs-on: self-hosted
-    environment:
-      name: docker_tests
-    # needs: build_docker_images
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: |
-            {
-              "clientId": "${{ secrets.APPLICATION_ID }}",
-              "clientSecret": "${{ secrets.SECRET }}",
-              "subscriptionId": "${{ secrets.SUBSCRIPTION_ID }}",
-              "tenantId": "${{ secrets.TENANT_ID }}"
-            }
-
-      - name: Docker Login to Azure Container Registry
-        run: |
-          az acr login --name thirdaiplatform
-
-      - name: Pull Docker image
-        run: |
-          docker pull thirdaiplatform.azurecr.io/frontend_docker_tests:latest
-
-      - name: Run Docker container
-        run: |
-          docker run -d -p 3000:3000 --name nextjs_container thirdaiplatform.azurecr.io/frontend_docker_tests:latest
-          sleep 60  # Wait for the server to start
-
-      - name: Test application endpoint
-        run: |
-          curl -f http://localhost:3000 || exit 1
-
-      - name: Logout from Azure
-        run: |
-          az logout
-
-      - name: Cleanup Docker
-        if: always()
-        run: |
-          docker system prune -af --volumes
-          docker stop nextjs_container
-          docker rm nextjs_container
-
-
   # restart_modelbazaar:
   #   runs-on: self-hosted
   #   environment:
@@ -328,4 +276,10 @@ jobs:
         run: |
           NOMAD_PATH=$(which nomad)
           $NOMAD_PATH system gc
+
+      - name: Test Next.js frontend
+        run: |
+          BASE_URL_WITHOUT_API=$(echo "${{ secrets.BASE_URL }}" | sed 's/\/api\/\?$//')
+          echo "Testing frontend at $BASE_URL_WITHOUT_API"
+          curl -f "$BASE_URL_WITHOUT_API" || exit 1
 

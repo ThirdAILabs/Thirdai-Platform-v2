@@ -1,4 +1,5 @@
 import time
+from typing import Union
 
 from fastapi import APIRouter, Depends, status
 from fastapi.encoders import jsonable_encoder
@@ -6,17 +7,14 @@ from permissions import Permissions
 from prometheus_client import Summary
 from pydantic_models.inputs import BaseQueryParams, SearchResultsTokenClassification
 from routers.model import get_model
+from storage.data_types import (
+    LabelEntityList,
+    TextClassificationSample,
+    TokenClassificationSample,
+)
 from throughput import Throughput
 from utils import propagate_error, response
 from variables import GeneralVariables
-
-from typing import Union
-
-from storage.data_types import (
-    TextClassificationSample,
-    TokenClassificationSample,
-    LabelEntityList,
-)
 
 udt_router = APIRouter()
 permissions = Permissions()

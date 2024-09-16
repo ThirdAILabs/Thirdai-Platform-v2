@@ -1,11 +1,11 @@
 import time
+import typing
 from abc import abstractmethod
+from collections import defaultdict
 from pathlib import Path
 from typing import List
-from collections import defaultdict
-import typing
-import pandas as pd
 
+import pandas as pd
 import thirdai
 from config import (
     FileInfo,
@@ -15,21 +15,20 @@ from config import (
 )
 from exceptional_handler import apply_exception_handler
 from models.model import Model
+from storage.data_types import (
+    DataSample,
+    LabelEntity,
+    LabelEntityList,
+    LabelStatus,
+    TagMetadata,
+    TokenClassificationSample,
+)
+from storage.storage import DataStorage, SQLiteConnector
 from thirdai import bolt
 from utils import (
     check_csv_only,
     check_local_nfs_only,
     expand_s3_buckets_and_directories,
-)
-
-from storage.storage import DataStorage, SQLiteConnector
-from storage.data_types import (
-    TokenClassificationSample,
-    DataSample,
-    TagMetadata,
-    LabelEntity,
-    LabelEntityList,
-    LabelStatus,
 )
 
 

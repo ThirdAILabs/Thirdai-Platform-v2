@@ -1,8 +1,10 @@
 from __future__ import annotations
-from typing import Optional, List, Dict, Union, ClassVar
-from uuid import uuid4
-from pydantic import BaseModel, Field
+
 from enum import Enum
+from typing import ClassVar, Dict, List, Optional, Union
+from uuid import uuid4
+
+from pydantic import BaseModel, Field
 
 """
 These datatypes are helper objects for storing data into a persistent storage 

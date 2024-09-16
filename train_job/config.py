@@ -29,6 +29,10 @@ class FileInfo(BaseModel):
     options: Dict[str, Any] = {}
     metadata: Optional[Dict[str, Any]] = None
 
+    def ext(self) -> str:
+        _, ext = os.path.splitext(self.path)
+        return ext
+
 
 class MachOptions(BaseModel):
     fhr: int = 50_000
@@ -85,7 +89,7 @@ class NDBOptions(BaseModel):
     model_type: Literal[ModelType.NDB] = ModelType.NDB
 
     ndb_options: Union[NDBv1Options, NDBv2Options] = Field(
-        NDBv2Options(), discriminator="ndb_sub_type"
+        NDBv1Options(), discriminator="ndb_sub_type"
     )
 
 

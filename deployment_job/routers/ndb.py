@@ -6,11 +6,14 @@ from pathlib import Path
 from typing import List, Optional
 
 import fitz
+import jwt
 import thirdai
 from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
 from fastapi.encoders import jsonable_encoder
+from feedback_logger import AssociateLog, FeedbackLog, ImplicitUpvoteLog, UpvoteLog
 from file_handler import validate_files
 from permissions import Permissions
+from prometheus_client import Summary
 from pydantic import ValidationError, parse_obj_as
 from pydantic_models import inputs
 from pydantic_models.documents import DocumentList
@@ -21,16 +24,7 @@ from pydantic_models.inputs import (
     UpvoteInputSingle,
 )
 from routers.model import get_model
-from utils import (
-    Status,
-    highlighted_pdf_bytes,
-    new_pdf_chunks,
-    now,
-    old_pdf_chunks,
-    propagate_error,
-    response,
-    validate_name,
-)
+from utils import Status, now, propagate_error, response, validate_name
 from variables import GeneralVariables
 
 permissions = Permissions()
@@ -39,7 +33,16 @@ general_variables = GeneralVariables.load_from_env()
 ndb_router = APIRouter()
 
 
+ndb_query_metric = Summary("ndb_query", "NDB Queries")
+ndb_upvote_metric = Summary("ndb_upvote", "NDB upvotes")
+ndb_associate_metric = Summary("ndb_associate", "NDB associations")
+ndb_implicit_feedback_metric = Summary("ndb_implicit_feedback", "NDB implicit feedback")
+ndb_insert_metric = Summary("ndb_insert", "NDB insertions")
+ndb_delete_metric = Summary("ndb_delete", "NDB deletions")
+
+
 @ndb_router.post("/predict")
+@ndb_query_metric.time()
 @propagate_error
 def ndb_query(
     base_params: BaseQueryParams,
@@ -110,8 +113,90 @@ def ndb_query(
     )
 
 
+@ndb_router.post("/update-chat-settings")
+@propagate_error
+def update_chat_settings(
+    settings: inputs.ChatSettings,
+    _=Depends(permissions.verify_permission("write")),
+):
+    model = get_model()
+
+    model.set_chat(**(settings.dict()))
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully updated chat settings",
+    )
+
+
+@ndb_router.post("/get-chat-history")
+@propagate_error
+def get_chat_history(
+    input: inputs.ChatHistoryInput,
+    token=Depends(permissions.verify_permission("read")),
+):
+    model = get_model()
+    if not model.chat:
+        raise Exception(
+            "Chat is not enabled. Please provide an GenAI key to enable chat."
+        )
+
+    if not input.session_id:
+        try:
+            # Use logged-in user id as the chat session id if no other session id is provided
+            session_id = jwt.decode(token, options={"verify_signature": False})[
+                "user_id"
+            ]
+        except:
+            raise Exception(
+                "Must provide a session ID or be logged in to use chat feature"
+            )
+    else:
+        session_id = input.session_id
+
+    chat_history = {"chat_history": model.chat.get_chat_history(session_id)}
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successful",
+        data=chat_history,
+    )
+
+
+@ndb_router.post("/chat")
+@propagate_error
+def chat(input: inputs.ChatInput, token=Depends(permissions.verify_permission("read"))):
+    model = get_model()
+    if not model.chat:
+        raise Exception(
+            "Chat is not enabled. Please provide an GENAI key to enable chat."
+        )
+
+    if not input.session_id:
+        try:
+            # Use logged-in user id as the chat session id if no other session id is provided
+            session_id = jwt.decode(token, options={"verify_signature": False})[
+                "user_id"
+            ]
+        except:
+            raise Exception(
+                "Must provide a session ID or be logged in to use chat feature"
+            )
+    else:
+        session_id = input.session_id
+
+    chat_result = {"response": model.chat.chat(input.user_input, session_id)}
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successful",
+        data=chat_result,
+    )
+
+
 @ndb_router.post("/upvote")
 @propagate_error
+@ndb_upvote_metric.time()
 def ndb_upvote(
     input: inputs.UpvoteInput,
     token: str = Depends(permissions.verify_permission("read")),
@@ -137,29 +222,21 @@ def ndb_upvote(
     ```
     """
     model = get_model()
-    train_samples = [
-        {
-            "query_text": text_id_pair.query_text,
-            "reference_id": str(text_id_pair.reference_id),
-            "reference_text": "TODO(Nicholas): fix this",
-            # "reference_text": model.db._get_text(text_id_pair.reference_id),
-        }
-        for text_id_pair in input.text_id_pairs
-    ]
 
     write_permission = model.permissions.check_permission(
         token=token, permission_type="write"
     )
 
-    model.reporter.log(
-        action="upvote",
-        model_id=model.general_variables.model_id,
-        train_samples=train_samples,
-        access_token=token,
-        used=True if write_permission else False,
-    )
-
-    if write_permission:
+    if not write_permission:
+        model.feedback_logger.log(
+            FeedbackLog(
+                event=UpvoteLog(
+                    chunk_ids=[sample.reference_id for sample in input.text_id_pairs],
+                    queries=[sample.query_text for sample in input.text_id_pairs],
+                )
+            )
+        )
+    else:
         task_id = str(uuid.uuid4())
         task_data = {
             "task_id": task_id,
@@ -188,6 +265,7 @@ def ndb_upvote(
 
 @ndb_router.post("/associate")
 @propagate_error
+@ndb_associate_metric.time()
 def ndb_associate(
     input: inputs.AssociateInput,
     token: str = Depends(permissions.verify_permission("read")),
@@ -213,18 +291,20 @@ def ndb_associate(
     ```
     """
     model = get_model()
-    train_samples = [pair.dict() for pair in input.text_pairs]
     write_permission = model.permissions.check_permission(
         token=token, permission_type="write"
     )
-    model.reporter.log(
-        action="associate",
-        model_id=model.general_variables.model_id,
-        train_samples=train_samples,
-        access_token=token,
-        used=True if write_permission else False,
-    )
-    if write_permission:
+
+    if not write_permission:
+        model.feedback_logger.log(
+            FeedbackLog(
+                event=AssociateLog(
+                    sources=[sample.source for sample in input.text_pairs],
+                    targets=[sample.target for sample in input.text_pairs],
+                )
+            )
+        )
+    else:
         task_id = str(uuid.uuid4())
         task_data = {
             "task_id": task_id,
@@ -248,6 +328,30 @@ def ndb_associate(
     return response(
         status_code=status.HTTP_200_OK,
         message="Associate task logged successfully.",
+    )
+
+
+@ndb_router.post("/implicit-feedback")
+@propagate_error
+@ndb_implicit_feedback_metric.time()
+def implicit_feedback(
+    feedback: inputs.ImplicitFeedbackInput,
+    _: str = Depends(permissions.verify_permission("read")),
+):
+    model = get_model()
+    model.feedback_logger.log(
+        FeedbackLog(
+            event=ImplicitUpvoteLog(
+                chunk_id=feedback.reference_id,
+                query=feedback.query_text,
+                event_desc=feedback.event_desc,
+            )
+        )
+    )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Implicit feedback logged successfully.",
     )
 
 
@@ -283,6 +387,7 @@ def get_sources(_=Depends(permissions.verify_permission("read"))):
 
 @ndb_router.post("/delete")
 @propagate_error
+@ndb_delete_metric.time()
 def delete(
     input: inputs.DeleteInput,
     token: str = Depends(permissions.verify_permission("write")),
@@ -407,6 +512,7 @@ def save(
 
 @ndb_router.post("/insert")
 @propagate_error
+@ndb_insert_metric.time()
 def insert(
     documents: str = Form(...),
     files: List[UploadFile] = [],

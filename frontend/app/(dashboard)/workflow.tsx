@@ -311,7 +311,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
             {
               searchModel &&
               <Link
-                href={`/analytics?id=${encodeURIComponent(workflow.id)}&username=${encodeURIComponent(searchModel.username)}&model_name=${encodeURIComponent(searchModel.model_name)}`}
+                href={`/analytics?id=${encodeURIComponent(workflow.id)}&username=${encodeURIComponent(searchModel.username)}&model_name=${encodeURIComponent(searchModel.model_name)}&old_model_id=${encodeURIComponent(searchModel.model_id)}`}
               >
                 <DropdownMenuItem>
                   <button type="button">Search usage stats</button>

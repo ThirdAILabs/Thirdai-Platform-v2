@@ -347,6 +347,36 @@ export function add_models_to_workflow({ workflowId, modelIdentifiers, component
   });
 }
 
+export interface DeleteModelsParams {
+  workflow_id: string;
+  model_ids: string[];
+  components: string[];
+}
+
+export function delete_models({ workflow_id, model_ids, components }: DeleteModelsParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/workflow/delete-models`, {
+        workflow_id,
+        model_ids,
+        components,
+      })
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.message || 'Failed to delete models from workflow'));
+        } else {
+          reject(new Error('Failed to delete models from workflow'));
+        }
+      });
+  });
+}
+
 interface SetGenAIProviderParams {
   workflowId: string;
   provider: string;

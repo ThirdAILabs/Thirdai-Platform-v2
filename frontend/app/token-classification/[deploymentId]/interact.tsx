@@ -311,8 +311,8 @@ export default function Interact() {
       >
         <Input
           autoFocus
-          className="text-md"
-          style={{ height: '3rem' }}
+          className='text-md'
+          style={{height: "3rem"}}
           value={inputText}
           onChange={handleInputChange}
           placeholder="Enter your text..."
@@ -322,14 +322,10 @@ export default function Interact() {
               e.preventDefault();
               handleRun();
             }
-          }}
+          }}    
         />
-        <Button
-          size="sm"
-          style={{ height: '3rem', marginLeft: '10px', padding: '0 20px' }}
-          onClick={handleRun}
-        >
-          Run
+        <Button size="sm" style={{height: '3rem', marginLeft: '10px', padding: '0 20px'}} onClick={handleRun}>
+            Run
         </Button>
       </Box>
       {annotations.length > 0 && (

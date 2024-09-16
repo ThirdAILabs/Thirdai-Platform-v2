@@ -13,18 +13,18 @@ const nextConfig = {
     ]
   },
   env: {
-    DEPLOYMENT_BASE_URL: process.env.DEPLOYMENT_BASE_URL,
-    THIRDAI_PLATFORM_BASE_URL: process.env.THIRDAI_PLATFORM_BASE_URL
+    DEPLOYMENT_BASE_URL: process.env.NEXT_PUBLIC_DEPLOYMENT_BASE_URL,
+    THIRDAI_PLATFORM_BASE_URL: process.env.NEXT_PUBLIC_THIRDAI_PLATFORM_BASE_URL,
   },
   webpack(config) {
     config.module.rules.push({
       test: /\.svg$/i,
       issuer: /\.[jt]sx?$/,
-      use: ['@svgr/webpack']
-    });
+      use: ['@svgr/webpack'],
+    })
 
-    return config;
-  }
+    return config
+  },
 };
 
 module.exports = nextConfig;

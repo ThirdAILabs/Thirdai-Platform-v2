@@ -22,27 +22,20 @@ import { SelectModel } from '@/lib/db';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  fetchPublicModels,
-  fetchPrivateModels,
-  fetchPendingModels,
-  fetchWorkflows,
-  Workflow
-} from '@/lib/backend';
+import { fetchPublicModels, fetchPrivateModels, fetchPendingModels, fetchWorkflows, Workflow } from "@/lib/backend"
 
 export function ModelsTable({
   searchStr,
-  offset
+  offset,
 }: {
   searchStr: string;
   offset: number;
 }) {
+  
   // Hardcode the model display
   let modelsPerPage = 5;
 
-  const [currentPage, setCurrentPage] = useState(
-    Math.ceil(offset / modelsPerPage) + 1
-  );
+  const [currentPage, setCurrentPage] = useState(Math.ceil(offset / modelsPerPage) + 1);
 
   let router = useRouter();
 
@@ -60,35 +53,39 @@ export function ModelsTable({
     }
   }
 
-  const [privateModels, setPrivateModels] = useState<SelectModel[]>([]);
+  const [privateModels, setPrivateModels] = useState<SelectModel[]>([])
   const [pendingModels, setPendingModels] = useState<SelectModel[]>([]);
 
   useEffect(() => {
     async function getModels() {
-      try {
-        let response = await fetchPublicModels('');
-        const publicModels = response.data;
-        console.log('publicModels', publicModels);
+        try {
+          let response = await fetchPublicModels('');
+          const publicModels = response.data;
+          console.log('publicModels', publicModels)
 
-        response = await fetchPrivateModels('');
-        const privateModels: SelectModel[] = response.data;
-        console.log('privateModels', privateModels);
+          response = await fetchPrivateModels('');
+          const privateModels: SelectModel[] = response.data;
+          console.log('privateModels', privateModels)
 
-        setPrivateModels(privateModels);
+          setPrivateModels(privateModels)
 
-        response = await fetchPendingModels();
-        const pendingModels: SelectModel[] = response.data; // Extract the data field
-        console.log('pendingModels', pendingModels);
+          response = await fetchPendingModels();
+          const pendingModels: SelectModel[] = response.data; // Extract the data field
+          console.log('pendingModels', pendingModels)
 
-        setPendingModels(pendingModels);
-      } catch (err) {
-        if (err instanceof Error) {
-          console.log(err.message);
-        } else {
-          console.log('An unknown error occurred');
-        }
+          setPendingModels(pendingModels)
+
+        } catch (err) {
+          if (err instanceof Error) {
+              console.log(err.message);
+          } else {
+              console.log('An unknown error occurred');
+          }
       }
     }
+
+    // Call the function immediately
+    getModels()
 
     const intervalId = setInterval(getModels, 3000);
 
@@ -113,6 +110,9 @@ export function ModelsTable({
       }
     }
 
+    // Call the function immediately
+    getWorkflows();
+
     const intervalId = setInterval(getWorkflows, 3000);
 
     return () => clearInterval(intervalId);
@@ -121,13 +121,11 @@ export function ModelsTable({
   const totalWorkflows = workflows.length;
 
   // const displayedWorkflows = workflows.slice(offset, offset + modelsPerPage);
-  const filteredWorkflows = workflows.filter((workflow) =>
+  const filteredWorkflows = workflows.filter(workflow =>
     workflow.name.toLowerCase().includes(searchStr.toLowerCase())
   );
-  const displayedWorkflows = filteredWorkflows.slice(
-    offset,
-    offset + modelsPerPage
-  );
+  const displayedWorkflows = filteredWorkflows.slice(offset, offset + modelsPerPage);
+
 
   return (
     <Card>
@@ -144,14 +142,13 @@ export function ModelsTable({
               <TableHead className="hidden w-[100px] sm:table-cell">
                 <span className="sr-only">Image</span>
               </TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="hidden md:table-cell">Type</TableHead>
-              <TableHead className="hidden md:table-cell">
-                Published on
-              </TableHead>
-              <TableHead className="hidden md:table-cell">Action</TableHead>
-              <TableHead>
+              <TableHead className="text-center">Name</TableHead>
+              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="hidden md:table-cell text-center">Type</TableHead>
+              <TableHead className="hidden md:table-cell text-center">Published on</TableHead>
+              <TableHead className="hidden md:table-cell text-center">Action</TableHead>
+              <TableHead className="hidden md:table-cell text-center">Details</TableHead>
+              <TableHead className="text-center">
                 <span className="sr-only">Actions</span>
               </TableHead>
             </TableRow>
@@ -168,8 +165,10 @@ export function ModelsTable({
             {/* {workflows.map((workflow, index) => (
                 <WorkFlow key={index + 200} workflow={workflow} />
             ))} */}
-            {displayedWorkflows.map((workflow, index) => (
-              <WorkFlow key={index + 200} workflow={workflow} />
+            {displayedWorkflows
+              .sort((a, b) => a.name.localeCompare(b.name)) // Sort by name alphabetically
+              .map((workflow, index) => (
+                <WorkFlow key={index + 200} workflow={workflow} />
             ))}
           </TableBody>
         </Table>
@@ -179,8 +178,7 @@ export function ModelsTable({
           <div className="text-xs text-muted-foreground">
             Showing{' '}
             <strong>
-              {Math.min(offset + 1, totalWorkflows)}-
-              {Math.min(offset + modelsPerPage, totalWorkflows)}
+              {Math.min(offset + 1, totalWorkflows)}-{Math.min(offset + modelsPerPage, totalWorkflows)}
             </strong>{' '}
             of <strong>{totalWorkflows}</strong> workflows
           </div>

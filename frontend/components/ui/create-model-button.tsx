@@ -1,10 +1,11 @@
-'use client';
+"use client"
 
 import Link from 'next/link';
 import { PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const CreateModelButton = () => {
+
   return (
     <Link href="/createmodel">
       <Button size="sm" className="h-8 gap-1">

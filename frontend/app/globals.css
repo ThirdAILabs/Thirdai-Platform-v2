@@ -66,10 +66,8 @@
   }
 }
 
-@layer base {
-  html,
-  body,
-  #__next {
+@layer base {  
+  html, body, #__next {
     height: 100%;
   }
 

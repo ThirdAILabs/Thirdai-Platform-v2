@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, func, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -11,6 +11,7 @@ class Samples(Base):
     datatype = Column(String)
     name = Column(String, index=True)
     serialized_data = Column(String)
+    user_provided = Boolean()
     timestamp = Column(DateTime, default=func.current_timestamp())
 
     feedback_entries = relationship("FeedBack", back_populates="sample")

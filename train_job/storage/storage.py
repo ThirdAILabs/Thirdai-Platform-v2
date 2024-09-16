@@ -27,7 +27,7 @@ class Connector:
     # Interface for data store backend. Can be repurposed to a DB based storage,
     # a file based storage, etc. The DataStore should be persistent.
     @abstractmethod
-    def add_samples(self, entries: typing.List[typing.tuple[str, str, str, str]]):
+    def add_samples(self, entries: typing.List[typing.tuple[str, str, str, str, bool]]):
         # batch insertion of samples to the store
         pass
 
@@ -84,7 +84,7 @@ class SQLiteConnector(Connector):
         self.Session = scoped_session(sessionmaker(bind=self.engine))
         Base.metadata.create_all(self.engine)
 
-    def add_samples(self, entries: typing.List[typing.Tuple[str, str, str, str]]):
+    def add_samples(self, entries: typing.List[typing.Tuple[str, str, str, str, bool]]):
         session = self.Session()
         session.bulk_insert_mappings(
             Samples,
@@ -94,8 +94,9 @@ class SQLiteConnector(Connector):
                     "datatype": datatype,
                     "name": name,
                     "serialized_data": data,
+                    "user_provided": user_provided,
                 }
-                for unique_id, datatype, name, data in entries
+                for unique_id, datatype, name, data, user_provided in entries
             ],
         )
         session.commit()
@@ -180,7 +181,12 @@ class SQLiteConnector(Connector):
     def get_samples(self, name: str, num_samples: int):
         session = self.Session()
         entries = (
-            session.query(Samples.datatype, Samples.id, Samples.serialized_data)
+            session.query(
+                Samples.datatype,
+                Samples.id,
+                Samples.serialized_data,
+                Samples.user_provided,
+            )
             .filter(Samples.name == name)
             .order_by(Samples.timestamp.desc())
             .limit(num_samples)
@@ -270,6 +276,7 @@ class DataStorage:
                         sample.datatype,
                         sample.name,
                         sample.serialize_sample(),
+                        sample.user_provided,
                     )
                 )
 
@@ -282,9 +289,13 @@ class DataStorage:
 
         return [
             DataSample.deserialize(
-                type=datatype, unique_id=unique_id, name=name, serialized_sample=data
+                type=datatype,
+                unique_id=unique_id,
+                name=name,
+                serialized_sample=data,
+                user_provided=user_provided,
             )
-            for datatype, unique_id, data in entries
+            for datatype, unique_id, data, user_provided in entries
         ]
 
     def insert_feedbacks(self, feedbacks: typing.List[UserFeedBack]):

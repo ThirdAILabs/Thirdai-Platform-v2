@@ -2,6 +2,9 @@ import time
 from abc import abstractmethod
 from pathlib import Path
 from typing import List
+from collections import defaultdict
+import typing
+import pandas as pd
 
 import thirdai
 from config import (
@@ -17,6 +20,16 @@ from utils import (
     check_csv_only,
     check_local_nfs_only,
     expand_s3_buckets_and_directories,
+    list_files,
+)
+
+from storage.storage import DataStorage, SQLiteConnector
+from storage.data_types import (
+    TokenClassificationSample,
+    DataSample,
+    TagMetadata,
+    LabelEntity,
+    LabelEntityList,
 )
 
 
@@ -171,6 +184,18 @@ class TokenClassificationModel(ClassificationModel):
         return self.config.model_options.udt_options
 
     def initialize_model(self):
+        # initializes the storage object for the model
+        self.load_storage()
+
+        # insert the tags into the storage to keep track of their training status
+        tags_and_status = {"O": LabelEntity(name="O")}
+        for label in target_labels:
+            tags_and_status[label] = LabelEntityList(name=label)
+
+        self.data_storage.insert_metadata(
+            metadata=TagMetadata(name="tags", tag_and_status=tags_and_status)
+        )
+
         target_labels = self.tkn_cls_vars.target_labels
         default_tag = self.tkn_cls_vars.default_tag
         return bolt.UniversalDeepTransformer(
@@ -183,12 +208,37 @@ class TokenClassificationModel(ClassificationModel):
             target=self.tkn_cls_vars.target_column,
         )
 
+    def load_storage(self):
+        data_storage_path = self.data_dir / "data_storage.db"
+        # connector will instantiate an sqlite db at the specified path if it doesn't exist
+        self.data_storage = DataStorage(
+            connector=SQLiteConnector(db_path=data_storage_path)
+        )
+
+    def get_labels(self):
+        # load tags and their status from the storage
+        tag_metadata = self.data_storage.get_metadata("tags_and_status")
+        return list(tag_metadata._tag_and_status.keys())
+
+    def add_labels(self, labels: LabelEntityList):
+        tag_metadata: TagMetadata = self.data_storage.get_metadata("tags_and_status")
+
+        for label in labels:
+            tag_metadata.add_tag(label)
+        # update the metadata entry in the DB
+        self.data_storage.insert_metadata(tag_metadata)
+
     def train(self, **kwargs):
         self.reporter.report_status(self.config.model_id, "in_progress")
 
         model = self.get_model()
 
         start_time = time.time()
+
+        supervised_files = self.supervised_files()
+        # insert samples into data storage for later use
+        self.insert_samples_in_storage(supervised_files)
+
         for train_file in self.supervised_files():
             model.train(
                 train_file.path,
@@ -219,6 +269,34 @@ class TokenClassificationModel(ClassificationModel):
                 "latency": str(latency),
             },
         )
+
+    def insert_samples_in_storage(
+        self, supervised_files: typing.List[str], buffer_size=50_000
+    ):
+        # this sampling is not uniform but we assume that there won't be many samples
+        # TODO(Shubh) : make this sampling uniform using reservoir sampling
+        df = pd.DataFrame()
+        for filename in supervised_files:
+            new_df = pd.read_csv(filename)
+            new_df = new_df[
+                [self.tkn_cls_vars.source_column, self.tkn_cls_vars.target_column]
+            ]
+
+            df = pd.concat([df, new_df])
+            df = df.sample(n=min(len(df), buffer_size))
+
+        samples = []
+
+        for index in df.index:
+            row = df.loc[index]
+            tokens = row[self.tkn_cls_vars.source_column].split()
+            tags = row[self.tkn_cls_vars.target_column].split()
+            assert len(tokens) == len(tags)
+
+            sample = DataSample(name="ner", sample={"tokens": tokens, "tags": tags})
+            samples.append(sample)
+
+        self.data_storage.insert_samples(samples=samples)
 
     def get_latency(self, model) -> float:
         self.logger.info("Measuring latency of the UDT instance.")

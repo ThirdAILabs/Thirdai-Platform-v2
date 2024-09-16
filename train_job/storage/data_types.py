@@ -57,13 +57,18 @@ class DataSample(BaseModel):
     name: str
     sample: Union[TextClassificationSample, TokenClassificationSample]
     unique_id: str = Field(default_factory=lambda: str(uuid4()))
+    user_provided: bool = False
 
     def serialize_sample(self) -> str:
         return self.sample.serialize()
 
     @staticmethod
     def deserialize(
-        type: str, unique_id: str, name: str, serialized_sample: str
+        type: str,
+        unique_id: str,
+        name: str,
+        serialized_sample: str,
+        user_provided: bool,
     ) -> "DataSample":
         # Deserialize the sample based on its type
         if type == TextClassificationSample.datatype:
@@ -73,7 +78,9 @@ class DataSample(BaseModel):
         else:
             raise ValueError(f"Unknown sample type: {type}")
 
-        return DataSample(name=name, sample=sample, unique_id=unique_id)
+        return DataSample(
+            name=name, sample=sample, unique_id=unique_id, user_provided=user_provided
+        )
 
     @property
     def datatype(self):

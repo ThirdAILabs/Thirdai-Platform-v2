@@ -703,6 +703,7 @@ function App() {
                                                 )}
                                             <Spacer $height="50px" />
                                             <ReferenceList
+                                                query={query}
                                                 references={results.references.slice(
                                                     0,
                                                     numReferences,

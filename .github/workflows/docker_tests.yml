@@ -111,11 +111,6 @@ jobs:
         run: |
           curl -f http://localhost:3000 || exit 1
 
-      - name: Stop and remove container
-        run: |
-          docker stop nextjs_container
-          docker rm nextjs_container
-
       - name: Logout from Azure
         run: |
           az logout
@@ -124,6 +119,8 @@ jobs:
         if: always()
         run: |
           docker system prune -af --volumes
+          docker stop nextjs_container
+          docker rm nextjs_container
 
 
   # restart_modelbazaar:

@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, List, Dict, Union, ClassVar
 from uuid import uuid4
 from pydantic import BaseModel, Field
-
+from enum import Enum
 
 """
 These datatypes are helper objects for storing data into a persistent storage 
@@ -17,12 +17,20 @@ NER :
 """
 
 
+class LabelStatus(str, Enum):
+    trained = "trained"  # if the model has already been trained on the label
+    uninserted = "uninserted"  # if label is scheduled to be added to the model
+
+
 class LabelEntity(BaseModel):
     name: str
-    status: str = "untrained"
+    status: LabelStatus = LabelStatus.uninserted
     examples: Optional[List[str]] = None
     description: Optional[str] = None
     sample: Optional[str] = None
+
+    class Config:
+        validate_assignment = True
 
 
 class LabelEntityList(BaseModel):

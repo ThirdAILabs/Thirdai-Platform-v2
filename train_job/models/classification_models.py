@@ -30,6 +30,7 @@ from storage.data_types import (
     TagMetadata,
     LabelEntity,
     LabelEntityList,
+    LabelStatus,
 )
 
 
@@ -190,7 +191,9 @@ class TokenClassificationModel(ClassificationModel):
         # insert the tags into the storage to keep track of their training status
         tags_and_status = {"O": LabelEntity(name="O")}
         for label in target_labels:
-            tags_and_status[label] = LabelEntityList(name=label)
+            tags_and_status[label] = LabelEntity(
+                name=label, status=LabelStatus.untrained
+            )
 
         self.data_storage.insert_metadata(
             metadata=TagMetadata(name="tags", tag_and_status=tags_and_status)
@@ -215,18 +218,13 @@ class TokenClassificationModel(ClassificationModel):
             connector=SQLiteConnector(db_path=data_storage_path)
         )
 
-    def get_labels(self):
+    @property
+    def tag_metadata(self) -> TagMetadata:
         # load tags and their status from the storage
-        tag_metadata = self.data_storage.get_metadata("tags_and_status")
-        return list(tag_metadata._tag_and_status.keys())
+        return self.data_storage.get_metadata("tags_and_status")
 
-    def add_labels(self, labels: LabelEntityList):
-        tag_metadata: TagMetadata = self.data_storage.get_metadata("tags_and_status")
-
-        for label in labels:
-            tag_metadata.add_tag(label)
-        # update the metadata entry in the DB
-        self.data_storage.insert_metadata(tag_metadata)
+    def update_tag_metadata(self, tag_metadata):
+        self.data_storage.insert_metadata(metadata=tag_metadata)
 
     def train(self, **kwargs):
         self.reporter.report_status(self.config.model_id, "in_progress")
@@ -238,6 +236,19 @@ class TokenClassificationModel(ClassificationModel):
         supervised_files = self.supervised_files()
         # insert samples into data storage for later use
         self.insert_samples_in_storage(supervised_files)
+
+        tags = self.tag_metadata
+
+        # new labels to add to the model
+        new_labels = []
+        for name in tags.tag_and_status.keys():
+            label = tags.tag_and_status[name]
+            if label.status == LabelStatus.uninserted:
+                new_labels.append(name)
+                label.status = LabelStatus.trained
+
+        if new_labels:
+            model.add_ner_labels(new_labels)
 
         for train_file in self.supervised_files():
             model.train(
@@ -257,6 +268,9 @@ class TokenClassificationModel(ClassificationModel):
         model_size = self.get_size()
         model_size_in_memory = model_size * 4
         latency = self.get_latency(model)
+
+        # converts the status of uninserted tags to trained
+        self.update_tag_metadata(tags)
 
         self.reporter.report_complete(
             self.config.model_id,

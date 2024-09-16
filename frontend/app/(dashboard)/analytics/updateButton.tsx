@@ -45,8 +45,10 @@ export default function UpdateButton() {
         setLoading(true);
         setError(null);
 
+        let new_model_name = `${model_name}_new`
+
         try {
-            const data = await retrain_ndb({ model_name, base_model_identifier, job_options });
+            const data = await retrain_ndb({ model_name: new_model_name, base_model_identifier, job_options });
             console.log("Retrain initiated successfully:", data);
             // TODO: navigate or update the UI based on the response
             // router.push(`/analytics?id=${encodeURIComponent(`${workflowId}-updated`)}&username=${encodeURIComponent(username)}&model_name=${encodeURIComponent(model_name)}`);

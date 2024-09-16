@@ -318,7 +318,17 @@ class NeuralDBClient(BaseClient):
             headers=auth_header(self.login_instance.access_token),
         )
 
-        return response.json()["data"]["task_id"]
+        response_data = response.json()
+        status_code = response.status_code
+        message = response_data.get("message", "")
+        data = response_data.get("data", {})
+
+        if status_code == 202 and "task_id" in data:
+            task_id = data["task_id"]
+            print("Insert task queued successfully. Task ID:", task_id)
+            return task_id
+        else:
+            raise Exception(f"Error in insert: {message}")
 
     @check_deployment_decorator
     def task_status(self, task_id: str):
@@ -375,6 +385,18 @@ class NeuralDBClient(BaseClient):
             headers=auth_header(self.login_instance.access_token),
         )
 
+        response_data = response.json()
+        status_code = response.status_code
+        message = response_data.get("message", "")
+        data = response_data.get("data", {})
+
+        if status_code == 202 and "task_id" in data:
+            task_id = data["task_id"]
+            print("Delete task queued successfully. Task ID:", task_id)
+            return task_id
+        else:
+            raise Exception(f"Error in insert: {message}")
+
     @check_deployment_decorator
     def associate(self, text_pairs: List[Dict[str, str]]):
         """
@@ -389,7 +411,20 @@ class NeuralDBClient(BaseClient):
             headers=auth_header(self.login_instance.access_token),
         )
 
-        return response.json()["data"]["task_id"]
+        response_data = response.json()
+        status_code = response.status_code
+        message = response_data.get("message", "")
+        data = response_data.get("data", {})
+
+        if status_code == 202 and "task_id" in data:
+            task_id = data["task_id"]
+            print("Successfully associated the specified text pairs. Task ID:", task_id)
+            return task_id
+        elif status_code == 200:
+            print("Associate task logged successfully.")
+            return None
+        else:
+            raise Exception(f"Error in associate: {message}")
 
     @check_deployment_decorator
     def save_model(self, override: bool = True, model_name: Optional[str] = None):
@@ -427,9 +462,20 @@ class NeuralDBClient(BaseClient):
             headers=auth_header(self.login_instance.access_token),
         )
 
-        print("Successfully upvoted the specified search result.")
+        response_data = response.json()
+        status_code = response.status_code
+        message = response_data.get("message", "")
+        data = response_data.get("data", {})
 
-        return response.json()["data"]["task_id"]
+        if status_code == 202 and "task_id" in data:
+            task_id = data["task_id"]
+            print("Successfully upvoted the specified search result. Task ID:", task_id)
+            return task_id
+        elif status_code == 200:
+            print("Upvote task logged successfully.")
+            return None
+        else:
+            raise Exception(f"Error in upvote: {message}")
 
     @check_deployment_decorator
     def sources(self) -> List[Dict[str, str]]:

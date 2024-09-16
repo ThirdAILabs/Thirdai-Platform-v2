@@ -16,216 +16,222 @@ on:
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
-  # build_docker_images:
-  #   runs-on: self-hosted
-  #   environment:
-  #     name: docker_tests
+  build_docker_images:
+    runs-on: self-hosted
+    environment:
+      name: docker_tests
 
-  #   # if: github.event_name != 'pull_request'
+    # if: github.event_name != 'pull_request'
 
-  #   outputs:
-  #     version: ${{ steps.generate_version.outputs.version }}
+    outputs:
+      version: ${{ steps.generate_version.outputs.version }}
 
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-  #     - name: Set up Python 3.9
-  #       uses: actions/setup-python@v2
-  #       with:
-  #         python-version: 3.9
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
       
-  #     - name: Install Azure CLI
-  #       run: |
-  #         curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
       
-  #     - name: Azure Login
-  #       uses: azure/login@v2
-  #       with:
-  #         creds: |
-  #           {
-  #             "clientId": "${{ secrets.APPLICATION_ID }}",
-  #             "clientSecret": "${{ secrets.SECRET }}",
-  #             "subscriptionId": "${{ secrets.SUBSCRIPTION_ID }}",
-  #             "tenantId": "${{ secrets.TENANT_ID }}"
-  #           }
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: |
+            {
+              "clientId": "${{ secrets.APPLICATION_ID }}",
+              "clientSecret": "${{ secrets.SECRET }}",
+              "subscriptionId": "${{ secrets.SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.TENANT_ID }}"
+            }
 
-  #     # Generate random version number in format 123.123.123 
-  #     - name: Generate random version
-  #       id: generate_version
-  #       run: |
-  #         version=$(shuf -i 100-999 -n 3 | paste -sd '.')
-  #         echo "Generated version: $version"
-  #         echo "::set-output name=version::$version"
+      # Generate random version number in format 123.123.123 
+      - name: Generate random version
+        id: generate_version
+        run: |
+          version=$(shuf -i 100-999 -n 3 | paste -sd '.')
+          echo "Generated version: $version"
+          echo "::set-output name=version::$version"
 
-  #     # Build and push docker images to docker tests repository
-  #     - name: Build and push docker images to docker tests repository
-  #       run: |
-  #         cd release
-  #         pip install -r requirements.txt
-  #         python3 push.py -b docker_tests --config config.yaml --no-cache --version ${{ steps.generate_version.outputs.version }}
+      # Build and push docker images to docker tests repository
+      - name: Build and push docker images to docker tests repository
+        run: |
+          cd release
+          pip install -r requirements.txt
+          python3 push.py -b docker_tests --config config.yaml --no-cache --version ${{ steps.generate_version.outputs.version }}
       
-  #     # This is to clean up local docker builds to free up storage.
-  #     - name: Cleanup Docker after build
-  #       if: always() # Run this step regardless of success or failure
-  #       run: |
-  #         docker system prune -af --volumes
+      # This is to clean up local docker builds to free up storage.
+      - name: Cleanup Docker after build
+        if: always() # Run this step regardless of success or failure
+        run: |
+          docker system prune -af --volumes
 
-  # restart_modelbazaar:
-  #   runs-on: self-hosted
-  #   environment:
-  #     name: docker_tests
+  restart_modelbazaar:
+    runs-on: self-hosted
+    environment:
+      name: docker_tests
 
-  #   # if: github.event_name != 'pull_request'
+    # if: github.event_name != 'pull_request'
 
-  #   needs: build_docker_images
+    needs: build_docker_images
 
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-  #     - name: Set up Python 3.9
-  #       uses: actions/setup-python@v2
-  #       with:
-  #         python-version: 3.9
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
 
-  #     - name: Install requirements
-  #       run: |
-  #         cd headless
-  #         pip install -r requirements.txt
+      - name: Install requirements
+        run: |
+          cd headless
+          pip install -r requirements.txt
       
-  #     - name: SHARE_DIR env variable
-  #       run: |
-  #         mkdir -p $HOME/nfs/dir
-  #         echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
+      - name: SHARE_DIR env variable
+        run: |
+          mkdir -p $HOME/nfs/dir
+          echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
 
-  #     - name: Restart Model Bazaar Job
-  #       run: |
-  #         python3 -m headless.restart_modelbazaar
+      - name: Restart Model Bazaar Job
+        run: |
+          python3 -m headless.restart_modelbazaar
 
-  # test:
-  #   strategy:
-  #     fail-fast: false
+  test:
+    strategy:
+      fail-fast: false
 
-  #   runs-on: self-hosted
+    runs-on: self-hosted
 
-  #   # if: github.event_name != 'pull_request'
+    # if: github.event_name != 'pull_request'
     
-  #   environment:
-  #     name: docker_tests
+    environment:
+      name: docker_tests
 
-  #   needs: restart_modelbazaar
+    needs: restart_modelbazaar
 
-  #   steps:
-  #     - name: Delay before running tests
-  #       run: sleep 150  # Wait for 2 1/2 minutes (150 seconds)
+    steps:
+      - name: Delay before running tests
+        run: sleep 150  # Wait for 2 1/2 minutes (150 seconds)
 
-  #     - name: Checkout code
-  #       uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-  #     - name: Set up Python 3.9
-  #       uses: actions/setup-python@v2
-  #       with:
-  #         python-version: 3.9
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
 
-  #     - name: Install requirements
-  #       run: |
-  #         cd headless
-  #         pip install -r requirements.txt
+      - name: Install requirements
+        run: |
+          cd headless
+          pip install -r requirements.txt
 
-  #     - name: Generate random run name
-  #       id: random-run-name
-  #       run: |
-  #         echo "::set-output name=name::test_$(python3 -c "import secrets; print(secrets.token_urlsafe(8))")"
+      - name: Generate random run name
+        id: random-run-name
+        run: |
+          echo "::set-output name=name::test_$(python3 -c "import secrets; print(secrets.token_urlsafe(8))")"
       
-  #     - name: Create Directories for Share and Test
-  #       run: |
-  #         mkdir -p $HOME/nfs/dir
-  #         echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
+      - name: Create Directories for Share and Test
+        run: |
+          mkdir -p $HOME/nfs/dir
+          echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
 
-  #     - name: Run tests
-  #       run: |
-  #         python3 -m headless.run_locally --base-url ${{ secrets.BASE_URL }} --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag NDB
-  #         python3 -m headless.run_locally --base-url ${{ secrets.BASE_URL }} --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag UDT
+      - name: Run tests
+        run: |
+          python3 -m headless.run_locally --base-url ${{ secrets.BASE_URL }} --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag NDB
+          python3 -m headless.run_locally --base-url ${{ secrets.BASE_URL }} --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag UDT
       
-  #     - name: Cleanup SHARE_DIR Folder
-  #       if: always()
-  #       run: |
-  #         echo "Cleaning up SHARE_DIR folder..."
-  #         rm -rf $HOME/nfs/dir
+      - name: Cleanup SHARE_DIR Folder
+        if: always()
+        run: |
+          echo "Cleaning up SHARE_DIR folder..."
+          rm -rf $HOME/nfs/dir
 
-  # restore_original_alembic_version:
-  #   runs-on: ubuntu-latest
+      - name: Test Next.js frontend
+        run: |
+          BASE_URL_WITHOUT_API=$(echo "${{ secrets.BASE_URL }}" | sed 's/\/api\/\?$//')
+          echo "Testing frontend at $BASE_URL_WITHOUT_API"
+          curl -f "$BASE_URL_WITHOUT_API" || exit 1
 
-  #   needs: test
+  restore_original_alembic_version:
+    runs-on: ubuntu-latest
 
-  #   # This condition ensures that the job runs only if the branch is not 'main' and it's not a pull request.
-  #   # if: github.ref != 'refs/heads/main' && github.event_name != 'pull_request'
-  #   if: github.ref != 'refs/heads/main'
+    needs: test
 
-  #   environment:
-  #     name: docker_tests
+    # This condition ensures that the job runs only if the branch is not 'main' and it's not a pull request.
+    # if: github.ref != 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref != 'refs/heads/main'
 
-  #   steps:
-  #     - name: Set up Python 3.9
-  #       uses: actions/setup-python@v2
-  #       with:
-  #         python-version: 3.9
+    environment:
+      name: docker_tests
 
-  #     - name: Install git
-  #       run: |
-  #         pip install gitpython
+    steps:
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
 
-  #     - name: Checkout current branch
-  #       uses: actions/checkout@v3
+      - name: Install git
+        run: |
+          pip install gitpython
 
-  #     - name: Latest alembic version in main
-  #       id: version
-  #       run: |
-  #         alembic_version=$(python alembic_version.py)
-  #         echo "::set-output name=alembic_version::$alembic_version"
-  #         echo "$alembic_version"
+      - name: Checkout current branch
+        uses: actions/checkout@v3
 
-  #     - name: Install requirements
-  #       run: |
-  #         cd thirdai_platform
-  #         pip install -r requirements.txt
+      - name: Latest alembic version in main
+        id: version
+        run: |
+          alembic_version=$(python alembic_version.py)
+          echo "::set-output name=alembic_version::$alembic_version"
+          echo "$alembic_version"
 
-  #     - name: Revert Back to original alembic version
-  #       env:
-  #         DATABASE_URI: ${{ secrets.DATABASE_URI }}
-  #       run: |
-  #         cd thirdai_platform
-  #         alembic downgrade ${{ steps.version.outputs.alembic_version }}
+      - name: Install requirements
+        run: |
+          cd thirdai_platform
+          pip install -r requirements.txt
+
+      - name: Revert Back to original alembic version
+        env:
+          DATABASE_URI: ${{ secrets.DATABASE_URI }}
+        run: |
+          cd thirdai_platform
+          alembic downgrade ${{ steps.version.outputs.alembic_version }}
 
 
-  # delete_docker_images:
-  #   runs-on: ubuntu-latest
+  delete_docker_images:
+    runs-on: ubuntu-latest
 
-  #   environment:
-  #     name: docker_tests
+    environment:
+      name: docker_tests
 
-  #   needs: test
+    needs: test
 
-  #   # if: always() && github.event_name != 'pull_request'
-  #   if: always()
+    # if: always() && github.event_name != 'pull_request'
+    if: always()
 
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v2
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-  #     - name: Set up Python 3.9
-  #       uses: actions/setup-python@v2
-  #       with:
-  #         python-version: 3.9
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
 
-  #     - name: Delete docker images
-  #       run: |
-  #         cd release
-  #         pip install -r requirements.txt
-  #         version="${{ needs.build_docker_images.outputs.version }}"
-  #         echo "Deleting Docker images for version: $version"
-  #         python3 docker_remove.py -b docker_tests --version "$version" --client_id ${{ secrets.APPLICATION_ID }} --tenant_id ${{ secrets.TENANT_ID }} --secret ${{ secrets.SECRET }} --config config.yaml
+      - name: Delete docker images
+        run: |
+          cd release
+          pip install -r requirements.txt
+          version="${{ needs.build_docker_images.outputs.version }}"
+          echo "Deleting Docker images for version: $version"
+          python3 docker_remove.py -b docker_tests --version "$version" --client_id ${{ secrets.APPLICATION_ID }} --tenant_id ${{ secrets.TENANT_ID }} --secret ${{ secrets.SECRET }} --config config.yaml
   
   fetch_nomad_job_logs:
     runs-on: self-hosted
@@ -233,7 +239,7 @@ jobs:
     environment:
       name: docker_tests
 
-    # needs: delete_docker_images
+    needs: delete_docker_images
 
     # if: always() && github.event_name != 'pull_request'
     if: always()
@@ -276,10 +282,4 @@ jobs:
         run: |
           NOMAD_PATH=$(which nomad)
           $NOMAD_PATH system gc
-
-      - name: Test Next.js frontend
-        run: |
-          BASE_URL_WITHOUT_API=$(echo "${{ secrets.BASE_URL }}" | sed 's/\/api\/\?$//')
-          echo "Testing frontend at $BASE_URL_WITHOUT_API"
-          curl -f "$BASE_URL_WITHOUT_API" || exit 1
 

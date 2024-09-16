@@ -21,7 +21,7 @@ jobs:
     environment:
       name: docker_tests
 
-    if: github.event_name != 'pull_request'
+    # if: github.event_name != 'pull_request'
 
     outputs:
       version: ${{ steps.generate_version.outputs.version }}
@@ -34,6 +34,17 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.9
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: |
+            {
+              "clientId": "${{ secrets.APPLICATION_ID }}",
+              "clientSecret": "${{ secrets.SECRET }}",
+              "subscriptionId": "${{ secrets.SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.TENANT_ID }}"
+            }
 
       # Generate random version number in format 123.123.123
       - name: Generate random version
@@ -48,7 +59,7 @@ jobs:
         run: |
           cd release
           pip install -r requirements.txt
-          python3 push.py -b docker_tests --config config.yaml --no-cache --dont-update-scope --version ${{ steps.generate_version.outputs.version }}
+          python3 push.py -b docker_tests --config config.yaml --no-cache --version ${{ steps.generate_version.outputs.version }}
       
       # This is to clean up local docker builds to free up storage.
       - name: Cleanup Docker after build
@@ -61,7 +72,7 @@ jobs:
     environment:
       name: docker_tests
 
-    if: github.event_name != 'pull_request'
+    # if: github.event_name != 'pull_request'
 
     needs: build_docker_images
 
@@ -94,7 +105,7 @@ jobs:
 
     runs-on: self-hosted
 
-    if: github.event_name != 'pull_request'
+    # if: github.event_name != 'pull_request'
     
     environment:
       name: docker_tests
@@ -145,7 +156,8 @@ jobs:
     needs: test
 
     # This condition ensures that the job runs only if the branch is not 'main' and it's not a pull request.
-    if: github.ref != 'refs/heads/main' && github.event_name != 'pull_request'
+    # if: github.ref != 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref != 'refs/heads/main'
 
     environment:
       name: docker_tests
@@ -191,7 +203,8 @@ jobs:
 
     needs: [ test , build_docker_images ]
 
-    if: always() && github.event_name != 'pull_request'
+    # if: always() && github.event_name != 'pull_request'
+    if: always()
 
     steps:
       - name: Checkout code

@@ -57,6 +57,7 @@ jobs:
         python-version: '3.11'
 
     - name: Setup Python and Install Dependencies
+    # We need to install uvicorn in sudo mode so that we can run the backend with sudo, which is required for delete endpoint to work.
       run: |
         python -m venv ${{ github.workspace }}/venv
         source venv/bin/activate

@@ -286,12 +286,12 @@ class TokenClassificationModel(ClassificationModel):
         )
 
     def insert_samples_in_storage(
-        self, supervised_files: typing.List[str], buffer_size=50_000
+        self, supervised_files: typing.List, buffer_size=50_000
     ):
         # this sampling is not uniform but we assume that there won't be many samples
         # TODO(Shubh) : make this sampling uniform using reservoir sampling
         df = pd.DataFrame()
-        for filename in supervised_files:
+        for filename in supervised_files.path:
             new_df = pd.read_csv(filename)
             new_df = new_df[
                 [self.tkn_cls_vars.source_column, self.tkn_cls_vars.target_column]

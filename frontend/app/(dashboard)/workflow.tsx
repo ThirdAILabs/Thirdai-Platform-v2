@@ -34,6 +34,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
   // Active
   // Starting
   // Error: Underlying model not present
+  // Error: Permission validation failed
   // Training failed
   // Training...
   const [isTrainingIncomplete, setIsTrainingIncomplete] = useState<boolean>(false);
@@ -84,7 +85,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         }
       } catch (e) {
         setIsValid(false);
-        setDeployStatus('Starting');
+        setDeployStatus('Error: Permission validation failed');
         console.error('Validation failed.', e);
       }
     };
@@ -110,6 +111,11 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
   };
 
   useEffect(() => {
+    if(! isValid) {
+      setDeployStatus('Error: Permission validation failed');
+      return;
+    }
+
     if (workflow.models && workflow.models.length > 0) {
       let hasFailed = false;
       let isInProgress = false;
@@ -192,6 +198,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       case 'Training failed': // New case for training failed
         return 'bg-red-500 text-white';
       case 'Failed':
+      case 'Error: Permission validation failed':
       case 'Error: Underlying model not present':
         return 'bg-red-500 text-white'; // Red for error statuses
       default:
@@ -244,6 +251,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
             [
               'Failed',
               'Starting',
+              'Error: Permission validation failed',
               'Error: Underlying model not present',
               'Training failed',
             ].includes(deployStatus)
@@ -257,7 +265,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 ? 'Endpoint'
                 : deployStatus === 'Inactive'
                   ? 'Start'
-                  : ['Failed', 'Error: Underlying model not present'].includes(deployStatus)
+                  : ['Failed', 'Error: Underlying model not present', 'Error: Permission validation failed'].includes(deployStatus)
                     ? 'Start'
                     : 'Endpoint'}
         </Button>

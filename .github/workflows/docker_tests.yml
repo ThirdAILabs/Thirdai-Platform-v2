@@ -19,8 +19,6 @@ jobs:
     environment:
       name: docker_tests
 
-    if: github.event_name != 'pull_request'
-
     outputs:
       version: ${{ steps.generate_version.outputs.version }}
 

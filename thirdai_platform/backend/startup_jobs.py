@@ -236,7 +236,7 @@ async def restart_telemetry_jobs():
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "telemetry.hcl.j2"),
         platform=platform,
-        promfile="/model_bazaar/nomad-monitoring/node_discovery/prometheus.yaml",
+        promfile="/model_bazaar/nomad-monitoring/node_discovery/prometheus.yaml",  # Promfile_path could be different based on whether it is being run on `local-docker` or `docker`. But victoriametric should always find this file somewhere in the mounted volume. That's why it is being hardcoded here
         share_dir=share_dir,
         target_count=str(len(targets)),
     )

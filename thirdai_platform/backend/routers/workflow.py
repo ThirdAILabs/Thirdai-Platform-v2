@@ -354,7 +354,7 @@ def delete_models(
     )
 
 
-@workflow_router.post("/validate", dependencies=[Depends(is_workflow_owner)])
+@workflow_router.post("/validate", dependencies=[Depends(is_workflow_accessible)])
 def validate_workflow(
     workflow_id: str,
     session: Session = Depends(get_session),

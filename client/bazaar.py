@@ -414,7 +414,6 @@ class ModelBazaar:
         else:
             datagen_options = {
                 "sub_type": "token",
-                "task_prompt": task_prompt,
                 "tags": list(category_examples.keys()),
                 "tag_examples": category_examples,
                 "num_sentences_to_generate": 10_000,

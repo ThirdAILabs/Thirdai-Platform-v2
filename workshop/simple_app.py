@@ -1,6 +1,4 @@
 import gradio as gr
-import operations as op
-
 
 # INTERACT WITH API #################################################################################
 
@@ -178,19 +176,17 @@ def feedback_tab(state):
     with gr.Column():
         model_id = gr.Textbox(label="Model ID")
         
-        with gr.Box():
-            gr.Markdown("## Upvote")
-            query = gr.Textbox(label="Query")
-            reference_id = gr.Number(label="Reference ID", precision=0)
-            upvote_button = gr.Button("Submit")
-            upvote_status = gr.Textbox(label="Upvote Status")
+        gr.Markdown("## Upvote")
+        query = gr.Textbox(label="Query")
+        reference_id = gr.Number(label="Reference ID", precision=0)
+        upvote_button = gr.Button("Submit")
+        upvote_status = gr.Textbox(label="Upvote Status")
 
-        with gr.Box():
-            gr.Markdown("## Associate")
-            source_phrase = gr.Textbox(label="Source phrase")
-            target_phrase = gr.Textbox(label="Target phrase")
-            associate_button = gr.Button("Submit")
-            associate_status = gr.Textbox(label="Association Status")
+        gr.Markdown("## Associate")
+        source_phrase = gr.Textbox(label="Source phrase")
+        target_phrase = gr.Textbox(label="Target phrase")
+        associate_button = gr.Button("Submit")
+        associate_status = gr.Textbox(label="Association Status")
 
     def process_upvote(model_id, query, reference_id, state):
         result = upvote_reference(model_id, query, reference_id, state.get('token', ''))
@@ -207,22 +203,19 @@ def documents_tab(state):
     with gr.Column():
         model_id = gr.Textbox(label="Model ID")
 
-        with gr.Box():
-            gr.Markdown("## List Documents")
-            pull_button = gr.Button("Pull")
-            documents_json = gr.JSON(label="Documents")
+        gr.Markdown("## List Documents")
+        pull_button = gr.Button("Pull")
+        documents_json = gr.JSON(label="Documents")
 
-        with gr.Box():
-            gr.Markdown("## Insert Document")
-            document = gr.File(label="Document to Insert")
-            insert_button = gr.Button("Submit")
-            insert_status = gr.Textbox(label="Insert Status")
+        gr.Markdown("## Insert Document")
+        document = gr.File(label="Document to Insert")
+        insert_button = gr.Button("Submit")
+        insert_status = gr.Textbox(label="Insert Status")
 
-        with gr.Box():
-            gr.Markdown("## Delete Document")
-            document_id = gr.Textbox(label="Document ID")
-            delete_button = gr.Button("Submit")
-            delete_status = gr.Textbox(label="Delete Status")
+        gr.Markdown("## Delete Document")
+        document_id = gr.Textbox(label="Document ID")
+        delete_button = gr.Button("Submit")
+        delete_status = gr.Textbox(label="Delete Status")
 
     def process_pull_documents(model_id, state):
         documents = pull_documents(model_id, state.get('token', ''))
@@ -236,9 +229,9 @@ def documents_tab(state):
         result = delete_document(model_id, document_id, state.get('token', ''))
         return result
 
-    pull_button.click(process_pull_documents, inputs=[state], outputs=[documents_json])
-    insert_button.click(process_insert_document, inputs=[document, state], outputs=[insert_status])
-    delete_button.click(process_delete_document, inputs=[document_id, state], outputs=[delete_status])
+    pull_button.click(process_pull_documents, inputs=[model_id, state], outputs=[documents_json])
+    insert_button.click(process_insert_document, inputs=[model_id, document, state], outputs=[insert_status])
+    delete_button.click(process_delete_document, inputs=[model_id, document_id, state], outputs=[delete_status])
 
 with gr.Blocks() as demo:
     gr.State({})

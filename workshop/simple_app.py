@@ -6,48 +6,36 @@ import gradio as gr
 def signin(email, password):
     """Should return auth token"""
     # TODO: Replace mock implementation. See "login" in operations.ipynb
-    if email == "admin" and password == "admin":
-        return f"token_{email}"
-    else:
-        return None
+    return "Sign in is not implemented"
 
 def pull_models_and_workflows(model_name_prefix, token):
     """Should return list of models and workflows as JSON"""
     # TODO: Replace mock implementation. See "list_models" in operations.ipynb
-    models = [
-        {"id": f"model1_{model_name_prefix}", "name": f"Model 1 ({model_name_prefix})"},
-        {"id": f"model2_{model_name_prefix}", "name": f"Model 2 ({model_name_prefix})"}
-    ]
+    models = ["Pull models is not implemented"]
     # We'll get to workflows later. Keep the mock implementation for now.
-    workflows = [
-        {"id": f"workflow1_{model_name_prefix}", "name": f"Workflow 1 ({model_name_prefix})"},
-        {"id": f"workflow2_{model_name_prefix}", "name": f"Workflow 2 ({model_name_prefix})"}
-    ]
+    workflows = ["Pull workflows is not implemented"]
     return models, workflows
 
 def deploy(username, model_name, token):
     """Should return deployment status"""
     # TODO: Replace mock implementation. See "Use Cases" document for details.
-    return f"Deployment not implemented for user {username}, model {model_name}, token {token}"
+    return f"Deploy is not implemented"
 
-def create_model(model_name, base_model_id, documents, token):
+def create_model(username, model_name, base_model_identifier, documents, token):
     """Should return ID of newly created model"""
-    new_model_id = f"{model_name}_{base_model_id}_{len(documents)}_{token}"
-    return new_model_id
+    # TODO: Replace mock implementation.  See "Use Cases" document for details.
+    return "Create model is not implemented"
 
 def get_references(retriever_id, query, token):
     """Should return references from retrieval model"""
     # TODO: Replace mock implementation. See "Use Cases" document for details.
-    import random
-    num_refs = random.randint(3, 10)
-    return [{"content": f"Reference {i} for query: {query}. Retriever ID: {retriever_id}. Token: {token}"} for i in range(num_refs)]
+    return [{"content": "Get references is not implemented"}]
 
 async def generate_answer(guardrail_id, query, references, token):
     """Generates an answer to answer the query using provided references"""
     # TODO: Replace mock implementation. See "Use Cases" document for details.
     import time
-    words = f"Token: {token}. Generated answer using guardrail {guardrail_id} for query '{query}' based on {len(references)} references: "
-    words += "This is a mock streaming response. " * 5
+    words = f"Generate answer is not implemented"
     for word in words.split():
         time.sleep(0.1)
         yield word + " "
@@ -55,31 +43,27 @@ async def generate_answer(guardrail_id, query, references, token):
 def upvote_reference(model_id, query, reference_id, token):
     """Upvotes a reference"""
     # TODO: Implement actual upvoting logic
-    return f"Upvoted reference {reference_id} for query: {query} in model {model_id}. Token: {token}"
+    return "Upvote reference is not implemented"
 
 def associate_phrases(model_id, source_phrase, target_phrase, token):
     """Associates two phrases"""
     # TODO: Implement actual association logic
-    return f"Associated '{source_phrase}' with '{target_phrase}' in model {model_id}. Token: {token}"
+    return "Associate phrases is not implemented"
 
 def pull_documents(model_id, token):
     """Should return list of documents as JSON"""
     # TODO: Replace mock implementation
-    documents = [
-        {"id": f"doc1_{model_id}", "name": f"Document 1 for model {model_id}"},
-        {"id": f"doc2_{model_id}", "name": f"Document 2 for model {model_id}"}
-    ]
-    return documents
+    return ["Pull documents is not implemented"]
 
-def insert_document(model_id, document, token):
+def insert_documents(model_id, documents, token):
     """Should insert a document and return its ID"""
     # TODO: Replace mock implementation
-    return f"doc_{model_id}_{document.name}_{token}"
+    return "Insert documents is not implemented"
 
 def delete_document(model_id, document_id, token):
     """Should delete a document and return status"""
     # TODO: Replace mock implementation
-    return f"Document {document_id} deleted from model {model_id}. Token: {token}"
+    return "Delete documents is not implemented"
 
 
 # UI COMPONENTS #################################################################################
@@ -94,11 +78,7 @@ def signin_tab(state):
     
     def process_signin(email, password, state):
         token = signin(email, password)
-        if token:
-            status = "Sign-in successful"
-        else:
-            status = "Invalid credentials"
-        return [status, {"token": token, **state}]
+        return [token, {"token": token, **state}]
     
     signin_button.click(process_signin, inputs=[email, password, state], outputs=[status, state])
 
@@ -122,7 +102,7 @@ def deploy_tab(state):
         deploy_button = gr.Button("Deploy")
         deployment_status = gr.Textbox(label="Deployment Status")
 
-    def process_deploy(username, modelname, state):
+    def process_deploy(username, model_name, state):
         response = deploy(username, model_name, state['token'])
         return response
 
@@ -130,17 +110,18 @@ def deploy_tab(state):
 
 def create_tab(state):
     with gr.Column():
+        username = gr.Textbox(label="Username")
         model_name = gr.Textbox(label="Model Name")
-        base_model_id = gr.Textbox(label="Base Model ID")
+        base_model_identifier = gr.Textbox(label="Base Model ID")
         documents = gr.File(label="Documents to Index", file_count="multiple")
         create_button = gr.Button("Create")
         new_model_id = gr.Textbox(label="New Model ID")
 
-    def process_create_model(model_name, base_model_id, documents, state):
-        new_model_id = create_model(model_name, base_model_id, documents, state['token'])
+    def process_create_model(username, model_name, base_model_identifier, documents, state):
+        new_model_id = create_model(username, model_name, base_model_identifier, documents, state['token'])
         return new_model_id
 
-    create_button.click(process_create_model, inputs=[model_name, base_model_id, documents, state], outputs=[new_model_id])
+    create_button.click(process_create_model, inputs=[username, model_name, base_model_identifier, documents, state], outputs=[new_model_id])
 
 
 def interact_tab(state):
@@ -208,7 +189,7 @@ def documents_tab(state):
         documents_json = gr.JSON(label="Documents")
 
         gr.Markdown("## Insert Document")
-        document = gr.File(label="Document to Insert")
+        documents = gr.File(label="Documents to Insert", file_count="multiple")
         insert_button = gr.Button("Submit")
         insert_status = gr.Textbox(label="Insert Status")
 
@@ -221,8 +202,8 @@ def documents_tab(state):
         documents = pull_documents(model_id, state.get('token', ''))
         return documents
 
-    def process_insert_document(model_id, document, state):
-        result = insert_document(model_id, document, state.get('token', ''))
+    def process_insert_documents(model_id, documents, state):
+        result = insert_documents(model_id, documents, state.get('token', ''))
         return f"Document inserted with ID: {result}"
 
     def process_delete_document(model_id, document_id, state):
@@ -230,7 +211,7 @@ def documents_tab(state):
         return result
 
     pull_button.click(process_pull_documents, inputs=[model_id, state], outputs=[documents_json])
-    insert_button.click(process_insert_document, inputs=[model_id, document, state], outputs=[insert_status])
+    insert_button.click(process_insert_documents, inputs=[model_id, documents, state], outputs=[insert_status])
     delete_button.click(process_delete_document, inputs=[model_id, document_id, state], outputs=[delete_status])
 
 with gr.Blocks() as demo:

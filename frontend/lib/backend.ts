@@ -632,7 +632,7 @@ function tokenClassifierDatagenForm(modelGoal: string, examples: TokenClassifica
     examples: [example.example],
     description: example.description,
   }));
-  const numSentences = 100;
+  const numSentences = 10_000;
   return {
     sub_type: 'token',
     task_prompt: modelGoal,
@@ -700,7 +700,7 @@ function sentenceClassifierDatagenForm(examples: SentenceClassificationExample[]
     description: example.description,
   }));
 
-  const numSentences = 100;
+  const numSentences = 10_000;
   return {
     sub_type: 'text',
     samples_per_label: Math.max(Math.ceil(numSentences / labels.length), 50),

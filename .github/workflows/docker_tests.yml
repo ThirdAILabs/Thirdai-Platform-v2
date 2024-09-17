@@ -76,9 +76,9 @@ jobs:
     environment:
       name: docker_tests
 
-    # if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request'
 
-    # needs: build_docker_images
+    needs: build_docker_images
 
     steps:
       - name: Checkout code
@@ -101,7 +101,9 @@ jobs:
 
       - name: Restart Model Bazaar Job
         run: |
-          python3 -m headless.restart_modelbazaar
+          version="${{ needs.build_docker_images.outputs.version }}"
+          echo "Restarting the model bazaar with the: $version"
+          python3 -m headless.restart_modelbazaar --version "$version"
 
   test:
     strategy:

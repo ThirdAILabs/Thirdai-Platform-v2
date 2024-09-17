@@ -264,5 +264,5 @@ def update_docker_image_version(job_definition, new_version):
                 # Update the image with the new version
                 task["Config"]["image"] = f"{image_name}:{version_tag}"
                 print(f"Updated Docker image to: {task['Config']['image']}")
-    
+
     return job_definition

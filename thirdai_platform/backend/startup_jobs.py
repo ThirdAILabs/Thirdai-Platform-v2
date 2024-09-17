@@ -1,6 +1,8 @@
 import os
 import shutil
 from pathlib import Path
+import requests
+import yaml
 
 from backend.utils import (
     delete_nomad_job,
@@ -154,6 +156,50 @@ async def restart_llm_cache_job():
         license_key=license_info["boltLicenseKey"],
     )
 
+def create_promfile(promfile_path: str):
+    platform = get_platform()
+    model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT")
+    if platform == "local":
+        targets = ["host.docker.internal:4646"]
+    else:
+        nomad_url = (
+            f"{model_bazaar_endpoint.rstrip('/')}:4646/v1/nodes"
+        )
+
+        # Fetch the node data from Nomad
+        headers = {"X-Nomad-Token": os.getenv("MANAGEMENT_TOKEN")}
+        response = requests.get(nomad_url, headers=headers)
+        nodes = response.json()
+
+        targets = [f"{node['Address']}:4646" for node in nodes]
+    
+    # Prometheus template
+    prometheus_config = {
+        "global": {
+            "scrape_interval": "1s",
+            "external_labels": {"env": "dev", "cluster": "local"},
+        },
+        "scrape_configs": [
+            {
+                "job_name": "nomad-agent",
+                "metrics_path": "/v1/metrics?format=prometheus",
+                "static_configs": [{"targets": targets, "labels": {"role": "agent"}}],
+                "relabel_configs": [
+                    {
+                        "source_labels": ["__address__"],
+                        "regex": "([^:]+):.+",
+                        "target_label": "hostname",
+                        "replacement": "nomad-agent-$1",
+                    }
+                ],
+            }
+        ],
+    }
+    os.makedirs(os.path.dirname(promfile_path), exist_ok=True)
+    with open(promfile_path, "w") as file:
+        yaml.dump(prometheus_config, file, sort_keys=False)
+
+    print(f"Prometheus configuration has been written to {promfile_path.promfile}")
 
 async def restart_telemetry_jobs():
     """
@@ -176,6 +222,8 @@ async def restart_telemetry_jobs():
             ),
             dirs_exist_ok=True,
         )
+    
+    
     response = submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "telemetry.hcl.j2"),

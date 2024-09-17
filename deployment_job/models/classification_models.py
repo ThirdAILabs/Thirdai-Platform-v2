@@ -3,14 +3,14 @@ from typing import Optional, Union
 
 from models.model import Model
 from pydantic_models import inputs
-from storage.data_types import (
+from thirdai_storage.data_types import (
     DataSample,
     LabelEntityList,
     TagMetadata,
     TextClassificationSample,
     TokenClassificationSample,
 )
-from storage.storage import DataStorage, SQLiteConnector
+from thirdai_storage.storage import DataStorage, SQLiteConnector
 from thirdai import bolt
 
 

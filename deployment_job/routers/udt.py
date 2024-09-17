@@ -7,7 +7,7 @@ from permissions import Permissions
 from prometheus_client import Summary
 from pydantic_models.inputs import BaseQueryParams, SearchResultsTokenClassification
 from routers.model import get_model
-from storage.data_types import (
+from thirdai_storage.data_types import (
     LabelEntityList,
     TextClassificationSample,
     TokenClassificationSample,

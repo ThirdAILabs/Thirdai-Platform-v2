@@ -48,7 +48,7 @@ const Logo = styled.img`
 `;
 
 const SearchContainer = styled.section<{ $center: boolean }>`
-  position: fixed;
+  position: relative; /* Changed from fixed to relative */
   width: 70%;
   left: 10%;
   display: flex;
@@ -651,7 +651,7 @@ function App() {
                   )}
                 </SearchContainer>
                 {results && !failed && (
-                  <Pad $top="150px" $bottom="80px" $left="10%" $right="30%">
+                  <Pad $top="50px" $bottom="80px" $left="10%" $right="30%">
                     <Pad $left="5px">
                       {ifGenerationOn && (
                         <>

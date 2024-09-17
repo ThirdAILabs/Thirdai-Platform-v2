@@ -76,9 +76,9 @@ jobs:
     environment:
       name: docker_tests
 
-    if: github.event_name != 'pull_request'
+    # if: github.event_name != 'pull_request'
 
-    needs: build_docker_images
+    # needs: build_docker_images
 
     steps:
       - name: Checkout code

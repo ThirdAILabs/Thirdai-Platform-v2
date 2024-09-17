@@ -491,6 +491,17 @@ class NeuralDBClient(BaseClient):
         return response.json()["data"]
 
 
+class LLMClient:
+    def __init__(self, login_instance: Login):
+        self.login_instance = login_instance
+        self.base_url = construct_deployment_url(
+            re.sub(r"api/$", "", login_instance.base_url), "llm-dispatch"
+        )
+
+    def generate(self, query: str, api_key: str):
+        pass
+
+
 class UDTClient(BaseClient):
     """
     A client for interacting with deployed UDT Model

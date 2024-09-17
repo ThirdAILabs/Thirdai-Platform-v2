@@ -155,7 +155,7 @@ async def startup_event() -> None:
     try:
         await asyncio.sleep(10)
         reporter.update_deploy_status(general_variables.model_id, "complete")
-        asyncio.create_task(async_timer())
+        # asyncio.create_task(async_timer())
         asyncio.create_task(check_for_model_updates())
     except Exception as e:
         reporter.update_deploy_status(general_variables.model_id, "failed")

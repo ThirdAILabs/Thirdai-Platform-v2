@@ -15,7 +15,13 @@ from config import (
 )
 from exceptional_handler import apply_exception_handler
 from models.model import Model
-from storage.data_types import DataSample, LabelEntity, LabelStatus, TagMetadata
+from storage.data_types import (
+    DataSample,
+    LabelEntity,
+    LabelStatus,
+    ModelMetadata,
+    TagMetadata,
+)
 from storage.storage import DataStorage, SQLiteConnector
 from thirdai import bolt
 from utils import (
@@ -180,7 +186,7 @@ class TokenClassificationModel(ClassificationModel):
         self.load_storage()
 
         # insert the tags into the storage to keep track of their training status
-        tags_and_status = {"O": LabelEntity(name="O")}
+        tags_and_status = {"O": LabelEntity(name="O", status=LabelStatus.untrained)}
 
         target_labels = self.tkn_cls_vars.target_labels
 
@@ -189,8 +195,8 @@ class TokenClassificationModel(ClassificationModel):
                 name=label, status=LabelStatus.untrained
             )
 
-        self.data_storage.insert_metadata(
-            metadata=TagMetadata(name="tags", tag_and_status=tags_and_status)
+        self.update_tag_metadata(
+            tag_metadata=TagMetadata(tag_and_status=tags_and_status)
         )
 
         default_tag = self.tkn_cls_vars.default_tag
@@ -214,10 +220,12 @@ class TokenClassificationModel(ClassificationModel):
     @property
     def tag_metadata(self) -> TagMetadata:
         # load tags and their status from the storage
-        return self.data_storage.get_metadata("tags_and_status")
+        return self.data_storage.get_metadata("tags_and_status").metadata
 
     def update_tag_metadata(self, tag_metadata):
-        self.data_storage.insert_metadata(metadata=tag_metadata)
+        self.data_storage.insert_metadata(
+            metadata=ModelMetadata(name="tags_and_status", metadata=tag_metadata)
+        )
 
     def train(self, **kwargs):
         self.reporter.report_status(self.config.model_id, "in_progress")

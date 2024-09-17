@@ -699,7 +699,7 @@ function sentenceClassifierDatagenForm(examples: SentenceClassificationExample[]
     examples: [example.example],
     description: example.description,
   }));
-  
+
   const numSentences = 100;
   return {
     sub_type: 'text',

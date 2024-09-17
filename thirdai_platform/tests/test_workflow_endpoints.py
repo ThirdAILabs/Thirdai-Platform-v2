@@ -586,7 +586,7 @@ def test_workflow_access_control_with_model_visibility():
             "model_ids": [model_3_id, model_2_id],
             "components": ["search_1", "search_2"],
         },
-        headers=auth_header(user_1_jwt),
+        headers=auth_header(user_2_jwt),
     )
 
     assert res.status_code == 403  # Should fail because model_2 is private
@@ -610,7 +610,7 @@ def test_workflow_access_control_with_model_visibility():
             "model_ids": [model_3_id, model_2_id],
             "components": ["search_1", "search_2"],
         },
-        headers=auth_header(user_1_jwt),
+        headers=auth_header(user_2_jwt),
     )
     assert res.status_code == 200  # Should succeed now
 

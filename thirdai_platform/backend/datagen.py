@@ -150,6 +150,7 @@ def generate_text_data(
             license_key=license_key,
             extra_options=extra_options,
             python_path=get_python_path(),
+            storage_dir=storage_dir
         )
         nomad_response.raise_for_status()
     except Exception as e:
@@ -223,6 +224,7 @@ def generate_token_data(
             license_key=license_key,
             extra_options=extra_options,
             python_path=get_python_path(),
+            storage_dir=storage_dir
         )
         nomad_response.raise_for_status()
     except Exception as e:

@@ -119,7 +119,7 @@ def generate_text_data(
     storage_dir = os.path.join(model_bazaar_path(), "generated_data", str(data_id))
     os.makedirs(storage_dir, exist_ok=True)
     save_dict(
-        datagen_options.model_dump(),
+        datagen_options,
         os.path.join(storage_dir, "generation_args.json"),
     )
 
@@ -192,7 +192,7 @@ def generate_token_data(
     storage_dir = os.path.join(model_bazaar_path(), "generated_data", str(data_id))
     os.makedirs(storage_dir, exist_ok=True)
     save_dict(
-        datagen_options.model_dump(),
+        datagen_options,
         os.path.join(storage_dir, "generation_args.json"),
     )
 

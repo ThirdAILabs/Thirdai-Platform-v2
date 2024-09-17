@@ -4,7 +4,17 @@ job "telemetry" {
   {% set nomad_monitoring_dir = "/model_bazaar/nomad-monitoring" -%}
   group "telemetry" {
     count = 1
+    {#
+      If there are more than one node in the cluster, 
+        then this constraint ensures that telemetry job always run on client node,
 
+      The issue originates from victoriametric and grafana creating db on nfs.
+        so, if the telemetry job is started by node of a class [server or (any client)], the job won't get restarted by node of different class [(any client) or server] 
+      
+      Incase multiple nodes are in the cluster,
+        Assumption: There will be more client nodes than server.
+        so constraint the job to always get scheduled on client node.
+    #}
     {% if platform == "docker" and target_count != "1" -%}
     constraint {
       attribute = "${node.class}"

@@ -216,7 +216,7 @@ async def restart_telemetry_jobs():
     cwd = Path(os.getcwd())
     platform = get_platform()
     share_dir = os.getenv("SHARE_DIR")
-    # Copying the telemetry dashboards if running on docker
+    # Copying the telemetry dashboards if running on local
     if platform == "local":
         shutil.copytree(
             str(cwd / "telemetry_dashboards"),

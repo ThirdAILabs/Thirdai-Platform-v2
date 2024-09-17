@@ -4,6 +4,7 @@ from abc import abstractmethod
 from collections import defaultdict
 from pathlib import Path
 from typing import List
+import os
 
 import pandas as pd
 import thirdai
@@ -94,8 +95,15 @@ class ClassificationModel(Model):
         model.save(str(self.model_save_path))
 
     def get_model(self):
+        # if a model with the same id has already been initialized, return the model
+        if os.path.exists(self.model_save_path):
+            return self.load_model(self.model_save_path)
+
+        # if model with the id not found but has a base model, return the base model
         if self.config.base_model_id:
             return self.load_model(self.config.base_model_id)
+
+        # initialize the model from scratch if the model does not exist or if there is not base model
         return self.initialize_model()
 
     def evaluate(self, model, test_files: List[FileInfo]):

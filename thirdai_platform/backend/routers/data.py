@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
-from backend.config import JobOptions
+from backend.config import Entity, JobOptions
 from backend.datagen import (
     TextClassificationGenerateArgs,
     TokenClassificationGenerateArgs,
@@ -57,12 +57,6 @@ class LLMProvider(str, Enum):
     cohere = "cohere"
 
 
-class Entity(BaseModel):
-    name: str
-    examples: List[str]
-    description: str
-
-
 @data_router.post("/generate-text-data")
 def generate_text_data_endpoint(
     task_prompt: str,
@@ -70,7 +64,7 @@ def generate_text_data_endpoint(
     datagen_form: str = Form(default="{}"),
     job_form: str = Form(default="{}"),
     session: Session = Depends(get_session),
-    # authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:
@@ -129,7 +123,7 @@ def generate_token_data_endpoint(
     datagen_form: str = Form(default="{}"),
     job_form: str = Form(default="{}"),
     session: Session = Depends(get_session),
-    # authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     # TODO(Gautam): Only people from ThirdAI should be able to access this endpoint
     try:
@@ -164,7 +158,6 @@ def generate_token_data_endpoint(
         )
 
     data_id = uuid.uuid4()
-    print_function_args(generate_token_data)
     generate_token_data(
         task_prompt=task_prompt,
         data_id=str(data_id),

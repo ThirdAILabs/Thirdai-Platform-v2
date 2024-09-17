@@ -401,7 +401,8 @@ class ModelBazaar:
             datagen_options = {
                 "task_prompt": task_prompt,
                 "sub_type": "text",
-                "samples_per_label": max(math.ceil(5_000 / len(entities)), 50),
+                "samples_per_label": 50,
+                # This incurs cost on OpenAI, hence reducing it to 50. Reach out to (sid/tharun) if u want to increase this
                 "target_labels": entities,
             }
         else:
@@ -409,8 +410,9 @@ class ModelBazaar:
                 "sub_type": "token",
                 "task_prompt": task_prompt,
                 "tags": entities,
-                "num_sentences_to_generate": 5_000,
-                "num_samples_per_tag": max(math.ceil(5_000 / len(entities)), 50),
+                "num_sentences_to_generate": 100,
+                # This incurs cost on OpenAI, hence reducing it to 100. Reach out to (sid/tharun) if u want to increase this
+                "num_samples_per_tag": 50,
             }
 
         form.append(

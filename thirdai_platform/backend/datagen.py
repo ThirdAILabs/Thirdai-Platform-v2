@@ -4,7 +4,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from backend.config import DatagenOptions, JobOptions, LLMProvider, UDTSubType
+from backend.config import DatagenOptions, Entity, JobOptions, LLMProvider, UDTSubType
 from backend.utils import (
     get_platform,
     get_python_path,
@@ -20,12 +20,6 @@ from fastapi import Depends, status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
-
-
-class Entity(BaseModel):
-    name: str
-    examples: List[str]
-    description: str
 
 
 def get_catalogs(task: schema.UDT_Task, session: Session):
@@ -51,6 +45,14 @@ def find_dataset(
                 most_suited_dataset = catalog
 
     return most_suited_dataset
+
+
+def dump_generation_args(path: str, args: BaseModel):
+    os.makedirs(path, exist_ok=True)
+    save_dict(
+        args.model_dump(),
+        os.path.join(path, "generation_args.json"),
+    )
 
 
 def generate_data_for_train_job(
@@ -117,11 +119,7 @@ def generate_text_data(
 
     # Dump the datagen option in the storage dir
     storage_dir = os.path.join(model_bazaar_path(), "generated_data", str(data_id))
-    os.makedirs(storage_dir, exist_ok=True)
-    save_dict(
-        datagen_options.model_dump(),
-        os.path.join(storage_dir, "generation_args.json"),
-    )
+    dump_generation_args(storage_dir, datagen_options)
 
     try:
         nomad_response = submit_nomad_job(
@@ -188,11 +186,7 @@ def generate_token_data(
 
     # Dump the datagen option in the storage dir
     storage_dir = os.path.join(model_bazaar_path(), "generated_data", str(data_id))
-    os.makedirs(storage_dir, exist_ok=True)
-    save_dict(
-        datagen_options.model_dump(),
-        os.path.join(storage_dir, "generation_args.json"),
-    )
+    dump_generation_args(storage_dir, datagen_options)
 
     try:
         nomad_response = submit_nomad_job(

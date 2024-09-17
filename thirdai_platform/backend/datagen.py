@@ -9,6 +9,7 @@ from backend.utils import (
     get_platform,
     get_python_path,
     get_root_absolute_path,
+    model_bazaar_path,
     response,
     save_dict,
     submit_nomad_job,
@@ -25,10 +26,6 @@ class Entity(BaseModel):
     name: str
     examples: List[str]
     description: str
-
-
-def model_bazaar_path():
-    return "/model_bazaar" if os.path.exists("/.dockerenv") else os.getenv("SHARE_DIR")
 
 
 def get_catalogs(task: schema.UDT_Task, session: Session):

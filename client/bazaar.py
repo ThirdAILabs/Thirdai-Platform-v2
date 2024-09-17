@@ -396,20 +396,12 @@ class ModelBazaar:
             {"name": item[0], "examples": [item[1]], "description": item[2]}
             for item in examples
         ]
-        # category_examples = {}
-        # category_descriptions = {}
-        # for category, example, description in examples:
-        #     if category not in category_examples:
-        #         category_examples[category] = [example]
-        #         category_descriptions[category] = description
-        #     else:
-        #         category_examples[category].append(example)
 
         if sub_type == "text":
             datagen_options = {
                 "task_prompt": task_prompt,
                 "sub_type": "text",
-                "samples_per_label": max(math.ceil(10_000 / len(entities)), 50),
+                "samples_per_label": max(math.ceil(500 / len(entities)), 50),
                 "target_labels": entities,
             }
         else:
@@ -417,8 +409,8 @@ class ModelBazaar:
                 "sub_type": "token",
                 "task_prompt": task_prompt,
                 "tags": entities,
-                "num_sentences_to_generate": 5_000,
-                "num_samples_per_tag": max(math.ceil(10_000 / len(entities)), 50),
+                "num_sentences_to_generate": 200,
+                "num_samples_per_tag": max(math.ceil(200 / len(entities)), 50),
             }
 
         form.append(

@@ -1,9 +1,9 @@
 import os
 import shutil
 from pathlib import Path
+
 import requests
 import yaml
-
 from backend.utils import (
     delete_nomad_job,
     get_empty_port,
@@ -156,15 +156,14 @@ async def restart_llm_cache_job():
         license_key=license_info["boltLicenseKey"],
     )
 
+
 def create_promfile(promfile_path: str):
     platform = get_platform()
-    model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT")
+    model_bazaar_endpoint = os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT")
     if platform == "local":
         targets = ["host.docker.internal:4646"]
     else:
-        nomad_url = (
-            f"{model_bazaar_endpoint.rstrip('/')}:4646/v1/nodes"
-        )
+        nomad_url = f"{model_bazaar_endpoint.rstrip('/')}:4646/v1/nodes"
 
         # Fetch the node data from Nomad
         headers = {"X-Nomad-Token": os.getenv("MANAGEMENT_TOKEN")}
@@ -172,7 +171,7 @@ def create_promfile(promfile_path: str):
         nodes = response.json()
 
         targets = [f"{node['Address']}:4646" for node in nodes]
-    
+
     # Prometheus template
     prometheus_config = {
         "global": {
@@ -199,7 +198,9 @@ def create_promfile(promfile_path: str):
     with open(promfile_path, "w") as file:
         yaml.dump(prometheus_config, file, sort_keys=False)
 
-    print(f"Prometheus configuration has been written to {promfile_path.promfile}")
+    print(f"Prometheus configuration has been written to {promfile_path}")
+    return targets
+
 
 async def restart_telemetry_jobs():
     """
@@ -214,29 +215,30 @@ async def restart_telemetry_jobs():
 
     cwd = Path(os.getcwd())
     platform = get_platform()
+    share_dir = os.getenv("SHARE_DIR")
+    # Copying the telemetry dashboards if running on docker
     if platform == "local":
         shutil.copytree(
             str(cwd / "telemetry_dashboards"),
-            os.path.join(
-                model_bazaar_path(), "nomad-monitoring", "telemetry_dashboards"
-            ),
+            os.path.join(share_dir, "nomad-monitoring", "telemetry_dashboards"),
             dirs_exist_ok=True,
         )
-    
-    
+        promfile_path = os.path.join(
+            share_dir, "nomad-monitoring/node_discovery/prometheus.yaml"
+        )
+    else:
+        promfile_path = "/model_bazaar/nomad-monitoring/node_discovery/prometheus.yaml"
+
+    # Creating prometheus config file
+    targets = create_promfile(promfile_path)
+
     response = submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "telemetry.hcl.j2"),
         platform=platform,
-        tag=os.getenv("TAG"),
-        registry=os.getenv("DOCKER_REGISTRY"),
-        docker_username=os.getenv("DOCKER_USERNAME"),
-        docker_password=os.getenv("DOCKER_PASSWORD"),
-        image_name=os.getenv("NODE_DISCOVERY_IMAGE_NAME"),
-        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
-        share_dir=os.getenv("SHARE_DIR"),
-        python_path=get_python_path(),
-        node_discovery_script=str(get_root_absolute_path() / "node_discovery/run.py"),
+        promfile="/model_bazaar/nomad-monitoring/node_discovery/prometheus.yaml",
+        share_dir=share_dir,
+        target_count=str(len(targets)),
     )
     if response.status_code != 200:
         raise Exception(f"{response.text}")

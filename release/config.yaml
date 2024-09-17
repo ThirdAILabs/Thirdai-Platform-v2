@@ -23,7 +23,7 @@ azure:
       push_credentials:
         password: 88H32TGUQ9Qgk60ipNW9Z2vfgtD7ZTZ3KSLCweWa0A+ACRAvBEe3
         username: thirdaiplatform-push-telemetry
-      version: 0.0.2
+      version: 0.0.3
     test_1:
       pull_credentials:
         password: lfhxcL/qmrYP24rIH2vmRNSYV9ZlNCfxJyQI6E3kVi+ACRDjUz22

@@ -3,7 +3,7 @@ import { Box, Chunk, DocChunks } from './components/pdf_viewer/interfaces';
 import { temporaryCacheToken } from '@/lib/backend';
 import _ from 'lodash';
 
-export const deploymentBaseUrl = _.trim(process.env.NEXT_PUBLIC_DEPLOYMENT_BASE_URL!, '/');
+export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
 export interface ReferenceJson {
   id: number;

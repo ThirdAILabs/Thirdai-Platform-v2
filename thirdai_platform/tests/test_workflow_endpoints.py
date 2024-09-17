@@ -114,7 +114,7 @@ def setup_users():
     assert res.status_code == 200
 
     res = create_user(
-        client, "user_2", email="user_1@mail.com", password="user_1_password"
+        client, "user_2", email="user_2@mail.com", password="user_2_password"
     )
     assert res.status_code == 200
 

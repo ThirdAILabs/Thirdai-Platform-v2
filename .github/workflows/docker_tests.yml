@@ -103,12 +103,6 @@ jobs:
         run: |
           python3 -m headless.restart_modelbazaar
 
-      # This is to clean up local docker builds to free up storage.
-      - name: Cleanup Docker after build
-        if: always() # Run this step regardless of success or failure
-        run: |
-          docker system prune -af --volumes
-
   test:
     strategy:
       fail-fast: false
@@ -166,6 +160,12 @@ jobs:
           BASE_URL_WITHOUT_API=$(echo "${{ secrets.BASE_URL }}" | sed 's/\/api\/\?$//')
           echo "Testing frontend at $BASE_URL_WITHOUT_API"
           curl -f "$BASE_URL_WITHOUT_API" || exit 1
+      
+      # This is to clean up local docker builds to free up storage.
+      - name: Cleanup Docker after build
+        if: always() # Run this step regardless of success or failure
+        run: |
+          docker system prune -af --volumes
 
   restore_original_alembic_version:
     runs-on: ubuntu-latest

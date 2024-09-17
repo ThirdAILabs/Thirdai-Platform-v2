@@ -162,6 +162,17 @@ class CommonFunctions:
         )
         flow.bazaar_client.await_train(model)
 
+    @staticmethod
+    def delete_model(inputs: Dict[str, Any]):
+        """
+        Delete the given model
+        """
+
+        logging.info(f"Deleting the model with inputs: {inputs}")
+        model = inputs.get("model")
+        flow.bazaar_client.delete(model_identifier=model.model_identifier)
+        logging.info(f"Deleted the model {model.model_identifier}")
+
 
 class NDBFunctions:
     @staticmethod
@@ -184,23 +195,27 @@ class NDBFunctions:
         good_answer = references[2]
 
         logging.info("Associating the model")
-        deployment.associate(
+        associate_task_id = deployment.associate(
             [
                 {"source": "authors", "target": "contributors"},
                 {"source": "paper", "target": "document"},
             ]
         )
 
+        deployment.await_task(associate_task_id)
+
         logging.info(f"upvoting the model")
-        deployment.upvote(
+        upvote_task_id = deployment.upvote(
             [
                 {"query_text": query_text, "reference_id": best_answer["id"]},
                 {"query_text": query_text, "reference_id": good_answer["id"]},
             ]
         )
 
+        deployment.await_task(upvote_task_id)
+
         logging.info(f"inserting the docs to the model")
-        deployment.insert(
+        insert_task_id = deployment.insert(
             [
                 create_doc_dict(
                     os.path.join(
@@ -216,6 +231,8 @@ class NDBFunctions:
                 for file in config.insert_paths
             ],
         )
+
+        deployment.await_task(insert_task_id)
 
         logging.info("Checking the sources")
         deployment.sources()
@@ -250,6 +267,42 @@ class NDBFunctions:
             ),
             doc_options={
                 doc: NDBFunctions.build_doc_options(config) for doc in unsup_docs
+            },
+            job_options=NDBFunctions.build_job_options(config),
+        )
+
+    @staticmethod
+    def check_supervised(inputs: Dict[str, Any]) -> Any:
+        logging.info(f"Running supervised with {inputs}")
+        run_name = inputs.get("run_name")
+        config: Config = inputs.get("config")
+        base_model = inputs.get("base_model", None)
+        file_num = inputs.get("file_num", 0)
+        test = inputs.get("test", False)
+        dag_name = inputs.get("dag_name")
+
+        base_model_identifier = base_model.model_identifier if base_model else None
+
+        sup_docs = [
+            (
+                os.path.join(config.base_path, config.supervised_paths[file_num]),
+                os.path.join(config.base_path, config.unsupervised_paths[file_num]),
+            )
+        ]
+
+        return flow.train(
+            model_name=f"{run_name}_{dag_name}_{config.name}_supervised",
+            supervised_docs=sup_docs,
+            model_options=NDBFunctions.build_model_options(config),
+            doc_type=config.doc_type,
+            nfs_base_path=config.nfs_original_base_path,
+            base_model_identifier=base_model_identifier,
+            test_doc=(
+                os.path.join(config.base_path, config.test_paths[0]) if test else None
+            ),
+            doc_options={
+                doc: NDBFunctions.build_doc_options(config)
+                for doc in [sup_docs[0][0], sup_docs[0][1]]
             },
             job_options=NDBFunctions.build_job_options(config),
         )
@@ -315,6 +368,7 @@ class NDBFunctions:
             }
         else:
             mach_options = None
+        # return {"ndb_options": {"ndb_sub_type": "v2"}}
         return {
             "ndb_options": {
                 "ndb_sub_type": "v1",
@@ -495,7 +549,6 @@ class TeamAdminFunctions:
 
     @staticmethod
     def test_ta_add_user_to_team(inputs: Dict[str, str]):
-
         logging.info(f"inputs: {inputs}")
         flow.bazaar_client.log_in(
             email="ta_team_admin@mail.com",

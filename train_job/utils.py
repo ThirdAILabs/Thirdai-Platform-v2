@@ -110,10 +110,17 @@ def expand_s3_buckets_and_directories(file_infos: List[FileInfo]) -> List[FileIn
 
 def check_csv_only(all_files: List[FileInfo]):
     for file in all_files:
-        _, ext = os.path.splitext(file.path)
-        if ext != ".csv":
+        if file.ext() != ".csv":
             raise ValueError(
                 "Only CSV files are supported for supervised training and test."
+            )
+
+
+def check_local_nfs_only(files: List[FileInfo]):
+    for file in files:
+        if file.location != FileLocation.local and file.location != FileLocation.nfs:
+            raise ValueError(
+                "Only local/nfs files are supported for supervised training/test."
             )
 
 
@@ -191,7 +198,7 @@ def process_file(doc: FileInfo, tmp_dir: str) -> ndb.Document:
     return ndb_file
 
 
-def producer(files: list[FileInfo], buffer, tmp_dir: str):
+def producer(files: List[FileInfo], buffer, tmp_dir: str):
     """
     Process files in parallel and add the resulting NDB files to a buffer.
     """
@@ -237,7 +244,7 @@ def consumer(buffer, db, epochs: int = 5, batch_size: int = 10):
             batch.clear()
 
 
-def check_disk(db, model_bazaar_dir: str, files: list[FileInfo]):
+def check_disk(db, model_bazaar_dir: str, files: List[FileInfo]):
     """
     Check if there is enough disk space to process the files.
     """
@@ -260,8 +267,7 @@ def convert_supervised_to_ndb_file(file: FileInfo) -> ndb.Sup:
     """
     Convert a supervised training file to an NDB file.
     """
-    _, ext = os.path.splitext(file.path)
-    if ext == ".csv":
+    if file.ext() == ".csv":
         return ndb.Sup(
             file.path,
             query_column=file.options.get("csv_query_column", None),
@@ -271,7 +277,7 @@ def convert_supervised_to_ndb_file(file: FileInfo) -> ndb.Sup:
         )
     else:
         raise TypeError(
-            f"{ext} file type is not supported for supervised training, only .csv files are supported."
+            f"{file.ext()} file type is not supported for supervised training, only .csv files are supported."
         )
 
 

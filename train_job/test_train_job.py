@@ -9,16 +9,19 @@ from config import (
     NDBData,
     NDBOptions,
     NDBv1Options,
+    NDBv2Options,
     TextClassificationOptions,
     TokenClassificationOptions,
     TrainConfig,
     UDTData,
     UDTOptions,
 )
+from feedback_logs import AssociateLog, FeedbackLog, ImplicitUpvoteLog, UpvoteLog
 from reporter import Reporter
 from run import get_model
 from thirdai import bolt, licensing
 from thirdai import neural_db as ndb
+from thirdai import neural_db_v2 as ndbv2
 
 pytestmark = [pytest.mark.unit]
 
@@ -47,11 +50,7 @@ def create_tmp_model_bazaar_dir():
     shutil.rmtree(MODEL_BAZAAR_DIR)
 
 
-@pytest.mark.parametrize(
-    "ndb_options",
-    [NDBv1Options(), NDBv1Options(retriever="mach", mach_options={})],
-)
-def test_ndb_train(ndb_options):
+def run_ndb_train_job(ndb_options, extra_supervised_files=[]):
     licensing.activate(THIRDAI_LICENSE)
 
     source_id = ndb.CSV(
@@ -92,7 +91,8 @@ def test_ndb_train(ndb_options):
                     location="local",
                     doc_id=source_id,
                     options={"csv_query_column": "query", "csv_id_column": "id"},
-                )
+                ),
+                *extra_supervised_files,
             ],
             test_files=[
                 FileInfo(
@@ -108,11 +108,54 @@ def test_ndb_train(ndb_options):
 
     model.train()
 
-    db = ndb.NeuralDB.from_checkpoint(
-        os.path.join(MODEL_BAZAAR_DIR, "models", "ndb_123", "model.ndb")
-    )
+    return os.path.join(MODEL_BAZAAR_DIR, "models", "ndb_123", "model.ndb")
+
+
+@pytest.mark.parametrize(
+    "ndb_options",
+    [NDBv1Options(), NDBv1Options(retriever="mach", mach_options={})],
+)
+def test_ndbv1_train(ndb_options):
+    db_path = run_ndb_train_job(ndb_options)
+
+    db = ndb.NeuralDB.from_checkpoint(db_path)
 
     assert len(db.sources()) == 3
+
+
+@pytest.fixture()
+def feedback_train_file():
+    logs = [
+        UpvoteLog(chunk_ids=[10], queries=["some random query to upvote"]),
+        AssociateLog(
+            sources=["premier league teams"], targets=["arsenal and manchester united"]
+        ),
+        ImplicitUpvoteLog(
+            chunk_id=11,
+            query="what is the answer to my query",
+            event_desc="read reference",
+        ),
+    ]
+
+    filename = "./dummy_rlhf_data.jsonl"
+
+    with open(filename, "w") as file:
+        file.writelines(FeedbackLog(event=log).model_dump_json() + "\n" for log in logs)
+
+    yield filename
+
+    os.remove(filename)
+
+
+def test_ndbv2_train(feedback_train_file):
+    db_path = run_ndb_train_job(
+        ndb_options=NDBv2Options(),
+        extra_supervised_files=[FileInfo(path=feedback_train_file, location="local")],
+    )
+
+    db = ndbv2.NeuralDB.load(db_path)
+
+    assert len(db.documents()) == 3
 
 
 def test_udt_text_train():

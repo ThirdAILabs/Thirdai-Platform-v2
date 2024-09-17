@@ -29,6 +29,10 @@ class FileInfo(BaseModel):
     options: Dict[str, Any] = {}
     metadata: Optional[Dict[str, Any]] = None
 
+    def ext(self) -> str:
+        _, ext = os.path.splitext(self.path)
+        return ext
+
 
 class MachOptions(BaseModel):
     fhr: int = 50_000
@@ -69,7 +73,9 @@ class NDBv1Options(BaseModel):
         ) or (
             self.retriever == RetrieverType.finetunable_retriever and self.mach_options
         ):
-            raise ValueError("mach_options must be provided if using mach or hybrid")
+            raise ValueError(
+                "mach_options must be provided if using mach or hybrid, and must not be provided if using finetunable_retriever"
+            )
         return self
 
 
@@ -90,14 +96,16 @@ class NDBOptions(BaseModel):
 class NDBData(BaseModel):
     model_data_type: Literal[ModelDataType.NDB] = ModelDataType.NDB
 
-    unsupervised_files: List[FileInfo]
+    unsupervised_files: List[FileInfo] = []
     supervised_files: List[FileInfo] = []
     test_files: List[FileInfo] = []
 
     @model_validator(mode="after")
     def check_nonempty(self):
-        if len(self.unsupervised_files) == 0:
-            raise ValueError("Unsupervised files must not be empty for NDB training.")
+        if len(self.unsupervised_files) + len(self.supervised_files) == 0:
+            raise ValueError(
+                "Unsupervised or supervised files must not be non empty for NDB training."
+            )
         return self
 
 
@@ -167,13 +175,16 @@ class LLMProvider(str, Enum):
     cohere = "cohere"
 
 
+class Entity(BaseModel):
+    name: str
+    examples: List[str]
+    description: str
+
+
 class TextClassificationDatagenOptions(BaseModel):
     sub_type: Literal[UDTSubType.text] = UDTSubType.text
-
     samples_per_label: int
-    target_labels: List[str]
-    examples: Dict[str, List[str]]
-    labels_description: Dict[str, str]
+    target_labels: List[Entity]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
     vocab_per_sentence: int = 4
@@ -181,12 +192,9 @@ class TextClassificationDatagenOptions(BaseModel):
 
 class TokenClassificationDatagenOptions(BaseModel):
     sub_type: Literal[UDTSubType.token] = UDTSubType.token
-
-    domain_prompt: str
-    tags: List[str]
-    tag_examples: Dict[str, List[str]]
+    tags: List[Entity]
     num_sentences_to_generate: int
-    num_samples_per_tag: int = 4
+    num_samples_per_tag: Optional[int] = None
 
 
 class DatagenOptions(BaseModel):

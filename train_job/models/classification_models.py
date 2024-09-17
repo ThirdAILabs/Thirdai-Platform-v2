@@ -13,7 +13,11 @@ from config import (
 from exceptional_handler import apply_exception_handler
 from models.model import Model
 from thirdai import bolt
-from utils import check_csv_only, expand_s3_buckets_and_directories
+from utils import (
+    check_csv_only,
+    check_local_nfs_only,
+    expand_s3_buckets_and_directories,
+)
 
 
 @apply_exception_handler
@@ -31,11 +35,13 @@ class ClassificationModel(Model):
     def supervised_files(self) -> List[FileInfo]:
         all_files = expand_s3_buckets_and_directories(self.config.data.supervised_files)
         check_csv_only(all_files)
+        check_local_nfs_only(all_files)
         return all_files
 
     def test_files(self) -> List[FileInfo]:
         all_files = expand_s3_buckets_and_directories(self.config.data.test_files)
         check_csv_only(all_files)
+        check_local_nfs_only(all_files)
         return all_files
 
     @abstractmethod
@@ -148,7 +154,6 @@ class TextClassificationModel(ClassificationModel):
         )
 
     def get_latency(self, model) -> float:
-
         self.logger.info("Measuring latency of the UDT instance.")
 
         start_time = time.time()
@@ -216,7 +221,6 @@ class TokenClassificationModel(ClassificationModel):
         )
 
     def get_latency(self, model) -> float:
-
         self.logger.info("Measuring latency of the UDT instance.")
 
         start_time = time.time()

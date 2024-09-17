@@ -401,7 +401,7 @@ class ModelBazaar:
             datagen_options = {
                 "task_prompt": task_prompt,
                 "sub_type": "text",
-                "samples_per_label": max(math.ceil(500 / len(entities)), 50),
+                "samples_per_label": max(math.ceil(5_000 / len(entities)), 50),
                 "target_labels": entities,
             }
         else:
@@ -409,8 +409,8 @@ class ModelBazaar:
                 "sub_type": "token",
                 "task_prompt": task_prompt,
                 "tags": entities,
-                "num_sentences_to_generate": 200,
-                "num_samples_per_tag": max(math.ceil(200 / len(entities)), 50),
+                "num_sentences_to_generate": 5_000,
+                "num_samples_per_tag": max(math.ceil(5_000 / len(entities)), 50),
             }
 
         form.append(

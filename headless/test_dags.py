@@ -12,6 +12,7 @@ def additional_variables():
     return {
         "sharded": False,
         "run_name": "ci_run",
+        "on_prem": False
     }
 
 

@@ -743,7 +743,7 @@ def retrain_udt(
         status_code=status.HTTP_200_OK,
         message="Successfully submitted the job",
         data={
-            "model_id": str(model_id),
+            "model_id": str(model.id),
             "user_id": str(user.id),
         },
     )

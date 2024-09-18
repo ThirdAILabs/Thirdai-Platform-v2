@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urljoin
 
+import requests
 from requests.auth import HTTPBasicAuth
 
 from client.utils import (
@@ -490,16 +491,91 @@ class NeuralDBClient(BaseClient):
 
         return response.json()["data"]
 
+    @check_deployment_decorator
+    def llm_client(self) -> LLMClient:
+        return LLMClient(self.login_instance, self)
+
 
 class LLMClient:
-    def __init__(self, login_instance: Login):
+    def __init__(self, login_instance: Login, neuraldb_client: NeuralDBClient):
         self.login_instance = login_instance
-        self.base_url = construct_deployment_url(
-            re.sub(r"api/$", "", login_instance.base_url), "llm-dispatch"
+        self.base_url = re.sub(r"api/$", "", login_instance.base_url)
+        self.neuraldb_client = neuraldb_client
+
+    def generate(
+        self,
+        query: str,
+        api_key: str,
+        provider: str = "openai",
+        use_cache: bool = False,
+    ):
+        cache_result = None
+
+        # Check cache if use_cache is enabled
+        if use_cache:
+            # Query cache for the result
+            cache_response = http_get_with_error(
+                urljoin(self.base_url, "cache/query"),
+                headers=auth_header(self.login_instance.access_token),
+                params={"model_id": self.neuraldb_client.model_id, "query": query},
+            )
+
+            cache_result = json.loads(cache_response.content).get("cached_response")
+
+        # If a cached result exists, return it
+        if cache_result:
+            return cache_result
+
+        # No cached result or cache disabled, proceed with generation
+        token_response = http_get_with_error(
+            urljoin(self.base_url, "cache/token"),
+            headers=auth_header(self.login_instance.access_token),
+            params={"model_id": self.neuraldb_client.model_id},
         )
 
-    def generate(self, query: str, api_key: str):
-        pass
+        cache_token = json.loads(token_response.content)["access_token"]
+
+        response = requests.post(
+            urljoin(self.base_url, "llm-dispatch/generate"),
+            headers={
+                "Content-Type": "application/json",
+            },
+            json={
+                "query": query,
+                "key": api_key,
+                "provider": provider,
+                "original_query": query,
+                "cache_access_token": cache_token,
+            },
+            stream=True,
+        )
+
+        if response.status_code != 200:
+            print("Network response was not ok")
+            print(response)
+            return
+
+        generated_response = ""
+
+        # Streaming response using the "iter_content" method
+        for chunk in response.iter_content():
+            if chunk:
+                generated_response += chunk.decode("utf-8", errors="replace")
+
+        # If use_cache is enabled, store the generated result in the cache
+        if use_cache:
+            cache_insert_response = http_post_with_error(
+                urljoin(self.base_url, "cache/insert"),
+                headers=auth_header(cache_token),
+                params={
+                    "query": query,
+                    "llm_res": generated_response,
+                },
+            )
+            if cache_insert_response.status_code != 200:
+                print(f"Failed to cache the result for query: {query}")
+
+        return generated_response
 
 
 class UDTClient(BaseClient):

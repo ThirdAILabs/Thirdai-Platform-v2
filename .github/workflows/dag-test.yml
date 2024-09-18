@@ -157,6 +157,7 @@ jobs:
 
     - name: Run Tests
       run: |
+        echo "GENAI_KEY=${{ secrets.GENAI_KEY }}" >> $GITHUB_ENV
         source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE
         pytest

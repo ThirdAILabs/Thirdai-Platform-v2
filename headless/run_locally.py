@@ -29,11 +29,15 @@ def main():
     parser.add_argument("--all", action="store_true", help="Run all DAGs")
     parser.add_argument("--run-name", type=str, required=True, help="Name of the run")
     parser.add_argument("--sharded", action="store_true", help="Run sharded training")
+    parser.add_argument(
+        "--on-prem", action="store_true", help="Run on prem llm generation"
+    )
 
     args = parser.parse_args()
     additional_variables = {
         "sharded": args.sharded,
         "run_name": args.run_name,
+        "on_prem": args.on_prem,
     }
 
     local_test_dir = os.getenv("SHARE_DIR")

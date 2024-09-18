@@ -1,6 +1,6 @@
 name: Docker tests
 
-# Kills old jobs from the same pr if we push a new commit
+# Global concurrency to Kills old jobs from the same pr if we push a new commit
 # See https://stackoverflow.com/questions/66335225/how-to-cancel-previous-runs-in-the-pr-when-you-push-new-commitsupdate-the-curre
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -75,6 +75,11 @@ jobs:
     runs-on: self-hosted
     environment:
       name: docker_tests
+    
+    # Concurrency control to ensure exclusivity across workflows
+    concurrency:
+      group: critical-workflow-lock
+      cancel-in-progress: false
 
     if: github.event_name != 'pull_request'
 
@@ -110,6 +115,11 @@ jobs:
       fail-fast: false
 
     runs-on: self-hosted
+
+    # Concurrency control to ensure exclusivity across workflows
+    concurrency:
+      group: critical-workflow-lock
+      cancel-in-progress: false
 
     if: github.event_name != 'pull_request'
 
@@ -171,6 +181,11 @@ jobs:
 
   restore_original_alembic_version:
     runs-on: ubuntu-latest
+
+    # Concurrency control to ensure exclusivity across workflows
+    concurrency:
+      group: critical-workflow-lock
+      cancel-in-progress: false
 
     needs: test
 
@@ -245,7 +260,12 @@ jobs:
     environment:
       name: docker_tests
 
-    needs: delete_docker_images
+    # Concurrency control to ensure exclusivity across workflows
+    concurrency:
+      group: critical-workflow-lock
+      cancel-in-progress: false
+
+    needs: test
 
     if: always() && github.event_name != 'pull_request'
 

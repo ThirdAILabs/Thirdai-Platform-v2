@@ -1,5 +1,13 @@
 azure:
   branches:
+    local_registry:
+      pull_credentials:
+        password: 1N7CsVddLTv4+enVywVCgjOkDkMqpv63WenU0bWihF+ACRBVBnXz
+        username: thirdaiplatform-pull-local-registry
+      push_credentials:
+        password: rt/BPKK778qUWXa3YZjHUTNsVc9MkwU53kydXmSscF+ACRAfiMQq
+        username: thirdaiplatform-push-local-registry
+      version: 0.0.1
     mshift:
       pull_credentials:
         password: uGpzj1Ylkgc+PBbQ5e3r1nEFC+BtiQK2cNeFdRW1NP+ACRCsrcq2

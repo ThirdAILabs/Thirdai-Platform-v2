@@ -500,6 +500,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
         tag_values: Dict[str, List[str]],
         sentences_to_generate: int,
     ) -> List[str]:
+        template = re.sub("\s+", " ", template).strip()
         if not template:
             return [None]
 

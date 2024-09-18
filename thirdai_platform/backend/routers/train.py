@@ -10,6 +10,7 @@ from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access
 from backend.config import (
     DatagenOptions,
+    Entity,
     FileInfo,
     FileLocation,
     JobOptions,
@@ -20,6 +21,7 @@ from backend.config import (
     NDBv2Options,
     TextClassificationOptions,
     TokenClassificationOptions,
+    TokenClassificationDatagenOptions,
     TrainConfig,
     UDTData,
     UDTGeneratedData,
@@ -47,6 +49,8 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.orm import Session
+
+from thirdai_storage import storage, data_types
 
 train_router = APIRouter()
 
@@ -616,6 +620,131 @@ def datagen_callback(
         data={
             "model_id": str(model_id),
             "user_id": str(model.user_id),
+        },
+    )
+
+
+@train_router.post("/retrain-udt")
+def retrain_udt(
+    model_name: str,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    user: schema.User = authenticated_user.user
+    license_info = validate_license_info()
+
+    try:
+        validate_name(model_name)
+    except:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"{model_name} is not a valid model name.",
+        )
+
+    model = get_model(session, username=user.username, model_name=model_name)
+
+    if model is None:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Model with name {model_name} already exists for user {user.username}",
+        )
+
+    if model.type != ModelType.UDT and model.sub_type != UDTSubType.token:
+        return response(
+            status_cod=status.HTTP_400_BAD_REQUEST,
+            message=f"Cannot retrain model of the type : {model.type}, subtype : {model.sub_type}. Only UDT Token Classification supported.",
+        )
+
+    storage_dir = Path(model_bazaar_path()) / "data" / model.id / "data_storage.db"
+
+    data_storage = storage.DataStorage(
+        connector=storage.SQLiteConnector(db_path=storage_dir)
+    )
+
+    tag_metadata: data_types.TagMetadata = data_storage.get_metadata(
+        "tags_and_status"
+    ).metadata
+
+    tags_and_status = tag_metadata.tag_and_status
+    tags = []
+    for tag in tags_and_status.keys():
+        status = tags_and_status[tag]
+        tags.append(
+            Entity(
+                name=tag,
+                examples=status.examples,
+                description=status.description,
+                status=status.status.name,
+            )
+        )
+
+    # retrieve all the samples
+    samples: List[data_types.DataSample] = data_storage.retrieve_samples(
+        name="ner", num_samples=None, user_provided=True
+    )
+    samples = [sample.sample for sample in samples]
+
+    token_classification_options = TokenClassificationDatagenOptions(
+        sub_type=UDTSubType.token,
+        tags=tags,
+        num_sentences_to_generate=10_000,
+        num_samples_per_tag=500,
+        samples=samples,
+    )
+
+    placeholder_udt_options = TokenClassificationOptions(
+        target_labels=[], source_column="", target_column=""
+    )
+
+    secret_token = secrets.token_hex(32)
+    try:
+        data = UDTGeneratedData(secret_token=secret_token)
+    except Exception as error:
+        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(error))
+
+    config = TrainConfig(
+        model_bazaar_dir=model_bazaar_path(),
+        license_key=license_info["boltLicenseKey"],
+        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
+        model_id=model.id,
+        data_id=model.id,
+        model_options=UDTOptions(udt_options=placeholder_udt_options),
+        datagen_options=token_classification_options,
+        data=data,
+        job_options=JobOptions(),
+    )
+
+    config_path = os.path.join(
+        config.model_bazaar_dir, "models", str(model.id), "train_config.json"
+    )
+
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+    with open(config_path, "w") as file:
+        file.write(config.model_dump_json(indent=4))
+
+    try:
+        generate_data_for_train_job(
+            data_id=model.id,
+            secret_token=secret_token,
+            license_key=license_info["boltLicenseKey"],
+            options=token_classification_options,
+            job_options=JobOptions(),
+        )
+    except Exception as err:
+        model.train_status = schema.Status.failed
+        session.commit()
+        logger.info(str(err))
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
+        )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully submitted the job",
+        data={
+            "model_id": str(model_id),
+            "user_id": str(user.id),
         },
     )
 

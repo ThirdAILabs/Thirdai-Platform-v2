@@ -151,7 +151,7 @@ def validate_name(name):
         raise ValueError("name is not valid")
 
 
-def get_model(session: Session, username: str, model_name: str):
+def get_model(session: Session, username: str, model_name: str) -> schema.Model:
     """
     Get a model by username and model name.
 

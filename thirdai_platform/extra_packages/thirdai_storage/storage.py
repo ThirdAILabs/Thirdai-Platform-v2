@@ -4,7 +4,7 @@ import typing
 from abc import abstractmethod
 from collections import defaultdict
 
-from sqlalchemy import create_engine, event, func
+from sqlalchemy import create_engine, event, func, or_
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from .data_types import DataSample, ModelMetadata, UserFeedBack
@@ -50,7 +50,7 @@ class Connector:
         pass
 
     @abstractmethod
-    def get_samples(self, name: str, num_samples: int):
+    def get_samples(self, name: str, num_samples: int, user_provided: bool):
         # get num_entries entries with a specific name
         pass
 
@@ -114,28 +114,22 @@ class SQLiteConnector(Connector):
     def get_sample_count(self, name: str, with_feedback: bool = None):
 
         session = self.Session()
-        if with_feedback is None:
-            return (
-                session.query(func.count(Samples.id))
-                .filter(Samples.name == name)
-                .scalar()
-            )
+
+        query = session.query(func.count(Samples.id)).filter(Samples.name == name)
 
         if with_feedback:
-            return (
-                session.query(func.count(Samples.id))
-                .join(FeedBack, Samples.id == FeedBack.sample_uuid)
-                .filter(Samples.name == name)
-                .scalar()
+            query = query.filter(
+                or_(Samples.feedback_entries.any(), Samples.user_provided.is_(True))
             )
 
-        return (
-            session.query(func.count(Samples.id))
-            .outerjoin(FeedBack, Samples.id == FeedBack.sample_uuid)
-            .filter(Samples.name == name)
-            .filter(FeedBack.id == None)
-            .scalar()
-        )
+        elif with_feedback is False:
+            # Count samples that have no feedback AND user_provided=False
+            query = query.filter(
+                ~Samples.feedback_entries.any(), Samples.user_provided.is_(False)
+            )
+
+        count = query.scalar()
+        return count
 
     def get_feedback_count(self, name: str):
         session = self.Session()
@@ -165,6 +159,7 @@ class SQLiteConnector(Connector):
                 .outerjoin(FeedBack, Samples.id == FeedBack.sample_uuid)
                 .filter(Samples.name == name)
                 .filter(FeedBack.id == None)
+                .filter(Samples.user_provided == False)
                 .order_by(Samples.timestamp.asc())
                 .limit(samples_to_delete)
                 .all()
@@ -174,16 +169,16 @@ class SQLiteConnector(Connector):
                 session.delete(session.query(Samples).get(entry_id[0]))
             session.commit()
 
-    def get_samples(self, name: str, num_samples: int):
+    def get_samples(self, name: str, num_samples: int, user_provided: bool):
         session = self.Session()
         entries = (
             session.query(
                 Samples.datatype,
                 Samples.id,
                 Samples.serialized_data,
-                Samples.user_provided,
             )
             .filter(Samples.name == name)
+            .filter(Samples.user_provided == user_provided)
             .order_by(Samples.timestamp.desc())
             .limit(num_samples)
             .all()
@@ -280,7 +275,7 @@ class DataStorage:
 
         self.connector.add_samples(samples_to_insert)
 
-    def retrieve_samples(self, name: str, num_samples: int):
+    def retrieve_samples(self, name: str, num_samples: int, user_provided: bool):
         entries = self.connector.get_samples(name, num_samples=num_samples)
 
         return [
@@ -291,7 +286,7 @@ class DataStorage:
                 serialized_sample=data,
                 user_provided=user_provided,
             )
-            for datatype, unique_id, data, user_provided in entries
+            for datatype, unique_id, data in entries
         ]
 
     def insert_feedbacks(self, feedbacks: typing.List[UserFeedBack]):

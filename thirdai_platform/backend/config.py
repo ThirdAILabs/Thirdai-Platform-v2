@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, model_validator
 
+from thirdai_storage import data_types
+
 
 class ModelType(str, Enum):
     NDB = "ndb"
@@ -187,6 +189,7 @@ class Entity(BaseModel):
     name: str
     examples: List[str]
     description: str
+    status: str = "untrained"
 
 
 class TextClassificationDatagenOptions(BaseModel):
@@ -203,6 +206,10 @@ class TokenClassificationDatagenOptions(BaseModel):
     tags: List[Entity]
     num_sentences_to_generate: int
     num_samples_per_tag: Optional[int] = None
+
+    # example NER samples
+    samples: List[data_types.TokenClassificationSample] = None
+    templates_per_sample: int = 10
 
 
 class DatagenOptions(BaseModel):

@@ -9,11 +9,7 @@ from headless.utils import download_from_s3_if_not_exists, normalize_s3_uri
 
 @pytest.fixture(scope="session")
 def additional_variables():
-    return {
-        "sharded": False,
-        "run_name": "ci_run",
-        "on_prem": False
-    }
+    return {"sharded": False, "run_name": "ci_run", "on_prem": False}
 
 
 @pytest.fixture(scope="session")

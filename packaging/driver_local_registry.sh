@@ -75,7 +75,7 @@ fi
 QWEN_MODEL_FULL_PATH=$(realpath "$QWEN_MODEL_PATH")
 
 
-DOCKER_IMAGES_PATH="dcoker_images/"
+DOCKER_IMAGES_PATH="docker_images/"
 
 if [ ! -f "$DOCKER_IMAGES_PATH" ]; then
     echo "WARNING: Model file not found at $DOCKER_IMAGES_PATH. The playbook will proceed without it."

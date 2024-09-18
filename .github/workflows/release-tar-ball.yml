@@ -2,7 +2,7 @@ name: Release Job
 
 on:
   push:
-    branches: [main]
+    branches: [main, adds-local-registry]
 
 jobs:
   package:

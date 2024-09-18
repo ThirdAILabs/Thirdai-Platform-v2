@@ -94,6 +94,9 @@ async def start_on_prem_generate_job(
         cores_per_allocation=10,
         memory_per_allocation=4000,
         model_name=model_name,
+        registry=os.getenv("DOCKER_REGISTRY"),
+        docker_username=os.getenv("DOCKER_USERNAME"),
+        docker_password=os.getenv("DOCKER_PASSWORD"),
     )
 
 

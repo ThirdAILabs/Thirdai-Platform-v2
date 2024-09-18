@@ -102,7 +102,6 @@ class User(SQLDeclarativeBase):
         "UserTeam", back_populates="user", cascade="all, delete-orphan"
     )
     models = relationship("Model", back_populates="user", cascade="all, delete-orphan")
-    logs = relationship("Log", back_populates="user", cascade="all, delete-orphan")
     workflows = relationship(
         "Workflow", back_populates="user", cascade="all, delete-orphan"
     )
@@ -315,30 +314,6 @@ class ModelShard(SQLDeclarativeBase):
     model = relationship("Model", back_populates="model_shards")
 
 
-class Log(SQLDeclarativeBase):
-    __tablename__ = "logs"
-
-    id = Column(
-        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
-    )
-    model_id = Column(
-        UUID(as_uuid=True), ForeignKey("models.id", ondelete="CASCADE"), nullable=False
-    )
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    action = Column(String, nullable=False)
-    count = Column(Integer, nullable=False, default=0)
-    data = Column(JSON, nullable=True)
-
-    user = relationship("User", back_populates="logs")
-
-    __table_args__ = (
-        Index("log_model_index", "model_id"),
-        Index("log_user_index", "user_id"),
-    )
-
-
 class WorkflowType(SQLDeclarativeBase):
     __tablename__ = "workflow_types"
 
@@ -403,6 +378,7 @@ class Workflow(SQLDeclarativeBase):
                 > most_restrictive_access.restrictiveness()
             ):
                 most_restrictive_access = model_access
+                most_restrictive_model = model
                 required_teams.clear()  # Clear teams as we're now dealing with a new, more restrictive level
 
             if model_access == Access.protected:
@@ -421,7 +397,7 @@ class Workflow(SQLDeclarativeBase):
                 or user.is_global_admin()
             )
         elif most_restrictive_access == Access.private:
-            return model.user_id == user.id or user.is_global_admin()
+            return most_restrictive_model.user_id == user.id or user.is_global_admin()
 
         return False
 

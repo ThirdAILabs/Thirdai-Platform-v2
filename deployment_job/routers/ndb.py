@@ -1,3 +1,4 @@
+import datetime
 import io
 import json
 import traceback
@@ -10,8 +11,10 @@ import jwt
 import thirdai
 from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
 from fastapi.encoders import jsonable_encoder
+from feedback_logger import AssociateLog, FeedbackLog, ImplicitUpvoteLog, UpvoteLog
 from file_handler import validate_files
 from permissions import Permissions
+from prometheus_client import Summary
 from pydantic import ValidationError, parse_obj_as
 from pydantic_models import inputs
 from pydantic_models.documents import DocumentList
@@ -22,16 +25,7 @@ from pydantic_models.inputs import (
     UpvoteInputSingle,
 )
 from routers.model import get_model
-from utils import (
-    Status,
-    highlighted_pdf_bytes,
-    new_pdf_chunks,
-    now,
-    old_pdf_chunks,
-    propagate_error,
-    response,
-    validate_name,
-)
+from utils import Status, now, propagate_error, response, validate_name
 from variables import GeneralVariables
 
 permissions = Permissions()
@@ -40,7 +34,16 @@ general_variables = GeneralVariables.load_from_env()
 ndb_router = APIRouter()
 
 
+ndb_query_metric = Summary("ndb_query", "NDB Queries")
+ndb_upvote_metric = Summary("ndb_upvote", "NDB upvotes")
+ndb_associate_metric = Summary("ndb_associate", "NDB associations")
+ndb_implicit_feedback_metric = Summary("ndb_implicit_feedback", "NDB implicit feedback")
+ndb_insert_metric = Summary("ndb_insert", "NDB insertions")
+ndb_delete_metric = Summary("ndb_delete", "NDB deletions")
+
+
 @ndb_router.post("/predict")
+@ndb_query_metric.time()
 @propagate_error
 def ndb_query(
     base_params: BaseQueryParams,
@@ -194,6 +197,7 @@ def chat(input: inputs.ChatInput, token=Depends(permissions.verify_permission("r
 
 @ndb_router.post("/upvote")
 @propagate_error
+@ndb_upvote_metric.time()
 def ndb_upvote(
     input: inputs.UpvoteInput,
     token: str = Depends(permissions.verify_permission("read")),
@@ -219,29 +223,21 @@ def ndb_upvote(
     ```
     """
     model = get_model()
-    train_samples = [
-        {
-            "query_text": text_id_pair.query_text,
-            "reference_id": str(text_id_pair.reference_id),
-            "reference_text": "TODO(Nicholas): fix this",
-            # "reference_text": model.db._get_text(text_id_pair.reference_id),
-        }
-        for text_id_pair in input.text_id_pairs
-    ]
 
     write_permission = model.permissions.check_permission(
         token=token, permission_type="write"
     )
 
-    model.reporter.log(
-        action="upvote",
-        model_id=model.general_variables.model_id,
-        train_samples=train_samples,
-        access_token=token,
-        used=True if write_permission else False,
-    )
-
-    if write_permission:
+    if not write_permission:
+        model.feedback_logger.log(
+            FeedbackLog(
+                event=UpvoteLog(
+                    chunk_ids=[sample.reference_id for sample in input.text_id_pairs],
+                    queries=[sample.query_text for sample in input.text_id_pairs],
+                )
+            )
+        )
+    else:
         task_id = str(uuid.uuid4())
         task_data = {
             "task_id": task_id,
@@ -270,6 +266,7 @@ def ndb_upvote(
 
 @ndb_router.post("/associate")
 @propagate_error
+@ndb_associate_metric.time()
 def ndb_associate(
     input: inputs.AssociateInput,
     token: str = Depends(permissions.verify_permission("read")),
@@ -295,18 +292,20 @@ def ndb_associate(
     ```
     """
     model = get_model()
-    train_samples = [pair.dict() for pair in input.text_pairs]
     write_permission = model.permissions.check_permission(
         token=token, permission_type="write"
     )
-    model.reporter.log(
-        action="associate",
-        model_id=model.general_variables.model_id,
-        train_samples=train_samples,
-        access_token=token,
-        used=True if write_permission else False,
-    )
-    if write_permission:
+
+    if not write_permission:
+        model.feedback_logger.log(
+            FeedbackLog(
+                event=AssociateLog(
+                    sources=[sample.source for sample in input.text_pairs],
+                    targets=[sample.target for sample in input.text_pairs],
+                )
+            )
+        )
+    else:
         task_id = str(uuid.uuid4())
         task_data = {
             "task_id": task_id,
@@ -330,6 +329,30 @@ def ndb_associate(
     return response(
         status_code=status.HTTP_200_OK,
         message="Associate task logged successfully.",
+    )
+
+
+@ndb_router.post("/implicit-feedback")
+@propagate_error
+@ndb_implicit_feedback_metric.time()
+def implicit_feedback(
+    feedback: inputs.ImplicitFeedbackInput,
+    _: str = Depends(permissions.verify_permission("read")),
+):
+    model = get_model()
+    model.feedback_logger.log(
+        FeedbackLog(
+            event=ImplicitUpvoteLog(
+                chunk_id=feedback.reference_id,
+                query=feedback.query_text,
+                event_desc=feedback.event_desc,
+            )
+        )
+    )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Implicit feedback logged successfully.",
     )
 
 
@@ -365,6 +388,7 @@ def get_sources(_=Depends(permissions.verify_permission("read"))):
 
 @ndb_router.post("/delete")
 @propagate_error
+@ndb_delete_metric.time()
 def delete(
     input: inputs.DeleteInput,
     token: str = Depends(permissions.verify_permission("write")),
@@ -489,6 +513,7 @@ def save(
 
 @ndb_router.post("/insert")
 @propagate_error
+@ndb_insert_metric.time()
 def insert(
     documents: str = Form(...),
     files: List[UploadFile] = [],
@@ -573,13 +598,13 @@ def task_status(
     _=Depends(permissions.verify_permission("write")),
 ):
     """
-    Get the status of a specific task.
+    Get the status of a specific task, including the remaining time before the task data expires.
 
     Parameters:
     - task_id: str - The ID of the task.
 
     Returns:
-    - JSONResponse: The status of the task.
+    - JSONResponse: The status of the task along with ttl.
 
     Example Request Body:
     ```
@@ -594,29 +619,57 @@ def task_status(
         "status": "success",
         "message": "Information for task 1234-5678-91011-1213",
         "data": {
-            "status": "in_progress",
-            "action": "insert",
-            "last_modified": "2024-07-31T12:34:56.789Z",
-            "documents": [...],
-            "message": "",
-            "data": null,
-            "token": "token_value"
+            "task": {
+                "status": "complete",
+                "action": "insert",
+                "last_modified": "2024-07-31T12:34:56.789Z",
+                "documents": [...],
+                "message": "",
+                "data": null
+                // 'token' field is removed for security
+            },
+            "ttl": "23:59:59"
         }
     }
     ```
     """
     model = get_model()
-    task_data = model.redis_client.hgetall(f"task:{task_id}")
+    task_key = f"task:{task_id}"
+    task_data = model.redis_client.hgetall(task_key)
     if task_data:
+        # Deserialize fields that were stored as JSON strings
+        for key in task_data:
+            try:
+                task_data[key] = json.loads(task_data[key])
+            except (TypeError, json.JSONDecodeError):
+                pass
+
+        # Remove sensitive fields
+        sensitive_fields = ["token"]
+        for field in sensitive_fields:
+            task_data.pop(field, None)
+
+        # Get the remaining TTL for the task key
+        ttl_seconds = model.redis_client.ttl(task_key)
+        if ttl_seconds >= 0:
+            # Convert seconds to HH:MM:SS format
+            ttl_info = str(datetime.timedelta(seconds=ttl_seconds))
+        elif ttl_seconds == -1:
+            # Key exists but has no expiration (unlikely since we set TTL)
+            ttl_info = "Does not expire"
+        else:
+            # ttl_seconds == -2, key does not exist (should not reach here as task_data exists)
+            ttl_info = None
+
         return response(
             status_code=status.HTTP_200_OK,
             message=f"Information for task {task_id}",
-            data=jsonable_encoder(task_data),
+            data={"task": jsonable_encoder(task_data), "ttl": ttl_info},
         )
     else:
         return response(
             status_code=status.HTTP_404_NOT_FOUND,
-            message="Task ID not found",
+            message="Task ID not found or has expired.",
         )
 
 
@@ -788,5 +841,7 @@ def process_ndb_task(task):
         )
     finally:
         model.redis_client.srem(f"tasks_by_model:{model_id}", task_id)
-        model.redis_client.delete(f"task:{task_id}")
+        model.redis_client.expire(
+            f"task:{task_id}", model.general_variables.task_ttl_seconds
+        )
         model.logger.info(f"Task {task_id} removed from Redis.")

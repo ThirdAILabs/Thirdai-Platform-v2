@@ -183,13 +183,16 @@ class LLMProvider(str, Enum):
     cohere = "cohere"
 
 
+class Entity(BaseModel):
+    name: str
+    examples: List[str]
+    description: str
+
+
 class TextClassificationDatagenOptions(BaseModel):
     sub_type: Literal[UDTSubType.text] = UDTSubType.text
-
     samples_per_label: int
-    target_labels: List[str]
-    examples: Dict[str, List[str]]
-    labels_description: Dict[str, str]
+    target_labels: List[Entity]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
     vocab_per_sentence: int = 4
@@ -197,11 +200,9 @@ class TextClassificationDatagenOptions(BaseModel):
 
 class TokenClassificationDatagenOptions(BaseModel):
     sub_type: Literal[UDTSubType.token] = UDTSubType.token
-    task_prompt: str
-    tags: List[str]
-    tag_examples: Dict[str, List[str]]
+    tags: List[Entity]
     num_sentences_to_generate: int
-    num_samples_per_tag: int = 4
+    num_samples_per_tag: Optional[int] = None
 
 
 class DatagenOptions(BaseModel):
@@ -250,3 +251,13 @@ class TrainConfig(BaseModel):
         if self.model_options.model_type.value not in self.data.model_data_type.value:
             raise ValueError("Model and data fields don't match")
         return self
+
+    def save_train_config(self):
+        config_path = os.path.join(
+            self.model_bazaar_dir, "models", str(self.model_id), "train_config.json"
+        )
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        with open(config_path, "w") as file:
+            file.write(self.model_dump_json(indent=4))
+
+        return config_path

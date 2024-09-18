@@ -89,7 +89,12 @@ EOF
       }
 
       config {
-        image = "victoriametrics/victoria-metrics:latest"
+        image = "{{ registry }}/victoria-metrics:latest"
+        auth {
+            username = "{{ docker_username }}"
+            password = "{{ docker_password }}"
+            server_address = "{{ registry }}"
+          }
         group_add = ["4646"]
         ports = ["vicky-http"]
         args = [
@@ -115,7 +120,12 @@ EOF
       driver = "docker"
 
       config {
-        image = "grafana/loki:main"
+        image = "{{ registry }}/loki:main"
+        auth {
+          username = "{{ docker_username }}"
+          password = "{{ docker_password }}"
+          server_address = "{{ registry }}"
+        }
         group_add = ["4646"]
         args = [
           "-config.file",
@@ -226,7 +236,12 @@ EOF
       }
 
       config {
-        image = "grafana/grafana:main-ubuntu"
+        image = "{{ registry }}/grafana:main-ubuntu"
+        auth {
+          username = "{{ docker_username }}"
+          password = "{{ docker_password }}"
+          server_address = "{{ registry }}"
+        }
         group_add = ["4646"]
         ports = ["grafana-http"]
         volumes = [

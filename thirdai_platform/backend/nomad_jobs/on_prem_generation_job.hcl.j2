@@ -60,14 +60,19 @@ job "on-prem-llm-generation" {
       driver = "docker"
 
       config {
-        image = "{{ registry | default("thirdaipublic.azurecr.io") }}/llama.cpp:server"
+        image = "{{ registry }}/llama.cpp:server"
+        auth {
+          username = "{{ docker_username }}"
+          password = "{{ docker_password }}"
+          server_address = "{{ registry }}"
+        }
         image_pull_timeout = "15m"
         ports = ["on-prem-generation-http"]
         volumes = ["{{ mount_dir }}:/gen-ai-models"]
         auth {
           username = "{{ docker_username }}"
           password = "{{ docker_password }}"
-          server_address = "{{ registry  | default("thirdaipublic.azurecr.io") }}"
+          server_address = "{{ registry }}"
         }
         args = [
           "-m", "/gen-ai-models/{{ model_name }}",

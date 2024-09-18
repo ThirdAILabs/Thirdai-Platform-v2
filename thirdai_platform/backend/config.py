@@ -3,7 +3,6 @@ from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, model_validator
-
 from thirdai_storage import data_types
 
 

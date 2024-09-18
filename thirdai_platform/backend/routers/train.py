@@ -20,8 +20,8 @@ from backend.config import (
     NDBSubType,
     NDBv2Options,
     TextClassificationOptions,
-    TokenClassificationOptions,
     TokenClassificationDatagenOptions,
+    TokenClassificationOptions,
     TrainConfig,
     UDTData,
     UDTGeneratedData,
@@ -49,8 +49,7 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.orm import Session
-
-from thirdai_storage import storage, data_types
+from thirdai_storage import data_types, storage
 
 train_router = APIRouter()
 

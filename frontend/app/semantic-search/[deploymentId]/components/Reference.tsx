@@ -102,6 +102,7 @@ const VoteButtonsContainer = styled.section`
 interface ReferenceProps {
   query: string;
   info: ReferenceInfo;
+  referenceIdx:number;
   onOpen: MouseEventHandler<any>;
   onUpvote: MouseEventHandler<any>;
   onDownvote: MouseEventHandler<any>;
@@ -114,6 +115,7 @@ interface ReferenceProps {
 export default function Reference({
   query,
   info,
+  referenceIdx,
   onOpen,
   onUpvote,
   onDownvote,
@@ -246,11 +248,10 @@ export default function Reference({
           onClick={(e) => {
             onOpen(e);
 
-            // TODO(Any): use update query text and uncomment below to record implicit-feedback
             // Capture the query text and complete the telemetry event for implicit feedback.
             const feedback = {
               reference_id: info.id,
-              reference_rank: 0, // TODO: fill actual rank
+              reference_rank: referenceIdx,
               query_text: query || '',
               event_desc: 'open_reference_source',
             };
@@ -318,7 +319,7 @@ export default function Reference({
           <DownvoteButton onClick={onDownvote} />
         </VoteButtonsContainer>
         <Spacer $height={padding.card} />
-        <CopyButton toCopy={info.content} referenceID={info.id} queryText={query} />
+        <CopyButton toCopy={info.content} referenceID={info.id} queryText={query} referenceIdx = {referenceIdx} />
       </ButtonsContainer>
     </Card>
   );

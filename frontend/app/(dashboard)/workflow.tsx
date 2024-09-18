@@ -210,7 +210,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
   };
 
   // Find the model where component === "search"
-  const searchModel = workflow.models.find(model => model.component === "search");
+  const searchModel = workflow.models.find((model) => model.component === 'search');
 
   return (
     <TableRow>
@@ -325,17 +325,15 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               </form>
             </DropdownMenuItem>
 
-            {
-              searchModel &&
+            {searchModel && (
               <Link
                 href={`/analytics?id=${encodeURIComponent(workflow.id)}&username=${encodeURIComponent(searchModel.username)}&model_name=${encodeURIComponent(searchModel.model_name)}&old_model_id=${encodeURIComponent(searchModel.model_id)}`}
               >
                 <DropdownMenuItem>
                   <button type="button">Search usage stats</button>
                 </DropdownMenuItem>
-              </Link> 
-            }
-
+              </Link>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

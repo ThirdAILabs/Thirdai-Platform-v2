@@ -100,27 +100,27 @@ const VoteButtonsContainer = styled.section`
 `;
 
 interface ReferenceProps {
-    query: string;
-    info: ReferenceInfo;
-    onOpen: MouseEventHandler<any>;
-    onUpvote: MouseEventHandler<any>;
-    onDownvote: MouseEventHandler<any>;
-    checked: boolean;
-    onCheck: () => void;
-    modelService: ModelService;
-    ifGuardRailOn: boolean;
+  query: string;
+  info: ReferenceInfo;
+  onOpen: MouseEventHandler<any>;
+  onUpvote: MouseEventHandler<any>;
+  onDownvote: MouseEventHandler<any>;
+  checked: boolean;
+  onCheck: () => void;
+  modelService: ModelService;
+  ifGuardRailOn: boolean;
 }
 
 export default function Reference({
-    query,
-    info,
-    onOpen,
-    onUpvote,
-    onDownvote,
-    checked,
-    onCheck,
-    modelService,
-    ifGuardRailOn
+  query,
+  info,
+  onOpen,
+  onUpvote,
+  onDownvote,
+  checked,
+  onCheck,
+  modelService,
+  ifGuardRailOn,
 }: ReferenceProps) {
   const [opacity, setOpacity] = useState('0');
   useEffect(() => setOpacity('100%'), []);
@@ -239,7 +239,6 @@ export default function Reference({
     setTransformedPrediction(result);
   }, [prediction]);
 
-
   return (
     <Card style={{ animation: 'fade-in 0.5s', display: 'flex', flexDirection: 'row' }}>
       <TextContainer>
@@ -248,89 +247,79 @@ export default function Reference({
             onOpen(e);
 
             // TODO(Any): use update query text and uncomment below to record implicit-feedback
-                      // Capture the query text and complete the telemetry event for implicit feedback.
-                    const feedback = {
-                        reference_id: info.id,
-                        reference_rank: 0, // TODO: fill actual rank
-                        query_text: query || "",
-                        event_desc: "open_reference_source",
-                    };
+            // Capture the query text and complete the telemetry event for implicit feedback.
+            const feedback = {
+              reference_id: info.id,
+              reference_rank: 0, // TODO: fill actual rank
+              query_text: query || '',
+              event_desc: 'open_reference_source',
+            };
 
-                    console.log('feedback logged:', feedback)
+            console.log('feedback logged:', feedback);
 
-                    // Record the implicit feedback
-                    modelService.recordImplicitFeedback(feedback)
-                        .then(data => {
-                            console.log("Implicit feedback recorded successfully:", data);
-                        })
-                        .catch(error => {
-                            console.error("Error recording implicit feedback:", error);
-                            alert("Error recording implicit feedback:" + error);
-                        });
-
-                }} target={"_blank"}>
-                    {info.sourceName}
-                    <Spacer $width="10px" />
-                    {isReadableSource(info.sourceName) && (
-                        <ReadSourceButton>
-                            Read source <StyledArrow />
-                        </ReadSourceButton>
-                    )}
-                </Header>
-                <Content>
-                    {
-                        ifGuardRailOn
-                        ?
-                        <div className="ner-block">
-                        {transformedPrediction &&
-                            transformedPrediction.map(([sentence, tag], sentenceIndex) => 
-                                {
-                                    const label = labels.find((label) => label.name === tag);
-                                        return (
-                                            <span
-                                                key={sentenceIndex}
-                                                // data-paragraph-index={paragraphIndex}
-                                                // data-sentence-index={sentenceIndex}
-                                                // onClick={() => {
-                                                //     if (label && label.checked) {
-                                                //         handleSpanClick(paragraphIndex, sentenceIndex);
-                                                //     }
-                                                // }}
-                                                style={{
-                                                    color: label && label.checked ? label.color : 'inherit',
-                                                    cursor: label && label.checked ? 'pointer' : 'auto',
-                                                }}
-                                            >
-                                                {label && label.checked ? `${sentence} (${tag})` : `${sentence} `}
-                                            </span>
-                                        );
-                                }                            
-                        )}
-                        </div>
-                        :
-                        <Content> {info.content} </Content>
-                    }
-                </Content>
-            </TextContainer>
-            <ButtonsContainer>
-                <VoteButtonsContainer>
-                    <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={onCheck}
-                    />
-                    <Spacer $height="10px" />
-                    <UpvoteButton onClick={onUpvote} />
-                    <Spacer $height="10px" />
-                    <DownvoteButton onClick={onDownvote} />
-                </VoteButtonsContainer>
-                <Spacer $height={padding.card} />
-                <CopyButton 
-                    toCopy={info.content} 
-                    referenceID={info.id}
-                    queryText={query}
-                />
-            </ButtonsContainer>
-        </Card>
-    );
+            // Record the implicit feedback
+            modelService
+              .recordImplicitFeedback(feedback)
+              .then((data) => {
+                console.log('Implicit feedback recorded successfully:', data);
+              })
+              .catch((error) => {
+                console.error('Error recording implicit feedback:', error);
+                alert('Error recording implicit feedback:' + error);
+              });
+          }}
+          target={'_blank'}
+        >
+          {info.sourceName}
+          <Spacer $width="10px" />
+          {isReadableSource(info.sourceName) && (
+            <ReadSourceButton>
+              Read source <StyledArrow />
+            </ReadSourceButton>
+          )}
+        </Header>
+        <Content>
+          {ifGuardRailOn ? (
+            <div className="ner-block">
+              {transformedPrediction &&
+                transformedPrediction.map(([sentence, tag], sentenceIndex) => {
+                  const label = labels.find((label) => label.name === tag);
+                  return (
+                    <span
+                      key={sentenceIndex}
+                      // data-paragraph-index={paragraphIndex}
+                      // data-sentence-index={sentenceIndex}
+                      // onClick={() => {
+                      //     if (label && label.checked) {
+                      //         handleSpanClick(paragraphIndex, sentenceIndex);
+                      //     }
+                      // }}
+                      style={{
+                        color: label && label.checked ? label.color : 'inherit',
+                        cursor: label && label.checked ? 'pointer' : 'auto',
+                      }}
+                    >
+                      {label && label.checked ? `${sentence} (${tag})` : `${sentence} `}
+                    </span>
+                  );
+                })}
+            </div>
+          ) : (
+            <Content> {info.content} </Content>
+          )}
+        </Content>
+      </TextContainer>
+      <ButtonsContainer>
+        <VoteButtonsContainer>
+          <input type="checkbox" checked={checked} onChange={onCheck} />
+          <Spacer $height="10px" />
+          <UpvoteButton onClick={onUpvote} />
+          <Spacer $height="10px" />
+          <DownvoteButton onClick={onDownvote} />
+        </VoteButtonsContainer>
+        <Spacer $height={padding.card} />
+        <CopyButton toCopy={info.content} referenceID={info.id} queryText={query} />
+      </ButtonsContainer>
+    </Card>
+  );
 }

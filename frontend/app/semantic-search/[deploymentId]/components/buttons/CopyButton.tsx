@@ -19,13 +19,16 @@ const StyledCopy = styled(Copy)`
   }
 `;
 
-
-export default function CopyButton({ toCopy, referenceID, queryText }: { 
-    toCopy: string,  
-    referenceID: number,
-    queryText: string
+export default function CopyButton({
+  toCopy,
+  referenceID,
+  queryText,
+}: {
+  toCopy: string;
+  referenceID: number;
+  queryText: string;
 }) {
-    const modelService = useContext<ModelService | null>(ModelServiceContext);
+  const modelService = useContext<ModelService | null>(ModelServiceContext);
 
   function copyToClipboard() {
     navigator.clipboard.writeText(toCopy);
@@ -35,28 +38,29 @@ export default function CopyButton({ toCopy, referenceID, queryText }: {
       onClick={() => {
         copyToClipboard();
 
+        // use update query text and uncomment below to record implicit-feedback
+        const feedback = {
+          reference_id: referenceID,
+          reference_rank: 0, // TODO: fill with exact rank
+          query_text: queryText,
+          event_desc: 'copy_reference_text',
+        };
 
-                // use update query text and uncomment below to record implicit-feedback
-                const feedback = {
-                    reference_id: referenceID,
-                    query_text: queryText,
-                    event_desc: "copy_reference_text",
-                };
+        console.log('feedback logged', feedback);
 
-                console.log('feedback logged', feedback)
-
-                modelService?.recordImplicitFeedback(feedback)
-                    .then(data => {
-                        console.log("Implicit feedback recorded successfully:", data)
-                    })
-                    .catch(error => {
-                        console.error("Error recording implicit feedback:", error)
-                        alert("Error recording implicit feedback:" + error)
-                    })
-            }}
-                    text="Copied to clipboard!"
-        >
-            <StyledCopy />
-        </NotifyingClickable>
-    );
+        modelService
+          ?.recordImplicitFeedback(feedback)
+          .then((data) => {
+            console.log('Implicit feedback recorded successfully:', data);
+          })
+          .catch((error) => {
+            console.error('Error recording implicit feedback:', error);
+            alert('Error recording implicit feedback:' + error);
+          });
+      }}
+      text="Copied to clipboard!"
+    >
+      <StyledCopy />
+    </NotifyingClickable>
+  );
 }

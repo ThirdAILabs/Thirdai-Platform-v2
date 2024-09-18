@@ -266,7 +266,11 @@ export interface RetrainNdbParams {
   job_options: JobOptions;
 }
 
-export function retrain_ndb({ model_name, base_model_identifier, job_options }: RetrainNdbParams): Promise<any> {
+export function retrain_ndb({
+  model_name,
+  base_model_identifier,
+  job_options,
+}: RetrainNdbParams): Promise<any> {
   // Retrieve the access token from local storage or any other storage mechanism
   const accessToken = getAccessToken();
 
@@ -299,7 +303,6 @@ export function retrain_ndb({ model_name, base_model_identifier, job_options }: 
       });
   });
 }
-
 
 interface CreateWorkflowParams {
   name: string;
@@ -370,7 +373,11 @@ export interface DeleteModelsParams {
   components: string[];
 }
 
-export function delete_models({ workflow_id, model_ids, components }: DeleteModelsParams): Promise<any> {
+export function delete_models({
+  workflow_id,
+  model_ids,
+  components,
+}: DeleteModelsParams): Promise<any> {
   const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 

@@ -92,8 +92,8 @@ const SemanticSearchQuestions = ({
     }
 
     const modelOptionsForm = { ndb_options: { ndb_sub_type: 'v2' } };
-      formData.append('model_options', JSON.stringify(modelOptionsForm));
-      formData.append('file_info', JSON.stringify({ unsupervised_files: unsupervisedFiles }));
+    formData.append('model_options', JSON.stringify(modelOptionsForm));
+    formData.append('file_info', JSON.stringify({ unsupervised_files: unsupervisedFiles }));
 
     return formData;
   };

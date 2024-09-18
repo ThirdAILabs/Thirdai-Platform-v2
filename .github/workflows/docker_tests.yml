@@ -233,7 +233,7 @@ jobs:
     environment:
       name: docker_tests
 
-    needs: test
+    needs: [test, build_docker_images]
 
     if: always() && github.event_name != 'pull_request'
 

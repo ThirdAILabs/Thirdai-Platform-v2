@@ -6,9 +6,11 @@ import git
 
 def get_latest_commit_hash(directory):
     repo = git.Repo(os.getcwd())
+    print(f"Current directory: {os.getcwd()}")
     repo.remotes.origin.fetch()
     repo.git.checkout("origin/main")
     commits = repo.git.log("-1", "--", directory).splitlines()
+    print(f"Commits found: {commits}")
 
     if not commits:
         return None

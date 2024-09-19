@@ -138,7 +138,7 @@ class NDBV1Model(NDBModel):
         super().__init__()
         self.model_path: Path = self.model_dir / "model.ndb"
         self.db: ndb.NeuralDB = self.load(write_mode=write_mode)
-        self.set_chat()
+        self.set_chat(provider=self.general_variables.llm_provider)
 
     def upvote(
         self, text_id_pairs: List[inputs.UpvoteInputSingle], **kwargs: Any
@@ -296,7 +296,7 @@ class NDBV2Model(NDBModel):
         super().__init__()
 
         self.db = self.load(write_mode=write_mode)
-        self.set_chat()
+        self.set_chat(provider=self.general_variables.llm_provider)
 
     def ndb_save_path(self):
         return os.path.join(self.model_dir, "model.ndb")

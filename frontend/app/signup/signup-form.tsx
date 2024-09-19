@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import Button from '@mui/material/Button';
 import { EyeIcon, EyeOffIcon } from '@heroicons/react/solid';
 import { userRegister } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
@@ -87,11 +87,11 @@ export default function SignupForm() {
       {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
       <div className="flex items-center">
-        <Button type="submit" className="flex-grow mr-2">
+        <Button type="submit" variant='contained' className="flex-grow mr-2">
           Sign Up
         </Button>
         <Link href="/login-email" className="w-auto">
-          <Button type="button" className="w-full">
+          <Button type="button" variant='contained' className="w-full">
             Log In
           </Button>
         </Link>

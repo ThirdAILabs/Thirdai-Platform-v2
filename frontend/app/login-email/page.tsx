@@ -1,7 +1,7 @@
 'use client';
 
 import { useContext, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import Button from '@mui/material/Button';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { userEmailLogin } from '@/lib/backend';
 import Link from 'next/link';
@@ -92,11 +92,11 @@ export default function LoginPage() {
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
             <div className="flex items-center justify-between mb-4">
-              <Button type="submit" className="w-full">
+              <Button type="submit" variant='contained' className="flex-grow mr-2">
                 Login
               </Button>
               <Link href="/signup" className="ml-4">
-                <Button type="button" className="w-full">
+                <Button type="button" variant='contained' className="w-full">
                   Sign up
                 </Button>
               </Link>

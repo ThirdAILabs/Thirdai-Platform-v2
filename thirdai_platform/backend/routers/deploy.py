@@ -449,11 +449,14 @@ def get_deployment_info(
 @deploy_router.post("/start-on-prem")
 async def start_on_prem_job(
     model_name: str = "qwen2-0_5b-instruct-fp16.gguf",
-    restart_if_exists: bool = False,
+    restart_if_exists: bool = True,
+    autoscaling_enabled: bool = True,
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     await start_on_prem_generate_job(
-        model_name=model_name, restart_if_exists=restart_if_exists
+        model_name=model_name,
+        restart_if_exists=restart_if_exists,
+        autoscaling_enabled=autoscaling_enabled,
     )
 
     return response(

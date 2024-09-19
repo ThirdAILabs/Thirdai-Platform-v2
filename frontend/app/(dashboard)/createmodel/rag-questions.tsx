@@ -466,7 +466,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 </span>
               </TooltipTrigger>
               <TooltipContent side="right" style={{ maxWidth: '250px' }}>
-                A classification model, such as a sentiment analyzer, can categorize the user's query into different labels, providing deeper insights into the intent or tone of the input.
+                A classification model, such as a sentiment analyzer, can categorize the user&apos;s query into different labels, providing deeper insights into the intent or tone of the input.
               </TooltipContent>
             </Tooltip>
           </div>

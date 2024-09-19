@@ -5,7 +5,9 @@ import { borderRadius, color, duration, fontSizes, padding } from '../../styling
 import { ModelServiceContext } from '../../Context';
 import { ChatMessage, ModelService } from '../../modelServices';
 import TypingAnimation from '../TypingAnimation';
+import { useTextClassificationEndpoints } from '@/lib/backend'; // Import for sentiment classification
 
+// Styled components for chat UI
 const ChatContainer = styled.section`
   position: fixed;
   width: 60%;
@@ -19,7 +21,6 @@ const ChatContainer = styled.section`
 `;
 
 const ChatBoxContainer = styled.section`
-  /* border-bottom: solid 1px black; */
   padding: 15px 15px 0 15px;
 `;
 
@@ -38,46 +39,8 @@ const TypingAnimationContainer = styled.section`
   padding: ${padding.card} 0 7px 0;
 `;
 
-function ChatBox({ message, transformedMessage }: { message: ChatMessage, transformedMessage?: string[][] }) {
-  return (
-    <ChatBoxContainer>
-      <ChatBoxSender>{message.sender === 'human' ? '👋 You' : '🤖 AI'}</ChatBoxSender>
-      <ChatBoxContent>
-        {transformedMessage && transformedMessage.length > 0
-          ? transformedMessage.map(([sentence, tag], index) => {
-              const label = labels.find((label) => label.name === tag);
-              return (
-                <span
-                  key={index}
-                  style={{
-                    color: label?.checked ? label.color : 'inherit',
-                  }}
-                >
-                  {sentence} {label?.checked && `(${tag}) `}
-                </span>
-              );
-            })
-          : <ReactMarkdown>{message.content}</ReactMarkdown> // Render without PII highlighting if no transformation is available
-        }
-      </ChatBoxContent>
-    </ChatBoxContainer>
-  );
-}
-
-function AILoadingChatBox() {
-  return (
-    <ChatBoxContainer>
-      <ChatBoxSender>🤖 AI</ChatBoxSender>
-      <TypingAnimationContainer>
-        <TypingAnimation />
-      </TypingAnimationContainer>
-    </ChatBoxContainer>
-  );
-}
-
 const ChatBar = styled.textarea`
   background-color: ${color.textInput};
-  /* width: 100%; */
   font-size: ${fontSizes.m};
   padding: 20px 20px 27px 20px;
   margin: 10px 0 50px 0%;
@@ -159,18 +122,58 @@ const labels = [
   },
 ];
 
+// ChatBox component to display human/AI message
+function ChatBox({ message, transformedMessage }: { message: ChatMessage, transformedMessage?: string[][] }) {
+  return (
+    <ChatBoxContainer>
+      <ChatBoxSender>{message.sender === 'human' ? '👋 You' : '🤖 AI'}</ChatBoxSender>
+      <ChatBoxContent>
+        {transformedMessage && transformedMessage.length > 0
+          ? transformedMessage.map(([sentence, tag], index) => {
+              const label = labels.find((label) => label.name === tag);
+              return (
+                <span
+                  key={index}
+                  style={{
+                    color: label?.checked ? label.color : 'inherit',
+                  }}
+                >
+                  {sentence} {label?.checked && `(${tag}) `}
+                </span>
+              );
+            })
+          : <ReactMarkdown>{message.content}</ReactMarkdown> // Render without PII highlighting if no transformation is available
+        }
+      </ChatBoxContent>
+    </ChatBoxContainer>
+  );
+}
+
+// AI typing animation while the response is being processed
+function AILoadingChatBox() {
+  return (
+    <ChatBoxContainer>
+      <ChatBoxSender>🤖 AI</ChatBoxSender>
+      <TypingAnimationContainer>
+        <TypingAnimation />
+      </TypingAnimationContainer>
+    </ChatBoxContainer>
+  );
+}
+
 export default function Chat(props: any) {
   const modelService = useContext<ModelService | null>(ModelServiceContext);
+  const { predict } = useTextClassificationEndpoints();  // Hook for sentiment classification
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [textInput, setTextInput] = useState('');
-  const [transformedMessages, setTransformedMessages] = useState<Record<number, string[][]>>({}); // Store transformed messages for both human and AI
+  const [transformedMessages, setTransformedMessages] = useState<Record<number, string[][]>>({});
   const [aiLoading, setAiLoading] = useState(false);
   const scrollableAreaRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     modelService?.getChatHistory().then(setChatHistory);
-  }, []);
+  }, [modelService]);
 
   const performPIIDetection = (messageContent: string): Promise<string[][]> => {
     if (!modelService) {
@@ -211,6 +214,16 @@ export default function Chat(props: any) {
       });
   };
 
+  // Sentiment classification function
+  const classifySentiment = async (messageContent: string) => {
+    try {
+      const result = await predict(messageContent);
+      console.log('Sentiment Prediction:', result);  // Log the sentiment result to console
+    } catch (error) {
+      console.error('Error classifying sentiment:', error);
+    }
+  };
+
   const handleEnterPress = async (e: any) => {
     if (e.keyCode === 13 && e.shiftKey === false) {
       e.preventDefault();
@@ -223,6 +236,9 @@ export default function Chat(props: any) {
       setAiLoading(true);
       setChatHistory((history) => [...history, { sender: 'human', content: textInput }]);
       setTextInput('');
+
+      // Trigger sentiment classification in the background
+      classifySentiment(lastTextInput);  // Run sentiment classification without waiting
 
       // Perform PII detection on the human's message
       const humanTransformed = await performPIIDetection(lastTextInput);

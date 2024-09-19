@@ -88,7 +88,7 @@ jobs:
           docker save -o docker_images/postgres_latest.tar postgres:latest
 
           # Pull llama.cpp:server image
-          docker pull thirdaiplatform.a zurecr.io/llama.cpp:server
+          docker pull thirdaiplatform.azurecr.io/llama.cpp:server
           docker save -o docker_images/llama.cpp_server.tar thirdaiplatform.azurecr.io/llama.cpp:server
 
           # List of images to pull and save with the latest tag

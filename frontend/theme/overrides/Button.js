@@ -219,6 +219,18 @@ export default function Button(theme) {
       }),
     };
 
+    // ***** New Code for Delete Button with Red Color *****
+    const containedGreenSuccess = {
+      ...(containedVariant && ownerState.color === 'success' && {
+        backgroundColor: theme.palette.success.main,
+        color: theme.palette.common.white,
+        '&:hover': {
+          backgroundColor: theme.palette.success.dark,
+        },
+      }),
+    };
+
+
     const disabledState = {
       '&.Mui-disabled': {
         // SOFT
@@ -246,7 +258,7 @@ export default function Button(theme) {
     };
 
     // ***** Adding the new style to the return object *****
-    return [containedLightBlue, containedRedDelete, ...colorStyle, defaultStyle, disabledState, size];
+    return [containedLightBlue, containedRedDelete, containedGreenSuccess, ...colorStyle, defaultStyle, disabledState, size];
   };
 
   return {

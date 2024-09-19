@@ -826,7 +826,8 @@ export default function AccessPage() {
                       alert('Please enter both Team Admin and at least one Team Member.');
                     }
                   }}
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  // className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  variant='contained'
                 >
                   Create Team
                 </Button>
@@ -869,7 +870,8 @@ export default function AccessPage() {
                 />
                 <Button
                   onClick={addMemberToTeam}
-                  className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  // className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  variant='contained' color='success'
                 >
                   Add Member
                 </Button>
@@ -905,7 +907,8 @@ export default function AccessPage() {
                 />
                 <Button
                   onClick={removeMemberFromTeam}
-                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  // className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  variant='contained' color='error'
                 >
                   Remove Member
                 </Button>
@@ -937,7 +940,8 @@ export default function AccessPage() {
                 />
                 <Button
                   onClick={assignAdminToTeam}
-                  className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  // className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  variant='contained' color='success'
                 >
                   Add Admin
                 </Button>
@@ -974,7 +978,8 @@ export default function AccessPage() {
                 />
                 <Button
                   onClick={removeAdminFromTeam}
-                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  // className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  variant='contained' color='error'
                 >
                   Remove Admin
                 </Button>
@@ -1003,7 +1008,8 @@ export default function AccessPage() {
                 )}
                 <Button
                   onClick={() => deleteUser(user.name)}
-                  className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  // className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  variant='contained' color='error'
                 >
                   Delete User
                 </Button>

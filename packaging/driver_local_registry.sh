@@ -65,7 +65,7 @@ fi
 echo "Using config file at $CONFIG_PATH"
 
 # Model path
-QWEN_MODEL_PATH="models/qwen2-0_5b-instruct-fp16.gguf"
+QWEN_MODEL_PATH="gen-ai-models/qwen2-0_5b-instruct-fp16.gguf"
 
 # Warn if model file is not found
 if [ ! -f "$QWEN_MODEL_PATH" ]; then

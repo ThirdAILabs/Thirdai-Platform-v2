@@ -240,7 +240,7 @@ class NDBFunctions:
                     provider="openai",
                     use_cache=True,
                 )
-                logging.info(f"Openai genrated answer: {generated_answer}")
+                logging.info(f"Openai generated answer: {generated_answer}")
 
             if on_prem:
                 generated_answer = llm_client.generate(
@@ -249,7 +249,7 @@ class NDBFunctions:
                     provider="on-prem",
                     use_cache=True,
                 )
-                logging.info(f"on-prem genrated answer: {generated_answer}")
+                logging.info(f"on-prem generated answer: {generated_answer}")
 
     @staticmethod
     def check_unsupervised(inputs: Dict[str, Any]) -> Any:

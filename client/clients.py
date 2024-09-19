@@ -370,8 +370,6 @@ class LLMClient:
 
             cache_result = json.loads(cache_response.content).get("cached_response")
 
-        # If a cached result exists, return it
-        if cache_result:
             return cache_result
 
         # No cached result or cache disabled, proceed with generation
@@ -395,35 +393,14 @@ class LLMClient:
                 "original_query": query,
                 "cache_access_token": cache_token,
             },
-            stream=True,
         )
 
         if response.status_code != 200:
             print("Network response was not ok")
             print(response)
-            return
+            raise
 
-        generated_response = ""
-
-        # Streaming response using the "iter_content" method
-        for chunk in response.iter_content():
-            if chunk:
-                generated_response += chunk.decode("utf-8", errors="replace")
-
-        # If use_cache is enabled, store the generated result in the cache
-        if use_cache:
-            cache_insert_response = http_post_with_error(
-                urljoin(self.base_url, "cache/insert"),
-                headers=auth_header(cache_token),
-                params={
-                    "query": query,
-                    "llm_res": generated_response,
-                },
-            )
-            if cache_insert_response.status_code != 200:
-                print(f"Failed to cache the result for query: {query}")
-
-        return generated_response
+        return response.text
 
 
 class UDTClient(BaseClient):

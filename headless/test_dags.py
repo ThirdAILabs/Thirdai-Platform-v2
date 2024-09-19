@@ -14,7 +14,7 @@ def additional_variables():
         "sharded": False,
         "run_name": "ci_run",
         "on_prem": False,
-        "generation": True,
+        "generation": is_merge_group,
     }
 
 

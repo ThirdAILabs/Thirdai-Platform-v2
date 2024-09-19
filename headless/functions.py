@@ -243,6 +243,7 @@ class NDBFunctions:
                 logging.info(f"Openai generated answer: {generated_answer}")
 
             if on_prem:
+                flow.bazaar_client.start_on_prem()
                 generated_answer = llm_client.generate(
                     query=best_answer["text"],
                     api_key="no key",

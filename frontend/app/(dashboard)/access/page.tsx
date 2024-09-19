@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Button from '@mui/material/Button';
 import {
   fetchAllModels,
   fetchAllTeams,
@@ -650,9 +651,9 @@ export default function AccessPage() {
                             onChange={(e) =>
                               setSelectedType(
                                 e.target.value as
-                                  | 'Private Model'
-                                  | 'Protected Model'
-                                  | 'Public Model'
+                                | 'Private Model'
+                                | 'Protected Model'
+                                | 'Public Model'
                               )
                             }
                             className="border border-gray-300 rounded px-4 py-2"
@@ -678,37 +679,38 @@ export default function AccessPage() {
                             </select>
                           )}
                           <div className="flex space-x-2 mt-2">
-                            <button
+                            <Button
                               onClick={() => handleModelTypeChange(index)}
                               className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                             >
                               Confirm
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                               onClick={() => setEditingIndex(null)}
                               className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
                             >
                               Cancel
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       ) : (
-                        <button
+                        <Button
                           onClick={() => setEditingIndex(index)}
-                          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                          variant='contained'
                         >
                           Change Access
-                        </button>
+                        </Button>
                       )}
                     </td>
 
                     <td className="py-3 px-4">
-                      <button
+                      <Button
                         onClick={() => handleDeleteModel(index)}
-                        className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                        // className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                        color='error' variant='contained'
                       >
                         Delete
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -782,12 +784,12 @@ export default function AccessPage() {
                       ))}
                   </ul>
                 </div>
-                <button
+                <Button
                   onClick={() => deleteTeam(team.name)}
                   className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                 >
                   Delete Team
-                </button>
+                </Button>
               </div>
             ))}
 
@@ -816,7 +818,7 @@ export default function AccessPage() {
                   multiple={true}
                   placeholder="Team Members"
                 />
-                <button
+                <Button
                   onClick={() => {
                     if (newTeamAdmin && newTeamMembers.length > 0) {
                       createNewTeam();
@@ -827,7 +829,7 @@ export default function AccessPage() {
                   className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                 >
                   Create Team
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -854,23 +856,23 @@ export default function AccessPage() {
                   options={
                     selectedTeamForAdd
                       ? users
-                          .map((user) => user.name)
-                          .filter(
-                            (userName) =>
-                              !teams
-                                .find((team) => team.name === selectedTeamForAdd)
-                                ?.members.includes(userName)
-                          )
+                        .map((user) => user.name)
+                        .filter(
+                          (userName) =>
+                            !teams
+                              .find((team) => team.name === selectedTeamForAdd)
+                              ?.members.includes(userName)
+                        )
                       : []
                   }
                   placeholder="New Member"
                 />
-                <button
+                <Button
                   onClick={addMemberToTeam}
                   className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
                 >
                   Add Member
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -901,12 +903,12 @@ export default function AccessPage() {
                   }
                   placeholder="Member to Remove"
                 />
-                <button
+                <Button
                   onClick={removeMemberFromTeam}
                   className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                 >
                   Remove Member
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -933,12 +935,12 @@ export default function AccessPage() {
                   options={users.map((user) => user.name)}
                   placeholder="New Admin"
                 />
-                <button
+                <Button
                   onClick={assignAdminToTeam}
                   className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
                 >
                   Add Admin
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -965,17 +967,17 @@ export default function AccessPage() {
                   options={
                     selectedTeamForRemoveAdmin
                       ? teams.find((team) => team.name === selectedTeamForRemoveAdmin)?.members ||
-                        []
+                      []
                       : []
                   }
                   placeholder="Admin to Remove"
                 />
-                <button
+                <Button
                   onClick={removeAdminFromTeam}
                   className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                 >
                   Remove Admin
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -999,12 +1001,12 @@ export default function AccessPage() {
                 {user.ownedModels.length > 0 && (
                   <div className="text-gray-700">Owned Models: {user.ownedModels.join(', ')}</div>
                 )}
-                <button
+                <Button
                   onClick={() => deleteUser(user.name)}
                   className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                 >
                   Delete User
-                </button>
+                </Button>
               </div>
             ))}
           </div>
@@ -1028,13 +1030,13 @@ export default function AccessPage() {
                 className="border border-gray-300 rounded px-4 py-2 w-full"
               />
             </div>
-            <button
+            <Button
               onClick={handleSave}
               className={`mt-4 bg-blue-500 text-white px-4 py-2 rounded ${loading ? 'cursor-not-allowed' : ''}`}
               disabled={loading}
             >
               {loading ? 'Saving...' : 'Save'}
-            </button>
+            </Button>
             {successMessage && <p className="text-green-500 mt-4">{successMessage}</p>}
           </div>
         </CardContent>

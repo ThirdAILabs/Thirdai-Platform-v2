@@ -7,7 +7,7 @@ job "on-prem-llm-generation" {
     count = "{{ initial_allocations }}"
 
     scaling {
-      enabled = {{ autoscaling_enabled }}
+      enabled = "{{ autoscaling_enabled }}"
       min = {{ min_allocations }}
       max = {{ max_allocations }}
 

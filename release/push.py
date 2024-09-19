@@ -259,7 +259,8 @@ def main() -> None:
                 image_names=[
                     image_name_for_branch(name, args.branch)
                     for name in image_base_names.to_list()
-                ],
+                ]
+                + ["victoria-metrics", "grafana", "loki", "llama.cpp"],
                 push_access=True,
             )
             push_username = new_push_credentials["username"]
@@ -276,7 +277,8 @@ def main() -> None:
                     image_names=[
                         image_name_for_branch(name, args.branch)
                         for name in image_base_names.to_list()
-                    ],
+                    ]
+                    + ["victoria-metrics", "grafana", "loki", "llama.cpp"],
                     push_access=True,
                 )
 
@@ -286,7 +288,8 @@ def main() -> None:
                 image_names=[
                     image_name_for_branch(name, args.branch)
                     for name in image_base_names.to_list()
-                ],
+                ]
+                + ["victoria-metrics", "grafana", "loki", "llama.cpp"],
                 push_access=False,
             )
             pull_username = new_pull_credentials["username"]
@@ -303,7 +306,8 @@ def main() -> None:
                     image_names=[
                         image_name_for_branch(name, args.branch)
                         for name in image_base_names.to_list()
-                    ],
+                    ]
+                    + ["victoria-metrics", "grafana", "loki", "llama.cpp"],
                     push_access=False,
                 )
 

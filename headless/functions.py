@@ -248,7 +248,7 @@ class NDBFunctions:
                     query=best_answer["text"],
                     api_key="no key",
                     provider="on-prem",
-                    use_cache=True,
+                    use_cache=False,
                 )
                 logging.info(f"on-prem generated answer: {generated_answer}")
 

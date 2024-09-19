@@ -34,7 +34,7 @@ NDB:
       deployment: deploy_ndb
       config: variable
       results: check_search
-      generation: True
+      generation: variable
       on_prem: variable
   
   undeploy:

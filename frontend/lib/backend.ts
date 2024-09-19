@@ -1057,6 +1057,48 @@ export function useTextClassificationEndpoints() {
   };
 }
 
+export function useSentimentClassification(workflowId: string | null) {
+  const accessToken = useAccessToken(); // Assuming this function exists
+  const [deploymentUrl, setDeploymentUrl] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (!workflowId) return;
+
+    const init = async () => {
+      try {
+        setDeploymentUrl(`${deploymentBaseUrl}/${workflowId}`);
+      } catch (error) {
+        console.error('Error fetching sentiment model details:', error);
+        alert('Error fetching sentiment model details: ' + error);
+      }
+    };
+
+    init();
+  }, [workflowId, accessToken]);
+
+  // Function to predict sentiment based on the input query
+  const predictSentiment = async (query: string): Promise<TextClassificationResult> => {
+    if (!deploymentUrl) {
+      throw new Error('Sentiment classifier deployment URL not set');
+    }
+
+    try {
+      // Send a prediction request to the sentiment classifier model
+      const response = await axios.post(`${deploymentUrl}/predict`, { query, top_k: 5 });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error predicting sentiment:', error);
+      alert('Error predicting sentiment: ' + error);
+      throw new Error('Failed to predict sentiment');
+    }
+  };
+
+  // Return the predict function
+  return {
+    predictSentiment,
+  };
+}
+
 export interface DeploymentStatsTable {
   header: string[];
   rows: string[][];

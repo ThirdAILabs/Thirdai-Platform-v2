@@ -5,7 +5,7 @@ import { borderRadius, color, duration, fontSizes, padding } from '../../styling
 import { ModelServiceContext } from '../../Context';
 import { ChatMessage, ModelService } from '../../modelServices';
 import TypingAnimation from '../TypingAnimation';
-import { useTextClassificationEndpoints } from '@/lib/backend'; // Import for sentiment classification
+import { useTextClassificationEndpoints, useSentimentClassification } from '@/lib/backend'; // Import for sentiment classification
 
 // Styled components for chat UI
 const ChatContainer = styled.section`
@@ -195,9 +195,15 @@ function AILoadingChatBox() {
   );
 }
 
-export default function Chat(props: any) {
+export default function Chat({
+  sentimentClassifierExists, // Indicates if sentiment classification model exists
+  sentimentWorkflowId,       // Workflow ID for sentiment classification
+}: {
+  sentimentClassifierExists: boolean;
+  sentimentWorkflowId: string | null;
+}) {
   const modelService = useContext<ModelService | null>(ModelServiceContext);
-  const { predict } = useTextClassificationEndpoints();  // Hook for sentiment classification
+  const { predictSentiment } = useSentimentClassification(sentimentWorkflowId);  // Use new hook for sentiment classification
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [textInput, setTextInput] = useState('');
@@ -253,8 +259,13 @@ export default function Chat(props: any) {
 
   // Function to classify sentiment and store the highest sentiment score
   const classifySentiment = async (messageContent: string, messageIndex: number) => {
+    // Only classify sentiment if the sentiment classifier exists
+    if (!sentimentClassifierExists || !sentimentWorkflowId) {
+      return;
+    }
+
     try {
-      const result = await predict(messageContent);
+      const result = await predictSentiment(messageContent);
       const predictions = result.predicted_classes;
       console.log('Sentiment Prediction:', result);
 
@@ -286,8 +297,10 @@ export default function Chat(props: any) {
       setChatHistory((history) => [...history, { sender: 'human', content: textInput }]);
       setTextInput('');
 
-      // Trigger sentiment classification in the background
-      classifySentiment(lastTextInput, currentIndex);   // Run sentiment classification without waiting
+      // Trigger sentiment classification if classifier exists
+      if (sentimentClassifierExists) {
+        classifySentiment(lastTextInput, currentIndex); // Run sentiment classification
+      }
 
       // Perform PII detection on the human's message
       const humanTransformed = await performPIIDetection(lastTextInput);

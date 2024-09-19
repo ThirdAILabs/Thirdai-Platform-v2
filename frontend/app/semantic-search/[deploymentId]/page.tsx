@@ -145,6 +145,9 @@ function App() {
   const [genAiProvider, setGenAiProvider] = useState<string | null>(null);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
 
+  const [sentimentClassifierExists, setSentimentClassifierExists] = useState(false);
+  const [sentimentClassifierWorkflowId, setSentimentClassifierWorkflowId] = useState<string | null>(null);
+  
   useEffect(() => {
     const receievedWorkflowId = searchParams.get('workflowId');
     const generationOn = searchParams.get('ifGenerationOn') === 'true';
@@ -175,6 +178,11 @@ function App() {
           ? createTokenModelUrl(nlpModel.model_id)
           : createTokenModelUrl('');
 
+        // Filter and find the model with component "nlp-classifier"
+        const sentimentClassifier = details.data.models.find(
+          (model) => model.component === 'nlp-classifier'
+        );
+  
         if (nlpModel) {
           setIfGuardRailOn(true);
         }
@@ -182,6 +190,14 @@ function App() {
         if (!generationOn) {
           // if generation is off, turn off cache
           setCacheEnabled(false);
+        }
+
+        // Set whether sentiment classifier exists
+        setSentimentClassifierExists(!!sentimentClassifier);
+  
+        // Set the sentiment classifier workflow ID if the model exists
+        if (sentimentClassifier) {
+          setSentimentClassifierWorkflowId(sentimentClassifier.model_id);
         }
 
         const newModelService = new ModelService(serviceUrl, tokenModelUrl, uuidv4());
@@ -624,7 +640,10 @@ function App() {
               <Teach />
             </TopRightCorner>
             {chatMode ? (
-              <Chat />
+              <Chat
+                sentimentClassifierExists={sentimentClassifierExists}
+                sentimentWorkflowId={sentimentClassifierWorkflowId}  // Pass the workflow ID for sentiment classifier
+              />
             ) : (
               <>
                 <SearchContainer $center={results === null}>

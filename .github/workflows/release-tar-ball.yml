@@ -22,6 +22,9 @@ jobs:
       - name: Clone Platform repository
         run: |
           git clone git@github.com:ThirdAILabs/platform.git
+          cd platform
+          git fetch --all
+          git checkout adds-local-registry
 
       - name: Download and store the model
         run: |
@@ -81,11 +84,11 @@ jobs:
           docker save -o docker_images/victoria-metrics_latest.tar thirdaiplatform.azurecr.io/victoria-metrics:latest
 
           # Pull postgres:latest image
-          docker pull thirdaiplatform.azurecr.io/postgres:latest
-          docker save -o docker_images/victoria-metrics_latest.tar thirdaiplatform.azurecr.io/postgres:latest
+          docker pull postgres:latest
+          docker save -o docker_images/postgres_latest.tar postgres:latest
 
           # Pull llama.cpp:server image
-          docker pull thirdaiplatform.azurecr.io/llama.cpp:server
+          docker pull thirdaiplatform.a zurecr.io/llama.cpp:server
           docker save -o docker_images/llama.cpp_server.tar thirdaiplatform.azurecr.io/llama.cpp:server
 
           # List of images to pull and save with the latest tag
@@ -103,8 +106,11 @@ jobs:
           docker save -o docker_images/nomad-autoscaler_0.3.7.tar thirdaiplatform.azurecr.io/nomad-autoscaler:0.3.7
 
           # Pull redis:latest image
-          docker pull thirdaiplatform.azurecr.io/redis:latest
-          docker save -o docker_images/redis_latest.tar thirdaiplatform.azurecr.io/redis:latest
+          docker pull thirdaiplatform.azurecr.io/redis:7.4.0
+          docker save -o docker_images/redis_7.4.0.tar thirdaiplatform.azurecr.io/redis:7.4.0
+
+          docker pull registry:2
+          docker save -o docker_images/registry_2.tar registry:2
 
           # Pull traefik:v2.10 image
           docker pull thirdaiplatform.azurecr.io/traefik:v2.10

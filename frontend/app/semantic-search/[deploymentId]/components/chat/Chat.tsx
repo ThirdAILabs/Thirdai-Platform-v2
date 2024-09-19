@@ -122,11 +122,11 @@ const labels = [
   },
 ];
 
-// Sentiment Icons
-const sentimentIcons = {
-  '2': '😊',  // Positive
-  '1': '😐',  // Neutral
-  '0': '😟',  // Negative
+// Remove sentimentIcons and replace with sentiment text mapping
+const sentimentText = {
+  '2': 'positive',  // Positive sentiment
+  '1': 'neutral',   // Neutral sentiment
+  '0': 'negative',  // Negative sentiment
 };
 
 // ChatBox component to display human/AI message with sentiment
@@ -134,31 +134,38 @@ function ChatBox({ message, transformedMessage, sentiment }: { message: ChatMess
   return (
     <ChatBoxContainer>
       <ChatBoxSender>{message.sender === 'human' ? '👋 You' : '🤖 AI'}</ChatBoxSender>
-      <ChatBoxContent>
-        {transformedMessage && transformedMessage.length > 0
-          ? transformedMessage.map(([sentence, tag], index) => {
-              const label = labels.find((label) => label.name === tag);
-              return (
-                <span
-                  key={index}
-                  style={{
-                    color: label?.checked ? label.color : 'inherit',
-                  }}
-                >
-                  {sentence} {label?.checked && `(${tag}) `}
-                </span>
-              );
-            })
-          : <ReactMarkdown>{message.content}</ReactMarkdown> // Render without PII highlighting if no transformation is available
-        }
-      </ChatBoxContent>
+      <ChatBoxContent style={{ display: 'flex', alignItems: 'center' }}>
+        <div style={{ flexGrow: 1 }}>
+          {transformedMessage && transformedMessage.length > 0
+            ? transformedMessage.map(([sentence, tag], index) => {
+                const label = labels.find((label) => label.name === tag);
+                return (
+                  <span
+                    key={index}
+                    style={{
+                      color: label?.checked ? label.color : 'inherit',
+                    }}
+                  >
+                    {sentence} {label?.checked && `(${tag}) `}
+                  </span>
+                );
+              })
+            : <ReactMarkdown>{message.content}</ReactMarkdown> // Render without PII highlighting if no transformation is available
+          }
+        </div>
 
-      {/* Display sentiment icon for human messages */}
-      {message.sender === 'human' && sentiment && (
-        <span style={{ fontSize: '1.5rem', marginLeft: '10px', display: 'flex', alignItems: 'center' }}>
-          {sentimentIcons[sentiment as '0' | '1' | '2']}
-        </span>
-      )}
+        {/* Display sentiment text for human messages */}
+        {message.sender === 'human' && sentiment && (
+          <span style={{
+            fontSize: '0.85rem', 
+            marginLeft: '8px', 
+            color: '#888', 
+            whiteSpace: 'nowrap'
+          }}>
+            [sentiment: {sentimentText[sentiment as '0' | '1' | '2']}]
+          </span>
+        )}
+      </ChatBoxContent>
     </ChatBoxContainer>
   );
 }

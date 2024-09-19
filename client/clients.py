@@ -370,6 +370,7 @@ class LLMClient:
 
             cache_result = json.loads(cache_response.content).get("cached_response")
 
+        if cache_result:
             return cache_result
 
         # No cached result or cache disabled, proceed with generation

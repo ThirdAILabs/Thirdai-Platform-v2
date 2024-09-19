@@ -253,6 +253,57 @@ export function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
   });
 }
 
+// src/interfaces/TrainNdbParams.ts
+export interface JobOptions {
+  allocation_cores: number;
+  allocation_memory: number;
+  // Add other JobOptions fields as necessary
+}
+
+export interface RetrainNdbParams {
+  model_name: string;
+  base_model_identifier: string;
+  job_options: JobOptions;
+}
+
+export function retrain_ndb({
+  model_name,
+  base_model_identifier,
+  job_options,
+}: RetrainNdbParams): Promise<any> {
+  // Retrieve the access token from local storage or any other storage mechanism
+  const accessToken = getAccessToken();
+
+  // Set the default authorization header for axios
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  // Initialize URLSearchParams with model_name and base_model_identifier
+  const params = new URLSearchParams({
+    model_name: model_name,
+    base_model_identifier: base_model_identifier,
+  });
+
+  // Append job_options fields to the URLSearchParams
+  Object.entries(job_options).forEach(([key, value]) => {
+    params.append(key, value.toString());
+  });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/ndb-retrain?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.message || 'Failed to retrain model'));
+        } else {
+          reject(new Error('Failed to retrain model'));
+        }
+      });
+  });
+}
+
 interface CreateWorkflowParams {
   name: string;
   typeName: string;
@@ -311,6 +362,40 @@ export function add_models_to_workflow({
           reject(new Error(err.response.data.detail || 'Failed to add models to workflow'));
         } else {
           reject(new Error('Failed to add models to workflow'));
+        }
+      });
+  });
+}
+
+export interface DeleteModelsParams {
+  workflow_id: string;
+  model_ids: string[];
+  components: string[];
+}
+
+export function delete_models({
+  workflow_id,
+  model_ids,
+  components,
+}: DeleteModelsParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/workflow/delete-models`, {
+        workflow_id,
+        model_ids,
+        components,
+      })
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.message || 'Failed to delete models from workflow'));
+        } else {
+          reject(new Error('Failed to delete models from workflow'));
         }
       });
   });

@@ -122,8 +122,15 @@ const labels = [
   },
 ];
 
-// ChatBox component to display human/AI message
-function ChatBox({ message, transformedMessage }: { message: ChatMessage, transformedMessage?: string[][] }) {
+// Sentiment Icons
+const sentimentIcons = {
+  '2': '😊',  // Positive
+  '1': '😐',  // Neutral
+  '0': '😟',  // Negative
+};
+
+// ChatBox component to display human/AI message with sentiment
+function ChatBox({ message, transformedMessage, sentiment }: { message: ChatMessage, transformedMessage?: string[][], sentiment?: string }) {
   return (
     <ChatBoxContainer>
       <ChatBoxSender>{message.sender === 'human' ? '👋 You' : '🤖 AI'}</ChatBoxSender>
@@ -145,6 +152,13 @@ function ChatBox({ message, transformedMessage }: { message: ChatMessage, transf
           : <ReactMarkdown>{message.content}</ReactMarkdown> // Render without PII highlighting if no transformation is available
         }
       </ChatBoxContent>
+
+      {/* Display sentiment icon for human messages */}
+      {message.sender === 'human' && sentiment && (
+        <span style={{ fontSize: '1.5rem', marginLeft: '10px', display: 'flex', alignItems: 'center' }}>
+          {sentimentIcons[sentiment as '0' | '1' | '2']}
+        </span>
+      )}
     </ChatBoxContainer>
   );
 }
@@ -214,11 +228,26 @@ export default function Chat(props: any) {
       });
   };
 
-  // Sentiment classification function
-  const classifySentiment = async (messageContent: string) => {
+  const [sentiments, setSentiments] = useState<Record<number, string>>({}); // Store sentiment for human messages
+
+
+  // Function to classify sentiment and store the highest sentiment score
+  const classifySentiment = async (messageContent: string, messageIndex: number) => {
     try {
       const result = await predict(messageContent);
-      console.log('Sentiment Prediction:', result);  // Log the sentiment result to console
+      const predictions = result.predicted_classes;
+      console.log('Sentiment Prediction:', result);
+
+      // Find the sentiment with the highest score
+      const maxSentiment = predictions.reduce((prev, current) => {
+        return current[1] > prev[1] ? current : prev;
+      })[0];  // Select sentiment class ('2', '1', '0')
+
+      // Store the sentiment for the current message index
+      setSentiments((prev) => ({
+        ...prev,
+        [messageIndex]: maxSentiment,  // Save sentiment for this message
+      }));
     } catch (error) {
       console.error('Error classifying sentiment:', error);
     }
@@ -238,7 +267,7 @@ export default function Chat(props: any) {
       setTextInput('');
 
       // Trigger sentiment classification in the background
-      classifySentiment(lastTextInput);  // Run sentiment classification without waiting
+      classifySentiment(lastTextInput, currentIndex);   // Run sentiment classification without waiting
 
       // Perform PII detection on the human's message
       const humanTransformed = await performPIIDetection(lastTextInput);
@@ -281,6 +310,7 @@ export default function Chat(props: any) {
                 key={i}
                 message={message}
                 transformedMessage={transformedMessages[i]} // Pass PII-transformed message for human and AI
+                sentiment={sentiments[i]}  // Pass sentiment for human message
               />
             ))}
             {aiLoading && <AILoadingChatBox />}

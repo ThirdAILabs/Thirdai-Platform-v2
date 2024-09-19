@@ -111,6 +111,7 @@ class NDBModel(Model):
                 db=self.db,
                 chat_history_sql_uri=chat_history_sql_uri,
                 key=self.general_variables.genai_key,
+                base_url=self.general_variables.model_bazaar_endpoint,
                 **kwargs,
             )
         except Exception as err:

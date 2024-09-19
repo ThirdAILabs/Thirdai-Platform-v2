@@ -131,6 +131,19 @@ const sentimentText = {
 
 // ChatBox component to display human/AI message with sentiment
 function ChatBox({ message, transformedMessage, sentiment }: { message: ChatMessage, transformedMessage?: string[][], sentiment?: string }) {
+  const sentimentColor = (sentiment: string) => {
+    switch (sentiment) {
+      case '2': // Positive sentiment
+        return 'green';
+      case '1': // Neutral sentiment
+        return 'orange';
+      case '0': // Negative sentiment
+        return 'red';
+      default:
+        return '#888'; // Default gray for unknown sentiment
+    }
+  };
+
   return (
     <ChatBoxContainer>
       <ChatBoxSender>{message.sender === 'human' ? '👋 You' : '🤖 AI'}</ChatBoxSender>
@@ -157,9 +170,9 @@ function ChatBox({ message, transformedMessage, sentiment }: { message: ChatMess
         {/* Display sentiment text for human messages */}
         {message.sender === 'human' && sentiment && (
           <span style={{
-            fontSize: '0.85rem', 
-            marginLeft: '8px', 
-            color: '#888', 
+            fontSize: '0.85rem',
+            marginLeft: '8px',
+            color: sentimentColor(sentiment), // Apply color based on sentiment
             whiteSpace: 'nowrap'
           }}>
             [sentiment: {sentimentText[sentiment as '0' | '1' | '2']}]

@@ -53,11 +53,11 @@ function ChatBox({ message, transformedMessage }: { message: ChatMessage, transf
                     color: label?.checked ? label.color : 'inherit',
                   }}
                 >
-                  {label?.checked ? ` ${sentence} (${tag})` : sentence}
+                  {sentence} {label?.checked && `(${tag}) `}
                 </span>
               );
             })
-          : <ReactMarkdown>{message.content}</ReactMarkdown> // For AI messages or when no PII is detected
+          : <ReactMarkdown>{message.content}</ReactMarkdown> // Render without PII highlighting if no transformation is available
         }
       </ChatBoxContent>
     </ChatBoxContainer>
@@ -164,7 +164,7 @@ export default function Chat(props: any) {
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [textInput, setTextInput] = useState('');
-  const [transformedMessage, setTransformedMessage] = useState<string[][]>([]); // For PII-detected colored messages
+  const [transformedMessages, setTransformedMessages] = useState<Record<number, string[][]>>({}); // Store transformed messages for both human and AI
   const [aiLoading, setAiLoading] = useState(false);
   const scrollableAreaRef = useRef<HTMLElement | null>(null);
 
@@ -174,53 +174,42 @@ export default function Chat(props: any) {
 
   const performPIIDetection = (messageContent: string): Promise<string[][]> => {
     if (!modelService) {
-      // If modelService is undefined, return an empty array as a resolved promise
       return Promise.resolve([]);
     }
-  
+
     return modelService.piiDetect(messageContent)
       .then((result) => {
         const { tokens, predicted_tags } = result;
         let transformed: string[][] = [];
         let currentSentence = '';
         let currentTag = '';
-  
+
         for (let i = 0; i < tokens.length; i++) {
           const word = tokens[i];
           const tag = predicted_tags[i] && predicted_tags[i][0];
-  
-          // If the tag changes, push the current sentence with its tag to the result
+
           if (tag !== currentTag) {
             if (currentSentence) {
               transformed.push([currentSentence.trim(), currentTag]);
             }
-            // Start a new sentence with the current word and update the tag
             currentSentence = word;
             currentTag = tag;
           } else {
-            // Continue accumulating the current sentence with a space between words
-            if (currentSentence) {
-              currentSentence += ' ';
-            }
-            currentSentence += word;
+            currentSentence += ` ${word}`;
           }
         }
-  
-        // Push the last sentence and tag if it exists
+
         if (currentSentence) {
           transformed.push([currentSentence.trim(), currentTag]);
         }
-  
-        return transformed;  // Return the PII-detected message
+
+        return transformed;
       })
       .catch((error) => {
         console.error('Error detecting PII:', error);
-        return [];  // Return an empty array in case of an error
+        return [];
       });
-  };  
-  
-  
-  
+  };
 
   const handleEnterPress = async (e: any) => {
     if (e.keyCode === 13 && e.shiftKey === false) {
@@ -229,20 +218,32 @@ export default function Chat(props: any) {
 
       const lastTextInput = textInput;
       const lastChatHistory = chatHistory;
+      const currentIndex = chatHistory.length;
 
-      // Add the human's message to chat history immediately
       setAiLoading(true);
       setChatHistory((history) => [...history, { sender: 'human', content: textInput }]);
       setTextInput('');
 
       // Perform PII detection on the human's message
-      const transformed = await performPIIDetection(lastTextInput);
-      setTransformedMessage(transformed); // Set the transformed message with PII detection
+      const humanTransformed = await performPIIDetection(lastTextInput);
+      setTransformedMessages((prev) => ({
+        ...prev,
+        [currentIndex]: humanTransformed, // Store human's PII-detected message
+      }));
 
       // Simulate AI response
       modelService?.chat(lastTextInput)
-        .then(({ response }) => {
+        .then(async ({ response }) => {
+          const aiIndex = chatHistory.length + 1;
           setChatHistory((history) => [...history, { sender: 'AI', content: response }]);
+
+          // Perform PII detection on the AI's response
+          const aiTransformed = await performPIIDetection(response);
+          setTransformedMessages((prev) => ({
+            ...prev,
+            [aiIndex]: aiTransformed, // Store AI's PII-detected message
+          }));
+
           setAiLoading(false);
         })
         .catch((error) => {
@@ -263,7 +264,7 @@ export default function Chat(props: any) {
               <ChatBox
                 key={i}
                 message={message}
-                transformedMessage={message.sender === 'human' ? transformedMessage : []} // Pass PII-transformed message for human
+                transformedMessage={transformedMessages[i]} // Pass PII-transformed message for human and AI
               />
             ))}
             {aiLoading && <AILoadingChatBox />}

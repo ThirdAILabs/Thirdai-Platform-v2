@@ -38,12 +38,27 @@ const TypingAnimationContainer = styled.section`
   padding: ${padding.card} 0 7px 0;
 `;
 
-function ChatBox({ message }: { message: ChatMessage }) {
+function ChatBox({ message, transformedMessage }: { message: ChatMessage, transformedMessage?: string[][] }) {
   return (
     <ChatBoxContainer>
       <ChatBoxSender>{message.sender === 'human' ? '👋 You' : '🤖 AI'}</ChatBoxSender>
       <ChatBoxContent>
-        <ReactMarkdown>{message.content}</ReactMarkdown>
+        {transformedMessage && transformedMessage.length > 0
+          ? transformedMessage.map(([sentence, tag], index) => {
+              const label = labels.find((label) => label.name === tag);
+              return (
+                <span
+                  key={index}
+                  style={{
+                    color: label?.checked ? label.color : 'inherit',
+                  }}
+                >
+                  {label?.checked ? ` ${sentence} (${tag})` : sentence}
+                </span>
+              );
+            })
+          : <ReactMarkdown>{message.content}</ReactMarkdown> // For AI messages or when no PII is detected
+        }
       </ChatBoxContent>
     </ChatBoxContainer>
   );
@@ -98,11 +113,58 @@ const Placeholder = styled.section`
   height: 80%;
 `;
 
+const labels = [
+  {
+    id: 1,
+    name: 'PHONENUMBER',
+    color: 'blue',
+    amount: '217,323',
+    checked: true,
+    description:
+      'The format of a US phone number is (XXX) XXX-XXXX, where "X" represents a digit from 0 to 9. It consists of a three-digit area code, followed by a three-digit exchange code, and a four-digit line number.',
+  },
+  {
+    id: 2,
+    name: 'SSN',
+    color: 'orange',
+    amount: '8,979',
+    checked: true,
+    description:
+      'The format of a US Social Security Number (SSN) is XXX-XX-XXXX, where "X" represents a digit from 0 to 9. It consists of three parts: area, group, and serial numbers.',
+  },
+  {
+    id: 3,
+    name: 'CREDITCARDNUMBER',
+    color: 'red',
+    amount: '13,272',
+    checked: true,
+    description:
+      'A US credit card number is a 16-digit number typically formatted as XXXX XXXX XXXX XXXX, where "X" represents a digit from 0 to 9. It includes the Issuer Identifier, account number, and a check digit.',
+  },
+  {
+    id: 4,
+    name: 'LOCATION',
+    color: 'green',
+    amount: '2,576,904',
+    checked: true,
+    description: `A US address format includes the recipient's name, street address (number and name), city, state abbreviation, and ZIP code, for example: John Doe 123 Main St Springfield, IL 62701`,
+  },
+  {
+    id: 5,
+    name: 'NAME',
+    color: 'purple',
+    amount: '1,758,131',
+    checked: true,
+    description: `An English name format typically consists of a first name, middle name(s), and last name (surname), for example: John Michael Smith. Titles and suffixes, like Mr. or Jr., may also be included.`,
+  },
+];
+
 export default function Chat(props: any) {
   const modelService = useContext<ModelService | null>(ModelServiceContext);
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [textInput, setTextInput] = useState('');
+  const [transformedMessage, setTransformedMessage] = useState<string[][]>([]); // For PII-detected colored messages
   const [aiLoading, setAiLoading] = useState(false);
   const scrollableAreaRef = useRef<HTMLElement | null>(null);
 
@@ -110,38 +172,87 @@ export default function Chat(props: any) {
     modelService?.getChatHistory().then(setChatHistory);
   }, []);
 
-  function onEnterPress(e: any) {
+  const performPIIDetection = (messageContent: string): Promise<string[][]> => {
+    if (!modelService) {
+      // If modelService is undefined, return an empty array as a resolved promise
+      return Promise.resolve([]);
+    }
+  
+    return modelService.piiDetect(messageContent)
+      .then((result) => {
+        const { tokens, predicted_tags } = result;
+        let transformed: string[][] = [];
+        let currentSentence = '';
+        let currentTag = '';
+  
+        for (let i = 0; i < tokens.length; i++) {
+          const word = tokens[i];
+          const tag = predicted_tags[i] && predicted_tags[i][0];
+  
+          // If the tag changes, push the current sentence with its tag to the result
+          if (tag !== currentTag) {
+            if (currentSentence) {
+              transformed.push([currentSentence.trim(), currentTag]);
+            }
+            // Start a new sentence with the current word and update the tag
+            currentSentence = word;
+            currentTag = tag;
+          } else {
+            // Continue accumulating the current sentence with a space between words
+            if (currentSentence) {
+              currentSentence += ' ';
+            }
+            currentSentence += word;
+          }
+        }
+  
+        // Push the last sentence and tag if it exists
+        if (currentSentence) {
+          transformed.push([currentSentence.trim(), currentTag]);
+        }
+  
+        return transformed;  // Return the PII-detected message
+      })
+      .catch((error) => {
+        console.error('Error detecting PII:', error);
+        return [];  // Return an empty array in case of an error
+      });
+  };  
+  
+  
+  
+
+  const handleEnterPress = async (e: any) => {
     if (e.keyCode === 13 && e.shiftKey === false) {
       e.preventDefault();
-      if (aiLoading) {
-        return;
-      }
-      if (!textInput.trim()) {
-        return;
-      }
-      console.log(scrollableAreaRef.current?.scrollTop);
-      if (scrollableAreaRef.current) {
-        scrollableAreaRef.current.scrollTop = 0;
-      }
+      if (aiLoading || !textInput.trim()) return;
+
       const lastTextInput = textInput;
       const lastChatHistory = chatHistory;
+
+      // Add the human's message to chat history immediately
       setAiLoading(true);
       setChatHistory((history) => [...history, { sender: 'human', content: textInput }]);
       setTextInput('');
-      modelService
-        ?.chat(textInput)
+
+      // Perform PII detection on the human's message
+      const transformed = await performPIIDetection(lastTextInput);
+      setTransformedMessage(transformed); // Set the transformed message with PII detection
+
+      // Simulate AI response
+      modelService?.chat(lastTextInput)
         .then(({ response }) => {
           setChatHistory((history) => [...history, { sender: 'AI', content: response }]);
           setAiLoading(false);
         })
-        .catch((_) => {
+        .catch((error) => {
           alert('Failed to send chat. Please try again.');
           setChatHistory(lastChatHistory);
           setTextInput(lastTextInput);
           setAiLoading(false);
         });
     }
-  }
+  };
 
   return (
     <ChatContainer>
@@ -149,7 +260,11 @@ export default function Chat(props: any) {
         {chatHistory.length ? (
           <AllChatBoxes>
             {chatHistory.map((message, i) => (
-              <ChatBox key={i} message={message} />
+              <ChatBox
+                key={i}
+                message={message}
+                transformedMessage={message.sender === 'human' ? transformedMessage : []} // Pass PII-transformed message for human
+              />
             ))}
             {aiLoading && <AILoadingChatBox />}
           </AllChatBoxes>
@@ -159,7 +274,7 @@ export default function Chat(props: any) {
       </ScrollableArea>
       <ChatBar
         placeholder="Ask anything..."
-        onKeyDown={onEnterPress}
+        onKeyDown={handleEnterPress}
         value={textInput}
         onChange={(e) => setTextInput(e.target.value)}
       />

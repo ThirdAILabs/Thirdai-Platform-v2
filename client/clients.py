@@ -395,9 +395,10 @@ class LLMClient:
             },
         )
 
+        print(response.content)
+
         if response.status_code != 200:
             print("Network response was not ok")
-            print(response)
             raise
 
         return response.text

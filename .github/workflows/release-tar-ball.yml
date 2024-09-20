@@ -92,7 +92,7 @@ jobs:
           docker save -o docker_images/llama.cpp_server.tar thirdaiplatform.azurecr.io/llama.cpp:server
 
           # List of images to pull and save with the latest tag
-          images=(thirdai_platform_local_regis try data_generation_job_local_registry train_job_local_registry node_discovery_local_registry deployment_job_local_registry llm_dispatch_job_local_registry frontend_local_registry llm_cache_job_local_registry)
+          images=(thirdai_platform_local_registry data_generation_job_local_registry train_job_local_registry node_discovery_local_registry deployment_job_local_registry llm_dispatch_job_local_registry frontend_local_registry llm_cache_job_local_registry)
 
           for image in "${images[@]}"
           do

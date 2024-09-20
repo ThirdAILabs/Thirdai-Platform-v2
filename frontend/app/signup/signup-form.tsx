@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Button from '@mui/material/Button';
+import { Button, TextField } from '@mui/material';
 import { EyeIcon, EyeOffIcon } from '@heroicons/react/solid';
 import { userRegister } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
@@ -35,26 +35,28 @@ export default function SignupForm() {
   return (
     <form onSubmit={handleSubmit} className="w-full">
       <div className="mb-4">
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+        {/* <label htmlFor="email" className="block text-sm font-medium text-gray-700">
           Email
-        </label>
-        <input
+        </label> */}
+        <TextField
           type="email"
           id="email"
-          className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:outline-none focus:border-transparent"
+          className="w-full"
+          placeholder='Email'
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
       </div>
       <div className="mb-4 relative">
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+        {/* <label htmlFor="password" className="block text-sm font-medium text-gray-700">
           Password
-        </label>
-        <input
+        </label> */}
+        <TextField
           type={showPassword ? 'text' : 'password'}
           id="password"
-          className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md pr-10 focus:outline-none focus:border-transparent"
+          className="w-full"
+          placeholder='Password'
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -72,13 +74,14 @@ export default function SignupForm() {
         </button>
       </div>
       <div className="mb-4">
-        <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+        {/* <label htmlFor="username" className="block text-sm font-medium text-gray-700">
           Username
-        </label>
-        <input
+        </label> */}
+        <TextField
           type="text"
           id="username"
-          className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:outline-none focus:border-transparent"
+          className="w-full"
+          placeholder='Username'
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required

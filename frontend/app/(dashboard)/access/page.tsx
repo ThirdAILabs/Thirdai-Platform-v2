@@ -22,6 +22,8 @@ import {
 import { useContext } from 'react';
 import { UserContext } from '../../user_wrapper';
 import AutocompleteInput from '@/components/ui/AutocompleteInput';
+import { TextField } from '@mui/material';
+import TeamPopOver from '../../../components/ui/TeamPopOver'
 
 // Define types for the models, teams, and users
 type Model = {
@@ -662,6 +664,7 @@ export default function AccessPage() {
                             <option value="Protected Model">Protected Model</option>
                             <option value="Public Model">Public Model</option>
                           </select>
+
                           {selectedType === 'Protected Model' && (
                             <select
                               value={selectedTeam || ''}
@@ -797,12 +800,12 @@ export default function AccessPage() {
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
               <h4 className="text-lg font-semibold text-gray-800">Create New Team</h4>
               <div className="grid grid-cols-1 gap-4 mt-4">
-                <input
+                <TextField
                   type="text"
                   placeholder="Team Name"
                   value={newTeamName}
                   onChange={(e) => setNewTeamName(e.target.value)}
-                  className="border border-gray-300 rounded px-4 py-2"
+                // className="border border-gray-300 rounded px-4 py-2"
                 />
                 <AutocompleteInput
                   key={newTeamAdmin} // Use a dynamic key to force re-render
@@ -850,6 +853,10 @@ export default function AccessPage() {
                     </option>
                   ))}
                 </select>
+                {/* <TeamPopOver
+                  selectedTeam={selectedTeamForAdd}
+                  setSelectedTeam={setSelectedTeamForAdd}
+                /> */}
                 <AutocompleteInput
                   key={selectedTeamForAdd + newMember} // Use a key to force re-render
                   value={newMember}
@@ -1028,7 +1035,7 @@ export default function AccessPage() {
             </div>
             <div className="mt-4">
               <label className="block text-gray-700">New OpenAI API Key:</label>
-              <input
+              <TextField
                 type="text"
                 placeholder="sk-..."
                 value={newApiKey}

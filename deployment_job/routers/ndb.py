@@ -46,6 +46,14 @@ ndb_implicit_feedback_metric = Summary("ndb_implicit_feedback", "NDB implicit fe
 ndb_insert_metric = Summary("ndb_insert", "NDB insertions")
 ndb_delete_metric = Summary("ndb_delete", "NDB deletions")
 
+ndb_reference_rank_0 = Counter("ndb_reference_rank_0", "Number of clicks on reference rank 0")
+ndb_reference_rank_1 = Counter("ndb_reference_rank_1", "Number of clicks on reference rank 1")
+ndb_reference_rank_2 = Counter("ndb_reference_rank_2", "Number of clicks on reference rank 2")
+ndb_reference_rank_3 = Counter("ndb_reference_rank_3", "Number of clicks on reference rank 3")
+ndb_reference_rank_4 = Counter("ndb_reference_rank_4", "Number of clicks on reference rank 4")
+ndb_reference_rank_gt_4 = Counter("ndb_reference_rank_gt_4", "Number of clicks on reference rank greater than 4")
+
+
 ndb_top_k_selections = Counter(
     "ndb_top_k_selections", "Number of top-k results selected by user."
 )
@@ -326,6 +334,21 @@ def implicit_feedback(
             )
         )
     )
+
+    # Increment appropriate counter based on reference rank
+    if feedback.reference_rank == 0:
+        print('logging 0')
+        ndb_reference_rank_0.inc()
+    elif feedback.reference_rank == 1:
+        ndb_reference_rank_1.inc()
+    elif feedback.reference_rank == 2:
+        ndb_reference_rank_2.inc()
+    elif feedback.reference_rank == 3:
+        ndb_reference_rank_3.inc()
+    elif feedback.reference_rank == 4:
+        ndb_reference_rank_4.inc()
+    elif feedback.reference_rank > 4:
+        ndb_reference_rank_gt_4.inc()
 
     if feedback.reference_rank is not None and feedback.reference_rank < 5:
         ndb_top_k_selections.inc()

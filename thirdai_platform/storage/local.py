@@ -203,3 +203,8 @@ class LocalStorage(StorageInterface):
         checkpoint_dir = os.path.join(self.root, str(model_id))
         if os.path.exists(checkpoint_dir):
             shutil.rmtree(checkpoint_dir)
+
+    def logs(self, model_id: str):
+        model_dir = os.path.join(self.root, f"models/{model_id}")
+        if os.path.exists(model_dir):
+            pass

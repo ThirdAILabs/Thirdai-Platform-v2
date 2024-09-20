@@ -1043,3 +1043,17 @@ def delete_model(
     return response(
         status_code=status.HTTP_200_OK, message="Successfully deleted the model."
     )
+
+
+@model_router.get("/logs", dependencies=[Depends(is_model_owner)])
+def get_model_logs(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )

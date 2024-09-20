@@ -5,7 +5,7 @@ import { Box } from '@mui/material';
 // ----------------------------------------------------------------------
 
 BadgeDot.propTypes = {
-  sx: PropTypes.object,
+  sx: PropTypes.object
 };
 
 export default function BadgeDot({ sx, ...other }) {
@@ -19,7 +19,7 @@ export default function BadgeDot({ sx, ...other }) {
         borderRadius: '50%',
         position: 'absolute',
         bgcolor: 'error.main',
-        ...sx,
+        ...sx
       }}
       {...other}
     />

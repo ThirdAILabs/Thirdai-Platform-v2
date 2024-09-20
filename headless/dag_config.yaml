@@ -36,7 +36,7 @@ NDB:
       results: check_search
       generation: variable
       on_prem: variable
-  
+
   undeploy:
     dependencies: [check_deployment_ndb]
     params:
@@ -57,7 +57,7 @@ NDB:
     dependencies: [check_unsupervised]
     params:
       model: check_unsupervised
-  
+
   deploy_ndb_2:
     function: deploy_ndb
     dependencies: [await_train_2]
@@ -84,7 +84,7 @@ NDB:
       deployment: deploy_ndb_2
       config: variable
       results: check_search_2
-  
+
   undeploy_2:
     function: undeploy
     dependencies: [check_deployment_ndb_2]
@@ -111,7 +111,7 @@ NDB:
     dependencies: [undeploy]
     params:
       model: check_unsupervised_supervised
-  
+
   delete_model_unsupervised:
     function: delete_model
     dependencies: [undeploy_2]
@@ -136,7 +136,7 @@ UDT:
     dependencies: [check_udt_train]
     params:
       model: check_udt_train
-  
+
   udt_deploy:
     dependencies: [await_train]
     params:
@@ -164,7 +164,7 @@ UDT:
       model: check_udt_train
 
 UDT_DATAGEN:
-  config: [token_with_datagen, text_with_datagen ]
+  config: [token_with_datagen, text_with_datagen]
   check_udt_train_with_datagen:
     dependencies: []
     params:
@@ -175,7 +175,7 @@ UDT_DATAGEN:
     dependencies: [check_udt_train_with_datagen]
     params:
       model: check_udt_train_with_datagen
-  
+
   udt_deploy:
     dependencies: [await_train]
     params:
@@ -197,7 +197,7 @@ UDT_DATAGEN:
     dependencies: [check_search]
     params:
       deployment: udt_deploy
-  
+
   delete_model:
     dependencies: [undeploy]
     params:
@@ -223,7 +223,7 @@ GlobalAdmin:
     dependencies: [test_add_key]
     params:
       key: "AWS_ACCESS_TOKEN"
-  
+
   test_delete_user:
     dependencies: [test_get_key]
     params:
@@ -239,7 +239,7 @@ GlobalAdmin:
     params:
       user_email: ga_test_team_admin@mail.com
       team_id: test_create_team
-  
+
   test_add_user_to_team:
     dependencies: [test_assign_team_admin]
     params:
@@ -354,7 +354,7 @@ Workflow:
       workflow_id: create_workflow
       model: check_unsupervised_supervised
       component: search
-  
+
   add_udt_model:
     function: add_models
     dependencies: [check_udt_train]

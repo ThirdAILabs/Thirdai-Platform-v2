@@ -24,13 +24,19 @@ export async function POST(req: NextRequest) {
   const { newApiKey } = await req.json();
 
   if (!newApiKey || !newApiKey.startsWith('sk-')) {
-    return NextResponse.json({ error: 'Invalid API Key format' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Invalid API Key format' },
+      { status: 400 }
+    );
   }
 
   try {
     await updateEnvFile(newApiKey);
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to update the .env file' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to update the .env file' },
+      { status: 500 }
+    );
   }
 }

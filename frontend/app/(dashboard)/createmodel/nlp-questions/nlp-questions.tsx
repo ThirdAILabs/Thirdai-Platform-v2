@@ -37,9 +37,9 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
       const response = await fetch('/endpoints/which-nlp-use-case', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question })
       });
 
       if (!response.ok) {
@@ -60,12 +60,15 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
     <div style={{ width: '100%' }}>
       {!confirmedAnswer && !answer && (
         <>
-          <span className="block text-lg font-semibold">NLP task assistant</span>
+          <span className="block text-lg font-semibold">
+            NLP task assistant
+          </span>
           <CardDescription>
             Say &quot;I want to analyze my customers&apos; reviews&quot;
           </CardDescription>
           <CardDescription>
-            or &quot;I want to analyze the individual tokens within a report document&quot;
+            or &quot;I want to analyze the individual tokens within a report
+            document&quot;
           </CardDescription>
           <div
             style={{
@@ -73,7 +76,7 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
               flexDirection: 'row',
               gap: '20px',
               justifyContent: 'space-between',
-              margin: '20px 0',
+              margin: '20px 0'
             }}
           >
             <Input
@@ -100,7 +103,10 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
       )}
       {!confirmedAnswer && answer && (
         <div style={{ marginTop: '20px' }}>
-          <span className="block text-lg font-semibold" style={{ marginBottom: '10px' }}>
+          <span
+            className="block text-lg font-semibold"
+            style={{ marginBottom: '10px' }}
+          >
             Our recommendation
           </span>
           <CardDescription>{answer}</CardDescription>
@@ -111,13 +117,20 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
               display: 'flex',
               flexDirection: 'row',
               justifyContent: 'space-between',
-              gap: '10px',
+              gap: '10px'
             }}
           >
-            <Button style={{ width: '100%' }} variant="outline" onClick={() => setAnswer('')}>
+            <Button
+              style={{ width: '100%' }}
+              variant="outline"
+              onClick={() => setAnswer('')}
+            >
               Retry
             </Button>
-            <Button style={{ width: '100%' }} onClick={() => setConfirmedAnswer(true)}>
+            <Button
+              style={{ width: '100%' }}
+              onClick={() => setConfirmedAnswer(true)}
+            >
               Continue
             </Button>
           </div>
@@ -126,7 +139,11 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
       {confirmedAnswer &&
         answer &&
         (answer.includes('Sentence classification') ? (
-          <SCQQuestions workflowNames={workflowNames} question={question} answer={answer} />
+          <SCQQuestions
+            workflowNames={workflowNames}
+            question={question}
+            answer={answer}
+          />
         ) : answer.includes('Token classification') ? (
           <NERQuestions workflowNames={workflowNames} modelGoal={question} />
         ) : null)}

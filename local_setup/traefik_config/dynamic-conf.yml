@@ -14,7 +14,7 @@ http:
       loadBalancer:
         servers:
           - url: "http://localhost:8000"
-    
+
     frontend-service:
       loadBalancer:
         servers:

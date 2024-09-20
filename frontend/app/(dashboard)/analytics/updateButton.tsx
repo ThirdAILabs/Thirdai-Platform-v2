@@ -1,7 +1,12 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { retrain_ndb, delete_models, add_models_to_workflow, stop_workflow } from '@/lib/backend';
+import {
+  retrain_ndb,
+  delete_models,
+  add_models_to_workflow,
+  stop_workflow
+} from '@/lib/backend';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
@@ -50,7 +55,9 @@ export default function UpdateButton() {
 
     // Validate required parameters
     if (!workflowId || !username || !model_name || !old_model_id) {
-      setError('Missing required parameters: id, username, model_name, or old_model_id.');
+      setError(
+        'Missing required parameters: id, username, model_name, or old_model_id.'
+      );
       return;
     }
 
@@ -60,7 +67,7 @@ export default function UpdateButton() {
     // Define job options as per your requirements
     const job_options = {
       allocation_cores: 4, // Example value
-      allocation_memory: 8192, // Example value in MB
+      allocation_memory: 8192 // Example value in MB
       // Add other JobOptions fields as necessary
     };
 
@@ -80,7 +87,7 @@ export default function UpdateButton() {
       const retrainParams = {
         model_name: new_model_name,
         base_model_identifier: base_model_identifier,
-        job_options: job_options,
+        job_options: job_options
       };
       const retrainData = await retrain_ndb(retrainParams);
       console.log('Retrain initiated successfully:', retrainData);
@@ -91,7 +98,7 @@ export default function UpdateButton() {
       const deleteParams = {
         workflow_id: workflowId,
         model_ids: [old_model_id],
-        components: ['search'], // Adjust components as necessary
+        components: ['search'] // Adjust components as necessary
       };
       const deleteData = await delete_models(deleteParams);
       console.log('Old model deleted successfully:', deleteData);
@@ -100,7 +107,7 @@ export default function UpdateButton() {
       const addParams = {
         workflowId: workflowId,
         modelIdentifiers: [new_model_id],
-        components: ['search'], // Adjust components as necessary
+        components: ['search'] // Adjust components as necessary
       };
       const addData = await add_models_to_workflow(addParams);
       console.log('New model added successfully:', addData);
@@ -125,7 +132,12 @@ export default function UpdateButton() {
 
   return (
     <div
-      style={{ display: 'flex', justifyContent: 'center', marginTop: '20px', marginBottom: '20vh' }}
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        marginTop: '20px',
+        marginBottom: '20vh'
+      }}
     >
       <Button onClick={handleUpdate} disabled={loading}>
         {loading ? 'Updating...' : 'Update model with feedback'}

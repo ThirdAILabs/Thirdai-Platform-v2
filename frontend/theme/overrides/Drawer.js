@@ -14,11 +14,11 @@ export default function Drawer(theme) {
               boxShadow: `-40px 40px 80px -8px ${alpha(
                 isLight ? theme.palette.grey[500] : theme.palette.common.black,
                 0.24
-              )}`,
-            },
-          }),
-        }),
-      },
-    },
+              )}`
+            }
+          })
+        })
+      }
+    }
   };
 }

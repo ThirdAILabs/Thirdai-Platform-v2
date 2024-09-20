@@ -9,7 +9,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuTrigger,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
@@ -20,22 +20,34 @@ import {
   stopDeploy,
   getAccessToken,
   deploymentBaseUrl,
-  listDeployments,
+  listDeployments
 } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
-export function Model({ model, pending }: { model: SelectModel; pending?: boolean }) {
+export function Model({
+  model,
+  pending
+}: {
+  model: SelectModel;
+  pending?: boolean;
+}) {
   const router = useRouter();
   const [modelIdentifier, setModelIdentifier] = useState<string>('');
-  const [deployStatus, setDeployStatus] = useState<string>(pending ? 'in queue' : '');
+  const [deployStatus, setDeployStatus] = useState<string>(
+    pending ? 'in queue' : ''
+  );
   const [deploymentId, setDeploymentId] = useState<string | null>(null);
-  const [deploymentIdentifier, setDeploymentIdentifier] = useState<string | null>(null);
+  const [deploymentIdentifier, setDeploymentIdentifier] = useState<
+    string | null
+  >(null);
   const [nerRAGEndpoint, setNerRAGEndpoint] = useState<string | null>(null);
 
   useEffect(() => {
     const username = model.username;
     const modelIdentifier = `${username}/${model.model_name}`;
-    setDeploymentIdentifier(`${modelIdentifier}:${username}/${model.model_name}`);
+    setDeploymentIdentifier(
+      `${modelIdentifier}:${username}/${model.model_name}`
+    );
     setModelIdentifier(modelIdentifier);
   }, []);
 
@@ -49,11 +61,14 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
           if (ndbModelId) {
             getDeployStatus({
               deployment_identifier: `${ndbModelId}:${ndbModelId}`,
-              model_identifier: modelIdentifier,
+              model_identifier: modelIdentifier
             })
               .then((response) => {
                 // console.log('Deployment status response:', response);
-                if (response.data.model_id && response.data.deploy_status === 'complete') {
+                if (
+                  response.data.model_id &&
+                  response.data.deploy_status === 'complete'
+                ) {
                   // console.log('The NDB model is already deployed, and deployment ID is: ', response.data.model_id)
                   setDeploymentId(response.data.model_id);
 
@@ -63,11 +78,14 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
                   } else {
                     getDeployStatus({
                       deployment_identifier: `${tokenModelId}:${tokenModelId}`,
-                      model_identifier: modelIdentifier,
+                      model_identifier: modelIdentifier
                     })
                       .then((response) => {
                         // console.log('Deployment status response:', response);
-                        if (response.data.model_id && response.data.deploy_status === 'complete') {
+                        if (
+                          response.data.model_id &&
+                          response.data.deploy_status === 'complete'
+                        ) {
                           // console.log('The NER model is already deployed, and deployment ID is: ', response.data.model_id)
                           setDeployStatus('Deployed');
 
@@ -81,10 +99,15 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
                               }
                             })
                             .catch((error) => {
-                              console.error('Error listing deployments:', error);
+                              console.error(
+                                'Error listing deployments:',
+                                error
+                              );
                               alert('Error listing deployments:' + error);
                             });
-                        } else if (response.data.deploy_status === 'in_progress') {
+                        } else if (
+                          response.data.deploy_status === 'in_progress'
+                        ) {
                           // console.log('The NER model is still deploying')
                           setDeployStatus('Deploying');
                         } else {
@@ -97,7 +120,10 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
                           // console.log('The NER model is not yet deployed and ready to deploy');
                           setDeployStatus('Ready to Deploy');
                         } else {
-                          console.error('Error fetching deployment status:', error);
+                          console.error(
+                            'Error fetching deployment status:',
+                            error
+                          );
                           alert('Error fetching deployment status:' + error);
                         }
                       });
@@ -123,11 +149,14 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
         } else if (model.type === 'ndb' || model.type === 'udt') {
           getDeployStatus({
             deployment_identifier: deploymentIdentifier,
-            model_identifier: modelIdentifier,
+            model_identifier: modelIdentifier
           })
             .then((response) => {
               console.log('Deployment status response:', response);
-              if (response.data.model_id && response.data.deploy_status === 'complete') {
+              if (
+                response.data.model_id &&
+                response.data.deploy_status === 'complete'
+              ) {
                 setDeployStatus('Deployed');
                 setDeploymentId(response.data.model_id);
               } else if (response.data.deploy_status === 'in_progress') {
@@ -204,11 +233,14 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
 
       getDeployStatus({
         deployment_identifier: `${tokenModelId}:${tokenModelId}`,
-        model_identifier: modelIdentifier,
+        model_identifier: modelIdentifier
       })
         .then((response) => {
           console.log('Deployment status response:', response);
-          if (response.data.model_id && response.data.deploy_status === 'complete') {
+          if (
+            response.data.model_id &&
+            response.data.deploy_status === 'complete'
+          ) {
             console.log(
               'The NER model is already deployed, and deployment ID is: ',
               response.data.model_id
@@ -232,10 +264,15 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
             console.log('The NER model is still deploying');
             setDeployStatus('Deploying');
           } else {
-            console.log('The NER model is not yet deployed and ready to deploy');
+            console.log(
+              'The NER model is not yet deployed and ready to deploy'
+            );
             setDeployStatus('Ready to Deploy');
 
-            deployModel({ deployment_name: modelName, model_identifier: tokenModelId })
+            deployModel({
+              deployment_name: modelName,
+              model_identifier: tokenModelId
+            })
               .then((response) => {
                 if (response.status === 'complete') {
                   console.log('deployment success');
@@ -251,10 +288,15 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
         })
         .catch((error) => {
           if (error.response && error.response.status === 400) {
-            console.log('The NER model is not yet deployed and ready to deploy');
+            console.log(
+              'The NER model is not yet deployed and ready to deploy'
+            );
             setDeployStatus('Deploying');
 
-            deployModel({ deployment_name: modelName, model_identifier: tokenModelId })
+            deployModel({
+              deployment_name: modelName,
+              model_identifier: tokenModelId
+            })
               .then((response) => {
                 if (response.status === 'complete') {
                   console.log('deployment success');
@@ -297,7 +339,7 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
           ? new Date(model.publish_date).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'long',
-              day: 'numeric',
+              day: 'numeric'
             })
           : 'N/A'}
       </TableCell>
@@ -340,7 +382,7 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
               deployModel({
                 deployment_name: model.model_name,
                 model_identifier: modelIdentifier,
-                use_llm_guardrail: true,
+                use_llm_guardrail: true
               })
                 .then((response) => {
                   if (response.status === 'complete') {
@@ -350,7 +392,9 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
                     setDeploymentId(response.data.model_id);
 
                     const modelIdentifier = `${username}/${model.model_name}`;
-                    setDeploymentIdentifier(`${modelIdentifier}:${username}/${model.model_name}`);
+                    setDeploymentIdentifier(
+                      `${modelIdentifier}:${username}/${model.model_name}`
+                    );
                   }
                 })
                 .catch((error) => {
@@ -370,11 +414,14 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
                 // Check if ndb is deployed, if not deploy it
                 getDeployStatus({
                   deployment_identifier: `${ndbModelId}:${ndbModelId}`,
-                  model_identifier: modelIdentifier,
+                  model_identifier: modelIdentifier
                 })
                   .then((response) => {
                     console.log('Deployment status response:', response);
-                    if (response.data.model_id && response.data.deploy_status === 'complete') {
+                    if (
+                      response.data.model_id &&
+                      response.data.deploy_status === 'complete'
+                    ) {
                       console.log(
                         'The NDB model is already deployed, and deployment ID is: ',
                         response.data.model_id
@@ -385,7 +432,9 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
                     } else if (response.data.deploy_status === 'in_progress') {
                       console.log('The NDB model is still deploying');
                     } else {
-                      console.log('The NDB model is not yet deployed and ready to deploy');
+                      console.log(
+                        'The NDB model is not yet deployed and ready to deploy'
+                      );
 
                       const [username, modelName] = ndbModelId.split('/');
 
@@ -397,13 +446,13 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
                         deployment_name: modelName,
                         model_identifier: ndbModelId,
                         use_llm_guardrail: tokenModelId ? true : false,
-                        token_model_identifier: tokenModelId,
+                        token_model_identifier: tokenModelId
                       });
                       deployModel({
                         deployment_name: modelName,
                         model_identifier: ndbModelId,
                         use_llm_guardrail: tokenModelId ? true : false,
-                        token_model_identifier: tokenModelId,
+                        token_model_identifier: tokenModelId
                       })
                         .then((response) => {
                           if (response.status === 'complete') {
@@ -421,7 +470,9 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
                   })
                   .catch((error) => {
                     if (error.response && error.response.status === 400) {
-                      console.log('The NDB model is not yet deployed and ready to deploy');
+                      console.log(
+                        'The NDB model is not yet deployed and ready to deploy'
+                      );
 
                       const [username, modelName] = ndbModelId.split('/');
 
@@ -433,14 +484,14 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
                         deployment_name: modelName,
                         model_identifier: ndbModelId,
                         use_llm_guardrail: tokenModelId ? true : false,
-                        token_model_identifier: tokenModelId,
+                        token_model_identifier: tokenModelId
                       });
 
                       deployModel({
                         deployment_name: modelName,
                         model_identifier: ndbModelId,
                         use_llm_guardrail: tokenModelId ? true : false,
-                        token_model_identifier: tokenModelId,
+                        token_model_identifier: tokenModelId
                       })
                         .then((response) => {
                           if (response.status === 'complete') {
@@ -502,11 +553,14 @@ export function Model({ model, pending }: { model: SelectModel; pending?: boolea
                       onClick={() => {
                         stopDeploy({
                           deployment_identifier: deploymentIdentifier,
-                          model_identifier: modelIdentifier,
+                          model_identifier: modelIdentifier
                         })
                           .then((response) => {
                             // Handle success, e.g., display a message or update the UI
-                            console.log('Deployment stopped successfully:', response);
+                            console.log(
+                              'Deployment stopped successfully:',
+                              response
+                            );
                             // Add any additional success handling logic here
                             if (response.status === 'complete') {
                               setDeployStatus('Read to Deploy');

@@ -8,14 +8,14 @@ concurrency:
 
 env:
   PRODUCT_VERSION: "latest"
-  
+
 # Controls when the workflow will run
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   merge_group:
     types: [checks_requested]
 
@@ -26,7 +26,7 @@ jobs:
   backend-unit-tests:
     runs-on: ubuntu-latest
     services:
-      # We need postgres because generate_random_uuid does not work with sqlite since 
+      # We need postgres because generate_random_uuid does not work with sqlite since
       # it requires pg-crypto. Since these tests are just testing individual backend
       # endpoints, they do not require nomad, traefik, vault, etc. These are available
       # in the integration tests.
@@ -79,51 +79,51 @@ jobs:
   train-job-unit-tests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: install dependencies
-      run: |
-        pip3 install -r train_job/requirements.txt
-        pip3 install pytest
-        pip3 install pyopenssl --upgrade
+      - name: install dependencies
+        run: |
+          pip3 install -r train_job/requirements.txt
+          pip3 install pytest
+          pip3 install pyopenssl --upgrade
 
-    - name: run unit tests
-      run: |
-        python3 -m pytest ./train_job -v
-  
+      - name: run unit tests
+        run: |
+          python3 -m pytest ./train_job -v
+
   llm-gen-unit-tests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: install dependencies
-      run: |
-        pip3 install -r llm_dispatch_job/requirements.txt
-        pip3 install httpx
-        pip3 install pytest
+      - name: install dependencies
+        run: |
+          pip3 install -r llm_dispatch_job/requirements.txt
+          pip3 install httpx
+          pip3 install pytest
 
-    - name: run unit tests
-      run: |
-        python3 -m pytest ./llm_dispatch_job -v
+      - name: run unit tests
+        run: |
+          python3 -m pytest ./llm_dispatch_job -v
 
   deployment-job-unit-tests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: install dependencies
-      run: |
-        pip3 install -r deployment_job/requirements.txt
-        pip3 install pyopenssl --upgrade
-        pip3 install pytest
-        pip3 install thirdai[neural_db_v2]
+      - name: install dependencies
+        run: |
+          pip3 install -r deployment_job/requirements.txt
+          pip3 install pyopenssl --upgrade
+          pip3 install pytest
+          pip3 install thirdai[neural_db_v2]
 
-    - name: run unit tests
-      # These have to be run individually because otherwise global variables 
-      # don't get reset correctly between tests. 
-      # TODO(Nicholas): Refactor the deployment job to avoid this.
-      run: |
-        python3 -m pytest ./deployment_job -k dev_mode[v1]
-        python3 -m pytest ./deployment_job -k dev_mode[v2]
-        python3 -m pytest ./deployment_job -k prod_mode[v1]
-        python3 -m pytest ./deployment_job -k prod_mode[v2]
+      - name: run unit tests
+        # These have to be run individually because otherwise global variables
+        # don't get reset correctly between tests.
+        # TODO(Nicholas): Refactor the deployment job to avoid this.
+        run: |
+          python3 -m pytest ./deployment_job -k dev_mode[v1]
+          python3 -m pytest ./deployment_job -k dev_mode[v2]
+          python3 -m pytest ./deployment_job -k prod_mode[v1]
+          python3 -m pytest ./deployment_job -k prod_mode[v2]

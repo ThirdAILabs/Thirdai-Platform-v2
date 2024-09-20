@@ -1,6 +1,18 @@
-import React, { MouseEventHandler, useContext, useEffect, useState } from 'react';
+import React, {
+  MouseEventHandler,
+  useContext,
+  useEffect,
+  useState
+} from 'react';
 import styled from 'styled-components';
-import { borderRadius, color, fontSizes, padding, shadow, duration } from '../stylingConstants';
+import {
+  borderRadius,
+  color,
+  fontSizes,
+  padding,
+  shadow,
+  duration
+} from '../stylingConstants';
 import Arrow from '../assets/icons/read_source_arrow.svg';
 import CopyButton from './buttons/CopyButton';
 import { Spacer } from './Layout';
@@ -11,10 +23,14 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
+  CardTitle
 } from '@/components/ui/card';
 import { ModelServiceContext } from '../Context';
-import { ModelService, ReferenceInfo, PIIDetectionResult } from '../modelServices';
+import {
+  ModelService,
+  ReferenceInfo,
+  PIIDetectionResult
+} from '../modelServices';
 
 const Stripe = styled.section`
   background: ${color.accent};
@@ -120,7 +136,7 @@ export default function Reference({
   checked,
   onCheck,
   modelService,
-  ifGuardRailOn,
+  ifGuardRailOn
 }: ReferenceProps) {
   const [opacity, setOpacity] = useState('0');
   useEffect(() => setOpacity('100%'), []);
@@ -138,7 +154,7 @@ export default function Reference({
       amount: '217,323',
       checked: true,
       description:
-        'The format of a US phone number is (XXX) XXX-XXXX, where "X" represents a digit from 0 to 9. It consists of a three-digit area code, followed by a three-digit exchange code, and a four-digit line number.',
+        'The format of a US phone number is (XXX) XXX-XXXX, where "X" represents a digit from 0 to 9. It consists of a three-digit area code, followed by a three-digit exchange code, and a four-digit line number.'
     },
     {
       id: 2,
@@ -147,7 +163,7 @@ export default function Reference({
       amount: '8,979',
       checked: true,
       description:
-        'The format of a US Social Security Number (SSN) is XXX-XX-XXXX, where "X" represents a digit from 0 to 9. It consists of three parts: area, group, and serial numbers.',
+        'The format of a US Social Security Number (SSN) is XXX-XX-XXXX, where "X" represents a digit from 0 to 9. It consists of three parts: area, group, and serial numbers.'
     },
     {
       id: 3,
@@ -156,7 +172,7 @@ export default function Reference({
       amount: '13,272',
       checked: true,
       description:
-        'A US credit card number is a 16-digit number typically formatted as XXXX XXXX XXXX XXXX, where "X" represents a digit from 0 to 9. It includes the Issuer Identifier, account number, and a check digit.',
+        'A US credit card number is a 16-digit number typically formatted as XXXX XXXX XXXX XXXX, where "X" represents a digit from 0 to 9. It includes the Issuer Identifier, account number, and a check digit.'
     },
     {
       id: 4,
@@ -164,7 +180,7 @@ export default function Reference({
       color: 'green',
       amount: '2,576,904',
       checked: true,
-      description: `A US address format includes the recipient's name, street address (number and name), city, state abbreviation, and ZIP code, for example: John Doe 123 Main St Springfield, IL 62701`,
+      description: `A US address format includes the recipient's name, street address (number and name), city, state abbreviation, and ZIP code, for example: John Doe 123 Main St Springfield, IL 62701`
     },
     {
       id: 5,
@@ -172,15 +188,17 @@ export default function Reference({
       color: 'purple',
       amount: '1,758,131',
       checked: true,
-      description: `An English name format typically consists of a first name, middle name(s), and last name (surname), for example: John Michael Smith. Titles and suffixes, like Mr. or Jr., may also be included.`,
-    },
+      description: `An English name format typically consists of a first name, middle name(s), and last name (surname), for example: John Michael Smith. Titles and suffixes, like Mr. or Jr., may also be included.`
+    }
   ];
 
   const [prediction, setPrediction] = useState<PIIDetectionResult>({
     tokens: [],
-    predicted_tags: [],
+    predicted_tags: []
   });
-  const [transformedPrediction, setTransformedPrediction] = useState<string[][]>([]);
+  const [transformedPrediction, setTransformedPrediction] = useState<
+    string[][]
+  >([]);
 
   useEffect(() => {
     if (ifGuardRailOn) {
@@ -240,7 +258,13 @@ export default function Reference({
   }, [prediction]);
 
   return (
-    <Card style={{ animation: 'fade-in 0.5s', display: 'flex', flexDirection: 'row' }}>
+    <Card
+      style={{
+        animation: 'fade-in 0.5s',
+        display: 'flex',
+        flexDirection: 'row'
+      }}
+    >
       <TextContainer>
         <Header
           onClick={(e) => {
@@ -252,7 +276,7 @@ export default function Reference({
               reference_id: info.id,
               reference_rank: 0, // TODO: fill actual rank
               query_text: query || '',
-              event_desc: 'open_reference_source',
+              event_desc: 'open_reference_source'
             };
 
             console.log('feedback logged:', feedback);
@@ -296,10 +320,12 @@ export default function Reference({
                       // }}
                       style={{
                         color: label && label.checked ? label.color : 'inherit',
-                        cursor: label && label.checked ? 'pointer' : 'auto',
+                        cursor: label && label.checked ? 'pointer' : 'auto'
                       }}
                     >
-                      {label && label.checked ? `${sentence} (${tag})` : `${sentence} `}
+                      {label && label.checked
+                        ? `${sentence} (${tag})`
+                        : `${sentence} `}
                     </span>
                   );
                 })}
@@ -318,7 +344,11 @@ export default function Reference({
           <DownvoteButton onClick={onDownvote} />
         </VoteButtonsContainer>
         <Spacer $height={padding.card} />
-        <CopyButton toCopy={info.content} referenceID={info.id} queryText={query} />
+        <CopyButton
+          toCopy={info.content}
+          referenceID={info.id}
+          queryText={query}
+        />
       </ButtonsContainer>
     </Card>
   );

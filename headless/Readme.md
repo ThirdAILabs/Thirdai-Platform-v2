@@ -5,6 +5,7 @@
 This guide will help you create and execute Directed Acyclic Graphs (DAGs) for orchestrating tasks using a YAML configuration.
 
 ### Sample data
+
 The sample data paths provided in the configurations can be found at https://github.com/ThirdAILabs/Services-data/tree/main/data/platform. You can use these files directly for testing, or you can use your own configurations and paths.
 
 Set the environment variable `SHARE_DIR` to a specific folder path. The script will download data and store it in that folder, utilizing the `SHARE_DIR` path for its operations.
@@ -60,12 +61,12 @@ DAG2:
 ```
 
 ### Key Elements
+
 - DAG_NAME: The name of the DAG.
 - Config: List of configs on which this dag will run (All the configs will run parallely.)
 - TASK_NAME: The name of the task within the DAG ( these must be the functions in the function_registry)
 - dependencies: A list of tasks that must be completed before this task.
 - params: Parameters required by the task. These can be variables or outputs from other tasks or raw values too.
-
 
 ## Executing the DAG
 
@@ -84,11 +85,13 @@ Run the DAG using the command-line interface with the provided script.
 
 - **Run All DAGs**:
   It will run all dags parallely.
+
   ```sh
   python your_script.py --dag-file path/to/dag_config.yaml --all --run-name your_run_name
   ```
 
 - **Run a Specific DAG**:
+
   ```sh
   python your_script.py --dag-file path/to/dag_config.yaml --dag DAG1 --run-name your_run_name
   ```
@@ -98,6 +101,6 @@ Run the DAG using the command-line interface with the provided script.
   python your_script.py --dag-file path/to/dag_config.yaml --dag DAG1 --task check_unsupervised --run-name your_run_name
   ```
 
-
 ## Conclusion
+
 This guide provides a concise overview of executing DAG configurations. Follow these steps to run your workflows and automate their execution effectively.

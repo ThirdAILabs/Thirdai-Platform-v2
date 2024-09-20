@@ -3,7 +3,8 @@ import { Box, Chunk, DocChunks } from './components/pdf_viewer/interfaces';
 import { temporaryCacheToken } from '@/lib/backend';
 import _ from 'lodash';
 
-export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+export const deploymentBaseUrl =
+  typeof window !== 'undefined' ? window.location.origin : '';
 
 export interface ReferenceJson {
   id: number;
@@ -113,7 +114,7 @@ export class ModelService {
   authHeader(): Record<string, string> {
     return {
       Authorization: `Bearer ${this.authToken}`,
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-cache'
     };
   }
 
@@ -167,9 +168,9 @@ export class ModelService {
       method: 'POST',
       headers: {
         ...this.authHeader(),
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(baseParams),
+      body: JSON.stringify(baseParams)
     })
       .then(this.handleInvalidAuth())
       .then((response) => {
@@ -197,7 +198,7 @@ export class ModelService {
     const url = new URL(this.url + '/save');
     const payload = {
       override,
-      model_name: model_name || null,
+      model_name: model_name || null
     };
 
     return fetch(url, {
@@ -205,8 +206,8 @@ export class ModelService {
       body: JSON.stringify(payload),
       headers: {
         ...this.authHeader(),
-        'Content-Type': 'application/json',
-      },
+        'Content-Type': 'application/json'
+      }
     })
       .then(this.handleInvalidAuth())
       .then((response) => {
@@ -239,7 +240,7 @@ export class ModelService {
       documentData.push({
         document_type: extension!.toUpperCase(),
         path: files[i].name,
-        location: 'local',
+        location: 'local'
       });
     }
 
@@ -250,7 +251,7 @@ export class ModelService {
       documentData.push({
         document_type: extension ? extension.toUpperCase() : 'URL',
         path: url,
-        location: 's3',
+        location: 's3'
       });
     }
 
@@ -261,8 +262,8 @@ export class ModelService {
       method: 'POST',
       body: formData,
       headers: {
-        ...this.authHeader(),
-      },
+        ...this.authHeader()
+      }
     })
       .then(this.handleInvalidAuth())
       .then((response) => {
@@ -285,12 +286,12 @@ export class ModelService {
     return fetch(url, {
       method: 'POST',
       body: JSON.stringify({
-        source_ids: sourceIDs,
+        source_ids: sourceIDs
       }),
       headers: {
         ...this.authHeader(),
-        'Content-Type': 'application/json',
-      },
+        'Content-Type': 'application/json'
+      }
     })
       .then(this.handleInvalidAuth())
       .then((response) => {
@@ -307,7 +308,11 @@ export class ModelService {
       });
   }
 
-  async predict(queryText: string, topK: number, queryId?: string): Promise<SearchResult | null> {
+  async predict(
+    queryText: string,
+    topK: number,
+    queryId?: string
+  ): Promise<SearchResult | null> {
     const url = new URL(this.url + '/predict');
 
     // TODO(Geordie): Accept a "timeout" / "longer than expected" callback.
@@ -322,9 +327,9 @@ export class ModelService {
       method: 'POST',
       headers: {
         ...this.authHeader(),
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ base_params: baseParams, ndb_params: ndbParams }),
+      body: JSON.stringify({ base_params: baseParams, ndb_params: ndbParams })
     })
       .then(this.handleInvalidAuth())
       .then((response) => {
@@ -341,8 +346,8 @@ export class ModelService {
             sourceURL: ref.source,
             sourceName: sourceName(ref),
             content: ref.text,
-            metadata: ref.metadata,
-          })),
+            metadata: ref.metadata
+          }))
         };
         return searchResults;
       })
@@ -373,7 +378,10 @@ export class ModelService {
         const filename = data.filename as string;
         const ids = data.id as number[];
         const texts = data.text as string[];
-        const boxes = data.boxes as [number, [number, number, number, number]][][];
+        const boxes = data.boxes as [
+          number,
+          [number, number, number, number]
+        ][][];
 
         const docChunks: DocChunks = [];
 
@@ -389,13 +397,13 @@ export class ModelService {
             const [left, top, right, bottom] = box;
             chunkBoxes.push({
               page: pageIdx,
-              borders: { left, top, right, bottom },
+              borders: { left, top, right, bottom }
             });
           }
           const chunk = {
             id: ids[row],
             text: texts[row],
-            boxes: chunkBoxes,
+            boxes: chunkBoxes
           };
           for (const pageIdx of Array.from(matchingPageIdxs)) {
             docChunks[pageIdx].push(chunk);
@@ -413,7 +421,7 @@ export class ModelService {
         filename,
         source,
         docChunks,
-        highlighted,
+        highlighted
       })
     );
   }
@@ -448,7 +456,8 @@ export class ModelService {
 
   openHighlightedURL(reference: ReferenceInfo) {
     const [start, end] = startAndEnd(reference.content);
-    const highlightedSourceURL = reference.sourceURL + '#:~:text=' + start + ',' + end;
+    const highlightedSourceURL =
+      reference.sourceURL + '#:~:text=' + start + ',' + end;
     window.open(highlightedSourceURL);
   }
 
@@ -481,7 +490,12 @@ export class ModelService {
   openAWSReference(ref: ReferenceInfo): void {
     const [start, end] = startAndEnd(ref.content);
     const highlightedSourceURL =
-      'https://' + ref.sourceURL.replace(/^(https?:\/\/)?/, '') + '#:~:text=' + start + ',' + end;
+      'https://' +
+      ref.sourceURL.replace(/^(https?:\/\/)?/, '') +
+      '#:~:text=' +
+      start +
+      ',' +
+      end;
     window.open(highlightedSourceURL);
   }
 
@@ -497,14 +511,14 @@ export class ModelService {
         text_id_pairs: [
           {
             query_text: queryText,
-            reference_id: referenceId,
-          },
-        ],
+            reference_id: referenceId
+          }
+        ]
       }),
       headers: {
         'Content-type': 'application/json; charset=UTF-8',
-        ...this.authHeader(),
-      },
+        ...this.authHeader()
+      }
     }).then(this.handleInvalidAuth());
   }
 
@@ -520,14 +534,14 @@ export class ModelService {
         text_id_pairs: [
           {
             query_text: queryText,
-            reference_id: referenceId,
-          },
-        ],
+            reference_id: referenceId
+          }
+        ]
       }),
       headers: {
         'Content-type': 'application/json; charset=UTF-8',
-        ...this.authHeader(),
-      },
+        ...this.authHeader()
+      }
     }).then(this.handleInvalidAuth());
   }
 
@@ -538,14 +552,14 @@ export class ModelService {
         qna_pairs: [
           {
             question: question,
-            answer: answer,
-          },
-        ],
+            answer: answer
+          }
+        ]
       }),
       headers: {
         'Content-type': 'application/json; charset=UTF-8',
-        ...this.authHeader(),
-      },
+        ...this.authHeader()
+      }
     }).then(this.handleInvalidAuth());
   }
 
@@ -556,14 +570,14 @@ export class ModelService {
         text_pairs: [
           {
             source: source,
-            target: target,
-          },
-        ],
+            target: target
+          }
+        ]
       }),
       headers: {
         'Content-type': 'application/json; charset=UTF-8',
-        ...this.authHeader(),
-      },
+        ...this.authHeader()
+      }
     }).then(this.handleInvalidAuth());
   }
 
@@ -592,16 +606,16 @@ export class ModelService {
         provider: genAiProvider,
         workflow_id: workflowId,
         original_query: question,
-        cache_access_token: cache_access_token,
+        cache_access_token: cache_access_token
       };
 
       const uri = deploymentBaseUrl + '/llm-dispatch/generate';
       const response = await fetch(uri, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(args),
+        body: JSON.stringify(args)
       });
 
       if (!response.ok) {
@@ -639,8 +653,8 @@ export class ModelService {
       body: JSON.stringify({ session_id: this.sessionId }),
       headers: {
         'Content-type': 'application/json; charset=UTF-8',
-        ...this.authHeader(),
-      },
+        ...this.authHeader()
+      }
     })
       .then(this.handleInvalidAuth())
       .then((res) => res.json())
@@ -652,12 +666,12 @@ export class ModelService {
       method: 'POST',
       body: JSON.stringify({
         session_id: this.sessionId,
-        user_input: textInput,
+        user_input: textInput
       }),
       headers: {
         'Content-type': 'application/json; charset=UTF-8',
-        ...this.authHeader(),
-      },
+        ...this.authHeader()
+      }
     })
       .then(this.handleInvalidAuth())
       .then((res) => res.json())
@@ -670,9 +684,9 @@ export class ModelService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...this.authHeader(),
+          ...this.authHeader()
         },
-        body: JSON.stringify(feedback),
+        body: JSON.stringify(feedback)
       });
 
       if (response.ok) {

@@ -1,7 +1,13 @@
 import React from 'react';
 import styled from 'styled-components';
 import { demoSearchParam, demos } from '../assets/demos';
-import { borderRadius, color, duration, fontSizes, padding } from '../stylingConstants';
+import {
+  borderRadius,
+  color,
+  duration,
+  fontSizes,
+  padding
+} from '../stylingConstants';
 import { Spacer } from './Layout';
 
 const Description = styled.section`

@@ -4,7 +4,7 @@ import {
   getUsername,
   trainTokenClassifier,
   create_workflow,
-  add_models_to_workflow,
+  add_models_to_workflow
 } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
+  TableRow
 } from '@/components/ui/table';
 import { CardDescription } from '@/components/ui/card';
 
@@ -25,7 +25,13 @@ type Category = {
   description: string;
 };
 
-const predefinedChoices = ['PHONENUMBER', 'SSN', 'CREDITCARDNUMBER', 'LOCATION', 'NAME'];
+const predefinedChoices = [
+  'PHONENUMBER',
+  'SSN',
+  'CREDITCARDNUMBER',
+  'LOCATION',
+  'NAME'
+];
 
 interface NERQuestionsProps {
   modelGoal: string;
@@ -40,17 +46,23 @@ const NERQuestions = ({
   modelGoal,
   onCreateModel,
   stayOnPage,
-  appName,
+  appName
 }: NERQuestionsProps) => {
   const [modelName, setModelName] = useState(!appName ? '' : appName);
-  const [categories, setCategories] = useState([{ name: '', example: '', description: '' }]);
+  const [categories, setCategories] = useState([
+    { name: '', example: '', description: '' }
+  ]);
   const [isDataGenerating, setIsDataGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState([]);
   const [generateDataPrompt, setGenerateDataPrompt] = useState('');
 
   const router = useRouter();
 
-  const handleCategoryChange = (index: number, field: keyof Category, value: string) => {
+  const handleCategoryChange = (
+    index: number,
+    field: keyof Category,
+    value: string
+  ) => {
     const updatedCategories = [...categories];
     updatedCategories[index][field] = value;
     setCategories(updatedCategories);
@@ -83,7 +95,9 @@ const NERQuestions = ({
         return false;
       }
     } else {
-      alert('All fields (Category Name, Example, Description) must be filled for each category.');
+      alert(
+        'All fields (Category Name, Example, Description) must be filled for each category.'
+      );
       return false;
     }
   };
@@ -106,7 +120,11 @@ const NERQuestions = ({
   const generateData = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     for (const category of categories) {
-      if (category.name === '' || category.example === '' || category.description === '') {
+      if (
+        category.name === '' ||
+        category.example === '' ||
+        category.description === ''
+      ) {
         alert('All tokens must have a name, example, and description.');
         return;
       }
@@ -119,13 +137,16 @@ const NERQuestions = ({
     try {
       setIsDataGenerating(true);
 
-      const response = await fetch('/endpoints/generate-data-token-classification', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ categories }),
-      });
+      const response = await fetch(
+        '/endpoints/generate-data-token-classification',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ categories })
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -146,7 +167,10 @@ const NERQuestions = ({
     }
   };
 
-  const renderTaggedSentence = (pair: { sentence: string; nerData: string[] }) => {
+  const renderTaggedSentence = (pair: {
+    sentence: string;
+    nerData: string[];
+  }) => {
     return pair.sentence.split(' ').map((token, idx) => {
       const tag = pair.nerData[idx];
       if (tag === 'O') {
@@ -165,7 +189,7 @@ const NERQuestions = ({
             style={{
               padding: '0 4px',
               backgroundColor: tag === 'AGE' ? '#ffcccb' : '#ccffcc',
-              borderRadius: '4px',
+              borderRadius: '4px'
             }}
           >
             {token}{' '}
@@ -173,7 +197,7 @@ const NERQuestions = ({
               style={{
                 fontSize: '0.8em',
                 fontWeight: 'bold',
-                color: tag === 'AGE' ? '#ff0000' : '#00cc00',
+                color: tag === 'AGE' ? '#ff0000' : '#00cc00'
               }}
             >
               {tag}
@@ -198,7 +222,11 @@ const NERQuestions = ({
     setIsLoading(true);
 
     try {
-      const modelResponse = await trainTokenClassifier(modelName, modelGoal, categories);
+      const modelResponse = await trainTokenClassifier(
+        modelName,
+        modelGoal,
+        categories
+      );
       const modelId = modelResponse.data.model_id;
 
       // This is called from RAG
@@ -211,7 +239,7 @@ const NERQuestions = ({
       const workflowTypeName = 'nlp'; // Assuming this is the type for NER workflows
       const workflowResponse = await create_workflow({
         name: workflowName,
-        typeName: workflowTypeName,
+        typeName: workflowTypeName
       });
       const workflowId = workflowResponse.data.workflow_id;
 
@@ -219,7 +247,7 @@ const NERQuestions = ({
       const addModelsResponse = await add_models_to_workflow({
         workflowId,
         modelIdentifiers: [modelId],
-        components: ['nlp'], // Specific to this use case
+        components: ['nlp'] // Specific to this use case
       });
 
       console.log('Workflow and model addition successful:', addModelsResponse);
@@ -266,7 +294,8 @@ const NERQuestions = ({
 
           // Check if the name contains spaces
           if (name.includes(' ')) {
-            warningMessage = 'The app name cannot contain spaces. Please remove the spaces.';
+            warningMessage =
+              'The app name cannot contain spaces. Please remove the spaces.';
           }
           // Check if the name contains periods
           else if (name.includes('.')) {
@@ -291,15 +320,30 @@ const NERQuestions = ({
         style={{ marginTop: '10px' }}
         disabled={!!appName && !workflowNames.includes(modelName)} // Use !! to explicitly convert to boolean
       />
-      {warningMessage && <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>}
+      {warningMessage && (
+        <span style={{ color: 'red', marginTop: '10px' }}>
+          {warningMessage}
+        </span>
+      )}
       {generatedData.length === 0 && (
         <>
-          <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
+          <span
+            className="block text-lg font-semibold"
+            style={{ marginTop: '20px' }}
+          >
             Specify Tokens
           </span>
-          <CardDescription>Define your own categories or select existing ones</CardDescription>
+          <CardDescription>
+            Define your own categories or select existing ones
+          </CardDescription>
           <form onSubmit={handleSubmit}>
-            <div style={{ display: 'flex', flexDirection: 'column', marginTop: '10px' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                marginTop: '10px'
+              }}
+            >
               {categories.map((category, index) => (
                 <div
                   key={index}
@@ -308,7 +352,7 @@ const NERQuestions = ({
                     flexDirection: 'row',
                     gap: '10px',
                     justifyContent: 'space-between',
-                    marginBottom: '10px', // Adds gap between rows
+                    marginBottom: '10px' // Adds gap between rows
                   }}
                 >
                   <div style={{ width: '100%' }}>
@@ -318,7 +362,9 @@ const NERQuestions = ({
                       className="text-sm"
                       placeholder="Category Name"
                       value={category.name}
-                      onChange={(e) => handleCategoryChange(index, 'name', e.target.value)}
+                      onChange={(e) =>
+                        handleCategoryChange(index, 'name', e.target.value)
+                      }
                     />
                     <datalist id={`category-options-${index}`}>
                       {predefinedChoices.map((choice, i) => (
@@ -331,16 +377,23 @@ const NERQuestions = ({
                     className="text-sm"
                     placeholder="Example"
                     value={category.example}
-                    onChange={(e) => handleCategoryChange(index, 'example', e.target.value)}
+                    onChange={(e) =>
+                      handleCategoryChange(index, 'example', e.target.value)
+                    }
                   />
                   <Input
                     style={{ width: '130%' }}
                     className="text-sm"
                     placeholder="What this category is about."
                     value={category.description}
-                    onChange={(e) => handleCategoryChange(index, 'description', e.target.value)}
+                    onChange={(e) =>
+                      handleCategoryChange(index, 'description', e.target.value)
+                    }
                   />
-                  <Button variant="destructive" onClick={() => handleRemoveCategory(index)}>
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleRemoveCategory(index)}
+                  >
                     Remove
                   </Button>
                 </div>
@@ -420,7 +473,7 @@ const NERQuestions = ({
               flexDirection: 'row',
               justifyContent: 'space-between',
               gap: '10px',
-              marginTop: '20px',
+              marginTop: '20px'
             }}
           >
             <Button
@@ -430,7 +483,11 @@ const NERQuestions = ({
             >
               Redefine Tokens
             </Button>
-            <Button style={{ width: '100%' }} onClick={handleCreateNERModel} disabled={isLoading}>
+            <Button
+              style={{ width: '100%' }}
+              onClick={handleCreateNERModel}
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>

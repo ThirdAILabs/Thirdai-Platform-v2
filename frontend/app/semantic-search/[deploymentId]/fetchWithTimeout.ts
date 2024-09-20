@@ -1,4 +1,7 @@
-export default async function fetchWithTimeout(resource: string | URL, options: any = {}) {
+export default async function fetchWithTimeout(
+  resource: string | URL,
+  options: any = {}
+) {
   const { timeout = 8000 } = options;
 
   const controller = new AbortController();
@@ -6,7 +9,7 @@ export default async function fetchWithTimeout(resource: string | URL, options: 
 
   const response = await fetch(resource, {
     ...options,
-    signal: controller.signal,
+    signal: controller.signal
   });
   clearTimeout(id);
 

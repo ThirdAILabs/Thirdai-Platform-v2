@@ -13,7 +13,11 @@ export default function ContrastOptions() {
   const { themeContrast, onChangeContrast } = useSettingsContext();
 
   return (
-    <RadioGroup name="themeContrast" value={themeContrast} onChange={onChangeContrast}>
+    <RadioGroup
+      name="themeContrast"
+      value={themeContrast}
+      onChange={onChangeContrast}
+    >
       <StyledWrap>
         {OPTIONS.map((contrast) => (
           <StyledCard key={contrast} selected={themeContrast === contrast}>

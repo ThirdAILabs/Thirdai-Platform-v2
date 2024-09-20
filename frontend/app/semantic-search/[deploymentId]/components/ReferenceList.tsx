@@ -50,7 +50,7 @@ export default function ReferenceList({
   checkedIds,
   onCheck,
   modelService,
-  ifGuardRailOn,
+  ifGuardRailOn
 }: ReferenceListProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   function handleMore() {

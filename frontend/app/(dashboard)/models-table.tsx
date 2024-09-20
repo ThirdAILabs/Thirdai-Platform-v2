@@ -1,14 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TableHead, TableRow, TableHeader, TableBody, Table } from '@/components/ui/table';
+import {
+  TableHead,
+  TableRow,
+  TableHeader,
+  TableBody,
+  Table
+} from '@/components/ui/table';
 import {
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
+  CardTitle
 } from '@/components/ui/card';
 import { Model } from './model';
 import { WorkFlow } from './workflow';
@@ -21,14 +27,22 @@ import {
   fetchPrivateModels,
   fetchPendingModels,
   fetchWorkflows,
-  Workflow,
+  Workflow
 } from '@/lib/backend';
 
-export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: number }) {
+export function ModelsTable({
+  searchStr,
+  offset
+}: {
+  searchStr: string;
+  offset: number;
+}) {
   // Hardcode the model display
   let modelsPerPage = 5;
 
-  const [currentPage, setCurrentPage] = useState(Math.ceil(offset / modelsPerPage) + 1);
+  const [currentPage, setCurrentPage] = useState(
+    Math.ceil(offset / modelsPerPage) + 1
+  );
 
   let router = useRouter();
 
@@ -116,13 +130,18 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
   const filteredWorkflows = workflows.filter((workflow) =>
     workflow.name.toLowerCase().includes(searchStr.toLowerCase())
   );
-  const displayedWorkflows = filteredWorkflows.slice(offset, offset + modelsPerPage);
+  const displayedWorkflows = filteredWorkflows.slice(
+    offset,
+    offset + modelsPerPage
+  );
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Apps</CardTitle>
-        <CardDescription>Manage your Apps and view their performance.</CardDescription>
+        <CardDescription>
+          Manage your Apps and view their performance.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
@@ -133,10 +152,18 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
               </TableHead>
               <TableHead className="text-center">Name</TableHead>
               <TableHead className="text-center">Status</TableHead>
-              <TableHead className="hidden md:table-cell text-center">Type</TableHead>
-              <TableHead className="hidden md:table-cell text-center">Published on</TableHead>
-              <TableHead className="hidden md:table-cell text-center">Action</TableHead>
-              <TableHead className="hidden md:table-cell text-center">Details</TableHead>
+              <TableHead className="hidden md:table-cell text-center">
+                Type
+              </TableHead>
+              <TableHead className="hidden md:table-cell text-center">
+                Published on
+              </TableHead>
+              <TableHead className="hidden md:table-cell text-center">
+                Action
+              </TableHead>
+              <TableHead className="hidden md:table-cell text-center">
+                Details
+              </TableHead>
               <TableHead className="text-center">
                 <span className="sr-only">Actions</span>
               </TableHead>

@@ -12,7 +12,7 @@ import { useTheme } from '@mui/material/styles';
 // ----------------------------------------------------------------------
 
 ThemeRtlLayout.propTypes = {
-  children: PropTypes.node,
+  children: PropTypes.node
 };
 
 export default function ThemeRtlLayout({ children }) {
@@ -24,7 +24,7 @@ export default function ThemeRtlLayout({ children }) {
 
   const cacheRtl = createCache({
     key: theme.direction === 'rtl' ? 'rtl' : 'css',
-    stylisPlugins: theme.direction === 'rtl' ? [prefixer, rtlPlugin] : [],
+    stylisPlugins: theme.direction === 'rtl' ? [prefixer, rtlPlugin] : []
   });
 
   return <CacheProvider value={cacheRtl}>{children}</CacheProvider>;

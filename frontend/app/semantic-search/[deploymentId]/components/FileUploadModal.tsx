@@ -4,7 +4,10 @@ import styled from 'styled-components';
 type Props = {
   isOpen: boolean;
   handleCloseModal: () => void;
-  addSources: (selectedFiles: FileList | null, s3Urls: string[]) => Promise<any>;
+  addSources: (
+    selectedFiles: FileList | null,
+    s3Urls: string[]
+  ) => Promise<any>;
   refreshSources: () => void;
 };
 
@@ -61,7 +64,7 @@ const FileUploadModal: React.FC<Props> = ({
   isOpen,
   handleCloseModal,
   addSources,
-  refreshSources,
+  refreshSources
 }) => {
   const [uploading, setUploading] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
@@ -71,7 +74,10 @@ const FileUploadModal: React.FC<Props> = ({
     setSelectedFiles(event.target.files);
   };
 
-  const handleS3UrlChange = (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleS3UrlChange = (
+    index: number,
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const newS3Urls = [...s3Urls];
     newS3Urls[index] = event.target.value;
     setS3Urls(newS3Urls);
@@ -106,7 +112,9 @@ const FileUploadModal: React.FC<Props> = ({
     }
   };
 
-  const handleModalClick = (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+  const handleModalClick = (
+    event: React.MouseEvent<HTMLDivElement, MouseEvent>
+  ) => {
     event.stopPropagation();
   };
 
@@ -115,7 +123,8 @@ const FileUploadModal: React.FC<Props> = ({
   }
 
   const isUploadDisabled =
-    ((!selectedFiles || selectedFiles.length === 0) && s3Urls.every((url) => url.trim() === '')) ||
+    ((!selectedFiles || selectedFiles.length === 0) &&
+      s3Urls.every((url) => url.trim() === '')) ||
     uploading;
 
   return (
@@ -136,7 +145,7 @@ const FileUploadModal: React.FC<Props> = ({
             style={{
               display: 'flex',
               alignItems: 'center',
-              marginBottom: '10px',
+              marginBottom: '10px'
             }}
           >
             <input

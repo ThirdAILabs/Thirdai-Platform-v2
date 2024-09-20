@@ -42,7 +42,7 @@ export default function SignupForm() {
           type="email"
           id="email"
           className="w-full"
-          placeholder='Email'
+          placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -56,7 +56,7 @@ export default function SignupForm() {
           type={showPassword ? 'text' : 'password'}
           id="password"
           className="w-full"
-          placeholder='Password'
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -81,7 +81,7 @@ export default function SignupForm() {
           type="text"
           id="username"
           className="w-full"
-          placeholder='Username'
+          placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required
@@ -90,11 +90,11 @@ export default function SignupForm() {
       {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
       <div className="flex items-center">
-        <Button type="submit" variant='contained' className="flex-grow mr-2">
+        <Button type="submit" variant="contained" className="flex-grow mr-2">
           Sign Up
         </Button>
         <Link href="/login-email" className="w-auto">
-          <Button type="button" variant='contained' className="w-full">
+          <Button type="button" variant="contained" className="w-full">
             Log In
           </Button>
         </Link>

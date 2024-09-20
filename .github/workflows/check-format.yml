@@ -10,9 +10,9 @@ concurrency:
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   merge_group:
     types: [checks_requested]
 
@@ -30,7 +30,7 @@ jobs:
       - name: Prepare isort
         run: |
           sudo pip3 install isort
-      - name: Check Black format 
+      - name: Check Black format
         run: |
           black  --check --diff --exclude "build|.venv|venv|.env|env|deps" .
       - name: Check isort format

@@ -9,7 +9,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuTrigger,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
@@ -18,7 +18,7 @@ import {
   validate_workflow,
   start_workflow,
   stop_workflow,
-  delete_workflow,
+  delete_workflow
 } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/Modal';
@@ -36,7 +36,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
   // Error: Underlying model not present
   // Training failed
   // Training...
-  const [isTrainingIncomplete, setIsTrainingIncomplete] = useState<boolean>(false);
+  const [isTrainingIncomplete, setIsTrainingIncomplete] =
+    useState<boolean>(false);
   const [deployType, setDeployType] = useState<string>('');
 
   function goToEndpoint() {
@@ -210,7 +211,9 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
   };
 
   // Find the model where component === "search"
-  const searchModel = workflow.models.find((model) => model.component === 'search');
+  const searchModel = workflow.models.find(
+    (model) => model.component === 'search'
+  );
 
   return (
     <TableRow>
@@ -225,16 +228,21 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       </TableCell>
       <TableCell className="font-medium text-center">{workflow.name}</TableCell>
       <TableCell className="text-center font-medium">
-        <Badge variant="outline" className={`capitalize ${getBadgeColor(deployStatus)}`}>
+        <Badge
+          variant="outline"
+          className={`capitalize ${getBadgeColor(deployStatus)}`}
+        >
           {deployStatus}
         </Badge>
       </TableCell>
-      <TableCell className="hidden md:table-cell text-center font-medium">{deployType}</TableCell>
+      <TableCell className="hidden md:table-cell text-center font-medium">
+        {deployType}
+      </TableCell>
       <TableCell className="hidden md:table-cell text-center font-medium">
         {new Date(workflow.publish_date).toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'long',
-          day: 'numeric',
+          day: 'numeric'
         })}
       </TableCell>
       <TableCell className="hidden md:table-cell text-center font-medium">
@@ -248,7 +256,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               'Failed',
               'Starting',
               'Error: Underlying model not present',
-              'Training failed',
+              'Training failed'
             ].includes(deployStatus)
           }
         >
@@ -260,13 +268,18 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 ? 'Endpoint'
                 : deployStatus === 'Inactive'
                   ? 'Start'
-                  : ['Failed', 'Error: Underlying model not present'].includes(deployStatus)
+                  : ['Failed', 'Error: Underlying model not present'].includes(
+                        deployStatus
+                      )
                     ? 'Start'
                     : 'Endpoint'}
         </Button>
       </TableCell>
       <TableCell className="text-center font-medium">
-        <button onClick={toggleModal} className="text-gray-400 hover:text-gray-600 text-sm">
+        <button
+          onClick={toggleModal}
+          className="text-gray-400 hover:text-gray-600 text-sm"
+        >
           <InformationCircleIcon className="h-6 w-6" />
         </button>
       </TableCell>
@@ -289,7 +302,10 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                       onClick={async () => {
                         try {
                           const response = await stop_workflow(workflow.id);
-                          console.log('Workflow undeployed successfully:', response);
+                          console.log(
+                            'Workflow undeployed successfully:',
+                            response
+                          );
                           // Optionally, update the UI state to reflect the undeployment
                           setDeployStatus('Inactive');
                         } catch (error) {
@@ -309,7 +325,11 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 <button
                   type="button"
                   onClick={async () => {
-                    if (window.confirm('Are you sure you want to delete this workflow?')) {
+                    if (
+                      window.confirm(
+                        'Are you sure you want to delete this workflow?'
+                      )
+                    ) {
                       try {
                         const response = await delete_workflow(workflow.id);
                         console.log('Workflow deleted successfully:', response);
@@ -348,16 +368,24 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 <thead>
                   <tr className="bg-gray-200">
                     <th className="border px-4 py-2 text-left">Model Name</th>
-                    <th className="border px-4 py-2 text-left">Size on Disk (MB)</th>
-                    <th className="border px-4 py-2 text-left">Size in Memory (MB)</th>
+                    <th className="border px-4 py-2 text-left">
+                      Size on Disk (MB)
+                    </th>
+                    <th className="border px-4 py-2 text-left">
+                      Size in Memory (MB)
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {workflow.models.map((model, index) => (
                     <tr key={index} className="hover:bg-gray-100">
                       <td className="border px-4 py-2">{model.model_name}</td>
-                      <td className="border px-4 py-2">{formatBytesToMB(model.size)}</td>
-                      <td className="border px-4 py-2">{formatBytesToMB(model.size_in_memory)}</td>
+                      <td className="border px-4 py-2">
+                        {formatBytesToMB(model.size)}
+                      </td>
+                      <td className="border px-4 py-2">
+                        {formatBytesToMB(model.size_in_memory)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -7,5 +7,5 @@ export const defaultSettings = {
   themeContrast: 'default',
   themeLayout: 'vertical',
   themeColorPresets: 'default',
-  themeStretch: false,
+  themeStretch: false
 };

@@ -1,20 +1,26 @@
 import PropTypes from 'prop-types';
 // @mui
 import { alpha, styled } from '@mui/material/styles';
-import { CardActionArea, Radio, FormControlLabel, Stack, Box } from '@mui/material';
+import {
+  CardActionArea,
+  Radio,
+  FormControlLabel,
+  Stack,
+  Box
+} from '@mui/material';
 
 // ----------------------------------------------------------------------
 
 export const StyledWrap = styled(Box)(() => ({
   gap: 8,
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, 1fr)',
+  gridTemplateColumns: 'repeat(2, 1fr)'
 }));
 
 // ----------------------------------------------------------------------
 
 export const StyledCard = styled(CardActionArea, {
-  shouldForwardProp: (prop) => prop !== 'selected',
+  shouldForwardProp: (prop) => prop !== 'selected'
 })(({ selected, theme }) => ({
   height: 72,
   display: 'flex',
@@ -25,19 +31,19 @@ export const StyledCard = styled(CardActionArea, {
   border: `solid 1px ${alpha(theme.palette.grey[500], 0.12)}`,
   '& .svg-color': {
     width: 28,
-    height: 28,
+    height: 28
   },
   ...(selected && {
     color: theme.palette.primary.main,
     boxShadow: theme.customShadows.z12,
-    borderColor: alpha(theme.palette.grey[500], 0.24),
-  }),
+    borderColor: alpha(theme.palette.grey[500], 0.24)
+  })
 }));
 
 // ----------------------------------------------------------------------
 
 export const StyledCircleColor = styled('div', {
-  shouldForwardProp: (prop) => prop !== 'selected',
+  shouldForwardProp: (prop) => prop !== 'selected'
 })(({ selected, color, theme }) => ({
   width: 12,
   height: 12,
@@ -45,19 +51,19 @@ export const StyledCircleColor = styled('div', {
   backgroundColor: color,
   transition: theme.transitions.create(['width', 'height'], {
     easing: theme.transitions.easing.easeInOut,
-    duration: theme.transitions.duration.shorter,
+    duration: theme.transitions.duration.shorter
   }),
   ...(selected && {
     width: 24,
     height: 24,
-    boxShadow: `-2px 4px 8px 0px ${alpha(color, 0.48)}`,
-  }),
+    boxShadow: `-2px 4px 8px 0px ${alpha(color, 0.48)}`
+  })
 }));
 
 // ----------------------------------------------------------------------
 
 MaskControl.propTypes = {
-  value: PropTypes.string,
+  value: PropTypes.string
 };
 
 export function MaskControl({ value }) {
@@ -72,7 +78,7 @@ export function MaskControl({ value }) {
         right: 0,
         bottom: 0,
         left: 0,
-        position: 'absolute',
+        position: 'absolute'
       }}
     />
   );
@@ -81,7 +87,7 @@ export function MaskControl({ value }) {
 // ----------------------------------------------------------------------
 
 LayoutIcon.propTypes = {
-  layout: PropTypes.string,
+  layout: PropTypes.string
 };
 
 export function LayoutIcon({ layout }) {
@@ -101,11 +107,14 @@ export function LayoutIcon({ layout }) {
     width: 1,
     height: 1,
     borderRadius: RADIUS,
-    position: 'absolute',
+    position: 'absolute'
   };
 
   return (
-    <Stack direction={layout === 'horizontal' ? 'column' : 'row'} sx={{ width: 1, height: 1 }}>
+    <Stack
+      direction={layout === 'horizontal' ? 'column' : 'row'}
+      sx={{ width: 1, height: 1 }}
+    >
       <Box
         sx={{
           mr: SPACING,
@@ -117,18 +126,20 @@ export function LayoutIcon({ layout }) {
             width: 1,
             mb: SPACING,
             height: HEIGHT,
-            borderRadius: RADIUS / 1.5,
+            borderRadius: RADIUS / 1.5
           }),
           ...(isNavMini && {
             width: WIDTH / 2,
-            borderRadius: RADIUS / 2,
-          }),
+            borderRadius: RADIUS / 2
+          })
         }}
       />
 
       <Box sx={{ flexGrow: 1, position: 'relative', borderRadius: RADIUS }}>
         <Box sx={{ ...styles, opacity: 0.16, bgcolor: 'currentColor' }} />
-        <Box sx={{ ...styles, opacity: 0.48, border: `dashed 1px currentColor` }} />
+        <Box
+          sx={{ ...styles, opacity: 0.48, border: `dashed 1px currentColor` }}
+        />
       </Box>
     </Stack>
   );

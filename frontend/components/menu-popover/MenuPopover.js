@@ -24,8 +24,8 @@ MenuPopover.propTypes = {
     'left-bottom',
     'right-top',
     'right-center',
-    'right-bottom',
-  ]),
+    'right-bottom'
+  ])
 };
 
 export default function MenuPopover({
@@ -54,10 +54,10 @@ export default function MenuPopover({
             px: 1,
             typography: 'body2',
             borderRadius: 0.75,
-            '& svg': { mr: 2, width: 20, height: 20, flexShrink: 0 },
+            '& svg': { mr: 2, width: 20, height: 20, flexShrink: 0 }
           },
-          ...sx,
-        },
+          ...sx
+        }
       }}
       {...other}
     >

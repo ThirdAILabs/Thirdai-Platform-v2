@@ -7,10 +7,13 @@ import {
   TableHeader,
   TableBody,
   Table,
-  TableCell,
+  TableCell
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DeploymentStatsTable, useTokenClassificationEndpoints } from '@/lib/backend';
+import {
+  DeploymentStatsTable,
+  useTokenClassificationEndpoints
+} from '@/lib/backend';
 
 export default function Dashboard() {
   const [system, setSystem] = useState<DeploymentStatsTable>({
@@ -19,16 +22,16 @@ export default function Dashboard() {
       ['--', '--'],
       ['--', '--'],
       ['--', '--'],
-      ['--', '--'],
-    ],
+      ['--', '--']
+    ]
   });
 
   const [throughput, setThroughput] = useState<DeploymentStatsTable>({
     header: ['--', '--', '--', '--'],
     rows: [
       ['--', '--', '--', '--'],
-      ['--', '--', '--', '--'],
-    ],
+      ['--', '--', '--', '--']
+    ]
   });
 
   const { getStats } = useTokenClassificationEndpoints();
@@ -66,11 +69,13 @@ export default function Dashboard() {
             <TableHeader>
               <TableRow>
                 <TableHead>{tableInfo.header[0]}</TableHead>
-                {tableInfo.header.slice(1, tableInfo.header.length).map((h, i) => (
-                  <TableHead key={i} className="text-right">
-                    {h}
-                  </TableHead>
-                ))}
+                {tableInfo.header
+                  .slice(1, tableInfo.header.length)
+                  .map((h, i) => (
+                    <TableHead key={i} className="text-right">
+                      {h}
+                    </TableHead>
+                  ))}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -104,11 +109,16 @@ export default function Dashboard() {
           paddingTop: '10%',
           display: 'flex',
           justifyContent: 'center',
-          height: '100vh',
+          height: '100vh'
         }}
       >
         <div
-          style={{ width: '80%', display: 'flex', justifyContent: 'center', height: 'fit-content' }}
+          style={{
+            width: '80%',
+            display: 'flex',
+            justifyContent: 'center',
+            height: 'fit-content'
+          }}
         >
           {table(system, 'System Info')}
           <div style={{ width: '30px' }} />

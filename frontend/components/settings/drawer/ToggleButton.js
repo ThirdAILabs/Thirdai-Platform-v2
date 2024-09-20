@@ -15,7 +15,7 @@ import BadgeDot from './BadgeDot';
 ToggleButton.propTypes = {
   open: PropTypes.bool,
   onToggle: PropTypes.func,
-  notDefault: PropTypes.bool,
+  notDefault: PropTypes.bool
 };
 
 export default function ToggleButton({ notDefault, open, onToggle }) {
@@ -31,17 +31,19 @@ export default function ToggleButton({ notDefault, open, onToggle }) {
         position: 'fixed',
         borderRadius: '50%',
         boxShadow: `-12px 12px 32px -4px ${alpha(
-          theme.palette.mode === 'light' ? theme.palette.grey[600] : theme.palette.common.black,
+          theme.palette.mode === 'light'
+            ? theme.palette.grey[600]
+            : theme.palette.common.black,
           0.36
         )}`,
-        ...bgBlur({ color: theme.palette.background.default }),
+        ...bgBlur({ color: theme.palette.background.default })
       }}
     >
       {notDefault && !open && (
         <BadgeDot
           sx={{
             top: 8,
-            right: 10,
+            right: 10
           }}
         />
       )}

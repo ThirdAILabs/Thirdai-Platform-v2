@@ -22,7 +22,7 @@ Before running the script, ensure the following are installed on your machine:
 ### Step-by-Step Instructions
 
 1. **Download and Extract the Package**:
-   
+
    After downloading the `thirdai-platform-package.tar.gz`, extract it:
 
    ```bash
@@ -31,13 +31,14 @@ Before running the script, ensure the following are installed on your machine:
    ```
 
    This will extract the following files and directories:
+
    - `driver.sh`
    - `config.yml`
    - `platform/`
    - `models/qwen2-0_5b-instruct-fp16.gguf`
 
 2. **Make the `driver.sh` Script Executable**:
-   
+
    Before running the script, ensure that it has executable permissions. If not, change the permissions by running:
 
    ```bash
@@ -45,7 +46,7 @@ Before running the script, ensure the following are installed on your machine:
    ```
 
 3. **Run the Script**:
-   
+
    The `driver.sh` script requires the path to a `config.yml` file as an argument. You can use the default `config.yml` provided in the package or supply your own configuration file.
 
    To run the script with the default configuration:
@@ -55,7 +56,7 @@ Before running the script, ensure the following are installed on your machine:
    ```
 
 4. **What Happens During Execution**:
-   
+
    - The script checks for the installation of Ansible. If Ansible is not installed, the script will install it automatically.
    - The script verifies if the model file (`qwen2-0_5b-instruct-fp16.gguf`) is present in the `models/` directory. If the file is not found, the script issues a warning but proceeds with the playbook execution.
    - The script then navigates to the `platform/` directory and runs the `test_deploy.yml` Ansible playbook using the provided `config.yml` and the model path as extra variables.

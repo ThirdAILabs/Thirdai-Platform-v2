@@ -115,19 +115,19 @@ azure:
 ```
 
 ### Fields
+
 - provider: The cloud provider to use. Currently supported: azure.
 - azure: Configuration specific to Azure Container Registry.
-    - registry: The URL of the Azure Container Registry.
-    - branches: A dictionary of branch-specific configurations.
-        - <branch_name>: The name of the branch (e.g., prod, test).
-            - version: The version tag for the branch.
-            - push_credentials: Credentials for pushing images.
-                - username: The username for pushing images.
-                - password: The password for pushing images.
-            - pull_credentials: Credentials for pulling images.
-                - username: The username for pulling images.
-                - password: The password for pulling images.
-
+  - registry: The URL of the Azure Container Registry.
+  - branches: A dictionary of branch-specific configurations.
+    - <branch_name>: The name of the branch (e.g., prod, test).
+      - version: The version tag for the branch.
+      - push_credentials: Credentials for pushing images.
+        - username: The username for pushing images.
+        - password: The password for pushing images.
+      - pull_credentials: Credentials for pulling images.
+        - username: The username for pulling images.
+        - password: The password for pulling images.
 
 #### If Configuration is Missing
 
@@ -160,7 +160,7 @@ class GCPProvider(CloudProviderInterface):
 
 ```
 
-#### Updating ``config.yaml``
+#### Updating `config.yaml`
 
 ```yaml
 provider: gcp
@@ -177,7 +177,8 @@ gcp:
         password: your_pull_password
 ```
 
-#### Modifying ``push.py``
+#### Modifying `push.py`
+
 ```python
 
 def main() -> None:
@@ -189,7 +190,6 @@ def main() -> None:
         provider = GCPProvider(...)
     ...
 ```
-
 
 ## Usage
 
@@ -205,3 +205,4 @@ def main() -> None:
 
 ```sh
 python push.py --branch test --config config.yaml --version 1.0.0
+```

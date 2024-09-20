@@ -46,17 +46,12 @@ jobs:
         run: |
           cp ./packaging/README.md ./README.md
 
-      - name: Package platform, model, driver, config, and README into tarball
-        run: |
-          tar -czvf thirdai-platform-package.tar.gz ./platform ./gen-ai-models/qwen2-0_5b-instruct-fp16.gguf ./driver.sh ./config.yml ./README.md
-
       - name: Upload platform package artifact
         uses: actions/upload-artifact@v3
         with:
           name: thirdai-platform-package
           path: thirdai-platform-package.tar.gz
 
-      # Install Docker since it's not available by default
       - name: Install Docker
         run: |
           sudo apt-get update
@@ -71,64 +66,79 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-ce
 
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
+      - name: Configure AWS credentials
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: "Azure Login"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Log in to Docker Registry
         run: |
-          docker login -u thirdaiplatform-pull-local-registry -p 1N7CsVddLTv4+enVywVCgjOkDkMqpv63WenU0bWihF+ACRBVBnXz thirdaiplatform.azurecr.io
+          docker login -u thirdaiplatform-pull-local-registry -p ${{ secrets.DOCKER_REGISTRY_PASSWORD }} thirdaiplatform.azurecr.io
 
-      - name: Download Docker images
+      - name: Set the branch name for release
         run: |
-          mkdir -p docker_images
+          branch_name="local_registry"
+          echo "Docker image branch to build on is: $branch_name"
+          echo "branch_name=$branch_name" >> $GITHUB_ENV  # Save the latest_tag to the environment file
 
-          # Pull victoria-metrics:latest image
-          docker pull thirdaiplatform.azurecr.io/victoria-metrics:latest
-          docker save -o docker_images/victoria-metrics_latest.tar thirdaiplatform.azurecr.io/victoria-metrics:latest
+      - name: Fetch the latest tag for thirdai_platform
+        id: fetch_latest_tag
+        run: |
+          latest_tag=$(az acr repository show-tags --name thirdaiplatform \
+            --repository thirdai_platform_${{ env.branch_name }} --orderby time_desc --output tsv | grep -v '^latest$' | head -n 1)
+          echo "Latest tag is: $latest_tag"
+          echo "latest_tag=$latest_tag" >> $GITHUB_ENV  # Save the latest_tag to the environment file
 
-          # Pull postgres:latest image
-          docker pull postgres:latest
-          docker save -o docker_images/postgres_latest.tar postgres:latest
+      - name: Download Docker images using the latest tag
+        run: |
+          mkdir -p docker_images-${{ env.latest_tag }}
 
-          # Pull llama.cpp:server image
-          docker pull thirdaiplatform.azurecr.io/llama.cpp:server
-          docker save -o docker_images/llama.cpp_server.tar thirdaiplatform.azurecr.io/llama.cpp:server
-
-          # List of images to pull and save with the latest tag
-          images=(thirdai_platform_local_registry data_generation_job_local_registry train_job_local_registry node_discovery_local_registry deployment_job_local_registry llm_dispatch_job_local_registry frontend_local_registry llm_cache_job_local_registry)
+          # Pull and save images using the persisted ${{ env.latest_tag }} across steps
+          images=(thirdai_platform_${{ env.branch_name }} data_generation_job_${{ env.branch_name }} train_job_${{ env.branch_name }} node_discovery_${{ env.branch_name }} deployment_job_${{ env.branch_name }} llm_dispatch_job_${{ env.branch_name }} frontend_${{ env.branch_name }} llm_cache_job_${{ env.branch_name }})
 
           for image in "${images[@]}"
           do
-              echo "Pulling thirdaiplatform.azurecr.io/$image:latest..."
-              docker pull thirdaiplatform.azurecr.io/$image:latest
-              docker save -o docker_images/${image}_latest.tar thirdaiplatform.azurecr.io/$image:latest
+              echo "Pulling thirdaiplatform.azurecr.io/${image}:${{ env.latest_tag }}..."
+              docker pull thirdaiplatform.azurecr.io/${image}:${{ env.latest_tag }}
+              docker save -o docker_images-${{ env.latest_tag }}/${image}_${{ env.latest_tag }}.tar thirdaiplatform.azurecr.io/${image}:${{ env.latest_tag }}
           done
 
-          # Pull nomad-autoscaler:0.3.7 image
           docker pull thirdaiplatform.azurecr.io/nomad-autoscaler:0.3.7
-          docker save -o docker_images/nomad-autoscaler_0.3.7.tar thirdaiplatform.azurecr.io/nomad-autoscaler:0.3.7
+          docker save -o docker_images-${{ env.latest_tag }}/nomad-autoscaler_0.3.7.tar thirdaiplatform.azurecr.io/nomad-autoscaler:0.3.7
 
-          # Pull redis:latest image
           docker pull thirdaiplatform.azurecr.io/redis:7.4.0
-          docker save -o docker_images/redis_7.4.0.tar thirdaiplatform.azurecr.io/redis:7.4.0
+          docker save -o docker_images-${{ env.latest_tag }}/redis_7.4.0.tar thirdaiplatform.azurecr.io/redis:7.4.0
 
           docker pull registry:2
-          docker save -o docker_images/registry_2.tar registry:2
+          docker save -o docker_images-${{ env.latest_tag }}/registry_2.tar registry:2
 
-          # Pull traefik:v2.10 image
+          docker pull postgres:latest
+          docker save -o docker_images-${{ env.latest_tag }}/postgres_latest.tar registry:2
+
           docker pull thirdaiplatform.azurecr.io/traefik:v2.10
-          docker save -o docker_images/traefik_v2.10.tar thirdaiplatform.azurecr.io/traefik:v2.10
+          docker save -o docker_images-${{ env.latest_tag }}/traefik_v2.10.tar thirdaiplatform.azurecr.io/traefik:v2.10
 
-          # Pull victoria-metrics:latest image
-          docker pull thirdaiplatform.azurecr.io/victoria-metrics:latest
-          docker save -o docker_images/victoria-metrics_latest.tar thirdaiplatform.azurecr.io/victoria-metrics:latest
-
-          # Pull grafana:main-ubuntu image
           docker pull thirdaiplatform.azurecr.io/grafana:main-ubuntu
-          docker save -o docker_images/grafana_main-ubuntu.tar thirdaiplatform.azurecr.io/grafana:main-ubuntu
+          docker save -o docker_images-${{ env.latest_tag }}/grafana_main-ubuntu.tar thirdaiplatform.azurecr.io/grafana:main-ubuntu
 
-          # Pull loki:main image
           docker pull thirdaiplatform.azurecr.io/loki:main
-          docker save -o docker_images/loki_main.tar thirdaiplatform.azurecr.io/loki:main
+          docker save -o docker_images-${{ env.latest_tag }}/loki_main.tar thirdaiplatform.azurecr.io/loki:main
 
           echo "All images pulled and saved in the docker_images folder."
+
+      - name: Package platform, model, driver, config, and README into tarball
+        run: |
+          tar -czvf thirdai-platform-package-${{ env.latest_tag }}.tar.gz ./platform ./gen-ai-models/qwen2-0_5b-instruct-fp16.gguf ./driver.sh ./config.yml ./README.md
 
       - name: Replace driver script with local registry version
         run: |
@@ -136,10 +146,16 @@ jobs:
 
       - name: Package Docker images, driver script, config, and README into tarball
         run: |
-          tar -czvf thirdai-platform-package-local-registry.tar.gz ./docker_images ./driver.sh ./config.yml ./README.md
+          tar -czvf thirdai-platform-package-local-registry-${{ env.latest_tag }}.tar.gz ./docker_images ./driver.sh ./config.yml ./README.md
+
+      - name: Upload platform package artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: thirdai-platform-package-${{ env.latest_tag }}
+          path: thirdai-platform-package-${{ env.latest_tag }}.tar.gz
 
       - name: Upload Docker images artifact
         uses: actions/upload-artifact@v3
         with:
-          name: thirdai-platform-package-local-registry
-          path: thirdai-platform-package-local-registry.tar.gz
+          name: thirdai-platform-package-local-registry-${{ env.latest_tag }}
+          path: thirdai-platform-package-local-registry-${{ env.latest_tag }}.tar.gz

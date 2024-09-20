@@ -78,6 +78,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      #TODO(pratik): use release branch here and below
       - name: Log in to Docker Registry
         run: |
           docker login -u thirdaiplatform-pull-local-registry -p 1N7CsVddLTv4+enVywVCgjOkDkMqpv63WenU0bWihF+ACRBVBnXz  thirdaiplatform.azurecr.io
@@ -131,7 +132,7 @@ jobs:
           docker pull thirdaiplatform.azurecr.io/loki:main
           docker save -o docker_images-${{ env.latest_tag }}/loki_main.tar thirdaiplatform.azurecr.io/loki:main
 
-          echo "All images pulled and saved in the docker_images folder."
+          echo "All images pulled and saved in the docker_images-${{ env.latest_tag }} folder."
 
       - name: Package platform, model, driver, config, and README into tarball
         run: |
@@ -150,7 +151,7 @@ jobs:
 
       - name: Package Docker images, driver script, config, and README into tarball
         run: |
-          tar -czvf thirdai-platform-package-local-registry-${{ env.latest_tag }}.tar.gz ./docker_images ./driver.sh ./config.yml ./README.md
+          tar -czvf thirdai-platform-package-local-registry-${{ env.latest_tag }}.tar.gz ./docker_images-${{ env.latest_tag }} ./driver.sh ./config.yml ./README.md
 
       - name: Upload platform package artifact
         uses: actions/upload-artifact@v3

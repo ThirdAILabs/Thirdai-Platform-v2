@@ -20,17 +20,15 @@ interface DetectedColumn {
 
 const detectColumnType = (values: string[]): ColumnType => {
   if (values.every((val) => !isNaN(Number(val)))) return 'number';
-  if (values.every((val) => val === 'true' || val === 'false')) return 'boolean';
+  if (values.every((val) => val === 'true' || val === 'false'))
+    return 'boolean';
   if (values.every((val) => !isNaN(Date.parse(val)))) return 'date';
   return 'string';
 };
 
-const TabularClassificationQuestions: React.FC<TabularClassificationQuestionsProps> = ({
-  workflowNames,
-  onCreateModel,
-  stayOnPage,
-  appName,
-}) => {
+const TabularClassificationQuestions: React.FC<
+  TabularClassificationQuestionsProps
+> = ({ workflowNames, onCreateModel, stayOnPage, appName }) => {
   const [modelName, setModelName] = useState<string>(appName || '');
   const [warningMessage, setWarningMessage] = useState<string>('');
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -65,7 +63,7 @@ const TabularClassificationQuestions: React.FC<TabularClassificationQuestionsPro
         },
         error: (err) => {
           console.error('Error parsing CSV file:', err);
-        },
+        }
       });
     } else {
       setWarningMessage('Please upload a valid CSV file.');
@@ -93,7 +91,11 @@ const TabularClassificationQuestions: React.FC<TabularClassificationQuestionsPro
 
     // Your form submission logic goes here
     try {
-      console.log('Submitting form with:', { modelName, csvFile, targetColumn });
+      console.log('Submitting form with:', {
+        modelName,
+        csvFile,
+        targetColumn
+      });
 
       if (onCreateModel) {
         onCreateModel('model_id_example');
@@ -121,7 +123,8 @@ const TabularClassificationQuestions: React.FC<TabularClassificationQuestionsPro
           let warningMessage = '';
 
           if (name.includes(' ')) {
-            warningMessage = 'The app name cannot contain spaces. Please remove the spaces.';
+            warningMessage =
+              'The app name cannot contain spaces. Please remove the spaces.';
           } else if (name.includes('.')) {
             warningMessage =
               "The app name cannot contain periods ('.'). Please remove the periods.";
@@ -141,24 +144,37 @@ const TabularClassificationQuestions: React.FC<TabularClassificationQuestionsPro
         disabled={!!appName && !workflowNames.includes(modelName)}
       />
 
-      {warningMessage && <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>}
+      {warningMessage && (
+        <span style={{ color: 'red', marginTop: '10px' }}>
+          {warningMessage}
+        </span>
+      )}
 
-      <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
+      <span
+        className="block text-lg font-semibold"
+        style={{ marginTop: '20px' }}
+      >
         Upload CSV File
       </span>
-      <CardDescription>Upload a CSV file for tabular classification.</CardDescription>
+      <CardDescription>
+        Upload a CSV file for tabular classification.
+      </CardDescription>
 
       <div style={{ marginTop: '10px' }}>
         <Input type="file" accept=".csv" onChange={handleCsvFileChange} />
         {csvFile && (
-          <span style={{ marginTop: '10px', display: 'block' }}>Selected file: {csvFile.name}</span>
+          <span style={{ marginTop: '10px', display: 'block' }}>
+            Selected file: {csvFile.name}
+          </span>
         )}
       </div>
 
       {columns.length > 0 && (
         <>
           <div style={{ marginTop: '20px' }}>
-            <span className="block text-lg font-semibold">Detected Columns</span>
+            <span className="block text-lg font-semibold">
+              Detected Columns
+            </span>
             <ul>
               {columns.map((col) => (
                 <li key={col.name}>
@@ -169,7 +185,9 @@ const TabularClassificationQuestions: React.FC<TabularClassificationQuestionsPro
           </div>
 
           <div style={{ marginTop: '20px' }}>
-            <span className="block text-lg font-semibold">Select Target Column</span>
+            <span className="block text-lg font-semibold">
+              Select Target Column
+            </span>
             <CardDescription>
               Select the target prediction column from the detected columns.
             </CardDescription>

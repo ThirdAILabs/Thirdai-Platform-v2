@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 enum SourceType {
   LOCAL = 'local',
   S3 = 's3',
-  NSF = 'nsf',
+  NSF = 'nsf'
 }
 
 interface DocumentClassificationQuestionsProps {
@@ -13,11 +13,13 @@ interface DocumentClassificationQuestionsProps {
 }
 
 export default function DocumentClassificationQuestions({
-  workflowNames,
+  workflowNames
 }: DocumentClassificationQuestionsProps) {
   const [modelName, setModelName] = useState('');
   const [warningMessage, setWarningMessage] = useState('');
-  const [sources, setSources] = useState<{ type: SourceType; value: string | FileList }[]>([]);
+  const [sources, setSources] = useState<
+    { type: SourceType; value: string | FileList }[]
+  >([]);
   const [folderStructureValid, setFolderStructureValid] = useState(true); // To track validation status
   const [folderValidationMessage, setFolderValidationMessage] = useState('');
 
@@ -59,7 +61,9 @@ export default function DocumentClassificationQuestions({
     const allFilesArray = Array.from(files);
 
     // Filter to get only .pdf files
-    const pdfFiles = allFilesArray.filter((file) => file.name.toLowerCase().endsWith('.pdf'));
+    const pdfFiles = allFilesArray.filter((file) =>
+      file.name.toLowerCase().endsWith('.pdf')
+    );
 
     // Check if there were any non-PDF files
     if (allFilesArray.length !== pdfFiles.length) {
@@ -93,7 +97,9 @@ export default function DocumentClassificationQuestions({
 
     if (Object.keys(folderMap).length === 0) {
       setFolderStructureValid(false);
-      setFolderValidationMessage('The folder must contain at least one sub-folder with PDF files.');
+      setFolderValidationMessage(
+        'The folder must contain at least one sub-folder with PDF files.'
+      );
     } else {
       setFolderStructureValid(true);
       setFolderValidationMessage('');
@@ -125,7 +131,8 @@ export default function DocumentClassificationQuestions({
           let warningMessage = '';
 
           if (name.includes(' ')) {
-            warningMessage = 'The app name cannot contain spaces. Please remove the spaces.';
+            warningMessage =
+              'The app name cannot contain spaces. Please remove the spaces.';
           } else if (name.includes('.')) {
             warningMessage =
               "The app name cannot contain periods ('.'). Please remove the periods.";
@@ -144,9 +151,16 @@ export default function DocumentClassificationQuestions({
         style={{ marginTop: '10px' }}
       />
 
-      {warningMessage && <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>}
+      {warningMessage && (
+        <span style={{ color: 'red', marginTop: '10px' }}>
+          {warningMessage}
+        </span>
+      )}
 
-      <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
+      <span
+        className="block text-lg font-semibold"
+        style={{ marginTop: '20px' }}
+      >
         Sources
       </span>
       <div>
@@ -186,13 +200,17 @@ export default function DocumentClassificationQuestions({
       </div>
 
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-        <Button onClick={() => addSource(SourceType.LOCAL)}>Add Local Folder</Button>
+        <Button onClick={() => addSource(SourceType.LOCAL)}>
+          Add Local Folder
+        </Button>
         <Button onClick={() => addSource(SourceType.S3)}>Add S3 URL</Button>
         <Button onClick={() => addSource(SourceType.NSF)}>Add NSF Path</Button>
       </div>
 
       {!folderStructureValid && (
-        <span style={{ color: 'red', marginTop: '10px' }}>{folderValidationMessage}</span>
+        <span style={{ color: 'red', marginTop: '10px' }}>
+          {folderValidationMessage}
+        </span>
       )}
 
       <div className="flex justify-start">

@@ -31,12 +31,17 @@ export default function useRollingSamples<T>(
     return `${day} ${month} ${year} ${hours}:${minutes}:${seconds}`;
   };
 
-  const addTimes = (samples: T[], maxRegressSeconds: number): (T & { timestamp: string })[] => {
-    const regresses = samples.map(() => Math.floor(Math.random() * (maxRegressSeconds + 1)));
+  const addTimes = (
+    samples: T[],
+    maxRegressSeconds: number
+  ): (T & { timestamp: string })[] => {
+    const regresses = samples.map(() =>
+      Math.floor(Math.random() * (maxRegressSeconds + 1))
+    );
     regresses.sort();
     return samples.map((sample, idx) => ({
       ...sample,
-      timestamp: aLittleBeforeNow(regresses[idx]),
+      timestamp: aLittleBeforeNow(regresses[idx])
     }));
   };
 
@@ -44,16 +49,21 @@ export default function useRollingSamples<T>(
     const randomNum = Math.random();
     let numNewSamples = 0;
     if (randomNum < probabilityNewSamples) {
-      numNewSamples = Math.ceil((maxNewSamples / probabilityNewSamples) * randomNum);
+      numNewSamples = Math.ceil(
+        (maxNewSamples / probabilityNewSamples) * randomNum
+      );
     }
     setRollingSamples((prev) =>
-      [...addTimes(randomSamples(numNewSamples), intervalSeconds - 1), ...prev].slice(0, numSamples)
+      [
+        ...addTimes(randomSamples(numNewSamples), intervalSeconds - 1),
+        ...prev
+      ].slice(0, numSamples)
     );
   };
 
-  const [rollingSamples, setRollingSamples] = useState<(T & { timestamp: string })[]>(
-    addTimes(randomSamples(numSamples), 100)
-  );
+  const [rollingSamples, setRollingSamples] = useState<
+    (T & { timestamp: string })[]
+  >(addTimes(randomSamples(numSamples), 100));
 
   useEffect(() => {
     const intervalId = setInterval(rollSamples, intervalSeconds * 1000);

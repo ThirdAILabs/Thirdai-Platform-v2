@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card';
+import Button from '@mui/material/Button';
 import {
   fetchAllModels,
   fetchAllTeams,
@@ -16,11 +23,13 @@ import {
   removeTeamAdmin,
   deleteUserAccount,
   Workflow,
-  fetchWorkflows,
+  fetchWorkflows
 } from '@/lib/backend';
 import { useContext } from 'react';
 import { UserContext } from '../../user_wrapper';
 import AutocompleteInput from '@/components/ui/AutocompleteInput';
+import { TextField } from '@mui/material';
+import TeamPopOver from '../../../components/ui/TeamPopOver';
 
 // Define types for the models, teams, and users
 type Model = {
@@ -81,7 +90,8 @@ export default function AccessPage() {
       'This role has read and write access to all team members, models, and applications in the team.';
   } else {
     userRole = 'User'; // Default role if not an admin
-    roleDescription = 'This role has limited access based on specific team permissions.';
+    roleDescription =
+      'This role has limited access based on specific team permissions.';
   }
 
   // State to manage models, teams, and users
@@ -92,7 +102,8 @@ export default function AccessPage() {
   const [newTeamAdmin, setNewTeamAdmin] = useState<string>('');
   const [newTeamMembers, setNewTeamMembers] = useState<string[]>([]);
   const [selectedTeamForAdd, setSelectedTeamForAdd] = useState<string>('');
-  const [selectedTeamForRemove, setSelectedTeamForRemove] = useState<string>('');
+  const [selectedTeamForRemove, setSelectedTeamForRemove] =
+    useState<string>('');
   const [newMember, setNewMember] = useState<string>('');
   const [memberToRemove, setMemberToRemove] = useState<string>('');
 
@@ -122,7 +133,7 @@ export default function AccessPage() {
           sizeInMemory: model.size_in_memory,
           subType: model.sub_type,
           thirdaiVersion: model.thirdai_version,
-          trainingTime: model.training_time,
+          trainingTime: model.training_time
         })
       );
       setModels(modelData);
@@ -145,11 +156,11 @@ export default function AccessPage() {
           teams: user.teams.map((team) => ({
             id: team.team_id,
             name: team.team_name,
-            role: team.role,
+            role: team.role
           })),
           ownedModels: models
             .filter((model) => model.owner === user.username)
-            .map((model) => model.name),
+            .map((model) => model.name)
         })
       );
       setUsers(userData);
@@ -182,7 +193,7 @@ export default function AccessPage() {
           id: team.id,
           name: team.name,
           admins: admins, // Store the admins array
-          members: members,
+          members: members
         };
       });
 
@@ -453,13 +464,16 @@ export default function AccessPage() {
   // Handle team level change
   const [newAdmin, setNewAdmin] = useState('');
   const [adminToRemove, setAdminToRemove] = useState('');
-  const [selectedTeamForRemoveAdmin, setSelectedTeamForRemoveAdmin] = useState('');
+  const [selectedTeamForRemoveAdmin, setSelectedTeamForRemoveAdmin] =
+    useState('');
   const [selectedTeamForAddAdmin, setSelectedTeamForAddAdmin] = useState('');
 
   const assignAdminToTeam = async () => {
     if (selectedTeamForAddAdmin && newAdmin) {
       // Find the team ID based on the selected team name
-      const selectedTeam = teams.find((team) => team.name === selectedTeamForAddAdmin);
+      const selectedTeam = teams.find(
+        (team) => team.name === selectedTeamForAddAdmin
+      );
 
       if (!selectedTeam) {
         alert('Selected team not found.');
@@ -493,7 +507,9 @@ export default function AccessPage() {
   const removeAdminFromTeam = async () => {
     if (selectedTeamForRemoveAdmin && adminToRemove) {
       // Find the team ID based on the selected team name
-      const selectedTeam = teams.find((team) => team.name === selectedTeamForRemoveAdmin);
+      const selectedTeam = teams.find(
+        (team) => team.name === selectedTeamForRemoveAdmin
+      );
 
       if (!selectedTeam) {
         alert('Selected team not found.');
@@ -528,7 +544,9 @@ export default function AccessPage() {
   };
 
   // For single string values
-  const handleSingleChange = (setter: React.Dispatch<React.SetStateAction<string>>) => {
+  const handleSingleChange = (
+    setter: React.Dispatch<React.SetStateAction<string>>
+  ) => {
     return (value: string | string[]) => {
       if (typeof value === 'string') {
         setter(value);
@@ -537,7 +555,9 @@ export default function AccessPage() {
   };
 
   // For multiple string values
-  const handleMultipleChange = (setter: React.Dispatch<React.SetStateAction<string[]>>) => {
+  const handleMultipleChange = (
+    setter: React.Dispatch<React.SetStateAction<string[]>>
+  ) => {
     return (value: string | string[]) => {
       if (Array.isArray(value)) {
         setter(value);
@@ -575,9 +595,9 @@ export default function AccessPage() {
     const response = await fetch('/endpoints/change_openai_key', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ newApiKey }),
+      body: JSON.stringify({ newApiKey })
     });
 
     const data = await response.json();
@@ -613,11 +633,21 @@ export default function AccessPage() {
             <table className="w-full bg-white rounded-lg shadow-md overflow-hidden">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="py-3 px-4 text-left text-gray-700">Model Name</th>
-                  <th className="py-3 px-4 text-left text-gray-700">Model Type</th>
-                  <th className="py-3 px-4 text-left text-gray-700">Access Details</th>
-                  <th className="py-3 px-4 text-left text-gray-700">Edit Model Access</th>
-                  <th className="py-3 px-4 text-left text-gray-700">Delete Model</th>
+                  <th className="py-3 px-4 text-left text-gray-700">
+                    Model Name
+                  </th>
+                  <th className="py-3 px-4 text-left text-gray-700">
+                    Model Type
+                  </th>
+                  <th className="py-3 px-4 text-left text-gray-700">
+                    Access Details
+                  </th>
+                  <th className="py-3 px-4 text-left text-gray-700">
+                    Edit Model Access
+                  </th>
+                  <th className="py-3 px-4 text-left text-gray-700">
+                    Delete Model
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -636,11 +666,15 @@ export default function AccessPage() {
                         <div>
                           <div>Owner: {model.owner}</div>
                           <div>
-                            Team: {teams.find((team) => team.id === model.team)?.name || 'None'}
+                            Team:{' '}
+                            {teams.find((team) => team.id === model.team)
+                              ?.name || 'None'}
                           </div>
                         </div>
                       )}
-                      {model.type === 'Public Model' && <div>Owner: {model.owner}</div>}
+                      {model.type === 'Public Model' && (
+                        <div>Owner: {model.owner}</div>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       {editingIndex === index ? (
@@ -658,9 +692,12 @@ export default function AccessPage() {
                             className="border border-gray-300 rounded px-4 py-2"
                           >
                             <option value="Private Model">Private Model</option>
-                            <option value="Protected Model">Protected Model</option>
+                            <option value="Protected Model">
+                              Protected Model
+                            </option>
                             <option value="Public Model">Public Model</option>
                           </select>
+
                           {selectedType === 'Protected Model' && (
                             <select
                               value={selectedTeam || ''}
@@ -678,37 +715,39 @@ export default function AccessPage() {
                             </select>
                           )}
                           <div className="flex space-x-2 mt-2">
-                            <button
+                            <Button
                               onClick={() => handleModelTypeChange(index)}
                               className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                             >
                               Confirm
-                            </button>
-                            <button
+                            </Button>
+                            <Button
                               onClick={() => setEditingIndex(null)}
                               className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
                             >
                               Cancel
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       ) : (
-                        <button
+                        <Button
                           onClick={() => setEditingIndex(index)}
-                          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                          variant="contained"
                         >
                           Change Access
-                        </button>
+                        </Button>
                       )}
                     </td>
 
                     <td className="py-3 px-4">
-                      <button
+                      <Button
                         onClick={() => handleDeleteModel(index)}
-                        className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                        // className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                        color="error"
+                        variant="contained"
                       >
                         Delete
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -718,14 +757,20 @@ export default function AccessPage() {
 
           {/* Workflows Section */}
           <div className="mb-12">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Workflows</h3>
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">
+              Workflows
+            </h3>
             <table className="w-full bg-white rounded-lg shadow-md overflow-hidden">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="py-3 px-4 text-left text-gray-700">Workflow Name</th>
+                  <th className="py-3 px-4 text-left text-gray-700">
+                    Workflow Name
+                  </th>
                   <th className="py-3 px-4 text-left text-gray-700">Type</th>
                   <th className="py-3 px-4 text-left text-gray-700">Status</th>
-                  <th className="py-3 px-4 text-left text-gray-700">Created By</th>
+                  <th className="py-3 px-4 text-left text-gray-700">
+                    Created By
+                  </th>
                   <th className="py-3 px-4 text-left text-gray-700">Models</th>
                 </tr>
               </thead>
@@ -734,7 +779,9 @@ export default function AccessPage() {
                   <tr key={index} className="border-t">
                     <td className="py-3 px-4 text-gray-800">{workflow.name}</td>
                     <td className="py-3 px-4 text-gray-800">{workflow.type}</td>
-                    <td className="py-3 px-4 text-gray-800">{workflow.status}</td>
+                    <td className="py-3 px-4 text-gray-800">
+                      {workflow.status}
+                    </td>
                     <td className="py-3 px-4 text-gray-800">
                       <div>Username: {workflow.created_by.username}</div>
                       <div>Email: {workflow.created_by.email}</div>
@@ -762,45 +809,58 @@ export default function AccessPage() {
           <div className="mb-12">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Teams</h3>
             {teams.map((team, index) => (
-              <div key={index} className="bg-gray-100 p-4 rounded-lg shadow-md mb-8">
-                <h4 className="text-lg font-semibold text-gray-800">{team.name}</h4>
+              <div
+                key={index}
+                className="bg-gray-100 p-4 rounded-lg shadow-md mb-8"
+              >
+                <h4 className="text-lg font-semibold text-gray-800">
+                  {team.name}
+                </h4>
                 <div className="text-gray-700 mb-2">
-                  <span className="font-semibold">Admins:</span> {team.admins.join(', ')}
+                  <span className="font-semibold">Admins:</span>{' '}
+                  {team.admins.join(', ')}
                 </div>
                 <div className="text-gray-700 mb-2">
-                  <span className="font-semibold">Members:</span> {team.members.join(', ')}
+                  <span className="font-semibold">Members:</span>{' '}
+                  {team.members.join(', ')}
                 </div>
                 <div className="text-gray-700">
-                  <h5 className="text-md font-semibold text-gray-800">Protected Models</h5>
+                  <h5 className="text-md font-semibold text-gray-800">
+                    Protected Models
+                  </h5>
                   <ul className="list-disc pl-5">
                     {models
                       .filter(
-                        (model) => model.type === 'Protected Model' && model.team === team.name
+                        (model) =>
+                          model.type === 'Protected Model' &&
+                          model.team === team.name
                       )
                       .map((model, modelIndex) => (
                         <li key={modelIndex}>{model.name}</li>
                       ))}
                   </ul>
                 </div>
-                <button
+                <Button
                   onClick={() => deleteTeam(team.name)}
                   className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                 >
                   Delete Team
-                </button>
+                </Button>
               </div>
             ))}
 
             {/* Create New Team */}
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
-              <h4 className="text-lg font-semibold text-gray-800">Create New Team</h4>
+              <h4 className="text-lg font-semibold text-gray-800">
+                Create New Team
+              </h4>
               <div className="grid grid-cols-1 gap-4 mt-4">
-                <input
+                <TextField
                   type="text"
                   placeholder="Team Name"
                   value={newTeamName}
                   onChange={(e) => setNewTeamName(e.target.value)}
-                  className="border border-gray-300 rounded px-4 py-2"
+                  // className="border border-gray-300 rounded px-4 py-2"
                 />
                 <AutocompleteInput
                   key={newTeamAdmin} // Use a dynamic key to force re-render
@@ -816,24 +876,29 @@ export default function AccessPage() {
                   multiple={true}
                   placeholder="Team Members"
                 />
-                <button
+                <Button
                   onClick={() => {
                     if (newTeamAdmin && newTeamMembers.length > 0) {
                       createNewTeam();
                     } else {
-                      alert('Please enter both Team Admin and at least one Team Member.');
+                      alert(
+                        'Please enter both Team Admin and at least one Team Member.'
+                      );
                     }
                   }}
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  // className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  variant="contained"
                 >
                   Create Team
-                </button>
+                </Button>
               </div>
             </div>
 
             {/* Add Member to Team */}
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
-              <h4 className="text-lg font-semibold text-gray-800">Add Member to Team</h4>
+              <h4 className="text-lg font-semibold text-gray-800">
+                Add Member to Team
+              </h4>
               <div className="grid grid-cols-1 gap-4 mt-4">
                 <select
                   value={selectedTeamForAdd}
@@ -847,6 +912,10 @@ export default function AccessPage() {
                     </option>
                   ))}
                 </select>
+                {/* <TeamPopOver
+                  selectedTeam={selectedTeamForAdd}
+                  setSelectedTeam={setSelectedTeamForAdd}
+                /> */}
                 <AutocompleteInput
                   key={selectedTeamForAdd + newMember} // Use a key to force re-render
                   value={newMember}
@@ -858,25 +927,31 @@ export default function AccessPage() {
                           .filter(
                             (userName) =>
                               !teams
-                                .find((team) => team.name === selectedTeamForAdd)
+                                .find(
+                                  (team) => team.name === selectedTeamForAdd
+                                )
                                 ?.members.includes(userName)
                           )
                       : []
                   }
                   placeholder="New Member"
                 />
-                <button
+                <Button
                   onClick={addMemberToTeam}
-                  className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  // className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  variant="contained"
+                  color="success"
                 >
                   Add Member
-                </button>
+                </Button>
               </div>
             </div>
 
             {/* Remove Member from Team */}
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
-              <h4 className="text-lg font-semibold text-gray-800">Remove Member from Team</h4>
+              <h4 className="text-lg font-semibold text-gray-800">
+                Remove Member from Team
+              </h4>
               <div className="grid grid-cols-1 gap-4 mt-4">
                 <select
                   value={selectedTeamForRemove}
@@ -896,23 +971,29 @@ export default function AccessPage() {
                   onChange={handleSingleChange(setMemberToRemove)}
                   options={
                     selectedTeamForRemove
-                      ? teams.find((team) => team.name === selectedTeamForRemove)?.members || []
+                      ? teams.find(
+                          (team) => team.name === selectedTeamForRemove
+                        )?.members || []
                       : []
                   }
                   placeholder="Member to Remove"
                 />
-                <button
+                <Button
                   onClick={removeMemberFromTeam}
-                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  // className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  variant="contained"
+                  color="error"
                 >
                   Remove Member
-                </button>
+                </Button>
               </div>
             </div>
 
             {/* Add Admin to Team */}
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
-              <h4 className="text-lg font-semibold text-gray-800">Add Admin to Team</h4>
+              <h4 className="text-lg font-semibold text-gray-800">
+                Add Admin to Team
+              </h4>
               <div className="grid grid-cols-1 gap-4 mt-4">
                 <select
                   value={selectedTeamForAddAdmin}
@@ -933,22 +1014,28 @@ export default function AccessPage() {
                   options={users.map((user) => user.name)}
                   placeholder="New Admin"
                 />
-                <button
+                <Button
                   onClick={assignAdminToTeam}
-                  className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  // className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  variant="contained"
+                  color="success"
                 >
                   Add Admin
-                </button>
+                </Button>
               </div>
             </div>
 
             {/* Remove Admin from Team */}
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
-              <h4 className="text-lg font-semibold text-gray-800">Remove Admin from Team</h4>
+              <h4 className="text-lg font-semibold text-gray-800">
+                Remove Admin from Team
+              </h4>
               <div className="grid grid-cols-1 gap-4 mt-4">
                 <select
                   value={selectedTeamForRemoveAdmin}
-                  onChange={(e) => setSelectedTeamForRemoveAdmin(e.target.value)}
+                  onChange={(e) =>
+                    setSelectedTeamForRemoveAdmin(e.target.value)
+                  }
                   className="border border-gray-300 rounded px-4 py-2"
                 >
                   <option value="">Select Team</option>
@@ -964,18 +1051,21 @@ export default function AccessPage() {
                   onChange={handleSingleChange(setAdminToRemove)}
                   options={
                     selectedTeamForRemoveAdmin
-                      ? teams.find((team) => team.name === selectedTeamForRemoveAdmin)?.members ||
-                        []
+                      ? teams.find(
+                          (team) => team.name === selectedTeamForRemoveAdmin
+                        )?.members || []
                       : []
                   }
                   placeholder="Admin to Remove"
                 />
-                <button
+                <Button
                   onClick={removeAdminFromTeam}
-                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  // className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  variant="contained"
+                  color="error"
                 >
                   Remove Admin
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -984,10 +1074,16 @@ export default function AccessPage() {
           <div className="mb-12">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Users</h3>
             {users.map((user, index) => (
-              <div key={index} className="bg-gray-100 p-4 rounded-lg shadow-md mb-8">
-                <h4 className="text-lg font-semibold text-gray-800">{user.name}</h4>
+              <div
+                key={index}
+                className="bg-gray-100 p-4 rounded-lg shadow-md mb-8"
+              >
+                <h4 className="text-lg font-semibold text-gray-800">
+                  {user.name}
+                </h4>
                 <div className="text-gray-700 mb-2">Role: {user.role}</div>
-                {user.teams.filter((team) => team.role === 'team_admin').length > 0 && (
+                {user.teams.filter((team) => team.role === 'team_admin')
+                  .length > 0 && (
                   <div className="text-gray-700 mb-2">
                     Admin Teams:{' '}
                     {user.teams
@@ -997,30 +1093,38 @@ export default function AccessPage() {
                   </div>
                 )}
                 {user.ownedModels.length > 0 && (
-                  <div className="text-gray-700">Owned Models: {user.ownedModels.join(', ')}</div>
+                  <div className="text-gray-700">
+                    Owned Models: {user.ownedModels.join(', ')}
+                  </div>
                 )}
-                <button
+                <Button
                   onClick={() => deleteUser(user.name)}
-                  className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  // className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  variant="contained"
+                  color="error"
                 >
                   Delete User
-                </button>
+                </Button>
               </div>
             ))}
           </div>
 
           {/* OpenAI key Section */}
           <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
-            <h4 className="text-lg font-semibold text-gray-800">Change OpenAI API Key</h4>
+            <h4 className="text-lg font-semibold text-gray-800">
+              Change OpenAI API Key
+            </h4>
             <div className="mt-4">
               <label className="block text-gray-700">
                 Current Organization OpenAI API Key (masked):
               </label>
-              <p className="bg-gray-200 p-2 rounded">{apiKey || 'Loading...'}</p>
+              <p className="bg-gray-200 p-2 rounded">
+                {apiKey || 'Loading...'}
+              </p>
             </div>
             <div className="mt-4">
               <label className="block text-gray-700">New OpenAI API Key:</label>
-              <input
+              <TextField
                 type="text"
                 placeholder="sk-..."
                 value={newApiKey}
@@ -1028,14 +1132,16 @@ export default function AccessPage() {
                 className="border border-gray-300 rounded px-4 py-2 w-full"
               />
             </div>
-            <button
+            <Button
               onClick={handleSave}
               className={`mt-4 bg-blue-500 text-white px-4 py-2 rounded ${loading ? 'cursor-not-allowed' : ''}`}
               disabled={loading}
             >
               {loading ? 'Saving...' : 'Save'}
-            </button>
-            {successMessage && <p className="text-green-500 mt-4">{successMessage}</p>}
+            </Button>
+            {successMessage && (
+              <p className="text-green-500 mt-4">{successMessage}</p>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -6,8 +6,10 @@ import _ from 'lodash';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export const thirdaiPlatformBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+export const thirdaiPlatformBaseUrl =
+  typeof window !== 'undefined' ? window.location.origin : '';
+export const deploymentBaseUrl =
+  typeof window !== 'undefined' ? window.location.origin : '';
 
 export function getAccessToken(throwIfNotFound: boolean = true): string | null {
   const accessToken = localStorage.getItem('accessToken');
@@ -33,9 +35,12 @@ export async function fetchPrivateModels(name: string) {
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   try {
-    const response = await axios.get(`${thirdaiPlatformBaseUrl}/api/model/list`, {
-      params: { name },
-    });
+    const response = await axios.get(
+      `${thirdaiPlatformBaseUrl}/api/model/list`,
+      {
+        params: { name }
+      }
+    );
     return response.data;
   } catch (error) {
     console.error('Error fetching private models:', error);
@@ -45,7 +50,9 @@ export async function fetchPrivateModels(name: string) {
 }
 
 export async function fetchPublicModels(name: string) {
-  const response = await fetch(`${thirdaiPlatformBaseUrl}/api/model/public-list?name=${name}`);
+  const response = await fetch(
+    `${thirdaiPlatformBaseUrl}/api/model/public-list?name=${name}`
+  );
   if (!response.ok) {
     throw new Error('Failed to fetch public models');
   }
@@ -67,7 +74,9 @@ export async function fetchPendingModels(): Promise<PendingModel> {
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   try {
-    const response = await axios.get(`${thirdaiPlatformBaseUrl}/api/model/pending-train-models`);
+    const response = await axios.get(
+      `${thirdaiPlatformBaseUrl}/api/model/pending-train-models`
+    );
     return response.data;
   } catch (error) {
     console.error('Error fetching private models:', error);
@@ -92,7 +101,9 @@ export interface ApiResponse {
   data: Deployment[];
 }
 
-export async function listDeployments(deployment_id: string): Promise<Deployment[]> {
+export async function listDeployments(
+  deployment_id: string
+): Promise<Deployment[]> {
   const accessToken = getAccessToken(); // Ensure this function is implemented to get the access token
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
@@ -100,7 +111,7 @@ export async function listDeployments(deployment_id: string): Promise<Deployment
     const response = await axios.get<ApiResponse>(
       `${thirdaiPlatformBaseUrl}/api/deploy/list-deployments`,
       {
-        params: { deployment_id },
+        params: { deployment_id }
       }
     );
     return response.data.data;
@@ -203,13 +214,13 @@ export function deployModel(values: {
       deployment_name: values.deployment_name,
       model_identifier: values.model_identifier,
       use_llm_guardrail: values.use_llm_guardrail ? 'true' : 'false',
-      token_model_identifier: values.token_model_identifier,
+      token_model_identifier: values.token_model_identifier
     });
   } else {
     params = new URLSearchParams({
       deployment_name: values.deployment_name,
       model_identifier: values.model_identifier,
-      use_llm_guardrail: values.use_llm_guardrail ? 'true' : 'false',
+      use_llm_guardrail: values.use_llm_guardrail ? 'true' : 'false'
     });
   }
 
@@ -239,7 +250,10 @@ export function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/train/ndb?model_name=${name}`, formData)
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/train/ndb?model_name=${name}`,
+        formData
+      )
       .then((res) => {
         resolve(res.data);
       })
@@ -269,7 +283,7 @@ export interface RetrainNdbParams {
 export function retrain_ndb({
   model_name,
   base_model_identifier,
-  job_options,
+  job_options
 }: RetrainNdbParams): Promise<any> {
   // Retrieve the access token from local storage or any other storage mechanism
   const accessToken = getAccessToken();
@@ -280,7 +294,7 @@ export function retrain_ndb({
   // Initialize URLSearchParams with model_name and base_model_identifier
   const params = new URLSearchParams({
     model_name: model_name,
-    base_model_identifier: base_model_identifier,
+    base_model_identifier: base_model_identifier
   });
 
   // Append job_options fields to the URLSearchParams
@@ -290,13 +304,17 @@ export function retrain_ndb({
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/train/ndb-retrain?${params.toString()}`)
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/train/ndb-retrain?${params.toString()}`
+      )
       .then((res) => {
         resolve(res.data);
       })
       .catch((err) => {
         if (err.response && err.response.data) {
-          reject(new Error(err.response.data.message || 'Failed to retrain model'));
+          reject(
+            new Error(err.response.data.message || 'Failed to retrain model')
+          );
         } else {
           reject(new Error('Failed to retrain model'));
         }
@@ -309,7 +327,10 @@ interface CreateWorkflowParams {
   typeName: string;
 }
 
-export function create_workflow({ name, typeName }: CreateWorkflowParams): Promise<any> {
+export function create_workflow({
+  name,
+  typeName
+}: CreateWorkflowParams): Promise<any> {
   const accessToken = getAccessToken();
 
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
@@ -318,13 +339,17 @@ export function create_workflow({ name, typeName }: CreateWorkflowParams): Promi
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/workflow/create?${params.toString()}`)
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/workflow/create?${params.toString()}`
+      )
       .then((res) => {
         resolve(res.data);
       })
       .catch((err) => {
         if (err.response && err.response.data) {
-          reject(new Error(err.response.data.detail || 'Failed to create workflow'));
+          reject(
+            new Error(err.response.data.detail || 'Failed to create workflow')
+          );
         } else {
           reject(new Error('Failed to create workflow'));
         }
@@ -341,7 +366,7 @@ interface AddModelsToWorkflowParams {
 export function add_models_to_workflow({
   workflowId,
   modelIdentifiers,
-  components,
+  components
 }: AddModelsToWorkflowParams): Promise<any> {
   const accessToken = getAccessToken();
 
@@ -352,14 +377,18 @@ export function add_models_to_workflow({
       .post(`${thirdaiPlatformBaseUrl}/api/workflow/add-models`, {
         workflow_id: workflowId,
         model_ids: modelIdentifiers,
-        components,
+        components
       })
       .then((res) => {
         resolve(res.data);
       })
       .catch((err) => {
         if (err.response && err.response.data) {
-          reject(new Error(err.response.data.detail || 'Failed to add models to workflow'));
+          reject(
+            new Error(
+              err.response.data.detail || 'Failed to add models to workflow'
+            )
+          );
         } else {
           reject(new Error('Failed to add models to workflow'));
         }
@@ -376,7 +405,7 @@ export interface DeleteModelsParams {
 export function delete_models({
   workflow_id,
   model_ids,
-  components,
+  components
 }: DeleteModelsParams): Promise<any> {
   const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
@@ -386,14 +415,19 @@ export function delete_models({
       .post(`${thirdaiPlatformBaseUrl}/api/workflow/delete-models`, {
         workflow_id,
         model_ids,
-        components,
+        components
       })
       .then((res) => {
         resolve(res.data);
       })
       .catch((err) => {
         if (err.response && err.response.data) {
-          reject(new Error(err.response.data.message || 'Failed to delete models from workflow'));
+          reject(
+            new Error(
+              err.response.data.message ||
+                'Failed to delete models from workflow'
+            )
+          );
         } else {
           reject(new Error('Failed to delete models from workflow'));
         }
@@ -408,7 +442,7 @@ interface SetGenAIProviderParams {
 
 export function set_gen_ai_provider({
   workflowId,
-  provider,
+  provider
 }: SetGenAIProviderParams): Promise<any> {
   const accessToken = getAccessToken();
 
@@ -418,14 +452,18 @@ export function set_gen_ai_provider({
     axios
       .post(`${thirdaiPlatformBaseUrl}/api/workflow/set-gen-ai-provider`, {
         workflow_id: workflowId,
-        provider,
+        provider
       })
       .then((res) => {
         resolve(res.data);
       })
       .catch((err) => {
         if (err.response && err.response.data) {
-          reject(new Error(err.response.data.detail || 'Failed to set generation AI provider'));
+          reject(
+            new Error(
+              err.response.data.detail || 'Failed to set generation AI provider'
+            )
+          );
         } else {
           reject(new Error('Failed to set generation AI provider'));
         }
@@ -463,7 +501,9 @@ export function fetchWorkflows(): Promise<Workflow[]> {
       })
       .catch((err) => {
         if (err.response && err.response.data) {
-          reject(new Error(err.response.data.detail || 'Failed to fetch workflows'));
+          reject(
+            new Error(err.response.data.detail || 'Failed to fetch workflows')
+          );
         } else {
           reject(new Error('Failed to fetch workflows'));
         }
@@ -479,7 +519,9 @@ interface ValidateWorkflowResponse {
   };
 }
 
-export function validate_workflow(workflowId: string): Promise<ValidateWorkflowResponse> {
+export function validate_workflow(
+  workflowId: string
+): Promise<ValidateWorkflowResponse> {
   const accessToken = getAccessToken();
 
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
@@ -496,7 +538,9 @@ export function validate_workflow(workflowId: string): Promise<ValidateWorkflowR
       })
       .catch((err) => {
         if (err.response && err.response.data) {
-          reject(new Error(err.response.data.detail || 'Failed to validate workflow'));
+          reject(
+            new Error(err.response.data.detail || 'Failed to validate workflow')
+          );
         } else {
           reject(new Error('Failed to validate workflow'));
         }
@@ -512,7 +556,9 @@ interface StartWorkflowResponse {
   };
 }
 
-export function start_workflow(workflowId: string): Promise<StartWorkflowResponse> {
+export function start_workflow(
+  workflowId: string
+): Promise<StartWorkflowResponse> {
   const accessToken = getAccessToken();
 
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
@@ -529,7 +575,9 @@ export function start_workflow(workflowId: string): Promise<StartWorkflowRespons
       })
       .catch((err) => {
         if (err.response && err.response.data) {
-          reject(new Error(err.response.data.detail || 'Failed to start workflow'));
+          reject(
+            new Error(err.response.data.detail || 'Failed to start workflow')
+          );
         } else {
           reject(new Error('Failed to start workflow'));
         }
@@ -542,7 +590,9 @@ interface StopWorkflowResponse {
   message: string;
 }
 
-export function stop_workflow(workflowId: string): Promise<StopWorkflowResponse> {
+export function stop_workflow(
+  workflowId: string
+): Promise<StopWorkflowResponse> {
   const accessToken = getAccessToken();
 
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
@@ -550,14 +600,16 @@ export function stop_workflow(workflowId: string): Promise<StopWorkflowResponse>
   return new Promise((resolve, reject) => {
     axios
       .post(`${thirdaiPlatformBaseUrl}/api/workflow/stop`, null, {
-        params: { workflow_id: workflowId },
+        params: { workflow_id: workflowId }
       })
       .then((res) => {
         resolve(res.data);
       })
       .catch((err) => {
         if (err.response && err.response.data) {
-          reject(new Error(err.response.data.detail || 'Failed to stop workflow'));
+          reject(
+            new Error(err.response.data.detail || 'Failed to stop workflow')
+          );
         } else {
           reject(new Error('Failed to stop workflow'));
         }
@@ -570,7 +622,9 @@ interface DeleteWorkflowResponse {
   message: string;
 }
 
-export async function delete_workflow(workflowId: string): Promise<DeleteWorkflowResponse> {
+export async function delete_workflow(
+  workflowId: string
+): Promise<DeleteWorkflowResponse> {
   const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
@@ -628,7 +682,9 @@ interface WorkflowDetailsResponse {
   };
 }
 
-export async function getWorkflowDetails(workflowId: string): Promise<WorkflowDetailsResponse> {
+export async function getWorkflowDetails(
+  workflowId: string
+): Promise<WorkflowDetailsResponse> {
   const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
@@ -659,8 +715,8 @@ export function userEmailLogin(
     axios
       .get(`${thirdaiPlatformBaseUrl}/api/user/email-login`, {
         headers: {
-          Authorization: `Basic ${window.btoa(`${email}:${password}`)}`,
-        },
+          Authorization: `Basic ${window.btoa(`${email}:${password}`)}`
+        }
       })
       .then((res) => {
         const accessToken = res.data.data.access_token;
@@ -685,13 +741,17 @@ export function userEmailLogin(
   });
 }
 
-export function userRegister(email: string, password: string, username: string) {
+export function userRegister(
+  email: string,
+  password: string,
+  username: string
+) {
   return new Promise((resolve, reject) => {
     axios
       .post(`${thirdaiPlatformBaseUrl}/api/user/email-signup-basic`, {
         email,
         password,
-        username,
+        username
       })
       .then((res) => {
         resolve(res.data);
@@ -708,11 +768,14 @@ interface TokenClassificationExample {
   description: string;
 }
 
-function tokenClassifierDatagenForm(modelGoal: string, examples: TokenClassificationExample[]) {
+function tokenClassifierDatagenForm(
+  modelGoal: string,
+  examples: TokenClassificationExample[]
+) {
   const tags = examples.map((example) => ({
     name: example.name,
     examples: [example.example],
-    description: example.description,
+    description: example.description
   }));
   const numSentences = 10_000;
   return {
@@ -720,7 +783,7 @@ function tokenClassifierDatagenForm(modelGoal: string, examples: TokenClassifica
     task_prompt: modelGoal,
     tags: tags,
     num_sentences_to_generate: numSentences,
-    num_samples_per_tag: Math.max(Math.ceil(numSentences / tags.length), 50),
+    num_samples_per_tag: Math.max(Math.ceil(numSentences / tags.length), 50)
   };
 }
 
@@ -749,13 +812,16 @@ export function trainTokenClassifier(
     'datagen_options',
     JSON.stringify({
       task_prompt: modelGoal,
-      datagen_options: tokenClassifierDatagenForm(modelGoal, examples),
+      datagen_options: tokenClassifierDatagenForm(modelGoal, examples)
     })
   );
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/train/nlp-datagen?model_name=${modelName}`, formData)
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/train/nlp-datagen?model_name=${modelName}`,
+        formData
+      )
       .then((res) => {
         resolve(res.data);
       })
@@ -775,18 +841,20 @@ interface SentenceClassificationExample {
   description: string;
 }
 
-function sentenceClassifierDatagenForm(examples: SentenceClassificationExample[]) {
+function sentenceClassifierDatagenForm(
+  examples: SentenceClassificationExample[]
+) {
   const labels = examples.map((example) => ({
     name: example.name,
     examples: [example.example],
-    description: example.description,
+    description: example.description
   }));
 
   const numSentences = 10_000;
   return {
     sub_type: 'text',
     samples_per_label: Math.max(Math.ceil(numSentences / labels.length), 50),
-    target_labels: labels,
+    target_labels: labels
   };
 }
 
@@ -815,13 +883,16 @@ export function trainSentenceClassifier(
     'datagen_options',
     JSON.stringify({
       task_prompt: modelGoal,
-      datagen_options: sentenceClassifierDatagenForm(examples),
+      datagen_options: sentenceClassifierDatagenForm(examples)
     })
   );
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/train/nlp-datagen?model_name=${modelName}`, formData)
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/train/nlp-datagen?model_name=${modelName}`,
+        formData
+      )
       .then((res) => {
         console.log(res);
         resolve(res.data);
@@ -898,7 +969,7 @@ export function useTokenClassificationEndpoints() {
     try {
       const response = await axios.post(`${deploymentUrl}/predict`, {
         query,
-        top_k: 1,
+        top_k: 1
       });
       return response.data.data;
     } catch (error) {
@@ -934,7 +1005,9 @@ export function useTokenClassificationEndpoints() {
     if (amountstr.includes('.')) {
       const [wholes, decimals] = amountstr.split('.');
       const decimalsLength = 3 - Math.min(3, wholes.length);
-      amountstr = decimalsLength ? wholes + '.' + decimals.substring(0, decimalsLength) : wholes;
+      amountstr = decimalsLength
+        ? wholes + '.' + decimals.substring(0, decimalsLength)
+        : wholes;
     }
     return amountstr + suffix;
   };
@@ -953,31 +1026,34 @@ export function useTokenClassificationEndpoints() {
               ['CPU', '12 vCPUs'],
               ['CPU Model', 'Intel(R) Xeon(R) CPU E5-2680 v3 @ 2.50GHz'],
               ['Memory', '64 GB RAM'],
-              ['System Uptime', formatTime(response.data.data.uptime)],
-            ],
+              ['System Uptime', formatTime(response.data.data.uptime)]
+            ]
           },
           throughput: {
             header: [
               'Time Period',
               'Tokens Identified',
               'Queries Ingested',
-              'Queries Ingested Size',
+              'Queries Ingested Size'
             ],
             rows: [
               [
                 'Past hour',
                 formatAmount(response.data.data.past_hour.tokens_identified),
                 formatAmount(response.data.data.past_hour.queries_ingested),
-                formatAmount(response.data.data.past_hour.queries_ingested_bytes) + 'B',
+                formatAmount(
+                  response.data.data.past_hour.queries_ingested_bytes
+                ) + 'B'
               ],
               [
                 'Total',
                 formatAmount(response.data.data.total.tokens_identified),
                 formatAmount(response.data.data.total.queries_ingested),
-                formatAmount(response.data.data.total.queries_ingested_bytes) + 'B',
-              ],
-            ],
-          },
+                formatAmount(response.data.data.total.queries_ingested_bytes) +
+                  'B'
+              ]
+            ]
+          }
         };
       } catch (error) {
         console.error('Error fetching stats:', error);
@@ -989,7 +1065,7 @@ export function useTokenClassificationEndpoints() {
   return {
     workflowName,
     predict,
-    getStats,
+    getStats
   };
 }
 
@@ -1040,7 +1116,7 @@ export function useTextClassificationEndpoints() {
     try {
       const response = await axios.post(`${deploymentUrl}/predict`, {
         query,
-        top_k: 5,
+        top_k: 5
       });
       return response.data.data;
     } catch (error) {
@@ -1052,7 +1128,7 @@ export function useTextClassificationEndpoints() {
 
   return {
     workflowName,
-    predict,
+    predict
   };
 }
 
@@ -1177,7 +1253,9 @@ export async function updateModelAccessLevel(
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/model/update-access-level?${params.toString()}`)
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/model/update-access-level?${params.toString()}`
+      )
       .then(() => {
         resolve();
       })
@@ -1230,7 +1308,9 @@ export async function createTeam(name: string): Promise<CreateTeamResponse> {
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/team/create-team?${params.toString()}`)
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/team/create-team?${params.toString()}`
+      )
       .then((res) => {
         resolve(res.data as CreateTeamResponse);
       })
@@ -1240,7 +1320,11 @@ export async function createTeam(name: string): Promise<CreateTeamResponse> {
   });
 }
 
-export async function addUserToTeam(email: string, team_id: string, role: string = 'user') {
+export async function addUserToTeam(
+  email: string,
+  team_id: string,
+  role: string = 'user'
+) {
   const accessToken = getAccessToken();
 
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
@@ -1249,7 +1333,9 @@ export async function addUserToTeam(email: string, team_id: string, role: string
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/team/add-user-to-team?${params.toString()}`)
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/team/add-user-to-team?${params.toString()}`
+      )
       .then((res) => {
         resolve(res.data);
       })
@@ -1268,7 +1354,9 @@ export async function assignTeamAdmin(email: string, team_id: string) {
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/team/assign-team-admin?${params.toString()}`)
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/team/assign-team-admin?${params.toString()}`
+      )
       .then((res) => {
         resolve(res.data);
       })
@@ -1287,7 +1375,9 @@ export async function removeTeamAdmin(email: string, team_id: string) {
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/team/remove-team-admin?${params.toString()}`)
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/team/remove-team-admin?${params.toString()}`
+      )
       .then((res) => {
         resolve(res.data);
       })
@@ -1297,7 +1387,10 @@ export async function removeTeamAdmin(email: string, team_id: string) {
   });
 }
 
-export async function deleteUserFromTeam(email: string, team_id: string): Promise<void> {
+export async function deleteUserFromTeam(
+  email: string,
+  team_id: string
+): Promise<void> {
   const accessToken = getAccessToken();
 
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
@@ -1306,7 +1399,9 @@ export async function deleteUserFromTeam(email: string, team_id: string): Promis
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/team/remove-user-from-team?${params.toString()}`)
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/team/remove-user-from-team?${params.toString()}`
+      )
       .then(() => {
         resolve();
       })
@@ -1327,7 +1422,9 @@ export async function deleteTeamById(team_id: string): Promise<void> {
 
   return new Promise((resolve, reject) => {
     axios
-      .delete(`${thirdaiPlatformBaseUrl}/api/team/delete-team?${params.toString()}`)
+      .delete(
+        `${thirdaiPlatformBaseUrl}/api/team/delete-team?${params.toString()}`
+      )
       .then(() => {
         resolve();
       })
@@ -1349,7 +1446,7 @@ export async function deleteUserAccount(email: string): Promise<void> {
   return new Promise((resolve, reject) => {
     axios
       .delete(`${thirdaiPlatformBaseUrl}/api/user/delete-user`, {
-        data: { email },
+        data: { email }
       })
       .then(() => {
         resolve();
@@ -1371,7 +1468,9 @@ export async function updateModel(modelIdentifier: string): Promise<void> {
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/model/update-model?${params.toString()}`)
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/model/update-model?${params.toString()}`
+      )
       .then(() => {
         resolve();
       })
@@ -1420,7 +1519,9 @@ export async function fetchAutoCompleteQueries(modelId: string, query: string) {
   const params = new URLSearchParams({ model_id: modelId, query });
 
   try {
-    const response = await axios.get(`${deploymentBaseUrl}/cache/suggestions?${params.toString()}`);
+    const response = await axios.get(
+      `${deploymentBaseUrl}/cache/suggestions?${params.toString()}`
+    );
 
     return response.data; // Assuming the backend returns the data directly
   } catch (err) {
@@ -1436,7 +1537,9 @@ export async function fetchCachedGeneration(modelId: string, query: string) {
   const params = new URLSearchParams({ model_id: modelId, query });
 
   try {
-    const response = await axios.get(`${deploymentBaseUrl}/cache/query?${params.toString()}`);
+    const response = await axios.get(
+      `${deploymentBaseUrl}/cache/query?${params.toString()}`
+    );
     return response.data.cached_response; // Assuming the backend returns the data directly
   } catch (err) {
     console.error('Error fetching cached generation:', err);
@@ -1451,7 +1554,9 @@ export async function temporaryCacheToken(modelId: string) {
   const params = new URLSearchParams({ model_id: modelId });
 
   try {
-    const response = await axios.get(`${deploymentBaseUrl}/cache/token?${params.toString()}`);
+    const response = await axios.get(
+      `${deploymentBaseUrl}/cache/token?${params.toString()}`
+    );
     return response.data.access_token; // Assuming the backend returns the data directly
   } catch (err) {
     console.error('Error getting temporary cache access token:', err);

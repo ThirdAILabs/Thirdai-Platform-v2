@@ -21,7 +21,8 @@ const Button = styled.button<{ $active: boolean }>`
 
   &:hover {
     cursor: pointer;
-    background-color: ${(props) => (props.$active ? color.accent : color.accentExtraLight)};
+    background-color: ${(props) =>
+      props.$active ? color.accent : color.accentExtraLight};
   }
 `;
 
@@ -31,7 +32,7 @@ const RerankText = styled.text<{ $active: boolean }>`
 
 export default function RerankToggle({
   state,
-  onToggle,
+  onToggle
 }: {
   state: boolean;
   onToggle: () => void;

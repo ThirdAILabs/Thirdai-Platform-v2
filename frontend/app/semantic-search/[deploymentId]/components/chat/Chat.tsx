@@ -1,7 +1,13 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import styled from 'styled-components';
-import { borderRadius, color, duration, fontSizes, padding } from '../../stylingConstants';
+import {
+  borderRadius,
+  color,
+  duration,
+  fontSizes,
+  padding
+} from '../../stylingConstants';
 import { ModelServiceContext } from '../../Context';
 import { ChatMessage, ModelService } from '../../modelServices';
 import TypingAnimation from '../TypingAnimation';
@@ -41,7 +47,9 @@ const TypingAnimationContainer = styled.section`
 function ChatBox({ message }: { message: ChatMessage }) {
   return (
     <ChatBoxContainer>
-      <ChatBoxSender>{message.sender === 'human' ? '👋 You' : '🤖 AI'}</ChatBoxSender>
+      <ChatBoxSender>
+        {message.sender === 'human' ? '👋 You' : '🤖 AI'}
+      </ChatBoxSender>
       <ChatBoxContent>
         <ReactMarkdown>{message.content}</ReactMarkdown>
       </ChatBoxContent>
@@ -126,12 +134,18 @@ export default function Chat(props: any) {
       const lastTextInput = textInput;
       const lastChatHistory = chatHistory;
       setAiLoading(true);
-      setChatHistory((history) => [...history, { sender: 'human', content: textInput }]);
+      setChatHistory((history) => [
+        ...history,
+        { sender: 'human', content: textInput }
+      ]);
       setTextInput('');
       modelService
         ?.chat(textInput)
         .then(({ response }) => {
-          setChatHistory((history) => [...history, { sender: 'AI', content: response }]);
+          setChatHistory((history) => [
+            ...history,
+            { sender: 'AI', content: response }
+          ]);
           setAiLoading(false);
         })
         .catch((_) => {

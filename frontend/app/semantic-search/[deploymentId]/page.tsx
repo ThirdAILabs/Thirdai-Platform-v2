@@ -21,7 +21,10 @@ import { Chunk } from './components/pdf_viewer/interfaces';
 import UpvoteModal from './components/pdf_viewer/UpvoteModal';
 import Chat from './components/chat/Chat';
 import ChatToggle from './components/chat/ChatToggle';
-import { createDeploymentUrl, createTokenModelUrl } from './components/DeploymentURL';
+import {
+  createDeploymentUrl,
+  createTokenModelUrl
+} from './components/DeploymentURL';
 import PillButton from './components/buttons/PillButton';
 import { useParams, useSearchParams } from 'next/navigation';
 import { CardTitle } from '@/components/ui/card';
@@ -164,13 +167,17 @@ function App() {
         console.log('Models:', details.data.models);
 
         // Filter and find the model with component "search"
-        const searchModel = details.data.models.find((model) => model.component === 'search');
+        const searchModel = details.data.models.find(
+          (model) => model.component === 'search'
+        );
         const serviceUrl = searchModel
           ? createDeploymentUrl(searchModel.model_id)
           : createDeploymentUrl('');
 
         // Filter and find the model with component "nlp"
-        const nlpModel = details.data.models.find((model) => model.component === 'nlp');
+        const nlpModel = details.data.models.find(
+          (model) => model.component === 'nlp'
+        );
         const tokenModelUrl = nlpModel
           ? createTokenModelUrl(nlpModel.model_id)
           : createTokenModelUrl('');
@@ -184,9 +191,15 @@ function App() {
           setCacheEnabled(false);
         }
 
-        const newModelService = new ModelService(serviceUrl, tokenModelUrl, uuidv4());
+        const newModelService = new ModelService(
+          serviceUrl,
+          tokenModelUrl,
+          uuidv4()
+        );
         setModelService(newModelService);
-        newModelService.sources().then((fetchedSources) => setSources(fetchedSources));
+        newModelService
+          .sources()
+          .then((fetchedSources) => setSources(fetchedSources));
       } catch (error) {
         console.error('Failed to fetch workflow details:', error);
         alert('Failed to fetch workflow details:' + error);
@@ -269,7 +282,11 @@ function App() {
     isDifferent: boolean;
   } | null>(null);
 
-  async function submit(query: string, genaiPrompt: string, bypassCache = false) {
+  async function submit(
+    query: string,
+    genaiPrompt: string,
+    bypassCache = false
+  ) {
     function replacePlaceholdersWithOriginal(
       text: string,
       piiMap: Map<string, PiiMapValue>
@@ -373,7 +390,11 @@ function App() {
           if (matchedEntry) {
             return `[${tag} #${matchedEntry[1].id}]`;
           } else {
-            piiMap.set(sentence, { id: currentId, originalToken: sentence, tag });
+            piiMap.set(sentence, {
+              id: currentId,
+              originalToken: sentence,
+              tag
+            });
             currentId++;
             return `[${tag} #${piiMap.get(sentence)?.id}]`;
           }
@@ -408,12 +429,18 @@ function App() {
         if (results && ifGenerationOn) {
           const processedReferences = await Promise.all(
             results.references.map(async (reference) => {
-              const processedContent = await replacePIIWithPlaceholders(reference.content, piiMap);
+              const processedContent = await replacePIIWithPlaceholders(
+                reference.content,
+                piiMap
+              );
               return { ...reference, content: processedContent };
             })
           );
 
-          const processedQuery = await replacePIIWithPlaceholders(query, piiMap);
+          const processedQuery = await replacePIIWithPlaceholders(
+            query,
+            piiMap
+          );
 
           console.log('processedQuery:', processedQuery);
           console.log('piiMap:', piiMap);
@@ -432,7 +459,10 @@ function App() {
                 const fullAnswer = prev + next;
 
                 // Replace placeholders in the concatenated string
-                const replacedAnswer = replacePlaceholdersWithOriginal(fullAnswer, piiMap);
+                const replacedAnswer = replacePlaceholdersWithOriginal(
+                  fullAnswer,
+                  piiMap
+                );
 
                 // Return the final processed answer to update the state
                 return replacedAnswer;
@@ -462,7 +492,8 @@ function App() {
                 console.log('cached query is', cachedResult.query);
                 console.log('cached generation is', cachedResult.llm_res);
 
-                const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+                const sleep = (ms: number) =>
+                  new Promise((r) => setTimeout(r, ms));
                 setQueryInfo(null);
                 for (const token of cachedResult.llm_res.split(' ')) {
                   setAnswer((prev) => prev + ' ' + token);
@@ -473,7 +504,7 @@ function App() {
                 setQueryInfo({
                   cachedQuery: cachedResult.query,
                   userQuery: query,
-                  isDifferent: cachedResult.query !== query,
+                  isDifferent: cachedResult.query !== query
                 });
 
                 return; // Stop further execution since the answer was found in cache
@@ -619,7 +650,10 @@ function App() {
               <Logo src={LogoImg.src} alt="Logo" />
             </a>
             <TopRightCorner>
-              <ChatToggle active={chatMode} onClick={() => setChatMode((chatMode) => !chatMode)} />
+              <ChatToggle
+                active={chatMode}
+                onClick={() => setChatMode((chatMode) => !chatMode)}
+              />
               <Spacer $width="40px" />
               <Teach />
             </TopRightCorner>

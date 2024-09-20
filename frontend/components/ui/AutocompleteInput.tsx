@@ -1,3 +1,4 @@
+import { TextField } from '@mui/material';
 import React, { useState, ChangeEvent } from 'react';
 
 interface AutocompleteInputProps {
@@ -13,16 +14,20 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   onChange,
   options,
   multiple = false,
-  placeholder = '',
+  placeholder = ''
 }) => {
-  const [inputValue, setInputValue] = useState<string>(typeof value === 'string' ? value : '');
+  const [inputValue, setInputValue] = useState<string>(
+    typeof value === 'string' ? value : ''
+  );
   const [filteredOptions, setFilteredOptions] = useState<string[]>([]);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
     setInputValue(input);
 
-    const filtered = options.filter((option) => option.toLowerCase().includes(input.toLowerCase()));
+    const filtered = options.filter((option) =>
+      option.toLowerCase().includes(input.toLowerCase())
+    );
     setFilteredOptions(filtered);
   };
 
@@ -47,12 +52,13 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
 
   return (
     <div className="relative">
-      <input
+      <TextField
         type="text"
         value={multiple && Array.isArray(value) ? inputValue : inputValue}
         onChange={handleInputChange}
         placeholder={placeholder}
-        className="border border-gray-300 rounded px-2 py-1 mb-2 w-full"
+        className="w-full"
+        // className="border border-gray-300 rounded px-2 py-1 mb-2 w-full"
       />
       {filteredOptions.length > 0 && (
         <ul className="absolute z-10 bg-white border border-gray-300 rounded shadow-md w-full max-h-40 overflow-y-auto">
@@ -75,7 +81,10 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
               className="bg-blue-500 text-white px-2 py-1 rounded mr-2 mb-2 flex items-center"
             >
               {option}
-              <button onClick={() => handleRemove(option)} className="ml-2 text-sm text-red-500">
+              <button
+                onClick={() => handleRemove(option)}
+                className="ml-2 text-sm text-red-500"
+              >
                 &times;
               </button>
             </div>

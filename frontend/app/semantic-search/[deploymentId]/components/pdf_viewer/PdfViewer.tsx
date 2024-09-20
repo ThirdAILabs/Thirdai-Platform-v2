@@ -3,7 +3,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import styled from 'styled-components';
-import { borderRadius, color, duration, fontSizes, padding, shadow } from '../../stylingConstants';
+import {
+  borderRadius,
+  color,
+  duration,
+  fontSizes,
+  padding,
+  shadow
+} from '../../stylingConstants';
 import { Spacer } from '../Layout';
 import { Borders, Chunk, DocChunks, Point } from './interfaces';
 import { getChunk } from './utils';
@@ -161,7 +168,7 @@ export default function PdfViewer(props: PdfViewerProps) {
       const point: Point = {
         page,
         x: (event.clientX - pageCanvasRect.left) * horizontalScaler,
-        y: (event.clientY - pageCanvasRect.top) * verticalScaler,
+        y: (event.clientY - pageCanvasRect.top) * verticalScaler
       };
       console.log(point);
       const chunk = getChunk(point, props.chunks);
@@ -172,7 +179,10 @@ export default function PdfViewer(props: PdfViewerProps) {
 
   const onRenderSuccess = (page: number) => (event: any) => {
     canvasRefs.current[page].style.position = 'relative';
-    canvasRefs.current[page].addEventListener('click', pageClickHandler(page, event));
+    canvasRefs.current[page].addEventListener(
+      'click',
+      pageClickHandler(page, event)
+    );
     setNumPagesReady((prev) => prev + 1);
   };
 
@@ -197,7 +207,7 @@ export default function PdfViewer(props: PdfViewerProps) {
       if (cache) {
         pageToActions[pageIdx] = {
           highlight: null,
-          reset: true,
+          reset: true
         };
       }
     });
@@ -225,7 +235,7 @@ export default function PdfViewer(props: PdfViewerProps) {
       left: origBox.left * horizontalScale,
       right: origBox.right * horizontalScale,
       top: origBox.top * verticalScale,
-      bottom: origBox.bottom * verticalScale,
+      bottom: origBox.bottom * verticalScale
     };
   }
 
@@ -245,7 +255,8 @@ export default function PdfViewer(props: PdfViewerProps) {
           return;
         }
         undoerRefs.current[actionPageIdx] =
-          undoerRefs.current[actionPageIdx] ?? canvasRefs.current[actionPageIdx].toDataURL();
+          undoerRefs.current[actionPageIdx] ??
+          canvasRefs.current[actionPageIdx].toDataURL();
         const canvas = canvasRefs.current[actionPageIdx];
         const ctx = canvas.getContext('2d');
         ctx!.fillStyle = color.accentLight + '20';
@@ -279,7 +290,11 @@ export default function PdfViewer(props: PdfViewerProps) {
   useEffect(highlightCurrentChunk, [numPagesReady, chunk]);
 
   function scrollToHighlightOnLoad() {
-    if (pendingInitialScrollRef.current && numPagesReady === numPages && chunk) {
+    if (
+      pendingInitialScrollRef.current &&
+      numPagesReady === numPages &&
+      chunk
+    ) {
       const { page, borders } = chunk.boxes[0];
       scrollableComponentRef.current!.scrollTop =
         scrollableComponentRef.current!.scrollTop +

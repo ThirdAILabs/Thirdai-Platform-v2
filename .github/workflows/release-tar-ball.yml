@@ -74,11 +74,12 @@ jobs:
       - name: Configure AWS credentials
         run: |
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-      - name: Check S3 upload works
+      - name: Verify AWS CLI Setup
         run: |
-          aws s3 cp ./driver.sh s3://thirdai-corp-public/ThirdAI-Enterprise-latest-release/
+          aws --version
+          aws sts get-caller-identity
 
       - name: "Azure Login"
         uses: azure/login@v1

@@ -22,9 +22,6 @@ jobs:
       - name: Clone Platform repository
         run: |
           git clone git@github.com:ThirdAILabs/platform.git
-          cd platform
-          git fetch --all
-          git checkout adds-local-registry
 
       - name: Download and store the model
         run: |
@@ -83,7 +80,7 @@ jobs:
 
       - name: Log in to Docker Registry
         run: |
-          docker login -u thirdaiplatform-pull-local-registry -p ntWSQe39QUTUPMzddJ2iudVdcIOfKofDIeNgr60TRQ+ACRDuzS9S  thirdaiplatform.azurecr.io
+          docker login -u thirdaiplatform-pull-local-registry -p 1N7CsVddLTv4+enVywVCgjOkDkMqpv63WenU0bWihF+ACRBVBnXz  thirdaiplatform.azurecr.io
 
       - name: Set the branch name for release
         run: |
@@ -143,6 +140,13 @@ jobs:
       - name: Replace driver script with local registry version
         run: |
           cp ./packaging/driver_local_registry.sh ./driver.sh
+
+      # TODO(pratik): remove once we merge the changes on main on ansible PR.
+      - name: Update branch to local-registry
+        run: |
+          cd platform
+          git fetch --all
+          git checkout adds-local-registry
 
       - name: Package Docker images, driver script, config, and README into tarball
         run: |

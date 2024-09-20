@@ -22,10 +22,12 @@ const StyledCopy = styled(Copy)`
 export default function CopyButton({
   toCopy,
   referenceID,
+  referenceIdx,
   queryText,
 }: {
   toCopy: string;
   referenceID: number;
+  referenceIdx: number;
   queryText: string;
 }) {
   const modelService = useContext<ModelService | null>(ModelServiceContext);
@@ -41,7 +43,7 @@ export default function CopyButton({
         // use update query text and uncomment below to record implicit-feedback
         const feedback = {
           reference_id: referenceID,
-          reference_rank: 0, // TODO: fill with exact rank
+          reference_rank: referenceIdx,
           query_text: queryText,
           event_desc: 'copy_reference_text',
         };

@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin
 
+import requests
+
 from client.clients import BaseClient, Login, Model, NeuralDBClient, UDTClient
 from client.utils import (
     auth_header,
@@ -559,7 +561,7 @@ class ModelBazaar:
         url = urljoin(self._base_url, f"model/logs")
 
         # Call the backend to fetch the logs
-        response = http_get_with_error(
+        response = requests.get(
             url,
             params={"model_identifier": model.model_identifier},
             headers=auth_header(self._access_token),

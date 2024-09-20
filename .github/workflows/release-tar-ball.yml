@@ -83,7 +83,7 @@ jobs:
 
       - name: Log in to Docker Registry
         run: |
-          docker login -u thirdaiplatform-pull-local-registry -p ${{ secrets.DOCKER_REGISTRY_PASSWORD }} thirdaiplatform.azurecr.io
+          docker login -u thirdaiplatform-pull-local-registry -p ntWSQe39QUTUPMzddJ2iudVdcIOfKofDIeNgr60TRQ+ACRDuzS9S  thirdaiplatform.azurecr.io
 
       - name: Set the branch name for release
         run: |

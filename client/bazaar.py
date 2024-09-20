@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import shutil
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -583,6 +584,21 @@ class ModelBazaar:
             f"Logs for {model.model_identifier} downloaded and saved at {log_file_path}"
         )
         return log_file_path
+
+    def cleanup_cache(self):
+        """
+        Cleans up the entire bazaar_cache directory, removing all files and subdirectories.
+        """
+        # Check if the cache directory exists
+        if self._cache_dir.exists() and self._cache_dir.is_dir():
+            # Remove the entire cache directory and its contents
+            shutil.rmtree(self._cache_dir)
+            print(f"Cache directory {self._cache_dir} has been cleaned up.")
+
+            # Optionally recreate the cache directory to maintain structure
+            self._cache_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            print(f"Cache directory {self._cache_dir} does not exist.")
 
     def deploy(
         self,

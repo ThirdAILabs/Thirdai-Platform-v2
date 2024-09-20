@@ -182,6 +182,8 @@ class CommonFunctions:
         model = inputs.get("model")
         flow.bazaar_client.logs(model)
         logging.info(f"Got the logs for {model.model_identifier}")
+        flow.bazaar_client.cleanup_cache()
+        logging.info(f"Bazaar cache is cleaned")
 
 
 class NDBFunctions:

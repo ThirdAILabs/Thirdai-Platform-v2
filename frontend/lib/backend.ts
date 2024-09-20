@@ -6,11 +6,8 @@ import _ from 'lodash';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export const thirdaiPlatformBaseUrl = _.trim(
-  process.env.NEXT_PUBLIC_THIRDAI_PLATFORM_BASE_URL!,
-  '/'
-);
-export const deploymentBaseUrl = _.trim(process.env.NEXT_PUBLIC_DEPLOYMENT_BASE_URL!, '/');
+export const thirdaiPlatformBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
 export function getAccessToken(throwIfNotFound: boolean = true): string | null {
   const accessToken = localStorage.getItem('accessToken');
@@ -256,6 +253,57 @@ export function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
   });
 }
 
+// src/interfaces/TrainNdbParams.ts
+export interface JobOptions {
+  allocation_cores: number;
+  allocation_memory: number;
+  // Add other JobOptions fields as necessary
+}
+
+export interface RetrainNdbParams {
+  model_name: string;
+  base_model_identifier: string;
+  job_options: JobOptions;
+}
+
+export function retrain_ndb({
+  model_name,
+  base_model_identifier,
+  job_options,
+}: RetrainNdbParams): Promise<any> {
+  // Retrieve the access token from local storage or any other storage mechanism
+  const accessToken = getAccessToken();
+
+  // Set the default authorization header for axios
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  // Initialize URLSearchParams with model_name and base_model_identifier
+  const params = new URLSearchParams({
+    model_name: model_name,
+    base_model_identifier: base_model_identifier,
+  });
+
+  // Append job_options fields to the URLSearchParams
+  Object.entries(job_options).forEach(([key, value]) => {
+    params.append(key, value.toString());
+  });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/ndb-retrain?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.message || 'Failed to retrain model'));
+        } else {
+          reject(new Error('Failed to retrain model'));
+        }
+      });
+  });
+}
+
 interface CreateWorkflowParams {
   name: string;
   typeName: string;
@@ -314,6 +362,40 @@ export function add_models_to_workflow({
           reject(new Error(err.response.data.detail || 'Failed to add models to workflow'));
         } else {
           reject(new Error('Failed to add models to workflow'));
+        }
+      });
+  });
+}
+
+export interface DeleteModelsParams {
+  workflow_id: string;
+  model_ids: string[];
+  components: string[];
+}
+
+export function delete_models({
+  workflow_id,
+  model_ids,
+  components,
+}: DeleteModelsParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/workflow/delete-models`, {
+        workflow_id,
+        model_ids,
+        components,
+      })
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.message || 'Failed to delete models from workflow'));
+        } else {
+          reject(new Error('Failed to delete models from workflow'));
         }
       });
   });
@@ -627,22 +709,18 @@ interface TokenClassificationExample {
 }
 
 function tokenClassifierDatagenForm(modelGoal: string, examples: TokenClassificationExample[]) {
-  let tagExamples: Record<string, string[]> = {};
-  examples.forEach((example) => {
-    if (!tagExamples[example.name]) {
-      tagExamples[example.name] = [example.example];
-    } else {
-      tagExamples[example.name].push(example.example);
-    }
-  });
+  const tags = examples.map((example) => ({
+    name: example.name,
+    examples: [example.example],
+    description: example.description,
+  }));
   const numSentences = 10_000;
   return {
     sub_type: 'token',
-    domain_prompt: modelGoal,
-    tags: Object.keys(tagExamples),
-    tag_examples: tagExamples,
+    task_prompt: modelGoal,
+    tags: tags,
     num_sentences_to_generate: numSentences,
-    num_samples_per_tag: Math.max(Math.ceil(numSentences / Object.keys(tagExamples).length), 50),
+    num_samples_per_tag: Math.max(Math.ceil(numSentences / tags.length), 50),
   };
 }
 
@@ -698,23 +776,17 @@ interface SentenceClassificationExample {
 }
 
 function sentenceClassifierDatagenForm(examples: SentenceClassificationExample[]) {
-  let labelExamples: Record<string, string[]> = {};
-  let labelDescriptions: Record<string, string> = {};
-  examples.forEach((example) => {
-    if (!labelExamples[example.name]) {
-      labelExamples[example.name] = [example.example];
-      labelDescriptions[example.name] = example.description;
-    } else {
-      labelExamples[example.name].push(example.example);
-    }
-  });
+  const labels = examples.map((example) => ({
+    name: example.name,
+    examples: [example.example],
+    description: example.description,
+  }));
+
   const numSentences = 10_000;
   return {
     sub_type: 'text',
-    samples_per_label: Math.max(Math.ceil(numSentences / Object.keys(labelExamples).length), 50),
-    target_labels: Object.keys(labelExamples),
-    examples: labelExamples,
-    labels_description: labelDescriptions,
+    samples_per_label: Math.max(Math.ceil(numSentences / labels.length), 50),
+    target_labels: labels,
   };
 }
 

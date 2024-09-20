@@ -226,6 +226,15 @@ def add_models(
                 message=f"Model with ID {model_id} not found.",
             )
 
+        if not model.get_user_permission(authenticated_user.user):
+            return response(
+                status_code=status.HTTP_403_FORBIDDEN,
+                message=(
+                    f"You do not have permission to add {model.name} "
+                    f"(component: {component}). "
+                ),
+            )
+
         workflow_model: schema.WorkflowModel = (
             session.query(schema.WorkflowModel)
             .filter(
@@ -728,7 +737,9 @@ async def start_workflow(
                     python_path=get_python_path(),
                     aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
                     aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
-                    worker_enabled=("true" if model.type == "ndb" else "false"),
+                    llm_provider=(
+                        workflow.gen_ai_provider or os.getenv("LLM_PROVIDER", "openai")
+                    ),
                 )
 
                 model.deploy_status = schema.Status.starting

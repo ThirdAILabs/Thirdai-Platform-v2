@@ -145,7 +145,7 @@ jobs:
 
       - name: Package platform, model, driver, config, and README into tarball
         run: |
-          tar -czvf thirdai-platform-package-${{ env.latest_tag }}.tar.gz ./platform ./gen-ai-models/qwen2-0_5b-instruct-fp16.gguf ./driver.sh ./config.yml ./README.md
+          tar -czvf thirdai-platform-package-${{ env.branch_name }}--${{ env.latest_tag }}.tar.gz ./platform ./gen-ai-models/qwen2-0_5b-instruct-fp16.gguf ./driver.sh ./config.yml ./README.md
 
       # TODO(pratik): remove once we merge the changes on main on ansible PR.
       - name: Update branch to local-registry

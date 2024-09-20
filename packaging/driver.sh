@@ -37,7 +37,6 @@ function install_ansible() {
     echo "All required Ansible Galaxy collections are installed."
 }
 
-
 install_ansible
 
 VERBOSE=0  # Default: No verbose mode
@@ -74,13 +73,23 @@ fi
 
 QWEN_MODEL_FULL_PATH=$(realpath "$QWEN_MODEL_PATH")
 
+# Search for docker_images folder with a prefix
+DOCKER_IMAGES_PATH=$(find . -type d -name "docker_images-*" | head -n 1)
+
+if [ -z "$DOCKER_IMAGES_PATH" ]; then
+    echo "WARNING: No docker_images folder found with prefix 'docker_images-'. The playbook will proceed without it."
+else
+    DOCKER_IMAGES_PATH=$(realpath "$DOCKER_IMAGES_PATH")
+    echo "Found docker images folder at $DOCKER_IMAGES_PATH"
+fi
+
 # Change directory to platform directory
 cd "$(dirname "$0")/platform" || exit 1
 
-# Run Ansible playbook with or without verbose mode
+# TODO(pratik): remove platform_image_path once we merge as would default to release-test main
 if [ "$VERBOSE" -eq 1 ]; then
     echo "Running in verbose mode (-vvvv)"
-    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH qwen_model_path=$QWEN_MODEL_FULL_PATH" -vvvv
+    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH qwen_model_path=$QWEN_MODEL_FULL_PATH docker_images=$DOCKER_IMAGES_PATH platform_image_branch=local_registry" -vvvv
 else
-    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH qwen_model_path=$QWEN_MODEL_FULL_PATH"
+    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH qwen_model_path=$QWEN_MODEL_FULL_PATH docker_images=$DOCKER_IMAGES_PATH platform_image_branch=local_registry"
 fi

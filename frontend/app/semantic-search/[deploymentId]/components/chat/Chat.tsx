@@ -336,7 +336,7 @@ export default function Chat({
   return (
     <ChatContainer>
       <ScrollableArea ref={scrollableAreaRef}>
-        {chatHistory.length ? (
+        {chatHistory && chatHistory.length ? (
           <AllChatBoxes>
             {chatHistory.map((message, i) => (
               <ChatBox

@@ -571,6 +571,8 @@ class ModelBazaar:
         # Define the file path to save the logs (inside the cache directory)
         log_file_path = self._cache_dir / f"{model.model_identifier}_logs.zip"
 
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+
         # Save the zip file
         with open(log_file_path, "wb") as log_file:
             for chunk in response.iter_content(chunk_size=8192):

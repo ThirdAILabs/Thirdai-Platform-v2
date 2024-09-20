@@ -1057,8 +1057,8 @@ def delete_model(
 @model_router.get("/logs", dependencies=[Depends(is_model_owner)])
 def get_model_logs(
     model_identifier: str,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
-    background_tasks: BackgroundTasks = Depends(),
 ):
     """
     Get the logs for a specified model and provide them as a downloadable zip file.

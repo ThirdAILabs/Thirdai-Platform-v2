@@ -39,10 +39,7 @@ interface ExampleQueriesProps {
   onClick: (query: string) => void;
 }
 
-export default function ExampleQueries({
-  examples,
-  onClick
-}: ExampleQueriesProps) {
+export default function ExampleQueries({ examples, onClick }: ExampleQueriesProps) {
   return (
     <Container>
       <Header>Examples</Header>

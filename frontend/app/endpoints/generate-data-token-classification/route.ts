@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY
+  apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
 });
 
 const generateSentences = async (prompt: string) => {
@@ -12,9 +12,9 @@ const generateSentences = async (prompt: string) => {
     messages: [
       {
         role: 'system',
-        content: prompt
-      }
-    ]
+        content: prompt,
+      },
+    ],
   });
   const content = response.choices?.[0]?.message?.content;
   if (!content) {
@@ -28,19 +28,14 @@ const generateSentences = async (prompt: string) => {
     .slice(-10); // Only keep the last 10 templates
 };
 
-const filterTemplates = (
-  templates: string[],
-  categories: { name: string }[]
-) => {
+const filterTemplates = (templates: string[], categories: { name: string }[]) => {
   const categoryNames = categories.map((category) => `[${category.name}]`);
   const categoryNamesSet = new Set(categoryNames);
 
   return templates.filter((template) => {
     const presentTags = categoryNames.filter((tag) => template.includes(tag));
     const allTags = template.match(/\[[^\]]+\]/g) || [];
-    const hasOnlyRequestedTags = allTags.every((tag) =>
-      categoryNamesSet.has(tag)
-    );
+    const hasOnlyRequestedTags = allTags.every((tag) => categoryNamesSet.has(tag));
     return presentTags.length > 0 && hasOnlyRequestedTags;
   });
 };
@@ -51,9 +46,9 @@ const generateRealValues = async (entityValuePrompt: string) => {
     messages: [
       {
         role: 'system',
-        content: entityValuePrompt
-      }
-    ]
+        content: entityValuePrompt,
+      },
+    ],
   });
   const content = response.choices?.[0]?.message?.content;
   if (!content) {
@@ -108,10 +103,7 @@ export const POST = async (req: NextRequest) => {
   const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
 
   if (!apiKey) {
-    return NextResponse.json(
-      { error: 'API key is not defined' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'API key is not defined' }, { status: 500 });
   }
 
   const { categories } = await req.json();
@@ -142,17 +134,12 @@ export const POST = async (req: NextRequest) => {
       );
 
       const templates = await generateSentences(templatePrompt);
-      validTemplates = validTemplates.concat(
-        filterTemplates(templates, categories)
-      );
+      validTemplates = validTemplates.concat(filterTemplates(templates, categories));
       attempts++;
     }
 
     if (validTemplates.length < 10) {
-      return NextResponse.json(
-        { error: 'Generating templates has failed' },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Generating templates has failed' }, { status: 500 });
     }
 
     const realValuesMap: { [key: string]: string[] } = {};
@@ -164,19 +151,13 @@ export const POST = async (req: NextRequest) => {
       const entityValuePrompt = `Generate 10 different real values for the category [${category.name}] for [${category.description}] with examples like ${category.example}. Each value should be plain, without any preceding numbers or bullet points, and separated by a semicolon.`;
       entityValuePrompts[category.name] = entityValuePrompt;
 
-      while (
-        realValuesMap[category.name].length < 10 &&
-        attempts < maxAttempts
-      ) {
+      while (realValuesMap[category.name].length < 10 && attempts < maxAttempts) {
         console.log(
           `attempt ${attempts}: [${category.name}] have ${realValuesMap[category.name].length} valid real values, we need 10+`
         );
 
-        const values = await generateRealValues(
-          entityValuePrompts[category.name]
-        );
-        realValuesMap[category.name] =
-          realValuesMap[category.name].concat(values);
+        const values = await generateRealValues(entityValuePrompts[category.name]);
+        realValuesMap[category.name] = realValuesMap[category.name].concat(values);
 
         attempts++;
       }
@@ -184,7 +165,7 @@ export const POST = async (req: NextRequest) => {
       if (realValuesMap[category.name].length < 10) {
         return NextResponse.json(
           {
-            error: `Generating real values for category [${category.name}] has failed`
+            error: `Generating real values for category [${category.name}] has failed`,
           },
           { status: 500 }
         );
@@ -197,14 +178,11 @@ export const POST = async (req: NextRequest) => {
 
     return NextResponse.json({
       syntheticDataPairs,
-      prompts: { templatePrompt, entityValuePrompts }
+      prompts: { templatePrompt, entityValuePrompts },
     });
   } catch (error) {
     console.error('Error generating data:', error);
     alert('Error generating data:' + error);
-    return NextResponse.json(
-      { error: 'Error generating data' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Error generating data' }, { status: 500 });
   }
 };

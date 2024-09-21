@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  getUsername,
-  train_ndb,
-  create_workflow,
-  add_models_to_workflow
-} from '@/lib/backend';
+import { getUsername, train_ndb, create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CardDescription } from '@/components/ui/card';
@@ -20,19 +15,17 @@ interface SemanticSearchQuestionsProps {
 enum SourceType {
   S3 = 's3',
   LOCAL = 'local',
-  NSF = 'nsf'
+  NSF = 'nsf',
 }
 
 const SemanticSearchQuestions = ({
   workflowNames,
   onCreateModel,
   stayOnPage,
-  appName
+  appName,
 }: SemanticSearchQuestionsProps) => {
   const [modelName, setModelName] = useState(!appName ? '' : appName);
-  const [sources, setSources] = useState<
-    Array<{ type: string; files: File[] }>
-  >([]);
+  const [sources, setSources] = useState<Array<{ type: string; files: File[] }>>([]);
   const [fileCount, setFileCount] = useState<number[]>([]);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -100,10 +93,7 @@ const SemanticSearchQuestions = ({
 
     const modelOptionsForm = { ndb_options: { ndb_sub_type: 'v2' } };
     formData.append('model_options', JSON.stringify(modelOptionsForm));
-    formData.append(
-      'file_info',
-      JSON.stringify({ unsupervised_files: unsupervisedFiles })
-    );
+    formData.append('file_info', JSON.stringify({ unsupervised_files: unsupervisedFiles }));
 
     return formData;
   };
@@ -119,14 +109,8 @@ const SemanticSearchQuestions = ({
         setIsLoading(false);
         return;
       }
-      if (
-        modelName.includes(' ') ||
-        modelName.includes('/') ||
-        modelName.includes(':')
-      ) {
-        alert(
-          'The app name cannot have spaces, forward slashes (/) or colons (:).'
-        );
+      if (modelName.includes(' ') || modelName.includes('/') || modelName.includes(':')) {
+        alert('The app name cannot have spaces, forward slashes (/) or colons (:).');
         setIsLoading(false);
         return;
       }
@@ -162,7 +146,7 @@ const SemanticSearchQuestions = ({
       const workflowTypeName = 'semantic_search'; // You can change this as needed
       const workflowResponse = await create_workflow({
         name: workflowName,
-        typeName: workflowTypeName
+        typeName: workflowTypeName,
       });
       const workflowId = workflowResponse.data.workflow_id;
 
@@ -170,7 +154,7 @@ const SemanticSearchQuestions = ({
       const addModelsResponse = await add_models_to_workflow({
         workflowId,
         modelIdentifiers: [modelId],
-        components: ['search'] // Adjust components as needed
+        components: ['search'], // Adjust components as needed
       });
 
       console.log('addModelsResponse', addModelsResponse);
@@ -214,8 +198,7 @@ const SemanticSearchQuestions = ({
 
           // Check if the name contains spaces or periods
           if (name.includes(' ')) {
-            warningMessage =
-              'The app name cannot contain spaces. Please remove the spaces.';
+            warningMessage = 'The app name cannot contain spaces. Please remove the spaces.';
           } else if (name.includes('.')) {
             warningMessage =
               "The app name cannot contain periods ('.'). Please remove the periods.";
@@ -240,16 +223,9 @@ const SemanticSearchQuestions = ({
         disabled={!!appName && !workflowNames.includes(modelName)} // Use !! to explicitly convert to boolean
       />
 
-      {warningMessage && (
-        <span style={{ color: 'red', marginTop: '10px' }}>
-          {warningMessage}
-        </span>
-      )}
+      {warningMessage && <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>}
 
-      <span
-        className="block text-lg font-semibold"
-        style={{ marginTop: '20px' }}
-      >
+      <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
         Sources
       </span>
       <CardDescription>Select files to search over.</CardDescription>
@@ -262,7 +238,7 @@ const SemanticSearchQuestions = ({
               flexDirection: 'row',
               gap: '20px',
               justifyContent: 'space-between',
-              marginTop: '10px'
+              marginTop: '10px',
             }}
           >
             {type === SourceType.S3 && (
@@ -300,19 +276,13 @@ const SemanticSearchQuestions = ({
       ))}
 
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-        <Button onClick={() => addSource(SourceType.LOCAL)}>
-          Add Local File
-        </Button>
+        <Button onClick={() => addSource(SourceType.LOCAL)}>Add Local File</Button>
         <Button onClick={() => addSource(SourceType.S3)}>Add S3 File</Button>
         {/* <Button onClick={() => addSource(SourceType.NSF)}>Add NSF File</Button> */}
       </div>
 
       <div className="flex justify-start">
-        <Button
-          onClick={submit}
-          style={{ marginTop: '30px', width: '100%' }}
-          disabled={isLoading}
-        >
+        <Button onClick={submit} style={{ marginTop: '30px', width: '100%' }} disabled={isLoading}>
           {isLoading ? (
             <div className="flex items-center">
               <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>

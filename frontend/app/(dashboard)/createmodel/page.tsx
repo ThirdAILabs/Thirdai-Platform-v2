@@ -1,14 +1,8 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import ChooseProblem from './choose-model';
 
 export default async function NewModelPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: { q: string; offset: string };
 }) {
@@ -19,15 +13,13 @@ export default async function NewModelPage({
         display: 'flex',
         flexDirection: 'row',
         justifyContent: 'center',
-        background: 'transparent'
+        background: 'transparent',
       }}
     >
       <Card style={{ width: '100%', maxWidth: '700px' }}>
         <CardHeader>
           <CardTitle>Create App</CardTitle>
-          <CardDescription>
-            Create a new application with a few simple steps.
-          </CardDescription>
+          <CardDescription>Create a new application with a few simple steps.</CardDescription>
         </CardHeader>
         <CardContent>
           <ChooseProblem />

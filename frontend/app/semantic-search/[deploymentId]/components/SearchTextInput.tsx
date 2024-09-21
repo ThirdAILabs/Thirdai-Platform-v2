@@ -27,7 +27,7 @@ export default function SearchTextInput({
   placeholder,
   onSubmit,
   value,
-  setValue
+  setValue,
 }: SearchTextInputProps) {
   const searchTextInputRef = useRef<HTMLTextAreaElement>(null);
   function onSearchEnterPress(e: any) {

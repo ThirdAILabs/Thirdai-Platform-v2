@@ -4,7 +4,7 @@ import CreateModelButton from '@/components/ui/create-model-button';
 import ImportModelButton from '@/components/ui/import-model-button';
 
 export default async function ModelsPage({
-  searchParams
+  searchParams,
 }: {
   searchParams: { q: string; offset: string };
 }) {

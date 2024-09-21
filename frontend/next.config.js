@@ -4,23 +4,23 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'avatars.githubusercontent.com'
+        hostname: 'avatars.githubusercontent.com',
       },
       {
         protocol: 'https',
-        hostname: '*.public.blob.vercel-storage.com'
-      }
-    ]
+        hostname: '*.public.blob.vercel-storage.com',
+      },
+    ],
   },
   webpack(config) {
     config.module.rules.push({
       test: /\.svg$/i,
       issuer: /\.[jt]sx?$/,
-      use: ['@svgr/webpack']
+      use: ['@svgr/webpack'],
     });
 
     return config;
-  }
+  },
 };
 
 module.exports = nextConfig;

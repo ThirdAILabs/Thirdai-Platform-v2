@@ -12,18 +12,10 @@ export default function LayoutOptions() {
   const { themeLayout, onChangeLayout } = useSettingsContext();
 
   return (
-    <RadioGroup
-      name="themeLayout"
-      value={themeLayout}
-      onChange={onChangeLayout}
-    >
+    <RadioGroup name="themeLayout" value={themeLayout} onChange={onChangeLayout}>
       <StyledWrap sx={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
         {OPTIONS.map((layout) => (
-          <StyledCard
-            key={layout}
-            selected={themeLayout === layout}
-            sx={{ p: 0.75, height: 56 }}
-          >
+          <StyledCard key={layout} selected={themeLayout === layout} sx={{ p: 0.75, height: 56 }}>
             <LayoutIcon layout={layout} />
 
             <MaskControl value={layout} />

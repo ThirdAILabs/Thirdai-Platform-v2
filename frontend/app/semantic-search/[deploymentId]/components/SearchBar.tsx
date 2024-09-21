@@ -1,19 +1,7 @@
-import React, {
-  useCallback,
-  useContext,
-  useRef,
-  useState,
-  useEffect
-} from 'react';
+import React, { useCallback, useContext, useRef, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import styled from 'styled-components';
-import {
-  borderRadius,
-  color,
-  duration,
-  fontSizes,
-  padding
-} from '../stylingConstants';
+import { borderRadius, color, duration, fontSizes, padding } from '../stylingConstants';
 import { Spacer } from './Layout';
 import { ModelService, Source } from '../modelServices';
 import { ModelServiceContext } from '../Context';
@@ -24,10 +12,7 @@ import SaveButton from './buttons/SaveButton';
 import SearchTextInput from './SearchTextInput';
 import Modal from './Modal';
 import { Input } from '@/components/ui/input';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DropdownMenuContent } from '@radix-ui/react-dropdown-menu';
 import { fetchAutoCompleteQueries } from '@/lib/backend';
 import { debounce } from 'lodash';
@@ -119,19 +104,11 @@ function ModelDescription(props: ModelDescriptionProps) {
       <Spacer $width="7px" />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            size="sm"
-            className="h-8 gap-1"
-            onClick={props.onClickViewDocuments}
-          >
+          <Button size="sm" className="h-8 gap-1" onClick={props.onClickViewDocuments}>
             View Documents
           </Button>
         </DropdownMenuTrigger>
-        <Sources
-          sources={props.sources}
-          setSources={props.setSources}
-          visible
-        />
+        <Sources sources={props.sources} setSources={props.setSources} visible />
       </DropdownMenu>
     </Description>
   );
@@ -170,7 +147,7 @@ export default function SearchBar({
   prompt,
   setPrompt,
   ifGenerationOn,
-  cacheEnabled
+  cacheEnabled,
 }: SearchBarProps) {
   const modelService = useContext<ModelService | null>(ModelServiceContext);
   const [showSources, setShowSources] = useState(false);
@@ -214,9 +191,7 @@ export default function SearchBar({
         console.error('Error overriding model:', error);
         alert('Error overriding model:' + error);
         const errorMessage =
-          typeof error === 'string'
-            ? error
-            : error.message || JSON.stringify(error);
+          typeof error === 'string' ? error : error.message || JSON.stringify(error);
         setError(errorMessage);
       });
   };
@@ -237,9 +212,7 @@ export default function SearchBar({
         console.error('Error overriding model:', error);
         alert('Error overriding model:' + error);
         const errorMessage =
-          typeof error === 'string'
-            ? error
-            : error.message || JSON.stringify(error);
+          typeof error === 'string' ? error : error.message || JSON.stringify(error);
         setError(errorMessage);
       });
   };
@@ -304,9 +277,7 @@ export default function SearchBar({
             }}
           />
           <Spacer $width="15px" />
-          <PromptToggle
-            onClick={() => setDialogOpen((dialogOpen) => !dialogOpen)}
-          />
+          <PromptToggle onClick={() => setDialogOpen((dialogOpen) => !dialogOpen)} />
           <Spacer $width="7px" />
           <SaveButton onClick={handleSaveClick} />
         </SearchArea>
@@ -359,9 +330,7 @@ export default function SearchBar({
       {modalOpen && (
         <Modal onClose={() => setModalOpen(false)}>
           <h2>Save Model</h2>
-          <p>
-            Do you want to override the existing model or save as a new model?
-          </p>
+          <p>Do you want to override the existing model or save as a new model?</p>
           {!showModelNameInput ? (
             <>
               {error && <ErrorMessage>{error}</ErrorMessage>}

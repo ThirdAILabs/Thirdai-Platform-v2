@@ -22,7 +22,7 @@ const StyledCopy = styled(Copy)`
 export default function CopyButton({
   toCopy,
   referenceID,
-  queryText
+  queryText,
 }: {
   toCopy: string;
   referenceID: number;
@@ -43,7 +43,7 @@ export default function CopyButton({
           reference_id: referenceID,
           reference_rank: 0, // TODO: fill with exact rank
           query_text: queryText,
-          event_desc: 'copy_reference_text'
+          event_desc: 'copy_reference_text',
         };
 
         console.log('feedback logged', feedback);

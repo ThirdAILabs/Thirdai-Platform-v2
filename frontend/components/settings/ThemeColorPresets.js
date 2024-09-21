@@ -2,19 +2,14 @@ import PropTypes from 'prop-types';
 import merge from 'lodash/merge';
 import { useMemo } from 'react';
 // @mui
-import {
-  alpha,
-  ThemeProvider,
-  createTheme,
-  useTheme
-} from '@mui/material/styles';
+import { alpha, ThemeProvider, createTheme, useTheme } from '@mui/material/styles';
 //
 import { useSettingsContext } from './SettingsContext';
 
 // ----------------------------------------------------------------------
 
 ThemeColorPresets.propTypes = {
-  children: PropTypes.node
+  children: PropTypes.node,
 };
 
 export default function ThemeColorPresets({ children }) {
@@ -25,11 +20,11 @@ export default function ThemeColorPresets({ children }) {
   const themeOptions = useMemo(
     () => ({
       palette: {
-        primary: presetsColor
+        primary: presetsColor,
       },
       customShadows: {
-        primary: `0 8px 16px 0 ${alpha(presetsColor.main, 0.24)}`
-      }
+        primary: `0 8px 16px 0 ${alpha(presetsColor.main, 0.24)}`,
+      },
     }),
     [presetsColor]
   );

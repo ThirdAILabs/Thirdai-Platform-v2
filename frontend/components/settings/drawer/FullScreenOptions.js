@@ -28,8 +28,8 @@ export default function FullScreenOptions() {
         '& .svg-color': {
           ml: 1,
           width: 16,
-          height: 16
-        }
+          height: 16,
+        },
       }}
     >
       {fullscreen ? 'Exit Fullscreen' : 'Fullscreen'}

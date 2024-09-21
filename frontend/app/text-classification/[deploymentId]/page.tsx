@@ -20,10 +20,7 @@ export default function Page() {
     }
     predict(inputText).then((result) => {
       setPredictions(
-        result.predicted_classes.map(([name, score]) => [
-          name,
-          Math.floor(score * 100)
-        ])
+        result.predicted_classes.map(([name, score]) => [name, Math.floor(score * 100)])
       );
     });
   };
@@ -35,7 +32,7 @@ export default function Page() {
         width: '100%',
         display: 'flex',
         justifyContent: 'center',
-        height: '100vh'
+        height: '100vh',
       }}
     >
       <Tabs defaultValue="interact" style={{ width: '100%' }}>
@@ -43,9 +40,7 @@ export default function Page() {
           <div className="text-muted-foreground" style={{ fontSize: '16px' }}>
             Text Classification
           </div>
-          <div style={{ fontWeight: 'bold', fontSize: '24px' }}>
-            {workflowName}
-          </div>
+          <div style={{ fontWeight: 'bold', fontSize: '24px' }}>{workflowName}</div>
         </div>
         <Container
           style={{
@@ -53,15 +48,10 @@ export default function Page() {
             paddingTop: '20vh',
             width: '70%',
             minWidth: '400px',
-            maxWidth: '800px'
+            maxWidth: '800px',
           }}
         >
-          <Box
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-            width="100%"
-          >
+          <Box display="flex" justifyContent="center" alignItems="center" width="100%">
             <Input
               autoFocus
               className="text-md"
@@ -95,14 +85,12 @@ export default function Page() {
                   display: 'flex',
                   flexDirection: 'row',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
+                  alignItems: 'center',
                 }}
               >
                 <CardHeader>
                   <div className="d-flex flex-column justify-content-start">
-                    <p className="text-muted-foreground d-flex flex-row text-left">
-                      class
-                    </p>
+                    <p className="text-muted-foreground d-flex flex-row text-left">class</p>
                     <CardTitle>{prediction[0]}</CardTitle>
                   </div>
                 </CardHeader>
@@ -117,7 +105,7 @@ export default function Page() {
                     borderRadius: '5px',
                     cursor: 'default',
                     flexDirection: 'column',
-                    padding: '5px 10px 10px 10px'
+                    padding: '5px 10px 10px 10px',
                   }}
                 >
                   <p className="text-muted-foreground">score</p>

@@ -10,7 +10,7 @@ import { useSettingsContext } from './SettingsContext';
 // ----------------------------------------------------------------------
 
 ThemeContrast.propTypes = {
-  children: PropTypes.node
+  children: PropTypes.node,
 };
 
 export default function ThemeContrast({ children }) {
@@ -27,23 +27,21 @@ export default function ThemeContrast({ children }) {
       palette: {
         background: {
           ...(isContrastBold && {
-            default: isLight
-              ? outerTheme.palette.grey[100]
-              : outerTheme.palette.grey[900]
-          })
-        }
+            default: isLight ? outerTheme.palette.grey[100] : outerTheme.palette.grey[900],
+          }),
+        },
       },
       components: {
         MuiCard: {
           styleOverrides: {
             ...(isContrastBold && {
               root: {
-                boxShadow: outerTheme.customShadows.z4
-              }
-            })
-          }
-        }
-      }
+                boxShadow: outerTheme.customShadows.z4,
+              },
+            }),
+          },
+        },
+      },
     }),
 
     // eslint-disable-next-line react-hooks/exhaustive-deps

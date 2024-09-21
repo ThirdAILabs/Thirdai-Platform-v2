@@ -34,7 +34,7 @@ function Highlight({ currentToken, nextToken, tagColors }: HighlightProps) {
         style={{
           backgroundColor: tagColors[currentToken.tag]?.text || 'transparent',
           padding: '2px',
-          borderRadius: '2px'
+          borderRadius: '2px',
         }}
       >
         {currentToken.text}
@@ -48,7 +48,7 @@ function Highlight({ currentToken, nextToken, tagColors }: HighlightProps) {
               borderRadius: '2px',
               marginLeft: '4px',
               padding: '5px 3px 1px 3px',
-              marginBottom: '1px'
+              marginBottom: '1px',
             }}
           >
             {currentToken.tag}
@@ -60,30 +60,14 @@ function Highlight({ currentToken, nextToken, tagColors }: HighlightProps) {
 }
 
 function generateColors(N: number) {
-  const pastels = [
-    '#E5A49C',
-    '#F6C886',
-    '#FBE7AA',
-    '#99E3B5',
-    '#A6E6E7',
-    '#A5A1E1',
-    '#D8A4E2'
-  ];
-  const darkers = [
-    '#D34F3E',
-    '#F09336',
-    '#F7CF5F',
-    '#5CC96E',
-    '#65CFD0',
-    '#597CE2',
-    '#B64DC8'
-  ];
+  const pastels = ['#E5A49C', '#F6C886', '#FBE7AA', '#99E3B5', '#A6E6E7', '#A5A1E1', '#D8A4E2'];
+  const darkers = ['#D34F3E', '#F09336', '#F7CF5F', '#5CC96E', '#65CFD0', '#597CE2', '#B64DC8'];
   const colors = [];
 
   for (let i = 0; i < N; i++) {
     colors.push({
       pastelColor: pastels[i % pastels.length],
-      darkerColor: darkers[i % darkers.length]
+      darkerColor: darkers[i % darkers.length],
     });
   }
 
@@ -113,7 +97,7 @@ export default function Page() {
         '123-12-1234.',
         'Call',
         'at',
-        '123-123-1234'
+        '123-123-1234',
       ],
       predicted_tags: [
         'NAME',
@@ -132,16 +116,14 @@ export default function Page() {
         'SSN',
         'O',
         'O',
-        'PHONENUMBER'
-      ]
+        'PHONENUMBER',
+      ],
     };
   };
 
   const [inputText, setInputText] = useState<string>('');
   const [annotations, setAnnotations] = useState<Token[]>([]);
-  const [tagColors, setTagColors] = useState<Record<string, HighlightColor>>(
-    {}
-  );
+  const [tagColors, setTagColors] = useState<Record<string, HighlightColor>>({});
 
   useEffect(() => {
     // TODO: Get list of tags from backend
@@ -151,7 +133,7 @@ export default function Page() {
       Object.fromEntries(
         tags.map((tag, index) => [
           tag,
-          { text: colors[index].pastelColor, tag: colors[index].darkerColor }
+          { text: colors[index].pastelColor, tag: colors[index].darkerColor },
         ])
       )
     );
@@ -166,7 +148,7 @@ export default function Page() {
       setAnnotations(
         _.zip(result.source, result.predicted_tags).map(([text, tag]) => ({
           text: text as string,
-          tag: tag as string
+          tag: tag as string,
         }))
       );
     });
@@ -179,15 +161,10 @@ export default function Page() {
         paddingTop: '20vh',
         width: '70%',
         minWidth: '400px',
-        maxWidth: '800px'
+        maxWidth: '800px',
       }}
     >
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        width="100%"
-      >
+      <Box display="flex" justifyContent="center" alignItems="center" width="100%">
         <TextField
           variant="outlined"
           value={inputText}
@@ -203,7 +180,7 @@ export default function Page() {
           style={{
             height: '3rem',
             marginLeft: '1rem',
-            backgroundColor: 'black'
+            backgroundColor: 'black',
           }}
         >
           Run
@@ -213,10 +190,7 @@ export default function Page() {
         <Box mt={4}>
           <Card className="p-7 text-start" style={{ lineHeight: 2 }}>
             {annotations.map((token, index) => {
-              const nextToken =
-                index === annotations.length - 1
-                  ? null
-                  : annotations[index + 1];
+              const nextToken = index === annotations.length - 1 ? null : annotations[index + 1];
               return (
                 <Highlight
                   key={index}

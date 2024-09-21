@@ -14,20 +14,16 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
   onChange,
   options,
   multiple = false,
-  placeholder = ''
+  placeholder = '',
 }) => {
-  const [inputValue, setInputValue] = useState<string>(
-    typeof value === 'string' ? value : ''
-  );
+  const [inputValue, setInputValue] = useState<string>(typeof value === 'string' ? value : '');
   const [filteredOptions, setFilteredOptions] = useState<string[]>([]);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
     setInputValue(input);
 
-    const filtered = options.filter((option) =>
-      option.toLowerCase().includes(input.toLowerCase())
-    );
+    const filtered = options.filter((option) => option.toLowerCase().includes(input.toLowerCase()));
     setFilteredOptions(filtered);
   };
 
@@ -81,10 +77,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
               className="bg-blue-500 text-white px-2 py-1 rounded mr-2 mb-2 flex items-center"
             >
               {option}
-              <button
-                onClick={() => handleRemove(option)}
-                className="ml-2 text-sm text-red-500"
-              >
+              <button onClick={() => handleRemove(option)} className="ml-2 text-sm text-red-500">
                 &times;
               </button>
             </div>

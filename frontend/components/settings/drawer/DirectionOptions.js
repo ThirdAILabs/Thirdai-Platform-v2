@@ -13,11 +13,7 @@ export default function DirectionOptions() {
   const { themeDirection, onChangeDirection } = useSettingsContext();
 
   return (
-    <RadioGroup
-      name="themeDirection"
-      value={themeDirection}
-      onChange={onChangeDirection}
-    >
+    <RadioGroup name="themeDirection" value={themeDirection} onChange={onChangeDirection}>
       <StyledWrap>
         {OPTIONS.map((direction) => (
           <StyledCard key={direction} selected={themeDirection === direction}>

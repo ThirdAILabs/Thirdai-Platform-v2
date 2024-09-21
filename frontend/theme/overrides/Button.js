@@ -29,32 +29,32 @@ export default function Button(theme) {
           color: theme.palette.grey[800],
           '&:hover': {
             boxShadow: theme.customShadows.z8,
-            backgroundColor: theme.palette.grey[400]
-          }
+            backgroundColor: theme.palette.grey[400],
+          },
         }),
         // OUTLINED
         ...(outlinedVariant && {
           borderColor: alpha(theme.palette.grey[500], 0.32),
           '&:hover': {
             borderColor: theme.palette.text.primary,
-            backgroundColor: theme.palette.action.hover
-          }
+            backgroundColor: theme.palette.action.hover,
+          },
         }),
         // TEXT
         ...(textVariant && {
           '&:hover': {
-            backgroundColor: theme.palette.action.hover
-          }
+            backgroundColor: theme.palette.action.hover,
+          },
         }),
         // SOFT
         ...(softVariant && {
           color: theme.palette.text.primary,
           backgroundColor: alpha(theme.palette.grey[500], 0.08),
           '&:hover': {
-            backgroundColor: alpha(theme.palette.grey[500], 0.24)
-          }
-        })
-      })
+            backgroundColor: alpha(theme.palette.grey[500], 0.24),
+          },
+        }),
+      }),
     };
 
     const colorStyle = COLORS.map((color) => ({
@@ -62,18 +62,18 @@ export default function Button(theme) {
         // CONTAINED
         ...(containedVariant && {
           '&:hover': {
-            boxShadow: theme.customShadows[color]
-          }
+            boxShadow: theme.customShadows[color],
+          },
         }),
         // SOFT
         ...(softVariant && {
           color: theme.palette[color][isLight ? 'dark' : 'light'],
           backgroundColor: alpha(theme.palette[color].main, 0.16),
           '&:hover': {
-            backgroundColor: alpha(theme.palette[color].main, 0.32)
-          }
-        })
-      })
+            backgroundColor: alpha(theme.palette[color].main, 0.32),
+          },
+        }),
+      }),
     }));
 
     // ***** New Code to add light blue color for 'contained' variant *****
@@ -82,9 +82,9 @@ export default function Button(theme) {
         backgroundColor: theme.palette.primary.main, // Light Blue color
         color: theme.palette.common.white,
         '&:hover': {
-          backgroundColor: alpha(theme.palette.primary.darker, 0.85) // Slightly darker blue on hover
-        }
-      })
+          backgroundColor: alpha(theme.palette.primary.darker, 0.85), // Slightly darker blue on hover
+        },
+      }),
     };
 
     // ***** New Code for Delete Button with Red Color *****
@@ -94,9 +94,9 @@ export default function Button(theme) {
           backgroundColor: theme.palette.error.main, // Red color for delete
           color: theme.palette.common.white,
           '&:hover': {
-            backgroundColor: theme.palette.error.dark // Darker red on hover
-          }
-        })
+            backgroundColor: theme.palette.error.dark, // Darker red on hover
+          },
+        }),
     };
 
     // ***** New Code for Delete Button with Red Color *****
@@ -106,18 +106,18 @@ export default function Button(theme) {
           backgroundColor: theme.palette.success.main,
           color: theme.palette.common.white,
           '&:hover': {
-            backgroundColor: theme.palette.success.dark
-          }
-        })
+            backgroundColor: theme.palette.success.dark,
+          },
+        }),
     };
 
     const disabledState = {
       '&.Mui-disabled': {
         // SOFT
         ...(softVariant && {
-          backgroundColor: theme.palette.action.disabledBackground
-        })
-      }
+          backgroundColor: theme.palette.action.disabledBackground,
+        }),
+      },
     };
 
     const size = {
@@ -125,16 +125,16 @@ export default function Button(theme) {
         height: 30,
         fontSize: 13,
         ...(softVariant && {
-          padding: '4px 10px'
-        })
+          padding: '4px 10px',
+        }),
       }),
       ...(largeSize && {
         height: 48,
         fontSize: 15,
         ...(softVariant && {
-          padding: '8px 22px'
-        })
-      })
+          padding: '8px 22px',
+        }),
+      }),
     };
 
     // ***** Adding the new style to the return object *****
@@ -145,19 +145,19 @@ export default function Button(theme) {
       ...colorStyle,
       defaultStyle,
       disabledState,
-      size
+      size,
     ];
   };
 
   return {
     MuiButton: {
       defaultProps: {
-        disableElevation: true
+        disableElevation: true,
       },
 
       styleOverrides: {
-        root: ({ ownerState }) => rootStyle(ownerState)
-      }
-    }
+        root: ({ ownerState }) => rootStyle(ownerState),
+      },
+    },
   };
 }

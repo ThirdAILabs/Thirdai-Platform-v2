@@ -23,8 +23,7 @@ const ButtonsRow = styled.section`
 export default function InvalidModelMessage() {
   return (
     <Container>
-      We are unable to reach our server. Please check that you entered the right
-      URL.
+      We are unable to reach our server. Please check that you entered the right URL.
       <ButtonsRow>
         {/* <a href="/">
                     <PillButton>Use knowledgebase documents</PillButton>

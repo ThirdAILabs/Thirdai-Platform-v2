@@ -1,12 +1,6 @@
 import styled from 'styled-components';
 import React from 'react';
-import {
-  borderRadius,
-  color,
-  fontSizes,
-  padding,
-  shadow
-} from '../../stylingConstants';
+import { borderRadius, color, fontSizes, padding, shadow } from '../../stylingConstants';
 import NotifyingClickable from '../buttons/NotifyingButton';
 import PillButton from '../buttons/PillButton';
 import { Pad, Spacer } from '../Layout';
@@ -70,7 +64,7 @@ export default function UpvoteModal({
   queryText,
   setQueryText,
   upvoteText,
-  onSubmit
+  onSubmit,
 }: UpvoteModalProps) {
   return (
     <Container>
@@ -78,10 +72,7 @@ export default function UpvoteModal({
         <Label>Query</Label>
       </Pad>
       <Spacer $height="5px" />
-      <TextInput
-        value={queryText}
-        onChange={(e) => setQueryText(e.target.value)}
-      />
+      <TextInput value={queryText} onChange={(e) => setQueryText(e.target.value)} />
       <Spacer $height="15px" />
       <Pad $left="2px">
         <Label>Intended Answer</Label>

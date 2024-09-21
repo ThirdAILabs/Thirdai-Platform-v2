@@ -4,22 +4,22 @@ export const lorem = [
     sourceName: 'thirdai.com',
     sourceURL: 'https://www.thirdai.com',
     content:
-      'Build Your Own LLMs. Personalized. Private. Affordable. The ThirdAI engine makes it easy to build and deploy billion parameter models on just CPUs. No configs. No GPUs. No latency. Get Started For Free'
+      'Build Your Own LLMs. Personalized. Private. Affordable. The ThirdAI engine makes it easy to build and deploy billion parameter models on just CPUs. No configs. No GPUs. No latency. Get Started For Free',
   },
   {
     id: 1,
     sourceName: 'thirdai.com',
     sourceURL: 'https://www.thirdai.com',
     content:
-      'The Third AI Difference: Pre-train on your data instead of just using public models. Currently, most developers just use pre-trained models like RoBERTa and T5 because of the cost & complexity of training models from scratch. But with Third AI you can pre-train on your data easily and achieve much higher accuracy and personalization'
+      'The Third AI Difference: Pre-train on your data instead of just using public models. Currently, most developers just use pre-trained models like RoBERTa and T5 because of the cost & complexity of training models from scratch. But with Third AI you can pre-train on your data easily and achieve much higher accuracy and personalization',
   },
   {
     id: 2,
     sourceName: 'thirdai.com',
     sourceURL: 'https://www.thirdai.com',
     content:
-      'Unified Interference Our Universal Deep Transformers (UDT) library for AutoML can tackle a broad range of machine learning tasks and data modalities all through the same unified API.'
-  }
+      'Unified Interference Our Universal Deep Transformers (UDT) library for AutoML can tackle a broad range of machine learning tasks and data modalities all through the same unified API.',
+  },
 ];
 
 export const exampleQueries = [
@@ -27,7 +27,7 @@ export const exampleQueries = [
   'Does the same surcharge apply to all Mastercard credit card transactions of the same product type?',
   'Can a merchant express a preference for a specific payment application?',
   'What is the purpose of preparing internal reports for mastercard staff management?',
-  'What are some of the safeguards a digital activity customer and staged dwo must maintain?'
+  'What are some of the safeguards a digital activity customer and staged dwo must maintain?',
 ];
 
 export const generatedAnswerWords =

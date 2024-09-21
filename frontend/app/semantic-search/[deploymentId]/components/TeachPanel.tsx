@@ -54,7 +54,7 @@ export default function TeachPanel({
   setQuestion,
   setAnswer,
   onAssociate,
-  onAddAnswer
+  onAddAnswer,
 }: TeachPanelProps) {
   function button(
     buttonText: string,
@@ -63,10 +63,7 @@ export default function TeachPanel({
   ) {
     return (
       <ButtonContainer>
-        <NotifyingClickable
-          text={notification}
-          onClick={() => onSubmit(question, answer)}
-        >
+        <NotifyingClickable text={notification} onClick={() => onSubmit(question, answer)}>
           <PillButton>{buttonText}</PillButton>
         </NotifyingClickable>
       </ButtonContainer>

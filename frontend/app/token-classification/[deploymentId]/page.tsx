@@ -17,7 +17,7 @@ export default function Page() {
         width: '100%',
         display: 'flex',
         justifyContent: 'center',
-        height: '100vh'
+        height: '100vh',
       }}
     >
       <Tabs defaultValue="interact" style={{ width: '100%' }}>
@@ -25,15 +25,13 @@ export default function Page() {
           <div className="text-muted-foreground" style={{ fontSize: '16px' }}>
             Token Classification
           </div>
-          <div style={{ fontWeight: 'bold', fontSize: '24px' }}>
-            {workflowName}
-          </div>
+          <div style={{ fontWeight: 'bold', fontSize: '24px' }}>{workflowName}</div>
         </div>
         <div
           style={{
             marginTop: '20px',
             display: 'flex',
-            justifyContent: 'center'
+            justifyContent: 'center',
           }}
         >
           <TabsList style={{ backgroundColor: 'rgba(0,0,0,0.05)' }}>

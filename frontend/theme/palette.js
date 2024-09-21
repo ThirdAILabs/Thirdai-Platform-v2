@@ -14,7 +14,7 @@ const GREY = {
   600: '#637381',
   700: '#454F5B',
   800: '#212B36',
-  900: '#161C24'
+  900: '#161C24',
 };
 
 const PRIMARY = {
@@ -23,7 +23,7 @@ const PRIMARY = {
   main: '#032ba5',
   dark: '#022284',
   darker: '#011963',
-  contrastText: '#FFFFFF'
+  contrastText: '#FFFFFF',
 };
 
 const SECONDARY = {
@@ -32,7 +32,7 @@ const SECONDARY = {
   main: '#04abff',
   dark: '#0388cc',
   darker: '#026699',
-  contrastText: '#FFFFFF'
+  contrastText: '#FFFFFF',
 };
 
 const INFO = {
@@ -41,7 +41,7 @@ const INFO = {
   main: '#00B8D9',
   dark: '#006C9C',
   darker: '#003768',
-  contrastText: '#FFFFFF'
+  contrastText: '#FFFFFF',
 };
 
 const SUCCESS = {
@@ -50,7 +50,7 @@ const SUCCESS = {
   main: '#36B37E',
   dark: '#1B806A',
   darker: '#0A5554',
-  contrastText: '#FFFFFF'
+  contrastText: '#FFFFFF',
 };
 
 const WARNING = {
@@ -59,7 +59,7 @@ const WARNING = {
   main: '#FFAB00',
   dark: '#B76E00',
   darker: '#7A4100',
-  contrastText: GREY[800]
+  contrastText: GREY[800],
 };
 
 const ERROR = {
@@ -68,7 +68,7 @@ const ERROR = {
   main: '#FF5630',
   dark: '#B71D18',
   darker: '#7A0916',
-  contrastText: '#FFFFFF'
+  contrastText: '#FFFFFF',
 };
 
 const COMMON = {
@@ -88,8 +88,8 @@ const COMMON = {
     disabledBackground: alpha(GREY[500], 0.24),
     focus: alpha(GREY[500], 0.24),
     hoverOpacity: 0.08,
-    disabledOpacity: 0.48
-  }
+    disabledOpacity: 0.48,
+  },
 };
 
 export default function palette(themeMode) {
@@ -99,13 +99,13 @@ export default function palette(themeMode) {
     text: {
       primary: GREY[800],
       secondary: GREY[600],
-      disabled: GREY[500]
+      disabled: GREY[500],
     },
     background: { paper: '#FFFFFF', default: '#FFFFFF', neutral: GREY[200] },
     action: {
       ...COMMON.action,
-      active: GREY[600]
-    }
+      active: GREY[600],
+    },
   };
 
   const dark = {
@@ -114,17 +114,17 @@ export default function palette(themeMode) {
     text: {
       primary: '#FFFFFF',
       secondary: GREY[500],
-      disabled: GREY[600]
+      disabled: GREY[600],
     },
     background: {
       paper: GREY[800],
       default: GREY[900],
-      neutral: alpha(GREY[500], 0.16)
+      neutral: alpha(GREY[500], 0.16),
     },
     action: {
       ...COMMON.action,
-      active: GREY[500]
-    }
+      active: GREY[500],
+    },
   };
 
   return themeMode === 'light' ? light : dark;

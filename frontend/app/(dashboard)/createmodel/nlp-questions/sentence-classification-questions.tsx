@@ -10,13 +10,9 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from '@/components/ui/table';
-import {
-  add_models_to_workflow,
-  create_workflow,
-  trainSentenceClassifier
-} from '@/lib/backend';
+import { add_models_to_workflow, create_workflow, trainSentenceClassifier } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 
 interface SCQQuestionsProps {
@@ -38,16 +34,10 @@ type GeneratedData = {
 
 const predefinedChoices = ['POSITIVE_SENTIMENT', 'NEGATIVE_SENTIMENT'];
 
-const SCQQuestions = ({
-  question,
-  answer,
-  workflowNames
-}: SCQQuestionsProps) => {
+const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) => {
   const [modelName, setModelName] = useState('');
   const [warningMessage, setWarningMessage] = useState('');
-  const [categories, setCategories] = useState([
-    { name: '', example: '', description: '' }
-  ]);
+  const [categories, setCategories] = useState([{ name: '', example: '', description: '' }]);
   const [showReview, setShowReview] = useState(false);
   const [isDataGenerating, setIsDataGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<GeneratedData[]>([]);
@@ -55,11 +45,7 @@ const SCQQuestions = ({
 
   const router = useRouter();
 
-  const handleCategoryChange = (
-    index: number,
-    field: string,
-    value: string
-  ) => {
+  const handleCategoryChange = (index: number, field: string, value: string) => {
     const newCategories = categories.map((category, i) => {
       if (i === index) {
         return { ...category, [field]: value };
@@ -109,9 +95,7 @@ const SCQQuestions = ({
         return false;
       }
     } else {
-      alert(
-        'All fields (CategoryName, Example) must be filled for each category.'
-      );
+      alert('All fields (CategoryName, Example) must be filled for each category.');
       return false;
     }
   };
@@ -133,16 +117,13 @@ const SCQQuestions = ({
       console.log('sending answer', answer);
       console.log('sending categories', categories);
 
-      const response = await fetch(
-        '/endpoints/generate-data-sentence-classification',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ question, answer, categories })
-        }
-      );
+      const response = await fetch('/endpoints/generate-data-sentence-classification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question, answer, categories }),
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -185,7 +166,7 @@ const SCQQuestions = ({
       const workflowTypeName = 'nlp'; // Assuming this is the type for NER workflows
       const workflowResponse = await create_workflow({
         name: workflowName,
-        typeName: workflowTypeName
+        typeName: workflowTypeName,
       });
       const workflowId = workflowResponse.data.workflow_id;
 
@@ -193,7 +174,7 @@ const SCQQuestions = ({
       const addModelsResponse = await add_models_to_workflow({
         workflowId,
         modelIdentifiers: [modelId],
-        components: ['nlp'] // Specific to this use case
+        components: ['nlp'], // Specific to this use case
       });
 
       console.log('Workflow and model addition successful:', addModelsResponse);
@@ -227,15 +208,8 @@ const SCQQuestions = ({
         placeholder="Enter app name"
         style={{ marginTop: '10px' }}
       />
-      {warningMessage && (
-        <span style={{ color: 'red', marginTop: '10px' }}>
-          {warningMessage}
-        </span>
-      )}
-      <span
-        className="block text-lg font-semibold"
-        style={{ marginTop: '20px' }}
-      >
+      {warningMessage && <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>}
+      <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
         Specify Classes
       </span>
       <form onSubmit={handleSubmit} style={{ marginTop: '10px' }}>
@@ -247,7 +221,7 @@ const SCQQuestions = ({
                 display: 'flex',
                 flexDirection: 'row',
                 gap: '10px',
-                justifyContent: 'space-between'
+                justifyContent: 'space-between',
               }}
             >
               <div style={{ width: '100%' }}>
@@ -257,9 +231,7 @@ const SCQQuestions = ({
                   className="text-md"
                   placeholder="Category Name"
                   value={category.name}
-                  onChange={(e) =>
-                    handleCategoryChange(index, 'name', e.target.value)
-                  }
+                  onChange={(e) => handleCategoryChange(index, 'name', e.target.value)}
                 />
                 <datalist id={`category-options-${index}`}>
                   {predefinedChoices.map((choice, i) => (
@@ -272,23 +244,16 @@ const SCQQuestions = ({
                 className="text-md"
                 placeholder="Example"
                 value={category.example}
-                onChange={(e) =>
-                  handleCategoryChange(index, 'example', e.target.value)
-                }
+                onChange={(e) => handleCategoryChange(index, 'example', e.target.value)}
               />
               <Input
                 style={{ width: '100%' }}
                 className="text-md"
                 placeholder="Description"
                 value={category.description}
-                onChange={(e) =>
-                  handleCategoryChange(index, 'description', e.target.value)
-                }
+                onChange={(e) => handleCategoryChange(index, 'description', e.target.value)}
               />
-              <Button
-                variant="destructive"
-                onClick={() => handleRemoveCategory(index)}
-              >
+              <Button variant="destructive" onClick={() => handleRemoveCategory(index)}>
                 Remove
               </Button>
             </div>
@@ -350,7 +315,7 @@ const SCQQuestions = ({
               flexDirection: 'row',
               justifyContent: 'space-between',
               gap: '10px',
-              marginTop: '20px'
+              marginTop: '20px',
             }}
           >
             <Button

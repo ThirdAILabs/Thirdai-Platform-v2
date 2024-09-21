@@ -53,7 +53,7 @@ export default function GeneratedAnswer({
   queryInfo,
   regenerateAndBypassCache,
   cacheEnabled,
-  setCacheEnabled
+  setCacheEnabled,
 }: GeneratedAnswerProps) {
   return (
     <Container>
@@ -88,7 +88,7 @@ export default function GeneratedAnswer({
             style={{
               cursor: 'pointer',
               color: 'blue',
-              textDecoration: 'underline'
+              textDecoration: 'underline',
             }}
           >
             Search instead for &apos;{queryInfo.userQuery}&apos;

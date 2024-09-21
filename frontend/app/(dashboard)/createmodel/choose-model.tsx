@@ -12,7 +12,7 @@ import {
   fetchPrivateModels,
   fetchPendingModels,
   fetchWorkflows,
-  Workflow
+  Workflow,
 } from '@/lib/backend';
 import { Divider } from '@mui/material';
 import { CardDescription } from '@/components/ui/card';
@@ -84,9 +84,7 @@ export default function ChooseProblem() {
     <>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         <span className="block text-lg font-semibold">Use case</span>
-        <CardDescription>
-          Please select the app type based on your use case.
-        </CardDescription>
+        <CardDescription>Please select the app type based on your use case.</CardDescription>
         <div style={{ marginTop: '10px' }}>
           <select
             value={modelType || ''}
@@ -96,7 +94,7 @@ export default function ChooseProblem() {
               padding: '10px',
               fontSize: '16px',
               border: '1px solid #ccc',
-              borderRadius: '4px'
+              borderRadius: '4px',
             }}
           >
             <option value="" disabled>
@@ -114,17 +112,10 @@ export default function ChooseProblem() {
           <div style={{ width: '100%', marginTop: '20px' }}>
             <Divider style={{ marginBottom: '20px' }} />
             {modelType === RAG && (
-              <RAGQuestions
-                models={privateModels}
-                workflowNames={workflowNames}
-              />
+              <RAGQuestions models={privateModels} workflowNames={workflowNames} />
             )}
-            {modelType === NLP && (
-              <NLPQuestions workflowNames={workflowNames} />
-            )}
-            {modelType === RETRIEVAL && (
-              <SemanticSearchQuestions workflowNames={workflowNames} />
-            )}
+            {modelType === NLP && <NLPQuestions workflowNames={workflowNames} />}
+            {modelType === RETRIEVAL && <SemanticSearchQuestions workflowNames={workflowNames} />}
             {/* {modelType === DOC_CLASSIFICATION && <DocumentClassificationQuestions workflowNames={workflowNames} />} */}
             {/* {modelType === TABULAR_CLASSIFICATION && <TabularClassificationQuestions workflowNames={workflowNames} />} */}
           </div>

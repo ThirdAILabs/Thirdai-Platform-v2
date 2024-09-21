@@ -1,23 +1,13 @@
 import Fuse from 'fuse.js';
 import React, { useContext, useEffect, useState } from 'react';
 import styled from 'styled-components';
-import {
-  borderRadius,
-  color,
-  duration,
-  fontSizes,
-  shadow,
-  padding
-} from '../stylingConstants';
+import { borderRadius, color, duration, fontSizes, shadow, padding } from '../stylingConstants';
 import { ReadSourceButton, StyledArrow } from './Reference';
 import { Spacer } from './Layout';
 import { ModelService, Source } from '../modelServices';
 import { ModelServiceContext } from '../Context';
 import FileUploadModal from './FileUploadModal';
-import {
-  DropdownMenuContent,
-  DropdownMenuItem
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
@@ -154,7 +144,7 @@ export default function Sources(props: SourcesProps) {
       new Fuse(
         props.sources.map((source) => ({
           source: formatSource(source.source)!,
-          source_id: source.source_id
+          source_id: source.source_id,
         })),
         { keys: ['source'] }
       )
@@ -173,10 +163,7 @@ export default function Sources(props: SourcesProps) {
     modelService!.sources().then(props.setSources);
   }
 
-  const handleAddSources = async (
-    selectedFiles: FileList | null,
-    s3Urls: string[]
-  ) => {
+  const handleAddSources = async (selectedFiles: FileList | null, s3Urls: string[]) => {
     const filesArray = selectedFiles ? Array.from(selectedFiles) : [];
     await modelService!.addSources(filesArray, s3Urls);
   };
@@ -219,15 +206,12 @@ export default function Sources(props: SourcesProps) {
               style={{
                 display: 'flex',
                 paddingRight: '10px',
-                justifyContent: 'space-between'
+                justifyContent: 'space-between',
               }}
               onClick={() => {
                 if (source.source) {
                   // Ensure source.source is defined
-                  const fileExtension = source.source
-                    .split('.')
-                    .pop()
-                    ?.toLowerCase(); // Get file extension
+                  const fileExtension = source.source.split('.').pop()?.toLowerCase(); // Get file extension
 
                   if (fileExtension === 'pdf' || fileExtension === 'docx') {
                     // If file is a .pdf or .docx, proceed to open the source
@@ -246,16 +230,12 @@ export default function Sources(props: SourcesProps) {
                   style={{
                     height: '2rem',
                     width: '2rem',
-                    border: '1px solid red'
+                    border: '1px solid red',
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
                     modelService!.deleteSources([source.source_id]);
-                    props.setSources(
-                      props.sources.filter(
-                        (x) => x.source_id !== source.source_id
-                      )
-                    );
+                    props.setSources(props.sources.filter((x) => x.source_id !== source.source_id));
                   }}
                 >
                   ✕

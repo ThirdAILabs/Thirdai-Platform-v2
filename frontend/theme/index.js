@@ -6,7 +6,7 @@ import { CssBaseline } from '@mui/material';
 import {
   createTheme,
   StyledEngineProvider,
-  ThemeProvider as MUIThemeProvider
+  ThemeProvider as MUIThemeProvider,
 } from '@mui/material/styles';
 // Import other custom settings like palette, typography, shadows, etc.
 import palette from './palette';
@@ -24,7 +24,7 @@ export default function ThemeProvider({ children }) {
       typography,
       shape: { borderRadius: 8 },
       shadows: shadows('light'), // Pass in the light theme by default
-      customShadows: customShadows('light')
+      customShadows: customShadows('light'),
     }),
     []
   );
@@ -45,5 +45,5 @@ export default function ThemeProvider({ children }) {
 }
 
 ThemeProvider.propTypes = {
-  children: PropTypes.node
+  children: PropTypes.node,
 };

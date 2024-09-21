@@ -12,7 +12,7 @@ Block.propTypes = {
   sx: PropTypes.object,
   title: PropTypes.string,
   tooltip: PropTypes.string,
-  children: PropTypes.node
+  children: PropTypes.node,
 };
 
 export default function Block({ title, tooltip, children, sx, ...other }) {
@@ -22,7 +22,7 @@ export default function Block({ title, tooltip, children, sx, ...other }) {
         direction="row"
         alignItems="center"
         sx={{
-          color: 'text.secondary'
+          color: 'text.secondary',
         }}
       >
         <Typography variant="caption" sx={{ fontWeight: 'fontWeightMedium' }}>

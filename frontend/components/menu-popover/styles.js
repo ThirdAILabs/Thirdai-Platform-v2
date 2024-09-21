@@ -14,28 +14,28 @@ export const StyledArrow = styled('span')(({ arrow, theme }) => {
     borderRadius: '0 0 3px 0',
     top: POSITION,
     borderBottom: borderStyle,
-    borderRight: borderStyle
+    borderRight: borderStyle,
   };
 
   const bottomStyle = {
     borderRadius: '3px 0 0 0',
     bottom: POSITION,
     borderTop: borderStyle,
-    borderLeft: borderStyle
+    borderLeft: borderStyle,
   };
 
   const leftStyle = {
     borderRadius: '0 3px 0 0',
     left: POSITION,
     borderTop: borderStyle,
-    borderRight: borderStyle
+    borderRight: borderStyle,
   };
 
   const rightStyle = {
     borderRadius: '0 0 0 3px',
     right: POSITION,
     borderBottom: borderStyle,
-    borderLeft: borderStyle
+    borderLeft: borderStyle,
   };
 
   return {
@@ -48,7 +48,7 @@ export const StyledArrow = styled('span')(({ arrow, theme }) => {
       display: 'block',
       position: 'absolute',
       transform: 'rotate(-135deg)',
-      background: theme.palette.background.paper
+      background: theme.palette.background.paper,
     },
     // Top
     ...(arrow === 'top-left' && { ...topStyle, left: 20 }),
@@ -56,7 +56,7 @@ export const StyledArrow = styled('span')(({ arrow, theme }) => {
       ...topStyle,
       left: 0,
       right: 0,
-      margin: 'auto'
+      margin: 'auto',
     }),
     ...(arrow === 'top-right' && { ...topStyle, right: 20 }),
     // Bottom
@@ -65,7 +65,7 @@ export const StyledArrow = styled('span')(({ arrow, theme }) => {
       ...bottomStyle,
       left: 0,
       right: 0,
-      margin: 'auto'
+      margin: 'auto',
     }),
     ...(arrow === 'bottom-right' && { ...bottomStyle, right: 20 }),
     // Left
@@ -74,7 +74,7 @@ export const StyledArrow = styled('span')(({ arrow, theme }) => {
       ...leftStyle,
       top: 0,
       bottom: 0,
-      margin: 'auto'
+      margin: 'auto',
     }),
     ...(arrow === 'left-bottom' && { ...leftStyle, bottom: 20 }),
     // Right
@@ -83,8 +83,8 @@ export const StyledArrow = styled('span')(({ arrow, theme }) => {
       ...rightStyle,
       top: 0,
       bottom: 0,
-      margin: 'auto'
+      margin: 'auto',
     }),
-    ...(arrow === 'right-bottom' && { ...rightStyle, bottom: 20 })
+    ...(arrow === 'right-bottom' && { ...rightStyle, bottom: 20 }),
   };
 });

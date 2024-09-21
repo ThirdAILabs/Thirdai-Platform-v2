@@ -1,10 +1,4 @@
-import {
-  Card,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import SignupForm from './signup-form';
 
 export default function SignupPage() {
@@ -13,9 +7,7 @@ export default function SignupPage() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Sign up</CardTitle>
-          <CardDescription>
-            Please fill in the details to create an account.
-          </CardDescription>
+          <CardDescription>Please fill in the details to create an account.</CardDescription>
         </CardHeader>
         <CardFooter>
           <SignupForm />

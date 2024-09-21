@@ -7,7 +7,7 @@ import MenuPopover from '../../components/menu-popover';
 const myTeam = [
   { id: 1, name: 'Tharun Medini' },
   { id: 2, name: 'Benito Geordie' },
-  { id: 3, name: 'Sid Jain' }
+  { id: 3, name: 'Sid Jain' },
 ];
 const ITEM_HEIGHT = 64;
 
@@ -32,23 +32,16 @@ export default function TeamPopover({ selectedTeam, setSelectedTeam }) {
       <Button
         sx={{
           bgcolor: (theme) =>
-            alpha(
-              theme.palette.secondary.main,
-              theme.palette.action.selectedOpacity
-            ),
+            alpha(theme.palette.secondary.main, theme.palette.action.selectedOpacity),
           color: (theme) => theme.palette.secondary.dark,
-          px: 2
+          px: 2,
         }}
         onClick={handleOpenPopover}
       >
         {selectedTeam ? selectedTeam : 'Select Team'}
       </Button>
 
-      <MenuPopover
-        open={openPopover}
-        onClose={handleClosePopover}
-        sx={{ width: 320 }}
-      >
+      <MenuPopover open={openPopover} onClose={handleClosePopover} sx={{ width: 320 }}>
         <Typography variant="h6" sx={{ p: 1.5 }}>
           My Team <Typography component="span">({myTeam.length})</Typography>
         </Typography>

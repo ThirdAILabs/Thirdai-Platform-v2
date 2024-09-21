@@ -11,10 +11,7 @@ const ChatIcon = styled(ChatSVG)<{ $active: boolean }>`
   }
 `;
 
-export default function ChatToggle(props: {
-  active: boolean;
-  onClick: () => void;
-}) {
+export default function ChatToggle(props: { active: boolean; onClick: () => void }) {
   return (
     <Button style={{ width: '60px', height: '50px' }} onClick={props.onClick}>
       <ChatIcon $active={props.active} />

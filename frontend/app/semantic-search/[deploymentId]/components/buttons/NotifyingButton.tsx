@@ -1,12 +1,6 @@
 import React, { MouseEventHandler, ReactElement, useState } from 'react';
 import styled from 'styled-components';
-import {
-  color,
-  borderRadius,
-  duration,
-  fontSizes,
-  padding
-} from '../../stylingConstants';
+import { color, borderRadius, duration, fontSizes, padding } from '../../stylingConstants';
 
 const Container = styled.section`
   display: flex;
@@ -48,7 +42,7 @@ export default function NotifyingClickable({
   text,
   onClick,
   durationMs = 3000,
-  onDismiss = () => {}
+  onDismiss = () => {},
 }: NotifyingClickableProps) {
   const [notify, setNotify] = useState(false);
 

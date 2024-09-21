@@ -3,13 +3,7 @@
 import { getAccessToken, User, accessTokenUser } from '@/lib/backend';
 import { access } from 'fs';
 import { useRouter } from 'next/navigation';
-import {
-  useEffect,
-  useState,
-  createContext,
-  SetStateAction,
-  Dispatch
-} from 'react';
+import { useEffect, useState, createContext, SetStateAction, Dispatch } from 'react';
 
 interface UserContext {
   user: User | null;
@@ -24,14 +18,10 @@ export const UserContext = createContext<UserContext>({
   user: null,
   accessToken: null,
   setAccessToken: (user) => {},
-  logout: () => {}
+  logout: () => {},
 });
 
-export default function UserWrapper({
-  children
-}: {
-  children: React.ReactNode;
-}) {
+export default function UserWrapper({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [accessToken, setAccessToken] = useState<string | null | undefined>();
   const [user, setUser] = useState<User | null>(null);

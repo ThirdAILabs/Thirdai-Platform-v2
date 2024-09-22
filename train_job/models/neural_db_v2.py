@@ -32,11 +32,14 @@ def convert_to_ndb_doc(
     filename, ext = os.path.splitext(resource_path)
 
     if ext == ".pdf":
+        import pdftitle
+        pdf_title = pdftitle.get_title_from_file(resource_path)
         return ndbv2.PDF(
             resource_path,
             doc_metadata=metadata,
             display_path=display_path,
             doc_id=doc_id,
+            doc_keywords=(pdf_title + " ") * 10,
         )
     elif ext == ".docx":
         return ndbv2.DOCX(

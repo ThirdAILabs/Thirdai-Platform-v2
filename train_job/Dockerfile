@@ -9,9 +9,10 @@ COPY requirements.txt /app/
 
 # Install dependencies from requirements.txt
 RUN python3 -m pip install --no-cache-dir -r requirements.txt
+RUN python3 -m pip install pdftitle
 
-COPY ./thirdai-0.9.14+410433c-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl /app/
-RUN python3 -m pip install thirdai-0.9.14+410433c-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl --force-reinstall
+COPY ./thirdai-0.9.14+f48a0ec-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl /app/
+RUN python3 -m pip install thirdai-0.9.14+f48a0ec-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl --force-reinstall
 
 # Copy the current directory contents into the container at /app
 COPY . /app

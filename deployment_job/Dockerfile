@@ -6,9 +6,10 @@ WORKDIR /app
 # cached even when there are changes in the directory.
 COPY ./requirements.txt /app/requirements.txt
 RUN pip install -r /app/requirements.txt
+RUN python3 -m pip install pdftitle
 
-COPY ./thirdai-0.9.14+410433c-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl /app/
-RUN python3 -m pip install thirdai-0.9.14+410433c-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl --force-reinstall
+COPY ./thirdai-0.9.14+f48a0ec-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl /app/
+RUN python3 -m pip install thirdai-0.9.14+f48a0ec-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl --force-reinstall
 
 # Install thirdai package separately since this is the dependency that changes
 # the most often. This allows the other packages to stay cached.

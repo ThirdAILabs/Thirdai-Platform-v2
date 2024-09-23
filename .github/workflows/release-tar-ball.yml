@@ -103,8 +103,9 @@ jobs:
       - name: Read Pull Credentials from release/config.yaml
         id: credentials
         run: |
-          PULL_USERNAME=$(yq ".azure.branches.\"${branch_name}\".pull_credentials.username"  release/config.yaml)
-          PULL_PASSWORD=$(yq ".azure.branches.\"${branch_name}\".pull_credentials.password"  release/config.yaml)
+          PULL_USERNAME=$(yq e '.azure.branches."'${branch_name}'".pull_credentials.username' release/config.yaml)
+          PULL_PASSWORD=$(yq e '.azure.branches."'${branch_name}'".pull_credentials.password' release/config.yaml)
+
           echo "pull_username=$PULL_USERNAME" >> $GITHUB_ENV
           echo "pull_password=$PULL_PASSWORD" >> $GITHUB_ENV
 

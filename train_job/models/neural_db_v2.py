@@ -40,7 +40,7 @@ def convert_to_ndb_doc(
             doc_metadata=metadata,
             display_path=display_path,
             doc_id=doc_id,
-            doc_keywords=(pdf_title + " " + filename_as_keywords) * 5,
+            doc_keywords=(pdf_title + " " + filename_as_keywords + " ") * 5,
         )
     elif ext == ".docx":
         return ndbv2.DOCX(

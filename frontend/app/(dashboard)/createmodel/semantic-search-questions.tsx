@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getUsername, train_ndb, create_workflow, add_models_to_workflow } from '@/lib/backend';
 import { Button, TextField } from '@mui/material';
-import { Input } from '@/components/ui/input';
 import { CardDescription } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 

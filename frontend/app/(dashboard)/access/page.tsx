@@ -653,9 +653,9 @@ export default function AccessPage() {
                             onChange={(e) =>
                               setSelectedType(
                                 e.target.value as
-                                  | 'Private Model'
-                                  | 'Protected Model'
-                                  | 'Public Model'
+                                | 'Private Model'
+                                | 'Protected Model'
+                                | 'Public Model'
                               )
                             }
                             className="border border-gray-300 rounded px-4 py-2"
@@ -803,7 +803,7 @@ export default function AccessPage() {
                   placeholder="Team Name"
                   value={newTeamName}
                   onChange={(e) => setNewTeamName(e.target.value)}
-                  // className="border border-gray-300 rounded px-4 py-2"
+                // className="border border-gray-300 rounded px-4 py-2"
                 />
                 <AutocompleteInput
                   key={newTeamAdmin} // Use a dynamic key to force re-render
@@ -862,13 +862,13 @@ export default function AccessPage() {
                   options={
                     selectedTeamForAdd
                       ? users
-                          .map((user) => user.name)
-                          .filter(
-                            (userName) =>
-                              !teams
-                                .find((team) => team.name === selectedTeamForAdd)
-                                ?.members.includes(userName)
-                          )
+                        .map((user) => user.name)
+                        .filter(
+                          (userName) =>
+                            !teams
+                              .find((team) => team.name === selectedTeamForAdd)
+                              ?.members.includes(userName)
+                        )
                       : []
                   }
                   placeholder="New Member"
@@ -979,7 +979,7 @@ export default function AccessPage() {
                   options={
                     selectedTeamForRemoveAdmin
                       ? teams.find((team) => team.name === selectedTeamForRemoveAdmin)?.members ||
-                        []
+                      []
                       : []
                   }
                   placeholder="Admin to Remove"
@@ -1048,7 +1048,8 @@ export default function AccessPage() {
             </div>
             <Button
               onClick={handleSave}
-              className={`mt-4 bg-blue-500 text-white px-4 py-2 rounded ${loading ? 'cursor-not-allowed' : ''}`}
+              variant='contained'
+              className={`${loading ? 'cursor-not-allowed' : ''}`}
               disabled={loading}
             >
               {loading ? 'Saving...' : 'Save'}

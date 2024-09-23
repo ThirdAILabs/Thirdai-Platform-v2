@@ -15,7 +15,7 @@ import { WorkFlow } from './workflow';
 import { SelectModel } from '@/lib/db';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@mui/material';
 import {
   fetchPublicModels,
   fetchPrivateModels,
@@ -175,7 +175,8 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
           <div className="flex">
             <Button
               onClick={prevPage}
-              variant="ghost"
+              variant='contained'
+              color='error'
               size="sm"
               type="button"
               disabled={offset <= 0}
@@ -185,8 +186,9 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
             </Button>
             <Button
               onClick={nextPage}
-              variant="ghost"
+              className='ml-5'
               size="sm"
+              variant='contained'
               type="button"
               disabled={offset + modelsPerPage >= totalWorkflows}
             >

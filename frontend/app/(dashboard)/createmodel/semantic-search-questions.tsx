@@ -250,7 +250,7 @@ const SemanticSearchQuestions = ({
             {type === SourceType.LOCAL && (
               <div>
                 <TextField
-                  className='w-full'
+                  className="w-full"
                   type="file"
                   onChange={(e) => {
                     if (e.target.files) {
@@ -268,7 +268,7 @@ const SemanticSearchQuestions = ({
                 placeholder="Enter NSF server file path"
               />
             )}
-            <Button variant="contained" color='error' onClick={() => deleteSource(index)}>
+            <Button variant="contained" color="error" onClick={() => deleteSource(index)}>
               Delete
             </Button>
           </div>
@@ -276,13 +276,22 @@ const SemanticSearchQuestions = ({
       ))}
 
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-        <Button onClick={() => addSource(SourceType.LOCAL)} variant='contained'>Add Local File</Button>
-        <Button onClick={() => addSource(SourceType.S3)} variant='contained'>Add S3 File</Button>
+        <Button onClick={() => addSource(SourceType.LOCAL)} variant="contained">
+          Add Local File
+        </Button>
+        <Button onClick={() => addSource(SourceType.S3)} variant="contained">
+          Add S3 File
+        </Button>
         {/* <Button onClick={() => addSource(SourceType.NSF)}>Add NSF File</Button> */}
       </div>
 
       <div className="flex justify-start">
-        <Button onClick={submit} variant='contained' style={{ marginTop: '30px', width: '100%' }} disabled={isLoading}>
+        <Button
+          onClick={submit}
+          variant="contained"
+          style={{ marginTop: '30px', width: '100%' }}
+          disabled={isLoading}
+        >
           {isLoading ? (
             <div className="flex items-center">
               <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>

@@ -175,8 +175,8 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
           <div className="flex">
             <Button
               onClick={prevPage}
-              variant='contained'
-              color='error'
+              variant="contained"
+              color="error"
               size="sm"
               type="button"
               disabled={offset <= 0}
@@ -186,9 +186,9 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
             </Button>
             <Button
               onClick={nextPage}
-              className='ml-5'
+              className="ml-5"
               size="sm"
-              variant='contained'
+              variant="contained"
               type="button"
               disabled={offset + modelsPerPage >= totalWorkflows}
             >

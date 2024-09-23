@@ -335,7 +335,7 @@ const NERQuestions = ({
                       InputProps={{
                         inputProps: {
                           list: `category-options-${index}`, // Linking to the datalist
-                        }
+                        },
                       }}
                     />
                     <datalist id={`category-options-${index}`}>
@@ -358,13 +358,17 @@ const NERQuestions = ({
                     value={category.description}
                     onChange={(e) => handleCategoryChange(index, 'description', e.target.value)}
                   />
-                  <Button variant="contained" color='error' onClick={() => handleRemoveCategory(index)}>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={() => handleRemoveCategory(index)}
+                  >
                     Remove
                   </Button>
                 </div>
               ))}
               <Button
-                variant='contained'
+                variant="contained"
                 style={{ marginTop: '10px', width: 'fit-content' }}
                 onClick={handleAddAndReviewCategory}
               >
@@ -372,7 +376,7 @@ const NERQuestions = ({
               </Button>
               {categories.length > 0 && (
                 <Button
-                  variant='contained'
+                  variant="contained"
                   color={isDataGenerating ? 'success' : 'primary'}
                   style={{ marginTop: '30px' }}
                   onClick={generateData}

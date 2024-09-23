@@ -216,9 +216,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                   //       : 'outline'
                   //     : 'default'
                   // }
-                  variant={
-                    ifUseExistingSS === 'Yes' ? 'contained' : 'default'
-                  }
+                  variant={ifUseExistingSS === 'Yes' ? 'contained' : 'default'}
                   onClick={() => {
                     setUseExistingSS('Yes');
                     setCreatedSS(false);
@@ -234,10 +232,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                   //       : 'outline'
                   //     : 'contained'
                   // }
-                  variant={
-                    ifUseExistingSS === 'No' ? 'contained' : 'default'
-                  }
-
+                  variant={ifUseExistingSS === 'No' ? 'contained' : 'default'}
                   onClick={() => {
                     setUseExistingSS('No');
                     setCreatedSS(false);
@@ -319,9 +314,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
               >
                 <Button
                   // variant={ifUseLGR ? (ifUseLGR === 'Yes' ? 'secondary' : 'outline') : 'default'}
-                  variant={
-                    ifUseLGR === 'Yes' ? 'contained' : 'default'
-                  }
+                  variant={ifUseLGR === 'Yes' ? 'contained' : 'default'}
                   onClick={() => {
                     setIfUseLGR('Yes');
                     setCreatedGR(false);
@@ -331,9 +324,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 </Button>
                 <Button
                   // variant={ifUseLGR ? (ifUseLGR === 'No' ? 'secondary' : 'outline') : 'default'}
-                  variant={
-                    ifUseLGR === 'No' ? 'contained' : 'default'
-                  }
+                  variant={ifUseLGR === 'No' ? 'contained' : 'default'}
                   onClick={() => {
                     setGrIdentifier(null);
                     setIfUseLGR('No');
@@ -364,9 +355,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                         //       : 'outline'
                         //     : 'default'
                         // }
-                        variant={
-                          ifUseExistingLGR === 'Yes' ? 'contained' : 'default'
-                        }
+                        variant={ifUseExistingLGR === 'Yes' ? 'contained' : 'default'}
                         onClick={() => {
                           setIfUseExistingLGR('Yes');
                           setCreatedGR(false);
@@ -382,9 +371,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                         //       : 'outline'
                         //     : 'default'
                         // }
-                        variant={
-                          ifUseExistingLGR === 'No' ? 'contained' : 'default'
-                        }
+                        variant={ifUseExistingLGR === 'No' ? 'contained' : 'default'}
                         onClick={() => {
                           setIfUseExistingLGR('No');
                           setCreatedGR(false);
@@ -560,14 +547,18 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
       >
         {/* Previous Button */}
         {currentStep > 0 ? (
-          <Button onClick={() => setCurrentStep(currentStep - 1)} color='error' variant='contained'>Previous</Button>
+          <Button onClick={() => setCurrentStep(currentStep - 1)} color="error" variant="contained">
+            Previous
+          </Button>
         ) : (
           <div></div>
         )}
 
         {/* Next Button or Create/Deploy Button */}
         {currentStep < steps.length - 1 ? (
-          <Button onClick={() => setCurrentStep(currentStep + 1)} variant='contained'>Next</Button>
+          <Button onClick={() => setCurrentStep(currentStep + 1)} variant="contained">
+            Next
+          </Button>
         ) : (
           <>
             {ssModelId && (ifUseLGR === 'No' || grModelId) && modelName ? (

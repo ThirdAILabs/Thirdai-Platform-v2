@@ -91,7 +91,7 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
           </div>
           <Button
             onClick={submit}
-            variant='contained'
+            variant="contained"
             color={loadingAnswer ? 'success' : 'primary'}
             style={{ width: '100%' }}
           >

@@ -101,7 +101,7 @@ export default function AnalyticsPage() {
           <div className="mt-4 flex justify-center items-center">
             <Link href={grafanaUrl} passHref legacyBehavior>
               <a target="_blank" rel="noopener noreferrer">
-                <Button variant='contained'>See more system stats</Button>
+                <Button variant="contained">See more system stats</Button>
               </a>
             </Link>
           </div>

@@ -64,14 +64,14 @@ fi
 echo "Using config file at $CONFIG_PATH"
 
 # Model path
-QWEN_MODEL_PATH="gen-ai-models/qwen2-0_5b-instruct-fp16.gguf"
+GENERATIVE_MODEL_FOLDER="gen-ai-models/"
 
 # Warn if model file is not found
-if [ ! -f "$QWEN_MODEL_PATH" ]; then
-    echo "WARNING: Model file not found at $QWEN_MODEL_PATH. The playbook will proceed without it."
+if [ ! -f "$GENERATIVE_MODEL_FOLDER" ]; then
+    echo "WARNING: Model file not found at $GENERATIVE_MODEL_FOLDER. The playbook will proceed without it."
 fi
 
-QWEN_MODEL_FULL_PATH=$(realpath "$QWEN_MODEL_PATH")
+GENERATIVE_MODEL_FOLDER=$(realpath "$GENERATIVE_MODEL_FOLDER")
 
 # Search for docker_images folder with a prefix
 DOCKER_IMAGES_PATH=$(find . -type d -name "docker_images-*" | head -n 1)
@@ -89,7 +89,7 @@ cd "$(dirname "$0")/platform" || exit 1
 # TODO(pratik): remove platform_image_path once we merge as would default to release-test main
 if [ "$VERBOSE" -eq 1 ]; then
     echo "Running in verbose mode (-vvvv)"
-    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH qwen_model_path=$QWEN_MODEL_FULL_PATH docker_images=$DOCKER_IMAGES_PATH platform_image_branch=local_registry" -vvvv
+    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=local_registry" -vvvv
 else
-    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH qwen_model_path=$QWEN_MODEL_FULL_PATH docker_images=$DOCKER_IMAGES_PATH platform_image_branch=local_registry"
+    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=local_registry"
 fi

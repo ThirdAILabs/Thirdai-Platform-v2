@@ -46,7 +46,7 @@ job "telemetry" {
       }
 
       config {
-        image = "{{ registry }}/victoria-metrics:latest"
+        image = "{{ registry }}/victoria-metrics:tags-v1.102.1-1-g76115c611f"
         auth {
             username = "{{ docker_username }}"
             password = "{{ docker_password }}"
@@ -77,7 +77,7 @@ job "telemetry" {
       driver = "docker"
 
       config {
-        image = "{{ registry }}/loki:main"
+        image = "{{ registry }}/loki:k221-47b9075"
         auth {
           username = "{{ docker_username }}"
           password = "{{ docker_password }}"

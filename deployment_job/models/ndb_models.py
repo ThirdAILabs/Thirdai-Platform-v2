@@ -310,7 +310,7 @@ class NDBV2Model(NDBModel):
     def chunk_to_pydantic_ref(self, chunk: Chunk, score: float) -> inputs.Reference:
         return inputs.Reference(
             id=chunk.chunk_id,
-            text=chunk.keywords + " " + chunk.text,
+            text=chunk.text,
             source=self.full_source_path(chunk.document),
             metadata=chunk.metadata,
             context="",

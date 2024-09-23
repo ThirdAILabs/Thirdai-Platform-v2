@@ -170,7 +170,7 @@ jobs:
         run: |
           tar -czvf thirdai-platform-package-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz ./platform ./gen-ai-models ./driver.sh ./config.yml ./README.md
 
-      # TODO(pratik): remove once we merge the changes on main on ansible PR.
+      # TODO(pratik): remove this once we merge the changes on main on ansible PR.
       - name: Update branch to local-registry
         run: |
           cd platform

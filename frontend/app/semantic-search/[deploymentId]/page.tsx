@@ -146,6 +146,7 @@ function App() {
   const [workflowId, setWorkflowId] = useState<string | null>(null);
 
   const [sentimentClassifierExists, setSentimentClassifierExists] = useState(false);
+  const [tokenClassifierExists, setTokenClassifierExists] = useState(false);
   const [sentimentClassifierWorkflowId, setSentimentClassifierWorkflowId] = useState<string | null>(null);
   
   useEffect(() => {
@@ -186,6 +187,8 @@ function App() {
         if (nlpModel) {
           setIfGuardRailOn(true);
         }
+
+        setTokenClassifierExists(!!nlpModel)
 
         if (!generationOn) {
           // if generation is off, turn off cache
@@ -641,6 +644,7 @@ function App() {
             </TopRightCorner>
             {chatMode ? (
               <Chat
+                tokenClassifierExists={tokenClassifierExists}
                 sentimentClassifierExists={sentimentClassifierExists}
                 sentimentWorkflowId={sentimentClassifierWorkflowId}  // Pass the workflow ID for sentiment classifier
               />

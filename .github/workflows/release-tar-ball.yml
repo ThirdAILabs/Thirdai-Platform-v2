@@ -100,11 +100,11 @@ jobs:
           echo "Docker image branch to build on is: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_ENV  # Save the latest_tag to the environment file
 
-      - name: Read Pull Credentials from config.yml
+      - name: Read Pull Credentials from release/config.yaml
         id: credentials
         run: |
-          PULL_USERNAME=$(yq '.azure.branches.'${{ env.branch_name }}'.pull_credentials.username' config.yml)
-          PULL_PASSWORD=$(yq '.azure.branches.'${{ env.branch_name }}'.pull_credentials.password' config.yml)
+          PULL_USERNAME=$(yq '.azure.branches.'${{ env.branch_name }}'.pull_credentials.username' release/config.yaml)
+          PULL_PASSWORD=$(yq '.azure.branches.'${{ env.branch_name }}'.pull_credentials.password' release/config.yaml)
           echo "pull_username=$PULL_USERNAME" >> $GITHUB_ENV
           echo "pull_password=$PULL_PASSWORD" >> $GITHUB_ENV
 

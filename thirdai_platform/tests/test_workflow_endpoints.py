@@ -626,6 +626,8 @@ def test_workflow_access_explicit_permission():
 
     client = TestClient(app)
 
+    private_model_workflow = "Private Model Workflow"
+
     # User 1 logs in and creates a private model
     res = login(client, username="user_1@mail.com", password="user_1_password")
     assert res.status_code == 200
@@ -637,7 +639,7 @@ def test_workflow_access_explicit_permission():
 
     # User 1 creates a workflow using the private model
     workflow_id = create_workflow(
-        client, user_1_jwt, "Private Model Workflow", "complex_workflow_type"
+        client, user_1_jwt, private_model_workflow, "complex_workflow_type"
     )
 
     # Add the private model to the workflow
@@ -659,9 +661,7 @@ def test_workflow_access_explicit_permission():
     res = client.get("/api/workflow/list", headers=auth_header(user_2_jwt))
     assert res.status_code == 200
     workflows = [wf["name"] for wf in res.json()["data"]]
-    assert (
-        "Private Model Workflow" not in workflows
-    )  # User 2 shouldn't see the workflow
+    assert private_model_workflow not in workflows  # User 2 shouldn't see the workflow
 
     res = client.post(
         "/api/model/update-model-permission",
@@ -678,4 +678,4 @@ def test_workflow_access_explicit_permission():
     res = client.get("/api/workflow/list", headers=auth_header(user_2_jwt))
     assert res.status_code == 200
     workflows = [wf["name"] for wf in res.json()["data"]]
-    assert "Private Model Workflow" in workflows  # Now User 2 should see the workflow
+    assert private_model_workflow in workflows  # Now User 2 should see the workflow

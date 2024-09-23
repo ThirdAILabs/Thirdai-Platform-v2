@@ -375,14 +375,14 @@ class Workflow(SQLDeclarativeBase):
         for workflow_model in self.workflow_models:
             model = workflow_model.model
 
-            # user_permission = model.get_user_permission(user)
+            user_permission = model.get_user_permission(user)
 
-            # if user_permission:
-            #     # If the user has permission, treat as public for this model
-            #     model_access = Access.public
-            # else:
-            #     # Use the model's access level if no explicit permission
-            model_access = model.access_level
+            if user_permission:
+                # If the user has permission, treat as public for this model
+                model_access = Access.public
+            else:
+                # Use the model's access level if no explicit permission
+                model_access = model.access_level
 
             if (
                 model_access.restrictiveness()

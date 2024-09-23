@@ -196,9 +196,11 @@ function AILoadingChatBox() {
 }
 
 export default function Chat({
+  tokenClassifierExists,
   sentimentClassifierExists, // Indicates if sentiment classification model exists
   sentimentWorkflowId,       // Workflow ID for sentiment classification
 }: {
+  tokenClassifierExists: boolean;
   sentimentClassifierExists: boolean;
   sentimentWorkflowId: string | null;
 }) {
@@ -303,11 +305,14 @@ export default function Chat({
       }
 
       // Perform PII detection on the human's message
-      const humanTransformed = await performPIIDetection(lastTextInput);
-      setTransformedMessages((prev) => ({
-        ...prev,
-        [currentIndex]: humanTransformed, // Store human's PII-detected message
-      }));
+      if (tokenClassifierExists) {
+        const humanTransformed = await performPIIDetection(lastTextInput);
+        setTransformedMessages((prev) => ({
+          ...prev,
+          [currentIndex]: humanTransformed, // Store human's PII-detected message
+        }));
+      }
+      
 
       // Simulate AI response
       modelService?.chat(lastTextInput)
@@ -316,11 +321,13 @@ export default function Chat({
           setChatHistory((history) => [...history, { sender: 'AI', content: response }]);
 
           // Perform PII detection on the AI's response
-          const aiTransformed = await performPIIDetection(response);
-          setTransformedMessages((prev) => ({
-            ...prev,
-            [aiIndex]: aiTransformed, // Store AI's PII-detected message
-          }));
+          if (tokenClassifierExists) {
+            const aiTransformed = await performPIIDetection(response);
+            setTransformedMessages((prev) => ({
+              ...prev,
+              [aiIndex]: aiTransformed, // Store AI's PII-detected message
+            }));
+          }
 
           setAiLoading(false);
         })
@@ -342,7 +349,7 @@ export default function Chat({
               <ChatBox
                 key={i}
                 message={message}
-                transformedMessage={transformedMessages[i]} // Pass PII-transformed message for human and AI
+                transformedMessage={tokenClassifierExists ? transformedMessages[i] : undefined} // Pass PII-transformed message for human and AI
                 sentiment={sentiments[i]}  // Pass sentiment for human message
               />
             ))}

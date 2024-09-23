@@ -159,7 +159,7 @@ jobs:
           docker save -o docker_images-${{ env.latest_tag }}/grafana_main-ubuntu.tar thirdaiplatform.azurecr.io/grafana:main-ubuntu
 
           docker pull thirdaiplatform.azurecr.io/loki:k221-47b9075
-          docker save -o docker_images-${{ env.latest_tag }}/loki_main.tar thirdaiplatform.azurecr.io/loki:k221-47b9075
+          docker save -o docker_images-${{ env.latest_tag }}/loki_k221-47b9075.tar thirdaiplatform.azurecr.io/loki:k221-47b9075
 
           docker pull thirdaiplatform.azurecr.io/victoria-metrics:tags-v1.102.1-1-g76115c611f
           docker save -o docker_images-${{ env.latest_tag }}/victoria-metrics_tags-v1.102.1-1-g76115c611f.tar thirdaiplatform.azurecr.io/victoria-metrics:tags-v1.102.1-1-g76115c611f

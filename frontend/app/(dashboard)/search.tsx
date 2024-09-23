@@ -5,9 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { TextField, InputAdornment } from '@mui/material';
 import { Spinner } from '@/components/icons';
-// import { Search } from 'lucide-react';
 import SearchIcon from '@mui/icons-material/Search';
-import { EyeIcon, EyeOffIcon } from '@heroicons/react/solid';
 export function SearchInput() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();

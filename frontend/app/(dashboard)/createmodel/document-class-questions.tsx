@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Button } from '@mui/material';
 
 enum SourceType {
   LOCAL = 'local',
@@ -178,7 +178,7 @@ export default function DocumentClassificationQuestions({
                 placeholder="Enter NSF server path"
               />
             )}
-            <Button variant="destructive" onClick={() => deleteSource(index)}>
+            <Button variant="contained" color='error' onClick={() => deleteSource(index)}>
               Delete
             </Button>
           </div>
@@ -196,11 +196,11 @@ export default function DocumentClassificationQuestions({
       )}
 
       <div className="flex justify-start">
-        <Button
+        <Button variant='contained'
           onClick={() => console.log('Submit Document Classification')}
           style={{ marginTop: '30px', width: '100%' }}
         >
-          Create
+          Createfjsdfsldkfjlsd
         </Button>
       </div>
     </div>

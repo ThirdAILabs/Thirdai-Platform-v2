@@ -173,13 +173,6 @@ jobs:
         run: |
           tar -czvf thirdai-platform-package-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz ./platform ./gen-ai-models ./driver.sh ./config.yml ./README.md
 
-      # TODO(pratik): remove this once we merge the changes on main on ansible PR.
-      - name: Update branch to local-registry
-        run: |
-          cd platform
-          git fetch --all
-          git checkout adds-local-registry
-
       - name: Package Docker images, driver script, config, and README into tarball
         run: |
           tar -czvf thirdai-platform-package-offline-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz ./platform ./docker_images-${{ env.latest_tag }} ./driver.sh ./config.yml ./README.md ./gen-ai-models

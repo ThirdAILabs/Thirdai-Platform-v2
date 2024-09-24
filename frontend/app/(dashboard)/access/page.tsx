@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import Button from '@mui/material/Button';
 import {
   fetchAllModels,
   fetchAllTeams,
@@ -22,8 +21,8 @@ import {
 import { useContext } from 'react';
 import { UserContext } from '../../user_wrapper';
 import AutocompleteInput from '@/components/ui/AutocompleteInput';
-import { TextField } from '@mui/material';
-import TeamPopOver from '../../../components/ui/TeamPopOver';
+import { TextField, Button } from '@mui/material';
+
 
 // Define types for the models, teams, and users
 type Model = {

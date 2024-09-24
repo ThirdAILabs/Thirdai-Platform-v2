@@ -8,10 +8,8 @@ import {
   StyledEngineProvider,
   ThemeProvider as MUIThemeProvider,
 } from '@mui/material/styles';
-// Import other custom settings like palette, typography, shadows, etc.
+
 import palette from './palette';
-import typography from './typography';
-import shadows from './shadows';
 import customShadows from './customShadows';
 import componentsOverride from './overrides';
 import GlobalStyles from './globalStyles';
@@ -21,9 +19,7 @@ export default function ThemeProvider({ children }) {
   const themeOptions = useMemo(
     () => ({
       palette: palette('light'), // Set the default theme mode
-      typography,
       shape: { borderRadius: 8 },
-      shadows: shadows('light'), // Pass in the light theme by default
       customShadows: customShadows('light'),
     }),
     []

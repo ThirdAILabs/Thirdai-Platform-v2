@@ -504,64 +504,65 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
       <div>{steps[currentStep].content}</div>
 
       {/* Step Controls */}
-      <div
-        style={{
-          marginTop: '50px',
-          display: 'flex',
-          justifyContent: 'space-between',
-        }}
-      >
-        {/* Previous Button */}
-        {currentStep > 0 ? (
-          <Button onClick={() => setCurrentStep(currentStep - 1)} color="error" variant="contained" className='h-15 w-15'>
-            Previous
-          </Button>
-        ) : (
-          <></>
-        )}
-
-        {/* Next Button or Create/Deploy Button */}
-        {currentStep < steps.length - 1 ? (
-          <Button onClick={() => setCurrentStep(currentStep + 1)} variant="contained">
-            Next
-          </Button>
-        ) : (
-          <>
-            {ssModelId && (ifUseLGR === 'No' || grModelId) && modelName ? (
-              <div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <Button
-                        onClick={handleSubmit}
-                        variant='contained'
-                        style={{ width: '100%' }}
-                        disabled={
-                          isLoading ||
-                          !(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName)
-                        }
-                      >
-                        {isLoading ? (
-                          <div className="flex items-center justify-center">
-                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
-                            <span>Creating...</span>
-                          </div>
-                        ) : (
-                          'Create'
-                        )}
-                      </Button>
-                    </div>
-                  </TooltipTrigger>
-                  {!(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName) && (
-                    <TooltipContent side="bottom">LLM Type is not specified</TooltipContent>
-                  )}
-                </Tooltip>
-              </div>
-            ) : (
-              <div style={{ color: 'red' }}>{errorMessage}</div>
-            )}
-          </>
-        )}
+      <div className='flex justify-between'>
+        <div
+          style={{
+            marginTop: '50px',
+          }}
+        >
+          {/* Previous Button */}
+          {currentStep > 0 ? (
+            <Button onClick={() => setCurrentStep(currentStep - 1)} color="error" variant="contained">
+              Previous
+            </Button>
+          ) : (
+            <></>
+          )}
+        </div>
+        <div>
+          {/* Next Button or Create/Deploy Button */}
+          {currentStep < steps.length - 1 ? (
+            <Button onClick={() => setCurrentStep(currentStep + 1)} variant="contained">
+              Next
+            </Button>
+          ) : (
+            <>
+              {ssModelId && (ifUseLGR === 'No' || grModelId) && modelName ? (
+                <div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <Button
+                          onClick={handleSubmit}
+                          variant='contained'
+                          style={{ width: '100%' }}
+                          disabled={
+                            isLoading ||
+                            !(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName)
+                          }
+                        >
+                          {isLoading ? (
+                            <div className="flex items-center justify-center">
+                              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
+                              <span>Creating...</span>
+                            </div>
+                          ) : (
+                            'Create'
+                          )}
+                        </Button>
+                      </div>
+                    </TooltipTrigger>
+                    {!(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName) && (
+                      <TooltipContent side="bottom">LLM Type is not specified</TooltipContent>
+                    )}
+                  </Tooltip>
+                </div>
+              ) : (
+                <div style={{ color: 'red' }}>{errorMessage}</div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

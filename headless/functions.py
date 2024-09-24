@@ -253,6 +253,8 @@ class NDBFunctions:
                     use_cache=True,
                 )
                 logging.info(f"Openai generated answer: {generated_answer}")
+                if not generated_answer:
+                    raise Exception(f"Openai answer is not generated")
 
             if on_prem:
                 flow.bazaar_client.start_on_prem(autoscaling_enabled=False)
@@ -265,6 +267,8 @@ class NDBFunctions:
                     use_cache=False,
                 )
                 logging.info(f"on-prem generated answer: {generated_answer}")
+                if not generated_answer:
+                    raise Exception(f"On prem answer is not generated")
 
     @staticmethod
     def check_unsupervised(inputs: Dict[str, Any]) -> Any:

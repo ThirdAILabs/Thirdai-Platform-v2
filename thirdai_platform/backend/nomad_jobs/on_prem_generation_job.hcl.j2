@@ -61,11 +61,6 @@ job "on-prem-llm-generation" {
 
       config {
         image = "{{ registry }}/llama.cpp:server"
-        auth {
-          username = "{{ docker_username }}"
-          password = "{{ docker_password }}"
-          server_address = "{{ registry }}"
-        }
         image_pull_timeout = "15m"
         ports = ["on-prem-generation-http"]
         volumes = ["{{ mount_dir }}:/gen-ai-models"]

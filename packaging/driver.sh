@@ -44,7 +44,6 @@ function install_ansible() {
     echo "All required Ansible Galaxy collections are installed."
 }
 
-
 install_ansible
 
 VERBOSE=0  # Default: No verbose mode
@@ -72,22 +71,31 @@ fi
 echo "Using config file at $CONFIG_PATH"
 
 # Model path
-QWEN_MODEL_PATH="models/qwen2-0_5b-instruct-fp16.gguf"
+GENERATIVE_MODEL_FOLDER="gen-ai-models/"
 
 # Warn if model file is not found
-if [ ! -f "$QWEN_MODEL_PATH" ]; then
-    echo "WARNING: Model file not found at $QWEN_MODEL_PATH. The playbook will proceed without it."
+if [ ! -f "$GENERATIVE_MODEL_FOLDER" ]; then
+    echo "WARNING: Model file not found at $GENERATIVE_MODEL_FOLDER. The playbook will proceed without it."
 fi
 
-QWEN_MODEL_FULL_PATH=$(realpath "$QWEN_MODEL_PATH")
+GENERATIVE_MODEL_FOLDER=$(realpath "$GENERATIVE_MODEL_FOLDER")
+
+# Search for docker_images folder with a prefix
+DOCKER_IMAGES_PATH=$(find . -type d -name "docker_images-*" | head -n 1)
+
+if [ -z "$DOCKER_IMAGES_PATH" ]; then
+    echo "WARNING: No docker_images folder found with prefix 'docker_images-'. The playbook will proceed without it."
+else
+    DOCKER_IMAGES_PATH=$(realpath "$DOCKER_IMAGES_PATH")
+    echo "Found docker images folder at $DOCKER_IMAGES_PATH"
+fi
 
 # Change directory to platform directory
 cd "$(dirname "$0")/platform" || exit 1
 
-# Run Ansible playbook with or without verbose mode
 if [ "$VERBOSE" -eq 1 ]; then
     echo "Running in verbose mode (-vvvv)"
-    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH qwen_model_path=$QWEN_MODEL_FULL_PATH" -vvvv
+    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH" -vvvv
 else
-    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH qwen_model_path=$QWEN_MODEL_FULL_PATH"
+    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH"
 fi

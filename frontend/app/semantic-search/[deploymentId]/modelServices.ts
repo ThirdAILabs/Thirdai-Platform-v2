@@ -3,7 +3,7 @@ import { Box, Chunk, DocChunks } from './components/pdf_viewer/interfaces';
 import { temporaryCacheToken } from '@/lib/backend';
 import _ from 'lodash';
 
-export const deploymentBaseUrl = _.trim(process.env.NEXT_PUBLIC_DEPLOYMENT_BASE_URL!, '/');
+export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
 export interface ReferenceJson {
   id: number;
@@ -92,6 +92,7 @@ function startAndEnd(text: string, n_words: number = 2) {
 
 type ImplicitFeecback = {
   reference_id: number;
+  reference_rank: number;
   query_text: string;
   event_desc: string;
 };
@@ -234,9 +235,7 @@ export class ModelService {
     // Append local files to formData and documentData
     for (let i = 0; i < files.length; i++) {
       formData.append('files', files[i]);
-      const extension = files[i].name.split('.').pop();
       documentData.push({
-        document_type: extension!.toUpperCase(),
         path: files[i].name,
         location: 'local',
       });
@@ -245,15 +244,13 @@ export class ModelService {
     // Append S3 URLs to documentData
     for (let i = 0; i < s3Urls.length; i++) {
       const url = s3Urls[i];
-      const extension = url.split('.').pop();
       documentData.push({
-        document_type: extension ? extension.toUpperCase() : 'URL',
         path: url,
         location: 's3',
       });
     }
 
-    formData.append('documents', JSON.stringify(documentData));
+    formData.append('documents', JSON.stringify({ documents: documentData }));
     const url = new URL(this.url + '/insert');
 
     return fetch(url, {

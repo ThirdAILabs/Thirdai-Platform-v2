@@ -643,6 +643,7 @@ function App() {
               <Chat
                 sentimentClassifierExists={sentimentClassifierExists}
                 sentimentWorkflowId={sentimentClassifierWorkflowId}  // Pass the workflow ID for sentiment classifier
+                provider={genAiProvider || 'openai'}
               />
             ) : (
               <>

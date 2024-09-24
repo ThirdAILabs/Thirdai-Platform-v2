@@ -144,9 +144,11 @@ def get_chat_history(
     token=Depends(permissions.verify_permission("read")),
 ):
     model = get_model()
-    if not model.chat:
+
+    chat = model.get_chat(provider=input.provider)
+    if not chat:
         raise Exception(
-            "Chat is not enabled. Please provide an GenAI key to enable chat."
+            f"Chat is not enabled for provider: {input.provider}. Please set up the provider."
         )
 
     if not input.session_id:
@@ -162,7 +164,7 @@ def get_chat_history(
     else:
         session_id = input.session_id
 
-    chat_history = {"chat_history": model.chat.get_chat_history(session_id)}
+    chat_history = {"chat_history": chat.get_chat_history(session_id)}
 
     return response(
         status_code=status.HTTP_200_OK,
@@ -175,9 +177,11 @@ def get_chat_history(
 @propagate_error
 def chat(input: inputs.ChatInput, token=Depends(permissions.verify_permission("read"))):
     model = get_model()
-    if not model.chat:
+
+    chat = model.get_chat(provider=input.provider)
+    if not chat:
         raise Exception(
-            "Chat is not enabled. Please provide an GENAI key to enable chat."
+            f"Chat is not enabled for provider: {input.provider}. Please set up the provider."
         )
 
     if not input.session_id:
@@ -193,7 +197,7 @@ def chat(input: inputs.ChatInput, token=Depends(permissions.verify_permission("r
     else:
         session_id = input.session_id
 
-    chat_result = {"response": model.chat.chat(input.user_input, session_id)}
+    chat_result = {"response": chat.chat(input.user_input, session_id)}
 
     return response(
         status_code=status.HTTP_200_OK,

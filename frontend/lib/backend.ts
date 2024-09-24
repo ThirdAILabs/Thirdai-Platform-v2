@@ -1001,8 +1001,7 @@ interface TextClassificationResult {
 export function useTextClassificationEndpoints() {
   const accessToken = useAccessToken();
   const params = useParams();
-  // const workflowId = params.deploymentId as string;
-  const workflowId = '72f9fa89-4657-437a-a905-1e9e436f40aa'; // hard-code param for RAG usage.
+  const workflowId = params.deploymentId as string;
   const [workflowName, setWorkflowName] = useState<string>('');
   const [deploymentUrl, setDeploymentUrl] = useState<string | undefined>();
 

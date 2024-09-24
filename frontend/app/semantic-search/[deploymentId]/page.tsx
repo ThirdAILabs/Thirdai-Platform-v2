@@ -126,6 +126,7 @@ function App() {
   const [selectedPdfChunk, setSelectedPdfChunk] = useState<Chunk | null>(null);
   const [sources, setSources] = useState<Source[]>([]);
   const [chatMode, setChatMode] = useState(false);
+  const [chatEnabled, setChatEnabled] = useState(false);
   const [checkedIds, setCheckedIds] = useState(new Set<number>());
   const onCheck = (id: number) =>
     setCheckedIds((prev) => {
@@ -146,6 +147,7 @@ function App() {
   const [workflowId, setWorkflowId] = useState<string | null>(null);
 
   const [sentimentClassifierExists, setSentimentClassifierExists] = useState(false);
+  const [tokenClassifierExists, setTokenClassifierExists] = useState(false);
   const [sentimentClassifierWorkflowId, setSentimentClassifierWorkflowId] = useState<string | null>(null);
   
   useEffect(() => {
@@ -186,6 +188,9 @@ function App() {
         if (nlpModel) {
           setIfGuardRailOn(true);
         }
+        
+        // Set whether token classifier exists
+        setTokenClassifierExists(!!nlpModel)
 
         if (!generationOn) {
           // if generation is off, turn off cache
@@ -198,6 +203,12 @@ function App() {
         // Set the sentiment classifier workflow ID if the model exists
         if (sentimentClassifier) {
           setSentimentClassifierWorkflowId(sentimentClassifier.model_id);
+        }
+
+        // Only enable the chat option if the workflow is of type RAG
+        const chatWorkflows = ["rag"];
+        if (chatWorkflows.includes(details.data.type)) {
+          setChatEnabled(true);
         }
 
         const newModelService = new ModelService(serviceUrl, tokenModelUrl, uuidv4());
@@ -635,12 +646,13 @@ function App() {
               <Logo src={LogoImg.src} alt="Logo" />
             </a>
             <TopRightCorner>
-              <ChatToggle active={chatMode} onClick={() => setChatMode((chatMode) => !chatMode)} />
+              {chatEnabled && <ChatToggle active={chatMode} onClick={() => setChatMode((chatMode) => !chatMode)} />}
               <Spacer $width="40px" />
               <Teach />
             </TopRightCorner>
             {chatMode ? (
               <Chat
+                tokenClassifierExists={tokenClassifierExists}
                 sentimentClassifierExists={sentimentClassifierExists}
                 sentimentWorkflowId={sentimentClassifierWorkflowId}  // Pass the workflow ID for sentiment classifier
                 provider={genAiProvider || 'openai'}

@@ -526,7 +526,9 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
         <div>
           {/* Next Button or Create/Deploy Button */}
           {currentStep < steps.length - 1 ? (
-            <Button onClick={() => setCurrentStep(currentStep + 1)} variant="contained">
+            <Button onClick={() => setCurrentStep(currentStep + 1)} variant="contained" style={{
+              marginTop: '50px',
+            }}>
               Next
             </Button>
           ) : (

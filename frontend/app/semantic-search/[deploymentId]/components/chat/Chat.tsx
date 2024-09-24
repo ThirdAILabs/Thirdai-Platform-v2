@@ -117,7 +117,6 @@ export default function Chat(props: { provider: string }) {
         })
         .catch((e) => {
           console.error('Failed to update chat settings:', e);
-          alert('Failed to update chat settings: ' + e);
         });
     }
   }, [modelService, props.provider]);

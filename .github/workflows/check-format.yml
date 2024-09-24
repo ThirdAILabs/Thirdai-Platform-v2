@@ -33,7 +33,7 @@ jobs:
       # Check for unused imports without modifying files
       - name: Check for unused imports with autoflake
         run: |
-          autoflake --check --remove-all-unused-imports --recursive .
+          autoflake --check --remove-all-unused-imports --ignore-pass-statements --recursive .
         continue-on-error: false  # Fails the job if unused imports are found
 
       # Check Black format

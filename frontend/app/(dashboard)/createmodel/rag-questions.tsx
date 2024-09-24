@@ -5,7 +5,6 @@ import SemanticSearchQuestions from './semantic-search-questions';
 import { create_workflow, add_models_to_workflow, set_gen_ai_provider } from '@/lib/backend';
 import { CardDescription } from '@/components/ui/card';
 import { Button, TextField } from '@mui/material';
-// import { Input } from '@/components/ui/input';
 import { useRouter } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -209,13 +208,6 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 }}
               >
                 <Button
-                  // variant={
-                  //   ifUseExistingSS
-                  //     ? ifUseExistingSS === 'Yes'
-                  //       ? 'secondary'
-                  //       : 'outline'
-                  //     : 'default'
-                  // }
                   variant={ifUseExistingSS === 'Yes' ? 'contained' : 'default'}
                   onClick={() => {
                     setUseExistingSS('Yes');
@@ -225,13 +217,6 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                   Yes
                 </Button>
                 <Button
-                  // variant={
-                  //   ifUseExistingSS
-                  //     ? ifUseExistingSS === 'No'
-                  //       ? 'secondary'
-                  //       : 'outline'
-                  //     : 'contained'
-                  // }
                   variant={ifUseExistingSS === 'No' ? 'contained' : 'default'}
                   onClick={() => {
                     setUseExistingSS('No');
@@ -313,7 +298,6 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 }}
               >
                 <Button
-                  // variant={ifUseLGR ? (ifUseLGR === 'Yes' ? 'secondary' : 'outline') : 'default'}
                   variant={ifUseLGR === 'Yes' ? 'contained' : 'default'}
                   onClick={() => {
                     setIfUseLGR('Yes');
@@ -323,7 +307,6 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                   Yes
                 </Button>
                 <Button
-                  // variant={ifUseLGR ? (ifUseLGR === 'No' ? 'secondary' : 'outline') : 'default'}
                   variant={ifUseLGR === 'No' ? 'contained' : 'default'}
                   onClick={() => {
                     setGrIdentifier(null);
@@ -348,13 +331,6 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                       }}
                     >
                       <Button
-                        // variant={
-                        //   ifUseExistingLGR
-                        //     ? ifUseExistingLGR === 'Yes'
-                        //       ? 'secondary'
-                        //       : 'outline'
-                        //     : 'default'
-                        // }
                         variant={ifUseExistingLGR === 'Yes' ? 'contained' : 'default'}
                         onClick={() => {
                           setIfUseExistingLGR('Yes');
@@ -364,13 +340,6 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                         Yes
                       </Button>
                       <Button
-                        // variant={
-                        //   ifUseExistingLGR
-                        //     ? ifUseExistingLGR === 'No'
-                        //       ? 'secondary'
-                        //       : 'outline'
-                        //     : 'default'
-                        // }
                         variant={ifUseExistingLGR === 'No' ? 'contained' : 'default'}
                         onClick={() => {
                           setIfUseExistingLGR('No');
@@ -455,21 +424,18 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
               }}
             >
               <Button
-                // variant={llmType ? (llmType === 'OpenAI' ? 'secondary' : 'outline') : 'default'}
                 variant={llmType === 'OpenAI' ? 'contained' : 'default'}
                 onClick={() => setLlmType('OpenAI')}
               >
                 OpenAI
               </Button>
               <Button
-                // variant={llmType ? (llmType === 'On-prem' ? 'secondary' : 'outline') : 'default'}
                 variant={llmType === 'On-Prem' ? 'contained' : 'default'}
                 onClick={() => setLlmType('On-prem')}
               >
                 On-prem
               </Button>
               <Button
-                // variant={llmType ? (llmType === 'Self-host' ? 'secondary' : 'outline') : 'default'}
                 variant={llmType === 'Self-host' ? 'contained' : 'default'}
                 onClick={() => setLlmType('Self-host')}
               >
@@ -547,11 +513,11 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
       >
         {/* Previous Button */}
         {currentStep > 0 ? (
-          <Button onClick={() => setCurrentStep(currentStep - 1)} color="error" variant="contained">
+          <Button onClick={() => setCurrentStep(currentStep - 1)} color="error" variant="contained" className='h-15 w-15'>
             Previous
           </Button>
         ) : (
-          <div></div>
+          <></>
         )}
 
         {/* Next Button or Create/Deploy Button */}
@@ -568,6 +534,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                     <div>
                       <Button
                         onClick={handleSubmit}
+                        variant='contained'
                         style={{ width: '100%' }}
                         disabled={
                           isLoading ||

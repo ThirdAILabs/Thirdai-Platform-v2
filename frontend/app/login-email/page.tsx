@@ -55,9 +55,6 @@ export default function LoginPage() {
         <CardFooter>
           <form onSubmit={handleSubmit} className="w-full">
             <div className="mb-4">
-              {/* <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email
-              </label> */}
               <TextField
                 type="email"
                 id="email"
@@ -69,9 +66,6 @@ export default function LoginPage() {
               />
             </div>
             <div className="mb-4 relative">
-              {/* <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label> */}
               <TextField
                 type={showPassword ? 'text' : 'password'}
                 id="password"

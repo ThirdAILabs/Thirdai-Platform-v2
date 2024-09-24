@@ -240,7 +240,6 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       <TableCell className="hidden md:table-cell text-center font-medium">
         <Button
           onClick={deployStatus === 'Active' ? goToEndpoint : handleDeploy}
-          // className="text-white focus:ring-4 focus:outline-none font-medium text-sm p-2.5 text-center inline-flex items-center me-2"
           variant="contained"
           style={{ width: '100px' }}
           disabled={

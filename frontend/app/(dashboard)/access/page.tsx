@@ -653,9 +653,9 @@ export default function AccessPage() {
                             onChange={(e) =>
                               setSelectedType(
                                 e.target.value as
-                                  | 'Private Model'
-                                  | 'Protected Model'
-                                  | 'Public Model'
+                                | 'Private Model'
+                                | 'Protected Model'
+                                | 'Public Model'
                               )
                             }
                             className="border border-gray-300 rounded px-4 py-2"
@@ -706,7 +706,6 @@ export default function AccessPage() {
                     <td className="py-3 px-4">
                       <Button
                         onClick={() => handleDeleteModel(index)}
-                        // className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                         color="error"
                         variant="contained"
                       >
@@ -803,7 +802,6 @@ export default function AccessPage() {
                   placeholder="Team Name"
                   value={newTeamName}
                   onChange={(e) => setNewTeamName(e.target.value)}
-                  // className="border border-gray-300 rounded px-4 py-2"
                 />
                 <AutocompleteInput
                   key={newTeamAdmin} // Use a dynamic key to force re-render
@@ -827,7 +825,6 @@ export default function AccessPage() {
                       alert('Please enter both Team Admin and at least one Team Member.');
                     }
                   }}
-                  // className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                   variant="contained"
                 >
                   Create Team
@@ -851,10 +848,7 @@ export default function AccessPage() {
                     </option>
                   ))}
                 </select>
-                {/* <TeamPopOver
-                  selectedTeam={selectedTeamForAdd}
-                  setSelectedTeam={setSelectedTeamForAdd}
-                /> */}
+
                 <AutocompleteInput
                   key={selectedTeamForAdd + newMember} // Use a key to force re-render
                   value={newMember}
@@ -862,20 +856,19 @@ export default function AccessPage() {
                   options={
                     selectedTeamForAdd
                       ? users
-                          .map((user) => user.name)
-                          .filter(
-                            (userName) =>
-                              !teams
-                                .find((team) => team.name === selectedTeamForAdd)
-                                ?.members.includes(userName)
-                          )
+                        .map((user) => user.name)
+                        .filter(
+                          (userName) =>
+                            !teams
+                              .find((team) => team.name === selectedTeamForAdd)
+                              ?.members.includes(userName)
+                        )
                       : []
                   }
                   placeholder="New Member"
                 />
                 <Button
                   onClick={addMemberToTeam}
-                  // className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
                   variant="contained"
                   color="success"
                 >
@@ -913,7 +906,6 @@ export default function AccessPage() {
                 />
                 <Button
                   onClick={removeMemberFromTeam}
-                  // className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                   variant="contained"
                   color="error"
                 >
@@ -947,7 +939,6 @@ export default function AccessPage() {
                 />
                 <Button
                   onClick={assignAdminToTeam}
-                  // className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
                   variant="contained"
                   color="success"
                 >
@@ -979,14 +970,13 @@ export default function AccessPage() {
                   options={
                     selectedTeamForRemoveAdmin
                       ? teams.find((team) => team.name === selectedTeamForRemoveAdmin)?.members ||
-                        []
+                      []
                       : []
                   }
                   placeholder="Admin to Remove"
                 />
                 <Button
                   onClick={removeAdminFromTeam}
-                  // className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                   variant="contained"
                   color="error"
                 >
@@ -1017,7 +1007,6 @@ export default function AccessPage() {
                 )}
                 <Button
                   onClick={() => deleteUser(user.name)}
-                  // className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                   variant="contained"
                   color="error"
                 >

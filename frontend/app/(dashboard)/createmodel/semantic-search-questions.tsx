@@ -282,7 +282,6 @@ const SemanticSearchQuestions = ({
         <Button onClick={() => addSource(SourceType.S3)} variant="contained">
           Add S3 File
         </Button>
-        {/* <Button onClick={() => addSource(SourceType.NSF)}>Add NSF File</Button> */}
       </div>
 
       <div className="flex justify-start">

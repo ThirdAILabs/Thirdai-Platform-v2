@@ -318,14 +318,6 @@ const NERQuestions = ({
                   }}
                 >
                   <div style={{ width: '100%' }}>
-                    {/* <Input
-                      list={`category-options-${index}`}
-                      style={{ width: '95%' }}
-                      className="text-sm w-fit"
-                      placeholder="Category Name"
-                      value={category.name}
-                      onChange={(e) => handleCategoryChange(index, 'name', e.target.value)}
-                    /> */}
                     <TextField
                       style={{ width: '95%' }}
                       className="text-sm w-fit"

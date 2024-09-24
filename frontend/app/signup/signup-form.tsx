@@ -49,9 +49,6 @@ export default function SignupForm() {
         />
       </div>
       <div className="mb-4 relative">
-        {/* <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-          Password
-        </label> */}
         <TextField
           type={showPassword ? 'text' : 'password'}
           id="password"
@@ -74,9 +71,6 @@ export default function SignupForm() {
         </button>
       </div>
       <div className="mb-4">
-        {/* <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-          Username
-        </label> */}
         <TextField
           type="text"
           id="username"

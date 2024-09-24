@@ -143,17 +143,6 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* {privateModels.map((model, index) => (
-                <Model key={index} model={model} />
-            ))}
-
-            {pendingModels.map((model, index) => (
-                <Model key={index + 100} model={model} pending = {true} />
-            ))}  */}
-
-            {/* {workflows.map((workflow, index) => (
-                <WorkFlow key={index + 200} workflow={workflow} />
-            ))} */}
             {displayedWorkflows
               .sort((a, b) => a.name.localeCompare(b.name)) // Sort by name alphabetically
               .map((workflow, index) => (

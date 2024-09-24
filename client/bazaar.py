@@ -1,5 +1,4 @@
 import json
-import math
 import os
 import shutil
 import time
@@ -713,7 +712,6 @@ class ModelBazaar:
     # TODO(pratik): add a unit tests for this function
     @staticmethod
     def full_backup_restore(bucket_name, local_dir, database_uri):
-        import boto3
 
         os.environ["DATABASE_URI"] = database_uri
         os.environ["SHARE_DIR"] = local_dir

@@ -113,7 +113,9 @@ class NDBModel(Model):
             print(f"Chat instance for provider '{provider}' is already set.")
             return
         try:
-            sqlite_db_path = os.path.join(self.model_dir, "chat_history.db")
+            sqlite_db_path = os.path.join(self.model_dir, provider, "chat_history.db")
+
+            os.makedirs(os.path.dirname(sqlite_db_path), exist_ok=True)
 
             chat_history_sql_uri = f"sqlite:///{sqlite_db_path}"
 
@@ -122,10 +124,15 @@ class NDBModel(Model):
 
             llm_chat_interface = llm_providers.get(provider)
 
+            key = kwargs.get("key") or self.general_variables.genai_key
+
+            # Remove 'key' from kwargs if present
+            kwargs.pop("key", None)
+
             self.chat_instances[provider] = llm_chat_interface(
                 db=self.db,
                 chat_history_sql_uri=chat_history_sql_uri,
-                key=self.general_variables.genai_key,
+                key=key,
                 base_url=self.general_variables.model_bazaar_endpoint,
                 **kwargs,
             )

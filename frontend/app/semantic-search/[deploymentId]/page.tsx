@@ -624,7 +624,7 @@ function App() {
               <Teach />
             </TopRightCorner>
             {chatMode ? (
-              <Chat />
+              <Chat provider={genAiProvider || 'openai'} />
             ) : (
               <>
                 <SearchContainer $center={results === null}>

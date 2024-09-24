@@ -23,7 +23,6 @@ import { UserContext } from '../../user_wrapper';
 import AutocompleteInput from '@/components/ui/AutocompleteInput';
 import { TextField, Button } from '@mui/material';
 
-
 // Define types for the models, teams, and users
 type Model = {
   name: string;
@@ -652,9 +651,9 @@ export default function AccessPage() {
                             onChange={(e) =>
                               setSelectedType(
                                 e.target.value as
-                                | 'Private Model'
-                                | 'Protected Model'
-                                | 'Public Model'
+                                  | 'Private Model'
+                                  | 'Protected Model'
+                                  | 'Public Model'
                               )
                             }
                             className="border border-gray-300 rounded px-4 py-2"
@@ -855,22 +854,18 @@ export default function AccessPage() {
                   options={
                     selectedTeamForAdd
                       ? users
-                        .map((user) => user.name)
-                        .filter(
-                          (userName) =>
-                            !teams
-                              .find((team) => team.name === selectedTeamForAdd)
-                              ?.members.includes(userName)
-                        )
+                          .map((user) => user.name)
+                          .filter(
+                            (userName) =>
+                              !teams
+                                .find((team) => team.name === selectedTeamForAdd)
+                                ?.members.includes(userName)
+                          )
                       : []
                   }
                   placeholder="New Member"
                 />
-                <Button
-                  onClick={addMemberToTeam}
-                  variant="contained"
-                  color="success"
-                >
+                <Button onClick={addMemberToTeam} variant="contained" color="success">
                   Add Member
                 </Button>
               </div>
@@ -903,11 +898,7 @@ export default function AccessPage() {
                   }
                   placeholder="Member to Remove"
                 />
-                <Button
-                  onClick={removeMemberFromTeam}
-                  variant="contained"
-                  color="error"
-                >
+                <Button onClick={removeMemberFromTeam} variant="contained" color="error">
                   Remove Member
                 </Button>
               </div>
@@ -936,11 +927,7 @@ export default function AccessPage() {
                   options={users.map((user) => user.name)}
                   placeholder="New Admin"
                 />
-                <Button
-                  onClick={assignAdminToTeam}
-                  variant="contained"
-                  color="success"
-                >
+                <Button onClick={assignAdminToTeam} variant="contained" color="success">
                   Add Admin
                 </Button>
               </div>
@@ -969,16 +956,12 @@ export default function AccessPage() {
                   options={
                     selectedTeamForRemoveAdmin
                       ? teams.find((team) => team.name === selectedTeamForRemoveAdmin)?.members ||
-                      []
+                        []
                       : []
                   }
                   placeholder="Admin to Remove"
                 />
-                <Button
-                  onClick={removeAdminFromTeam}
-                  variant="contained"
-                  color="error"
-                >
+                <Button onClick={removeAdminFromTeam} variant="contained" color="error">
                   Remove Admin
                 </Button>
               </div>
@@ -1004,11 +987,7 @@ export default function AccessPage() {
                 {user.ownedModels.length > 0 && (
                   <div className="text-gray-700">Owned Models: {user.ownedModels.join(', ')}</div>
                 )}
-                <Button
-                  onClick={() => deleteUser(user.name)}
-                  variant="contained"
-                  color="error"
-                >
+                <Button onClick={() => deleteUser(user.name)} variant="contained" color="error">
                   Delete User
                 </Button>
               </div>

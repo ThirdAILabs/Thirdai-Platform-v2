@@ -504,7 +504,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
       <div>{steps[currentStep].content}</div>
 
       {/* Step Controls */}
-      <div className='flex justify-between'>
+      <div className="flex justify-between">
         <div
           style={{
             marginTop: '50px',
@@ -512,7 +512,11 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
         >
           {/* Previous Button */}
           {currentStep > 0 ? (
-            <Button onClick={() => setCurrentStep(currentStep - 1)} color="error" variant="contained">
+            <Button
+              onClick={() => setCurrentStep(currentStep - 1)}
+              color="error"
+              variant="contained"
+            >
               Previous
             </Button>
           ) : (
@@ -534,7 +538,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                       <div>
                         <Button
                           onClick={handleSubmit}
-                          variant='contained'
+                          variant="contained"
                           style={{ width: '100%' }}
                           disabled={
                             isLoading ||

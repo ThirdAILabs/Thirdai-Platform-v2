@@ -199,10 +199,12 @@ export default function Chat({
   tokenClassifierExists,
   sentimentClassifierExists, // Indicates if sentiment classification model exists
   sentimentWorkflowId,       // Workflow ID for sentiment classification
+  provider,
 }: {
   tokenClassifierExists: boolean;
   sentimentClassifierExists: boolean;
   sentimentWorkflowId: string | null;
+  provider: string;
 }) {
   const modelService = useContext<ModelService | null>(ModelServiceContext);
   const { predictSentiment } = useSentimentClassification(sentimentWorkflowId);  // Use new hook for sentiment classification
@@ -214,8 +216,19 @@ export default function Chat({
   const scrollableAreaRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    modelService?.getChatHistory().then(setChatHistory);
-  }, [modelService]);
+    if (modelService && provider) {
+      // Set the chat settings based on the provider
+      modelService
+        .setChat(provider)
+        .then(() => {
+          // After setting chat settings, fetch chat history
+          modelService.getChatHistory(provider).then(setChatHistory);
+        })
+        .catch((e) => {
+          console.error('Failed to update chat settings:', e);
+        });
+    }
+  }, [modelService, provider]);
 
   const performPIIDetection = (messageContent: string): Promise<string[][]> => {
     if (!modelService) {
@@ -315,7 +328,7 @@ export default function Chat({
       
 
       // Simulate AI response
-      modelService?.chat(lastTextInput)
+      modelService?.chat(lastTextInput, provider)
         .then(async ({ response }) => {
           const aiIndex = chatHistory.length + 1;
           setChatHistory((history) => [...history, { sender: 'AI', content: response }]);

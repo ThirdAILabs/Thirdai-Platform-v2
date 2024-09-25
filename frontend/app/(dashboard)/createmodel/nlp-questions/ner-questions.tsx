@@ -440,7 +440,7 @@ const NERQuestions = ({
             }}
           >
             <Button
-              variant="outline"
+              variant="outlined"
               style={{ width: '100%' }}
               onClick={() => setGeneratedData([])}
             >

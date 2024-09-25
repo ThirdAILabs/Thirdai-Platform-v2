@@ -3,6 +3,7 @@ import { getUsername, train_ndb, create_workflow, add_models_to_workflow } from 
 import { Button, TextField } from '@mui/material';
 import { CardDescription } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
+import { Input } from '@/components/ui/input';
 
 interface SemanticSearchQuestionsProps {
   workflowNames: string[];
@@ -249,8 +250,7 @@ const SemanticSearchQuestions = ({
             )}
             {type === SourceType.LOCAL && (
               <div>
-                <TextField
-                  className="w-full"
+                <Input
                   type="file"
                   onChange={(e) => {
                     if (e.target.files) {

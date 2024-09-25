@@ -208,7 +208,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 }}
               >
                 <Button
-                  variant={ifUseExistingSS === 'Yes' ? 'contained' : 'default'}
+                  variant={ifUseExistingSS === 'Yes' ? 'contained' : 'outlined'}
                   onClick={() => {
                     setUseExistingSS('Yes');
                     setCreatedSS(false);
@@ -217,7 +217,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                   Yes
                 </Button>
                 <Button
-                  variant={ifUseExistingSS === 'No' ? 'contained' : 'default'}
+                  variant={ifUseExistingSS === 'No' ? 'contained' : 'outlined'}
                   onClick={() => {
                     setUseExistingSS('No');
                     setCreatedSS(false);
@@ -298,7 +298,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 }}
               >
                 <Button
-                  variant={ifUseLGR === 'Yes' ? 'contained' : 'default'}
+                  variant={ifUseLGR === 'Yes' ? 'contained' : 'outlined'}
                   onClick={() => {
                     setIfUseLGR('Yes');
                     setCreatedGR(false);
@@ -307,7 +307,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                   Yes
                 </Button>
                 <Button
-                  variant={ifUseLGR === 'No' ? 'contained' : 'default'}
+                  variant={ifUseLGR === 'No' ? 'contained' : 'outlined'}
                   onClick={() => {
                     setGrIdentifier(null);
                     setIfUseLGR('No');
@@ -331,7 +331,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                       }}
                     >
                       <Button
-                        variant={ifUseExistingLGR === 'Yes' ? 'contained' : 'default'}
+                        variant={ifUseExistingLGR === 'Yes' ? 'contained' : 'outlined'}
                         onClick={() => {
                           setIfUseExistingLGR('Yes');
                           setCreatedGR(false);
@@ -340,7 +340,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                         Yes
                       </Button>
                       <Button
-                        variant={ifUseExistingLGR === 'No' ? 'contained' : 'default'}
+                        variant={ifUseExistingLGR === 'No' ? 'contained' : 'outlined'}
                         onClick={() => {
                           setIfUseExistingLGR('No');
                           setCreatedGR(false);
@@ -424,19 +424,19 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
               }}
             >
               <Button
-                variant={llmType === 'OpenAI' ? 'contained' : 'default'}
+                variant={llmType === 'OpenAI' ? 'contained' : 'outlined'}
                 onClick={() => setLlmType('OpenAI')}
               >
                 OpenAI
               </Button>
               <Button
-                variant={llmType === 'On-Prem' ? 'contained' : 'default'}
+                variant={llmType === 'On-Prem' ? 'contained' : 'outlined'}
                 onClick={() => setLlmType('On-prem')}
               >
                 On-prem
               </Button>
               <Button
-                variant={llmType === 'Self-host' ? 'contained' : 'default'}
+                variant={llmType === 'Self-host' ? 'contained' : 'outlined'}
                 onClick={() => setLlmType('Self-host')}
               >
                 Self-host
@@ -491,7 +491,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
         {steps.map((step, index) => (
           <Button
             key={index}
-            variant={index === currentStep ? 'contained' : 'outline'}
+            variant={index === currentStep ? 'contained' : 'outlined'}
             onClick={() => setCurrentStep(index)}
             style={{ marginRight: '10px' }}
           >

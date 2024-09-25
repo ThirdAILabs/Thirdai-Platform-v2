@@ -115,7 +115,7 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
               gap: '10px',
             }}
           >
-            <Button style={{ width: '100%' }} variant="outline" onClick={() => setAnswer('')}>
+            <Button style={{ width: '100%' }} variant="outlined" onClick={() => setAnswer('')}>
               Retry
             </Button>
             <Button style={{ width: '100%' }} onClick={() => setConfirmedAnswer(true)}>

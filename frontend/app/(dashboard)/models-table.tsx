@@ -166,7 +166,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
               onClick={prevPage}
               variant="contained"
               color="error"
-              size="sm"
+              // size="sm"
               type="button"
               disabled={offset <= 0}
             >
@@ -176,7 +176,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
             <Button
               onClick={nextPage}
               className="ml-5"
-              size="sm"
+              // size="sm"
               variant="contained"
               type="button"
               disabled={offset + modelsPerPage >= totalWorkflows}

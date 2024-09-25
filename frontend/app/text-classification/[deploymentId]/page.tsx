@@ -67,7 +67,7 @@ export default function Page() {
               }}
             />
             <Button
-              size="sm"
+              size="small"
               variant="contained"
               style={{ height: '3rem', marginLeft: '10px', padding: '0 20px' }}
               onClick={handleRun}

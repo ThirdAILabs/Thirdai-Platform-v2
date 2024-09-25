@@ -273,7 +273,18 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       <TableCell className="text-center font-medium">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button aria-haspopup="true" size="icon" variant="ghost">
+            <Button
+              aria-haspopup="true"
+              size="small"
+              variant="text" // Using "text" as base variant
+              sx={{
+                color: 'inherit', // Default text color
+                '&:hover': {
+                  backgroundColor: 'var(--accent)', // Replace with your accent color
+                  color: 'var(--accent-foreground)', // Replace with your foreground color for hover
+                },
+              }}
+            >
               <MoreHorizontal className="h-4 w-4" />
               <span className="sr-only">Toggle menu</span>
             </Button>

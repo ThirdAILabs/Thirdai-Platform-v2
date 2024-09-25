@@ -4,67 +4,64 @@ name: Update Instance
 on:
   schedule:
     - cron: '0 2 * * *'  # This corresponds to 8 PM CT (Central Time is UTC-6, hence 2 AM UTC)
-  
-  pull_request:
-    branches: [main]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
-  # build_docker_image:
-  #   runs-on: ubuntu-latest
+  build_docker_image:
+    runs-on: ubuntu-latest-16-cores
 
-  #   steps:
-  #     - name: Checkout code from main branch
-  #       uses: actions/checkout@v2
-  #       with:
-  #         ref: main  # Ensure the workflow always checks out the latest main branch
+    steps:
+      - name: Checkout code from main branch
+        uses: actions/checkout@v2
+        with:
+          ref: main  # Ensure the workflow always checks out the latest main branch
 
-  #     - name: Set up Python 3.9
-  #       uses: actions/setup-python@v2
-  #       with:
-  #         python-version: 3.9
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
 
-  #     - name: Install Azure CLI
-  #       run: |
-  #         curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
-  #     - name: Azure Login
-  #       environment: docker_tests
-  #       uses: azure/login@v2
-  #       with:
-  #         creds: |
-  #           {
-  #             "clientId": "${{ secrets.APPLICATION_ID }}",
-  #             "clientSecret": "${{ secrets.SECRET }}",
-  #             "subscriptionId": "${{ secrets.SUBSCRIPTION_ID }}",
-  #             "tenantId": "${{ secrets.TENANT_ID }}"
-  #           }
+      - name: Azure Login
+        environment: docker_tests
+        uses: azure/login@v2
+        with:
+          creds: |
+            {
+              "clientId": "${{ secrets.APPLICATION_ID }}",
+              "clientSecret": "${{ secrets.SECRET }}",
+              "subscriptionId": "${{ secrets.SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.TENANT_ID }}"
+            }
 
-  #     # Generate version based on current date (e.g., 23.09.2024)
-  #     - name: Generate date-based version
-  #       id: generate_version
-  #       run: |
-  #         version=$(date +"%d.%m.%Y")  # Get the current date in format DD.MM.YYYY
-  #         echo "Generated version: $version"
-  #         echo "::set-output name=version::$version"
+      # Generate version based on current date (e.g., 23.09.2024)
+      - name: Generate date-based version
+        id: generate_version
+        run: |
+          version=$(date +"%d.%m.%Y")  # Get the current date in format DD.MM.YYYY
+          echo "Generated version: $version"
+          echo "::set-output name=version::$version"
 
-  #     - name: Build and push docker image
-  #       run: |
-  #         cd release
-  #         pip install -r requirements.txt
-  #         python3 push.py -b release-test --config config.yaml --no-cache --version ${{ steps.generate_version.outputs.version }}
+      - name: Build and push docker image
+        run: |
+          cd release
+          pip install -r requirements.txt
+          python3 push.py -b release-test --config config.yaml --no-cache --version ${{ steps.generate_version.outputs.version }}
 
-  #     - name: Cleanup Docker after build
-  #       if: always()
-  #       run: |
-  #         docker system prune -af --volumes
+      - name: Cleanup Docker after build
+        if: always()
+        run: |
+          docker system prune -af --volumes
 
   restart_model_bazaar:
-    runs-on: self-hosted
+    runs-on: [self-hosted, daily-update-instance]
 
-    # needs: build_docker_image
+    needs: build_docker_image
 
     steps:
       - name: Checkout code from main branch
@@ -87,19 +84,19 @@ jobs:
           mkdir -p $HOME/nfs/dir
           echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
 
-      # - name: Restart Model Bazaar
-      #   run: |
-      #     version="${{ needs.build_docker_image.outputs.version }}"
-      #     echo "Restarting the model bazaar with version: $version"
-      #     python3 -m headless.restart_modelbazaar --version "$version"
+      - name: Restart Model Bazaar
+        run: |
+          version="${{ needs.build_docker_image.outputs.version }}"
+          echo "Restarting the model bazaar with version: $version"
+          python3 -m headless.restart_modelbazaar --version "$version"
 
-      # - name: Cleanup Docker after restart
-      #   if: always()
-      #   run: |
-      #     docker system prune -af --volumes
+      - name: Cleanup Docker after restart
+        if: always()
+        run: |
+          docker system prune -af --volumes
 
-      # - name: Cleanup SHARE_DIR Folder
-      #   if: always()
-      #   run: |
-      #     echo "Cleaning up SHARE_DIR folder..."
-      #     rm -rf $HOME/nfs/dir
+      - name: Cleanup SHARE_DIR Folder
+        if: always()
+        run: |
+          echo "Cleaning up SHARE_DIR folder..."
+          rm -rf $HOME/nfs/dir

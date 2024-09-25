@@ -7,6 +7,7 @@ from database import schema
 from database.session import get_session
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from auth.utils import keycloak_openid, keycloak_admin, oauth2_scheme
 
 
 def get_vault_client() -> hvac.Client:
@@ -42,7 +43,7 @@ def get_vault_client() -> hvac.Client:
 
 
 def get_current_user(
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)
 ) -> schema.User:
     """
     Dependency to retrieve the currently authenticated user.
@@ -53,11 +54,26 @@ def get_current_user(
     Returns:
         schema.User: The authenticated user.
     """
-    return authenticated_user.user
+    user_info = keycloak_openid.userinfo(token)
+    keycloak_user_id = user_info.get("sub")
+
+    user = (
+        session.query(schema.User)
+        .filter(schema.User.keycloak_id == keycloak_user_id)
+        .first()
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found in local DB"
+        )
+
+    return user
 
 
 def global_admin_only(
     current_user: schema.User = Depends(get_current_user),
+    token: str = Depends(oauth2_scheme),
 ) -> schema.User:
     """
     Dependency to ensure the current user has global admin privileges.
@@ -71,11 +87,13 @@ def global_admin_only(
     Returns:
         schema.User: The authenticated user if they have global admin privileges.
     """
-    if not current_user.is_global_admin():
+    roles = keycloak_openid.introspect(token).get("realm_access", {}).get("roles", [])
+    if "global_admin" not in roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="The user doesn't have enough privileges",
         )
+
     return current_user
 
 
@@ -83,6 +101,7 @@ def team_admin_or_global_admin(
     team_id: str,
     current_user: schema.User = Depends(get_current_user),
     session: Session = Depends(get_session),
+    token: str = Depends(oauth2_scheme),
 ) -> schema.User:
     """
     Dependency to ensure the current user has either team admin privileges for a specific team
@@ -99,13 +118,18 @@ def team_admin_or_global_admin(
     Returns:
         schema.User: The authenticated user if they have the required admin privileges.
     """
+    roles = keycloak_openid.introspect(token).get("realm_access", {}).get("roles", [])
+    if "global_admin" in roles:
+        return current_user
+
+    # Check team admin in the local database
     team = session.query(schema.Team).filter(schema.Team.id == team_id).first()
     if not team:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
         )
 
-    if current_user.is_global_admin() or current_user.is_team_admin_of_team(team.id):
+    if current_user.is_team_admin_of_team(team.id):
         return current_user
 
     raise HTTPException(
@@ -225,6 +249,7 @@ def is_workflow_owner(
     workflow_id: str,
     session: Session = Depends(get_session),
     current_user: schema.User = Depends(get_current_user),
+    token: str = Depends(oauth2_scheme),
 ) -> bool:
     """
     Check if the current user is the owner of the specified workflow or a global admin.
@@ -240,14 +265,16 @@ def is_workflow_owner(
     Returns:
         bool: True if the user is the owner of the workflow or a global admin.
     """
-    workflow: schema.Workflow = session.query(schema.Workflow).get(workflow_id)
+    workflow = session.query(schema.Workflow).get(workflow_id)
     if not workflow:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Workflow with ID {workflow_id} not found",
         )
 
-    if workflow.user_id == current_user.id or current_user.is_global_admin():
+    # Check global admin role in Keycloak
+    roles = keycloak_openid.introspect(token).get("realm_access", {}).get("roles", [])
+    if workflow.user_id == current_user.id or "global_admin" in roles:
         return True
 
     raise HTTPException(

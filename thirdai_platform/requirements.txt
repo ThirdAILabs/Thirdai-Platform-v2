@@ -31,3 +31,4 @@ hvac
 nltk
 jinja2
 pyyaml
+keycloak

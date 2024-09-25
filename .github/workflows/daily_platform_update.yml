@@ -17,6 +17,9 @@ jobs:
     environment:
       name: docker_tests
 
+    outputs:
+      version: ${{ steps.generate_version.outputs.version }}
+
     steps:
       - name: Checkout code from main branch
         uses: actions/checkout@v2
@@ -55,7 +58,7 @@ jobs:
         run: |
           cd release
           pip install -r requirements.txt
-          python3 push.py -b release-test --config config.yaml --no-cache --version ${{ steps.generate_version.outputs.version }}
+          python3 push.py -b daily-update --config config.yaml --no-cache --version ${{ steps.generate_version.outputs.version }}
 
       - name: Cleanup Docker after build
         if: always()

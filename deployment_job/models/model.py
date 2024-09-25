@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from logger import LoggerConfig
-from permissions import Permissions
 from reporter import Reporter
 from variables import GeneralVariables
 

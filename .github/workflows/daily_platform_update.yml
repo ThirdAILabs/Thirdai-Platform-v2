@@ -24,7 +24,7 @@ jobs:
       - name: Checkout code from main branch
         uses: actions/checkout@v2
         with:
-          ref: main  # Ensure the workflow always checks out the latest main branch
+          ref: daily-update # Ensure the workflow always checks out the latest main branch
 
       - name: Set up Python 3.9
         uses: actions/setup-python@v2

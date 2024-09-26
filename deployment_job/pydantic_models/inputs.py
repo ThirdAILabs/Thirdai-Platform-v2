@@ -5,6 +5,7 @@ Defines input models for Pydantic validation and utility functions for conversio
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
+from file_handler import FileInfo
 from pydantic import BaseModel, Field
 from pydantic_models.constraints import Constraints
 
@@ -76,6 +77,10 @@ class SearchResultsNDB(BaseModel):
 
     query_text: str
     references: List[Reference]
+
+
+class DocumentList(BaseModel):
+    documents: List[FileInfo]
 
 
 class DeleteInput(BaseModel):

@@ -148,8 +148,10 @@ function App() {
 
   const [sentimentClassifierExists, setSentimentClassifierExists] = useState(false);
   const [tokenClassifierExists, setTokenClassifierExists] = useState(false);
-  const [sentimentClassifierWorkflowId, setSentimentClassifierWorkflowId] = useState<string | null>(null);
-  
+  const [sentimentClassifierWorkflowId, setSentimentClassifierWorkflowId] = useState<string | null>(
+    null
+  );
+
   useEffect(() => {
     const receievedWorkflowId = searchParams.get('workflowId');
     const generationOn = searchParams.get('ifGenerationOn') === 'true';
@@ -184,13 +186,13 @@ function App() {
         const sentimentClassifier = details.data.models.find(
           (model) => model.component === 'nlp-classifier'
         );
-  
+
         if (nlpModel) {
           setIfGuardRailOn(true);
         }
-        
+
         // Set whether token classifier exists
-        setTokenClassifierExists(!!nlpModel)
+        setTokenClassifierExists(!!nlpModel);
 
         if (!generationOn) {
           // if generation is off, turn off cache
@@ -199,14 +201,14 @@ function App() {
 
         // Set whether sentiment classifier exists
         setSentimentClassifierExists(!!sentimentClassifier);
-  
+
         // Set the sentiment classifier workflow ID if the model exists
         if (sentimentClassifier) {
           setSentimentClassifierWorkflowId(sentimentClassifier.model_id);
         }
 
         // Only enable the chat option if the workflow is of type RAG
-        const chatWorkflows = ["rag"];
+        const chatWorkflows = ['rag'];
         if (chatWorkflows.includes(details.data.type)) {
           setChatEnabled(true);
         }
@@ -400,7 +402,11 @@ function App() {
           if (matchedEntry) {
             return `[${tag} #${matchedEntry[1].id}]`;
           } else {
-            piiMap.set(sentence, { id: currentId, originalToken: sentence, tag });
+            piiMap.set(sentence, {
+              id: currentId,
+              originalToken: sentence,
+              tag,
+            });
             currentId++;
             return `[${tag} #${piiMap.get(sentence)?.id}]`;
           }
@@ -646,7 +652,12 @@ function App() {
               <Logo src={LogoImg.src} alt="Logo" />
             </a>
             <TopRightCorner>
-              {chatEnabled && <ChatToggle active={chatMode} onClick={() => setChatMode((chatMode) => !chatMode)} />}
+              {chatEnabled && (
+                <ChatToggle
+                  active={chatMode}
+                  onClick={() => setChatMode((chatMode) => !chatMode)}
+                />
+              )}
               <Spacer $width="40px" />
               <Teach />
             </TopRightCorner>
@@ -654,7 +665,7 @@ function App() {
               <Chat
                 tokenClassifierExists={tokenClassifierExists}
                 sentimentClassifierExists={sentimentClassifierExists}
-                sentimentWorkflowId={sentimentClassifierWorkflowId}  // Pass the workflow ID for sentiment classifier
+                sentimentWorkflowId={sentimentClassifierWorkflowId} // Pass the workflow ID for sentiment classifier
                 provider={genAiProvider || 'openai'}
               />
             ) : (

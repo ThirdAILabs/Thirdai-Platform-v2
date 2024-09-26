@@ -18,6 +18,7 @@ import models.ndbv1_parser as ndbv1_parser
 import models.ndbv2_parser as ndbv2_parser
 import thirdai.neural_db_v2.chunk_stores.constraints as ndbv2_constraints
 from chat import llm_providers
+from config import DeploymentConfig
 from file_handler import FileInfo, expand_s3_buckets_and_directories
 from models.model import Model
 from pydantic_models import inputs
@@ -32,8 +33,8 @@ class NDBModel(Model):
     Base class for NeuralDB (NDB) models.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config: DeploymentConfig):
+        super().__init__(config=config)
         self.chat_instances = {}
 
     @abstractmethod
@@ -103,6 +104,10 @@ class NDBModel(Model):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def load(self, write_mode: bool):
+        raise NotImplementedError
+
     def set_chat(self, **kwargs):
         """
         Set up a chat instance for the given provider, if it hasn't been set already.
@@ -118,7 +123,7 @@ class NDBModel(Model):
 
             llm_chat_interface = llm_providers.get(provider)
 
-            key = kwargs.get("key") or self.general_variables.genai_key
+            key = kwargs.get("key") or self.config.model_options.genai_key
 
             # Remove 'key' from kwargs if present
             kwargs.pop("key", None)
@@ -127,7 +132,7 @@ class NDBModel(Model):
                 db=self.db,
                 chat_history_sql_uri=chat_history_sql_uri,
                 key=key,
-                base_url=self.general_variables.model_bazaar_endpoint,
+                base_url=self.config.model_bazaar_endpoint,
                 **kwargs,
             )
         except Exception:
@@ -143,12 +148,11 @@ class NDBModel(Model):
         else:
             raise ValueError(f"No chat instance available for provider: {provider}")
 
-
-def get_ndb_path(general_variables, model_id: str) -> Path:
-    """
-    Returns the NDB model path for the given model ID.
-    """
-    return Path(general_variables.model_bazaar_dir) / "models" / model_id / "model.ndb"
+    def get_ndb_path(self, model_id: str) -> Path:
+        """
+        Returns the NDB model path for the given model ID.
+        """
+        return self.get_model_dir(model_id) / "model.ndb"
 
 
 class NDBV1Model(NDBModel):
@@ -156,14 +160,14 @@ class NDBV1Model(NDBModel):
     Base class for NeuralDBV1 (NDB) models.
     """
 
-    def __init__(self, write_mode: bool = False) -> None:
+    def __init__(self, config: DeploymentConfig, write_mode: bool = False) -> None:
         """
         Initializes NDB model with paths and NeuralDB.
         """
-        super().__init__()
+        super().__init__(config=config)
         self.model_path: Path = self.model_dir / "model.ndb"
         self.db: ndb.NeuralDB = self.load(write_mode=write_mode)
-        self.set_chat(provider=self.general_variables.llm_provider)
+        self.set_chat(provider=self.config.model_options.llm_provider)
 
     def upvote(
         self, text_id_pairs: List[inputs.UpvoteInputSingle], **kwargs: Any
@@ -279,11 +283,11 @@ class NDBV1Model(NDBModel):
         """
         return ndb.NeuralDB.from_checkpoint(self.model_path, read_only=not write_mode)
 
-    def save(self, **kwargs: Any) -> None:
+    def save(self, model_id: str, **kwargs) -> None:
         """
         Saves the NDB model to a model path.
         """
-        model_path = get_ndb_path(self.general_variables, kwargs.get("model_id"))
+        model_path = self.get_ndb_path(model_id)
         temp_dir = None
 
         try:
@@ -292,7 +296,7 @@ class NDBV1Model(NDBModel):
                 self.db.save(save_to=temp_model_path)
                 if model_path.exists():
                     backup_id = str(uuid.uuid4())
-                    backup_path = get_ndb_path(self.general_variables, backup_id)
+                    backup_path = self.get_ndb_path(backup_id)
                     print(f"Creating backup: {backup_id}")
                     shutil.copytree(model_path, backup_path)
 
@@ -317,11 +321,11 @@ class NDBV1Model(NDBModel):
 
 
 class NDBV2Model(NDBModel):
-    def __init__(self, write_mode: bool = False):
-        super().__init__()
+    def __init__(self, config: DeploymentConfig, write_mode: bool = False):
+        super().__init__(config=config)
 
         self.db = self.load(write_mode=write_mode)
-        self.set_chat(provider=self.general_variables.llm_provider)
+        self.set_chat(provider=self.config.model_options.llm_provider)
 
     def ndb_save_path(self):
         return os.path.join(self.model_dir, "model.ndb")
@@ -499,7 +503,7 @@ class NDBV2Model(NDBModel):
         return ndbv2.NeuralDB.load(self.ndb_save_path(), read_only=not write_mode)
 
     def save(self, model_id: str, **kwargs) -> None:
-        model_path = get_ndb_path(self.general_variables, model_id)
+        model_path = self.get_ndb_path(model_id)
         backup_path = None
 
         try:
@@ -508,7 +512,7 @@ class NDBV2Model(NDBModel):
                 self.db.save(temp_model_path)
                 if model_path.exists():
                     backup_id = str(uuid.uuid4())
-                    backup_path = get_ndb_path(self.general_variables, backup_id)
+                    backup_path = self.get_ndb_path(backup_id)
                     print(f"Creating backup: {backup_id}")
                     shutil.copytree(model_path, backup_path)
 

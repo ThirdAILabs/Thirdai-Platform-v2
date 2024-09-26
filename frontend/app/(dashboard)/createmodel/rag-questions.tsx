@@ -4,8 +4,7 @@ import NERQuestions from './nlp-questions/ner-questions';
 import SemanticSearchQuestions from './semantic-search-questions';
 import { create_workflow, add_models_to_workflow, set_gen_ai_provider } from '@/lib/backend';
 import { CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button, TextField } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -168,8 +167,8 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
       content: (
         <div>
           <span className="block text-lg font-semibold">App Name</span>
-          <Input
-            className="text-md"
+          <TextField
+            className="text-md w-full"
             value={modelName}
             onChange={(e) => {
               const name = e.target.value;
@@ -218,16 +217,15 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
             <>
               <CardDescription>Use an existing retrieval app?</CardDescription>
               <div
-                style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  gap: '10px',
+                  marginTop: '10px',
+                }}
               >
                 <Button
-                  variant={
-                    ifUseExistingSS
-                      ? ifUseExistingSS === 'Yes'
-                        ? 'secondary'
-                        : 'outline'
-                      : 'default'
-                  }
+                  variant={ifUseExistingSS === 'Yes' ? 'contained' : 'outlined'}
                   onClick={() => {
                     setUseExistingSS('Yes');
                     setCreatedSS(false);
@@ -236,13 +234,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                   Yes
                 </Button>
                 <Button
-                  variant={
-                    ifUseExistingSS
-                      ? ifUseExistingSS === 'No'
-                        ? 'secondary'
-                        : 'outline'
-                      : 'default'
-                  }
+                  variant={ifUseExistingSS === 'No' ? 'contained' : 'outlined'}
                   onClick={() => {
                     setUseExistingSS('No');
                     setCreatedSS(false);
@@ -315,10 +307,15 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
             <>
               <CardDescription>Would you like to add LLM guardrail?</CardDescription>
               <div
-                style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  gap: '10px',
+                  marginTop: '10px',
+                }}
               >
                 <Button
-                  variant={ifUseLGR ? (ifUseLGR === 'Yes' ? 'secondary' : 'outline') : 'default'}
+                  variant={ifUseLGR === 'Yes' ? 'contained' : 'outlined'}
                   onClick={() => {
                     setIfUseLGR('Yes');
                     setCreatedGR(false);
@@ -327,7 +324,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                   Yes
                 </Button>
                 <Button
-                  variant={ifUseLGR ? (ifUseLGR === 'No' ? 'secondary' : 'outline') : 'default'}
+                  variant={ifUseLGR === 'No' ? 'contained' : 'outlined'}
                   onClick={() => {
                     setGrIdentifier(null);
                     setIfUseLGR('No');
@@ -351,13 +348,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                       }}
                     >
                       <Button
-                        variant={
-                          ifUseExistingLGR
-                            ? ifUseExistingLGR === 'Yes'
-                              ? 'secondary'
-                              : 'outline'
-                            : 'default'
-                        }
+                        variant={ifUseExistingLGR === 'Yes' ? 'contained' : 'outlined'}
                         onClick={() => {
                           setIfUseExistingLGR('Yes');
                           setCreatedGR(false);
@@ -366,13 +357,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                         Yes
                       </Button>
                       <Button
-                        variant={
-                          ifUseExistingLGR
-                            ? ifUseExistingLGR === 'No'
-                              ? 'secondary'
-                              : 'outline'
-                            : 'default'
-                        }
+                        variant={ifUseExistingLGR === 'No' ? 'contained' : 'outlined'}
                         onClick={() => {
                           setIfUseExistingLGR('No');
                           setCreatedGR(false);
@@ -528,21 +513,28 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
           </span>
           <div>
             <CardDescription>Choose an LLM option</CardDescription>
-            <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                gap: '10px',
+                marginTop: '10px',
+              }}
+            >
               <Button
-                variant={llmType ? (llmType === 'OpenAI' ? 'secondary' : 'outline') : 'default'}
+                variant={llmType === 'OpenAI' ? 'contained' : 'outlined'}
                 onClick={() => setLlmType('OpenAI')}
               >
                 OpenAI
               </Button>
               <Button
-                variant={llmType ? (llmType === 'On-prem' ? 'secondary' : 'outline') : 'default'}
+                variant={llmType === 'On-Prem' ? 'contained' : 'outlined'}
                 onClick={() => setLlmType('On-prem')}
               >
                 On-prem
               </Button>
               <Button
-                variant={llmType ? (llmType === 'Self-host' ? 'secondary' : 'outline') : 'default'}
+                variant={llmType === 'Self-host' ? 'contained' : 'outlined'}
                 onClick={() => setLlmType('Self-host')}
               >
                 Self-host
@@ -584,7 +576,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
         {steps.map((step, index) => (
           <Button
             key={index}
-            variant={index === currentStep ? 'secondary' : 'outline'}
+            variant={index === currentStep ? 'contained' : 'outlined'}
             onClick={() => setCurrentStep(index)}
             style={{ marginRight: '10px' }}
           >

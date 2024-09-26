@@ -24,7 +24,6 @@
 
 // export default Dropdown;
 
-
 import React, { useState } from 'react';
 
 const Dropdown = ({ title, handleSelectedTeam, teams }) => {
@@ -68,4 +67,3 @@ const Dropdown = ({ title, handleSelectedTeam, teams }) => {
 };
 
 export default Dropdown;
-

@@ -548,17 +548,17 @@ export default function AccessPage() {
   const handleSelectedTeamAdd = (team: string) => {
     setSelectedTeamForAdd(team);
     // console.log("Selected Team to add -> ", team.name);
-  }
+  };
   const handleSelectedTeamRemove = (team: string) => {
     setSelectedTeamForRemove(team);
     // console.log("Selected team to remove -> ", team.name);
-  }
+  };
   const handleAdminAdd = (team: string) => {
     setSelectedTeamForAddAdmin(team);
-  }
+  };
   const handleAdminRemove = (team: string) => {
     setSelectedTeamForRemoveAdmin(team);
-  }
+  };
   // Handle OpenAI key change
   const [apiKey, setApiKey] = useState(''); // Display the masked API key
   const [newApiKey, setNewApiKey] = useState(''); // For storing the new API key
@@ -664,9 +664,9 @@ export default function AccessPage() {
                             onChange={(e) =>
                               setSelectedType(
                                 e.target.value as
-                                | 'Private Model'
-                                | 'Protected Model'
-                                | 'Public Model'
+                                  | 'Private Model'
+                                  | 'Protected Model'
+                                  | 'Public Model'
                               )
                             }
                             className="border border-gray-300 rounded px-4 py-2"
@@ -692,7 +692,6 @@ export default function AccessPage() {
                               ))}
                             </select>
                             // <DropdownMenu title="Select Team" handleSelectedTeam={handleSelectedTeamAdd} teams={teams} />
-
                           )}
                           <div className="flex space-x-2 mt-2">
                             <Button
@@ -849,7 +848,11 @@ export default function AccessPage() {
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
               <h4 className="text-lg font-semibold text-gray-800">Add Member to Team</h4>
               <div className="grid grid-cols-1 gap-4 mt-4">
-                <DropdownMenu title="Select Team" handleSelectedTeam={handleSelectedTeamAdd} teams={teams} />
+                <DropdownMenu
+                  title="Select Team"
+                  handleSelectedTeam={handleSelectedTeamAdd}
+                  teams={teams}
+                />
 
                 <AutocompleteInput
                   key={selectedTeamForAdd + newMember} // Use a key to force re-render
@@ -858,13 +861,13 @@ export default function AccessPage() {
                   options={
                     selectedTeamForAdd
                       ? users
-                        .map((user) => user.name)
-                        .filter(
-                          (userName) =>
-                            !teams
-                              .find((team) => team.name === selectedTeamForAdd)
-                              ?.members.includes(userName)
-                        )
+                          .map((user) => user.name)
+                          .filter(
+                            (userName) =>
+                              !teams
+                                .find((team) => team.name === selectedTeamForAdd)
+                                ?.members.includes(userName)
+                          )
                       : []
                   }
                   placeholder="New Member"
@@ -879,8 +882,11 @@ export default function AccessPage() {
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
               <h4 className="text-lg font-semibold text-gray-800">Remove Member from Team</h4>
               <div className="grid grid-cols-1 gap-4 mt-4">
-
-                <DropdownMenu title="Select Team" handleSelectedTeam={handleSelectedTeamRemove} teams={teams} />
+                <DropdownMenu
+                  title="Select Team"
+                  handleSelectedTeam={handleSelectedTeamRemove}
+                  teams={teams}
+                />
 
                 <AutocompleteInput
                   key={selectedTeamForRemove + memberToRemove} // Use a dynamic key to force re-render
@@ -903,7 +909,11 @@ export default function AccessPage() {
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
               <h4 className="text-lg font-semibold text-gray-800">Add Admin to Team</h4>
               <div className="grid grid-cols-1 gap-4 mt-4">
-                <DropdownMenu title="Select Team" handleSelectedTeam={handleAdminAdd} teams={teams} />
+                <DropdownMenu
+                  title="Select Team"
+                  handleSelectedTeam={handleAdminAdd}
+                  teams={teams}
+                />
 
                 <AutocompleteInput
                   key={selectedTeamForAddAdmin + newAdmin} // Use a dynamic key to force re-render
@@ -922,7 +932,11 @@ export default function AccessPage() {
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
               <h4 className="text-lg font-semibold text-gray-800">Remove Admin from Team</h4>
               <div className="grid grid-cols-1 gap-4 mt-4">
-                <DropdownMenu title="Select Team" handleSelectedTeam={handleAdminRemove} teams={teams} />
+                <DropdownMenu
+                  title="Select Team"
+                  handleSelectedTeam={handleAdminRemove}
+                  teams={teams}
+                />
 
                 <AutocompleteInput
                   key={selectedTeamForRemoveAdmin + adminToRemove} // Use a dynamic key to force re-render
@@ -931,7 +945,7 @@ export default function AccessPage() {
                   options={
                     selectedTeamForRemoveAdmin
                       ? teams.find((team) => team.name === selectedTeamForRemoveAdmin)?.members ||
-                      []
+                        []
                       : []
                   }
                   placeholder="Admin to Remove"

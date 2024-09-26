@@ -1,24 +1,20 @@
-import os
 import traceback
 import uuid
 from enum import Enum
 from typing import Dict, List
 
 from auth.jwt import AuthenticatedUser, verify_access_token
-from backend.datagen import (
-    generate_text_data,
-    generate_token_data,
-)
+from backend.datagen import generate_text_data, generate_token_data
 from backend.train_config import JobOptions
-from backend.utils import response
+from backend.utils import response, validate_license_info
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, status
-from licensing.verify.verify_license import valid_job_allocation, verify_license
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 data_router = APIRouter()
+
 
 class LLMProvider(str, Enum):
     openai = "openai"
@@ -27,15 +23,17 @@ class LLMProvider(str, Enum):
 
 # Utility function to validate and process generation jobs (for both text and token generation)
 def validate_and_generate_data(
-    task_prompt: str, 
-    llm_provider: LLMProvider, 
-    datagen_form: str, 
-    job_form: str, 
+    task_prompt: str,
+    llm_provider: LLMProvider,
+    datagen_form: str,
+    job_form: str,
     generate_func,  # Either generate_text_data or generate_token_data
 ):
     try:
         extra_options: Dict = JobOptions.model_validate_json(job_form).model_dump()
-        datagen_options = generate_func.__annotations__['datagen_options'].model_validate_json(datagen_form)
+        datagen_options = generate_func.__annotations__[
+            "datagen_options"
+        ].model_validate_json(datagen_form)
 
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
@@ -46,20 +44,7 @@ def validate_and_generate_data(
             message=f"Invalid option format\nDetails: {str(e)}",
         )
 
-    try:
-        license_info = verify_license(
-            os.getenv("LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json")
-        )
-        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="Resource limit reached, cannot allocate new jobs.",
-            )
-    except Exception as e:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"License is not valid. {str(e)}",
-        )
+    license_info = validate_license_info()
 
     data_id = uuid.uuid4()
 
@@ -86,14 +71,14 @@ def generate_text_data_endpoint(
     llm_provider: LLMProvider = LLMProvider.openai,
     datagen_form: str = Form(default="{}"),
     job_form: str = Form(default="{}"),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    _: AuthenticatedUser = Depends(verify_access_token),
 ):
     return validate_and_generate_data(
         task_prompt=task_prompt,
         llm_provider=llm_provider,
         datagen_form=datagen_form,
         job_form=job_form,
-        generate_func=generate_text_data
+        generate_func=generate_text_data,
     )
 
 
@@ -103,14 +88,14 @@ def generate_token_data_endpoint(
     llm_provider: LLMProvider = LLMProvider.openai,
     datagen_form: str = Form(default="{}"),
     job_form: str = Form(default="{}"),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    _: AuthenticatedUser = Depends(verify_access_token),
 ):
     return validate_and_generate_data(
         task_prompt=task_prompt,
         llm_provider=llm_provider,
         datagen_form=datagen_form,
         job_form=job_form,
-        generate_func=generate_token_data
+        generate_func=generate_token_data,
     )
 
 
@@ -156,7 +141,9 @@ def find_datasets(
         catalogs = get_catalogs(task=task, session=session)
 
         # Find the best-suited dataset based on target labels
-        most_suited_dataset_catalog = find_dataset(catalogs, target_labels=target_labels)
+        most_suited_dataset_catalog = find_dataset(
+            catalogs, target_labels=target_labels
+        )
 
         if most_suited_dataset_catalog:
             data = {

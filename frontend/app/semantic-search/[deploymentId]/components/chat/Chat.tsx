@@ -124,13 +124,21 @@ const labels = [
 
 // Remove sentimentIcons and replace with sentiment text mapping
 const sentimentText = {
-  '2': 'positive',  // Positive sentiment
-  '1': 'neutral',   // Neutral sentiment
-  '0': 'negative',  // Negative sentiment
+  '2': 'positive', // Positive sentiment
+  '1': 'neutral', // Neutral sentiment
+  '0': 'negative', // Negative sentiment
 };
 
 // ChatBox component to display human/AI message with sentiment
-function ChatBox({ message, transformedMessage, sentiment }: { message: ChatMessage, transformedMessage?: string[][], sentiment?: string }) {
+function ChatBox({
+  message,
+  transformedMessage,
+  sentiment,
+}: {
+  message: ChatMessage;
+  transformedMessage?: string[][];
+  sentiment?: string;
+}) {
   const sentimentColor = (sentiment: string) => {
     switch (sentiment) {
       case '2': // Positive sentiment
@@ -149,8 +157,9 @@ function ChatBox({ message, transformedMessage, sentiment }: { message: ChatMess
       <ChatBoxSender>{message.sender === 'human' ? '👋 You' : '🤖 AI'}</ChatBoxSender>
       <ChatBoxContent style={{ display: 'flex', alignItems: 'center' }}>
         <div style={{ flexGrow: 1 }}>
-          {transformedMessage && transformedMessage.length > 0
-            ? transformedMessage.map(([sentence, tag], index) => {
+          {
+            transformedMessage && transformedMessage.length > 0 ? (
+              transformedMessage.map(([sentence, tag], index) => {
                 const label = labels.find((label) => label.name === tag);
                 return (
                   <span
@@ -163,18 +172,22 @@ function ChatBox({ message, transformedMessage, sentiment }: { message: ChatMess
                   </span>
                 );
               })
-            : <ReactMarkdown>{message.content}</ReactMarkdown> // Render without PII highlighting if no transformation is available
+            ) : (
+              <ReactMarkdown>{message.content}</ReactMarkdown>
+            ) // Render without PII highlighting if no transformation is available
           }
         </div>
 
         {/* Display sentiment text for human messages */}
         {message.sender === 'human' && sentiment && (
-          <span style={{
-            fontSize: '0.85rem',
-            marginLeft: '8px',
-            color: sentimentColor(sentiment), // Apply color based on sentiment
-            whiteSpace: 'nowrap'
-          }}>
+          <span
+            style={{
+              fontSize: '0.85rem',
+              marginLeft: '8px',
+              color: sentimentColor(sentiment), // Apply color based on sentiment
+              whiteSpace: 'nowrap',
+            }}
+          >
             [sentiment: {sentimentText[sentiment as '0' | '1' | '2']}]
           </span>
         )}
@@ -198,7 +211,7 @@ function AILoadingChatBox() {
 export default function Chat({
   tokenClassifierExists,
   sentimentClassifierExists, // Indicates if sentiment classification model exists
-  sentimentWorkflowId,       // Workflow ID for sentiment classification
+  sentimentWorkflowId, // Workflow ID for sentiment classification
   provider,
 }: {
   tokenClassifierExists: boolean;
@@ -207,7 +220,7 @@ export default function Chat({
   provider: string;
 }) {
   const modelService = useContext<ModelService | null>(ModelServiceContext);
-  const { predictSentiment } = useSentimentClassification(sentimentWorkflowId);  // Use new hook for sentiment classification
+  const { predictSentiment } = useSentimentClassification(sentimentWorkflowId); // Use new hook for sentiment classification
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [textInput, setTextInput] = useState('');
@@ -235,7 +248,8 @@ export default function Chat({
       return Promise.resolve([]);
     }
 
-    return modelService.piiDetect(messageContent)
+    return modelService
+      .piiDetect(messageContent)
       .then((result) => {
         const { tokens, predicted_tags } = result;
         let transformed: string[][] = [];
@@ -271,7 +285,6 @@ export default function Chat({
 
   const [sentiments, setSentiments] = useState<Record<number, string>>({}); // Store sentiment for human messages
 
-
   // Function to classify sentiment and store the highest sentiment score
   const classifySentiment = async (messageContent: string, messageIndex: number) => {
     // Only classify sentiment if the sentiment classifier exists
@@ -287,12 +300,12 @@ export default function Chat({
       // Find the sentiment with the highest score
       const maxSentiment = predictions.reduce((prev, current) => {
         return current[1] > prev[1] ? current : prev;
-      })[0];  // Select sentiment class ('2', '1', '0')
+      })[0]; // Select sentiment class ('2', '1', '0')
 
       // Store the sentiment for the current message index
       setSentiments((prev) => ({
         ...prev,
-        [messageIndex]: maxSentiment,  // Save sentiment for this message
+        [messageIndex]: maxSentiment, // Save sentiment for this message
       }));
     } catch (error) {
       console.error('Error classifying sentiment:', error);
@@ -325,10 +338,10 @@ export default function Chat({
           [currentIndex]: humanTransformed, // Store human's PII-detected message
         }));
       }
-      
 
       // Simulate AI response
-      modelService?.chat(lastTextInput, provider)
+      modelService
+        ?.chat(lastTextInput, provider)
         .then(async ({ response }) => {
           const aiIndex = chatHistory.length + 1;
           setChatHistory((history) => [...history, { sender: 'AI', content: response }]);
@@ -363,7 +376,7 @@ export default function Chat({
                 key={i}
                 message={message}
                 transformedMessage={tokenClassifierExists ? transformedMessages[i] : undefined} // Pass PII-transformed message for human and AI
-                sentiment={sentiments[i]}  // Pass sentiment for human message
+                sentiment={sentiments[i]} // Pass sentiment for human message
               />
             ))}
             {aiLoading && <AILoadingChatBox />}

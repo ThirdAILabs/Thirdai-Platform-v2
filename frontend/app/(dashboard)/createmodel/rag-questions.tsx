@@ -39,7 +39,9 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
   const [createdGR, setCreatedGR] = useState<boolean>(false);
 
   useEffect(() => {
-    setExistingNERModels(models.filter((model) => model.type === 'udt' && model.sub_type === 'token'));
+    setExistingNERModels(
+      models.filter((model) => model.type === 'udt' && model.sub_type === 'token')
+    );
   }, [models]);
 
   // NLP Classifier state variables
@@ -49,9 +51,10 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
   const [existingNLPClassifierModels, setExistingNLPClassifierModels] = useState<SelectModel[]>([]);
 
   useEffect(() => {
-    setExistingNLPClassifierModels(models.filter((model) => model.type === 'udt' && model.sub_type === 'text'));
+    setExistingNLPClassifierModels(
+      models.filter((model) => model.type === 'udt' && model.sub_type === 'text')
+    );
   }, [models]);
-
 
   // End state variables & func for LLM guardrail
 
@@ -428,9 +431,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
       content: (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', marginTop: '20px' }}>
-            <span className="block text-lg font-semibold">
-              NLP Classifier
-            </span>
+            <span className="block text-lg font-semibold">NLP Classifier</span>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span style={{ marginLeft: '8px', cursor: 'pointer' }}>
@@ -451,7 +452,9 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 </span>
               </TooltipTrigger>
               <TooltipContent side="right" style={{ maxWidth: '250px' }}>
-                A classification model, such as a sentiment analyzer, can categorize the user&apos;s query into different labels, providing deeper insights into the intent or tone of the input.
+                A classification model, such as a sentiment analyzer, can categorize the user&apos;s
+                query into different labels, providing deeper insights into the intent or tone of
+                the input.
               </TooltipContent>
             </Tooltip>
           </div>
@@ -459,13 +462,25 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
           <CardDescription>Would you like to add NLP Classifier?</CardDescription>
           <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
             <Button
-              variant={ifUseNLPClassifier ? (ifUseNLPClassifier === 'Yes' ? 'secondary' : 'outline') : 'default'}
+              variant={
+                ifUseNLPClassifier
+                  ? ifUseNLPClassifier === 'Yes'
+                    ? 'secondary'
+                    : 'outline'
+                  : 'default'
+              }
               onClick={() => setIfUseNLPClassifier('Yes')}
             >
               Yes
             </Button>
             <Button
-              variant={ifUseNLPClassifier ? (ifUseNLPClassifier === 'No' ? 'secondary' : 'outline') : 'default'}
+              variant={
+                ifUseNLPClassifier
+                  ? ifUseNLPClassifier === 'No'
+                    ? 'secondary'
+                    : 'outline'
+                  : 'default'
+              }
               onClick={() => {
                 setNlpClassifierIdentifier(null);
                 setIfUseNLPClassifier('No');
@@ -551,8 +566,10 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
 
   if (!modelName) missingRequirements.push('App Name is not specified (Step 1)');
   if (!ssModelId) missingRequirements.push('Retrieval app is not specified (Step 2)');
-  if (!(ifUseLGR === 'No' || grModelId)) missingRequirements.push('LLM Guardrail is not specified (Step 3)');
-  if (!(ifUseNLPClassifier === 'No' || nlpClassifierModelId)) missingRequirements.push('NLP Classifier is not specified (Step 4)');
+  if (!(ifUseLGR === 'No' || grModelId))
+    missingRequirements.push('LLM Guardrail is not specified (Step 3)');
+  if (!(ifUseNLPClassifier === 'No' || nlpClassifierModelId))
+    missingRequirements.push('NLP Classifier is not specified (Step 4)');
   if (!llmType) missingRequirements.push('LLM Type is not specified (Step 5)');
 
   const errorMessage = missingRequirements.length > 0 && (
@@ -602,7 +619,10 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
           <Button onClick={() => setCurrentStep(currentStep + 1)}>Next</Button>
         ) : (
           <>
-            {ssModelId && (ifUseLGR === 'No' || grModelId) && modelName && (ifUseNLPClassifier === 'No' || nlpClassifierModelId) ? (
+            {ssModelId &&
+            (ifUseLGR === 'No' || grModelId) &&
+            modelName &&
+            (ifUseNLPClassifier === 'No' || nlpClassifierModelId) ? (
               <div>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -610,7 +630,16 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                       <Button
                         onClick={handleSubmit}
                         style={{ width: '100%' }}
-                        disabled={isLoading || !(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName && (ifUseNLPClassifier === 'No' || nlpClassifierModelId))}
+                        disabled={
+                          isLoading ||
+                          !(
+                            ssModelId &&
+                            (ifUseLGR === 'No' || grModelId) &&
+                            llmType &&
+                            modelName &&
+                            (ifUseNLPClassifier === 'No' || nlpClassifierModelId)
+                          )
+                        }
                       >
                         {isLoading ? (
                           <div className="flex items-center justify-center">
@@ -623,9 +652,13 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                       </Button>
                     </div>
                   </TooltipTrigger>
-                  {!(ssModelId && (ifUseLGR === 'No' || grModelId) && llmType && modelName && (ifUseNLPClassifier === 'No' || nlpClassifierModelId)) && (
-                    <TooltipContent side="bottom">Requirements not met</TooltipContent>
-                  )}
+                  {!(
+                    ssModelId &&
+                    (ifUseLGR === 'No' || grModelId) &&
+                    llmType &&
+                    modelName &&
+                    (ifUseNLPClassifier === 'No' || nlpClassifierModelId)
+                  ) && <TooltipContent side="bottom">Requirements not met</TooltipContent>}
                 </Tooltip>
               </div>
             ) : (

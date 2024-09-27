@@ -78,10 +78,10 @@ export default function ChooseProblem() {
   // const TABULAR_CLASSIFICATION = "Tabular Classification";
 
   // const useCases = [RETRIEVAL, NLP, RAG, DOC_CLASSIFICATION, TABULAR_CLASSIFICATION];
-  const useCases = [{ "name": RETRIEVAL }, { "name": NLP }, { "name": RAG }];
+  const useCases = [{ name: RETRIEVAL }, { name: NLP }, { name: RAG }];
   const handleSetModelType = (model: string) => {
-    setModelType(model)
-  }
+    setModelType(model);
+  };
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column' }}>

@@ -40,9 +40,7 @@ const Dropdown = ({ title, handleSelectedTeam, teams }) => {
         onClick={handleToggle}
         className="w-full py-2 px-4 text-left bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ease-in-out hover:bg-gray-50"
       >
-        <span className="block truncate font-medium">
-          {selectedTeam || title}
-        </span>
+        <span className="block truncate font-medium">{selectedTeam || title}</span>
         <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
           <motion.svg
             animate={{ rotate: isOpen ? 180 : 0 }}
@@ -51,7 +49,12 @@ const Dropdown = ({ title, handleSelectedTeam, teams }) => {
             fill="none"
             stroke="currentColor"
           >
-            <path d="M7 7l3-3 3 3m0 6l-3 3-3-3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M7 7l3-3 3 3m0 6l-3 3-3-3"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </motion.svg>
         </span>
       </button>
@@ -64,7 +67,6 @@ const Dropdown = ({ title, handleSelectedTeam, teams }) => {
             transition={{ duration: 0.2 }}
             className="absolute z-10 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200"
           >
-
             <ul className="py-1 overflow-auto text-base rounded-md max-h-60 focus:outline-none sm:text-sm">
               <motion.li
                 onClick={() => handleChange({ name: title })}
@@ -76,7 +78,11 @@ const Dropdown = ({ title, handleSelectedTeam, teams }) => {
                 {selectedTeam === title && (
                   <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-blue-600">
                     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   </span>
                 )}
@@ -94,7 +100,11 @@ const Dropdown = ({ title, handleSelectedTeam, teams }) => {
                   {selectedTeam === team.name && (
                     <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-blue-600">
                       <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        <path
+                          fillRule="evenodd"
+                          d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                     </span>
                   )}

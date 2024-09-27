@@ -144,21 +144,17 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
   };
   //creting dropDownList for choosing model....
   const modelDropDownList = models.map((model) => {
-    return (
-      {
-        "id": model.user_id,
-        "name": model.username + "/" + model.model_name
-      }
-    )
+    return {
+      id: model.user_id,
+      name: model.username + '/' + model.model_name,
+    };
   });
 
   const grDropDownList = existingNERModels.map((model) => {
-    return (
-      {
-        "id": model.user_id,
-        "name": model.username + "/" + model.model_name
-      }
-    )
+    return {
+      id: model.user_id,
+      name: model.username + '/' + model.model_name,
+    };
   });
 
   const handleSSIdentifier = (ssID: string) => {
@@ -170,7 +166,6 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
       setSsModelId(ssModel.model_id);
     }
   };
-
 
   const handleGrIdentifier = (grID: string) => {
     setGrIdentifier(grID);
@@ -272,8 +267,12 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
           {ifUseExistingSS === 'Yes' && (
             <div className="mb-4 mt-2">
               <CardDescription>Choose from existing semantic search model(s)</CardDescription>
-              <div className='mt-2'>
-                <DropdownMenu title=" Please choose a model  " handleSelectedTeam={handleSSIdentifier} teams={modelDropDownList} />
+              <div className="mt-2">
+                <DropdownMenu
+                  title=" Please choose a model  "
+                  handleSelectedTeam={handleSSIdentifier}
+                  teams={modelDropDownList}
+                />
               </div>
             </div>
           )}
@@ -376,8 +375,12 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                     <div style={{ marginTop: '20px' }}>
                       <div className="mb-4 mt-2">
                         <CardDescription>Choose from existing NLP App(s)</CardDescription>
-                        <div className='mt-2'>
-                          <DropdownMenu title=" Please choose a model  " handleSelectedTeam={handleGrIdentifier} teams={grDropDownList} />
+                        <div className="mt-2">
+                          <DropdownMenu
+                            title=" Please choose a model  "
+                            handleSelectedTeam={handleGrIdentifier}
+                            teams={grDropDownList}
+                          />
                         </div>
                       </div>
                     </div>

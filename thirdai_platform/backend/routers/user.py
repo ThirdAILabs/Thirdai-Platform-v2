@@ -12,7 +12,32 @@ from sqlalchemy.orm import Session, joinedload
 
 from auth.utils import keycloak_openid, keycloak_admin, oauth2_scheme
 
+import requests
+
 user_router = APIRouter()
+basic_security = HTTPBasic()
+
+
+def get_token(client_id, username, password):
+    data = {
+        "grant_type": "password",
+        "client_id": client_id,
+        "username": username,
+        "password": password,
+        "scope": "openid profile email",  # Scopes required for OIDC
+    }
+
+    response = requests.post(
+        f"http://localhost:8180/realms/master/protocol/openid-connect/token",
+        data=data,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    if response.status_code == 200:
+        return response.json()["access_token"]  # Return access token
+    else:
+        print(f"Failed to obtain token: {response.status_code} {response.text}")
+        return None
 
 
 class AccountSignupBody(BaseModel):
@@ -33,44 +58,111 @@ def email_signup(
     """
     Sign up a new user with Keycloak and store additional info in the local DB.
     """
-    keycloak_user_id = keycloak_admin.create_user(
-        {
-            "username": body.username,
-            "email": body.email,
-            "enabled": True,
-            "emailVerified": True,  # TODO(pratik): remove it after testing
-            "credentials": [
-                {"type": "password", "value": body.password, "temporary": False}
-            ],
-        }
-    )
 
-    new_user = schema.User(
-        id=keycloak_user_id,
-        username=body.username,
-        email=body.email,
-    )
+    existing_user = keycloak_admin.get_user_id(body.username)
 
-    session.add(new_user)
-    session.commit()
+    if not existing_user:
+        keycloak_user_id = keycloak_admin.create_user(
+            {
+                "username": body.username,
+                "email": body.email,
+                "enabled": True,
+                "emailVerified": True,  # TODO(pratik): remove it after testing
+                "credentials": [
+                    {"type": "password", "value": body.password, "temporary": False}
+                ],
+            }
+        )
+
+        new_user = schema.User(
+            id=keycloak_user_id,
+            username=body.username,
+            email=body.email,
+        )
+
+        session.add(new_user)
+        session.commit()
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully signed up via email.",
+            data={
+                "user": {
+                    "username": new_user.username,
+                    "email": new_user.email,
+                    "user_id": str(new_user.id),
+                }
+            },
+        )
 
     return response(
-        status_code=status.HTTP_200_OK,
-        message="Successfully signed up via email.",
-        data={
-            "user": {
-                "username": new_user.username,
-                "email": new_user.email,
-                "user_id": str(new_user.id),
-            }
-        },
+        status_code=status.HTTP_400_BAD_REQUEST,
+        message="User already exists with same username",
+        data={},
     )
 
 
 @user_router.get("/email-login")
-def login():
-    # Keycloak would handle the login flow, hence no need for email-login
-    return
+def email_login(
+    credentials: HTTPBasicCredentials = Depends(basic_security),
+    session: Session = Depends(get_session),
+):
+    """
+    Log in a user with email and password using Keycloak for authentication.
+
+    Parameters:
+    - credentials: The HTTP basic credentials (dependency).
+        - Example:
+        ```json
+        {
+            "username": "johndoe@example.com",
+            "password": "securepassword"
+        }
+        ```
+    - session: The database session (dependency).
+
+    Returns:
+    - A JSON response indicating the login status and user details along with an access token.
+    """
+
+    user = (
+        session.query(schema.User)
+        .filter(schema.User.email == credentials.username)
+        .first()
+    )
+
+    if not user:
+        return response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            message="User is not yet registered.",
+        )
+
+    access_token = get_token(
+        client_id="new-client",
+        username=credentials.username,
+        password=credentials.password,
+    )
+
+    if not access_token:
+        return response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            message="Invalid credentials. Login failed.",
+        )
+
+    # TODO(pratik): Add the user verification check
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully logged in via email",
+        data={
+            "user": {
+                "username": user.username,
+                "email": user.email,
+                "user_id": str(user.id),
+            },
+            "access_token": access_token,
+        },
+    )
 
 
 @user_router.post("/add-global-admin", dependencies=[Depends(global_admin_only)])
@@ -147,7 +239,7 @@ def delete_user(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found in local DB"
         )
 
-    keycloak_user_id = keycloak_admin.get_user_id(user.id)
+    keycloak_user_id = keycloak_admin.get_user_id(user.username)
 
     keycloak_admin.delete_user(keycloak_user_id)
 
@@ -203,7 +295,6 @@ def get_user_info(
     """
     Get detailed information about the authenticated user from Keycloak and the local DB.
     """
-    print(token)
     user_info = keycloak_openid.userinfo(token)
     keycloak_user_id = user_info.get("sub")
 
@@ -241,13 +332,18 @@ class VerifyResetPassword(BaseModel):
 
 
 @user_router.post("/new-password")
-def reset_password(body: VerifyResetPassword):
+def reset_password(body: VerifyResetPassword, session: Session = Depends(get_session)):
     """
     Reset user password using Keycloak API.
     """
-    user_id = keycloak_admin.get_user_id(body.email)
+    user = session.query(schema.User).filter(schema.User.email == body.email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found in local DB"
+        )
+
     keycloak_admin.set_user_password(
-        user_id=user_id, password=body.new_password, temporary=False
+        user_id=user.id, password=body.new_password, temporary=False
     )
 
     return response(

@@ -56,7 +56,6 @@ def get_current_user(
     """
     user_info = keycloak_openid.userinfo(token)
     keycloak_user_id = user_info.get("sub")
-    print(schema.User, keycloak_user_id)
 
     user = session.query(schema.User).filter(schema.User.id == keycloak_user_id).first()
 

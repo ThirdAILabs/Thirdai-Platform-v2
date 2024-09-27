@@ -101,11 +101,6 @@ class AdminAddition:
             )
         else:
             keycloak_user_id = existing_user
-            # Assign 'global_admin' role if the user already exists in Keycloak
-            global_admin_role = keycloak_admin.get_realm_role("global_admin")
-            keycloak_admin.assign_realm_roles(
-                user_id=keycloak_user_id, roles=[global_admin_role]
-            )
 
         # Add or update the user in your application's database
         with contextmanager(get_session)() as session:
@@ -132,4 +127,4 @@ class AdminAddition:
                 session.commit()
 
 
-AdminAddition.add_admin("admin@example.com", "admin", "admin_password")
+AdminAddition.add_admin("kc_admin@example.com", "kc_admin", "password")

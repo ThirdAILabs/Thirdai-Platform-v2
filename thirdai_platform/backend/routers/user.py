@@ -38,6 +38,7 @@ def email_signup(
             "username": body.username,
             "email": body.email,
             "enabled": True,
+            "emailVerified": True,  # TODO(pratik): remove it after testing
             "credentials": [
                 {"type": "password", "value": body.password, "temporary": False}
             ],
@@ -45,10 +46,9 @@ def email_signup(
     )
 
     new_user = schema.User(
-        keycloak_id=keycloak_user_id,
+        id=keycloak_user_id,
         username=body.username,
         email=body.email,
-        verified=False,
     )
 
     session.add(new_user)
@@ -210,14 +210,11 @@ def get_user_info(
     """
     Get detailed information about the authenticated user from Keycloak and the local DB.
     """
+    print(token)
     user_info = keycloak_openid.userinfo(token)
     keycloak_user_id = user_info.get("sub")
 
-    user = (
-        session.query(schema.User)
-        .filter(schema.User.keycloak_id == keycloak_user_id)
-        .first()
-    )
+    user = session.query(schema.User).filter(schema.User.id == keycloak_user_id).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found in local DB"

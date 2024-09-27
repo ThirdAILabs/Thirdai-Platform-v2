@@ -57,11 +57,7 @@ def get_current_user(
     user_info = keycloak_openid.userinfo(token)
     keycloak_user_id = user_info.get("sub")
 
-    user = (
-        session.query(schema.User)
-        .filter(schema.User.keycloak_id == keycloak_user_id)
-        .first()
-    )
+    user = session.query(schema.User).filter(schema.User.id == keycloak_user_id).first()
 
     if not user:
         raise HTTPException(

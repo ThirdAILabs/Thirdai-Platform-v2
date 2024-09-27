@@ -82,7 +82,7 @@ class Team(SQLDeclarativeBase):
 class User(SQLDeclarativeBase):
     __tablename__ = "users"
 
-    keycloak_id = Column(UUID(as_uuid=True), primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True)  # keycloak id
     username = Column(String(50), nullable=False, unique=True)
     email = Column(String(254), nullable=False, unique=True)
 
@@ -168,7 +168,9 @@ class Model(SQLDeclarativeBase):
     )  # Not null if this model comes from starting training from a base model
 
     user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
     )
     team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=True)
 
@@ -325,7 +327,9 @@ class Workflow(SQLDeclarativeBase):
         UUID(as_uuid=True), ForeignKey("workflow_types.id"), nullable=False
     )
     user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
     )
     status = Column(
         ENUM(WorkflowStatus), nullable=False, default=WorkflowStatus.inactive

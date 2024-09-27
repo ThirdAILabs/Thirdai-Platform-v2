@@ -62,10 +62,52 @@ def get_session():
         session.close()
 
 
-# Adding a global_admin by default initially
+from auth.utils import keycloak_admin
+
+
 class AdminAddition:
     @classmethod
-    def add_admin(cls):
+    def add_admin(cls, admin_mail: str, admin_username: str, admin_password: str):
+        # Check if the user exists in Keycloak by username
+        existing_user = keycloak_admin.get_user_id(admin_username)
+
+        if not existing_user:
+            # Create the user in Keycloak if they don't exist
+            new_user_id = keycloak_admin.create_user(
+                {
+                    "email": admin_mail,
+                    "username": admin_username,
+                    "enabled": True,
+                    "credentials": [
+                        {
+                            "value": admin_password,
+                            "type": "password",
+                            "temporary": False,
+                        }
+                    ],
+                    "emailVerified": True,
+                }
+            )
+
+            if not new_user_id:
+                raise Exception("Failed to create user in Keycloak")
+
+            keycloak_user_id = keycloak_admin.get_user_id(admin_username)
+
+            # Assign the 'global_admin' role to the new user
+            global_admin_role = keycloak_admin.get_realm_role("global_admin")
+            keycloak_admin.assign_realm_roles(
+                user_id=keycloak_user_id, roles=[global_admin_role]
+            )
+        else:
+            keycloak_user_id = existing_user
+            # Assign 'global_admin' role if the user already exists in Keycloak
+            global_admin_role = keycloak_admin.get_realm_role("global_admin")
+            keycloak_admin.assign_realm_roles(
+                user_id=keycloak_user_id, roles=[global_admin_role]
+            )
+
+        # Add or update the user in your application's database
         with contextmanager(get_session)() as session:
             user: schema.User = (
                 session.query(schema.User)
@@ -74,19 +116,20 @@ class AdminAddition:
             )
 
             if not user:
+                # If the user does not exist in the database, add them with the global admin flag
                 user = schema.User(
                     username=admin_username,
                     email=admin_mail,
-                    password_hash=hash_password(admin_password),
-                    verified=True,
+                    id=keycloak_user_id,
                     global_admin=True,
                 )
                 session.add(user)
                 session.commit()
                 session.refresh(user)
             else:
+                # If the user already exists, just update their role to global admin
                 user.global_admin = True
                 session.commit()
 
 
-AdminAddition.add_admin()
+AdminAddition.add_admin("admin@example.com", "admin", "admin_password")

@@ -34,51 +34,49 @@ keycloak_admin = KeycloakAdmin(
 
 
 def create_client(client_name: str, redirect_uris: list):
-    """Create a new client in Keycloak with the necessary permissions."""
+    """Create a new confidential client in Keycloak with the necessary permissions."""
     clients = keycloak_admin.get_clients()
 
-    # Check if the client already exists
     if any(client["clientId"] == client_name for client in clients):
         print(f"Client '{client_name}' already exists.")
         return
 
-    # Create the client with direct access grant enabled
     new_client = {
         "clientId": client_name,
         "enabled": True,
-        "publicClient": True,
+        "publicClient": True,  # Keep this as a public client
         "redirectUris": redirect_uris,
         "directAccessGrantsEnabled": True,
-        "serviceAccountsEnabled": True,
+        "serviceAccountsEnabled": False,
         "standardFlowEnabled": True,
         "implicitFlowEnabled": False,
-        "fullScopeAllowed": True,  # Ensure full scope
+        "fullScopeAllowed": True,
         "defaultClientScopes": [
             "profile",
             "email",
             "openid",
-        ],  # Add default client scopes
+        ],
         "optionalClientScopes": ["offline_access"],
     }
 
-    # Create the client in Keycloak
     keycloak_admin.create_client(new_client)
     print(f"Client '{client_name}' created successfully.")
 
 
-# Example usage
-create_client(client_name="new-client", redirect_uris=["http://localhost:80/*"])
+client_name = "new-client"
+
+create_client(client_name=client_name, redirect_uris=["http://localhost:8180/*"])
 
 keycloak_openid = KeycloakOpenID(
     server_url="http://localhost:8180/",
-    client_id="new-client",
+    client_id=client_name,
     realm_name="master",
 )
 
 
 oauth2_scheme = OAuth2AuthorizationCodeBearer(
-    authorizationUrl=f"http://localhost:8180/realms/master/protocol/openid-connect/auth?client_id=new-client&response_type=code&scope=openid",
-    tokenUrl=f"http://localhost:8180/auth/realms/master/protocol/openid-connect/token",
+    authorizationUrl="http://localhost:8180/realms/master/protocol/openid-connect/auth?client_id=new-client",
+    tokenUrl="http://localhost:8180/realms/master/protocol/openid-connect/token",
 )
 
 

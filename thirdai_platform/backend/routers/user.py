@@ -81,10 +81,6 @@ def add_global_admin(
     """
     Promote a user to global admin using Keycloak roles and update the local DB.
     """
-    keycloak_user_id = keycloak_admin.get_user_id(admin_request.email)
-
-    keycloak_admin.assign_realm_roles(keycloak_user_id, roles=["global_admin"])
-
     user = (
         session.query(schema.User)
         .filter(schema.User.email == admin_request.email)
@@ -112,10 +108,6 @@ def demote_global_admin(
     """
     Demote a global admin using Keycloak and update the local DB.
     """
-    keycloak_user_id = keycloak_admin.get_user_id(admin_request.email)
-
-    keycloak_admin.delete_realm_roles_of_user(keycloak_user_id, roles=["global_admin"])
-
     user = (
         session.query(schema.User)
         .filter(schema.User.email == admin_request.email)
@@ -144,9 +136,6 @@ def delete_user(
     """
     Delete a user from Keycloak and the local system.
     """
-    keycloak_user_id = keycloak_admin.get_user_id(admin_request.email)
-
-    keycloak_admin.delete_user(keycloak_user_id)
 
     user = (
         session.query(schema.User)
@@ -157,6 +146,10 @@ def delete_user(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found in local DB"
         )
+
+    keycloak_user_id = keycloak_admin.get_user_id(user.id)
+
+    keycloak_admin.delete_user(keycloak_user_id)
 
     session.delete(user)
     session.commit()
@@ -220,14 +213,11 @@ def get_user_info(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found in local DB"
         )
 
-    roles = keycloak_openid.introspect(token).get("realm_access", {}).get("roles", [])
-    is_global_admin = "global_admin" in roles
-
     user_info_formatted = {
         "id": user.id,
         "username": user_info.get("preferred_username"),
         "email": user_info.get("email"),
-        "global_admin": is_global_admin,
+        "global_admin": user.is_global_admin,
         "teams": [
             {
                 "team_id": user_team.team_id,

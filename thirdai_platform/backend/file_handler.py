@@ -81,6 +81,10 @@ class CloudStorageHandler(ABC):
     def list_files(self, bucket_name: str, source_path: str):
         pass
 
+    @abstractmethod
+    def delete_bucket(self, bucket_name: str):
+        pass
+
 
 class S3StorageHandler(CloudStorageHandler):
     """
@@ -216,6 +220,23 @@ class S3StorageHandler(CloudStorageHandler):
         ]
         return file_keys
 
+    def delete_bucket(self, bucket_name: str):
+        try:
+            # List all objects in the bucket and delete them
+            bucket = self.s3_client.list_objects_v2(Bucket=bucket_name)
+            if "Contents" in bucket:
+                for obj in bucket["Contents"]:
+                    self.s3_client.delete_object(Bucket=bucket_name, Key=obj["Key"])
+
+            # Delete the bucket itself
+            self.s3_client.delete_bucket(Bucket=bucket_name)
+            print(f"Deleted bucket {bucket_name} and all its contents.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete bucket {bucket_name}. Error: {str(e)}",
+            )
+
 
 class AzureStorageHandler(CloudStorageHandler):
     """
@@ -333,6 +354,17 @@ class AzureStorageHandler(CloudStorageHandler):
                 detail=f"Failed to list files in {bucket_name}/{source_path}. Error: {str(e)}",
             )
 
+    def delete_bucket(self, bucket_name: str):
+        try:
+            container_client = self.container_client(bucket_name)
+            container_client.delete_container()
+            print(f"Deleted container {bucket_name} and all its contents.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete container {bucket_name}. Error: {str(e)}",
+            )
+
 
 class GCPStorageHandler(CloudStorageHandler):
     """
@@ -432,4 +464,22 @@ class GCPStorageHandler(CloudStorageHandler):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to list files in {bucket_name}/{source_path}. Error: {str(e)}",
+            )
+
+    def delete_bucket(self, bucket_name: str):
+        try:
+            bucket = self._client.bucket(bucket_name)
+
+            # List and delete all objects in the bucket
+            blobs = list(bucket.list_blobs())
+            for blob in blobs:
+                blob.delete()
+
+            # Delete the bucket
+            bucket.delete()
+            print(f"Deleted bucket {bucket_name} and all its contents.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete bucket {bucket_name}. Error: {str(e)}",
             )

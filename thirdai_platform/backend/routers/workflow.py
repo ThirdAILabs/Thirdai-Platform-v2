@@ -34,7 +34,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import verify_license
 from pydantic import BaseModel, validator
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 workflow_router = APIRouter()
 
@@ -223,6 +223,8 @@ def add_models(
     """
     workflow = get_workflow(session, body.workflow_id, authenticated_user)
 
+    # Bulk add models to reduce queries
+    new_workflow_models = []
     for model_id, component in zip(body.model_ids, body.components):
         model: schema.Model = session.query(schema.Model).get(model_id)
         if not model:
@@ -259,8 +261,9 @@ def add_models(
         workflow_model = schema.WorkflowModel(
             workflow_id=workflow.id, model_id=model.id, component=component
         )
-        session.add(workflow_model)
+        new_workflow_models.append(workflow_model)
 
+    session.bulk_save_objects(new_workflow_models)
     session.commit()
 
     return response(
@@ -1114,13 +1117,20 @@ def list_accessible_workflows(
     """
     user: schema.User = authenticated_user.user
 
-    # Build the base query with outer join to include workflows without models
-    all_workflows = (
-        session.query(schema.Workflow).outerjoin(schema.Workflow.workflow_models).all()
+    # Perform a single query to fetch workflows and eagerly load their models
+    workflows = (
+        session.query(schema.Workflow)
+        .outerjoin(schema.Workflow.workflow_models)
+        .options(
+            selectinload(schema.Workflow.workflow_models).selectinload(
+                schema.WorkflowModel.model
+            )
+        )  # Eager loading workflow models and associated model data
+        .all()
     )
 
     filtered_workflows = [
-        workflow for workflow in all_workflows if workflow.can_access(user)
+        workflow for workflow in workflows if workflow.can_access(user)
     ]
 
     # Apply the can_access check on the remaining workflows

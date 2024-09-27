@@ -462,25 +462,15 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
           <CardDescription>Would you like to add NLP Classifier?</CardDescription>
           <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
             <Button
-              variant={
-                ifUseNLPClassifier
-                  ? ifUseNLPClassifier === 'Yes'
-                    ? 'secondary'
-                    : 'outline'
-                  : 'default'
-              }
+              variant={ifUseNLPClassifier === 'Yes' ? 'contained' : 'outlined'}
+              color={ifUseNLPClassifier === 'Yes' ? 'secondary' : 'primary'}
               onClick={() => setIfUseNLPClassifier('Yes')}
             >
               Yes
             </Button>
             <Button
-              variant={
-                ifUseNLPClassifier
-                  ? ifUseNLPClassifier === 'No'
-                    ? 'secondary'
-                    : 'outline'
-                  : 'default'
-              }
+              variant={ifUseNLPClassifier === 'No' ? 'contained' : 'outlined'}
+              color={ifUseNLPClassifier === 'No' ? 'secondary' : 'primary'}
               onClick={() => {
                 setNlpClassifierIdentifier(null);
                 setIfUseNLPClassifier('No');

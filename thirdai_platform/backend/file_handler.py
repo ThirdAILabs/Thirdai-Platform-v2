@@ -217,61 +217,219 @@ class S3StorageHandler(CloudStorageHandler):
         return file_keys
 
 
-class GCPStorageHandler(CloudStorageHandler):
-    """
-    GCP storage handler implementation.
-    """
-
-    def create_bucket_if_not_exists(self, bucket_name: str):
-        # TODO: Implement using GCP SDK (Google Cloud Storage client)
-        pass
-
-    def upload_file(self, source_path: str, bucket_name: str, dest_path: str):
-        # TODO: Implement using GCP SDK
-        pass
-
-    def upload_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
-        # TODO: Implement using GCP SDK
-        pass
-
-    def download_file(self, bucket_name: str, source_path: str, dest_path: str):
-        # TODO: Implement using GCP SDK
-        pass
-
-    def download_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
-        # TODO: Implement using GCP SDK
-        pass
-
-    def list_files(self, bucket_name: str, source_path: str):
-        # TODO: Implement using GCP SDK
-        pass
-
-
 class AzureStorageHandler(CloudStorageHandler):
     """
     Azure storage handler implementation.
     """
 
+    def __init__(self, account_name, account_key):
+        from azure.storage.blob import BlobServiceClient
+
+        connection_string = f"DefaultEndpointsProtocol=https;AccountName={account_name};AccountKey={account_key};EndpointSuffix=core.windows.net"
+
+        self._blob_service_client = BlobServiceClient.from_connection_string(
+            conn_str=connection_string
+        )
+
+    def container_client(self, bucket_name: str):
+        return self._blob_service_client.get_container_client(container=bucket_name)
+
     def create_bucket_if_not_exists(self, bucket_name: str):
-        # TODO: Implement using Azure Blob Storage SDK
-        pass
+        container_client = self.container_client(bucket_name=bucket_name)
+        try:
+            if not container_client.exists():
+                container_client.create_container()
+                print(f"Container {bucket_name} created successfully.")
+            else:
+                print(f"Container {bucket_name} already exists.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create or check container {bucket_name}. Error: {str(e)}",
+            )
 
     def upload_file(self, source_path: str, bucket_name: str, dest_path: str):
-        # TODO: Implement using Azure SDK
-        pass
+        container_client = self.container_client(bucket_name=bucket_name)
+
+        blob_client = container_client.get_blob_client(blob=dest_path)
+
+        try:
+            with open(source_path, "rb") as file:
+                blob_client.upload_blob(file, dest_path)
+            print(f"Uploaded {source_path} to {bucket_name}/{dest_path}.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to upload file {source_path}. Error: {str(e)}",
+            )
 
     def upload_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
-        # TODO: Implement using Azure SDK
-        pass
+        container_client = self.container_client(bucket_name=bucket_name)
+
+        try:
+            for root, _, files in os.walk(source_dir):
+                for file in files:
+                    local_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(local_path, source_dir)
+                    blob_path = os.path.join(dest_dir, relative_path)
+
+                    blob_client = container_client.get_blob_client(blob=blob_path)
+                    with open(local_path, "rb") as data:
+                        blob_client.upload_blob(data, overwrite=True)
+
+                    print(f"Uploaded {local_path} to {blob_path}.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to upload folder {source_dir}. Error: {str(e)}",
+            )
 
     def download_file(self, bucket_name: str, source_path: str, dest_path: str):
-        # TODO: Implement using Azure SDK
-        pass
+        container_client = self.container_client(bucket_name=bucket_name)
+
+        blob_client = container_client.get_blob_client(blob=source_path)
+
+        try:
+            # This returns a StorageStreamDownloader
+            stream = blob_client.download_blob()
+            with open(dest_path, "wb+") as local_file:
+                # Read data in chunks to avoid loading all into memory at once
+                for chunk in stream.chunks():
+                    # Process your data (anything can be done here - 'chunk' is a byte array)
+                    local_file.write(chunk)
+            print(f"Downloaded {source_path} to {dest_path}.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to download file {source_path}. Error: {str(e)}",
+            )
 
     def download_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
-        # TODO: Implement using Azure SDK
-        pass
+        try:
+            blobs = self.list_files(bucket_name, source_dir)
+            for blob in blobs:
+                relative_path = os.path.relpath(blob, source_dir)
+                dest_path = os.path.join(dest_dir, relative_path)
+
+                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                self.download_file(bucket_name, blob, dest_path)
+
+            print(f"Downloaded folder {source_dir} to {dest_dir}.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to download folder {source_dir}. Error: {str(e)}",
+            )
 
     def list_files(self, bucket_name: str, source_path: str):
-        # TODO: Implement using Azure SDK
-        pass
+        container_client = self.container_client(bucket_name=bucket_name)
+        try:
+            blobs = container_client.list_blobs(name_starts_with=source_path)
+            blob_names = [blob.name for blob in blobs]
+            return blob_names
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to list files in {bucket_name}/{source_path}. Error: {str(e)}",
+            )
+
+
+class GCPStorageHandler(CloudStorageHandler):
+    """
+    GCP storage handler implementation.
+    """
+
+    def __init__(self):
+        from google.cloud import storage
+
+        self._client = (
+            storage.Client()
+        )  # Checks for the `GOOGLE_APPLICATION_CREDENTIALS` environment variable, which points to a service account key file.
+
+    def create_bucket_if_not_exists(self, bucket_name: str):
+        try:
+            bucket = self._client.lookup_bucket(bucket_name)
+            if bucket:
+                print(f"Bucket {bucket_name} already exists.")
+            else:
+                self._client.create_bucket(bucket_name)
+                print(f"Bucket {bucket_name} created successfully.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create or check bucket {bucket_name}. Error: {str(e)}",
+            )
+
+    def upload_file(self, source_path: str, bucket_name: str, dest_path: str):
+        try:
+            bucket = self._client.bucket(bucket_name)
+            blob = bucket.blob(dest_path)
+
+            with open(source_path, "rb") as file:
+                blob.upload_from_file(file)
+
+            print(f"Uploaded {source_path} to {bucket_name}/{dest_path}.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to upload file {source_path}. Error: {str(e)}",
+            )
+
+    def upload_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
+        try:
+            for root, _, files in os.walk(source_dir):
+                for file in files:
+                    local_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(local_path, source_dir)
+                    cloud_path = os.path.join(dest_dir, relative_path)
+
+                    self.upload_file(local_path, bucket_name, cloud_path)
+
+            print(f"Uploaded folder {source_dir} to {bucket_name}/{dest_dir}.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to upload folder {source_dir}. Error: {str(e)}",
+            )
+
+    def download_file(self, bucket_name: str, source_path: str, dest_path: str):
+        try:
+            bucket = self._client.bucket(bucket_name)
+            blob = bucket.blob(source_path)
+
+            blob.download_to_filename(dest_path)
+            print(f"Downloaded {source_path} to {dest_path}.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to download file {source_path}. Error: {str(e)}",
+            )
+
+    def download_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
+        try:
+            blobs = self.list_files(bucket_name, source_dir)
+            for blob_name in blobs:
+                relative_path = os.path.relpath(blob_name, source_dir)
+                dest_path = os.path.join(dest_dir, relative_path)
+
+                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                self.download_file(bucket_name, blob_name, dest_path)
+
+            print(f"Downloaded folder {source_dir} to {dest_dir}.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to download folder {source_dir}. Error: {str(e)}",
+            )
+
+    def list_files(self, bucket_name: str, source_path: str):
+        try:
+            bucket = self._client.bucket(bucket_name)
+            blobs = bucket.list_blobs(prefix=source_path)
+            blob_names = [blob.name for blob in blobs]
+            return blob_names
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to list files in {bucket_name}/{source_path}. Error: {str(e)}",
+            )

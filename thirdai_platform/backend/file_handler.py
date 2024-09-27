@@ -1,9 +1,10 @@
 import os
+from abc import ABC, abstractmethod
 from typing import List
 
 import boto3
 from backend.train_config import FileInfo, FileLocation
-from fastapi import HTTPException, UploadFile, status
+from fastapi import UploadFile
 
 
 def download_local_file(file_info: FileInfo, upload_file: UploadFile, dest_dir: str):
@@ -51,25 +52,53 @@ def download_local_files(
     return all_files
 
 
-class S3StorageHandler:
+class CloudStorageHandler(ABC):
     """
-    S3 storage handler for processing and validating S3 files.
-    Methods:
-    - create_s3_client: Creates an S3 client.
-    - process_files: Processes and saves the S3 file.
-    - list_s3_files: Lists files in the specified S3 location.
-    - validate_file: Validates the S3 file.
+    Interface for Cloud Storage Handlers.
+    All cloud storage handlers must implement these methods.
+    """
+
+    @abstractmethod
+    def create_bucket_if_not_exists(self, bucket_name: str):
+        pass
+
+    @abstractmethod
+    def upload_file(self, file_path: str, bucket_name: str, object_name: str):
+        pass
+
+    @abstractmethod
+    def upload_folder(self, bucket_name: str, local_dir: str):
+        pass
+
+    @abstractmethod
+    def download_file(self, bucket_name: str, object_name: str, dest_path: str):
+        pass
+
+    @abstractmethod
+    def download_folder(self, bucket_name: str, prefix: str, dest_dir: str):
+        pass
+
+    @abstractmethod
+    def list_files(self, bucket_name: str, prefix: str):
+        pass
+
+
+class S3StorageHandler(CloudStorageHandler):
+    """
+    S3 storage handler implementation.
     """
 
     def __init__(self):
         self.s3_client = self.create_s3_client()
 
     def create_s3_client(self):
+        import boto3
         from botocore import UNSIGNED
         from botocore.client import Config
 
         aws_access_key = os.getenv("AWS_ACCESS_KEY")
         aws_secret_access_key = os.getenv("AWS_ACCESS_SECRET")
+
         if not aws_access_key or not aws_secret_access_key:
             config = Config(
                 signature_version=UNSIGNED,
@@ -77,10 +106,7 @@ class S3StorageHandler:
                 connect_timeout=5,
                 read_timeout=60,
             )
-            s3_client = boto3.client(
-                "s3",
-                config=config,
-            )
+            s3_client = boto3.client("s3", config=config)
         else:
             config = Config(
                 retries={"max_attempts": 10, "mode": "standard"},
@@ -95,81 +121,130 @@ class S3StorageHandler:
             )
         return s3_client
 
-    def list_s3_files(self, filename):
-        bucket_name, prefix = filename.replace("s3://", "").split("/", 1)
-        paginator = self.s3_client.get_paginator("list_objects_v2")
-        pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
-        file_keys = []
-        for page in pages:
-            if "Contents" in page:
-                for obj in page["Contents"]:
-                    file_keys.append(f"s3://{bucket_name}/{obj['Key']}")
-        return file_keys
-
-    def create_bucket_if_not_exists(self, bucket_name):
-        import boto3
+    def create_bucket_if_not_exists(self, bucket_name: str):
         from botocore.exceptions import ClientError
 
         try:
             self.s3_client.head_bucket(Bucket=bucket_name)
             print(f"Bucket {bucket_name} already exists.")
         except ClientError as e:
-            error_code = int(e.response["Error"]["Code"])
-            if error_code == 404:
-                try:
-                    self.s3_client.create_bucket(
-                        Bucket=bucket_name,
-                        CreateBucketConfiguration={
-                            "LocationConstraint": (
-                                boto3.session.Session().region_name
-                                if boto3.session.Session().region_name
-                                else "us-east-1"
-                            )
-                        },
-                    )
-                    print(f"Bucket {bucket_name} created successfully.")
-                except ClientError as e:
-                    if e.response["Error"]["Code"] == "BucketAlreadyExists":
-                        print(f"Bucket {bucket_name} already exists globally.")
-                    elif e.response["Error"]["Code"] == "AccessDenied":
-                        raise HTTPException(
-                            status_code=status.HTTP_403_FORBIDDEN,
-                            detail=f"Access denied to create bucket {bucket_name}. Error: {str(e)}",
-                        )
-                    else:
-                        raise HTTPException(
-                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Failed to create bucket {bucket_name}. Error: {str(e)}",
-                        )
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Error checking bucket {bucket_name}. Error: {str(e)}",
+            if int(e.response["Error"]["Code"]) == 404:
+                self.s3_client.create_bucket(
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration={
+                        "LocationConstraint": boto3.session.Session().region_name
+                        or "us-east-1"
+                    },
                 )
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to access bucket {bucket_name}. Error: {str(e)}",
-            )
+                print(f"Bucket {bucket_name} created successfully.")
 
-    def upload_file_to_s3(self, file_path, bucket_name, object_name):
+    def upload_file(self, file_path: str, bucket_name: str, object_name: str):
         try:
             self.s3_client.upload_file(file_path, bucket_name, object_name)
             print(f"Uploaded {file_path} to {bucket_name}/{object_name}.")
         except Exception as e:
             print(f"Failed to upload {file_path}. Error: {str(e)}")
 
-    def upload_folder_to_s3(self, bucket_name, local_dir):
+    def upload_folder(self, bucket_name: str, local_dir: str):
         base_dir_name = "model_and_data"
-
         for root, _, files in os.walk(local_dir):
             for file in files:
                 local_path = os.path.join(root, file)
                 relative_path = os.path.relpath(local_path, local_dir)
                 s3_path = os.path.join(base_dir_name, relative_path)
+                self.upload_file(local_path, bucket_name, s3_path)
 
-                try:
-                    self.s3_client.upload_file(local_path, bucket_name, s3_path)
-                    print(f"Uploaded {local_path} to {bucket_name}/{s3_path}.")
-                except Exception as e:
-                    print(f"Failed to upload {local_path}. Error: {str(e)}")
+    def download_file(self, bucket_name: str, object_name: str, dest_path: str):
+        try:
+            self.s3_client.download_file(bucket_name, object_name, dest_path)
+            print(f"Downloaded {object_name} to {dest_path}.")
+        except Exception as e:
+            print(f"Failed to download {object_name}. Error: {str(e)}")
+
+    def download_folder(self, bucket_name: str, prefix: str, dest_dir: str):
+        s3_files = self.list_files(bucket_name=bucket_name, prefix=prefix)
+
+        os.makedirs(dest_dir, exist_ok=True)
+
+        for s3_file in s3_files:
+            object_key = s3_file.replace(f"s3://{bucket_name}/", "")
+
+            # Define the relative path for the local destination
+            relative_path = object_key[len(prefix) :].lstrip("/")
+            dest_path = os.path.join(dest_dir, relative_path)
+
+            # Ensure the directory structure exists locally
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+            self.download_file(bucket_name, object_key, dest_path)
+
+    def list_files(self, bucket_name: str, prefix: str):
+        paginator = self.s3_client.get_paginator("list_objects_v2")
+        pages = paginator.paginate(Bucket=bucket_name, Prefix=prefix)
+        file_keys = [
+            f"s3://{bucket_name}/{obj['Key']}"
+            for page in pages
+            if "Contents" in page
+            for obj in page["Contents"]
+            if obj["Key"][-1] != "/"
+        ]
+        return file_keys
+
+
+class GCPStorageHandler(CloudStorageHandler):
+    """
+    GCP storage handler stub, implement these methods for GCP.
+    """
+
+    def create_bucket_if_not_exists(self, bucket_name: str):
+        # TODO: Implement using GCP SDK (Google Cloud Storage client)
+        pass
+
+    def upload_file(self, file_path: str, bucket_name: str, object_name: str):
+        # TODO: Implement using GCP SDK
+        pass
+
+    def upload_folder(self, bucket_name: str, local_dir: str):
+        # TODO: Implement using GCP SDK
+        pass
+
+    def download_file(self, bucket_name: str, object_name: str, dest_path: str):
+        # TODO: Implement using GCP SDK
+        pass
+
+    def download_folder(self, bucket_name: str, dest_dir: str):
+        # TODO: Implement using GCP SDK
+        pass
+
+    def list_files(self, bucket_name: str, prefix: str):
+        # TODO: Implement using GCP SDK
+        pass
+
+
+class AzureStorageHandler(CloudStorageHandler):
+    """
+    Azure storage handler stub, implement these methods for Azure.
+    """
+
+    def create_bucket_if_not_exists(self, bucket_name: str):
+        # TODO: Implement using Azure Blob Storage SDK
+        pass
+
+    def upload_file(self, file_path: str, bucket_name: str, object_name: str):
+        # TODO: Implement using Azure SDK
+        pass
+
+    def upload_folder(self, bucket_name: str, local_dir: str):
+        # TODO: Implement using Azure SDK
+        pass
+
+    def download_file(self, bucket_name: str, object_name: str, dest_path: str):
+        # TODO: Implement using Azure SDK
+        pass
+
+    def download_folder(self, bucket_name: str, dest_dir: str):
+        # TODO: Implement using Azure SDK
+        pass
+
+    def list_files(self, bucket_name: str, prefix: str):
+        # TODO: Implement using Azure SDK
+        pass

@@ -44,7 +44,7 @@ def create_client(client_name: str, redirect_uris: list):
     new_client = {
         "clientId": client_name,
         "enabled": True,
-        "publicClient": True,  # Keep this as a public client
+        "publicClient": True,
         "redirectUris": redirect_uris,
         "directAccessGrantsEnabled": True,
         "serviceAccountsEnabled": False,
@@ -97,20 +97,10 @@ def initialize_keycloak_roles():
     create_realm_role("user")
 
 
-# Call the initialize function to ensure roles are created when the app starts
 initialize_keycloak_roles()
 
 
-# Sync role in Keycloak
 def sync_role_in_keycloak(user_email: str, role_name: str, action: str):
-    """
-    Sync the role of a user in Keycloak by adding or removing the role.
-
-    Parameters:
-    - user_email: The email of the user.
-    - role_name: The role name to assign or remove.
-    - action: "add" to add the role or "remove" to remove the role.
-    """
     keycloak_user = keycloak_admin.get_user_by_email(user_email)
     if not keycloak_user:
         raise HTTPException(

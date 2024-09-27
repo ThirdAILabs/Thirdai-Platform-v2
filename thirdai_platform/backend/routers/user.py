@@ -55,10 +55,6 @@ def email_signup(
     body: AccountSignupBody,
     session: Session = Depends(get_session),
 ):
-    """
-    Sign up a new user with Keycloak and store additional info in the local DB.
-    """
-
     existing_user = keycloak_admin.get_user_id(body.username)
 
     if not existing_user:
@@ -107,24 +103,6 @@ def email_login(
     credentials: HTTPBasicCredentials = Depends(basic_security),
     session: Session = Depends(get_session),
 ):
-    """
-    Log in a user with email and password using Keycloak for authentication.
-
-    Parameters:
-    - credentials: The HTTP basic credentials (dependency).
-        - Example:
-        ```json
-        {
-            "username": "johndoe@example.com",
-            "password": "securepassword"
-        }
-        ```
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the login status and user details along with an access token.
-    """
-
     user = (
         session.query(schema.User)
         .filter(schema.User.email == credentials.username)
@@ -170,9 +148,6 @@ def add_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
-    """
-    Promote a user to global admin using Keycloak roles and update the local DB.
-    """
     user = (
         session.query(schema.User)
         .filter(schema.User.email == admin_request.email)
@@ -197,9 +172,6 @@ def demote_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
-    """
-    Demote a global admin using Keycloak and update the local DB.
-    """
     user = (
         session.query(schema.User)
         .filter(schema.User.email == admin_request.email)
@@ -225,9 +197,6 @@ def delete_user(
     session: Session = Depends(get_session),
     current_user: schema.User = Depends(global_admin_only),
 ):
-    """
-    Delete a user from Keycloak and the local system.
-    """
 
     user = (
         session.query(schema.User)
@@ -254,9 +223,6 @@ def delete_user(
 
 @user_router.get("/all-users", dependencies=[Depends(global_admin_only)])
 def list_all_users(session: Session = Depends(get_session)):
-    """
-    List all users in the system along with their team memberships and roles.
-    """
     users = (
         session.query(schema.User)
         .options(joinedload(schema.User.teams).joinedload(schema.UserTeam.team))
@@ -292,9 +258,6 @@ def list_all_users(session: Session = Depends(get_session)):
 def get_user_info(
     token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)
 ):
-    """
-    Get detailed information about the authenticated user from Keycloak and the local DB.
-    """
     user_info = keycloak_openid.userinfo(token)
     keycloak_user_id = user_info.get("sub")
 
@@ -333,9 +296,6 @@ class VerifyResetPassword(BaseModel):
 
 @user_router.post("/new-password")
 def reset_password(body: VerifyResetPassword, session: Session = Depends(get_session)):
-    """
-    Reset user password using Keycloak API.
-    """
     user = session.query(schema.User).filter(schema.User.email == body.email).first()
     if not user:
         raise HTTPException(

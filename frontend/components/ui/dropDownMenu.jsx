@@ -1,67 +1,109 @@
-// import React, { useState } from 'react';
-
-// const Dropdown = ({ title, handleSelectedTeam, teams }) => {
-//   const [menuTitle, setMenuTitle] = useState(title);
-//   const handleChange = (e) => {
-//     setMenuTitle(e.target.value);
-//     handleSelectedTeam(e.target.value);
-//   }
-//   return (
-//     <select
-//       value={menuTitle}
-//       onChange={handleChange}
-//       className="border border-gray-300 rounded-2xl px-4 py-2 shadow-md"
-//     >
-//       <option value="">{title}</option>
-//       {teams.map((team) => (
-//         <option key={team.id} value={team.name}>
-//           {team.name}
-//         </option>
-//       ))}
-//     </select>
-//   );
-// };
-
-// export default Dropdown;
-
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Dropdown = ({ title, handleSelectedTeam, teams }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [menuTitle, setMenuTitle] = useState(title);
+  const [selectedTeam, setSelectedTeam] = useState('');
+  const dropdownRef = useRef(null);
+  const searchRef = useRef(null);
 
-  const handleToggle = () => {
-    setIsOpen(!isOpen);
-  };
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && searchRef.current) {
+      searchRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const handleToggle = () => setIsOpen(!isOpen);
 
   const handleChange = (team) => {
-    setMenuTitle(team.name);
+    setSelectedTeam(team.name);
     handleSelectedTeam(team.name);
     setIsOpen(false);
   };
 
   return (
-    <div className="relative">
+    <div className="relative w-64" ref={dropdownRef}>
       <button
         onClick={handleToggle}
-        className="border border-gray-300 rounded-2xl bg-white px-4 py-2 shadow-md flex justify-between items-center w-full"
+        className="w-full py-2 px-4 text-left bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 ease-in-out hover:bg-gray-50"
       >
-        {menuTitle}
-        <span className="ml-2">{isOpen ? '▲' : '▼'}</span>
+        <span className="block truncate font-medium">
+          {selectedTeam || title}
+        </span>
+        <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+          <motion.svg
+            animate={{ rotate: isOpen ? 180 : 0 }}
+            className="w-5 h-5 text-gray-400"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+          >
+            <path d="M7 7l3-3 3 3m0 6l-3 3-3-3" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </motion.svg>
+        </span>
       </button>
-      {isOpen && (
-        <div className="absolute left-0 right-0 mt-1 bg-white rounded-2xl border border-gray-500 shadow-lg z-10">
-          {teams.map((team) => (
-            <div
-              key={team.id}
-              onClick={() => handleChange(team)}
-              className="px-4 py-2 hover:bg-blue-500 cursor-pointer rounded-2xl"
-            >
-              {team.name}
-            </div>
-          ))}
-        </div>
-      )}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="absolute z-10 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200"
+          >
+
+            <ul className="py-1 overflow-auto text-base rounded-md max-h-60 focus:outline-none sm:text-sm">
+              <motion.li
+                onClick={() => handleChange({ name: title })}
+                className="relative py-2 px-4 text-gray-900 cursor-pointer select-none pr-9 hover:bg-blue-500 transition-colors duration-150 ease-in-out"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <span className="block truncate font-medium">{title}</span>
+                {selectedTeam === title && (
+                  <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-blue-600">
+                    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </span>
+                )}
+              </motion.li>
+
+              {teams.map((team) => (
+                <motion.li
+                  key={team.id}
+                  onClick={() => handleChange(team)}
+                  className="relative py-2 px-4 text-gray-900 cursor-pointer select-none pr-9 hover:bg-blue-500 transition-colors duration-150 ease-in-out"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <span className="block truncate">{team.name}</span>
+                  {selectedTeam === team.name && (
+                    <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-blue-600">
+                      <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                  )}
+                </motion.li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

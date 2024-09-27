@@ -664,9 +664,9 @@ export default function AccessPage() {
                             onChange={(e) =>
                               setSelectedType(
                                 e.target.value as
-                                  | 'Private Model'
-                                  | 'Protected Model'
-                                  | 'Public Model'
+                                | 'Private Model'
+                                | 'Protected Model'
+                                | 'Public Model'
                               )
                             }
                             className="border border-gray-300 rounded px-4 py-2"
@@ -691,7 +691,6 @@ export default function AccessPage() {
                                 </option>
                               ))}
                             </select>
-                            // <DropdownMenu title="Select Team" handleSelectedTeam={handleSelectedTeamAdd} teams={teams} />
                           )}
                           <div className="flex space-x-2 mt-2">
                             <Button
@@ -861,13 +860,13 @@ export default function AccessPage() {
                   options={
                     selectedTeamForAdd
                       ? users
-                          .map((user) => user.name)
-                          .filter(
-                            (userName) =>
-                              !teams
-                                .find((team) => team.name === selectedTeamForAdd)
-                                ?.members.includes(userName)
-                          )
+                        .map((user) => user.name)
+                        .filter(
+                          (userName) =>
+                            !teams
+                              .find((team) => team.name === selectedTeamForAdd)
+                              ?.members.includes(userName)
+                        )
                       : []
                   }
                   placeholder="New Member"
@@ -945,7 +944,7 @@ export default function AccessPage() {
                   options={
                     selectedTeamForRemoveAdmin
                       ? teams.find((team) => team.name === selectedTeamForRemoveAdmin)?.members ||
-                        []
+                      []
                       : []
                   }
                   placeholder="Admin to Remove"

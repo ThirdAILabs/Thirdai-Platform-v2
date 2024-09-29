@@ -1,101 +1,67 @@
-from backend.auth_dependencies import global_admin_only
-from backend.mailer import Mailer
-from backend.utils import hash_password, response
-from database import schema
-from database.session import get_session
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.encoders import jsonable_encoder
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
-
-from auth.utils import keycloak_openid, keycloak_admin, oauth2_scheme
-
-import requests
+from pydantic import BaseModel
+from database.session import get_session
+from backend.utils import response
+from auth.jwt import AuthenticatedUser, verify_access_token
+from auth.identity_providers.factory import identity_provider
+from database import schema
+from typing import Optional, List
+from backend.auth_dependencies import global_admin_only
+from fastapi.encoders import jsonable_encoder
+from auth.identity_providers.base import (
+    AccountSignupBody,
+    AdminRequest,
+)
 
 user_router = APIRouter()
 basic_security = HTTPBasic()
 
 
-def get_token(client_id, username, password):
-    data = {
-        "grant_type": "password",
-        "client_id": client_id,
-        "username": username,
-        "password": password,
-        "scope": "openid profile email",  # Scopes required for OIDC
-    }
-
-    response = requests.post(
-        f"http://localhost:8180/realms/master/protocol/openid-connect/token",
-        data=data,
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-
-    if response.status_code == 200:
-        return response.json()["access_token"]  # Return access token
-    else:
-        print(f"Failed to obtain token: {response.status_code} {response.text}")
-        return None
-
-
-class AccountSignupBody(BaseModel):
-    username: str
-    email: str
-    password: str
-
-
-class AdminRequest(BaseModel):
-    email: str
-
-
-@user_router.post("/email-signup-basic")
+@user_router.post("/email-signup")
 def email_signup(
     body: AccountSignupBody,
     session: Session = Depends(get_session),
 ):
-    existing_user = keycloak_admin.get_user_id(body.username)
-
-    if not existing_user:
-        keycloak_user_id = keycloak_admin.create_user(
-            {
-                "username": body.username,
-                "email": body.email,
-                "enabled": True,
-                "emailVerified": True,  # TODO(pratik): remove it after testing
-                "credentials": [
-                    {"type": "password", "value": body.password, "temporary": False}
-                ],
-            }
+    """
+    Sign up a new user using the selected identity provider.
+    """
+    existing_user = (
+        session.query(schema.User)
+        .filter(
+            (schema.User.email == body.email) | (schema.User.username == body.username)
         )
+        .first()
+    )
 
-        new_user = schema.User(
-            id=keycloak_user_id,
-            username=body.username,
-            email=body.email,
-        )
+    if existing_user:
+        if existing_user.email == body.email:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="There is already an account associated with this email.",
+            )
+        else:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="There is already a user associated with this username.",
+            )
 
-        session.add(new_user)
-        session.commit()
-
+    try:
+        user_id = identity_provider.create_user(body, session)
         return response(
             status_code=status.HTTP_200_OK,
             message="Successfully signed up via email.",
             data={
                 "user": {
-                    "username": new_user.username,
-                    "email": new_user.email,
-                    "user_id": str(new_user.id),
-                }
+                    "username": body.username,
+                    "email": body.email,
+                    "user_id": user_id,
+                },
             },
         )
-
-    return response(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        message="User already exists with same username",
-        data={},
-    )
+    except ValueError as e:
+        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(e))
 
 
 @user_router.get("/email-login")
@@ -103,44 +69,33 @@ def email_login(
     credentials: HTTPBasicCredentials = Depends(basic_security),
     session: Session = Depends(get_session),
 ):
-    user = (
-        session.query(schema.User)
-        .filter(schema.User.email == credentials.username)
-        .first()
-    )
-
-    if not user:
-        return response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            message="User is not yet registered.",
+    """
+    Log in a user using the selected identity provider.
+    """
+    try:
+        user_id, access_token = identity_provider.authenticate_user(
+            credentials.username, credentials.password, session
         )
-
-    access_token = get_token(
-        client_id="new-client",
-        username=credentials.username,
-        password=credentials.password,
-    )
-
-    if not access_token:
+        user = session.query(schema.User).filter(schema.User.id == user_id).first()
+        if not user:
+            return response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="User not found in local database.",
+            )
         return response(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            message="Invalid credentials. Login failed.",
-        )
-
-    # TODO(pratik): Add the user verification check
-
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Successfully logged in via email",
-        data={
-            "user": {
-                "username": user.username,
-                "email": user.email,
-                "user_id": str(user.id),
+            status_code=status.HTTP_200_OK,
+            message="Successfully logged in.",
+            data={
+                "user": {
+                    "username": user.username,
+                    "email": user.email,
+                    "user_id": str(user.id),
+                },
+                "access_token": access_token,
             },
-            "access_token": access_token,
-        },
-    )
+        )
+    except ValueError as e:
+        return response(status_code=status.HTTP_401_UNAUTHORIZED, message=str(e))
 
 
 @user_router.post("/add-global-admin", dependencies=[Depends(global_admin_only)])
@@ -148,14 +103,18 @@ def add_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
+    """
+    Promote a user to global admin.
+    """
     user = (
         session.query(schema.User)
         .filter(schema.User.email == admin_request.email)
         .first()
     )
+
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found in local DB"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
         )
 
     user.global_admin = True
@@ -163,7 +122,7 @@ def add_global_admin(
 
     return response(
         status_code=status.HTTP_200_OK,
-        message=f"User {admin_request.email} promoted to global admin",
+        message=f"User {admin_request.email} has been promoted to global admin.",
     )
 
 
@@ -172,58 +131,60 @@ def demote_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
+    """
+    Demote a global admin to a regular user.
+    """
     user = (
         session.query(schema.User)
         .filter(schema.User.email == admin_request.email)
         .first()
     )
+
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found in local DB"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
         )
 
+    if not user.global_admin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not a global admin.",
+        )
+
+    # Demote the user
     user.global_admin = False
     session.commit()
 
     return response(
         status_code=status.HTTP_200_OK,
-        message=f"User {admin_request.email} demoted from global admin",
+        message=f"User {admin_request.email} has been demoted from global admin.",
     )
 
 
-@user_router.delete("/delete-user")
+@user_router.delete("/delete-user", dependencies=[Depends(global_admin_only)])
 def delete_user(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
-    current_user: schema.User = Depends(global_admin_only),
 ):
-
-    user = (
-        session.query(schema.User)
-        .filter(schema.User.email == admin_request.email)
-        .first()
-    )
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found in local DB"
+    """
+    Delete a user from the system using the selected identity provider.
+    """
+    try:
+        identity_provider.delete_user(admin_request.email, session)
+        return response(
+            status_code=status.HTTP_200_OK,
+            message=f"User {admin_request.email} has been successfully deleted.",
         )
-
-    keycloak_user_id = keycloak_admin.get_user_id(user.username)
-
-    keycloak_admin.delete_user(keycloak_user_id)
-
-    session.delete(user)
-    session.commit()
-
-    return response(
-        status_code=status.HTTP_200_OK,
-        message=f"User {admin_request.email} successfully deleted",
-    )
+    except ValueError as e:
+        return response(status_code=status.HTTP_404_NOT_FOUND, message=str(e))
 
 
 @user_router.get("/all-users", dependencies=[Depends(global_admin_only)])
 def list_all_users(session: Session = Depends(get_session)):
-    users = (
+    """
+    List all users in the system along with their team memberships and roles.
+    """
+    users: List[schema.User] = (
         session.query(schema.User)
         .options(joinedload(schema.User.teams).joinedload(schema.UserTeam.team))
         .all()
@@ -256,22 +217,29 @@ def list_all_users(session: Session = Depends(get_session)):
 
 @user_router.get("/info")
 def get_user_info(
-    token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    user_info = keycloak_openid.userinfo(token)
-    keycloak_user_id = user_info.get("sub")
+    """
+    Get detailed information about the authenticated user.
+    """
+    user: Optional[schema.User] = (
+        session.query(schema.User)
+        .options(joinedload(schema.User.teams).joinedload(schema.UserTeam.team))
+        .filter(schema.User.id == authenticated_user.user.id)
+        .first()
+    )
 
-    user = session.query(schema.User).filter(schema.User.id == keycloak_user_id).first()
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found in local DB"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
-    user_info_formatted = {
+    user_info = {
         "id": user.id,
-        "username": user_info.get("preferred_username"),
-        "email": user_info.get("email"),
-        "global_admin": user.is_global_admin,
+        "username": user.username,
+        "email": user.email,
+        "global_admin": user.global_admin,
         "teams": [
             {
                 "team_id": user_team.team_id,
@@ -285,28 +253,5 @@ def get_user_info(
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully retrieved user information",
-        data=jsonable_encoder(user_info_formatted),
-    )
-
-
-class VerifyResetPassword(BaseModel):
-    email: str
-    new_password: str
-
-
-@user_router.post("/new-password")
-def reset_password(body: VerifyResetPassword, session: Session = Depends(get_session)):
-    user = session.query(schema.User).filter(schema.User.email == body.email).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found in local DB"
-        )
-
-    keycloak_admin.set_user_password(
-        user_id=user.id, password=body.new_password, temporary=False
-    )
-
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Successfully changed the password.",
+        data=jsonable_encoder(user_info),
     )

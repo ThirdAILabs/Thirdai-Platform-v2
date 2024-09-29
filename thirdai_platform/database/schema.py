@@ -79,6 +79,21 @@ class Team(SQLDeclarativeBase):
     models = relationship("Model", back_populates="team", cascade="all, delete-orphan")
 
 
+class UserPostgresIdentityProvider(SQLDeclarativeBase):
+    __tablename__ = "usersidentity"
+
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    username = Column(String(50), nullable=False, unique=True)
+    email = Column(String(254), nullable=False, unique=True)
+    password_hash = Column(String, nullable=True)
+    verified = Column(Boolean, default=False)
+    verification_token = Column(
+        UUID(as_uuid=True), unique=True, server_default=text("gen_random_uuid()")
+    )
+
+
 class User(SQLDeclarativeBase):
     __tablename__ = "users"
 

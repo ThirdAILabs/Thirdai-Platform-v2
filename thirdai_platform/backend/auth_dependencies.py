@@ -7,7 +7,8 @@ from database import schema
 from database.session import get_session
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from auth.utils import keycloak_openid, keycloak_admin, oauth2_scheme
+from auth.utils import oauth2_scheme
+from auth.identity_providers.factory import identity_provider
 
 
 def get_vault_client() -> hvac.Client:
@@ -43,21 +44,21 @@ def get_vault_client() -> hvac.Client:
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)
+    token: str, session: Session = Depends(get_session)
 ) -> schema.User:
     """
-    Dependency to retrieve the currently authenticated user.
-
-    Args:
-        authenticated_user (AuthenticatedUser): The authenticated user returned by the JWT verification.
-
-    Returns:
-        schema.User: The authenticated user.
+    Dependency to retrieve the currently authenticated user based on the selected identity provider.
     """
-    user_info = keycloak_openid.userinfo(token)
-    keycloak_user_id = user_info.get("sub")
+    # Use identity provider to get user info based on token
+    user_info = identity_provider.get_userinfo(token, session)
 
-    user = session.query(schema.User).filter(schema.User.id == keycloak_user_id).first()
+    if not user_info:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token."
+        )
+
+    # Fetch user from the local database based on identity provider user ID
+    user = session.query(schema.User).filter(schema.User.id == user_info["id"]).first()
 
     if not user:
         raise HTTPException(

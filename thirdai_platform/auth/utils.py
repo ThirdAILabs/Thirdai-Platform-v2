@@ -1,7 +1,8 @@
+import os
 import fastapi
-
+import requests
 from keycloak import KeycloakOpenID, KeycloakAdmin
-from fastapi.security import OAuth2AuthorizationCodeBearer
+from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordBearer
 from fastapi import APIRouter, Depends, HTTPException, status
 
 # This is a helper object provided by FastAPI to extract the access token from a
@@ -23,102 +24,143 @@ CREDENTIALS_EXCEPTION = fastapi.HTTPException(
     headers={"WWW-Authenticate": "Bearer"},
 )
 
-
-keycloak_admin = KeycloakAdmin(
-    server_url="http://localhost:8180/",
-    username="kc_admin",
-    password="password",
-    realm_name="master",
-    verify=True,
-)
+IDENTITY_PROVIDER = os.getenv("IDENTITY_PROVIDER", "postgres").lower()
 
 
-def create_client(client_name: str, redirect_uris: list):
-    """Create a new confidential client in Keycloak with the necessary permissions."""
-    clients = keycloak_admin.get_clients()
+if IDENTITY_PROVIDER == "keycloak":
+    # Keycloak admin client initialization
+    keycloak_admin = KeycloakAdmin(
+        server_url="http://localhost:8180/",
+        username=os.getenv("KEYCLOAK_ADMIN_USER", "kc_admin"),
+        password=os.getenv("KEYCLOAK_ADMIN_PASSWORD", "password"),
+        realm_name="master",
+        verify=True,  # Optional: False if you're skipping SSL verification
+    )
 
-    if any(client["clientId"] == client_name for client in clients):
-        print(f"Client '{client_name}' already exists.")
-        return
+    def create_client(client_name: str, redirect_uris: list):
+        """Create a new confidential client in Keycloak with the necessary permissions."""
+        clients = keycloak_admin.get_clients()
 
-    new_client = {
-        "clientId": client_name,
-        "enabled": True,
-        "publicClient": True,
-        "redirectUris": redirect_uris,
-        "directAccessGrantsEnabled": True,
-        "serviceAccountsEnabled": False,
-        "standardFlowEnabled": True,
-        "implicitFlowEnabled": False,
-        "fullScopeAllowed": True,
-        "defaultClientScopes": [
-            "profile",
-            "email",
-            "openid",
-        ],
-        "optionalClientScopes": ["offline_access"],
-    }
+        if any(client["clientId"] == client_name for client in clients):
+            print(f"Client '{client_name}' already exists.")
+            return
 
-    keycloak_admin.create_client(new_client)
-    print(f"Client '{client_name}' created successfully.")
+        new_client = {
+            "clientId": client_name,
+            "enabled": True,
+            "publicClient": True,
+            "redirectUris": redirect_uris,
+            "directAccessGrantsEnabled": True,
+            "serviceAccountsEnabled": False,
+            "standardFlowEnabled": True,
+            "implicitFlowEnabled": False,
+            "fullScopeAllowed": True,
+            "defaultClientScopes": [
+                "profile",
+                "email",
+                "openid",
+            ],
+            "optionalClientScopes": ["offline_access"],
+        }
 
+        keycloak_admin.create_client(new_client)
+        print(f"Client '{client_name}' created successfully.")
 
-client_name = "new-client"
+    client_name = "new-client"
+    create_client(client_name=client_name, redirect_uris=["http://localhost:8180/*"])
 
-create_client(client_name=client_name, redirect_uris=["http://localhost:8180/*"])
+    # Keycloak OpenID client initialization
+    keycloak_openid = KeycloakOpenID(
+        server_url="http://localhost:8180/",
+        client_id=client_name,
+        realm_name="master",
+    )
 
-keycloak_openid = KeycloakOpenID(
-    server_url="http://localhost:8180/",
-    client_id=client_name,
-    realm_name="master",
-)
+    # OAuth2 scheme for Keycloak
+    oauth2_scheme = OAuth2AuthorizationCodeBearer(
+        authorizationUrl=f"http://localhost:8180/realms/master/protocol/openid-connect/auth?client_id={client_name}",
+        tokenUrl="http://localhost:8180/realms/master/protocol/openid-connect/token",
+    )
 
+    def create_realm_role(role_name: str):
+        """Create realm role in Keycloak if it doesn't exist."""
+        roles = keycloak_admin.get_realm_roles()
+        if not any(role["name"] == role_name for role in roles):
+            keycloak_admin.create_realm_role(payload={"name": role_name})
+            print(f"Role '{role_name}' created successfully.")
+        else:
+            print(f"Role '{role_name}' already exists.")
 
-oauth2_scheme = OAuth2AuthorizationCodeBearer(
-    authorizationUrl="http://localhost:8180/realms/master/protocol/openid-connect/auth?client_id=new-client",
-    tokenUrl="http://localhost:8180/realms/master/protocol/openid-connect/token",
-)
+    def initialize_keycloak_roles():
+        """Creates the necessary roles in Keycloak: global_admin, team_admin, user."""
+        create_realm_role("global_admin")
+        create_realm_role("team_admin")
+        create_realm_role("user")
 
+    initialize_keycloak_roles()
 
-def create_realm_role(role_name: str):
-    """Creates realm role in Keycloak if it doesn't exist"""
-    roles = keycloak_admin.get_realm_roles()
-    if not any(role["name"] == role_name for role in roles):
-        keycloak_admin.create_realm_role(payload={"name": role_name})
-        print(f"Role '{role_name}' created successfully.")
-    else:
-        print(f"Role '{role_name}' already exists.")
+    def sync_role_in_keycloak(user_email: str, role_name: str, action: str):
+        """Synchronizes roles in Keycloak based on the action (add or remove)."""
+        keycloak_user = keycloak_admin.get_user_by_email(user_email)
+        if not keycloak_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found in Keycloak",
+            )
 
+        keycloak_roles = keycloak_admin.get_realm_roles()
+        role = next((r for r in keycloak_roles if r["name"] == role_name), None)
+        if not role:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Role not found in Keycloak",
+            )
 
-def initialize_keycloak_roles():
-    """Creates the necessary roles in Keycloak: global_admin, team_admin, user."""
-    create_realm_role("global_admin")
-    create_realm_role("team_admin")
-    create_realm_role("user")
+        if action == "add":
+            keycloak_admin.assign_realm_roles(user_id=keycloak_user["id"], roles=[role])
+        elif action == "remove":
+            keycloak_admin.remove_realm_roles(user_id=keycloak_user["id"], roles=[role])
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid action"
+            )
 
+    def get_token(client_id, username, password):
+        """Obtain an access token from Keycloak."""
+        data = {
+            "grant_type": "password",
+            "client_id": client_id,
+            "username": username,
+            "password": password,
+            "scope": "openid profile email",  # Scopes required for OIDC
+        }
 
-initialize_keycloak_roles()
-
-
-def sync_role_in_keycloak(user_email: str, role_name: str, action: str):
-    keycloak_user = keycloak_admin.get_user_by_email(user_email)
-    if not keycloak_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found in Keycloak"
+        response = requests.post(
+            f"http://localhost:8180/realms/master/protocol/openid-connect/token",
+            data=data,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
 
-    keycloak_roles = keycloak_admin.get_realm_roles()
-    role = next((r for r in keycloak_roles if r["name"] == role_name), None)
-    if not role:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Role not found in Keycloak"
-        )
+        if response.status_code == 200:
+            return response.json()["access_token"]  # Return access token
+        else:
+            print(f"Failed to obtain token: {response.status_code} {response.text}")
+            return None
 
-    if action == "add":
-        keycloak_admin.assign_realm_roles(user_id=keycloak_user["id"], roles=[role])
-    elif action == "remove":
-        keycloak_admin.remove_realm_roles(user_id=keycloak_user["id"], roles=[role])
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid action"
-        )
+else:
+    # If Keycloak is not used, define these as placeholders
+    keycloak_openid = None
+    keycloak_admin = None
+    oauth2_scheme = None
+
+    def create_client(*args, **kwargs):
+        pass
+
+    def initialize_keycloak_roles():
+        pass
+
+    def sync_role_in_keycloak(*args, **kwargs):
+        pass
+
+    def get_token(*args, **kwargs):
+        return None

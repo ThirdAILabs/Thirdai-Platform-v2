@@ -610,6 +610,8 @@ def stop_workflow(
 @workflow_router.post("/start", dependencies=[Depends(is_workflow_owner)])
 async def start_workflow(
     workflow_id: str,
+    autoscaling_enabled: bool = False,
+    autoscaler_max_count: int = 1,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
@@ -618,6 +620,8 @@ async def start_workflow(
 
     - **Parameters**:
       - `workflow_id` (str): ID of the workflow to start.
+      - `autoscaling_enabled` (bool): Whether autoscaling should be enabled.
+      - `autoscaler_max_count` (int): Maximum number of autoscalers.
     - **Returns**:
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
@@ -735,8 +739,7 @@ async def start_workflow(
                         "/model_bazaar/license/ndb_enterprise_license.json",
                     )
                 )["boltLicenseKey"],
-                # TODO(Anyone): replace this env variable with query parameter
-                autoscaling_enabled=bool(os.getenv("AUTOSCALING_ENABLED", "false")),
+                autoscaling_enabled=autoscaling_enabled,
                 model_options=model_options,
             )
 
@@ -759,10 +762,8 @@ async def start_workflow(
                     model_id=str(model.id),
                     share_dir=os.getenv("SHARE_DIR", None),
                     config_path=config.save_deployment_config(),
-                    autoscaling_enabled=str(
-                        os.getenv("AUTOSCALING_ENABLED", "false")
-                    ).lower(),
-                    autoscaler_max_count=os.getenv("AUTOSCALER_MAX_COUNT", "1"),
+                    autoscaling_enabled=str(autoscaling_enabled).lower(),
+                    autoscaler_max_count=str(autoscaler_max_count),
                     memory=memory,
                     python_path=get_python_path(),
                     aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),

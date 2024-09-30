@@ -9,6 +9,7 @@ import {
     deleteUserFromTeam,
     deleteTeamById,
     removeTeamAdmin,
+    fetchAllUsers
 } from '@/lib/backend';
 
 type Team = {
@@ -55,9 +56,38 @@ export default function Teams() {
     const [adminToRemove, setAdminToRemove] = useState('');
 
     useEffect(() => {
+        getUsers();
+    }, []);
+
+    const getUsers = async () => {
+        try {
+            const response = await fetchAllUsers();
+            console.log('Fetched Users:', response.data);
+            const userData = response.data.map(
+                (user): User => ({
+                    id: user.id,
+                    name: user.username,
+                    email: user.email,
+                    role: user.global_admin ? 'Global Admin' : 'Member',
+                    teams: user.teams.map((team) => ({
+                        id: team.team_id,
+                        name: team.team_name,
+                        role: team.role,
+                    })),
+
+                })
+            );
+            setUsers(userData);
+        } catch (error) {
+            console.error('Failed to fetch users', error);
+            alert('Failed to fetch users' + error);
+        }
+    };
+    console.log('Users:', users);
+
+    useEffect(() => {
         getTeams();
     }, [users]);
-
     const getTeams = async () => {
         try {
             const response = await fetchAllTeams();

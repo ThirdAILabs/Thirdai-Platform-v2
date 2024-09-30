@@ -1048,7 +1048,7 @@ import Models from './models';
 import Workflows from './workflows';
 import Teams from './teams';
 import Users from './users';
-import OpenAIKey from './openAiKey';
+import OpenAIKey from './apiKey';
 import { UserContext } from '../../user_wrapper';
 
 export default function AccessPage() {
@@ -1090,7 +1090,7 @@ export default function AccessPage() {
               <TabsTrigger value="workflows">Workflows</TabsTrigger>
               <TabsTrigger value="teams">Teams</TabsTrigger>
               <TabsTrigger value="users">Users</TabsTrigger>
-              <TabsTrigger value="openai">OpenAI Key</TabsTrigger>
+              <TabsTrigger value="openai">API Key</TabsTrigger>
             </TabsList>
             <TabsContent value="models">
               <Models />

@@ -25,9 +25,6 @@ def email_signup(
     body: AccountSignupBody,
     session: Session = Depends(get_session),
 ):
-    """
-    Sign up a new user using the selected identity provider.
-    """
     existing_user = (
         session.query(schema.User)
         .filter(
@@ -70,9 +67,6 @@ def email_login(
     credentials: HTTPBasicCredentials = Depends(basic_security),
     session: Session = Depends(get_session),
 ):
-    """
-    Log in a user using the selected identity provider.
-    """
     try:
         user_id, access_token = identity_provider.authenticate_user(
             credentials.username, credentials.password, session
@@ -104,9 +98,6 @@ def add_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
-    """
-    Promote a user to global admin.
-    """
     user = (
         session.query(schema.User)
         .filter(schema.User.email == admin_request.email)
@@ -132,9 +123,6 @@ def demote_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
-    """
-    Demote a global admin to a regular user.
-    """
     user = (
         session.query(schema.User)
         .filter(schema.User.email == admin_request.email)
@@ -167,9 +155,6 @@ def delete_user(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
-    """
-    Delete a user from the system using the selected identity provider.
-    """
     try:
         identity_provider.delete_user(admin_request.email, session)
         return response(
@@ -182,9 +167,6 @@ def delete_user(
 
 @user_router.get("/all-users", dependencies=[Depends(global_admin_only)])
 def list_all_users(session: Session = Depends(get_session)):
-    """
-    List all users in the system along with their team memberships and roles.
-    """
     users: List[schema.User] = (
         session.query(schema.User)
         .options(joinedload(schema.User.teams).joinedload(schema.UserTeam.team))
@@ -221,9 +203,6 @@ def get_user_info(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    """
-    Get detailed information about the authenticated user.
-    """
     user: Optional[schema.User] = (
         session.query(schema.User)
         .options(joinedload(schema.User.teams).joinedload(schema.UserTeam.team))
@@ -256,3 +235,41 @@ def get_user_info(
         message="Successfully retrieved user information",
         data=jsonable_encoder(user_info),
     )
+
+
+@user_router.get("/redirect-verify")
+def redirect_email_verify(verification_token: str, request: Request):
+    try:
+        identity_provider.email_verify(verification_token)
+        return response(status_code=status.HTTP_200_OK, message="Email verified.")
+    except Exception as e:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Failed to verify email: {str(e)}",
+        )
+
+
+@user_router.post("/email-verify")
+def email_verify(verification_token: str, session: Session = Depends(get_session)):
+    try:
+        identity_provider.email_verify(verification_token)
+        return response(
+            status_code=status.HTTP_200_OK, message="Email verification successful."
+        )
+    except Exception as e:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Verification failed: {str(e)}",
+        )
+
+
+@user_router.post("/new-password")
+def reset_password(body: VerifyResetPassword, session: Session = Depends(get_session)):
+    try:
+        identity_provider.reset_password(body, session)
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Password successfully reset.",
+        )
+    except ValueError as e:
+        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(e))

@@ -1,5 +1,3 @@
-# auth/identity_providers/postgres_provider.py
-
 from auth.identity_providers.base import (
     AbstractIdentityProvider,
     AccountSignupBody,
@@ -10,11 +8,13 @@ from sqlalchemy.exc import IntegrityError
 from database import schema
 import bcrypt
 import uuid
-from auth.jwt import create_access_token
+from auth.jwt import create_access_token, verify_access_token, AuthenticatedUser
 from fastapi import HTTPException, status
-from auth.jwt import verify_access_token, AuthenticatedUser
-from sqlalchemy.orm import Session
+from auth.jwt import AuthenticatedUser
 from backend.utils import response, hash_password
+from urllib.parse import urlencode, urljoin
+import os
+from backend.mailer import Mailer
 
 
 class PostgresIdentityProvider(AbstractIdentityProvider):
@@ -25,19 +25,10 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
     def get_userinfo(self, token: str, session: Session):
         """
         Retrieve user information from the PostgreSQL database using the given token (access token).
-
-        Args:
-            token (str): The JWT used for authentication.
-            session (Session): The database session.
-
-        Returns:
-            dict: A dictionary containing user information (e.g., user ID, email, username).
         """
         try:
-            # Use the verify_access_token function to validate the token and get user info
+            # Validate the token and get user info
             authenticated_user: AuthenticatedUser = verify_access_token(token, session)
-
-            # Return the user info in a dictionary
             user = authenticated_user.user
             return {
                 "id": user.id,
@@ -47,7 +38,6 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
             }
 
         except HTTPException as e:
-            # Handle any errors with token verification or user lookup
             raise HTTPException(
                 status_code=(
                     e.status_code
@@ -79,69 +69,87 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
                 email=user_data.email,
             )
             session.add(new_user)
-
             session.commit()
             session.refresh(new_user)
 
+            # Send verification mail if not in test mode
+            if os.getenv("TEST_ENVIRONMENT", "False") != "True":
+                self.send_verification_mail(
+                    new_user.email,
+                    new_user_identity.verification_token,
+                    new_user.username,
+                )
+
             return str(new_user.id)
+
         except IntegrityError:
             session.rollback()
-            raise ValueError("User with this email or username already exists.")
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="User with this email or username already exists.",
+            )
 
-    def get_user(self, username_or_email: str, session: Session):
-        user = (
+    def send_verification_mail(
+        self, email: str, verification_token: str, username: str
+    ):
+        """
+        Send verification email to the user.
+        """
+        subject = "Verify Your Email Address"
+        base_url = os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT")
+        args = {"verification_token": verification_token}
+        verify_link = urljoin(base_url, f"api/user/redirect-verify?{urlencode(args)}")
+        body = f"<p>Please click the following link to verify your email address: <a href='{verify_link}'>verify</a></p>"
+
+        Mailer(to=f"{username} <{email}>", subject=subject, body=body)
+
+    def email_verify(self, verification_token: str, session: Session):
+        """
+        Verify the user's email with the provided token.
+        """
+        user_identity = (
             session.query(schema.UserPostgresIdentityProvider)
             .filter(
-                (schema.UserPostgresIdentityProvider.username == username_or_email)
-                | (schema.UserPostgresIdentityProvider.email == username_or_email)
+                schema.UserPostgresIdentityProvider.verification_token
+                == verification_token
             )
             .first()
         )
-        return user
 
-    def delete_user(self, username_or_email: str, session: Session):
-        user_identity = self.get_user(username_or_email, session)
-        if user_identity:
-            session.delete(user_identity)
-            user = (
-                session.query(schema.User)
-                .filter(schema.User.id == user_identity.id)
-                .first()
-            )
-            if user:
-                session.delete(user)
-            session.commit()
-        else:
-            raise ValueError("User not found in PostgreSQL.")
-
-    def authenticate_user(
-        self, username_or_email: str, password: str, session: Session
-    ):
-        user_identity = self.get_user(username_or_email, session)
         if not user_identity:
-            raise ValueError("User not found.")
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Invalid or expired token.",
+            )
 
-        if not user_identity.password_hash:
-            raise ValueError("Password authentication not available for this user.")
+        user_identity.verified = True
+        user_identity.verification_token = None
+        session.commit()
 
-        if not bcrypt.checkpw(
-            password.encode("utf-8"), user_identity.password_hash.encode("utf-8")
-        ):
-            raise ValueError("Invalid password.")
-
-        if not user_identity.verified:
-            raise ValueError("User is not verified yet.")
-
-        return str(user_identity.id), create_access_token(
-            user_identity.id, expiration_min=120
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Email verification successful.",
         )
 
-    def reset_password(
-        self,
-        body: VerifyResetPassword,
-        session: Session,
-    ):
-        user_identity = self.get_user(body.email, session)
+    def redirect_verify(self, verification_token: str, request):
+        """
+        Redirect to email verification endpoint.
+        """
+        base_url = os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT")
+        args = {"verification_token": verification_token}
+        verify_url = urljoin(base_url, f"api/user/email-verify?{urlencode(args)}")
+
+        return {"verify_url": verify_url}
+
+    def reset_password(self, body: VerifyResetPassword, session: Session):
+        """
+        Reset password after verifying the reset code.
+        """
+        user_identity = (
+            session.query(schema.UserPostgresIdentityProvider)
+            .filter(schema.UserPostgresIdentityProvider.email == body.email)
+            .first()
+        )
 
         if not user_identity:
             return response(

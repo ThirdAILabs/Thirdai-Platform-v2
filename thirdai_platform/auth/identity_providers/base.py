@@ -15,7 +15,6 @@ class AdminRequest(BaseModel):
 
 class VerifyResetPassword(BaseModel):
     email: str
-    reset_password_code: int
     new_password: str
 
 
@@ -43,9 +42,13 @@ class AbstractIdentityProvider(ABC):
         pass
 
     @abstractmethod
-    def reset_password(
-        self,
-        body: VerifyResetPassword,
-        session: Session,
-    ):
+    def reset_password(self, body: VerifyResetPassword, session: Session):
+        pass
+
+    @abstractmethod
+    def get_userinfo(self, token: str, session: Session):
+        pass
+
+    @abstractmethod
+    def email_verify(self, user_id: str):
         pass

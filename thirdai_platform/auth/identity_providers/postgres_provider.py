@@ -3,6 +3,7 @@
 from auth.identity_providers.base import (
     AbstractIdentityProvider,
     AccountSignupBody,
+    VerifyResetPassword,
 )
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -13,6 +14,7 @@ from auth.jwt import create_access_token
 from fastapi import HTTPException, status
 from auth.jwt import verify_access_token, AuthenticatedUser
 from sqlalchemy.orm import Session
+from backend.utils import response, hash_password
 
 
 class PostgresIdentityProvider(AbstractIdentityProvider):
@@ -56,9 +58,7 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
             )
 
     def create_user(self, user_data: AccountSignupBody, session: Session):
-        hashed_password = bcrypt.hashpw(
-            user_data.password.encode("utf-8"), bcrypt.gensalt()
-        ).decode("utf-8")
+        hashed_password = hash_password(user_data.password)
 
         new_user_identity = schema.UserPostgresIdentityProvider(
             username=user_data.username,
@@ -134,4 +134,38 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
 
         return str(user_identity.id), create_access_token(
             user_identity.id, expiration_min=120
+        )
+
+    def reset_password(
+        self,
+        body: VerifyResetPassword,
+        session: Session,
+    ):
+        user_identity = self.get_user(body.email, session)
+
+        if not user_identity:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="This email is not registered with any account.",
+            )
+
+        if not user_identity.reset_password_code:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Click on forgot password to get verification code.",
+            )
+
+        if user_identity.reset_password_code != body.reset_password_code:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Entered wrong reset password code.",
+            )
+
+        user_identity.reset_password_code = None
+        user_identity.password_hash = hash_password(body.new_password)
+        session.commit()
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully changed the password.",
         )

@@ -41,3 +41,11 @@ class AbstractIdentityProvider(ABC):
         self, username_or_email: str, password: str, session: Session
     ):
         pass
+
+    @abstractmethod
+    def reset_password(
+        self,
+        body: VerifyResetPassword,
+        session: Session,
+    ):
+        pass

@@ -1,6 +1,7 @@
 from auth.identity_providers.base import (
     AbstractIdentityProvider,
     AccountSignupBody,
+    VerifyResetPassword,
 )
 from auth.utils import keycloak_admin, keycloak_openid, get_token
 from database import schema
@@ -8,26 +9,15 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from typing import Optional
 import uuid
+from backend.utils import response
 
 
 class KeycloakIdentityProvider(AbstractIdentityProvider):
 
     def get_userinfo(self, token: str, session: Session):
-        """
-        Retrieve user information from Keycloak using the access token.
-
-        Args:
-            token (str): The JWT access token issued by Keycloak.
-            session (Session): The database session for querying local user data.
-
-        Returns:
-            dict: A dictionary containing user information (e.g., user ID, email, username).
-        """
         try:
-            # Use Keycloak's OpenID Connect userinfo endpoint to retrieve user info
             user_info = keycloak_openid.userinfo(token)
 
-            # Extract the user ID from the token ('sub' is the user ID field in Keycloak)
             keycloak_user_id = user_info.get("sub")
             if not keycloak_user_id:
                 raise HTTPException(
@@ -35,7 +25,6 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
                     detail="Invalid token: user ID not found in token",
                 )
 
-            # Query the local database to fetch more user info if needed
             user = (
                 session.query(schema.User)
                 .filter(schema.User.id == keycloak_user_id)
@@ -43,13 +32,11 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
             )
 
             if not user:
-                # Optionally, you could create the user in the local DB if they don't exist
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="User not found in local DB",
                 )
 
-            # Return user info
             return {
                 "id": user.id,
                 "username": user.username,
@@ -129,3 +116,26 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
         keycloak_user_id = user_info.get("sub")
 
         return keycloak_user_id, access_token
+
+    def reset_password(
+        self,
+        body: VerifyResetPassword,
+        session: Session,
+    ):
+        user = (
+            session.query(schema.User).filter(schema.User.email == body.email).first()
+        )
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found in local DB",
+            )
+
+        keycloak_admin.set_user_password(
+            user_id=user.id, password=body.new_password, temporary=False
+        )
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully changed the password.",
+        )

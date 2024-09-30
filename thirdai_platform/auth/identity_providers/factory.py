@@ -29,22 +29,29 @@ class AdminAddition:
         This method assumes that the admin's mail, username, and password are the same.
         Role assignment is skipped for now.
         """
-        # Add or update the user in your application's local database (schema.User)
         with contextmanager(get_session)() as session:
             if identity_provider_type == "postgres":
                 user = identity_provider.get_user(admin_username, session)
             elif identity_provider_type == "keycloak":
                 # since we would already be initialzing keycloak with this user as admin user
                 keycloak_user_id = keycloak_admin.get_user_id(admin_username)
-                user = schema.User(
-                    id=keycloak_user_id,
-                    username=admin_username,
-                    email=admin_password,
+
+                user = (
+                    session.query(schema.User)
+                    .filter(schema.User.id == keycloak_user_id)
+                    .first()
                 )
 
-                session.add(user)
-                session.commit()
-                session.refresh(user)
+                if not user:
+                    user = schema.User(
+                        id=keycloak_user_id,
+                        username=admin_username,
+                        email=admin_password,
+                    )
+
+                    session.add(user)
+                    session.commit()
+                    session.refresh(user)
 
             if not user:
                 # Create the user using the selected identity provider (Keycloak or Postgres)

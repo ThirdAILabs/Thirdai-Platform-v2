@@ -92,6 +92,7 @@ class UserPostgresIdentityProvider(SQLDeclarativeBase):
     verification_token = Column(
         UUID(as_uuid=True), unique=True, server_default=text("gen_random_uuid()")
     )
+    reset_password_code = Column(Integer, nullable=True)
 
 
 class User(SQLDeclarativeBase):

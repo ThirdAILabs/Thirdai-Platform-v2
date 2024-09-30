@@ -13,13 +13,14 @@ from fastapi.encoders import jsonable_encoder
 from auth.identity_providers.base import (
     AccountSignupBody,
     AdminRequest,
+    VerifyResetPassword,
 )
 
 user_router = APIRouter()
 basic_security = HTTPBasic()
 
 
-@user_router.post("/email-signup")
+@user_router.post("/email-signup-basic")
 def email_signup(
     body: AccountSignupBody,
     session: Session = Depends(get_session),

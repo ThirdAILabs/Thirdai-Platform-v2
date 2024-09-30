@@ -53,6 +53,14 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
 
   // End state variables & func for LLM
 
+  // Begin state variables for Advanced Options
+
+  const [advancedTableParsing, setAdvancedTableParsing] = useState('No');
+  const [advancedUnsupervisedTraining, setAdvancedUnsupervisedTraining] = useState('No');
+  const [advancedMetaDataGeneration, setAdvancedMetaDataGeneration] = useState('No');
+
+  // End state variables for Advanced Options
+
   const router = useRouter();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -68,6 +76,12 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
       const workflowResponse = await create_workflow({
         name: workflowName,
         typeName: workflowTypeName,
+        // Include advanced options when backend supports it
+        // advancedOptions: {
+        //   advancedTableParsing,
+        //   advancedUnsupervisedTraining,
+        //   advancedMetaDataGeneration,
+        // },
       });
       const workflowId = workflowResponse.data.workflow_id;
       console.log('Workflow created:', workflowId);
@@ -133,6 +147,13 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
         console.error('Invalid LLM type selected');
         alert('Invalid LLM type selected');
       }
+
+      // Log advanced options
+      console.log('Advanced Options:', {
+        advancedTableParsing,
+        advancedUnsupervisedTraining,
+        advancedMetaDataGeneration,
+      });
 
       // Go back home page
       router.push('/');
@@ -437,7 +458,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 OpenAI
               </Button>
               <Button
-                variant={llmType === 'On-Prem' ? 'contained' : 'outlined'}
+                variant={llmType === 'On-prem' ? 'contained' : 'outlined'}
                 onClick={() => setLlmType('On-prem')}
               >
                 On-prem
@@ -447,6 +468,92 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 onClick={() => setLlmType('Self-host')}
               >
                 Self-host
+              </Button>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: 'Advanced Options',
+      content: (
+        <div>
+          <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
+            Advanced Options
+          </span>
+          <div>
+            <CardDescription>Would you like to enable advanced table-parsing?</CardDescription>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                gap: '10px',
+                marginTop: '10px',
+              }}
+            >
+              <Button
+                variant={advancedTableParsing === 'Yes' ? 'contained' : 'outlined'}
+                onClick={() => setAdvancedTableParsing('Yes')}
+              >
+                Yes
+              </Button>
+              <Button
+                variant={advancedTableParsing === 'No' ? 'contained' : 'outlined'}
+                onClick={() => setAdvancedTableParsing('No')}
+              >
+                No
+              </Button>
+            </div>
+          </div>
+          <div>
+            <CardDescription style={{ marginTop: '20px' }}>
+              Would you like to enable advanced unsupervised training?
+            </CardDescription>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                gap: '10px',
+                marginTop: '10px',
+              }}
+            >
+              <Button
+                variant={advancedUnsupervisedTraining === 'Yes' ? 'contained' : 'outlined'}
+                onClick={() => setAdvancedUnsupervisedTraining('Yes')}
+              >
+                Yes
+              </Button>
+              <Button
+                variant={advancedUnsupervisedTraining === 'No' ? 'contained' : 'outlined'}
+                onClick={() => setAdvancedUnsupervisedTraining('No')}
+              >
+                No
+              </Button>
+            </div>
+          </div>
+          <div>
+            <CardDescription style={{ marginTop: '20px' }}>
+              Would you like to enable advanced meta data generation?
+            </CardDescription>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                gap: '10px',
+                marginTop: '10px',
+              }}
+            >
+              <Button
+                variant={advancedMetaDataGeneration === 'Yes' ? 'contained' : 'outlined'}
+                onClick={() => setAdvancedMetaDataGeneration('Yes')}
+              >
+                Yes
+              </Button>
+              <Button
+                variant={advancedMetaDataGeneration === 'No' ? 'contained' : 'outlined'}
+                onClick={() => setAdvancedMetaDataGeneration('No')}
+              >
+                No
               </Button>
             </div>
           </div>

@@ -188,7 +188,7 @@ class S3StorageHandler(CloudStorageHandler):
             print(f"Failed to download {source_path}. Error: {str(e)}")
 
     def download_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
-        s3_files = self.list_files(bucket_name=bucket_name, prefix=source_dir)
+        s3_files = self.list_files(bucket_name=bucket_name, source_path=source_dir)
 
         os.makedirs(dest_dir, exist_ok=True)
 

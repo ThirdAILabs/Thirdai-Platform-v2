@@ -10,6 +10,9 @@ pydantic
 unidecode
 boto3
 apscheduler
+azure-storage-blob
+azure-mgmt-containerservice
+azure-identity
 
 # app
 gunicorn

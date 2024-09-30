@@ -254,9 +254,9 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         <Button
           onClick={() => {
             if (deployStatus === 'Active') {
-              goToEndpoint()
+              goToEndpoint();
             } else {
-              setShowDeploymentModal(true) // Show modal when Start is clicked
+              setShowDeploymentModal(true); // Show modal when Start is clicked
             }
           }}
           variant="contained"
@@ -311,26 +311,26 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             {deployStatus === 'Active' && (
-                <DropdownMenuItem>
-                  <form>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const response = await stop_workflow(workflow.id);
-                          console.log('Workflow undeployed successfully:', response);
-                          // Optionally, update the UI state to reflect the undeployment
-                          setDeployStatus('Inactive');
-                        } catch (error) {
-                          console.error('Error undeploying workflow:', error);
-                          alert('Error undeploying workflow:' + error);
-                        }
-                      }}
-                    >
-                      Stop App
-                    </button>
-                  </form>
-                </DropdownMenuItem>
+              <DropdownMenuItem>
+                <form>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const response = await stop_workflow(workflow.id);
+                        console.log('Workflow undeployed successfully:', response);
+                        // Optionally, update the UI state to reflect the undeployment
+                        setDeployStatus('Inactive');
+                      } catch (error) {
+                        console.error('Error undeploying workflow:', error);
+                        alert('Error undeploying workflow:' + error);
+                      }
+                    }}
+                  >
+                    Stop App
+                  </button>
+                </form>
+              </DropdownMenuItem>
             )}
             <DropdownMenuItem>
               <form>

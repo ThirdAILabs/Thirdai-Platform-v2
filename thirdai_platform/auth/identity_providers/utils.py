@@ -37,4 +37,6 @@ def delete_all_models_for_user(user_to_delete, session):
             # current user is the global_admin.
             new_owner_id = user_to_delete.id
 
-    model.user_id = new_owner_id
+        model.user_id = new_owner_id
+
+    session.bulk_save_objects(models)

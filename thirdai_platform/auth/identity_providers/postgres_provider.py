@@ -59,7 +59,7 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
                     "user": {
                         "username": new_user.username,
                         "email": new_user.email,
-                        "user_id": new_user.id,
+                        "user_id": str(new_user.id),
                     },
                 },
             )

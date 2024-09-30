@@ -33,7 +33,7 @@ class AdminAddition:
             if identity_provider_type == "postgres":
                 user = identity_provider.get_user(admin_username, session)
 
-                new_user_id = identity_provider.create_user(
+                identity_provider.create_user(
                     AccountSignupBody(
                         username=admin_username,
                         email=admin_mail,
@@ -43,7 +43,7 @@ class AdminAddition:
                 )
                 user = (
                     session.query(schema.User)
-                    .filter(schema.User.id == new_user_id)
+                    .filter(schema.User.username == admin_username)
                     .first()
                 )
                 user.global_admin = True
@@ -52,6 +52,9 @@ class AdminAddition:
             elif identity_provider_type == "keycloak":
                 # Since we would already be initialzing keycloak with this user as admin user
                 keycloak_user_id = keycloak_admin.get_user_id(admin_username)
+                keycloak_admin.update_user(
+                    keycloak_user_id, {"email": admin_mail, "emailVerified": True}
+                )
 
                 user = (
                     session.query(schema.User)

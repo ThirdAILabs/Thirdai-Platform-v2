@@ -14,7 +14,7 @@ from auth.jwt import AuthenticatedUser
 from backend.utils import response, hash_password
 from urllib.parse import urlencode, urljoin
 import os
-from backend.mailer import Mailer
+from auth.identity_providers.utils import send_verification_mail
 
 
 class PostgresIdentityProvider(AbstractIdentityProvider):
@@ -89,20 +89,6 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
                 message="User with this email or username already exists.",
             )
 
-    def send_verification_mail(
-        self, email: str, verification_token: str, username: str
-    ):
-        """
-        Send verification email to the user.
-        """
-        subject = "Verify Your Email Address"
-        base_url = os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT")
-        args = {"verification_token": verification_token}
-        verify_link = urljoin(base_url, f"api/user/redirect-verify?{urlencode(args)}")
-        body = f"<p>Please click the following link to verify your email address: <a href='{verify_link}'>verify</a></p>"
-
-        Mailer(to=f"{username} <{email}>", subject=subject, body=body)
-
     def email_verify(self, verification_token: str, session: Session):
         """
         Verify the user's email with the provided token.
@@ -139,7 +125,7 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
         args = {"verification_token": verification_token}
         verify_url = urljoin(base_url, f"api/user/email-verify?{urlencode(args)}")
 
-        return {"verify_url": verify_url}
+        return verify_url
 
     def reset_password(self, body: VerifyResetPassword, session: Session):
         """
@@ -150,6 +136,104 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
             .filter(schema.UserPostgresIdentityProvider.email == body.email)
             .first()
         )
+
+        if not user_identity:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="This email is not registered with any account.",
+            )
+
+        if not user_identity.reset_password_code:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Click on forgot password to get verification code.",
+            )
+
+        if user_identity.reset_password_code != body.reset_password_code:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="Entered wrong reset password code.",
+            )
+
+        user_identity.reset_password_code = None
+        user_identity.password_hash = hash_password(body.new_password)
+        session.commit()
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully changed the password.",
+        )
+
+    def get_user(self, username_or_email: str, session: Session):
+        user = (
+            session.query(schema.UserPostgresIdentityProvider)
+            .filter(
+                (schema.UserPostgresIdentityProvider.username == username_or_email)
+                | (schema.UserPostgresIdentityProvider.email == username_or_email)
+            )
+            .first()
+        )
+        return user
+
+    def delete_user(self, username_or_email: str, session: Session):
+        user_identity = self.get_user(username_or_email, session)
+        if not user_identity:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found in PostgreSQL.",
+            )
+
+        session.delete(user_identity)
+
+        user = (
+            session.query(schema.User)
+            .filter(schema.User.id == user_identity.id)
+            .first()
+        )
+
+        if user:
+            session.delete(user)
+
+        session.commit()
+
+    def authenticate_user(
+        self, username_or_email: str, password: str, session: Session
+    ):
+        user_identity = self.get_user(username_or_email, session)
+        if not user_identity:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
+            )
+
+        if not user_identity.password_hash:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password authentication not available for this user.",
+            )
+
+        if not bcrypt.checkpw(
+            password.encode("utf-8"), user_identity.password_hash.encode("utf-8")
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password."
+            )
+
+        if not user_identity.verified:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User is not verified yet.",
+            )
+
+        return str(user_identity.id), create_access_token(
+            user_identity.id, expiration_min=120
+        )
+
+    def reset_password(
+        self,
+        body: VerifyResetPassword,
+        session: Session,
+    ):
+        user_identity = self.get_user(body.email, session)
 
         if not user_identity:
             return response(

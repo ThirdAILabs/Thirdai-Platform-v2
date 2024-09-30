@@ -9,8 +9,9 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from typing import Optional
 import uuid
-from backend.utils import response, send_verification_mail
+from backend.utils import response
 import os
+from auth.identity_providers.utils import send_verification_mail
 
 
 class KeycloakIdentityProvider(AbstractIdentityProvider):
@@ -25,17 +26,19 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
         # Check if the user already exists in Keycloak
         existing_user_id = keycloak_admin.get_user_id(user_data.username)
         if existing_user_id:
-            raise ValueError("User already exists with the same username.")
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="User with this email or username already exists.",
+            )
 
         is_test_environment = os.getenv("TEST_ENVIRONMENT", "False") == "True"
 
-        # Create the user in Keycloak
         keycloak_user_id = keycloak_admin.create_user(
             {
                 "username": user_data.username,
                 "email": user_data.email,
                 "enabled": True,
-                "emailVerified": is_test_environment,  # Automatically verified in test environment
+                "emailVerified": is_test_environment,
                 "credentials": [
                     {
                         "type": "password",
@@ -46,7 +49,6 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
             }
         )
 
-        # Add the user to the local DB
         new_user = schema.User(
             id=keycloak_user_id,
             username=user_data.username,
@@ -56,9 +58,7 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
         session.commit()
         session.refresh(new_user)
 
-        # If not in the test environment, request Keycloak to send a verification email
         if not is_test_environment:
-            # Use Keycloak's endpoint to send a verification email
             self.trigger_keycloak_verification_email(
                 keycloak_user_id, user_data.email, user_data.username
             )
@@ -72,10 +72,8 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
         Request Keycloak to send an email verification and send the custom email via the custom mailer.
         """
         try:
-            # Trigger email verification via Keycloak
             keycloak_admin.send_verify_email(user_id)
 
-            # Send the custom email with a verification link
             base_url = "http://localhost:8180"
             verification_link = (
                 f"{base_url}/realms/master/verify-email?user_id={user_id}"
@@ -140,3 +138,107 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Failed to retrieve user info: {str(e)}",
             )
+
+    def reset_password(
+        self,
+        body: VerifyResetPassword,
+        session: Session,
+    ):
+        user = (
+            session.query(schema.User).filter(schema.User.email == body.email).first()
+        )
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found in local DB",
+            )
+
+        keycloak_admin.set_user_password(
+            user_id=user.id, password=body.new_password, temporary=False
+        )
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully changed the password.",
+        )
+
+    def redirect_verify(self, verification_token: str, request):
+        """
+        Redirect to the Keycloak email verification endpoint.
+        """
+        base_url = "http://localhost:8180"
+        verify_url = f"{base_url}/auth/realms/master/protocol/openid-connect/registrations?client_id=account&verification_token={verification_token}"
+
+        return verify_url
+
+    def get_user(self, username_or_email: str, session: Session):
+        user = (
+            session.query(schema.User)
+            .filter(
+                (schema.User.username == username_or_email)
+                | (schema.User.email == username_or_email)
+            )
+            .first()
+        )
+        return user
+
+    def delete_user(self, username_or_email: str, session: Session):
+        user = self.get_user(username_or_email, session)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
+            )
+
+        try:
+            keycloak_admin.delete_user(user.id)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete user in Keycloak: {str(e)}",
+            )
+
+        session.delete(user)
+        session.commit()
+
+    def authenticate_user(
+        self, username_or_email: str, password: str, session: Session
+    ):
+        access_token = get_token("new-client", username_or_email, password)
+        if not access_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials."
+            )
+
+        try:
+            user_info = keycloak_openid.userinfo(access_token)
+            keycloak_user_id = user_info.get("sub")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to retrieve user info: {str(e)}",
+            )
+
+        return keycloak_user_id, access_token
+
+    def reset_password(
+        self,
+        body: VerifyResetPassword,
+        session: Session,
+    ):
+        user = (
+            session.query(schema.User).filter(schema.User.email == body.email).first()
+        )
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found in local DB",
+            )
+
+        keycloak_admin.set_user_password(
+            user_id=user.id, password=body.new_password, temporary=False
+        )
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully changed the password.",
+        )

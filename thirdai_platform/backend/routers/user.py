@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+import pathlib
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session, joinedload
 from pydantic import BaseModel
@@ -10,6 +11,7 @@ from database import schema
 from typing import Optional, List
 from backend.auth_dependencies import global_admin_only
 from fastapi.encoders import jsonable_encoder
+from fastapi.templating import Jinja2Templates
 from auth.identity_providers.base import (
     AccountSignupBody,
     AdminRequest,
@@ -18,6 +20,11 @@ from auth.identity_providers.base import (
 
 user_router = APIRouter()
 basic_security = HTTPBasic()
+
+
+root_folder = pathlib.Path(__file__).parent
+template_directory = root_folder.joinpath("../templates/").resolve()
+templates = Jinja2Templates(directory=template_directory)
 
 
 @user_router.post("/email-signup-basic")
@@ -140,6 +147,19 @@ def demote_global_admin(
             detail="User is not a global admin.",
         )
 
+        # Check if there is more than one global admin
+    another_admin_exists = (
+        session.query(schema.User)
+        .filter(schema.User.global_admin == True, schema.User.id != user.id)
+        .first()
+    )
+
+    if not another_admin_exists:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="There must be at least one global admin.",
+        )
+
     # Demote the user
     user.global_admin = False
     session.commit()
@@ -150,7 +170,7 @@ def demote_global_admin(
     )
 
 
-@user_router.delete("/delete-user", dependencies=[Depends(global_admin_only)])
+@user_router.delete("/delete-user")
 def delete_user(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
@@ -240,8 +260,9 @@ def get_user_info(
 @user_router.get("/redirect-verify")
 def redirect_email_verify(verification_token: str, request: Request):
     try:
-        identity_provider.email_verify(verification_token)
-        return response(status_code=status.HTTP_200_OK, message="Email verified.")
+        verify_url = identity_provider.redirect_verify(verification_token)
+        context = {"request": request, "verify_url": verify_url}
+        return templates.TemplateResponse("verify_email_sent.html", context=context)
     except Exception as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import List
 
 from backend.train_config import FileInfo, FileLocation
+from backend.utils import handle_exceptions
 from fastapi import HTTPException, UploadFile, status
 
 
@@ -100,6 +101,7 @@ class S3StorageHandler(CloudStorageHandler):
             aws_access_key=aws_access_key, aws_secret_access_key=aws_secret_access_key
         )
 
+    @handle_exceptions
     def create_s3_client(self, aws_access_key=None, aws_secret_access_key=None):
         import boto3
         from botocore import UNSIGNED
@@ -127,6 +129,7 @@ class S3StorageHandler(CloudStorageHandler):
             )
         return s3_client
 
+    @handle_exceptions
     def create_bucket_if_not_exists(self, bucket_name: str):
         from botocore.exceptions import ClientError
 
@@ -165,13 +168,11 @@ class S3StorageHandler(CloudStorageHandler):
                 detail=f"Failed to access bucket {bucket_name}. Error: {str(e)}",
             )
 
+    @handle_exceptions
     def upload_file(self, source_path: str, bucket_name: str, dest_path: str):
-        try:
-            self.s3_client.upload_file(source_path, bucket_name, dest_path)
-            print(f"Uploaded {source_path} to {bucket_name}/{dest_path}.")
-        except Exception as e:
-            print(f"Failed to upload {source_path}. Error: {str(e)}")
+        self.s3_client.upload_file(source_path, bucket_name, dest_path)
 
+    @handle_exceptions
     def upload_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
         for root, _, files in os.walk(source_dir):
             for file in files:
@@ -180,13 +181,11 @@ class S3StorageHandler(CloudStorageHandler):
                 s3_path = os.path.join(dest_dir, relative_path)
                 self.upload_file(local_path, bucket_name, s3_path)
 
+    @handle_exceptions
     def download_file(self, bucket_name: str, source_path: str, dest_path: str):
-        try:
-            self.s3_client.download_file(bucket_name, source_path, dest_path)
-            print(f"Downloaded {source_path} to {dest_path}.")
-        except Exception as e:
-            print(f"Failed to download {source_path}. Error: {str(e)}")
+        self.s3_client.download_file(bucket_name, source_path, dest_path)
 
+    @handle_exceptions
     def download_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
         s3_files = self.list_files(bucket_name=bucket_name, source_path=source_dir)
 
@@ -203,6 +202,7 @@ class S3StorageHandler(CloudStorageHandler):
             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
             self.download_file(bucket_name, object_key, dest_path)
 
+    @handle_exceptions
     def list_files(self, bucket_name: str, source_path: str):
         paginator = self.s3_client.get_paginator("list_objects_v2")
         pages = paginator.paginate(Bucket=bucket_name, Prefix=source_path)
@@ -215,37 +215,25 @@ class S3StorageHandler(CloudStorageHandler):
         ]
         return file_keys
 
+    @handle_exceptions
     def delete_bucket(self, bucket_name: str):
-        try:
-            # List all objects in the bucket and delete them
-            bucket = self.s3_client.list_objects_v2(Bucket=bucket_name)
-            if "Contents" in bucket:
-                for obj in bucket["Contents"]:
-                    self.s3_client.delete_object(Bucket=bucket_name, Key=obj["Key"])
+        # List all objects in the bucket and delete them
+        bucket = self.s3_client.list_objects_v2(Bucket=bucket_name)
+        if "Contents" in bucket:
+            for obj in bucket["Contents"]:
+                self.s3_client.delete_object(Bucket=bucket_name, Key=obj["Key"])
 
-            # Delete the bucket itself
-            self.s3_client.delete_bucket(Bucket=bucket_name)
-            print(f"Deleted bucket {bucket_name} and all its contents.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to delete bucket {bucket_name}. Error: {str(e)}",
-            )
+        # Delete the bucket itself
+        self.s3_client.delete_bucket(Bucket=bucket_name)
 
+    @handle_exceptions
     def delete_path(self, bucket_name: str, source_path: str):
         if source_path.startswith(f"s3://{bucket_name}/"):
             object_key = source_path[len(f"s3://{bucket_name}/") :]
         else:
             object_key = source_path  # If it's already just the object key
 
-        try:
-            self.s3_client.delete_object(Bucket=bucket_name, Key=object_key)
-            print(f"Deleted {source_path} from {bucket_name}.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to delete object {source_path} in {bucket_name}. Error: {str(e)}",
-            )
+        self.s3_client.delete_object(Bucket=bucket_name, Key=object_key)
 
 
 class AzureStorageHandler(CloudStorageHandler):
@@ -262,131 +250,84 @@ class AzureStorageHandler(CloudStorageHandler):
             conn_str=connection_string
         )
 
+    @handle_exceptions
     def container_client(self, bucket_name: str):
         return self._blob_service_client.get_container_client(container=bucket_name)
 
+    @handle_exceptions
     def create_bucket_if_not_exists(self, bucket_name: str):
         container_client = self.container_client(bucket_name=bucket_name)
-        try:
-            if not container_client.exists():
-                container_client.create_container()
-                print(f"Container {bucket_name} created successfully.")
-            else:
-                print(f"Container {bucket_name} already exists.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create or check container {bucket_name}. Error: {str(e)}",
-            )
+        if not container_client.exists():
+            container_client.create_container()
+            print(f"Container {bucket_name} created successfully.")
+        else:
+            print(f"Container {bucket_name} already exists.")
 
+    @handle_exceptions
     def upload_file(self, source_path: str, bucket_name: str, dest_path: str):
         container_client = self.container_client(bucket_name=bucket_name)
 
         blob_client = container_client.get_blob_client(blob=dest_path)
 
-        try:
-            with open(source_path, "rb") as file:
-                blob_client.upload_blob(file.read(), overwrite=True)
-            print(f"Uploaded {source_path} to {bucket_name}/{dest_path}.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to upload file {source_path}. Error: {str(e)}",
-            )
+        with open(source_path, "rb") as file:
+            blob_client.upload_blob(file.read(), overwrite=True)
 
+    @handle_exceptions
     def upload_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
         container_client = self.container_client(bucket_name=bucket_name)
 
-        try:
-            for root, _, files in os.walk(source_dir):
-                for file in files:
-                    local_path = os.path.join(root, file)
-                    relative_path = os.path.relpath(local_path, source_dir)
-                    blob_path = os.path.join(dest_dir, relative_path)
+        for root, _, files in os.walk(source_dir):
+            for file in files:
+                local_path = os.path.join(root, file)
+                relative_path = os.path.relpath(local_path, source_dir)
+                blob_path = os.path.join(dest_dir, relative_path)
 
-                    blob_client = container_client.get_blob_client(blob=blob_path)
-                    with open(local_path, "rb") as data:
-                        blob_client.upload_blob(data.read(), overwrite=True)
+                blob_client = container_client.get_blob_client(blob=blob_path)
+                with open(local_path, "rb") as data:
+                    blob_client.upload_blob(data.read(), overwrite=True)
 
-                    print(f"Uploaded {local_path} to {blob_path}.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to upload folder {source_dir}. Error: {str(e)}",
-            )
-
+    @handle_exceptions
     def download_file(self, bucket_name: str, source_path: str, dest_path: str):
         container_client = self.container_client(bucket_name=bucket_name)
 
         blob_client = container_client.get_blob_client(blob=source_path)
 
-        try:
-            # This returns a StorageStreamDownloader
-            stream = blob_client.download_blob()
-            with open(dest_path, "wb+") as local_file:
-                # Read data in chunks to avoid loading all into memory at once
-                for chunk in stream.chunks():
-                    # Process your data (anything can be done here - 'chunk' is a byte array)
-                    local_file.write(chunk)
-            print(f"Downloaded {source_path} to {dest_path}.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to download file {source_path}. Error: {str(e)}",
-            )
+        # This returns a StorageStreamDownloader
+        stream = blob_client.download_blob()
+        with open(dest_path, "wb+") as local_file:
+            # Read data in chunks to avoid loading all into memory at once
+            for chunk in stream.chunks():
+                # Process your data (anything can be done here - 'chunk' is a byte array)
+                local_file.write(chunk)
 
+    @handle_exceptions
     def download_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
-        try:
-            blobs = self.list_files(bucket_name, source_dir)
-            for blob in blobs:
-                relative_path = os.path.relpath(blob, source_dir)
-                dest_path = os.path.join(dest_dir, relative_path)
+        blobs = self.list_files(bucket_name, source_dir)
+        for blob in blobs:
+            relative_path = os.path.relpath(blob, source_dir)
+            dest_path = os.path.join(dest_dir, relative_path)
 
-                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                self.download_file(bucket_name, blob, dest_path)
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+            self.download_file(bucket_name, blob, dest_path)
 
-            print(f"Downloaded folder {source_dir} to {dest_dir}.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to download folder {source_dir}. Error: {str(e)}",
-            )
-
+    @handle_exceptions
     def list_files(self, bucket_name: str, source_path: str):
         container_client = self.container_client(bucket_name=bucket_name)
-        try:
-            blobs = container_client.list_blobs(name_starts_with=source_path)
-            blob_names = [blob.name for blob in blobs]
-            return blob_names
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to list files in {bucket_name}/{source_path}. Error: {str(e)}",
-            )
+        blobs = container_client.list_blobs(name_starts_with=source_path)
+        blob_names = [blob.name for blob in blobs]
+        return blob_names
 
+    @handle_exceptions
     def delete_bucket(self, bucket_name: str):
-        try:
-            container_client = self.container_client(bucket_name)
-            container_client.delete_container()
-            print(f"Deleted container {bucket_name} and all its contents.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to delete container {bucket_name}. Error: {str(e)}",
-            )
+        container_client = self.container_client(bucket_name)
+        container_client.delete_container()
 
+    @handle_exceptions
     def delete_path(self, bucket_name: str, source_path: str):
         container_client = self.container_client(bucket_name=bucket_name)
         blob_client = container_client.get_blob_client(blob=source_path)
 
-        try:
-            blob_client.delete_blob()
-            print(f"Deleted {source_path} from {bucket_name}.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to delete object {source_path} in {bucket_name}. Error: {str(e)}",
-            )
+        blob_client.delete_blob()
 
 
 class GCPStorageHandler(CloudStorageHandler):
@@ -409,121 +350,71 @@ class GCPStorageHandler(CloudStorageHandler):
                 detail=f"Failed to authenticate using the provided service account file: {str(e)}",
             )
 
+    @handle_exceptions
     def create_bucket_if_not_exists(self, bucket_name: str):
-        try:
-            bucket = self._client.lookup_bucket(bucket_name)
-            if bucket:
-                print(f"Bucket {bucket_name} already exists.")
-            else:
-                self._client.create_bucket(bucket_name)
-                print(f"Bucket {bucket_name} created successfully.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create or check bucket {bucket_name}. Error: {str(e)}",
-            )
+        bucket = self._client.lookup_bucket(bucket_name)
+        if bucket:
+            print(f"Bucket {bucket_name} already exists.")
+        else:
+            self._client.create_bucket(bucket_name)
+            print(f"Bucket {bucket_name} created successfully.")
 
+    @handle_exceptions
     def upload_file(self, source_path: str, bucket_name: str, dest_path: str):
-        try:
-            bucket = self._client.bucket(bucket_name)
-            blob = bucket.blob(dest_path)
+        bucket = self._client.bucket(bucket_name)
+        blob = bucket.blob(dest_path)
 
-            with open(source_path, "rb") as file:
-                blob.upload_from_file(file)
+        with open(source_path, "rb") as file:
+            blob.upload_from_file(file)
 
-            print(f"Uploaded {source_path} to {bucket_name}/{dest_path}.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to upload file {source_path}. Error: {str(e)}",
-            )
-
+    @handle_exceptions
     def upload_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
-        try:
-            for root, _, files in os.walk(source_dir):
-                for file in files:
-                    local_path = os.path.join(root, file)
-                    relative_path = os.path.relpath(local_path, source_dir)
-                    cloud_path = os.path.join(dest_dir, relative_path)
+        for root, _, files in os.walk(source_dir):
+            for file in files:
+                local_path = os.path.join(root, file)
+                relative_path = os.path.relpath(local_path, source_dir)
+                cloud_path = os.path.join(dest_dir, relative_path)
 
-                    self.upload_file(local_path, bucket_name, cloud_path)
+                self.upload_file(local_path, bucket_name, cloud_path)
 
-            print(f"Uploaded folder {source_dir} to {bucket_name}/{dest_dir}.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to upload folder {source_dir}. Error: {str(e)}",
-            )
-
+    @handle_exceptions
     def download_file(self, bucket_name: str, source_path: str, dest_path: str):
-        try:
-            bucket = self._client.bucket(bucket_name)
-            blob = bucket.blob(source_path)
-
-            blob.download_to_filename(dest_path)
-            print(f"Downloaded {source_path} to {dest_path}.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to download file {source_path}. Error: {str(e)}",
-            )
-
-    def download_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
-        try:
-            blobs = self.list_files(bucket_name, source_dir)
-            for blob_name in blobs:
-                relative_path = os.path.relpath(blob_name, source_dir)
-                dest_path = os.path.join(dest_dir, relative_path)
-
-                os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                self.download_file(bucket_name, blob_name, dest_path)
-
-            print(f"Downloaded folder {source_dir} to {dest_dir}.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to download folder {source_dir}. Error: {str(e)}",
-            )
-
-    def list_files(self, bucket_name: str, source_path: str):
-        try:
-            bucket = self._client.bucket(bucket_name)
-            blobs = bucket.list_blobs(prefix=source_path)
-            blob_names = [blob.name for blob in blobs]
-            return blob_names
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to list files in {bucket_name}/{source_path}. Error: {str(e)}",
-            )
-
-    def delete_bucket(self, bucket_name: str):
-        try:
-            bucket = self._client.bucket(bucket_name)
-
-            # List and delete all objects in the bucket
-            blobs = list(bucket.list_blobs())
-            for blob in blobs:
-                blob.delete()
-
-            # Delete the bucket
-            bucket.delete()
-            print(f"Deleted bucket {bucket_name} and all its contents.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to delete bucket {bucket_name}. Error: {str(e)}",
-            )
-
-    def delete_path(self, bucket_name: str, source_path: str):
         bucket = self._client.bucket(bucket_name)
         blob = bucket.blob(source_path)
 
-        try:
+        blob.download_to_filename(dest_path)
+
+    @handle_exceptions
+    def download_folder(self, bucket_name: str, source_dir: str, dest_dir: str):
+        blobs = self.list_files(bucket_name, source_dir)
+        for blob_name in blobs:
+            relative_path = os.path.relpath(blob_name, source_dir)
+            dest_path = os.path.join(dest_dir, relative_path)
+
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+            self.download_file(bucket_name, blob_name, dest_path)
+
+    @handle_exceptions
+    def list_files(self, bucket_name: str, source_path: str):
+        bucket = self._client.bucket(bucket_name)
+        blobs = bucket.list_blobs(prefix=source_path)
+        blob_names = [blob.name for blob in blobs]
+        return blob_names
+
+    @handle_exceptions
+    def delete_bucket(self, bucket_name: str):
+        bucket = self._client.bucket(bucket_name)
+
+        # List and delete all objects in the bucket
+        blobs = list(bucket.list_blobs())
+        for blob in blobs:
             blob.delete()
-            print(f"Deleted {source_path} from {bucket_name}.")
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to delete object {source_path} in {bucket_name}. Error: {str(e)}",
-            )
+
+        # Delete the bucket
+        bucket.delete()
+
+    @handle_exceptions
+    def delete_path(self, bucket_name: str, source_path: str):
+        bucket = self._client.bucket(bucket_name)
+        blob = bucket.blob(source_path)
+        blob.delete()

@@ -85,6 +85,10 @@ class CloudStorageHandler(ABC):
     def delete_bucket(self, bucket_name: str):
         pass
 
+    @abstractmethod
+    def delete_path(self, bucket_name: str, source_path: str):
+        pass
+
 
 class S3StorageHandler(CloudStorageHandler):
     """
@@ -124,7 +128,6 @@ class S3StorageHandler(CloudStorageHandler):
         return s3_client
 
     def create_bucket_if_not_exists(self, bucket_name: str):
-        import boto3
         from botocore.exceptions import ClientError
 
         try:
@@ -136,13 +139,6 @@ class S3StorageHandler(CloudStorageHandler):
                 try:
                     self.s3_client.create_bucket(
                         Bucket=bucket_name,
-                        CreateBucketConfiguration={
-                            "LocationConstraint": (
-                                boto3.session.Session().region_name
-                                if boto3.session.Session().region_name
-                                else "us-east-1"
-                            )
-                        },
                     )
                     print(f"Bucket {bucket_name} created successfully.")
                 except ClientError as e:
@@ -234,6 +230,16 @@ class S3StorageHandler(CloudStorageHandler):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete bucket {bucket_name}. Error: {str(e)}",
+            )
+
+    def delete_path(self, bucket_name: str, source_path: str):
+        try:
+            self.s3_client.delete_object(Bucket=bucket_name, Key=source_path)
+            print(f"Deleted {source_path} from {bucket_name}.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete object {source_path} in {bucket_name}. Error: {str(e)}",
             )
 
 
@@ -364,6 +370,19 @@ class AzureStorageHandler(CloudStorageHandler):
                 detail=f"Failed to delete container {bucket_name}. Error: {str(e)}",
             )
 
+    def delete_path(self, bucket_name: str, source_path: str):
+        container_client = self.container_client(bucket_name=bucket_name)
+        blob_client = container_client.get_blob_client(blob=source_path)
+
+        try:
+            blob_client.delete_blob()
+            print(f"Deleted {source_path} from {bucket_name}.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete object {source_path} in {bucket_name}. Error: {str(e)}",
+            )
+
 
 class GCPStorageHandler(CloudStorageHandler):
     """
@@ -489,4 +508,17 @@ class GCPStorageHandler(CloudStorageHandler):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete bucket {bucket_name}. Error: {str(e)}",
+            )
+
+    def delete_path(self, bucket_name: str, source_path: str):
+        bucket = self._client.bucket(bucket_name)
+        blob = bucket.blob(source_path)
+
+        try:
+            blob.delete()
+            print(f"Deleted {source_path} from {bucket_name}.")
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to delete object {source_path} in {bucket_name}. Error: {str(e)}",
             )

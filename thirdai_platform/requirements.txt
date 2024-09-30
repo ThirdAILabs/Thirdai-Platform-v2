@@ -9,6 +9,7 @@ bs4
 pydantic
 unidecode
 boto3
+apscheduler
 
 # app
 gunicorn

@@ -91,16 +91,15 @@ class S3StorageHandler(CloudStorageHandler):
     S3 storage handler implementation.
     """
 
-    def __init__(self):
-        self.s3_client = self.create_s3_client()
+    def __init__(self, aws_access_key=None, aws_secret_access_key=None):
+        self.s3_client = self.create_s3_client(
+            aws_access_key=aws_access_key, aws_secret_access_key=aws_secret_access_key
+        )
 
-    def create_s3_client(self):
+    def create_s3_client(self, aws_access_key=None, aws_secret_access_key=None):
         import boto3
         from botocore import UNSIGNED
         from botocore.client import Config
-
-        aws_access_key = os.getenv("AWS_ACCESS_KEY")
-        aws_secret_access_key = os.getenv("AWS_ACCESS_SECRET")
 
         if not aws_access_key or not aws_secret_access_key:
             config = Config(
@@ -371,12 +370,20 @@ class GCPStorageHandler(CloudStorageHandler):
     GCP storage handler implementation.
     """
 
-    def __init__(self):
+    def __init__(self, credentials_file_path: str):
         from google.cloud import storage
+        from google.oauth2 import service_account
 
-        self._client = (
-            storage.Client()
-        )  # Checks for the `GOOGLE_APPLICATION_CREDENTIALS` environment variable, which points to a service account key file.
+        try:
+            credentials = service_account.Credentials.from_service_account_file(
+                credentials_file_path
+            )
+            self._client = storage.Client(credentials=credentials)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to authenticate using the provided service account file: {str(e)}",
+            )
 
     def create_bucket_if_not_exists(self, bucket_name: str):
         try:

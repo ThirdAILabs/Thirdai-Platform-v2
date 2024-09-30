@@ -124,7 +124,6 @@ class S3StorageHandler(CloudStorageHandler):
         return s3_client
 
     def create_bucket_if_not_exists(self, bucket_name: str):
-        import boto3
         from botocore.exceptions import ClientError
 
         try:

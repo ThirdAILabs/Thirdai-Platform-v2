@@ -233,8 +233,13 @@ class S3StorageHandler(CloudStorageHandler):
             )
 
     def delete_path(self, bucket_name: str, source_path: str):
+        if source_path.startswith(f"s3://{bucket_name}/"):
+            object_key = source_path[len(f"s3://{bucket_name}/") :]
+        else:
+            object_key = source_path  # If it's already just the object key
+
         try:
-            self.s3_client.delete_object(Bucket=bucket_name, Key=source_path)
+            self.s3_client.delete_object(Bucket=bucket_name, Key=object_key)
             print(f"Deleted {source_path} from {bucket_name}.")
         except Exception as e:
             raise HTTPException(

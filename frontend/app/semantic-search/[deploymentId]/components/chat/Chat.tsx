@@ -124,9 +124,9 @@ const labels = [
 
 // Remove sentimentIcons and replace with sentiment text mapping
 const sentimentText = {
-  '2': 'positive', // Positive sentiment
-  '1': 'neutral', // Neutral sentiment
-  '0': 'negative', // Negative sentiment
+  positive: 'positive', // Positive sentiment
+  neutral: 'neutral',   // Neutral sentiment
+  negative: 'negative', // Negative sentiment
 };
 
 // ChatBox component to display human/AI message with sentiment
@@ -141,16 +141,18 @@ function ChatBox({
 }) {
   const sentimentColor = (sentiment: string) => {
     switch (sentiment) {
-      case '2': // Positive sentiment
+      case 'positive': // Positive sentiment
         return 'green';
-      case '1': // Neutral sentiment
+      case 'neutral': // Neutral sentiment
         return 'orange';
-      case '0': // Negative sentiment
+      case 'negative': // Negative sentiment
         return 'red';
       default:
         return '#888'; // Default gray for unknown sentiment
     }
   };
+
+  console.log('sentiment', sentiment)
 
   return (
     <ChatBoxContainer>
@@ -188,7 +190,7 @@ function ChatBox({
               whiteSpace: 'nowrap',
             }}
           >
-            [sentiment: {sentimentText[sentiment as '0' | '1' | '2']}]
+            [sentiment: {sentimentText[sentiment as 'positive' | 'neutral' | 'negative']}]
           </span>
         )}
       </ChatBoxContent>
@@ -294,18 +296,24 @@ export default function Chat({
 
     try {
       const result = await predictSentiment(messageContent);
-      const predictions = result.predicted_classes;
+      const predictions = result.predicted_classes; // Array of [sentiment, score]
       console.log('Sentiment Prediction:', result);
 
       // Find the sentiment with the highest score
-      const maxSentiment = predictions.reduce((prev, current) => {
+      const [maxSentiment, maxScore] = predictions.reduce((prev, current) => {
         return current[1] > prev[1] ? current : prev;
-      })[0]; // Select sentiment class ('2', '1', '0')
+      }); // Select sentiment class ('positive', 'neutral', 'negative') and score
 
-      // Store the sentiment for the current message index
+      // Apply the additional rule: if sentiment is positive or negative, it must have a score >= 0.7
+      let finalSentiment = maxSentiment;
+      if ((maxSentiment === 'positive' || maxSentiment === 'negative') && maxScore < 0.7) {
+        finalSentiment = 'neutral'; // Override to neutral if the score is below 0.7
+      }
+
+      // Store the final sentiment for the current message index
       setSentiments((prev) => ({
         ...prev,
-        [messageIndex]: maxSentiment, // Save sentiment for this message
+        [messageIndex]: finalSentiment, // Save the final sentiment for this message
       }));
     } catch (error) {
       console.error('Error classifying sentiment:', error);

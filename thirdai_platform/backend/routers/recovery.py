@@ -5,7 +5,6 @@ from typing import Optional, Type
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from auth.jwt import verify_access_token
 from backend.file_handler import (
     AzureStorageHandler,
     CloudStorageHandler,
@@ -13,7 +12,7 @@ from backend.file_handler import (
     S3StorageHandler,
 )
 from backend.utils import model_bazaar_path, response
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 recovery_router = APIRouter()
@@ -47,7 +46,8 @@ class GCPBackupConfig(BackupConfig):
     gcp_credentials_file_path: str = Field(
         ..., description="GCP Credentials JSON File Path"
     )
-    
+
+
 def get_cloud_config_class(cloud_provider: str) -> Type[BackupConfig]:
     if cloud_provider == "s3":
         return S3BackupConfig
@@ -62,7 +62,6 @@ def get_cloud_config_class(cloud_provider: str) -> Type[BackupConfig]:
         )
 
 
-
 def get_cloud_storage_handler(config: BackupConfig):
     if isinstance(config, S3BackupConfig):
         return S3StorageHandler(
@@ -70,9 +69,7 @@ def get_cloud_storage_handler(config: BackupConfig):
             aws_secret_access_key=config.aws_secret_access_key,
         )
     elif isinstance(config, AzureBackupConfig):
-        return AzureStorageHandler(
-            config.azure_account_name, config.azure_account_key
-        )
+        return AzureStorageHandler(config.azure_account_name, config.azure_account_key)
     elif isinstance(config, GCPBackupConfig):
         return GCPStorageHandler(config.gcp_credentials_file_path)
     else:
@@ -80,7 +77,6 @@ def get_cloud_storage_handler(config: BackupConfig):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported cloud provider: {config.cloud_provider}",
         )
-
 
 
 def perform_backup(
@@ -164,17 +160,17 @@ def backup_to_s3(config: dict):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="DATABASE_URI environment variable is not set.",
         )
-        
+
     cloud_provider = config.get("cloud_provider")
     if not cloud_provider:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="cloud_provider field is required."
+            detail="cloud_provider field is required.",
         )
-        
+
     # Dynamically select the correct Pydantic model for the cloud provider
     ConfigClass = get_cloud_config_class(cloud_provider)
-    
+
     # Convert the incoming dictionary to the correct Pydantic model
     config_object = ConfigClass(**config)
 
@@ -203,7 +199,11 @@ def backup_to_s3(config: dict):
 
     # Perform a one-time backup
     perform_backup(
-        cloud_handler, config_object.bucket_name, db_uri, local_dir, config_object.backup_limit
+        cloud_handler,
+        config_object.bucket_name,
+        db_uri,
+        local_dir,
+        config_object.backup_limit,
     )
 
     return response(

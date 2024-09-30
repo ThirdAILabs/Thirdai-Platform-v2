@@ -41,6 +41,7 @@ job "keycloak" {
           KEYCLOAK_ADMIN_PASSWORD      = "adminpass"
 
           # Regular Keycloak user credentials
+          # TODO(pratik): See whether we need them or not.
           KEYCLOAK_USER                = "user"
           KEYCLOAK_PASSWORD            = "userpass"
 

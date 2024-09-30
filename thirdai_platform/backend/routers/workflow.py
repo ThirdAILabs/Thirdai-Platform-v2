@@ -223,8 +223,6 @@ def add_models(
     """
     workflow = get_workflow(session, body.workflow_id, authenticated_user)
 
-    # Bulk add models to reduce queries
-    new_workflow_models = []
     for model_id, component in zip(body.model_ids, body.components):
         model: schema.Model = session.query(schema.Model).get(model_id)
         if not model:
@@ -261,10 +259,10 @@ def add_models(
         workflow_model = schema.WorkflowModel(
             workflow_id=workflow.id, model_id=model.id, component=component
         )
-        new_workflow_models.append(workflow_model)
+        session.add(workflow_model)
 
-    session.bulk_save_objects(new_workflow_models)
     session.commit()
+    session.refresh(workflow)
 
     return response(
         status_code=status.HTTP_200_OK,
@@ -363,6 +361,7 @@ def delete_models(
         session.delete(workflow_model)
 
     session.commit()
+    session.refresh(workflow)
 
     return response(
         status_code=status.HTTP_200_OK,

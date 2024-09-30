@@ -34,7 +34,7 @@ if IDENTITY_PROVIDER == "keycloak":
         username=os.getenv("KEYCLOAK_ADMIN_USER", "kc_admin"),
         password=os.getenv("KEYCLOAK_ADMIN_PASSWORD", "password"),
         realm_name="master",
-        verify=True,  # Optional: False if you're skipping SSL verification
+        verify=True,  # Optional: False if we are skipping SSL verification
     )
 
     def create_client(client_name: str, redirect_uris: list):

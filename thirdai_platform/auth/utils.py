@@ -99,32 +99,6 @@ if IDENTITY_PROVIDER == "keycloak":
 
     initialize_keycloak_roles()
 
-    def sync_role_in_keycloak(user_email: str, role_name: str, action: str):
-        """Synchronizes roles in Keycloak based on the action (add or remove)."""
-        keycloak_user = keycloak_admin.get_user_by_email(user_email)
-        if not keycloak_user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found in Keycloak",
-            )
-
-        keycloak_roles = keycloak_admin.get_realm_roles()
-        role = next((r for r in keycloak_roles if r["name"] == role_name), None)
-        if not role:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Role not found in Keycloak",
-            )
-
-        if action == "add":
-            keycloak_admin.assign_realm_roles(user_id=keycloak_user["id"], roles=[role])
-        elif action == "remove":
-            keycloak_admin.remove_realm_roles(user_id=keycloak_user["id"], roles=[role])
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid action"
-            )
-
     def get_token(client_id, username, password):
         """Obtain an access token from Keycloak."""
         data = {
@@ -157,9 +131,6 @@ else:
         pass
 
     def initialize_keycloak_roles():
-        pass
-
-    def sync_role_in_keycloak(*args, **kwargs):
         pass
 
     def get_token(*args, **kwargs):

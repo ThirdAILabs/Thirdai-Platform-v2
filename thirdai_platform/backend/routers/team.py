@@ -5,7 +5,6 @@ from backend.auth_dependencies import (
     is_model_owner,
     team_admin_or_global_admin,
 )
-from auth.utils import sync_role_in_keycloak
 from backend.utils import get_model_from_identifier, response
 from database import schema
 from database.session import get_session
@@ -97,8 +96,6 @@ def add_user_to_team(
     session.add(new_user_team)
     session.commit()
 
-    # sync_role_in_keycloak(user.email, role, action="add")
-
     return response(
         status_code=status.HTTP_200_OK,
         message="User added to the team successfully",
@@ -159,8 +156,6 @@ def assign_team_admin(
         session.add(user_team)
 
     session.commit()
-
-    # sync_role_in_keycloak(email, schema.Role.team_admin.name, action="add")
 
     return response(
         status_code=status.HTTP_200_OK,
@@ -380,8 +375,6 @@ def remove_team_admin(
 
     user_team.role = schema.Role.user
     session.commit()
-
-    # sync_role_in_keycloak(email, schema.Role.team_admin.name, action="remove")
 
     return response(
         status_code=status.HTTP_200_OK,

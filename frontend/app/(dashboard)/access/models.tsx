@@ -208,90 +208,104 @@ export default function Models() {
     return (
         <div className="mb-12">
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Models</h3>
-            <table className="min-w-full bg-white border border-gray-300">
-                <thead>
-                    <tr className="bg-gray-100">
-                        <th className="py-2 px-4 border-b">Name</th>
-                        <th className="py-2 px-4 border-b">Type</th>
-                        <th className="py-2 px-4 border-b">Owner</th>
-                        <th className="py-2 px-4 border-b">Team</th>
-                        <th className="py-2 px-4 border-b">Actions</th>
+            <table className="w-full bg-white rounded-lg shadow-md overflow-hidden">
+                <thead className="bg-gray-100">
+                    <tr>
+                        <th className="py-3 px-4 text-left text-gray-700">Model Name</th>
+                        <th className="py-3 px-4 text-left text-gray-700">Model Type</th>
+                        <th className="py-3 px-4 text-left text-gray-700">Access Details</th>
+                        <th className="py-3 px-4 text-left text-gray-700">Edit Model Access</th>
+                        <th className="py-3 px-4 text-left text-gray-700">Delete Model</th>
                     </tr>
                 </thead>
                 <tbody>
                     {models.map((model, index) => (
-                        <tr key={model.modelId} className="hover:bg-gray-50">
-                            <td className="py-2 px-4 border-b">{model.name}</td>
-                            <td className="py-2 px-4 border-b">
+                        <tr key={index} className="border-t">
+                            <td className="py-3 px-4 text-gray-800">{model.name}</td>
+                            <td className="py-3 px-4 text-gray-800">{model.type}</td>
+                            <td className="py-3 px-4 text-gray-800">
+                                {model.type === 'Private Model' && (
+                                    <div>
+                                        <div>Owner: {model.owner}</div>
+                                        <div>Users: {model.users?.join(', ') || 'None'}</div>
+                                    </div>
+                                )}
+                                {model.type === 'Protected Model' && (
+                                    <div>
+                                        <div>Owner: {model.owner}</div>
+                                        <div>
+                                            Team: {teams.find((team) => team.id === model.team)?.name || 'None'}
+                                        </div>
+                                    </div>
+                                )}
+                                {model.type === 'Public Model' && <div>Owner: {model.owner}</div>}
+                            </td>
+                            <td className="py-3 px-4">
                                 {editingIndex === index ? (
-                                    <select
-                                        value={selectedType || model.type}
-                                        onChange={(e) => setSelectedType(e.target.value as any)}
-                                        className="border rounded px-2 py-1"
-                                    >
-                                        <option value="Private Model">Private Model</option>
-                                        <option value="Protected Model">Protected Model</option>
-                                        <option value="Public Model">Public Model</option>
-                                    </select>
+                                    <div className="flex flex-col space-y-2">
+                                        <select
+                                            value={selectedType || model.type}
+                                            onChange={(e) =>
+                                                setSelectedType(
+                                                    e.target.value as
+                                                    | 'Private Model'
+                                                    | 'Protected Model'
+                                                    | 'Public Model'
+                                                )
+                                            }
+                                            className="border border-gray-300 rounded px-4 py-2"
+                                        >
+                                            <option value="Private Model">Private Model</option>
+                                            <option value="Protected Model">Protected Model</option>
+                                            <option value="Public Model">Public Model</option>
+                                        </select>
+
+                                        {selectedType === 'Protected Model' && (
+                                            <select
+                                                value={selectedTeam || ''}
+                                                onChange={(e) => setSelectedTeam(e.target.value)}
+                                                className="border border-gray-300 rounded px-4 py-2"
+                                            >
+                                                <option value="" disabled>
+                                                    Select Team
+                                                </option>
+                                                {teams.map((team) => (
+                                                    <option key={team.id} value={team.id}>
+                                                        {team.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                        <div className="flex space-x-2 mt-2">
+                                            <Button
+                                                onClick={() => handleModelTypeChange(index)}
+                                                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                                            >
+                                                Confirm
+                                            </Button>
+                                            <Button
+                                                onClick={() => setEditingIndex(null)}
+                                                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </div>
+                                    </div>
                                 ) : (
-                                    model.type
+                                    <Button onClick={() => setEditingIndex(index)} variant="contained">
+                                        Change Access
+                                    </Button>
                                 )}
                             </td>
-                            <td className="py-2 px-4 border-b">{model.owner}</td>
-                            <td className="py-2 px-4 border-b">
-                                {editingIndex === index && selectedType === 'Protected Model' ? (
-                                    <TextField
-                                        value={selectedTeam || ''}
-                                        onChange={(e) => setSelectedTeam(e.target.value)}
-                                        placeholder="Enter team ID"
-                                        size="small"
-                                    />
-                                ) : (
-                                    model.team || 'N/A'
-                                )}
-                            </td>
-                            <td className="py-2 px-4 border-b">
-                                {editingIndex === index ? (
-                                    <>
-                                        <Button
-                                            onClick={() => handleModelTypeChange(index)}
-                                            variant="contained"
-                                            color="primary"
-                                            size="small"
-                                            className="mr-2"
-                                        >
-                                            Save
-                                        </Button>
-                                        <Button
-                                            onClick={() => setEditingIndex(null)}
-                                            variant="outlined"
-                                            color="secondary"
-                                            size="small"
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Button
-                                            onClick={() => setEditingIndex(index)}
-                                            variant="outlined"
-                                            color="primary"
-                                            size="small"
-                                            className="mr-2"
-                                        >
-                                            Edit
-                                        </Button>
-                                        <Button
-                                            onClick={() => handleDeleteModel(index)}
-                                            variant="outlined"
-                                            color="secondary"
-                                            size="small"
-                                        >
-                                            Delete
-                                        </Button>
-                                    </>
-                                )}
+
+                            <td className="py-3 px-4">
+                                <Button
+                                    onClick={() => handleDeleteModel(index)}
+                                    color="error"
+                                    variant="contained"
+                                >
+                                    Delete
+                                </Button>
                             </td>
                         </tr>
                     ))}

@@ -1,5 +1,6 @@
 import datetime
 import os
+import shutil
 import subprocess
 from typing import Optional, Type
 
@@ -91,10 +92,28 @@ def perform_backup(
     dump_file_path = os.path.join(local_dir, f"db_backup_{timestamp}.sql")
     dump_postgres_db_to_file(db_uri, dump_file_path)
 
-    cloud_handler.upload_file(dump_file_path, bucket_name, f"db_backup_{timestamp}.sql")
-    cloud_handler.upload_folder(bucket_name, local_dir, f"backups_{timestamp}")
+    zip_file_path = os.path.join(local_dir, f"backup_{timestamp}")
+    shutil.make_archive(zip_file_path, "zip", local_dir)
+
+    # Upload the zipped directory to the cloud
+    cloud_handler.upload_file(
+        f"{zip_file_path}.zip", bucket_name, f"backup_{timestamp}.zip"
+    )
 
     manage_backup_limit(cloud_handler, bucket_name, backup_limit)
+
+    # Delete the local copy of the zip file and db dump
+    try:
+        if os.path.exists(f"{zip_file_path}.zip"):
+            os.remove(f"{zip_file_path}.zip")
+            print(f"Deleted local zip file: {zip_file_path}.zip")
+
+        if os.path.exists(dump_file_path):
+            os.remove(dump_file_path)
+            print(f"Deleted local DB dump file: {dump_file_path}")
+
+    except Exception as e:
+        print(f"Error while deleting local files: {str(e)}")
 
     print(f"Backup to {cloud_handler.__class__.__name__} completed successfully.")
 
@@ -103,7 +122,7 @@ def manage_backup_limit(
     cloud_handler: CloudStorageHandler, bucket_name: str, backup_limit: int
 ):
     # List the files in the bucket, assuming timestamped backups
-    all_backups = cloud_handler.list_files(bucket_name, "backups_")
+    all_backups = cloud_handler.list_files(bucket_name, "backup_")
 
     # Sort the backups by timestamp (assumed to be part of the filename)
     sorted_backups = sorted(all_backups, key=lambda x: x.split("_")[-1], reverse=True)

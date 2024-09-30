@@ -172,6 +172,7 @@ export default function Teams() {
 
             await addUserToTeam(user.email, team.id);
             await getTeams();
+            await getUsers(); // Add this line
 
             setSelectedTeamForAdd('');
             setNewMember('');
@@ -199,6 +200,7 @@ export default function Teams() {
 
             await deleteUserFromTeam(user.email, team.id);
             await getTeams();
+            await getUsers(); // Add this line
 
             setSelectedTeamForRemove('');
             setMemberToRemove('');
@@ -242,6 +244,9 @@ export default function Teams() {
             try {
                 await assignTeamAdmin(user.email, selectedTeam.id);
                 await getTeams();
+                await getUsers(); // Add this line
+                setSelectedTeamForAddAdmin('');
+                setNewAdmin('');
             } catch (error) {
                 console.error('Error adding admin:', error);
                 alert('Failed to add admin.');
@@ -268,6 +273,7 @@ export default function Teams() {
             try {
                 await removeTeamAdmin(user.email, selectedTeam.id);
                 await getTeams();
+                await getUsers(); // Add this line
 
                 setSelectedTeamForRemoveAdmin('');
                 setAdminToRemove('');
@@ -297,35 +303,39 @@ export default function Teams() {
     };
 
     return (
-        <div className="mb-12">
+        < div className="mb-12" >
             <h3 className="text-xl font-semibold text-gray-800 mb-4">Teams</h3>
-            {teams.map((team, index) => (
-                <div key={index} className="bg-gray-100 p-4 rounded-lg shadow-md mb-8">
-                    <h4 className="text-lg font-semibold text-gray-800">{team.name}</h4>
-                    <div className="text-gray-700 mb-2">
-                        <span className="font-semibold">Admins:</span> {team.admins.join(', ')}
+            {
+                teams.map((team, index) => (
+                    <div key={index} className="bg-gray-100 p-4 rounded-lg shadow-md mb-8">
+                        <h4 className="text-lg font-semibold text-gray-800">{team.name}</h4>
+                        <div className="text-gray-700 mb-2">
+                            <span className="font-semibold">Admins:</span> {team.admins.join(', ')}
+                        </div>
+                        <div className="text-gray-700 mb-2">
+                            <span className="font-semibold">Members:</span> {team.members.join(', ')}
+                        </div>
+                        <div className="text-gray-700">
+                            <h5 className="text-md font-semibold text-gray-800">Protected Models</h5>
+                            <ul className="list-disc pl-5">
+                                {models
+                                    .filter(
+                                        (model) => model.type === 'Protected Model' && model.team === team.name
+                                    )
+                                    .map((model, modelIndex) => (
+                                        <li key={modelIndex}>{model.name}</li>
+                                    ))}
+                            </ul>
+                        </div>
+                        <Button
+                            onClick={() => deleteTeam(team.name)}
+                            className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                        >
+                            Delete Team
+                        </Button>
                     </div>
-                    <div className="text-gray-700 mb-2">
-                        <span className="font-semibold">Members:</span> {team.members.join(', ')}
-                    </div>
-                    <div className="text-gray-700">
-                        <h5 className="text-md font-semibold text-gray-800">Protected Models</h5>
-                        <ul className="list-disc pl-5">
-                            {models
-                                .filter((model) => model.type === 'Protected Model' && model.team === team.name)
-                                .map((model, modelIndex) => (
-                                    <li key={modelIndex}>{model.name}</li>
-                                ))}
-                        </ul>
-                    </div>
-                    <Button
-                        onClick={() => deleteTeam(team.name)}
-                        className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                    >
-                        Delete Team
-                    </Button>
-                </div>
-            ))}
+                ))
+            }
 
             {/* Create New Team */}
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
@@ -338,7 +348,7 @@ export default function Teams() {
                         onChange={(e) => setNewTeamName(e.target.value)}
                     />
                     <AutocompleteInput
-                        key={newTeamAdmin}
+                        key={newTeamAdmin} // Use a dynamic key to force re-render
                         value={newTeamAdmin}
                         onChange={handleSingleChange(setNewTeamAdmin)}
                         options={users.map((user) => user.name)}
@@ -382,8 +392,9 @@ export default function Teams() {
                             </option>
                         ))}
                     </select>
+
                     <AutocompleteInput
-                        key={selectedTeamForAdd + newMember}
+                        key={selectedTeamForAdd + newMember} // Use a key to force re-render
                         value={newMember}
                         onChange={handleSingleChange(setNewMember)}
                         options={
@@ -423,7 +434,7 @@ export default function Teams() {
                         ))}
                     </select>
                     <AutocompleteInput
-                        key={selectedTeamForRemove + memberToRemove}
+                        key={selectedTeamForRemove + memberToRemove} // Use a dynamic key to force re-render
                         value={memberToRemove}
                         onChange={handleSingleChange(setMemberToRemove)}
                         options={
@@ -456,7 +467,7 @@ export default function Teams() {
                         ))}
                     </select>
                     <AutocompleteInput
-                        key={selectedTeamForAddAdmin + newAdmin}
+                        key={selectedTeamForAddAdmin + newAdmin} // Use a dynamic key to force re-render
                         value={newAdmin}
                         onChange={handleSingleChange(setNewAdmin)}
                         options={users.map((user) => user.name)}
@@ -485,12 +496,13 @@ export default function Teams() {
                         ))}
                     </select>
                     <AutocompleteInput
-                        key={selectedTeamForRemoveAdmin + adminToRemove}
+                        key={selectedTeamForRemoveAdmin + adminToRemove} // Use a dynamic key to force re-render
                         value={adminToRemove}
                         onChange={handleSingleChange(setAdminToRemove)}
                         options={
                             selectedTeamForRemoveAdmin
-                                ? teams.find((team) => team.name === selectedTeamForRemoveAdmin)?.members || []
+                                ? teams.find((team) => team.name === selectedTeamForRemoveAdmin)?.members ||
+                                []
                                 : []
                         }
                         placeholder="Admin to Remove"
@@ -500,6 +512,6 @@ export default function Teams() {
                     </Button>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

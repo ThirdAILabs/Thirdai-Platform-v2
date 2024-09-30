@@ -579,13 +579,31 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
   return (
     <div>
       {/* Step Navigation */}
-      <div className="mb-4">
+      <div
+        className="mb-4"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'flex-start',
+          rowGap: '15px',
+          columnGap: '15px',
+        }}
+      >
         {steps.map((step, index) => (
           <Button
             key={index}
             variant={index === currentStep ? 'contained' : 'outlined'}
             onClick={() => setCurrentStep(index)}
-            style={{ marginRight: '10px' }}
+            style={{
+              marginBottom: '10px',
+              width: '140px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textTransform: 'none',
+              lineHeight: '1.2',
+            }}
           >
             {step.title}
           </Button>

@@ -111,7 +111,7 @@ def manage_backup_limit(
     # Keep only the last `backup_limit` backups, delete the rest
     if len(sorted_backups) > backup_limit:
         for backup in sorted_backups[backup_limit:]:
-            cloud_handler.delete_object(bucket_name, backup)
+            cloud_handler.delete_path(bucket_name, backup)
             print(f"Deleted old backup: {backup}")
 
 

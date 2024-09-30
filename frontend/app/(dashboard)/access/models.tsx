@@ -4,6 +4,8 @@ import {
     fetchAllModels,
     updateModelAccessLevel,
     deleteModel,
+    fetchAllTeams,
+    fetchAllUsers
 } from '@/lib/backend';
 import { UserContext } from '../../user_wrapper';
 
@@ -27,11 +29,28 @@ type Model = {
     trainingTime: string;
 };
 
+type Team = {
+    id: string;
+    name: string;
+    admins: string[];
+    members: string[];
+};
+
+type User = {
+    id: string;
+    name: string;
+    email: string;
+    role: 'Member' | 'Team Admin' | 'Global Admin';
+    teams: { id: string; name: string; role: 'Member' | 'team_admin' | 'Global Admin' }[];
+};
+
 export default function Models() {
     const { user } = React.useContext(UserContext);
 
     // State variables
     const [models, setModels] = useState<Model[]>([]);
+    const [teams, setTeams] = useState<Team[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [selectedType, setSelectedType] = useState<'Private Model' | 'Protected Model' | 'Public Model' | null>(null);
     const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
@@ -72,6 +91,69 @@ export default function Models() {
         }
     };
 
+    useEffect(() => {
+        getUsers();
+    }, []);
+
+    const getUsers = async () => {
+        try {
+            const response = await fetchAllUsers();
+            console.log('Fetched Users:', response.data);
+            const userData = response.data.map(
+                (user): User => ({
+                    id: user.id,
+                    name: user.username,
+                    email: user.email,
+                    role: user.global_admin ? 'Global Admin' : 'Member',
+                    teams: user.teams.map((team) => ({
+                        id: team.team_id,
+                        name: team.team_name,
+                        role: team.role,
+                    })),
+
+                })
+            );
+            setUsers(userData);
+        } catch (error) {
+            console.error('Failed to fetch users', error);
+            alert('Failed to fetch users' + error);
+        }
+    };
+
+    useEffect(() => {
+        getTeams();
+    }, [users]);
+    const getTeams = async () => {
+        try {
+            const response = await fetchAllTeams();
+            const teamData = response.data.map((team): Team => {
+                const members: string[] = [];
+                const admins: string[] = [];
+
+                users.forEach((user) => {
+                    const userTeam = user.teams.find((ut) => ut.id === team.id);
+                    if (userTeam) {
+                        members.push(user.name);
+                        if (userTeam.role === 'team_admin') {
+                            admins.push(user.name);
+                        }
+                    }
+                });
+
+                return {
+                    id: team.id,
+                    name: team.name,
+                    admins: admins,
+                    members: members,
+                };
+            });
+
+            setTeams(teamData);
+        } catch (error) {
+            console.error('Failed to fetch teams', error);
+            alert('Failed to fetch teams' + error);
+        }
+    };
     // Function to handle model type change
     const handleModelTypeChange = async (index: number) => {
         if (!selectedType) return;
@@ -94,7 +176,7 @@ export default function Models() {
                     access_level = 'public';
                     break;
             }
-
+            team_id = teams.find(team => team.name === selectedTeam)?.id;
             await updateModelAccessLevel(model_identifier, access_level, team_id);
             await getModels();
 

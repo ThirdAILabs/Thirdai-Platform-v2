@@ -83,7 +83,7 @@ export default function Teams() {
             alert('Failed to fetch users' + error);
         }
     };
-    console.log('Users:', users);
+    // console.log('Users:', users);
 
     useEffect(() => {
         getTeams();

@@ -3,6 +3,8 @@ from auth.identity_providers.base import (
     AccountSignupBody,
     VerifyResetPassword,
 )
+from auth.identity_providers.utils import delete_all_models_for_user
+from typing import List, Optional
 from auth.utils import keycloak_admin, keycloak_openid, get_token
 from database import schema
 from sqlalchemy.orm import Session
@@ -63,8 +65,19 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
                 keycloak_user_id, user_data.email, user_data.username
             )
 
-        return str(new_user.id)
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully signed up via email.",
+            data={
+                "user": {
+                    "username": new_user.username,
+                    "email": new_user.email,
+                    "user_id": new_user.id,
+                },
+            },
+        )
 
+    # TODO(pratik): check whether it is working correctly
     def trigger_keycloak_verification_email(
         self, user_id: str, email: str, username: str
     ):
@@ -86,6 +99,7 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
                 detail=f"Failed to send verification email: {str(e)}",
             )
 
+    # TODO(pratik): check whether it is working correctly
     def email_verify(self, user_id: str):
         """
         This function is optional if we rely on Keycloak's internal verification. If necessary,
@@ -125,6 +139,7 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
             message="Successfully changed the password.",
         )
 
+    # TODO(pratik): check whether it is working correctly
     def redirect_verify(self, verification_token: str, request):
         """
         Redirect to the Keycloak email verification endpoint.
@@ -151,6 +166,8 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
             )
+
+        delete_all_models_for_user(user, session)
 
         try:
             keycloak_admin.delete_user(user.id)
@@ -182,26 +199,3 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
             )
 
         return keycloak_user_id, access_token
-
-    def reset_password(
-        self,
-        body: VerifyResetPassword,
-        session: Session,
-    ):
-        user = (
-            session.query(schema.User).filter(schema.User.email == body.email).first()
-        )
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found in local DB",
-            )
-
-        keycloak_admin.set_user_password(
-            user_id=user.id, password=body.new_password, temporary=False
-        )
-
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Successfully changed the password.",
-        )

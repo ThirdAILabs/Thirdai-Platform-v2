@@ -32,29 +32,7 @@ class AdminAddition:
         with contextmanager(get_session)() as session:
             if identity_provider_type == "postgres":
                 user = identity_provider.get_user(admin_username, session)
-            elif identity_provider_type == "keycloak":
-                # since we would already be initialzing keycloak with this user as admin user
-                keycloak_user_id = keycloak_admin.get_user_id(admin_username)
 
-                user = (
-                    session.query(schema.User)
-                    .filter(schema.User.id == keycloak_user_id)
-                    .first()
-                )
-
-                if not user:
-                    user = schema.User(
-                        id=keycloak_user_id,
-                        username=admin_username,
-                        email=admin_password,
-                    )
-
-                    session.add(user)
-                    session.commit()
-                    session.refresh(user)
-
-            if not user:
-                # Create the user using the selected identity provider (Keycloak or Postgres)
                 new_user_id = identity_provider.create_user(
                     AccountSignupBody(
                         username=admin_username,
@@ -70,9 +48,27 @@ class AdminAddition:
                 )
                 user.global_admin = True
                 session.commit()
-            else:
-                user.global_admin = True
-                session.commit()
+
+            elif identity_provider_type == "keycloak":
+                # Since we would already be initialzing keycloak with this user as admin user
+                keycloak_user_id = keycloak_admin.get_user_id(admin_username)
+
+                user = (
+                    session.query(schema.User)
+                    .filter(schema.User.id == keycloak_user_id)
+                    .first()
+                )
+
+                if not user:
+                    user = schema.User(
+                        id=keycloak_user_id,
+                        username=admin_username,
+                        email=admin_password,
+                    )
+
+                    user.global_admin = True
+                    session.add(user)
+                    session.commit()
 
 
 AdminAddition.add_admin(

@@ -52,21 +52,7 @@ def email_signup(
                 message="There is already a user associated with this username.",
             )
 
-    try:
-        user_id = identity_provider.create_user(body, session)
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Successfully signed up via email.",
-            data={
-                "user": {
-                    "username": body.username,
-                    "email": body.email,
-                    "user_id": user_id,
-                },
-            },
-        )
-    except ValueError as e:
-        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(e))
+    return identity_provider.create_user(body, session)
 
 
 @user_router.get("/email-login")
@@ -286,11 +272,4 @@ def email_verify(verification_token: str, session: Session = Depends(get_session
 
 @user_router.post("/new-password")
 def reset_password(body: VerifyResetPassword, session: Session = Depends(get_session)):
-    try:
-        identity_provider.reset_password(body, session)
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Password successfully reset.",
-        )
-    except ValueError as e:
-        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(e))
+    return identity_provider.reset_password(body, session)

@@ -15,19 +15,20 @@ from backend.utils import response, hash_password
 from urllib.parse import urlencode, urljoin
 import os
 from auth.identity_providers.utils import send_verification_mail
+from auth.identity_providers.utils import delete_all_models_for_user
 
 
 class PostgresIdentityProvider(AbstractIdentityProvider):
 
     def create_user(self, user_data: AccountSignupBody, session: Session):
         hashed_password = hash_password(user_data.password)
+        is_test_environment = os.getenv("TEST_ENVIRONMENT", "False") == "True"
 
         new_user_identity = schema.UserPostgresIdentityProvider(
             username=user_data.username,
             email=user_data.email,
             password_hash=hashed_password,
-            verified=False,
-            verification_token=str(uuid.uuid4()),
+            verified=is_test_environment,
         )
 
         try:
@@ -44,15 +45,24 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
             session.commit()
             session.refresh(new_user)
 
-            # Send verification mail if not in test mode
-            if os.getenv("TEST_ENVIRONMENT", "False") != "True":
+            if not is_test_environment:
                 self.send_verification_mail(
                     new_user.email,
                     new_user_identity.verification_token,
                     new_user.username,
                 )
 
-            return str(new_user.id)
+            return response(
+                status_code=status.HTTP_200_OK,
+                message="Successfully signed up via email.",
+                data={
+                    "user": {
+                        "username": new_user.username,
+                        "email": new_user.email,
+                        "user_id": new_user.id,
+                    },
+                },
+            )
 
         except IntegrityError:
             session.rollback()
@@ -84,11 +94,6 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
         user_identity.verification_token = None
         session.commit()
 
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Email verification successful.",
-        )
-
     def redirect_verify(self, verification_token: str, request):
         """
         Redirect to email verification endpoint.
@@ -98,43 +103,6 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
         verify_url = urljoin(base_url, f"api/user/email-verify?{urlencode(args)}")
 
         return verify_url
-
-    def reset_password(self, body: VerifyResetPassword, session: Session):
-        """
-        Reset password after verifying the reset code.
-        """
-        user_identity = (
-            session.query(schema.UserPostgresIdentityProvider)
-            .filter(schema.UserPostgresIdentityProvider.email == body.email)
-            .first()
-        )
-
-        if not user_identity:
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="This email is not registered with any account.",
-            )
-
-        if not user_identity.reset_password_code:
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="Click on forgot password to get verification code.",
-            )
-
-        if user_identity.reset_password_code != body.reset_password_code:
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="Entered wrong reset password code.",
-            )
-
-        user_identity.reset_password_code = None
-        user_identity.password_hash = hash_password(body.new_password)
-        session.commit()
-
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Successfully changed the password.",
-        )
 
     def get_user(self, username_or_email: str, session: Session):
         user = (
@@ -155,6 +123,7 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
                 detail="User not found in PostgreSQL.",
             )
 
+        delete_all_models_for_user(user, session)
         session.delete(user_identity)
 
         user = (

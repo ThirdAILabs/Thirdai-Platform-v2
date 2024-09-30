@@ -5,6 +5,7 @@ import subprocess
 from typing import Optional, Type
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from backend.file_handler import (
     AzureStorageHandler,
@@ -50,17 +51,17 @@ class GCPBackupConfig(BackupConfig):
 
 
 def get_cloud_config_class(cloud_provider: str) -> Type[BackupConfig]:
-    if cloud_provider == "s3":
-        return S3BackupConfig
-    elif cloud_provider == "azure":
-        return AzureBackupConfig
-    elif cloud_provider == "gcp":
-        return GCPBackupConfig
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported cloud provider: {cloud_provider}",
-        )
+    provider_classes = {
+        "s3": S3BackupConfig,
+        "azure": AzureBackupConfig,
+        "gcp": GCPBackupConfig,
+    }
+    if cloud_provider in provider_classes:
+        return provider_classes[cloud_provider]
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Unsupported cloud provider: {cloud_provider}",
+    )
 
 
 def get_cloud_storage_handler(config: BackupConfig):
@@ -80,6 +81,26 @@ def get_cloud_storage_handler(config: BackupConfig):
         )
 
 
+def delete_local_backup(zip_file_path: str, dump_file_path: str):
+    try:
+        os.remove(f"{zip_file_path}.zip")
+        print(f"Deleted local zip file: {zip_file_path}.zip")
+        os.remove(dump_file_path)
+        print(f"Deleted local DB dump file: {dump_file_path}")
+    except Exception as e:
+        print(f"Error while deleting local files: {str(e)}")
+
+
+def create_backup_files(db_uri: str, local_dir: str, timestamp: str):
+    dump_file_path = os.path.join(local_dir, f"db_backup_{timestamp}.sql")
+    dump_postgres_db_to_file(db_uri, dump_file_path)
+
+    zip_file_path = os.path.join(local_dir, f"backup_{timestamp}")
+    shutil.make_archive(zip_file_path, "zip", local_dir)
+
+    return zip_file_path, dump_file_path
+
+
 def perform_backup(
     cloud_handler: CloudStorageHandler,
     bucket_name: str,
@@ -88,32 +109,14 @@ def perform_backup(
     backup_limit: int,
 ):
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    zip_file_path, dump_file_path = create_backup_files(db_uri, local_dir, timestamp)
 
-    dump_file_path = os.path.join(local_dir, f"db_backup_{timestamp}.sql")
-    dump_postgres_db_to_file(db_uri, dump_file_path)
-
-    zip_file_path = os.path.join(local_dir, f"backup_{timestamp}")
-    shutil.make_archive(zip_file_path, "zip", local_dir)
-
-    # Upload the zipped directory to the cloud
     cloud_handler.upload_file(
         f"{zip_file_path}.zip", bucket_name, f"backup_{timestamp}.zip"
     )
 
     manage_backup_limit(cloud_handler, bucket_name, backup_limit)
-
-    # Delete the local copy of the zip file and db dump
-    try:
-        if os.path.exists(f"{zip_file_path}.zip"):
-            os.remove(f"{zip_file_path}.zip")
-            print(f"Deleted local zip file: {zip_file_path}.zip")
-
-        if os.path.exists(dump_file_path):
-            os.remove(dump_file_path)
-            print(f"Deleted local DB dump file: {dump_file_path}")
-
-    except Exception as e:
-        print(f"Error while deleting local files: {str(e)}")
+    delete_local_backup(zip_file_path, dump_file_path)
 
     print(f"Backup to {cloud_handler.__class__.__name__} completed successfully.")
 
@@ -146,26 +149,39 @@ def dump_postgres_db_to_file(db_uri, dump_file_path):
 
 
 def schedule_backup_task(
-    interval_minutes: int, cloud_handler, bucket_name, db_uri, local_dir, backup_limit
+    cloud_handler: CloudStorageHandler,
+    bucket_name: str,
+    db_uri: str,
+    local_dir: str,
+    backup_limit: int,
+    interval_minutes: Optional[int] = None,
 ):
+    trigger = (
+        IntervalTrigger(minutes=interval_minutes)
+        if interval_minutes
+        else DateTrigger(run_date=datetime.datetime.now())
+    )
+
+    job_id = "backup_job" if interval_minutes else "one_time_backup_job"
+
     scheduler.add_job(
         perform_backup,
-        trigger=IntervalTrigger(minutes=interval_minutes),
+        trigger=trigger,
         args=[cloud_handler, bucket_name, db_uri, local_dir, backup_limit],
-        id="backup_job",
-        replace_existing=True,  # This replaces any previous job with the same ID
+        id=job_id,
+        replace_existing=True,
     )
 
 
 def remove_backup_task():
-    if scheduler.get_job("backup_job"):
-        scheduler.remove_job("backup_job")
-        print("Previous backup job stopped.")
+    for job_id in ["backup_job", "one_time_backup_job"]:
+        if scheduler.get_job(job_id):
+            scheduler.remove_job(job_id)
+            print(f"Previous {job_id} stopped.")
 
 
 @recovery_router.post("/backup")
 def backup_to_s3(config: dict):
-    print(config, "at the entry point")
     local_dir = model_bazaar_path()
     if not local_dir:
         raise HTTPException(
@@ -198,34 +214,22 @@ def backup_to_s3(config: dict):
     # Ensure the bucket exists
     cloud_handler.create_bucket_if_not_exists(config_object.bucket_name)
 
-    # If interval_minutes is set, schedule a recurring backup
-    if config_object.interval_minutes:
-        # Stop the previous scheduled backup task if any
-        remove_backup_task()
-        # Schedule the new task
-        schedule_backup_task(
-            config_object.interval_minutes,
-            cloud_handler,
-            config_object.bucket_name,
-            db_uri,
-            local_dir,
-            config_object.backup_limit,
-        )
-        return response(
-            status_code=status.HTTP_200_OK,
-            message=f"Scheduled backup to {config_object.cloud_provider} every {config_object.interval_minutes} minutes, keeping the last {config_object.backup_limit} backups.",
-        )
+    remove_backup_task()
 
-    # Perform a one-time backup
-    perform_backup(
+    # Schedule the backup task (periodic or one-time)
+    schedule_backup_task(
         cloud_handler,
         config_object.bucket_name,
         db_uri,
         local_dir,
         config_object.backup_limit,
+        config_object.interval_minutes,
     )
 
-    return response(
-        status_code=status.HTTP_200_OK,
-        message=f"One-time backup to {config_object.cloud_provider} completed successfully, keeping the last {config_object.backup_limit} backups.",
+    message = (
+        f"Scheduled backup to {config_object.cloud_provider} every {config_object.interval_minutes} minutes"
+        if config_object.interval_minutes
+        else f"One-time backup to {config_object.cloud_provider} scheduled successfully"
     )
+
+    return response(status_code=status.HTTP_200_OK, message=message)

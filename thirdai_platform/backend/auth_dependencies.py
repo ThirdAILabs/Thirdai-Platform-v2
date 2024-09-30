@@ -44,28 +44,18 @@ def get_vault_client() -> hvac.Client:
 
 
 def get_current_user(
-    token: str, session: Session = Depends(get_session)
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ) -> schema.User:
     """
-    Dependency to retrieve the currently authenticated user based on the selected identity provider.
+    Dependency to retrieve the currently authenticated user.
+
+    Args:
+        authenticated_user (AuthenticatedUser): The authenticated user returned by the JWT verification.
+
+    Returns:
+        schema.User: The authenticated user.
     """
-    # Use identity provider to get user info based on token
-    user_info = identity_provider.get_userinfo(token, session)
-
-    if not user_info:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token."
-        )
-
-    # Fetch user from the local database based on identity provider user ID
-    user = session.query(schema.User).filter(schema.User.id == user_info["id"]).first()
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found in local DB"
-        )
-
-    return user
+    return authenticated_user.user
 
 
 def global_admin_only(

@@ -9,6 +9,9 @@ from database import schema
 from database.session import get_session
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from auth.utils import keycloak_admin, keycloak_openid, get_token
+
+identity_provider_type = os.getenv("IDENTITY_PROVIDER", "postgres")
 
 
 class TokenPayload(BaseModel):
@@ -58,24 +61,33 @@ def verify_access_token(
     # this endpoint. See the comment above for `token_bearer` to see what exactly
     # it does in this case.
     # Docs: https://fastapi.tiangolo.com/tutorial/dependencies/
-    try:
-        # This function automatically checks for token expiration:
-        # https://pyjwt.readthedocs.io/en/stable/usage.html#expiration-time-claim-exp
-        payload = TokenPayload(
-            **jwt.decode(
-                jwt=access_token,
-                key=os.getenv("JWT_SECRET"),
-                algorithms=["HS256"],
+    if identity_provider_type == "keycloak":
+        payload = keycloak_openid.userinfo(access_token)
+        keycloak_user_id = payload.get("sub")
+
+        if not keycloak_user_id:
+            raise CREDENTIALS_EXCEPTION
+        user_id = keycloak_user_id
+    else:
+        try:
+            # This function automatically checks for token expiration:
+            # https://pyjwt.readthedocs.io/en/stable/usage.html#expiration-time-claim-exp
+            payload = TokenPayload(
+                **jwt.decode(
+                    jwt=access_token,
+                    key=os.getenv("JWT_SECRET"),
+                    algorithms=["HS256"],
+                )
             )
-        )
-        if payload.user_id is None:
+            if payload.user_id is None:
+                raise CREDENTIALS_EXCEPTION
+            user_id = payload.user_id
+        except jwt.PyJWTError:
             raise CREDENTIALS_EXCEPTION
-        user: schema.User = session.query(schema.User).get(payload.user_id)
-        if not user:
-            raise CREDENTIALS_EXCEPTION
-        return AuthenticatedUser(user=user, exp=payload.exp)
-    except jwt.PyJWTError:
+    user: schema.User = session.query(schema.User).get(user_id)
+    if not user:
         raise CREDENTIALS_EXCEPTION
+    return AuthenticatedUser(user=user, exp=payload.exp)
 
 
 def verify_access_token_no_throw(

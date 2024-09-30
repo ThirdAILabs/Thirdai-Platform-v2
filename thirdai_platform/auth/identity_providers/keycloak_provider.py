@@ -102,43 +102,6 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
                 detail=f"Failed to verify user email in Keycloak: {str(e)}",
             )
 
-    def get_userinfo(self, token: str, session: Session):
-        try:
-            user_info = keycloak_openid.userinfo(token)
-            keycloak_user_id = user_info.get("sub")
-
-            if not keycloak_user_id:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid token: user ID not found in token",
-                )
-
-            # Fetch the user from the local DB
-            user = (
-                session.query(schema.User)
-                .filter(schema.User.id == keycloak_user_id)
-                .first()
-            )
-
-            if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found in local DB",
-                )
-
-            return {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "verified": user.verified,
-            }
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Failed to retrieve user info: {str(e)}",
-            )
-
     def reset_password(
         self,
         body: VerifyResetPassword,

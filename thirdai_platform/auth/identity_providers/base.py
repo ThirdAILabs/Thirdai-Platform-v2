@@ -46,9 +46,5 @@ class AbstractIdentityProvider(ABC):
         pass
 
     @abstractmethod
-    def get_userinfo(self, token: str, session: Session):
-        pass
-
-    @abstractmethod
     def email_verify(self, user_id: str):
         pass

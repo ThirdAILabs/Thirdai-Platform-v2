@@ -6,6 +6,7 @@ from auth.identity_providers.base import AccountSignupBody
 from database.session import get_session
 from contextlib import contextmanager
 from auth.utils import keycloak_admin
+from auth.jwt import identity_provider_type
 
 
 def get_identity_provider(provider_type: str):
@@ -17,7 +18,6 @@ def get_identity_provider(provider_type: str):
         raise ValueError("Invalid provider type. Choose 'keycloak' or 'postgres'.")
 
 
-identity_provider_type = os.getenv("IDENTITY_PROVIDER", "postgres")
 identity_provider = get_identity_provider(identity_provider_type)
 
 

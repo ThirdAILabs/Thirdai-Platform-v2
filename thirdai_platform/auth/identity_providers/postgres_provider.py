@@ -18,34 +18,6 @@ from auth.identity_providers.utils import send_verification_mail
 
 
 class PostgresIdentityProvider(AbstractIdentityProvider):
-    """
-    PostgreSQL implementation of identity provider using the 'UserPostgresIdentityProvider' table.
-    """
-
-    def get_userinfo(self, token: str, session: Session):
-        """
-        Retrieve user information from the PostgreSQL database using the given token (access token).
-        """
-        try:
-            # Validate the token and get user info
-            authenticated_user: AuthenticatedUser = verify_access_token(token, session)
-            user = authenticated_user.user
-            return {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "verified": True,
-            }
-
-        except HTTPException as e:
-            raise HTTPException(
-                status_code=(
-                    e.status_code
-                    if isinstance(e, HTTPException)
-                    else status.HTTP_401_UNAUTHORIZED
-                ),
-                detail="Invalid or expired token",
-            )
 
     def create_user(self, user_data: AccountSignupBody, session: Session):
         hashed_password = hash_password(user_data.password)

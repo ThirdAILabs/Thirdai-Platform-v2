@@ -136,13 +136,6 @@ class S3StorageHandler(CloudStorageHandler):
                 try:
                     self.s3_client.create_bucket(
                         Bucket=bucket_name,
-                        CreateBucketConfiguration={
-                            "LocationConstraint": (
-                                boto3.session.Session().region_name
-                                if boto3.session.Session().region_name
-                                else "us-east-1"
-                            )
-                        },
                     )
                     print(f"Bucket {bucket_name} created successfully.")
                 except ClientError as e:

@@ -42,6 +42,7 @@ def convert_to_ndb_doc(
             doc_keywords = (
                 (pdf_title + " " + filename_as_keywords + " ") * keyword_weight,
             )
+
         return ndbv2.PDF(
             resource_path,
             doc_metadata=metadata,

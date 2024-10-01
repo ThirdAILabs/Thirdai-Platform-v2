@@ -23,15 +23,10 @@ class GenerateArgs(BaseModel):
 
 
 DEFAULT_PROMPT = (
-    "Write an answer that is about 100 words "
+    "Write a short answer "
     + "for the query, based on the provided context. "
     + "If the context provides insufficient information, "
-    + 'reply "I cannot answer", and give a reason why. '
-    + "Answer in an unbiased, comprehensive, and scholarly tone. "
-    + "If the query is subjective, provide an opinionated answer "
-    + "in the concluding 1-2 sentences. "
-    + "If the given query is not answerable or is not a question, "
-    + "simply summarize the given context as coherently as possible."
+    + 'reply "I cannot answer".'
 )
 
 

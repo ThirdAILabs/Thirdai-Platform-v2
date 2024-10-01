@@ -28,13 +28,12 @@ class BackupConfig(BaseModel):
     def save_backup_config(self, model_bazaar_dir):
         config_path = os.path.join(model_bazaar_dir, "backup_config.json")
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
-        
+
         # Use dict() and json.dump to save the config to a file
         with open(config_path, "w") as file:
             json.dump(self.dict(), file, indent=4)
 
         return config_path
-
 
 
 # S3 specific configuration
@@ -101,7 +100,7 @@ def backup_to_s3(config: dict):
 
     # Convert the incoming dictionary to the correct Pydantic model
     config_object = ConfigClass(**config)
-    
+
     config_file_path = config_object.save_backup_config(local_dir)
 
     nomad_endpoint = os.getenv("NOMAD_ENDPOINT")

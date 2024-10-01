@@ -1,8 +1,6 @@
 import logging
 from functools import wraps
 
-from fastapi import HTTPException, status
-
 
 def handle_exceptions(func):
     @wraps(func)
@@ -17,9 +15,8 @@ def handle_exceptions(func):
                 f"with arguments {args[1:]}, and keyword arguments {kwargs}. "
                 f"Error: {str(e)}"
             )
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"An error occurred: {str(e)}",
+            raise ValueError(
+                f"An error occurred: {str(e)}",
             )
 
     return wrapper

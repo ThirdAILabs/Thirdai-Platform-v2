@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 
-from fastapi import HTTPException, status
 from utils import handle_exceptions
 
 
@@ -84,24 +83,20 @@ class S3StorageHandler(CloudStorageHandler):
                     if e.response["Error"]["Code"] == "BucketAlreadyExists":
                         print(f"Bucket {bucket_name} already exists globally.")
                     elif e.response["Error"]["Code"] == "AccessDenied":
-                        raise HTTPException(
-                            status_code=status.HTTP_403_FORBIDDEN,
-                            detail=f"Access denied to create bucket {bucket_name}. Error: {str(e)}",
+                        raise ValueError(
+                            f"Access denied to create bucket {bucket_name}. Error: {str(e)}",
                         )
                     else:
-                        raise HTTPException(
-                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail=f"Failed to create bucket {bucket_name}. Error: {str(e)}",
+                        raise ValueError(
+                            f"Failed to create bucket {bucket_name}. Error: {str(e)}",
                         )
             else:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Error checking bucket {bucket_name}. Error: {str(e)}",
+                raise ValueError(
+                    f"Error checking bucket {bucket_name}. Error: {str(e)}",
                 )
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to access bucket {bucket_name}. Error: {str(e)}",
+            raise ValueError(
+                f"Failed to access bucket {bucket_name}. Error: {str(e)}",
             )
 
     @handle_exceptions
@@ -197,9 +192,8 @@ class GCPStorageHandler(CloudStorageHandler):
             )
             self._client = storage.Client(credentials=credentials)
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to authenticate using the provided service account file: {str(e)}",
+            raise ValueError(
+                f"Failed to authenticate using the provided service account file: {str(e)}",
             )
 
     @handle_exceptions

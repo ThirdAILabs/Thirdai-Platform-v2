@@ -1,9 +1,13 @@
 import datetime
 import json
+import logging
 import os
 import shutil
 import subprocess
 
+from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from file_handler import (
     AzureStorageHandler,
     CloudStorageHandler,
@@ -11,10 +15,17 @@ from file_handler import (
     S3StorageHandler,
 )
 
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+# Global scheduler instance
+scheduler = BlockingScheduler()
+
+
 def load_config(config_file):
     with open(config_file, "r") as f:
-        config = json.load(f)
-    return config
+        return json.load(f)
 
 
 def get_cloud_storage_handler(config):
@@ -36,11 +47,11 @@ def get_cloud_storage_handler(config):
 def delete_local_backup(zip_file_path: str, dump_file_path: str):
     try:
         os.remove(f"{zip_file_path}.zip")
-        print(f"Deleted local zip file: {zip_file_path}.zip")
+        logging.info(f"Deleted local zip file: {zip_file_path}.zip")
         os.remove(dump_file_path)
-        print(f"Deleted local DB dump file: {dump_file_path}")
+        logging.info(f"Deleted local DB dump file: {dump_file_path}")
     except Exception as e:
-        print(f"Error while deleting local files: {str(e)}")
+        logging.error(f"Error while deleting local files: {str(e)}")
 
 
 def create_backup_files(db_uri: str, local_dir: str, timestamp: str):
@@ -59,7 +70,7 @@ def manage_backup_limit(
     if len(sorted_backups) > backup_limit:
         for backup in sorted_backups[backup_limit:]:
             cloud_handler.delete_path(bucket_name, backup)
-            print(f"Deleted old backup: {backup}")
+            logging.info(f"Deleted old backup: {backup}")
 
 
 def perform_backup(config_file):
@@ -82,14 +93,53 @@ def perform_backup(config_file):
     manage_backup_limit(cloud_handler, bucket_name, backup_limit)
     delete_local_backup(zip_file_path, dump_file_path)
 
-    print(f"Backup completed successfully.")
+    logging.info(f"Backup completed successfully at {timestamp}.")
+
+    # If this is a one-time backup, shut down the scheduler
+    if not config.get("interval_minutes"):
+        scheduler.shutdown(wait=False)  # Stops the scheduler after the job completes
+
+
+def schedule_backup(config_file):
+    """Schedule backup based on interval in config or run once."""
+    config = load_config(config_file)
+    interval_minutes = config.get("interval_minutes")
+
+    if interval_minutes:
+        # Schedule recurring backups
+        scheduler.add_job(
+            perform_backup,
+            trigger=IntervalTrigger(minutes=interval_minutes),
+            args=[config_file],
+            id="backup_job",
+            replace_existing=True,
+        )
+        logging.info(f"Scheduled periodic backup every {interval_minutes} minutes.")
+    else:
+        # Run one-time backup
+        scheduler.add_job(
+            perform_backup,
+            trigger=DateTrigger(run_date=datetime.datetime.now()),
+            args=[config_file],
+            id="one_time_backup_job",
+            replace_existing=True,
+        )
+        logging.info("Scheduled one-time backup.")
+
+    # Start the scheduler
+    try:
+        scheduler.start()
+    except Exception as e:
+        logging.error(f"Scheduler encountered an error: {e}")
+        scheduler.shutdown()
 
 
 if __name__ == "__main__":
     config_file = os.getenv("CONFIG_PATH")
     if not config_file or not os.path.exists(config_file):
         raise ValueError("Config file not found.")
+
     try:
-        perform_backup(config_file)
+        schedule_backup(config_file)
     except Exception as err:
-        print(err)
+        logging.error(f"Error during backup: {err}")

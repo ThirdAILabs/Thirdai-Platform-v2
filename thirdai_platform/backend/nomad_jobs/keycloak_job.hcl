@@ -26,10 +26,7 @@ job "keycloak" {
         KC_HOSTNAME_STRICT_HTTPS      = "false"
         KEYCLOAK_SSL_REQUIRED        = "none"
         KC_HOSTNAME_STRICT_BACKCHANNEL = "false"
-        KC_PROXY                     = "edge"
-        KC_HOSTNAME_URL              = "http://localhost/keycloak"
-        KC_HOSTNAME_PATH             = "/keycloak"
-        KC_HOSTNAME_STRICT           = "false"
+        KC_HOSTNAME_URL              = "http://localhost:8180"
 
         # Database connection
         DB_VENDOR                    = "postgres"
@@ -55,13 +52,6 @@ job "keycloak" {
       service {
         name = "keycloak"
         port = "keycloak-http"
-        tags = [
-          "traefik.enable=true",
-          "traefik.http.routers.keycloak-http.rule=PathPrefix(`/keycloak/`)",
-          "traefik.http.middlewares.keycloak-stripprefix.stripprefix.prefixes=/keycloak",
-          "traefik.http.routers.keycloak-http.middlewares=keycloak-stripprefix",
-          "traefik.http.services.keycloak-http.loadbalancer.server.port=8180"
-        ]
         provider = "nomad"
       }
     }

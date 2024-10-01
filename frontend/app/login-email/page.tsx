@@ -2,7 +2,7 @@
 
 import { useContext, useState } from 'react';
 import { Button, TextField } from '@mui/material';
-
+import { styled } from '@mui/material/styles'
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { userEmailLogin } from '@/lib/backend';
@@ -10,6 +10,15 @@ import Link from 'next/link';
 import { UserContext } from '../user_wrapper';
 import { EyeIcon, EyeOffIcon } from '@heroicons/react/solid';
 import axios from 'axios';
+
+const StyledTextField = styled(TextField)(({ theme }) => ({
+  '& label': {
+    top: '-6px',
+  },
+  '& label.Mui-focused': {
+    top: '0px',
+  },
+}));
 
 export default function LoginPage() {
   const [email, setEmail] = useState<string>('');
@@ -55,7 +64,7 @@ export default function LoginPage() {
         <CardFooter>
           <form onSubmit={handleSubmit} className="w-full">
             <div className="mb-4">
-              <TextField
+              <StyledTextField
                 type="email"
                 id="email"
                 label="Email"
@@ -66,7 +75,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="mb-4 relative">
-              <TextField
+              <StyledTextField
                 type={showPassword ? 'text' : 'password'}
                 id="password"
                 label="Password"

@@ -59,7 +59,6 @@ export default function Models() {
     useEffect(() => {
         getModels();
     }, []);
-
     // Function to fetch models
     const getModels = async () => {
         try {
@@ -312,5 +311,6 @@ export default function Models() {
                 </tbody>
             </table>
         </div>
+
     );
 }

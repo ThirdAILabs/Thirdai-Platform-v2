@@ -11,7 +11,7 @@ import {
     removeTeamAdmin,
     fetchAllUsers
 } from '@/lib/backend';
-
+import DropdownMenu from '@/components/ui/dropDownMenu';
 type Team = {
     id: string;
     name: string;
@@ -55,6 +55,11 @@ export default function Teams() {
     const [newAdmin, setNewAdmin] = useState('');
     const [adminToRemove, setAdminToRemove] = useState('');
 
+    //Satate for force-rendering of DropdownMenu
+    const [addMemberKey, setAddMemberKey] = useState(0);
+    const [removeMemberKey, setRemoveMemberKey] = useState(0);
+    const [addAdminKey, setAddAdminKey] = useState(0);
+    const [removeAdminKey, setRemoveAdminKey] = useState(0);
     useEffect(() => {
         getUsers();
     }, []);
@@ -144,7 +149,7 @@ export default function Teams() {
             }
 
             await getTeams();
-
+            await getUsers();
             setNewTeamName('');
             setNewTeamAdmin('');
             setNewTeamMembers([]);
@@ -172,10 +177,10 @@ export default function Teams() {
 
             await addUserToTeam(user.email, team.id);
             await getTeams();
-            await getUsers(); // Add this line
-
-            setSelectedTeamForAdd('');
+            await getUsers();
+            setSelectedTeamForAdd('Select Team');
             setNewMember('');
+            setAddMemberKey(prevKey => prevKey + 1); // Increment key to force re-render
         } catch (error) {
             console.error('Failed to add member to team', error);
             alert('Failed to add member to team' + error);
@@ -200,10 +205,10 @@ export default function Teams() {
 
             await deleteUserFromTeam(user.email, team.id);
             await getTeams();
-            await getUsers(); // Add this line
-
-            setSelectedTeamForRemove('');
+            await getUsers();
+            setSelectedTeamForRemove('Select Team');
             setMemberToRemove('');
+            setRemoveMemberKey(prevKey => prevKey + 1); // Increment key to force re-render
         } catch (error) {
             console.error('Failed to remove member from team', error);
             alert('Failed to remove member from team' + error);
@@ -244,9 +249,10 @@ export default function Teams() {
             try {
                 await assignTeamAdmin(user.email, selectedTeam.id);
                 await getTeams();
-                await getUsers(); // Add this line
-                setSelectedTeamForAddAdmin('');
+                await getUsers();
+                setSelectedTeamForAddAdmin('Select Team');
                 setNewAdmin('');
+                setAddAdminKey(prevKey => prevKey + 1); // Increment key to force re-render
             } catch (error) {
                 console.error('Error adding admin:', error);
                 alert('Failed to add admin.');
@@ -273,10 +279,10 @@ export default function Teams() {
             try {
                 await removeTeamAdmin(user.email, selectedTeam.id);
                 await getTeams();
-                await getUsers(); // Add this line
-
-                setSelectedTeamForRemoveAdmin('');
+                await getUsers();
+                setSelectedTeamForRemoveAdmin('Select Team');
                 setAdminToRemove('');
+                setRemoveAdminKey(prevKey => prevKey + 1); // Increment key to force re-render
             } catch (error) {
                 console.error('Error removing admin:', error);
                 alert('Failed to remove admin.');
@@ -300,6 +306,21 @@ export default function Teams() {
                 setter(value);
             }
         };
+    };
+
+    const handleSelectedTeamAdd = (team: string) => {
+        setSelectedTeamForAdd(team);
+        // console.log("Selected Team to add -> ", team.name);
+    };
+    const handleSelectedTeamRemove = (team: string) => {
+        setSelectedTeamForRemove(team);
+        // console.log("Selected team to remove -> ", team.name);
+    };
+    const handleAdminAdd = (team: string) => {
+        setSelectedTeamForAddAdmin(team);
+    };
+    const handleAdminRemove = (team: string) => {
+        setSelectedTeamForRemoveAdmin(team);
     };
 
     return (
@@ -329,7 +350,8 @@ export default function Teams() {
                         </div>
                         <Button
                             onClick={() => deleteTeam(team.name)}
-                            className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                            variant='contained'
+                            color='error'
                         >
                             Delete Team
                         </Button>
@@ -380,18 +402,12 @@ export default function Teams() {
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
                 <h4 className="text-lg font-semibold text-gray-800">Add Member to Team</h4>
                 <div className="grid grid-cols-1 gap-4 mt-4">
-                    <select
-                        value={selectedTeamForAdd}
-                        onChange={(e) => setSelectedTeamForAdd(e.target.value)}
-                        className="border border-gray-300 rounded px-4 py-2"
-                    >
-                        <option value="">Select Team</option>
-                        {teams.map((team) => (
-                            <option key={team.name} value={team.name}>
-                                {team.name}
-                            </option>
-                        ))}
-                    </select>
+                    <DropdownMenu
+                        key={addMemberKey}
+                        title="Select Team"
+                        handleSelectedTeam={handleSelectedTeamAdd}
+                        teams={teams}
+                    />
 
                     <AutocompleteInput
                         key={selectedTeamForAdd + newMember} // Use a key to force re-render
@@ -421,18 +437,12 @@ export default function Teams() {
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
                 <h4 className="text-lg font-semibold text-gray-800">Remove Member from Team</h4>
                 <div className="grid grid-cols-1 gap-4 mt-4">
-                    <select
-                        value={selectedTeamForRemove}
-                        onChange={(e) => setSelectedTeamForRemove(e.target.value)}
-                        className="border border-gray-300 rounded px-4 py-2"
-                    >
-                        <option value="">Select Team</option>
-                        {teams.map((team) => (
-                            <option key={team.id} value={team.name}>
-                                {team.name}
-                            </option>
-                        ))}
-                    </select>
+                    <DropdownMenu
+                        key={removeMemberKey}
+                        title="Select Team"
+                        handleSelectedTeam={handleSelectedTeamRemove}
+                        teams={teams}
+                    />
                     <AutocompleteInput
                         key={selectedTeamForRemove + memberToRemove} // Use a dynamic key to force re-render
                         value={memberToRemove}
@@ -454,18 +464,12 @@ export default function Teams() {
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
                 <h4 className="text-lg font-semibold text-gray-800">Add Admin to Team</h4>
                 <div className="grid grid-cols-1 gap-4 mt-4">
-                    <select
-                        value={selectedTeamForAddAdmin}
-                        onChange={(e) => setSelectedTeamForAddAdmin(e.target.value)}
-                        className="border border-gray-300 rounded px-4 py-2"
-                    >
-                        <option value="">Select Team</option>
-                        {teams.map((team) => (
-                            <option key={team.name} value={team.name}>
-                                {team.name}
-                            </option>
-                        ))}
-                    </select>
+                    <DropdownMenu
+                        key={addAdminKey}
+                        title="Select Team"
+                        handleSelectedTeam={handleAdminAdd}
+                        teams={teams}
+                    />
                     <AutocompleteInput
                         key={selectedTeamForAddAdmin + newAdmin} // Use a dynamic key to force re-render
                         value={newAdmin}
@@ -483,18 +487,12 @@ export default function Teams() {
             <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
                 <h4 className="text-lg font-semibold text-gray-800">Remove Admin from Team</h4>
                 <div className="grid grid-cols-1 gap-4 mt-4">
-                    <select
-                        value={selectedTeamForRemoveAdmin}
-                        onChange={(e) => setSelectedTeamForRemoveAdmin(e.target.value)}
-                        className="border border-gray-300 rounded px-4 py-2"
-                    >
-                        <option value="">Select Team</option>
-                        {teams.map((team) => (
-                            <option key={team.name} value={team.name}>
-                                {team.name}
-                            </option>
-                        ))}
-                    </select>
+                    <DropdownMenu
+                        key={removeAdminKey}
+                        title="Select Team"
+                        handleSelectedTeam={handleAdminRemove}
+                        teams={teams}
+                    />
                     <AutocompleteInput
                         key={selectedTeamForRemoveAdmin + adminToRemove} // Use a dynamic key to force re-render
                         value={adminToRemove}

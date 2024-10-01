@@ -163,7 +163,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
     }
   };
   //creting dropDownList for choosing model....
-  const modelDropDownList = models.map((model) => {
+  const modelDropDownList = existingSSmodels.map((model) => {
     return {
       id: model.user_id,
       name: model.username + '/' + model.model_name,

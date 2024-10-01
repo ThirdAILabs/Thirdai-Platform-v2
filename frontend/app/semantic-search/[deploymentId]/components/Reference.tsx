@@ -256,7 +256,7 @@ export default function Reference({
             // Capture the query text and complete the telemetry event for implicit feedback.
             const feedback = {
               reference_id: info.id,
-              reference_rank: 0, // TODO: fill actual rank
+              reference_rank: 1, // TODO: fill actual rank
               query_text: query || '',
               event_desc: 'open_reference_source',
             };

@@ -40,6 +40,12 @@ ndb_top_k_selections = Counter(
     "ndb_top_k_selections", "Number of top-k results selected by user."
 )
 
+# New counters for tracking top-k result selections
+ndb_top_1_selection = Counter("ndb_top_1_selection", "Number of top 1 results selected by user.")
+ndb_top_2_selection = Counter("ndb_top_2_selection", "Number of top 2 results selected by user.")
+ndb_top_3_selection = Counter("ndb_top_3_selection", "Number of top 3 results selected by user.")
+ndb_top_4_plus_selection = Counter("ndb_top_4_plus_selection", "Number of top 4+ results selected by user.")
+
 
 class NDBRouter:
     def __init__(self, config: DeploymentConfig, reporter: Reporter):
@@ -377,8 +383,21 @@ class NDBRouter:
             )
         )
 
-        if feedback.reference_rank is not None and feedback.reference_rank < 5:
-            ndb_top_k_selections.inc()
+        # Check if the feedback has a reference rank (i.e., the rank of the clicked result)
+        if feedback.reference_rank is not None:
+            # Increment counters based on the rank of the clicked result
+            if feedback.reference_rank == 0:
+                ndb_top_1_selection.inc()
+            elif feedback.reference_rank == 1:
+                ndb_top_2_selection.inc()
+            elif feedback.reference_rank == 2:
+                ndb_top_3_selection.inc()
+            elif feedback.reference_rank >= 3:
+                ndb_top_4_plus_selection.inc()
+
+            # Increment the general top-k selection counter for all top ranks
+            if feedback.reference_rank < 5:  # For Top 5 results (0, 1, 2, 3, 4)
+                ndb_top_k_selections.inc()
 
         return response(
             status_code=status.HTTP_200_OK,

@@ -1,46 +1,68 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { UsageDurationChart } from '@/components/ui/charts'; // Import the chart
-import Link from 'next/link';
-import { Button } from '@mui/material';
-import _ from 'lodash';
-import { fetchNdbQueryCountStats, MetricDataPoint } from '@/lib/backend';
+import  StackedChart  from '@/components/ui/StackedChart'; // Import the StackedChart
+import { fetchPrometheusData, MetricDataPoint } from '@/lib/backend'; // Fetch the new Prometheus data
+import isEqual from 'lodash/isEqual';
 
-type ChartDataPoint = {
+type StackedChartDataPoint = {
   x: Date;
-  y: number;
+  top1: number;
+  top2: number;
+  top3: number;
+  top4Plus: number;
 };
 
 export default function AnalyticsPage() {
   const [isClient, setIsClient] = useState(false);
-  const [ndbQueryCountData, setNdbQueryCountData] = useState<ChartDataPoint[]>([]);
+  const [stackedChartData, setStackedChartData] = useState<StackedChartDataPoint[]>([]);
 
   // Ensure that the component only runs on the client
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  // Function to fetch and update data
+  // Function to fetch and update stacked chart data
   const fetchData = async () => {
     try {
-      const data: MetricDataPoint[] = await fetchNdbQueryCountStats();
-      const chartData = data.map(([timestamp, value]) => ({
-        x: new Date(timestamp * 1000), // Ensure proper conversion from seconds to milliseconds
-        y: parseFloat(value),
-      }));
-      setNdbQueryCountData((prevData) => {
-        // Ensure immutability for proper React state updates
-        if (_.isEqual(prevData, chartData)) {
-          console.log('prevData', prevData)
-          console.log('chartData', chartData)
-
+      const data: Record<string, MetricDataPoint[]> = await fetchPrometheusData();
+  
+      // Ensure that all metrics exist in the response before proceeding
+      const top1Selection = data['ndb_top_1_selection'] || [];
+      const top2Selection = data['ndb_top_2_selection'] || [];
+      const top3Selection = data['ndb_top_3_selection'] || [];
+      const top4PlusSelection = data['ndb_top_4_plus_selection'] || [];
+  
+      // Check if we have data for top 1 selection (assuming this metric is always needed)
+      if (top1Selection.length === 0) {
+        console.error('No data for top 1 selection');
+        return; // Exit the function if there's no data
+      }
+  
+      // Process the chart data, safely handling index access for all metrics
+      const chartData = top1Selection.map(([timestamp, top1], index) => {
+        const top2 = parseFloat(top2Selection[index]?.[1] || '0'); // Handle case where data might be missing
+        const top3 = parseFloat(top3Selection[index]?.[1] || '0');
+        const top4Plus = parseFloat(top4PlusSelection[index]?.[1] || '0');
+  
+        return {
+          x: new Date(timestamp * 1000), // Convert to milliseconds
+          top1: parseFloat(top1),
+          top2,
+          top3,
+          top4Plus,
+        };
+      });
+  
+      // Update the state only if the new data is different
+      setStackedChartData((prevData) => {
+        if (isEqual(prevData, chartData)) {
           return prevData; // Prevent unnecessary updates if the data is the same
         }
         return chartData;
       });
     } catch (error) {
-      console.error('Error fetching ndb_query_count data:', error);
+      console.error('Error fetching stacked chart data:', error);
     }
   };
 
@@ -52,44 +74,46 @@ export default function AnalyticsPage() {
   }, []);
 
   if (!isClient) {
-    return null; // Return null on the first render to avoid hydration mismatch
+    return null;
   }
 
-  // Dynamically create the Chart.js data object every render
-  const usageDurationChartData = {
-    labels: ndbQueryCountData.map((point) => point.x.toLocaleTimeString()), // Convert Date to readable time
+  // Prepare data for the stacked chart
+  const stackedChartDataFormatted = {
+    labels: stackedChartData.map((point) => point.x.toLocaleTimeString()),
     datasets: [
       {
-        label: 'NDB Query Count',
-        data: ndbQueryCountData.map((point) => point.y),
-        borderColor: 'rgb(75, 192, 192)',
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        fill: false,
+        label: 'Top 1',
+        data: stackedChartData.map((point) => point.top1),
+        backgroundColor: 'rgba(75, 192, 192, 0.8)',
+      },
+      {
+        label: 'Top 2',
+        data: stackedChartData.map((point) => point.top2),
+        backgroundColor: 'rgba(153, 102, 255, 0.8)',
+      },
+      {
+        label: 'Top 3',
+        data: stackedChartData.map((point) => point.top3),
+        backgroundColor: 'rgba(255, 159, 64, 0.8)',
+      },
+      {
+        label: 'Top 4+',
+        data: stackedChartData.map((point) => point.top4Plus),
+        backgroundColor: 'rgba(255, 99, 132, 0.8)',
       },
     ],
   };
-
-  const thirdaiPlatformBaseUrl = _.trim(process.env.THIRDAI_PLATFORM_BASE_URL || '', '/');
-  const grafanaUrl = `${thirdaiPlatformBaseUrl}/grafana`;
 
   return (
     <>
       <Card>
         <CardHeader>
-          <CardTitle>System Status</CardTitle>
-          <CardDescription>Monitor real-time usage and system improvements.</CardDescription>
+          <CardTitle>User Click Behavior</CardTitle>
+          <CardDescription>Track the proportion of clicks on top 1, top 2, etc.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <UsageDurationChart data={usageDurationChartData} />
-          </div>
-
-          <div className="mt-4 flex justify-center items-center">
-            <Link href={grafanaUrl} passHref legacyBehavior>
-              <a target="_blank" rel="noopener noreferrer">
-                <Button variant="contained">See more system stats</Button>
-              </a>
-            </Link>
+            <StackedChart data={stackedChartDataFormatted} />
           </div>
         </CardContent>
       </Card>

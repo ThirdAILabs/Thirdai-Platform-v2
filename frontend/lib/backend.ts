@@ -1491,3 +1491,57 @@ export async function fetchNdbQueryCountStats(): Promise<MetricDataPoint[]> {
     throw new Error('Failed to fetch ndb_query_count stats');
   }
 }
+
+
+
+// Define the metrics to fetch
+const metrics = [
+  'ndb_top_1_selection',
+  'ndb_top_2_selection',
+  'ndb_top_3_selection',
+  'ndb_top_4_plus_selection',
+];
+
+// Function to fetch data from Prometheus
+export async function fetchPrometheusData(): Promise<Record<string, MetricDataPoint[]>> {
+  try {
+    const data: Record<string, MetricDataPoint[]> = {};
+
+    // Fetch data for each metric
+    const responses = await Promise.all(
+      metrics.map((metric) =>
+        axios.get('http://127.0.0.1:22086/api/v1/query_range', {
+          params: {
+            query: metric,
+            start: Math.floor(Date.now() / 1000) - 300, // 5 minutes ago
+            end: Math.floor(Date.now() / 1000), // current timestamp
+            step: '60s', // Querying data every 60 seconds
+          },
+          headers: {
+            // Remove the Authorization header since it's not needed
+            'Authorization': null, // Comment out or remove this line
+          },
+        })
+      )
+    );
+
+    // Process the Prometheus responses
+    metrics.forEach((metric, index) => {
+      const result = responses[index].data?.data?.result;
+
+      // Check if the result array exists and has data
+      if (result && result.length > 0 && result[0]?.values) {
+        // Extract the 'values' array which contains [timestamp, value]
+        data[metric] = result[0].values as MetricDataPoint[]; // Cast to MetricDataPoint[]
+      } else {
+        console.warn(`No data found for metric: ${metric}`);
+        data[metric] = []; // Assign an empty array if no data is found
+      }
+    });
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching Prometheus data:', error);
+    throw new Error('Failed to fetch Prometheus data');
+  }
+}

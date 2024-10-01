@@ -41,7 +41,7 @@ export default function CopyButton({
         // use update query text and uncomment below to record implicit-feedback
         const feedback = {
           reference_id: referenceID,
-          reference_rank: 0, // TODO: fill with exact rank
+          reference_rank: 1, // TODO: fill with exact rank
           query_text: queryText,
           event_desc: 'copy_reference_text',
         };

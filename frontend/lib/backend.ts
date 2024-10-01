@@ -1082,8 +1082,8 @@ export function useSentimentClassification(workflowId: string | null) {
     }
 
     try {
-      // Send a prediction request to the sentiment classifier model
-      const response = await axios.post(`${deploymentUrl}/predict`, { query, top_k: 5 });
+      // Corrected the key from 'query' to 'text'
+      const response = await axios.post(`${deploymentUrl}/predict`, { text: query, top_k: 5 });
       return response.data.data;
     } catch (error) {
       console.error('Error predicting sentiment:', error);

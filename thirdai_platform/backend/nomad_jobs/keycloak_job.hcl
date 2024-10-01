@@ -28,19 +28,23 @@ job "keycloak" {
         KC_HOSTNAME_STRICT_BACKCHANNEL = "false"
         KC_PROXY                     = "edge"
         KC_HOSTNAME_URL              = "http://localhost/keycloak"
+        KC_HOSTNAME_PATH             = "/keycloak"
+        KC_HOSTNAME_STRICT           = "false"
 
         # Database connection
         DB_VENDOR                    = "postgres"
-        DB_ADDR                      = "172.17.0.1"  # Using Docker bridge gateway IP
+        DB_ADDR                      = "172.17.0.1"
         DB_DATABASE                  = "keycloakdb"
         DB_USER                      = "postgres"
         DB_PASSWORD                  = "newpassword"
 
-        # Keycloak DB configuration
         KC_DB                        = "postgres"
-        KC_DB_URL                    = "jdbc:postgresql://172.17.0.1:5432/keycloakdb"  # Using Docker bridge gateway IP
+        KC_DB_URL                    = "jdbc:postgresql://172.17.0.1:5432/keycloakdb"
         KC_DB_USERNAME               = "postgres"
         KC_DB_PASSWORD               = "newpassword"
+
+        KEYCLOAK_ADMIN               = "kc_admin"
+        KEYCLOAK_ADMIN_PASSWORD      = "password"
       }
 
       resources {
@@ -54,7 +58,8 @@ job "keycloak" {
         tags = [
           "traefik.enable=true",
           "traefik.http.routers.keycloak-http.rule=PathPrefix(`/keycloak/`)",
-          "traefik.http.routers.keycloak-http.priority=10",
+          "traefik.http.middlewares.keycloak-stripprefix.stripprefix.prefixes=/keycloak",
+          "traefik.http.routers.keycloak-http.middlewares=keycloak-stripprefix",
           "traefik.http.services.keycloak-http.loadbalancer.server.port=8180"
         ]
         provider = "nomad"

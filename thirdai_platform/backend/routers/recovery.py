@@ -1,5 +1,6 @@
 import json
 import os
+import traceback
 from pathlib import Path
 from typing import Optional, Type
 
@@ -10,6 +11,7 @@ from backend.utils import (
     get_root_absolute_path,
     model_bazaar_path,
     nomad_job_exists,
+    response,
     submit_nomad_job,
 )
 from fastapi import APIRouter, HTTPException, status
@@ -108,21 +110,34 @@ def backup_to_s3(config: dict):
         delete_nomad_job(RECOVERY_SNAPSHOT_ID, nomad_endpoint)
     cwd = Path(os.getcwd())
     platform = get_platform()
-    submit_nomad_job(
-        nomad_endpoint=nomad_endpoint,
-        filepath=str(cwd / "backend" / "nomad_jobs" / "recovery_snapshot_job.hcl.j2"),
-        platform=platform,
-        tag=os.getenv("TAG"),
-        registry=os.getenv("DOCKER_REGISTRY"),
-        docker_username=os.getenv("DOCKER_USERNAME"),
-        docker_password=os.getenv("DOCKER_PASSWORD"),
-        image_name=os.getenv("RECOVERY_SNAPSHOT_IMAGE_NAME"),
-        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
-        python_path=get_python_path(),
-        recovery_snapshot_script=str(
-            get_root_absolute_path() / "recovery_snapshot_job/run.py"
-        ),
-        config_path=config_file_path,
-        share_dir=local_dir,
-        db_uri=db_uri,
+    try:
+        submit_nomad_job(
+            nomad_endpoint=nomad_endpoint,
+            filepath=str(
+                cwd / "backend" / "nomad_jobs" / "recovery_snapshot_job.hcl.j2"
+            ),
+            platform=platform,
+            tag=os.getenv("TAG"),
+            registry=os.getenv("DOCKER_REGISTRY"),
+            docker_username=os.getenv("DOCKER_USERNAME"),
+            docker_password=os.getenv("DOCKER_PASSWORD"),
+            image_name=os.getenv("RECOVERY_SNAPSHOT_IMAGE_NAME"),
+            model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+            python_path=get_python_path(),
+            recovery_snapshot_script=str(
+                get_root_absolute_path() / "recovery_snapshot_job/run.py"
+            ),
+            config_path=config_file_path,
+            share_dir=local_dir,
+            db_uri=db_uri,
+        )
+    except Exception as err:
+        traceback.print_exc()
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
+        )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully submitted recovery snapshot job.",
     )

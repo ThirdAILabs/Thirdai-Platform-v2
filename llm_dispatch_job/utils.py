@@ -48,12 +48,18 @@ def reference_content(reference: Reference) -> str:
 
 
 def combine_query_and_context(
-    query: str, prompt: Optional[str], references: List[Reference]
+    query: str,
+    prompt: Optional[str],
+    references: List[Reference],
+    reverse_ref_order: bool = False,
 ):
     if prompt or references:
-        context = "\n\n".join(map(reference_content, references))
+        if reverse_ref_order:
+            references = references[::-1]
+        processed_references = map(reference_content, references)
+        context = "\n\n".join(processed_references)
         context = " ".join(context.split(" ")[:2000])
 
-        return f"{prompt or DEFAULT_PROMPT}\n\nContext: '{context}'\nQuery: '{query}'\nAnswer: "
+        return f"Context: '{context}'\n\n Prompt: {prompt or DEFAULT_PROMPT}\n\nQuery: '{query}'\n\nAnswer: "
 
     return query

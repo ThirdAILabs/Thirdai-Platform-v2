@@ -22,10 +22,10 @@ job "thirdai-platform-frontend" {
       provider = "nomad"
 
       tags = [
-        "traefik.enable=true",
-        "traefik.http.routers.thirdai-platform-frontend-http.rule=PathPrefix(`/`)",
-        "traefik.http.routers.thirdai-platform-frontend-http.priority=1"
-      ]
+         "traefik.enable=true",
+         "traefik.http.routers.thirdai-platform-frontend-http.rule=PathPrefix(`/`)",
+         "traefik.http.routers.thirdai-platform-frontend-http.priority=1"
+       ]
     }
 
     task "server" {

@@ -42,7 +42,7 @@ export default function SignupForm() {
           type="email"
           id="email"
           className="w-full"
-          placeholder="Email"
+          label="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -53,7 +53,7 @@ export default function SignupForm() {
           type={showPassword ? 'text' : 'password'}
           id="password"
           className="w-full"
-          placeholder="Password"
+          label="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -75,7 +75,7 @@ export default function SignupForm() {
           type="text"
           id="username"
           className="w-full"
-          placeholder="Username"
+          label="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           required

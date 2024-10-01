@@ -23,6 +23,7 @@ export default function Button(theme) {
     const largeSize = ownerState.size === 'large';
 
     const defaultStyle = {
+      textTransform: 'none',
       ...(inheritColor && {
         // CONTAINED
         ...(containedVariant && {
@@ -91,24 +92,24 @@ export default function Button(theme) {
     const containedRedDelete = {
       ...(containedVariant &&
         ownerState.color === 'error' && {
-          backgroundColor: theme.palette.error.main, // Red color for delete
-          color: theme.palette.common.white,
-          '&:hover': {
-            backgroundColor: theme.palette.error.dark, // Darker red on hover
-          },
-        }),
+        backgroundColor: theme.palette.error.main, // Red color for delete
+        color: theme.palette.common.white,
+        '&:hover': {
+          backgroundColor: theme.palette.error.dark, // Darker red on hover
+        },
+      }),
     };
 
     // ***** New Code for Delete Button with Red Color *****
     const containedGreenSuccess = {
       ...(containedVariant &&
         ownerState.color === 'success' && {
-          backgroundColor: theme.palette.success.main,
-          color: theme.palette.common.white,
-          '&:hover': {
-            backgroundColor: theme.palette.success.dark,
-          },
-        }),
+        backgroundColor: theme.palette.success.main,
+        color: theme.palette.common.white,
+        '&:hover': {
+          backgroundColor: theme.palette.success.dark,
+        },
+      }),
     };
 
     const disabledState = {

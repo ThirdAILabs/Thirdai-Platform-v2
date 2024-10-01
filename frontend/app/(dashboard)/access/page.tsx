@@ -49,8 +49,8 @@ export default function AccessPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6 bg-gray-50 min-h-screen">
-      <Card className="shadow-lg">
+    <div className="container mx-auto p-6 bg-gray-50 min-h-screen">
+      <Card className="shadow-lg max-w-4xl mx-auto">
         <CardHeader className="bg-blue-500 text-white p-6 rounded-t-lg">
           <CardTitle className="text-2xl font-bold">Manage Access</CardTitle>
           <CardDescription className="text-white">
@@ -63,29 +63,31 @@ export default function AccessPage() {
             <p className="text-gray-600">{roleDescription}</p>
           </div>
 
-          <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList>
-              <TabsTrigger value="models">Models</TabsTrigger>
-              <TabsTrigger value="workflows">Workflows</TabsTrigger>
-              <TabsTrigger value="teams">Teams</TabsTrigger>
-              <TabsTrigger value="users">Users</TabsTrigger>
-              <TabsTrigger value="openai">API Key</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            <TabsList className="w-full">
+              <TabsTrigger value="models" className="flex-1">Models</TabsTrigger>
+              <TabsTrigger value="workflows" className="flex-1">Workflows</TabsTrigger>
+              <TabsTrigger value="teams" className="flex-1">Teams</TabsTrigger>
+              <TabsTrigger value="users" className="flex-1">Users</TabsTrigger>
+              <TabsTrigger value="openai" className="flex-1">API Key</TabsTrigger>
             </TabsList>
-            <TabsContent value="models">
-              <Models />
-            </TabsContent>
-            <TabsContent value="workflows">
-              <Workflows />
-            </TabsContent>
-            <TabsContent value="teams">
-              <Teams />
-            </TabsContent>
-            <TabsContent value="users">
-              <Users />
-            </TabsContent>
-            <TabsContent value="openai">
-              <OpenAIKey />
-            </TabsContent>
+            <div className="mt-6 w-full">
+              <TabsContent value="models" className="w-full">
+                <Models />
+              </TabsContent>
+              <TabsContent value="workflows" className="w-full">
+                <Workflows />
+              </TabsContent>
+              <TabsContent value="teams" className="w-full">
+                <Teams />
+              </TabsContent>
+              <TabsContent value="users" className="w-full">
+                <Users />
+              </TabsContent>
+              <TabsContent value="openai" className="w-full">
+                <OpenAIKey />
+              </TabsContent>
+            </div>
           </Tabs>
         </CardContent>
       </Card>

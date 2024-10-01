@@ -58,7 +58,7 @@ export default function LoginPage() {
               <TextField
                 type="email"
                 id="email"
-                placeholder="Email"
+                label="Email"
                 className="w-full"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -69,7 +69,7 @@ export default function LoginPage() {
               <TextField
                 type={showPassword ? 'text' : 'password'}
                 id="password"
-                placeholder="Password"
+                label="Password"
                 className="w-full"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

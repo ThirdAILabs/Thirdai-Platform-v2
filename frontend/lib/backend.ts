@@ -1458,3 +1458,36 @@ export async function temporaryCacheToken(modelId: string) {
     throw err; // Re-throwing the error to handle it in the component
   }
 }
+
+
+// DASHBOARD stats
+
+export type MetricDataPoint = [number, string]; // Tuple of [timestamp, value]
+
+// This function fetches the `ndb_query_count` stats
+export async function fetchNdbQueryCountStats(): Promise<MetricDataPoint[]> {
+  try {
+    const response = await axios.get('http://127.0.0.1:22086/api/v1/query_range', {
+      params: {
+        query: 'ndb_query_count',
+        start: 'now-5m',
+        end: 'now',
+        step: '60s',
+      },
+      headers: {
+        'Authorization': null, // This will remove the Authorization header
+      },
+    });
+
+    const result = response.data.data.result;
+
+    if (result.length === 0) {
+      return [];
+    }
+
+    return result[0].values as MetricDataPoint[];
+  } catch (error) {
+    console.error('Error fetching ndb_query_count stats:', error);
+    throw new Error('Failed to fetch ndb_query_count stats');
+  }
+}

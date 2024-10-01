@@ -1,5 +1,5 @@
-'use client';
-
+import React from 'react';
+import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -9,95 +9,49 @@ import {
   Title,
   Tooltip,
   Legend,
-  ChartOptions,
-  ChartData,
 } from 'chart.js';
-import { Line } from 'react-chartjs-2';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
+// Register the necessary Chart.js components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
-interface ChartProps {
-  data: ChartData<'line'>;
-}
+type UsageDurationChartProps = {
+  data: any;
+};
 
-export function UsageDurationChart({ data }: ChartProps) {
-  const options: ChartOptions<'line'> = {
+export const UsageDurationChart: React.FC<UsageDurationChartProps> = ({ data }) => {
+  // Options for configuring the Chart.js line chart
+  const options = {
     responsive: true,
     plugins: {
       legend: {
-        position: 'top' as const,
-      },
-      title: {
         display: true,
-        text: 'Daily/Monthly Usage Duration',
+        position: 'top' as const, // Align legend at the top
+      },
+      tooltip: {
+        mode: 'index' as const,
+        intersect: false,
+      },
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Time',
+        },
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'NDB Query Count',
+        },
+        beginAtZero: true, // Ensure y-axis starts from 0
       },
     },
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>User Usage Duration</CardTitle>
-        <CardDescription>How long users engage with the system</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Line options={options} data={data} />
-      </CardContent>
-    </Card>
+    <div className="w-full">
+      <Line data={data} options={options} />
+    </div>
   );
-}
-
-export function UsageFrequencyChart({ data }: ChartProps) {
-  const options: ChartOptions<'line'> = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-      title: {
-        display: true,
-        text: 'Daily/Monthly Usage Frequency',
-      },
-    },
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>User Usage Frequency</CardTitle>
-        <CardDescription>Number of queries, clicks, upvotes, associates</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Line options={options} data={data} />
-      </CardContent>
-    </Card>
-  );
-}
-
-export function ReformulatedQueriesChart({ data }: ChartProps) {
-  const options: ChartOptions<'line'> = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-      },
-      title: {
-        display: true,
-        text: 'Reformulated Queries Over Time',
-      },
-    },
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Reformulated Queries</CardTitle>
-        <CardDescription>How often users reformulate queries</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Line options={options} data={data} />
-      </CardContent>
-    </Card>
-  );
-}
+};

@@ -145,7 +145,7 @@ function ChatBox({
     }
   };
 
-  console.log('sentiment', sentiment)
+  console.log('sentiment', sentiment);
 
   return (
     <ChatBoxContainer>
@@ -183,7 +183,7 @@ function ChatBox({
               whiteSpace: 'nowrap',
             }}
           >
-            [sentiment: {sentiment}]  {/* Directly displaying the sentiment label */}
+            [sentiment: {sentiment}] {/* Directly displaying the sentiment label */}
           </span>
         )}
       </ChatBoxContent>

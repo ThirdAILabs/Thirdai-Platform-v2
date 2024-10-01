@@ -12,7 +12,7 @@ import { UserContext } from '../../user_wrapper';
 import { usePathname, useSearchParams } from 'next/navigation';
 export default function AccessPage() {
   const { user } = React.useContext(UserContext);
-  console.log("page.tsx user", user);
+  console.log('page.tsx user', user);
   const [activeTab, setActiveTab] = useState('models');
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -39,10 +39,12 @@ export default function AccessPage() {
 
   if (user?.global_admin) {
     userRole = 'Global Admin';
-    roleDescription = 'This role has read and write access to all members, models, and applications.';
+    roleDescription =
+      'This role has read and write access to all members, models, and applications.';
   } else if (user?.teams.some((team) => team.role === 'team_admin')) {
     userRole = 'Team Admin';
-    roleDescription = 'This role has read and write access to all team members, models, and applications in the team.';
+    roleDescription =
+      'This role has read and write access to all team members, models, and applications in the team.';
   } else {
     userRole = 'User';
     roleDescription = 'This role has limited access based on specific team permissions.';
@@ -65,11 +67,21 @@ export default function AccessPage() {
 
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="w-full">
-              <TabsTrigger value="models" className="flex-1">Models</TabsTrigger>
-              <TabsTrigger value="workflows" className="flex-1">Workflows</TabsTrigger>
-              <TabsTrigger value="teams" className="flex-1">Teams</TabsTrigger>
-              <TabsTrigger value="users" className="flex-1">Users</TabsTrigger>
-              <TabsTrigger value="openai" className="flex-1">API Key</TabsTrigger>
+              <TabsTrigger value="models" className="flex-1">
+                Models
+              </TabsTrigger>
+              <TabsTrigger value="workflows" className="flex-1">
+                Workflows
+              </TabsTrigger>
+              <TabsTrigger value="teams" className="flex-1">
+                Teams
+              </TabsTrigger>
+              <TabsTrigger value="users" className="flex-1">
+                Users
+              </TabsTrigger>
+              <TabsTrigger value="openai" className="flex-1">
+                API Key
+              </TabsTrigger>
             </TabsList>
             <div className="mt-6 w-full">
               <TabsContent value="models" className="w-full">

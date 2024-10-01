@@ -2,7 +2,7 @@
 
 import { useContext, useState } from 'react';
 import { Button, TextField } from '@mui/material';
-import { styled } from '@mui/material/styles'
+import { styled } from '@mui/material/styles';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { userEmailLogin } from '@/lib/backend';

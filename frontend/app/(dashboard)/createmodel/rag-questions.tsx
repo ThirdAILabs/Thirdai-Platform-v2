@@ -533,7 +533,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 OpenAI
               </Button>
               <Button
-                variant={llmType === 'On-Prem' ? 'contained' : 'outlined'}
+                variant={llmType === 'On-prem' ? 'contained' : 'outlined'}
                 onClick={() => setLlmType('On-prem')}
               >
                 On-prem

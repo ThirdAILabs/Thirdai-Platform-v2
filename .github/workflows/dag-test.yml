@@ -53,6 +53,8 @@ jobs:
       run: |
         export PGPASSWORD='password'
         psql -h localhost -U postgres -d model_bazaar -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+        sudo apt-get update
+        sudo apt-get install postgresql-client-17
 
     - name: Set up Python
       uses: actions/setup-python@v2

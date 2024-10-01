@@ -123,6 +123,8 @@ jobs:
         sudo chmod g+s $HOME/nfs/dir
         echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
         echo "GENAI_KEY=${{ secrets.GENAI_KEY }}" >> $GITHUB_ENV
+        echo "AWS_ACCESS_KEY=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
 
     - name: Write All Environment Variables to .env File
       run: |

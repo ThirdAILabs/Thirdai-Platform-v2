@@ -185,6 +185,21 @@ class CommonFunctions:
         flow.bazaar_client.cleanup_cache()
         logging.info(f"Bazaar cache is cleaned")
 
+    @staticmethod
+    def recovery_snapshot(inputs: Dict[str, Any]):
+        logging.info(f"Recovery snapshot with inputs: {inputs}")
+        aws_access_key = os.getenv("AWS_ACCESS_KEY")
+        aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+        bucket_name = inputs.get("bucket_name")
+        cloud_provider = inputs.get("cloud_provider")
+        config = {
+            "cloud_provider": cloud_provider,
+            "bucket_name": bucket_name,
+            "aws_access_key": aws_access_key,
+            "aws_secret_access_key": aws_secret_access_key,
+        }
+        flow.bazaar_client.recovery_snapshot(config=config)
+
 
 class NDBFunctions:
     @staticmethod

@@ -4,6 +4,7 @@ import traceback
 from pathlib import Path
 from typing import Optional, Type
 
+from auth.jwt import verify_access_token
 from backend.utils import (
     delete_nomad_job,
     get_platform,
@@ -14,7 +15,7 @@ from backend.utils import (
     response,
     submit_nomad_job,
 )
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 recovery_router = APIRouter()
@@ -74,7 +75,7 @@ def get_cloud_config_class(cloud_provider: str) -> Type[BackupConfig]:
 RECOVERY_SNAPSHOT_ID = "recovery-snapshot"
 
 
-@recovery_router.post("/backup")
+@recovery_router.post("/backup", dependencies=[Depends(verify_access_token)])
 def backup_to_s3(config: dict):
     local_dir = model_bazaar_path()
     if not local_dir:

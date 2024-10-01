@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { UsageDurationChart } from './charts'; // Import the chart
+import { UsageDurationChart } from '@/components/ui/charts'; // Import the chart
 import Link from 'next/link';
 import { Button } from '@mui/material';
 import _ from 'lodash';
@@ -69,7 +69,7 @@ export default function AnalyticsPage() {
     ],
   };
 
-  const thirdaiPlatformBaseUrl = _.trim(process.env.THIRDAI_PLATFORM_BASE_URL!, '/');
+  const thirdaiPlatformBaseUrl = _.trim(process.env.THIRDAI_PLATFORM_BASE_URL || '', '/');
   const grafanaUrl = `${thirdaiPlatformBaseUrl}/grafana`;
 
   return (

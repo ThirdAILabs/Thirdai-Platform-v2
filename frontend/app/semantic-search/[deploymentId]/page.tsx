@@ -48,7 +48,7 @@ const Logo = styled.img`
 `;
 
 const SearchContainer = styled.section<{ $center: boolean }>`
-  position: fixed;
+  position: relative; /* Changed from fixed to relative */
   width: 70%;
   left: 10%;
   display: flex;
@@ -373,7 +373,11 @@ function App() {
           if (matchedEntry) {
             return `[${tag} #${matchedEntry[1].id}]`;
           } else {
-            piiMap.set(sentence, { id: currentId, originalToken: sentence, tag });
+            piiMap.set(sentence, {
+              id: currentId,
+              originalToken: sentence,
+              tag,
+            });
             currentId++;
             return `[${tag} #${piiMap.get(sentence)?.id}]`;
           }
@@ -624,7 +628,7 @@ function App() {
               <Teach />
             </TopRightCorner>
             {chatMode ? (
-              <Chat />
+              <Chat provider={genAiProvider || 'openai'} />
             ) : (
               <>
                 <SearchContainer $center={results === null}>
@@ -651,7 +655,7 @@ function App() {
                   )}
                 </SearchContainer>
                 {results && !failed && (
-                  <Pad $top="150px" $bottom="80px" $left="10%" $right="30%">
+                  <Pad $top="50px" $bottom="80px" $left="10%" $right="30%">
                     <Pad $left="5px">
                       {ifGenerationOn && (
                         <>
@@ -675,6 +679,7 @@ function App() {
                       )}
                       <Spacer $height="50px" />
                       <ReferenceList
+                        query={query}
                         references={results.references.slice(0, numReferences)}
                         onOpen={openSource}
                         onUpvote={upvote}

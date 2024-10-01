@@ -34,6 +34,8 @@ NDB:
       deployment: deploy_ndb
       config: variable
       results: check_search
+      generation: variable
+      on_prem: variable
   
   undeploy:
     dependencies: [check_deployment_ndb]
@@ -105,8 +107,13 @@ NDB:
     params:
       model: check_supervised
 
-  delete_model:
+  get_logs:
     dependencies: [undeploy]
+    params:
+      model: check_unsupervised_supervised
+
+  delete_model:
+    dependencies: [get_logs]
     params:
       model: check_unsupervised_supervised
   
@@ -147,13 +154,13 @@ UDT:
     params:
       deployment: udt_deploy
 
-  check_search:
+  check_predict:
     dependencies: [await_deploy]
     params:
       deployment: udt_deploy
 
   undeploy:
-    dependencies: [check_search]
+    dependencies: [check_predict]
     params:
       deployment: udt_deploy
   delete_model:
@@ -186,15 +193,20 @@ UDT_DATAGEN:
     params:
       deployment: udt_deploy
 
-  check_search:
+  check_predict:
     dependencies: [await_deploy]
     params:
       deployment: udt_deploy
 
   undeploy:
-    dependencies: [check_search]
+    dependencies: [check_predict]
     params:
       deployment: udt_deploy
+  
+  delete_model:
+    dependencies: [undeploy]
+    params:
+      model: check_udt_train_with_datagen
 
 GlobalAdmin:
   config: dummy

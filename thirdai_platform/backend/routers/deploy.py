@@ -1,9 +1,8 @@
 import json
 import os
 import traceback
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 
 from auth.jwt import (
     AuthenticatedUser,
@@ -12,6 +11,13 @@ from auth.jwt import (
     verify_access_token_no_throw,
 )
 from backend.auth_dependencies import is_model_owner
+from backend.deployment_config import (
+    DeploymentConfig,
+    ModelType,
+    NDBDeploymentOptions,
+    UDTDeploymentOptions,
+)
+from backend.startup_jobs import start_on_prem_generate_job
 from backend.utils import (
     delete_nomad_job,
     get_model_from_identifier,
@@ -22,13 +28,12 @@ from backend.utils import (
     model_accessible,
     response,
     submit_nomad_job,
+    validate_license_info,
 )
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
-from licensing.verify.verify_license import valid_job_allocation, verify_license
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()
@@ -168,22 +173,7 @@ def deploy_model(
     """
     user = authenticated_user.user
 
-    try:
-        license_info = verify_license(
-            os.getenv(
-                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
-            )
-        )
-        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="Resource limit reached, cannot allocate new jobs.",
-            )
-    except Exception as e:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"License is not valid. {str(e)}",
-        )
+    license_info = validate_license_info()
 
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
@@ -233,6 +223,31 @@ def deploy_model(
     work_dir = os.getcwd()
     platform = get_platform()
 
+    if model.type == ModelType.NDB:
+        model_options = NDBDeploymentOptions(
+            ndb_sub_type=model.sub_type,
+            llm_provider=(llm_provider or os.getenv("LLM_PROVIDER", "openai")),
+            genai_key=(genai_key or os.getenv("GENAI_KEY", "")),
+        )
+    elif model.type == ModelType.UDT:
+        model_options = UDTDeploymentOptions(udt_sub_type=model.sub_type)
+    else:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Unsupported model type '{model.type}'.",
+        )
+
+    config = DeploymentConfig(
+        model_id=str(model.id),
+        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+        model_bazaar_dir=(
+            os.getenv("SHARE_DIR", None) if platform == "local" else "/model_bazaar"
+        ),
+        license_key=license_info["boltLicenseKey"],
+        autoscaling_enabled=autoscaling_enabled,
+        model_options=model_options,
+    )
+
     try:
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "deployment_job.hcl.j2"),
@@ -245,20 +260,14 @@ def deploy_model(
             image_name=os.getenv("DEPLOY_IMAGE_NAME"),
             deployment_app_dir=str(get_root_absolute_path() / "deployment_job"),
             model_id=str(model.id),
-            model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
             share_dir=os.getenv("SHARE_DIR", None),
-            license_key=license_info["boltLicenseKey"],
-            genai_key=(genai_key or os.getenv("GENAI_KEY", "")),
-            llm_provider=(llm_provider or os.getenv("LLM_PROVIDER", "openai")),
+            config_path=config.save_deployment_config(),
             autoscaling_enabled=("true" if autoscaling_enabled else "false"),
             autoscaler_max_count=str(autoscaler_max_count),
             memory=memory,
-            type=model.type,
-            sub_type=model.sub_type,
             python_path=get_python_path(),
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
-            worker_enabled=("true" if model.type == "ndb" else "false"),
         )
 
         model.deploy_status = schema.Status.starting
@@ -408,16 +417,6 @@ def undeploy_model(
     )
 
 
-class LogData(BaseModel):
-    model_id: str
-    action: str
-    train_samples: List[Dict[str, str]]
-    used: bool
-
-    class Config:
-        protected_namespaces = ()
-
-
 @deploy_router.get("/info", dependencies=[Depends(is_model_owner)])
 def get_deployment_info(
     model_identifier: str,
@@ -455,4 +454,22 @@ def get_deployment_info(
         status_code=status.HTTP_200_OK,
         message="Deployment info retrieved successfully",
         data=jsonable_encoder(deployment_info),
+    )
+
+
+@deploy_router.post("/start-on-prem")
+async def start_on_prem_job(
+    model_name: str = "qwen2-0_5b-instruct-fp16.gguf",
+    restart_if_exists: bool = True,
+    autoscaling_enabled: bool = True,
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    await start_on_prem_generate_job(
+        model_name=model_name,
+        restart_if_exists=restart_if_exists,
+        autoscaling_enabled=autoscaling_enabled,
+    )
+
+    return response(
+        status_code=status.HTTP_200_OK, message="On-prem job started successfully"
     )

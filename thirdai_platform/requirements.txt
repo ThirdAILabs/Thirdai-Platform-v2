@@ -9,13 +9,20 @@ bs4
 pydantic
 unidecode
 boto3
+apscheduler
+azure-storage-blob
+azure-mgmt-containerservice
+azure-identity
+google-cloud-build
+google-auth
+google-cloud-storage
 
 # app
 gunicorn
 fastapi==0.109.2
 fastapi_utils
 fastapi[all]
-uvicorn
+uvicorn[standard]
 fsspec
 bcrypt
 PyJWT>=2.6.0
@@ -30,3 +37,4 @@ langchain_openai
 hvac
 nltk
 jinja2
+pyyaml

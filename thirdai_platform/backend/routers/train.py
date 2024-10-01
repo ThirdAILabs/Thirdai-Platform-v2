@@ -8,7 +8,9 @@ from typing import Dict, List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access
-from backend.config import (
+from backend.datagen import generate_data_for_train_job
+from backend.file_handler import download_local_files
+from backend.train_config import (
     DatagenOptions,
     FileInfo,
     FileLocation,
@@ -26,8 +28,6 @@ from backend.config import (
     UDTOptions,
     UDTSubType,
 )
-from backend.datagen import generate_data_for_train_job
-from backend.file_handler import download_local_files
 from backend.utils import (
     get_model,
     get_model_from_identifier,
@@ -39,36 +39,16 @@ from backend.utils import (
     response,
     submit_nomad_job,
     update_json,
+    validate_license_info,
     validate_name,
 )
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
-from licensing.verify.verify_license import valid_job_allocation, verify_license
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 train_router = APIRouter()
-
-
-def validate_license_info():
-    try:
-        license_info = verify_license(
-            os.getenv(
-                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
-            )
-        )
-        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Resource limit reached, cannot allocate new jobs.",
-            )
-        return license_info
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"License is not valid. {str(e)}",
-        )
 
 
 def get_base_model(base_model_identifier: str, user: schema.User, session: Session):
@@ -238,6 +218,34 @@ def train_ndb(
     )
 
 
+class InsertLog(BaseModel):
+    documents: List[FileInfo]
+
+
+class DeleteLog(BaseModel):
+    doc_ids: List[str]
+
+
+def list_insertions(deployment_dir: str) -> List[FileInfo]:
+    insertions = []
+    for logfile in os.listdir(os.path.join(deployment_dir, "insertions")):
+        if logfile.endswith(".jsonl"):
+            with open(os.path.join(deployment_dir, "insertions", logfile)) as f:
+                for line in f.readlines():
+                    insertions.extend(InsertLog.model_validate_json(line).documents)
+    return insertions
+
+
+def list_deletions(deployment_dir: str) -> List[str]:
+    deletions = []
+    for logfile in os.listdir(os.path.join(deployment_dir, "deletions")):
+        if logfile.endswith(".jsonl"):
+            with open(os.path.join(deployment_dir, "deletions", logfile)) as f:
+                for line in f.readlines():
+                    deletions.extend(DeleteLog.model_validate_json(line).doc_ids)
+    return deletions
+
+
 @train_router.post("/ndb-retrain")
 def retrain_ndb(
     model_name: str,
@@ -276,24 +284,28 @@ def retrain_ndb(
             message=f"NDB retraining can only be performed on NDBv2 base models.",
         )
 
-    feedback_dir = os.path.join(
+    deployment_dir = os.path.join(
         model_bazaar_path(),
         "models",
         str(base_model.id),
         "deployments",
         "data",
-        "feedback",
     )
-    if not os.path.exists(feedback_dir) or len(os.listdir(feedback_dir)) == 0:
+    if not os.path.exists(deployment_dir) or len(os.listdir(deployment_dir)) == 0:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"No feedback found for base model {base_model_identifier}. Unable to perform retraining.",
         )
 
+    unsupervised_files = list_insertions(deployment_dir)
+    print("INSERTIONS:", unsupervised_files)
+    deletions = list_deletions(deployment_dir)
+    print("DELETIONS:", deletions)
+
+    feedback_dir = os.path.join(deployment_dir, "feedback")
     supervised_train_dir = os.path.join(
         model_bazaar_path(), "data", data_id, "supervised"
     )
-
     shutil.copytree(feedback_dir, supervised_train_dir)
 
     config = TrainConfig(
@@ -305,9 +317,11 @@ def retrain_ndb(
         base_model_id=(None if not base_model_identifier else str(base_model.id)),
         model_options=NDBOptions(ndb_options=NDBv2Options()),
         data=NDBData(
+            unsupervised_files=unsupervised_files,
             supervised_files=[
                 FileInfo(path=supervised_train_dir, location=FileLocation.nfs)
-            ]
+            ],
+            deletions=deletions,
         ),
         job_options=job_options,
     )
@@ -643,22 +657,7 @@ def train_udt(
             message="Invalid options format: " + str(e),
         )
 
-    try:
-        license_info = verify_license(
-            os.getenv(
-                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
-            )
-        )
-        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="Resource limit reached, cannot allocate new jobs.",
-            )
-    except Exception as e:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"License is not valid. {str(e)}",
-        )
+    license_info = validate_license_info()
 
     try:
         validate_name(model_name)

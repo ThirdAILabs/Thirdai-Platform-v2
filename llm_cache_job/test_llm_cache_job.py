@@ -64,6 +64,7 @@ def dummy_verify(self, model_id):
 @pytest.fixture(scope="function")
 def temp_share():
     path = "./tmp"
+    os.mkdir(path)
     yield path
     shutil.rmtree(path)
 
@@ -74,6 +75,7 @@ def test_llm_cache(temp_share):
     os.environ["JWT_SECRET"] = "12345"
     os.environ["LLM_CACHE_THRESHOLD"] = "0.7"
     os.environ["MODEL_BAZAAR_DIR"] = temp_share
+    os.environ["LICENSE_KEY"] = "236C00-47457C-4641C5-52E3BB-3D1F34-V3"
 
     from permissions import Permissions
 

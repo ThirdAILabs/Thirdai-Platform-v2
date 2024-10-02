@@ -323,6 +323,7 @@ export default function Chat({
       const currentIndex = chatHistory.length; // Current length of chat history
 
       // Add the user's message to the chat
+
       setChatHistory((history) => [...history, { sender: 'human', content: textInput }]);
       setTextInput('');
 

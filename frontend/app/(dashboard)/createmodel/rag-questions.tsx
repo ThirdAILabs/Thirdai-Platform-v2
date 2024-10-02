@@ -500,7 +500,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="right" style={{ maxWidth: '250px' }}>
-                  A sentiment analysis model can determine the emotional tone behind a user's query,
+                  A sentiment analysis model can determine the emotional tone behind a user&apos;s query,
                   providing insights into their attitude and emotional state.
                 </TooltipContent>
               </Tooltip>

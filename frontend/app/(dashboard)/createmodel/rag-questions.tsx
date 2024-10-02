@@ -320,6 +320,46 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
       ),
     },
     {
+      title: 'LLM',
+      content: (
+        <div>
+          <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
+            LLM
+          </span>
+          <div>
+            <CardDescription>Choose an LLM option</CardDescription>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                gap: '10px',
+                marginTop: '10px',
+              }}
+            >
+              <Button
+                variant={llmType === 'OpenAI' ? 'contained' : 'outlined'}
+                onClick={() => setLlmType('OpenAI')}
+              >
+                OpenAI
+              </Button>
+              <Button
+                variant={llmType === 'On-prem' ? 'contained' : 'outlined'}
+                onClick={() => setLlmType('On-prem')}
+              >
+                On-prem
+              </Button>
+              <Button
+                variant={llmType === 'Self-host' ? 'contained' : 'outlined'}
+                onClick={() => setLlmType('Self-host')}
+              >
+                Self-host
+              </Button>
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    {
       title: 'LLM Guardrail',
       content: (
         <div>
@@ -328,7 +368,9 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
           </span>
           {!createdGR && (
             <>
-              <CardDescription>Would you like to add LLM guardrail?</CardDescription>
+              <CardDescription>
+                Would you like to reduce PII (Personally identifiable information) from your reference?
+              </CardDescription>
               <div
                 style={{
                   display: 'flex',
@@ -361,7 +403,9 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
               {ifUseLGR === 'Yes' && (
                 <>
                   <div style={{ marginTop: '20px' }}>
-                    <CardDescription>Use an existing NER model for LLM guardrail?</CardDescription>
+                    <CardDescription>
+                      Use an existing NER model to reduce PII from your reference?
+                    </CardDescription>
                     <div
                       style={{
                         display: 'flex',
@@ -434,11 +478,11 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
       ),
     },
     {
-      title: 'NLP Classifier',
+      title: 'Sentiment Analysis',
       content: (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', marginTop: '20px' }}>
-            <span className="block text-lg font-semibold">NLP Classifier</span>
+            <span className="block text-lg font-semibold">Sentiment Analysis</span>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span style={{ marginLeft: '8px', cursor: 'pointer' }}>
@@ -459,14 +503,13 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
                 </span>
               </TooltipTrigger>
               <TooltipContent side="right" style={{ maxWidth: '250px' }}>
-                A classification model, such as a sentiment analyzer, can categorize the user&apos;s
-                query into different labels, providing deeper insights into the intent or tone of
-                the input.
+                A sentiment analysis model can determine the emotional tone behind a user's query,
+                providing insights into their attitude and emotional state.
               </TooltipContent>
             </Tooltip>
           </div>
 
-          <CardDescription>Would you like to add NLP Classifier?</CardDescription>
+          <CardDescription>Would you like to detect sentiment of user query?</CardDescription>
           <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
             <Button
               variant={ifUseNLPClassifier === 'Yes' ? 'contained' : 'outlined'}
@@ -489,7 +532,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
 
           {ifUseNLPClassifier === 'Yes' && (
             <div style={{ marginTop: '20px' }}>
-              <CardDescription>Choose from existing NLP classifier models</CardDescription>
+              <CardDescription>Choose from existing sentiment analysis models</CardDescription>
               <select
                 className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 value={nlpClassifierIdentifier || ''}
@@ -516,46 +559,6 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
         </div>
       ),
     },
-    {
-      title: 'Chat',
-      content: (
-        <div>
-          <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
-            Chat
-          </span>
-          <div>
-            <CardDescription>Choose an LLM option</CardDescription>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                gap: '10px',
-                marginTop: '10px',
-              }}
-            >
-              <Button
-                variant={llmType === 'OpenAI' ? 'contained' : 'outlined'}
-                onClick={() => setLlmType('OpenAI')}
-              >
-                OpenAI
-              </Button>
-              <Button
-                variant={llmType === 'On-prem' ? 'contained' : 'outlined'}
-                onClick={() => setLlmType('On-prem')}
-              >
-                On-prem
-              </Button>
-              <Button
-                variant={llmType === 'Self-host' ? 'contained' : 'outlined'}
-                onClick={() => setLlmType('Self-host')}
-              >
-                Self-host
-              </Button>
-            </div>
-          </div>
-        </div>
-      ),
-    },
   ];
 
   // This is for displaying message in case user missed requirements
@@ -563,11 +566,11 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
 
   if (!modelName) missingRequirements.push('App Name is not specified (Step 1)');
   if (!ssModelId) missingRequirements.push('Retrieval app is not specified (Step 2)');
+  if (!llmType) missingRequirements.push('LLM Type is not specified (Step 3)');
   if (!(ifUseLGR === 'No' || grModelId))
-    missingRequirements.push('LLM Guardrail is not specified (Step 3)');
+    missingRequirements.push('LLM Guardrail is not specified (Step 4)');
   if (!(ifUseNLPClassifier === 'No' || nlpClassifierModelId))
-    missingRequirements.push('NLP Classifier is not specified (Step 4)');
-  if (!llmType) missingRequirements.push('LLM Type is not specified (Step 5)');
+    missingRequirements.push('Sentiment Analysis is not specified (Step 5)');
 
   const errorMessage = missingRequirements.length > 0 && (
     <div>
@@ -637,7 +640,8 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
             {ssModelId &&
             (ifUseLGR === 'No' || grModelId) &&
             modelName &&
-            (ifUseNLPClassifier === 'No' || nlpClassifierModelId) ? (
+            (ifUseNLPClassifier === 'No' || nlpClassifierModelId) &&
+            llmType ? (
               <div>
                 <Tooltip>
                   <TooltipTrigger asChild>

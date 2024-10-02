@@ -73,14 +73,14 @@ export default function ChooseProblem() {
 
   // Updated Use Case names
   const ENTERPRISE_SEARCH = 'Enterprise Search';
-  const NLP_TEXT_ANALYSIS = 'NLP / Text Analysis';
+  const NLP_TEXT_ANALYSIS = 'NLP / Text Analytics';
   const CHATBOT = 'Chatbot';
 
   // const DOC_CLASSIFICATION = "Document Classification";
   // const TABULAR_CLASSIFICATION = "Tabular Classification";
 
   // Update the useCases array with new names
-  const useCases = [{ name: ENTERPRISE_SEARCH }, { name: NLP_TEXT_ANALYSIS }, { name: CHATBOT }];
+  const useCases = [{ name: ENTERPRISE_SEARCH }, { name: CHATBOT }, { name: NLP_TEXT_ANALYSIS }];
   const handleSetModelType = (model: string) => {
     setModelType(model);
   };

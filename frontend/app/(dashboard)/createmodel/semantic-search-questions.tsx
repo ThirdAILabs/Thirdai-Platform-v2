@@ -324,7 +324,7 @@ const SemanticSearchQuestions = ({
           Summarizer (Optional)
         </span>
         <div>
-          <CardDescription>Choose an LLM option (you can opt out)</CardDescription>
+          <CardDescription>Choose an LLM option</CardDescription>
           <div
             style={{
               display: 'flex',
@@ -335,27 +335,21 @@ const SemanticSearchQuestions = ({
           >
             <Button
               variant={llmType === 'OpenAI' ? 'contained' : 'outlined'}
-              onClick={() => setLlmType('OpenAI')}
+              onClick={() => setLlmType(llmType === 'OpenAI' ? null : 'OpenAI')}
             >
               OpenAI
             </Button>
             <Button
               variant={llmType === 'On-prem' ? 'contained' : 'outlined'}
-              onClick={() => setLlmType('On-prem')}
+              onClick={() => setLlmType(llmType === 'On-prem' ? null : 'On-prem')}
             >
               On-prem
             </Button>
             <Button
               variant={llmType === 'Self-host' ? 'contained' : 'outlined'}
-              onClick={() => setLlmType('Self-host')}
+              onClick={() => setLlmType(llmType === 'Self-host' ? null : 'Self-host')}
             >
               Self-host
-            </Button>
-            <Button
-              variant={llmType === null ? 'contained' : 'outlined'}
-              onClick={() => setLlmType(null)}
-            >
-              Opt Out
             </Button>
           </div>
         </div>

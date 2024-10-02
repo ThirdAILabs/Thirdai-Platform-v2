@@ -63,6 +63,13 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         window.open(newUrl, '_blank');
         break;
       }
+      case 'chatbot': {
+        let ifGenerationOn = true; // true for chatbot
+        const genAiProvider = `${workflow.gen_ai_provider}`;
+        const newUrl = `/semantic-search/${workflow.id}?workflowId=${workflow.id}&ifGenerationOn=${ifGenerationOn}&genAiProvider=${genAiProvider}&chatMode=true`;
+        window.open(newUrl, '_blank');
+        break;
+      }
       default:
         throw new Error(`Invalid workflow type ${workflow.type}`);
         break;
@@ -171,11 +178,13 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
 
   useEffect(() => {
     if (workflow.type === 'semantic_search') {
-      setDeployType('Semantic Search');
+      setDeployType('Enterprise Search');
     } else if (workflow.type === 'nlp') {
       setDeployType('Natural Language Processing');
     } else if (workflow.type === 'rag') {
-      setDeployType('Retrieval Augmented Generation');
+      setDeployType('Enterprise Search & Summarizer');
+    } else if (workflow.type === 'chatbot') {
+      setDeployType('Chatbot');
     }
   }, [workflow.type]);
 

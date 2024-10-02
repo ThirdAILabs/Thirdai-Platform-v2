@@ -75,7 +75,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
     setIsLoading(true);
 
     const workflowName = modelName;
-    const workflowTypeName = 'rag';
+    const workflowTypeName = 'chatbot';
 
     try {
       // Step 1: Create the workflow

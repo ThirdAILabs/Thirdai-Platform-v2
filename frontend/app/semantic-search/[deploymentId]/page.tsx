@@ -152,6 +152,12 @@ function App() {
     null
   );
 
+  // Go to Chat page in case of ChatBot use case
+  useEffect(() => {
+    const isChatMode = searchParams.get('chatMode') === 'true';
+    setChatMode(isChatMode);
+  }, []);
+
   useEffect(() => {
     const receievedWorkflowId = searchParams.get('workflowId');
     const generationOn = searchParams.get('ifGenerationOn') === 'true';

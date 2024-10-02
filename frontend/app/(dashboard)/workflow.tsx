@@ -214,16 +214,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
 
   return (
     <TableRow>
-      <TableCell className="hidden sm:table-cell">
-        <Image
-          alt="workflow image"
-          className="aspect-square rounded-md object-cover"
-          height="64"
-          src={'/thirdai-small.png'}
-          width="64"
-        />
-      </TableCell>
-      <TableCell className="font-medium text-center">{workflow.name}</TableCell>
+      <TableCell className="font-bold text-center">{workflow.name}</TableCell>
       <TableCell className="text-center font-medium">
         <Badge variant="outline" className={`capitalize ${getBadgeColor(deployStatus)}`}>
           {deployStatus}

@@ -76,6 +76,11 @@ const Placeholder = styled.section`
   height: 80%;
 `;
 
+const AILoadingWrapper = styled.div`
+  margin-left: 10px;
+`;
+
+
 const labels = [
   {
     id: 1,
@@ -194,12 +199,7 @@ function ChatBox({
 // AI typing animation while the response is being processed
 function AILoadingChatBox() {
   return (
-    <ChatBoxContainer>
-      <ChatBoxSender>🤖 AI</ChatBoxSender>
-      <TypingAnimationContainer>
-        <TypingAnimation />
-      </TypingAnimationContainer>
-    </ChatBoxContainer>
+    <TypingAnimation />
   );
 }
 
@@ -411,6 +411,11 @@ export default function Chat({
                 sentiment={sentiments[i]} // Pass sentiment for human message
               />
             ))}
+            {aiLoading && 
+              <AILoadingWrapper>
+                <AILoadingChatBox />
+              </AILoadingWrapper>
+            }
           </AllChatBoxes>
         ) : (
           <Placeholder> Ask anything to start chatting! </Placeholder>

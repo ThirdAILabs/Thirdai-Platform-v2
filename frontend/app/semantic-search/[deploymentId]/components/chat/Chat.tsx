@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import styled from 'styled-components';
 import { borderRadius, color, duration, fontSizes, padding } from '../../stylingConstants';
 import { ModelServiceContext } from '../../Context';
-import { ChatMessage, ModelService } from '../../modelServices';
+import { ChatMessage, ModelService, ReferenceInfo } from '../../modelServices';
 import TypingAnimation from '../TypingAnimation';
 import { useTextClassificationEndpoints, useSentimentClassification } from '@/lib/backend'; // Import for sentiment classification
 
@@ -208,11 +208,13 @@ export default function Chat({
   sentimentClassifierExists, // Indicates if sentiment classification model exists
   sentimentWorkflowId, // Workflow ID for sentiment classification
   provider,
+  references,
 }: {
   tokenClassifierExists: boolean;
   sentimentClassifierExists: boolean;
   sentimentWorkflowId: string | null;
   provider: string;
+  references: ReferenceInfo[];
 }) {
   const modelService = useContext<ModelService | null>(ModelServiceContext);
   const { predictSentiment } = useSentimentClassification(sentimentWorkflowId); // Use new hook for sentiment classification
@@ -362,7 +364,7 @@ export default function Chat({
       await modelService!.generateAnswer(
         userInput,
         '', // Pass a specific prompt if needed
-        [], // Pass references if applicable
+        references, // Pass references if applicable
         (nextChunk: string) => {
           finalAnswer += nextChunk; // Accumulate the AI response
           setChatHistory((history) =>

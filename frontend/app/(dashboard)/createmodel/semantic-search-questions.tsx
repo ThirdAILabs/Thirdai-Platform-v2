@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { getUsername, train_ndb, create_workflow, add_models_to_workflow } from '@/lib/backend';
+import {
+  train_ndb,
+  create_workflow,
+  add_models_to_workflow,
+  set_gen_ai_provider,
+} from '@/lib/backend';
 import { Button, TextField } from '@mui/material';
 import { CardDescription } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
@@ -27,6 +32,8 @@ const SemanticSearchQuestions = ({
   const [modelName, setModelName] = useState(!appName ? '' : appName);
   const [sources, setSources] = useState<Array<{ type: string; files: File[] }>>([]);
   const [fileCount, setFileCount] = useState<number[]>([]);
+  const [llmType, setLlmType] = useState<string | null>(null);
+
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -143,7 +150,7 @@ const SemanticSearchQuestions = ({
 
       // Step 2: Create the workflow
       const workflowName = modelName;
-      const workflowTypeName = 'semantic_search'; // You can change this as needed
+      const workflowTypeName = llmType ? 'rag' : 'semantic_search'; // If llmType is null, it's 'semantic_search'
       const workflowResponse = await create_workflow({
         name: workflowName,
         typeName: workflowTypeName,
@@ -159,6 +166,33 @@ const SemanticSearchQuestions = ({
 
       console.log('addModelsResponse', addModelsResponse);
 
+      // Step 4: Set the generation AI provider if LLM is selected
+      if (llmType) { // This will run only if llmType is not null
+        let provider = '';
+        switch (llmType) {
+          case 'OpenAI':
+            provider = 'openai';
+            break;
+          case 'On-prem':
+            provider = 'on-prem';
+            break;
+          case 'Self-host':
+            provider = 'self-host';
+            break;
+          default:
+            console.error('Invalid LLM type selected');
+            alert('Invalid LLM type selected');
+            setIsLoading(false);
+            return;
+        }
+  
+        const setProviderResponse = await set_gen_ai_provider({
+          workflowId,
+          provider,
+        });
+        console.log('Generation AI provider set:', setProviderResponse);
+      }
+  
       if (!stayOnPage) {
         router.push('/');
       }
@@ -283,6 +317,50 @@ const SemanticSearchQuestions = ({
           Add S3 File
         </Button>
       </div>
+
+      {/* LLM Selection */}
+      <div>
+        <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
+          Summarizer (Optional)
+        </span>
+        <div>
+          <CardDescription>Choose an LLM option (you can opt out)</CardDescription>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              gap: '10px',
+              marginTop: '10px',
+            }}
+          >
+            <Button
+              variant={llmType === 'OpenAI' ? 'contained' : 'outlined'}
+              onClick={() => setLlmType('OpenAI')}
+            >
+              OpenAI
+            </Button>
+            <Button
+              variant={llmType === 'On-prem' ? 'contained' : 'outlined'}
+              onClick={() => setLlmType('On-prem')}
+            >
+              On-prem
+            </Button>
+            <Button
+              variant={llmType === 'Self-host' ? 'contained' : 'outlined'}
+              onClick={() => setLlmType('Self-host')}
+            >
+              Self-host
+            </Button>
+            <Button
+              variant={llmType === null ? 'contained' : 'outlined'}
+              onClick={() => setLlmType(null)}
+            >
+              Opt Out
+            </Button>
+          </div>
+        </div>
+      </div>
+
 
       <div className="flex justify-start">
         <Button

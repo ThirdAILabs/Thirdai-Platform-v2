@@ -105,7 +105,9 @@ export default function ChooseProblem() {
               <RAGQuestions models={privateModels} workflowNames={workflowNames} />
             )}
             {modelType === NLP_TEXT_ANALYSIS && <NLPQuestions workflowNames={workflowNames} />}
-            {modelType === ENTERPRISE_SEARCH && <SemanticSearchQuestions workflowNames={workflowNames} />}
+            {modelType === ENTERPRISE_SEARCH && (
+              <SemanticSearchQuestions workflowNames={workflowNames} />
+            )}
             {/* {modelType === DOC_CLASSIFICATION && <DocumentClassificationQuestions workflowNames={workflowNames} />} */}
             {/* {modelType === TABULAR_CLASSIFICATION && <TabularClassificationQuestions workflowNames={workflowNames} />} */}
           </div>

@@ -167,7 +167,8 @@ const SemanticSearchQuestions = ({
       console.log('addModelsResponse', addModelsResponse);
 
       // Step 4: Set the generation AI provider if LLM is selected
-      if (llmType) { // This will run only if llmType is not null
+      if (llmType) {
+        // This will run only if llmType is not null
         let provider = '';
         switch (llmType) {
           case 'OpenAI':
@@ -185,14 +186,14 @@ const SemanticSearchQuestions = ({
             setIsLoading(false);
             return;
         }
-  
+
         const setProviderResponse = await set_gen_ai_provider({
           workflowId,
           provider,
         });
         console.log('Generation AI provider set:', setProviderResponse);
       }
-  
+
       if (!stayOnPage) {
         router.push('/');
       }
@@ -354,7 +355,6 @@ const SemanticSearchQuestions = ({
           </div>
         </div>
       </div>
-
 
       <div className="flex justify-start">
         <Button

@@ -340,24 +340,24 @@ export default function Chat({
           [currentIndex]: humanTransformed, // Store human's PII-detected message
         }));
       }
-  
+
       // Handle the AI response streaming after user's message is submitted
       await handleAIResponse(lastTextInput); // Call the function to handle AI response streaming
     }
   };
-  
+
   const handleAIResponse = async (userInput: string) => {
     setAiLoading(true);
-    
+
     let aiIndex = 0; // Initialize aiIndex
     let finalAnswer = ''; // To accumulate the AI response
-  
+
     // Append the AI message placeholder and determine aiIndex
     setChatHistory((history) => {
       aiIndex = history.length; // The new AI message will be at this index
       return [...history, { sender: 'AI', content: '' }];
     });
-  
+
     try {
       await modelService!.generateAnswer(
         userInput,

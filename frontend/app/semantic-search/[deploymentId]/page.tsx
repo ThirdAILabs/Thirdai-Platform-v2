@@ -158,7 +158,6 @@ function App() {
     setChatMode(isChatMode);
   }, []);
 
-
   useEffect(() => {
     const receievedWorkflowId = searchParams.get('workflowId');
     const generationOn = searchParams.get('ifGenerationOn') === 'true';

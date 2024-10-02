@@ -304,6 +304,7 @@ const RAGQuestions = ({ models, workflowNames }: RAGQuestionsProps) => {
               ) : (
                 <div>
                   <SemanticSearchQuestions
+                    models={models}
                     workflowNames={workflowNames}
                     onCreateModel={(modelID) => {
                       setSsModelId(modelID);

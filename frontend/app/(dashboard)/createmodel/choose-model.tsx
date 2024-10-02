@@ -106,7 +106,7 @@ export default function ChooseProblem() {
             )}
             {modelType === NLP_TEXT_ANALYSIS && <NLPQuestions workflowNames={workflowNames} />}
             {modelType === ENTERPRISE_SEARCH && (
-              <SemanticSearchQuestions workflowNames={workflowNames} />
+              <SemanticSearchQuestions models={privateModels} workflowNames={workflowNames} />
             )}
             {/* {modelType === DOC_CLASSIFICATION && <DocumentClassificationQuestions workflowNames={workflowNames} />} */}
             {/* {modelType === TABULAR_CLASSIFICATION && <TabularClassificationQuestions workflowNames={workflowNames} />} */}

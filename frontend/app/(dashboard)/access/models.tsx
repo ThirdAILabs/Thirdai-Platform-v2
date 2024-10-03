@@ -183,7 +183,6 @@ export default function Models() {
           access_level = 'public';
           break;
       }
-      team_id = teams.find((team) => team.name === selectedTeam)?.id;
       await updateModelAccessLevel(model_identifier, access_level, team_id);
       await getModels();
 

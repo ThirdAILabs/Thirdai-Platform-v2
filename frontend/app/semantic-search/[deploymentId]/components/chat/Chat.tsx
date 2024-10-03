@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import styled from 'styled-components';
 import { borderRadius, color, duration, fontSizes, padding } from '../../stylingConstants';
 import { ModelServiceContext } from '../../Context';
-import { ChatMessage, ModelService, ReferenceInfo } from '../../modelServices';
+import { ChatMessage, ModelService } from '../../modelServices';
 import TypingAnimation from '../TypingAnimation';
 import { useTextClassificationEndpoints, useSentimentClassification } from '@/lib/backend'; // Import for sentiment classification
 
@@ -75,11 +75,6 @@ const Placeholder = styled.section`
   font-size: ${fontSizes.l};
   height: 80%;
 `;
-
-const AILoadingWrapper = styled.div`
-  margin-left: 10px;
-`;
-
 
 const labels = [
   {
@@ -199,7 +194,12 @@ function ChatBox({
 // AI typing animation while the response is being processed
 function AILoadingChatBox() {
   return (
-    <TypingAnimation />
+    <ChatBoxContainer>
+      <ChatBoxSender>🤖 AI</ChatBoxSender>
+      <TypingAnimationContainer>
+        <TypingAnimation />
+      </TypingAnimationContainer>
+    </ChatBoxContainer>
   );
 }
 
@@ -208,13 +208,11 @@ export default function Chat({
   sentimentClassifierExists, // Indicates if sentiment classification model exists
   sentimentWorkflowId, // Workflow ID for sentiment classification
   provider,
-  references,
 }: {
   tokenClassifierExists: boolean;
   sentimentClassifierExists: boolean;
   sentimentWorkflowId: string | null;
   provider: string;
-  references: ReferenceInfo[];
 }) {
   const modelService = useContext<ModelService | null>(ModelServiceContext);
   const { predictSentiment } = useSentimentClassification(sentimentWorkflowId); // Use new hook for sentiment classification
@@ -322,10 +320,10 @@ export default function Chat({
       if (aiLoading || !textInput.trim()) return;
 
       const lastTextInput = textInput;
-      const currentIndex = chatHistory.length; // Current length of chat history
+      const lastChatHistory = chatHistory;
+      const currentIndex = chatHistory.length;
 
-      // Add the user's message to the chat
-
+      setAiLoading(true);
       setChatHistory((history) => [...history, { sender: 'human', content: textInput }]);
       setTextInput('');
 
@@ -343,58 +341,30 @@ export default function Chat({
         }));
       }
 
-      // Handle the AI response streaming after user's message is submitted
-      await handleAIResponse(lastTextInput); // Call the function to handle AI response streaming
-    }
-  };
+      // Simulate AI response
+      modelService
+        ?.chat(lastTextInput, provider)
+        .then(async ({ response }) => {
+          const aiIndex = chatHistory.length + 1;
+          setChatHistory((history) => [...history, { sender: 'AI', content: response }]);
 
-  const handleAIResponse = async (userInput: string) => {
-    setAiLoading(true);
-
-    let aiIndex = 0; // Initialize aiIndex
-    let finalAnswer = ''; // To accumulate the AI response
-
-    // Append the AI message placeholder and determine aiIndex
-    setChatHistory((history) => {
-      aiIndex = history.length; // The new AI message will be at this index
-      return [...history, { sender: 'AI', content: '' }];
-    });
-
-    try {
-      await modelService!.generateAnswer(
-        userInput,
-        '', // Pass a specific prompt if needed
-        references, // Pass references if applicable
-        (nextChunk: string) => {
-          finalAnswer += nextChunk; // Accumulate the AI response
-          setChatHistory((history) =>
-            history.map((msg, index) =>
-              index === aiIndex ? { ...msg, content: msg.content + nextChunk } : msg
-            )
-          );
-        },
-        provider || undefined,
-        0 || undefined,
-        async () => {
-          setAiLoading(false);
-          // Perform PII detection on the complete AI response
-          if (tokenClassifierExists && finalAnswer) {
-            try {
-              const aiTransformed = await performPIIDetection(finalAnswer);
-              setTransformedMessages((prev) => ({
-                ...prev,
-                [aiIndex]: aiTransformed, // Store AI's PII-detected message
-              }));
-            } catch (error) {
-              console.error('Error performing PII detection on AI message:', error);
-            }
+          // Perform PII detection on the AI's response
+          if (tokenClassifierExists) {
+            const aiTransformed = await performPIIDetection(response);
+            setTransformedMessages((prev) => ({
+              ...prev,
+              [aiIndex]: aiTransformed, // Store AI's PII-detected message
+            }));
           }
-        }
-      );
-    } catch (error) {
-      console.error('Error generating AI response:', error);
-      alert('Failed to generate AI response.');
-      setAiLoading(false);
+
+          setAiLoading(false);
+        })
+        .catch((error) => {
+          alert('Failed to send chat. Please try again.');
+          setChatHistory(lastChatHistory);
+          setTextInput(lastTextInput);
+          setAiLoading(false);
+        });
     }
   };
 
@@ -411,11 +381,7 @@ export default function Chat({
                 sentiment={sentiments[i]} // Pass sentiment for human message
               />
             ))}
-            {aiLoading && 
-              <AILoadingWrapper>
-                <AILoadingChatBox />
-              </AILoadingWrapper>
-            }
+            {aiLoading && <AILoadingChatBox />}
           </AllChatBoxes>
         ) : (
           <Placeholder> Ask anything to start chatting! </Placeholder>

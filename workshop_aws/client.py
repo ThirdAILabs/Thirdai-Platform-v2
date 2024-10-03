@@ -165,27 +165,6 @@ class PlatformClient:
             print("Training in progress...")
             time.sleep(10)  # Wait for 10 seconds before checking again
 
-    def insert_retrieval_model_documents(self, model_id: str, local_files: List[str], token: str):
-        """
-        Inserts documents into an existing retrieval model.
-        Parameters:
-        - model_id: model ID as returned by create_retrieval_model. You can also find the model ID in the list returned by list_models.
-        - local_files: List of local file paths.
-        - token: Authorization token from login
-        """
-        headers = {"Authorization": f"Bearer {token}"}
-        query_url = f"{self.base_url}/{model_id}/insert"
-        files = [("files", open(local_file, "rb")) for local_file in local_files]
-        documents = [self.create_doc_dict(local_file, "local") for local_file in local_files]
-        files.append(("documents", (None, json.dumps(documents), "application/json")))
-        response = requests.post(
-            query_url,
-            files=files,
-            headers=headers,
-        )
-        return response.json()
-
-
     def create_doc_dict(self, path: str, doc_type: str):
         """
         Creates a document dictionary for different document types.

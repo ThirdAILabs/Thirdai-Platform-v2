@@ -65,6 +65,10 @@ const ScrollableArea = styled.section`
   height: 80%;
 `;
 
+const AILoadingWrapper = styled.div`
+  margin-left: 10px;
+`;
+
 const AllChatBoxes = styled.section``;
 
 const Placeholder = styled.section`
@@ -194,12 +198,7 @@ function ChatBox({
 // AI typing animation while the response is being processed
 function AILoadingChatBox() {
   return (
-    <ChatBoxContainer>
-      <ChatBoxSender>🤖 AI</ChatBoxSender>
-      <TypingAnimationContainer>
-        <TypingAnimation />
-      </TypingAnimationContainer>
-    </ChatBoxContainer>
+    <TypingAnimation />
   );
 }
 
@@ -395,7 +394,11 @@ export default function Chat({
                 sentiment={sentiments[i]} // Pass sentiment for human message
               />
             ))}
-            {aiLoading && <AILoadingChatBox />}
+            {aiLoading && 
+              <AILoadingWrapper>
+                <AILoadingChatBox />
+              </AILoadingWrapper>
+            }
           </AllChatBoxes>
         ) : (
           <Placeholder> Ask anything to start chatting! </Placeholder>

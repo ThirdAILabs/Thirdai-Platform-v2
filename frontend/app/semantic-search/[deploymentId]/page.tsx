@@ -673,7 +673,6 @@ function App() {
                 sentimentClassifierExists={sentimentClassifierExists}
                 sentimentWorkflowId={sentimentClassifierWorkflowId} // Pass the workflow ID for sentiment classifier
                 provider={genAiProvider || 'openai'}
-                references={results ? results.references : []}
               />
             ) : (
               <>

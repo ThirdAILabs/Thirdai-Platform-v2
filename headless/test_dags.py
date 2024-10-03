@@ -9,12 +9,12 @@ from headless.utils import download_from_s3_if_not_exists, normalize_s3_uri
 
 @pytest.fixture(scope="session")
 def additional_variables():
-    is_merge_group = os.getenv("GITHUB_EVENT_NAME") == "merge_group"
+    # is_merge_group = os.getenv("GITHUB_EVENT_NAME") == "merge_group"
     return {
         "sharded": False,
         "run_name": "ci_run",
         "on_prem": False,
-        "generation": is_merge_group,
+        "generation": True,
     }
 
 

@@ -34,29 +34,6 @@ class PlatformClient:
         token = result.get("data", {}).get("access_token")
         return token
 
-    def list_models(
-        self, name: str, token: str, domain=None, username=None, type=None, sub_type=None, access_level=None
-    ):
-        """
-        List models based on filters for authenticated users.
-        Returns:
-        - List of models that match the provided filters.
-        """
-        url = f"{self.base_url}/api/model/list"
-        headers = {"Authorization": f"Bearer {token}"}
-        params = {
-            "name": name,
-            "domain": domain,
-            "username": username,
-            "type": type,
-            "sub_type": sub_type,
-            "access_level": access_level,
-        }
-        response = requests.get(
-            url, headers=headers, params={k: v for k, v in params.items() if v is not None}
-        )
-        return response.json()
-
     def delete_model(self, model_identifier: str, token: str):
         """
         Delete a specified model. model_identifier is username/modelname
@@ -266,7 +243,7 @@ class PlatformClient:
         """
         Retrieves top k most relevant references to the query from the deployed model.
         Parameters:
-        - model_id: <username>/<modelname>
+        - model_id: model ID as returned by create_retrieval_model.
         - query: The query to search for.
         - token: Authorization token from login
         """
@@ -290,7 +267,7 @@ class PlatformClient:
         """
         Upvotes a reference for a given query.
         Parameters:
-        - model_id: model ID as returned by create_retrieval_model. You can also find the model ID in the list returned by list_models.
+        - model_id: model ID as returned by create_retrieval_model. 
         - query: The query for which the reference is upvoted.
         - reference_id: The ID of the reference to upvote.
         - token: Authorization token from login

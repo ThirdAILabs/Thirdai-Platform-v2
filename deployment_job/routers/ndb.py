@@ -28,6 +28,8 @@ from update_logger import (
     UpvoteLog,
 )
 from utils import propagate_error, response, validate_name
+from fastapi.responses import StreamingResponse
+from typing import AsyncGenerator
 
 ndb_query_metric = Summary("ndb_query", "NDB Queries")
 ndb_upvote_metric = Summary("ndb_upvote", "NDB upvotes")
@@ -456,13 +458,11 @@ class NDBRouter:
         else:
             session_id = input.session_id
 
-        chat_result = {"response": chat.chat(input.user_input, session_id)}
+        async def generate_response() -> AsyncGenerator[str, None]:
+            async for chunk in chat.stream_chat(input.user_input, session_id):
+                yield chunk
 
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Successful",
-            data=chat_result,
-        )
+        return StreamingResponse(generate_response(), media_type="text/plain")
 
     @propagate_error
     def get_sources(self, token=Depends(Permissions.verify_permission("read"))):

@@ -282,13 +282,13 @@ class NDBFunctions:
                     provider="openai",
                 )
 
-                logging.info(f"Chat response {chat_response}")
+                logging.info(f"OpenAI Chat response {chat_response}")
 
                 chat_history = deployment.get_chat_history(
                     session_id=deployment.model_id
                 )
 
-                logging.info(f"Chat history {chat_history}")
+                logging.info(f"OpenAI Chat history {chat_history}")
 
             if on_prem:
                 flow.bazaar_client.start_on_prem(autoscaling_enabled=False)
@@ -312,7 +312,13 @@ class NDBFunctions:
                     provider="on-prem",
                 )
 
-                deployment.get_chat_history(session_id=deployment.model_id)
+                logging.info(f"On prem Chat response {chat_response}")
+
+                chat_history = deployment.get_chat_history(
+                    session_id=deployment.model_id
+                )
+
+                logging.info(f"On prem Chat history {chat_history}")
 
     @staticmethod
     def check_unsupervised(inputs: Dict[str, Any]) -> Any:

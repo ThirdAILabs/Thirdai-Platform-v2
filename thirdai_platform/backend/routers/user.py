@@ -1,5 +1,6 @@
 import os
 import pathlib
+from random import randint
 from typing import List, Optional
 from urllib.parse import urlencode, urljoin
 
@@ -57,6 +58,20 @@ def send_verification_mail(email: str, verification_token: str, username: str):
 
     Mailer(
         to=f"{username} <{email}>",
+        subject=subject,
+        body=body,
+    )
+
+
+def send_reset_password_code(email: str, reset_password_code: int):
+    subject = "Verify Your Reset Password Code"
+
+    body = (
+        f"The verification code for resetting your password is {reset_password_code}."
+    )
+
+    Mailer(
+        to=f"<{email}>",
         subject=subject,
         body=body,
     )
@@ -415,6 +430,40 @@ def email_login(
             "access_token": create_access_token(user.id, expiration_min=120),
             "verified": user.verified,
         },
+    )
+
+
+@user_router.get("/reset-password")
+def reset_password(
+    email: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Helps user to reset passoword incase they want to change the password or forgot it.
+
+    - **email**: email of account to reset password for.
+    """
+    user: schema.User = (
+        session.query(schema.User).filter(schema.User.email == email).first()
+    )
+
+    if not user:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="This email is not registered with any account.",
+        )
+
+    reset_password_code = randint(100000, 999999)
+
+    user.reset_password_code = reset_password_code
+
+    send_reset_password_code(email, reset_password_code=user.reset_password_code)
+
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully sent the verification code to mail.",
     )
 
 

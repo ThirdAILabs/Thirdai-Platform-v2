@@ -363,7 +363,7 @@ class NeuralDBClient(BaseClient):
         Returns chat history associated with session_id
         """
         response = http_post_with_error(
-            urljoin(self.base_url, "get-chat-hisory"),
+            urljoin(self.base_url, "get-chat-history"),
             json={"session_id": session_id},
             headers=auth_header(self.login_instance.access_token),
         )
@@ -373,7 +373,7 @@ class NeuralDBClient(BaseClient):
     @check_deployment_decorator
     def update_chat_settings(self, provider: str = "openai"):
         response = http_post_with_error(
-            urljoin(self.base_url, "get-chat-hisory"),
+            urljoin(self.base_url, "update-chat-settings"),
             json={"provider": provider},
             headers=auth_header(self.login_instance.access_token),
         )

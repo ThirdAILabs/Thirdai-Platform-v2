@@ -276,13 +276,19 @@ class NDBFunctions:
 
                 deployment.update_chat_settings(provider="openai")
 
-                deployment.chat(
+                chat_response = deployment.chat(
                     user_input=best_answer["text"],
                     session_id=deployment.model_id,
                     provider="openai",
                 )
 
-                deployment.get_chat_history(session_id=deployment.model_id)
+                logging.info(f"Chat response {chat_response}")
+
+                chat_history = deployment.get_chat_history(
+                    session_id=deployment.model_id
+                )
+
+                logging.info(f"Chat history {chat_history}")
 
             if on_prem:
                 flow.bazaar_client.start_on_prem(autoscaling_enabled=False)

@@ -10,7 +10,7 @@ import { styled } from '@mui/material/styles';
 
 const StyledTextField = styled(TextField)(({ theme }) => ({
   '& label': {
-    top: '-6px',
+    top: '-4px',
   },
   '& label.Mui-focused': {
     top: '0px',

@@ -49,12 +49,12 @@ def combine_query_and_context(
     reverse_ref_order: bool = False,
 ):
     if prompt or references:
-        if reverse_ref_order:
-            references = references[::-1]
+        # if reverse_ref_order:
+        #     references = references[::-1]
         processed_references = map(reference_content, references)
         context = "\n\n".join(processed_references)
-        context = " ".join(context.split(" ")[:2000])
+        context = " ".join(context.split(" "))
 
-        return f"Context: '{context}'\n\n Prompt: {prompt or DEFAULT_PROMPT}\n\nQuery: '{query}'\n\nAnswer: "
+        return f"<|user|>{context}\n Given this context, {query}?<|end|>\n<|assistant|>"
 
     return query

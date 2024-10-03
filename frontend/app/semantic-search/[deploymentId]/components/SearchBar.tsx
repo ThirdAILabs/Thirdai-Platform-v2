@@ -277,7 +277,7 @@ export default function SearchBar({
             }}
           />
           <Spacer $width="15px" />
-          <PromptToggle onClick={() => setDialogOpen((dialogOpen) => !dialogOpen)} />
+          {/* <PromptToggle onClick={() => setDialogOpen((dialogOpen) => !dialogOpen)} /> */}
           <Spacer $width="7px" />
           <SaveButton onClick={handleSaveClick} />
         </SearchArea>

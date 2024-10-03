@@ -117,7 +117,10 @@ class OnPremLLM(LLMBase):
         data = {
             "system_prompt": "You are a helpful assistant. Please be concise in your answers.",
             "prompt": combine_query_and_context(
-                query=query, prompt=prompt, references=references
+                query=query,
+                prompt=prompt,
+                references=references,
+                reverse_ref_order=True,
             )
             + "<|assistant|>",
             "stream": True,

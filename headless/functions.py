@@ -273,11 +273,15 @@ class NDBFunctions:
                 logging.info(f"Openai generated answer: {generated_answer}")
                 if not generated_answer:
                     raise Exception(f"Openai answer is not generated")
-                
+
                 deployment.update_chat_settings(provider="openai")
-                
-                deployment.chat(user_input=best_answer["text"], session_id=deployment.model_id, provider="openai")
-                
+
+                deployment.chat(
+                    user_input=best_answer["text"],
+                    session_id=deployment.model_id,
+                    provider="openai",
+                )
+
                 deployment.get_chat_history(session_id=deployment.model_id)
 
             if on_prem:
@@ -293,12 +297,15 @@ class NDBFunctions:
                 logging.info(f"on-prem generated answer: {generated_answer}")
                 if not generated_answer:
                     raise Exception(f"On prem answer is not generated")
-                
-                
+
                 deployment.update_chat_settings(provider="on-prem")
-                
-                deployment.chat(user_input=best_answer["text"], session_id=deployment.model_id, provider="on-prem")
-                
+
+                deployment.chat(
+                    user_input=best_answer["text"],
+                    session_id=deployment.model_id,
+                    provider="on-prem",
+                )
+
                 deployment.get_chat_history(session_id=deployment.model_id)
 
     @staticmethod

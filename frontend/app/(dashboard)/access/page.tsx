@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Models from './models';
@@ -10,9 +10,9 @@ import Users from './users';
 import OpenAIKey from './apiKey';
 import { UserContext } from '../../user_wrapper';
 import { usePathname, useSearchParams } from 'next/navigation';
-export default function AccessPage() {
+
+function AccessContent() {
   const { user } = React.useContext(UserContext);
-  console.log('page.tsx user', user);
   const [activeTab, setActiveTab] = useState('models');
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -28,12 +28,12 @@ export default function AccessPage() {
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     // Update the URL search params when changing tabs
-    const newSearchParams = new URLSearchParams(searchParams);
+    const newSearchParams = new URLSearchParams(searchParams.toString());
     newSearchParams.set('tab', value);
     window.history.pushState(null, '', `${pathname}?${newSearchParams.toString()}`);
   };
 
-  //Determine the user role
+  // Determine the user role
   let userRole = '';
   let roleDescription = '';
 
@@ -104,5 +104,13 @@ export default function AccessPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function AccessPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AccessContent />
+    </Suspense>
   );
 }

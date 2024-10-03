@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useEffect } from 'react';
 import { Button, TextField } from '@mui/material';
 import AutocompleteInput from '@/components/ui/AutocompleteInput';
@@ -87,7 +88,6 @@ export default function Teams() {
       alert('Failed to fetch users' + error);
     }
   };
-  // console.log('Users:', users);
 
   useEffect(() => {
     getTeams();
@@ -309,11 +309,9 @@ export default function Teams() {
 
   const handleSelectedTeamAdd = (team: string) => {
     setSelectedTeamForAdd(team);
-    // console.log("Selected Team to add -> ", team.name);
   };
   const handleSelectedTeamRemove = (team: string) => {
     setSelectedTeamForRemove(team);
-    // console.log("Selected team to remove -> ", team.name);
   };
   const handleAdminAdd = (team: string) => {
     setSelectedTeamForAddAdmin(team);

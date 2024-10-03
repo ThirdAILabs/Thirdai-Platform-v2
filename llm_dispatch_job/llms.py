@@ -115,14 +115,14 @@ class OnPremLLM(LLMBase):
 
         headers = {"Content-Type": "application/json"}
         data = {
-            "system_prompt": "You are a helpful assistant. Please be concise in your answers.",
+            "system_prompt": "Answer the user's questions based on the given context.",
             "prompt": combine_query_and_context(
                 query=query,
                 prompt=prompt,
                 references=references,
-                reverse_ref_order=True,
-            )
-            + "<|assistant|>",
+                reverse_ref_order=False,
+            ),
+            # + "<|assistant|>",
             "stream": True,
             # Occasionally the model will repeat itself infinitely, this cuts off
             # the model at 1000 output tokens so that doesn't occur. Alternatively

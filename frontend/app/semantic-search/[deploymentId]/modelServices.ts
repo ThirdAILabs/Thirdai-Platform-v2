@@ -660,35 +660,54 @@ export class ModelService {
       });
   }
 
-  chat(textInput: string, provider: string): Promise<ChatResponse> {
-    return fetch(this.url + '/chat', {
-      method: 'POST',
-      body: JSON.stringify({
-        session_id: this.sessionId,
-        user_input: textInput,
-        provider: provider,
-      }),
-      headers: {
-        'Content-type': 'application/json; charset=UTF-8',
-        ...this.authHeader(),
-      },
-    })
-      .then(this.handleInvalidAuth())
-      .then((res) => {
-        if (res.ok) {
-          return res.json();
-        } else {
-          return res.json().then((err) => {
-            throw new Error(err.detail || 'Failed to fetch chat response');
-          });
-        }
-      })
-      .then((response) => response['data'] as ChatResponse)
-      .catch((e) => {
-        console.error('Error in chat:', e);
-        alert('Error in chat: ' + e);
-        throw e;
+  async chat(
+    textInput: string,
+    provider: string,
+    onNextWord: (str: string) => void,
+    onComplete?: (finalResponse: string) => void
+  ): Promise<void> {
+    try {
+      const response = await fetch(this.url + '/chat', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: this.sessionId,
+          user_input: textInput,
+          provider: provider,
+        }),
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+          ...this.authHeader(),
+        },
       });
+  
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+  
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let finalResponse = '';
+  
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+  
+        const newData = decoder.decode(value, { stream: true });
+        finalResponse += newData;
+  
+        onNextWord(newData);
+      }
+  
+      if (onComplete) {
+        onComplete(finalResponse);
+      }
+    } catch (error) {
+      console.error('Error in chat:', error);
+      alert('Error in chat: ' + error);
+      throw error;
+    }
   }
 
   setChat(provider: string): Promise<any> {

@@ -318,53 +318,67 @@ export default function Chat({
     if (e.keyCode === 13 && e.shiftKey === false) {
       e.preventDefault();
       if (aiLoading || !textInput.trim()) return;
-
+  
       const lastTextInput = textInput;
       const lastChatHistory = chatHistory;
       const currentIndex = chatHistory.length;
-
+  
       setAiLoading(true);
-      setChatHistory((history) => [...history, { sender: 'human', content: textInput }]);
+      setChatHistory((history) => [...history, { sender: 'human', content: lastTextInput }]);
       setTextInput('');
-
+  
       // Trigger sentiment classification if classifier exists
       if (sentimentClassifierExists) {
-        classifySentiment(lastTextInput, currentIndex); // Run sentiment classification
+        classifySentiment(lastTextInput, currentIndex);
       }
-
+  
       // Perform PII detection on the human's message
       if (tokenClassifierExists) {
         const humanTransformed = await performPIIDetection(lastTextInput);
         setTransformedMessages((prev) => ({
           ...prev,
-          [currentIndex]: humanTransformed, // Store human's PII-detected message
+          [currentIndex]: humanTransformed,
         }));
       }
-
-      // Simulate AI response
-      modelService
-        ?.chat(lastTextInput, provider)
-        .then(async ({ response }) => {
-          const aiIndex = chatHistory.length + 1;
-          setChatHistory((history) => [...history, { sender: 'AI', content: response }]);
-
-          // Perform PII detection on the AI's response
-          if (tokenClassifierExists) {
-            const aiTransformed = await performPIIDetection(response);
-            setTransformedMessages((prev) => ({
-              ...prev,
-              [aiIndex]: aiTransformed, // Store AI's PII-detected message
-            }));
+  
+      try {
+        let aiResponse = '';
+        const aiIndex = chatHistory.length + 1;
+  
+        await modelService?.chat(
+          lastTextInput,
+          provider,
+          (newWord: string) => {
+            aiResponse += newWord;
+            setChatHistory((history) => {
+              const newHistory = [...history];
+              if (newHistory[newHistory.length - 1].sender === 'AI') {
+                newHistory[newHistory.length - 1].content = aiResponse;
+              } else {
+                newHistory.push({ sender: 'AI', content: aiResponse });
+              }
+              return newHistory;
+            });
+          },
+          async (finalResponse: string) => {
+            // Perform PII detection on the AI's complete response
+            if (tokenClassifierExists) {
+              const aiTransformed = await performPIIDetection(finalResponse);
+              setTransformedMessages((prev) => ({
+                ...prev,
+                [aiIndex]: aiTransformed,
+              }));
+            }
+            
+            setAiLoading(false);
           }
-
-          setAiLoading(false);
-        })
-        .catch((error) => {
-          alert('Failed to send chat. Please try again.');
-          setChatHistory(lastChatHistory);
-          setTextInput(lastTextInput);
-          setAiLoading(false);
-        });
+        );
+      } catch (error) {
+        alert('Failed to send chat. Please try again.');
+        setChatHistory(lastChatHistory);
+        setTextInput(lastTextInput);
+        setAiLoading(false);
+      }
     }
   };
 

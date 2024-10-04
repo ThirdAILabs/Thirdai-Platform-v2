@@ -28,6 +28,13 @@ job "keycloak" {
         KC_HOSTNAME_STRICT_BACKCHANNEL = "false"
         KC_HOSTNAME_URL              = "http://localhost:8180"
 
+        # Database connection
+        DB_VENDOR                    = "postgres"
+        DB_ADDR                      = "172.17.0.1"
+        DB_DATABASE                  = "keycloakdb"
+        DB_USER                      = "postgres"
+        DB_PASSWORD                  = "newpassword"
+
         KC_DB                        = "postgres"
         KC_DB_URL                    = "jdbc:postgresql://172.17.0.1:5432/keycloakdb"
         KC_DB_USERNAME               = "postgres"

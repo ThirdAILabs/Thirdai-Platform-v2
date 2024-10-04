@@ -11,7 +11,7 @@ class Samples(Base):
     datatype = Column(String)
     name = Column(String, index=True)
     serialized_data = Column(String)
-    user_provided = Boolean()
+    user_provided = Column(Boolean, nullable=False, default=False)
     timestamp = Column(DateTime, default=func.current_timestamp())
 
     feedback_entries = relationship("FeedBack", back_populates="sample")

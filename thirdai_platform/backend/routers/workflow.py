@@ -11,6 +11,12 @@ from backend.auth_dependencies import (
     is_workflow_accessible,
     is_workflow_owner,
 )
+from backend.deployment_config import (
+    DeploymentConfig,
+    ModelType,
+    NDBDeploymentOptions,
+    UDTDeploymentOptions,
+)
 from backend.startup_jobs import start_on_prem_generate_job
 from backend.utils import (
     delete_nomad_job,
@@ -28,8 +34,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import verify_license
 from pydantic import BaseModel, validator
-from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 workflow_router = APIRouter()
 
@@ -226,6 +231,15 @@ def add_models(
                 message=f"Model with ID {model_id} not found.",
             )
 
+        if not model.get_user_permission(authenticated_user.user):
+            return response(
+                status_code=status.HTTP_403_FORBIDDEN,
+                message=(
+                    f"You do not have permission to add {model.name} "
+                    f"(component: {component}). "
+                ),
+            )
+
         workflow_model: schema.WorkflowModel = (
             session.query(schema.WorkflowModel)
             .filter(
@@ -248,6 +262,7 @@ def add_models(
         session.add(workflow_model)
 
     session.commit()
+    session.refresh(workflow)
 
     return response(
         status_code=status.HTTP_200_OK,
@@ -346,6 +361,7 @@ def delete_models(
         session.delete(workflow_model)
 
     session.commit()
+    session.refresh(workflow)
 
     return response(
         status_code=status.HTTP_200_OK,
@@ -596,6 +612,8 @@ def stop_workflow(
 @workflow_router.post("/start", dependencies=[Depends(is_workflow_owner)])
 async def start_workflow(
     workflow_id: str,
+    autoscaling_enabled: bool = False,
+    autoscaler_max_count: int = 1,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
@@ -604,6 +622,8 @@ async def start_workflow(
 
     - **Parameters**:
       - `workflow_id` (str): ID of the workflow to start.
+      - `autoscaling_enabled` (bool): Whether autoscaling should be enabled.
+      - `autoscaler_max_count` (int): Maximum number of autoscalers.
     - **Returns**:
       - `status_code` (int): HTTP status code.
       - `message` (str): Response message.
@@ -692,6 +712,39 @@ async def start_workflow(
             work_dir = os.getcwd()
             platform = get_platform()
 
+            if model.type == ModelType.NDB:
+                model_options = NDBDeploymentOptions(
+                    ndb_sub_type=model.sub_type,
+                    llm_provider=workflow.gen_ai_provider
+                    or os.getenv("LLM_PROVIDER", "openai"),
+                    genai_key=os.getenv("GENAI_KEY", ""),
+                )
+            elif model.type == ModelType.UDT:
+                model_options = UDTDeploymentOptions(udt_sub_type=model.sub_type)
+            else:
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message=f"Unsupported model type '{model.type}'.",
+                )
+
+            config = DeploymentConfig(
+                model_id=str(model.id),
+                model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+                model_bazaar_dir=(
+                    os.getenv("SHARE_DIR", None)
+                    if platform == "local"
+                    else "/model_bazaar"
+                ),
+                license_key=verify_license(
+                    os.getenv(
+                        "LICENSE_PATH",
+                        "/model_bazaar/license/ndb_enterprise_license.json",
+                    )
+                )["boltLicenseKey"],
+                autoscaling_enabled=autoscaling_enabled,
+                model_options=model_options,
+            )
+
             try:
                 submit_nomad_job(
                     str(
@@ -709,26 +762,14 @@ async def start_workflow(
                     image_name=os.getenv("DEPLOY_IMAGE_NAME"),
                     deployment_app_dir=str(get_root_absolute_path() / "deployment_job"),
                     model_id=str(model.id),
-                    model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
                     share_dir=os.getenv("SHARE_DIR", None),
-                    license_key=verify_license(
-                        os.getenv(
-                            "LICENSE_PATH",
-                            "/model_bazaar/license/ndb_enterprise_license.json",
-                        )
-                    )["boltLicenseKey"],
-                    genai_key=(os.getenv("GENAI_KEY", "")),
-                    autoscaling_enabled=str(
-                        os.getenv("AUTOSCALING_ENABLED", "false")
-                    ).lower(),
-                    autoscaler_max_count=os.getenv("AUTOSCALER_MAX_COUNT", "1"),
+                    config_path=config.save_deployment_config(),
+                    autoscaling_enabled=str(autoscaling_enabled).lower(),
+                    autoscaler_max_count=str(autoscaler_max_count),
                     memory=memory,
-                    type=model.type,
-                    sub_type=model.sub_type,
                     python_path=get_python_path(),
                     aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
                     aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
-                    worker_enabled=("true" if model.type == "ndb" else "false"),
                 )
 
                 model.deploy_status = schema.Status.starting
@@ -1076,13 +1117,20 @@ def list_accessible_workflows(
     """
     user: schema.User = authenticated_user.user
 
-    # Build the base query with outer join to include workflows without models
-    all_workflows = (
-        session.query(schema.Workflow).outerjoin(schema.Workflow.workflow_models).all()
+    # Perform a single query to fetch workflows and eagerly load their models
+    workflows = (
+        session.query(schema.Workflow)
+        .outerjoin(schema.Workflow.workflow_models)
+        .options(
+            selectinload(schema.Workflow.workflow_models).selectinload(
+                schema.WorkflowModel.model
+            )
+        )  # Eager loading workflow models and associated model data
+        .all()
     )
 
     filtered_workflows = [
-        workflow for workflow in all_workflows if workflow.can_access(user)
+        workflow for workflow in workflows if workflow.can_access(user)
     ]
 
     # Apply the can_access check on the remaining workflows

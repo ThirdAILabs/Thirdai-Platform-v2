@@ -6,11 +6,8 @@ import _ from 'lodash';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export const thirdaiPlatformBaseUrl = _.trim(
-  process.env.NEXT_PUBLIC_THIRDAI_PLATFORM_BASE_URL!,
-  '/'
-);
-export const deploymentBaseUrl = _.trim(process.env.NEXT_PUBLIC_DEPLOYMENT_BASE_URL!, '/');
+export const thirdaiPlatformBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
 export function getAccessToken(throwIfNotFound: boolean = true): string | null {
   const accessToken = localStorage.getItem('accessToken');
@@ -256,6 +253,57 @@ export function train_ndb({ name, formData }: TrainNdbParams): Promise<any> {
   });
 }
 
+// src/interfaces/TrainNdbParams.ts
+export interface JobOptions {
+  allocation_cores: number;
+  allocation_memory: number;
+  // Add other JobOptions fields as necessary
+}
+
+export interface RetrainNdbParams {
+  model_name: string;
+  base_model_identifier: string;
+  job_options: JobOptions;
+}
+
+export function retrain_ndb({
+  model_name,
+  base_model_identifier,
+  job_options,
+}: RetrainNdbParams): Promise<any> {
+  // Retrieve the access token from local storage or any other storage mechanism
+  const accessToken = getAccessToken();
+
+  // Set the default authorization header for axios
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  // Initialize URLSearchParams with model_name and base_model_identifier
+  const params = new URLSearchParams({
+    model_name: model_name,
+    base_model_identifier: base_model_identifier,
+  });
+
+  // Append job_options fields to the URLSearchParams
+  Object.entries(job_options).forEach(([key, value]) => {
+    params.append(key, value.toString());
+  });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/ndb-retrain?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.message || 'Failed to retrain model'));
+        } else {
+          reject(new Error('Failed to retrain model'));
+        }
+      });
+  });
+}
+
 interface CreateWorkflowParams {
   name: string;
   typeName: string;
@@ -314,6 +362,40 @@ export function add_models_to_workflow({
           reject(new Error(err.response.data.detail || 'Failed to add models to workflow'));
         } else {
           reject(new Error('Failed to add models to workflow'));
+        }
+      });
+  });
+}
+
+export interface DeleteModelsParams {
+  workflow_id: string;
+  model_ids: string[];
+  components: string[];
+}
+
+export function delete_models({
+  workflow_id,
+  model_ids,
+  components,
+}: DeleteModelsParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/workflow/delete-models`, {
+        workflow_id,
+        model_ids,
+        components,
+      })
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.message || 'Failed to delete models from workflow'));
+        } else {
+          reject(new Error('Failed to delete models from workflow'));
         }
       });
   });
@@ -815,7 +897,7 @@ export function useTokenClassificationEndpoints() {
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
     try {
       const response = await axios.post(`${deploymentUrl}/predict`, {
-        query,
+        text: query,
         top_k: 1,
       });
       return response.data.data;
@@ -957,7 +1039,7 @@ export function useTextClassificationEndpoints() {
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
     try {
       const response = await axios.post(`${deploymentUrl}/predict`, {
-        query,
+        text: query,
         top_k: 5,
       });
       return response.data.data;
@@ -971,6 +1053,48 @@ export function useTextClassificationEndpoints() {
   return {
     workflowName,
     predict,
+  };
+}
+
+export function useSentimentClassification(workflowId: string | null) {
+  const accessToken = useAccessToken(); // Assuming this function exists
+  const [deploymentUrl, setDeploymentUrl] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (!workflowId) return;
+
+    const init = async () => {
+      try {
+        setDeploymentUrl(`${deploymentBaseUrl}/${workflowId}`);
+      } catch (error) {
+        console.error('Error fetching sentiment model details:', error);
+        alert('Error fetching sentiment model details: ' + error);
+      }
+    };
+
+    init();
+  }, [workflowId, accessToken]);
+
+  // Function to predict sentiment based on the input query
+  const predictSentiment = async (query: string): Promise<TextClassificationResult> => {
+    if (!deploymentUrl) {
+      throw new Error('Sentiment classifier deployment URL not set');
+    }
+
+    try {
+      // Corrected the key from 'query' to 'text'
+      const response = await axios.post(`${deploymentUrl}/predict`, { text: query, top_k: 5 });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error predicting sentiment:', error);
+      alert('Error predicting sentiment: ' + error);
+      throw new Error('Failed to predict sentiment');
+    }
+  };
+
+  // Return the predict function
+  return {
+    predictSentiment,
   };
 }
 

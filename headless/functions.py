@@ -7,7 +7,7 @@ from requests.exceptions import HTTPError
 
 from headless.configs import Config
 from headless.model import Flow
-from headless.utils import create_doc_dict, extract_static_methods
+from headless.utils import extract_static_methods
 
 logging.basicConfig(level=logging.INFO)
 
@@ -59,6 +59,19 @@ class UDTFunctions:
             sub_type=config.sub_type,
             datagen_job_options=UDTFunctions.build_job_options(config),
             train_job_options=UDTFunctions.build_job_options(config),
+        )
+
+    @staticmethod
+    def check_predict(inputs: Dict[str, Any]):
+        logging.info(f"inputs: {inputs}")
+        deployment = inputs.get("deployment")
+
+        logging.info(f"checking the deployment for {deployment.model_identifier}")
+
+        logging.info("Calling predict on the deployment")
+        return deployment.predict(
+            text="Can autism and down syndrome be in conjunction",
+            top_k=5,
         )
 
     @staticmethod
@@ -120,19 +133,6 @@ class CommonFunctions:
         flow.bazaar_client.undeploy(deployment)
 
     @staticmethod
-    def check_search(inputs: Dict[str, Any]):
-        logging.info(f"inputs: {inputs}")
-        deployment = inputs.get("deployment")
-
-        logging.info(f"checking the deployment for {deployment.model_identifier}")
-
-        logging.info("Searching the deployment")
-        return deployment.search(
-            query="Can autism and down syndrome be in conjunction",
-            top_k=5,
-        )
-
-    @staticmethod
     def await_deploy(inputs: Dict[str, Any]):
         """
         Awaits the completion of model deployment.
@@ -173,8 +173,33 @@ class CommonFunctions:
         flow.bazaar_client.delete(model_identifier=model.model_identifier)
         logging.info(f"Deleted the model {model.model_identifier}")
 
+    @staticmethod
+    def get_logs(inputs: Dict[str, Any]):
+        """
+        Get the logs for the model.
+        """
+        logging.info(f"Getting the model logs with inputs: {inputs}")
+        model = inputs.get("model")
+        flow.bazaar_client.logs(model)
+        logging.info(f"Got the logs for {model.model_identifier}")
+        flow.bazaar_client.cleanup_cache()
+        logging.info(f"Bazaar cache is cleaned")
+
 
 class NDBFunctions:
+    @staticmethod
+    def check_search(inputs: Dict[str, Any]):
+        logging.info(f"inputs: {inputs}")
+        deployment = inputs.get("deployment")
+
+        logging.info(f"checking the deployment for {deployment.model_identifier}")
+
+        logging.info("Searching the deployment")
+        return deployment.search(
+            query="Can autism and down syndrome be in conjunction",
+            top_k=5,
+        )
+
     @staticmethod
     def check_deployment_ndb(inputs: Dict[str, Any]):
         """
@@ -187,6 +212,8 @@ class NDBFunctions:
         deployment = inputs.get("deployment")
         config: Config = inputs.get("config")
         results = inputs.get("results")
+        generation = inputs.get("generation", False)
+        on_prem = inputs.get("on_prem")
 
         query_text = results["query_text"]
         references = results["references"]
@@ -195,50 +222,71 @@ class NDBFunctions:
         good_answer = references[2]
 
         logging.info("Associating the model")
-        associate_task_id = deployment.associate(
+        associate_response = deployment.associate(
             [
                 {"source": "authors", "target": "contributors"},
                 {"source": "paper", "target": "document"},
             ]
         )
 
-        deployment.await_task(associate_task_id)
+        assert associate_response.status_code == 200
 
         logging.info(f"upvoting the model")
-        upvote_task_id = deployment.upvote(
+        upvote_response = deployment.upvote(
             [
                 {"query_text": query_text, "reference_id": best_answer["id"]},
                 {"query_text": query_text, "reference_id": good_answer["id"]},
             ]
         )
 
-        deployment.await_task(upvote_task_id)
+        assert upvote_response.status_code == 200
 
         logging.info(f"inserting the docs to the model")
-        insert_task_id = deployment.insert(
+        insert_response = deployment.insert(
             [
-                create_doc_dict(
-                    os.path.join(
-                        (
-                            config.base_path
-                            if config.doc_type != "nfs"
-                            else config.base_path
-                        ),
-                        file,
-                    ),
-                    config.doc_type,
-                )
+                {
+                    "path": os.path.join(config.base_path, file),
+                    "location": config.doc_type,
+                }
                 for file in config.insert_paths
             ],
         )
-
-        deployment.await_task(insert_task_id)
+        assert insert_response.status_code == 200
 
         logging.info("Checking the sources")
         deployment.sources()
 
         logging.info("Ovveriding the model")
         deployment.save_model(override=True)
+
+        llm_client = deployment.llm_client()
+
+        if generation:
+            api_key = os.getenv("GENAI_KEY", None)
+            if api_key:
+                generated_answer = llm_client.generate(
+                    query=best_answer["text"],
+                    api_key=api_key,
+                    provider="openai",
+                    use_cache=True,
+                )
+                logging.info(f"Openai generated answer: {generated_answer}")
+                if not generated_answer:
+                    raise Exception(f"Openai answer is not generated")
+
+            if on_prem:
+                flow.bazaar_client.start_on_prem(autoscaling_enabled=False)
+                # waiting for our on-prem to start and trafeik to discover the service
+                time.sleep(45)
+                generated_answer = llm_client.generate(
+                    query=best_answer["text"],
+                    api_key="no key",
+                    provider="on-prem",
+                    use_cache=False,
+                )
+                logging.info(f"on-prem generated answer: {generated_answer}")
+                if not generated_answer:
+                    raise Exception(f"On prem answer is not generated")
 
     @staticmethod
     def check_unsupervised(inputs: Dict[str, Any]) -> Any:
@@ -358,25 +406,29 @@ class NDBFunctions:
         return flow.bazaar_client.deploy(model.model_identifier)
 
     def build_model_options(config: Config) -> Dict[str, Any]:
-        if config.retriever == "mach":
-            mach_options = {
-                "fhr": config.input_dim,
-                "embedding_dim": config.hidden_dim,
-                "output_dim": config.output_dim,
-                "unsupervised_epochs": config.epochs,
-                "supervised_epochs": config.epochs,
+        if config.ndb_version == "v1":
+            if config.retriever == "mach":
+                mach_options = {
+                    "fhr": config.input_dim,
+                    "embedding_dim": config.hidden_dim,
+                    "output_dim": config.output_dim,
+                    "unsupervised_epochs": config.epochs,
+                    "supervised_epochs": config.epochs,
+                }
+            else:
+                mach_options = None
+            return {
+                "ndb_options": {
+                    "ndb_sub_type": "v1",
+                    "retriever": config.retriever,
+                    "mach_options": mach_options,
+                    "checkpoint_interval": config.checkpoint_interval,
+                }
             }
+        elif config.ndb_version == "v2":
+            return {"ndb_options": {"ndb_sub_type": "v2"}}
         else:
-            mach_options = None
-        # return {"ndb_options": {"ndb_sub_type": "v2"}}
-        return {
-            "ndb_options": {
-                "ndb_sub_type": "v1",
-                "retriever": config.retriever,
-                "mach_options": mach_options,
-                "checkpoint_interval": config.checkpoint_interval,
-            }
-        }
+            raise ValueError(f"Invalid ndb version '{config.ndb_version}'")
 
     def build_doc_options(config: Config) -> Dict[str, Any]:
         return {

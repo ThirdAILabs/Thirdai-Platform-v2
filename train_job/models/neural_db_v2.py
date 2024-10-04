@@ -1,4 +1,3 @@
-import json
 import multiprocessing as mp
 import os
 import shutil
@@ -7,6 +6,7 @@ import uuid
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
+import pdftitle
 import thirdai
 from config import FileInfo, NDBv2Options, TrainConfig
 from fastapi import Response
@@ -32,11 +32,26 @@ def convert_to_ndb_doc(
     filename, ext = os.path.splitext(resource_path)
 
     if ext == ".pdf":
+        doc_keywords = ""
+        if options.get("title_as_keywords", False):
+            try:
+                pdf_title = pdftitle.get_title_from_file(resource_path)
+                filename_as_keywords = (
+                    resource_path.strip(".pdf").replace("-", " ").replace("_", " ")
+                )
+                keyword_weight = options.get("keyword_weight", 10)
+                doc_keywords = (
+                    (pdf_title + " " + filename_as_keywords + " ") * keyword_weight,
+                )
+            except Exception as e:
+                print(f"Could not parse pdftitle for pdf: {resource_path}. Error: {e}")
+
         return ndbv2.PDF(
             resource_path,
             doc_metadata=metadata,
             display_path=display_path,
             doc_id=doc_id,
+            doc_keywords=doc_keywords,
         )
     elif ext == ".docx":
         return ndbv2.DOCX(
@@ -322,6 +337,11 @@ class NeuralDBV2(Model):
 
         train_time = time.time() - start_time
         self.logger.info(f"Total training time: {train_time} seconds")
+
+        if self.config.data.deletions:
+            for doc_id in self.config.data.deletions:
+                self.db.delete_doc(doc_id=doc_id)
+            self.logger.info(f"Deleted {len(self.config.data.deletions)} docs.")
 
         self.save()
         self.logger.info("Model saved successfully.")

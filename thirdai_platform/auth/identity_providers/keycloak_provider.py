@@ -89,7 +89,7 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
 
             base_url = "http://localhost:8180"
             verification_link = (
-                f"{base_url}/realms/master/verify-email?user_id={user_id}"
+                f"{base_url}/realms/new-realm/verify-email?user_id={user_id}"
             )
 
             send_verification_mail(email, verification_link, username)
@@ -145,7 +145,7 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
         Redirect to the Keycloak email verification endpoint.
         """
         base_url = "http://localhost:8180"
-        verify_url = f"{base_url}/auth/realms/master/protocol/openid-connect/registrations?client_id=account&verification_token={verification_token}"
+        verify_url = f"{base_url}/auth/realms/new-realm/protocol/openid-connect/registrations?client_id=account&verification_token={verification_token}"
 
         return verify_url
 
@@ -199,3 +199,45 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
             )
 
         return keycloak_user_id, access_token
+
+    # TODO(pratik): keycloak logout is not working, for us, we would just be calling
+    # the endpoint directly so it shouldnot be an issue.
+    def import_google_identity_provider_config(
+        self, client_id: str, client_secret: str
+    ):
+        google_provider_representation = {
+            "alias": "google",
+            "providerId": "google",
+            "enabled": True,
+            "updateProfileFirstLoginMode": "on",
+            "trustEmail": True,
+            "storeToken": False,
+            "addReadTokenRoleOnCreate": False,
+            "authenticateByDefault": False,
+            "linkOnly": False,
+            "config": {
+                "clientId": client_id,
+                "clientSecret": client_secret,
+                "defaultScope": "openid profile email",
+                "useJwksUrl": True,
+                "jwksUrl": "https://www.googleapis.com/oauth2/v3/certs",
+                "authorizationUrl": "https://accounts.google.com/o/oauth2/auth",
+                "tokenUrl": "https://oauth2.googleapis.com/token",
+                "logoutUrl": "https://accounts.google.com/o/oauth2/revoke",
+                "userInfoUrl": "https://openidconnect.googleapis.com/v1/userinfo",
+                "issuer": "https://accounts.google.com",
+                "prompt": "consent",
+                "responseMode": "fragment",
+                "responseType": "code",
+            },
+        }
+
+        idps = keycloak_admin.get_idps()
+        google_idp = next((idp for idp in idps if idp["alias"] == "google"), None)
+
+        if google_idp:
+            print("Google Identity Provider already exists, updating...")
+            keycloak_admin.update_idp("google", google_provider_representation)
+        else:
+            print("Google Identity Provider doesn't exist, creating...")
+            keycloak_admin.create_idp(google_provider_representation)

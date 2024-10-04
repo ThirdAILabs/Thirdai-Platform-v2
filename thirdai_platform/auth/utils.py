@@ -37,6 +37,35 @@ if IDENTITY_PROVIDER == "keycloak":
         verify=True,  # Optional: False if we are skipping SSL verification
     )
 
+    def create_realm(realm_name: str):
+        """Create a new realm in Keycloak."""
+        payload = {
+            "realm": realm_name,
+            "enabled": True,
+            "sslRequired": "None",
+            "identityProviders": [],
+            "defaultRoles": ["user"],
+        }
+
+        current_realms = [
+            realms_metadata["realm"] for realms_metadata in keycloak_admin.get_realms()
+        ]
+        print(current_realms)
+        if realm_name in current_realms:
+            keycloak_admin.delete_realm(realm_name)
+
+        try:
+            response = keycloak_admin.create_realm(payload)
+            print(f"Realm '{realm_name}' created successfully: {response}")
+            return realm_name  # Return the created realm name
+        except Exception as e:
+            print(f"Error creating realm '{realm_name}': {str(e)}")
+            return None
+
+    new_realm_name = create_realm(realm_name="new-realm")
+
+    keycloak_admin.change_current_realm(new_realm_name)
+
     def create_client(client_name: str, redirect_uris: list):
         """Create a new confidential client in Keycloak with the necessary permissions."""
         clients = keycloak_admin.get_clients()
@@ -69,17 +98,15 @@ if IDENTITY_PROVIDER == "keycloak":
     client_name = "new-client"
     create_client(client_name=client_name, redirect_uris=["http://localhost:8180/*"])
 
-    # Keycloak OpenID client initialization
     keycloak_openid = KeycloakOpenID(
         server_url="http://localhost:8180/",
         client_id=client_name,
-        realm_name="master",
+        realm_name=new_realm_name,
     )
 
-    # OAuth2 scheme for Keycloak
     oauth2_scheme = OAuth2AuthorizationCodeBearer(
-        authorizationUrl=f"http://localhost:8180/realms/master/protocol/openid-connect/auth?client_id={client_name}",
-        tokenUrl="http://localhost:8180/realms/master/protocol/openid-connect/token",
+        authorizationUrl=f"http://localhost:8180/realms/{new_realm_name}/protocol/openid-connect/auth?client_id={client_name}",
+        tokenUrl=f"http://localhost:8180/realms/{new_realm_name}/protocol/openid-connect/token",
     )
 
     def create_realm_role(role_name: str):
@@ -110,7 +137,7 @@ if IDENTITY_PROVIDER == "keycloak":
         }
 
         response = requests.post(
-            f"http://localhost:8180/realms/master/protocol/openid-connect/token",
+            f"http://localhost:8180/realms/{new_realm_name}/protocol/openid-connect/token",
             data=data,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )

@@ -23,14 +23,21 @@ identity_provider = get_identity_provider(identity_provider_type)
 
 class AdminAddition:
     @classmethod
-    def add_admin(cls, admin_mail: str, admin_username: str, admin_password: str):
+    def add_admin(
+        cls,
+        admin_mail: str,
+        admin_username: str,
+        admin_password: str,
+        google_client_id: str = None,
+        google_client_secret: str = None,
+    ):
         """
         Add or update a global admin based on the current identity provider (Keycloak or Postgres).
-        This method assumes that the admin's mail, username, and password are the same.
-        Role assignment is skipped for now.
+        If Keycloak is used, Google as an identity provider can also be added or updated.
         """
         with contextmanager(get_session)() as session:
             if identity_provider_type == "postgres":
+                # Handle Postgres identity provider logic
                 user = identity_provider.get_user(admin_username, session)
 
                 identity_provider.create_user(
@@ -50,11 +57,28 @@ class AdminAddition:
                 session.commit()
 
             elif identity_provider_type == "keycloak":
-                # Since we would already be initialzing keycloak with this user as admin user
+                # Keycloak logic
                 keycloak_user_id = keycloak_admin.get_user_id(admin_username)
-                keycloak_admin.update_user(
-                    keycloak_user_id, {"email": admin_mail, "emailVerified": True}
-                )
+                if keycloak_user_id:
+                    keycloak_admin.update_user(
+                        keycloak_user_id, {"email": admin_mail, "emailVerified": True}
+                    )
+                else:
+                    keycloak_user_id = keycloak_admin.create_user(
+                        {
+                            "username": admin_username,
+                            "email": admin_mail,
+                            "enabled": True,
+                            "emailVerified": True,
+                            "credentials": [
+                                {
+                                    "type": "password",
+                                    "value": admin_password,
+                                    "temporary": False,
+                                }
+                            ],
+                        }
+                    )
 
                 user = (
                     session.query(schema.User)
@@ -73,7 +97,18 @@ class AdminAddition:
                     session.add(user)
                     session.commit()
 
+                # If Google client ID and secret are provided, add or update Google identity provider
+                if google_client_id and google_client_secret:
+                    identity_provider.import_google_identity_provider_config(
+                        google_client_id,
+                        google_client_secret,
+                    )
+
 
 AdminAddition.add_admin(
-    admin_mail="kc_admin@mail.com", admin_username="kc_admin", admin_password="password"
+    admin_mail="kc_admin@mail.com",
+    admin_username="kc_admin",
+    admin_password="password",
+    google_client_id="732733861386-hnofv1207ot1k71i2p3q48ol810jccl1.apps.googleusercontent.com",
+    google_client_secret="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",
 )

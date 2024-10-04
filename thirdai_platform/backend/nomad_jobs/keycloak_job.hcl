@@ -16,7 +16,7 @@ job "keycloak" {
       config {
         image = "quay.io/keycloak/keycloak:22.0"
         ports = ["keycloak-http"]
-        args  = ["start", "--http-port=8180"]
+        args  = ["start-dev", "--debug", "--http-port=8180"]
       }
 
       env {
@@ -26,17 +26,7 @@ job "keycloak" {
         KC_HOSTNAME_STRICT_HTTPS      = "false"
         KEYCLOAK_SSL_REQUIRED        = "none"
         KC_HOSTNAME_STRICT_BACKCHANNEL = "false"
-        KC_PROXY                     = "edge"
-        KC_HOSTNAME_URL              = "http://localhost/keycloak"
-        KC_HOSTNAME_PATH             = "/keycloak"
-        KC_HOSTNAME_STRICT           = "false"
-
-        # Database connection
-        DB_VENDOR                    = "postgres"
-        DB_ADDR                      = "172.17.0.1"
-        DB_DATABASE                  = "keycloakdb"
-        DB_USER                      = "postgres"
-        DB_PASSWORD                  = "newpassword"
+        KC_HOSTNAME_URL              = "http://localhost:8180"
 
         KC_DB                        = "postgres"
         KC_DB_URL                    = "jdbc:postgresql://172.17.0.1:5432/keycloakdb"
@@ -55,13 +45,6 @@ job "keycloak" {
       service {
         name = "keycloak"
         port = "keycloak-http"
-        tags = [
-          "traefik.enable=true",
-          "traefik.http.routers.keycloak-http.rule=PathPrefix(`/keycloak/`)",
-          "traefik.http.middlewares.keycloak-stripprefix.stripprefix.prefixes=/keycloak",
-          "traefik.http.routers.keycloak-http.middlewares=keycloak-stripprefix",
-          "traefik.http.services.keycloak-http.loadbalancer.server.port=8180"
-        ]
         provider = "nomad"
       }
     }

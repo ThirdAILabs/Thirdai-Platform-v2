@@ -568,7 +568,8 @@ export class ModelService {
     onNextWord: (str: string) => void,
     genAiProvider?: string,
     workflowId?: string,
-    onComplete?: (finalAnswer: string) => void
+    onComplete?: (finalAnswer: string) => void,
+    signal?: AbortSignal // <-- Add this parameter
   ) {
     let finalAnswer = ''; // Variable to accumulate the response
 
@@ -599,6 +600,7 @@ export class ModelService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(args),
+        signal: signal,
       });
 
       if (!response.ok) {
@@ -623,10 +625,20 @@ export class ModelService {
       if (onComplete) {
         onComplete(finalAnswer);
       }
-    } catch (error) {
-      console.error('Generation Error:', error);
-      alert('Generation Error:' + error);
-      onNextWord('An error occurred during generation.');
+    } catch (error: unknown) {
+      if (isAbortError(error)) {
+        console.log('Fetch aborted');
+        onNextWord(finalAnswer);
+      } else {
+        console.error('Generation Error:', error);
+        alert('Generation Error:' + (error instanceof Error ? error.message : String(error)));
+        // onNextWord('An error occurred during generation.');
+      }
+    }
+
+    // Type guard to check if the error is an AbortError
+    function isAbortError(error: any): error is { name: string } {
+      return error && typeof error === 'object' && 'name' in error && error.name === 'AbortError';
     }
   }
 

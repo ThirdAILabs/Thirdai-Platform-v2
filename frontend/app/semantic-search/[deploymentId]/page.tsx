@@ -304,6 +304,8 @@ function App() {
     isDifferent: boolean;
   } | null>(null);
 
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+
   async function submit(query: string, genaiPrompt: string, bypassCache = false) {
     function replacePlaceholdersWithOriginal(
       text: string,
@@ -424,6 +426,11 @@ function App() {
       return processedSentences.join(' ');
     }
 
+      // If a generation is already in progress, abort it
+    if (abortController) {
+      abortController.abort();
+    }
+
     if (websocketRef.current) {
       websocketRef.current.close();
     }
@@ -461,6 +468,10 @@ function App() {
             console.log(reference.content);
           });
 
+          // Create a new AbortController instance
+          const controller = new AbortController();
+          setAbortController(controller); // Store it in state
+
           modelService!.generateAnswer(
             processedQuery,
             `${genaiPrompt}. [TAG #id] is sensitive information replaced as a placeholder, use them in your response for consistency.`,
@@ -478,8 +489,13 @@ function App() {
               });
             },
             genAiProvider || undefined, // Convert null to undefined
-            workflowId || undefined
-          );
+            workflowId || undefined,
+            undefined,
+            controller.signal // Pass the signal here
+          ).finally(() => {
+            // Cleanup after generation completes or is aborted
+            setAbortController(null);
+          });
         }
       } else {
         // Case 2: Guardrail is OFF (Normal generation)
@@ -501,11 +517,27 @@ function App() {
                 console.log('cached query is', cachedResult.query);
                 console.log('cached generation is', cachedResult.llm_res);
 
+                // Set up an AbortController for cached generation
+                const cacheAbortController = new AbortController();
+                setAbortController(cacheAbortController);
+
                 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
                 setQueryInfo(null);
-                for (const token of cachedResult.llm_res.split(' ')) {
-                  setAnswer((prev) => prev + ' ' + token);
-                  await sleep(20);
+                // Initialize the stopping index
+                let currentStoppingIndex = 0;
+                const tokens = cachedResult.llm_res.split(' ');
+
+                for (let i = 0; i < tokens.length; i++) {
+                  if (cacheAbortController.signal.aborted) {
+                    console.log('Cached generation paused');
+                    // Set the answer up to the current stopping index
+                    setAnswer(tokens.slice(0, currentStoppingIndex).join(' '));
+                    break;
+                  }
+                  
+                  currentStoppingIndex = i + 1; // Update stopping index to current position
+                  setAnswer(tokens.slice(0, currentStoppingIndex).join(' '));
+                  await sleep(20); // Mimic streaming response with a delay
                 }
 
                 // Set the query information including whether they differ
@@ -526,14 +558,23 @@ function App() {
           // No cache hit or cache not used, proceed with generation
           setQueryInfo(null); // Indicates no cached data was used
 
+          // Create a new AbortController instance
+          const controller = new AbortController();
+          setAbortController(controller); // Store it in state
+          
           modelService!.generateAnswer(
             query,
             genaiPrompt,
             results.references,
             (next) => setAnswer((prev) => prev + next),
             genAiProvider || undefined, // Convert null to undefined
-            workflowId || undefined
-          );
+            workflowId || undefined,
+            undefined,
+            controller.signal // Pass the signal here
+          ).finally(() => {
+            // Cleanup after generation completes or is aborted
+            setAbortController(null);
+          });
         }
       }
     } else {
@@ -704,6 +745,18 @@ function App() {
                     <Pad $left="5px">
                       {ifGenerationOn && (
                         <>
+                          {
+                            abortController &&
+                            <PillButton
+                                onClick={() => {
+                                  abortController!.abort(); // Abort the fetch request
+                                  setAbortController(null); // Reset the controller
+                                  setAnswer(''); // Optionally clear the current answer
+                                }}
+                              >
+                                Pause Generation
+                            </PillButton>
+                          }
                           <Spacer $height="30px" />
                           <GeneratedAnswer
                             answer={answer}

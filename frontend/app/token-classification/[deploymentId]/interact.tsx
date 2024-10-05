@@ -14,6 +14,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import Fuse from 'fuse.js';
+import mammoth from 'mammoth'; // DOCX Parsing
+
+// @ts-ignore
+import * as pdfjsLib from 'pdfjs-dist/build/pdf'; // Importing PDF.js as you do in your PdfViewer
+// @ts-ignore
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry'; // Importing worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 interface Token {
   text: string;
@@ -213,17 +220,51 @@ export default function Interact() {
     setInputText(event.target.value);
   };
 
-  const handleFileChange = (event: any) => {
+  const handleFileChange = async (event: any) => {
     const file = event.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+      setIsLoading(true); // Set loading to true when file is being processed
+
+      let text = '';
+      if (fileExtension === 'txt') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          text = e.target?.result as string;
+          setInputText(text);
+          handleRun(text);
+        };
+        reader.readAsText(file);
+      } else if (fileExtension === 'pdf') {
+        text = await parsePDF(file);
         setInputText(text);
         handleRun(text);
-      };
-      reader.readAsText(file);
+      } else if (fileExtension === 'docx') {
+        text = await parseDOCX(file);
+        setInputText(text);
+        handleRun(text);
+      }
     }
+  };
+
+  const parsePDF = async (file: File) => {
+    const loadingTask = pdfjsLib.getDocument(URL.createObjectURL(file));
+    const pdf = await loadingTask.promise;
+    let fullText = '';
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      fullText += pageText + '\n';
+    }
+    return fullText;
+  };
+
+  const parseDOCX = async (file: File) => {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return result.value;
   };
 
   const updateTagColors = (tags: string[][]) => {
@@ -313,7 +354,7 @@ export default function Interact() {
       <Box display="flex" justifyContent="center" alignItems="center" width="100%" mt={2}>
         <input
           type="file"
-          accept=".txt"
+          accept=".txt,.pdf,.docx"
           onChange={handleFileChange}
           style={{ marginTop: '10px' }}
         />
@@ -321,7 +362,6 @@ export default function Interact() {
 
       {isLoading ? (
         <Box mt={4} display="flex" justifyContent="center">
-          {/* You can replace this with a spinner or any other loading indicator */}
           <CircularProgress />
         </Box>
       ) : (

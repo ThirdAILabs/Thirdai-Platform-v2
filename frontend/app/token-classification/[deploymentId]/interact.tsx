@@ -354,13 +354,6 @@ export default function Interact() {
             }
           }}
         />
-        <Button
-          size="sm"
-          style={{ height: '3rem', marginLeft: '10px', padding: '0 20px' }}
-          onClick={() => handleRun(inputText)}
-        >
-          Run
-        </Button>
       </Box>
 
 

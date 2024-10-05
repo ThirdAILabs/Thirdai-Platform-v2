@@ -1,6 +1,6 @@
 'use client';
 
-import { Container, Box, CircularProgress } from '@mui/material';
+import { Container, Box, CircularProgress, Typography } from '@mui/material';
 import { Button } from '@/components/ui/button';
 import { MouseEventHandler, ReactNode, useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
@@ -327,10 +327,22 @@ export default function Interact() {
       }}
     >
       <Box display="flex" justifyContent="center" alignItems="center" width="100%">
+        <label htmlFor="file-upload" style={{ marginRight: '10px' }}>
+          <Button size="sm" asChild>
+            <span>Upload File</span>
+          </Button>
+        </label>
+        <input
+          id="file-upload"
+          type="file"
+          accept=".txt,.pdf,.docx"
+          onChange={handleFileChange}
+          style={{ display: 'none' }}
+        />
         <Input
           autoFocus
           className="text-md"
-          style={{ height: '3rem' }}
+          style={{ height: '3rem', flex: 1 }}
           value={inputText}
           onChange={handleInputChange}
           placeholder="Enter your text..."
@@ -351,14 +363,10 @@ export default function Interact() {
         </Button>
       </Box>
 
-      <Box display="flex" justifyContent="center" alignItems="center" width="100%" mt={2}>
-        <input
-          type="file"
-          accept=".txt,.pdf,.docx"
-          onChange={handleFileChange}
-          style={{ marginTop: '10px' }}
-        />
-      </Box>
+
+      <Typography variant="caption" display="block" mt={1}>
+        Supported file types: .txt, .pdf, .docx
+      </Typography>
 
       {isLoading ? (
         <Box mt={4} display="flex" justifyContent="center">

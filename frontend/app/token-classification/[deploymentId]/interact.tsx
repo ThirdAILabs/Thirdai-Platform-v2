@@ -1,6 +1,6 @@
 'use client';
 
-import { Container, TextField, Box } from '@mui/material';
+import { Container, Box, CircularProgress } from '@mui/material';
 import { Button } from '@/components/ui/button';
 import { MouseEventHandler, ReactNode, useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
@@ -182,8 +182,8 @@ export default function Interact() {
 
   const [inputText, setInputText] = useState<string>('');
   const [annotations, setAnnotations] = useState<Token[]>([]);
-
   const [tagColors, setTagColors] = useState<Record<string, HighlightColor>>({});
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const [mouseDownIndex, setMouseDownIndex] = useState<number | null>(null);
   const [mouseUpIndex, setMouseUpIndex] = useState<number | null>(null);
@@ -213,6 +213,19 @@ export default function Interact() {
     setInputText(event.target.value);
   };
 
+  const handleFileChange = (event: any) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        setInputText(text);
+        handleRun(text);
+      };
+      reader.readAsText(file);
+    }
+  };
+
   const updateTagColors = (tags: string[][]) => {
     const pastels = ['#E5A49C', '#F6C886', '#FBE7AA', '#99E3B5', '#A6E6E7', '#A5A1E1', '#D8A4E2'];
     const darkers = ['#D34F3E', '#F09336', '#F7CF5F', '#5CC96E', '#65CFD0', '#597CE2', '#B64DC8'];
@@ -233,8 +246,9 @@ export default function Interact() {
     });
   };
 
-  const handleRun = () => {
-    predict(inputText).then((result) => {
+  const handleRun = (text: string) => {
+    setIsLoading(true); // Set loading to true when starting the prediction
+    predict(text).then((result) => {
       updateTagColors(result.predicted_tags);
       setAnnotations(
         _.zip(result.tokens, result.predicted_tags).map(([text, tag]) => ({
@@ -242,6 +256,7 @@ export default function Interact() {
           tag: tag![0] as string,
         }))
       );
+      setIsLoading(false); // Set loading to false after prediction is done
     });
   };
 
@@ -278,79 +293,96 @@ export default function Interact() {
           value={inputText}
           onChange={handleInputChange}
           placeholder="Enter your text..."
-          onSubmit={handleRun}
+          onSubmit={() => handleRun(inputText)}
           onKeyDown={(e) => {
             if (e.keyCode === 13 && e.shiftKey === false) {
               e.preventDefault();
-              handleRun();
+              handleRun(inputText);
             }
           }}
         />
         <Button
           size="sm"
           style={{ height: '3rem', marginLeft: '10px', padding: '0 20px' }}
-          onClick={handleRun}
+          onClick={() => handleRun(inputText)}
         >
           Run
         </Button>
       </Box>
-      {annotations.length > 0 && (
-        <Box mt={4}>
-          <Card
-            className="p-7 text-start"
-            style={{ lineHeight: 2 }}
-            onMouseUp={(e) => {
-              setSelecting(false);
-              if (startIndex !== null && endIndex !== null) {
-                setSelectedRange([startIndex, endIndex]);
-                triggers.current[endIndex]?.click();
-              }
-            }}
-          >
-            {annotations.map((token, index) => {
-              const nextToken = index === annotations.length - 1 ? null : annotations[index + 1];
-              return (
-                <>
-                  <Highlight
-                    key={index}
-                    currentToken={token}
-                    nextToken={nextToken}
-                    tagColors={tagColors}
-                    onMouseOver={(e) => {
-                      if (selecting) {
-                        setMouseUpIndex(index);
-                      }
-                    }}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      setSelecting(true);
-                      setMouseDownIndex(index);
-                      setMouseUpIndex(index);
-                      setSelectedRange(null);
-                    }}
-                    selecting={
-                      selecting &&
-                      startIndex !== null &&
-                      endIndex !== null &&
-                      index >= startIndex &&
-                      index <= endIndex
-                    }
-                    selected={
-                      selectedRange !== null &&
-                      index >= selectedRange[0] &&
-                      index <= selectedRange[1]
-                    }
-                  />
-                  <TagSelector
-                    open={!!selectedRange && index === selectedRange[1]}
-                    choices={Object.keys(tagColors)}
-                    onSelect={finetuneTags}
-                  />
-                </>
-              );
-            })}
-          </Card>
+
+      <Box display="flex" justifyContent="center" alignItems="center" width="100%" mt={2}>
+        <input
+          type="file"
+          accept=".txt"
+          onChange={handleFileChange}
+          style={{ marginTop: '10px' }}
+        />
+      </Box>
+
+      {isLoading ? (
+        <Box mt={4} display="flex" justifyContent="center">
+          {/* You can replace this with a spinner or any other loading indicator */}
+          <CircularProgress />
         </Box>
+      ) : (
+        annotations.length > 0 && (
+          <Box mt={4}>
+            <Card
+              className="p-7 text-start"
+              style={{ lineHeight: 2 }}
+              onMouseUp={(e) => {
+                setSelecting(false);
+                if (startIndex !== null && endIndex !== null) {
+                  setSelectedRange([startIndex, endIndex]);
+                  triggers.current[endIndex]?.click();
+                }
+              }}
+            >
+              {annotations.map((token, index) => {
+                const nextToken = index === annotations.length - 1 ? null : annotations[index + 1];
+                return (
+                  <>
+                    <Highlight
+                      key={index}
+                      currentToken={token}
+                      nextToken={nextToken}
+                      tagColors={tagColors}
+                      onMouseOver={(e) => {
+                        if (selecting) {
+                          setMouseUpIndex(index);
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        setSelecting(true);
+                        setMouseDownIndex(index);
+                        setMouseUpIndex(index);
+                        setSelectedRange(null);
+                      }}
+                      selecting={
+                        selecting &&
+                        startIndex !== null &&
+                        endIndex !== null &&
+                        index >= startIndex &&
+                        index <= endIndex
+                      }
+                      selected={
+                        selectedRange !== null &&
+                        index >= selectedRange[0] &&
+                        index <= selectedRange[1]
+                      }
+                    />
+                    <TagSelector
+                      open={!!selectedRange && index === selectedRange[1]}
+                      choices={Object.keys(tagColors)}
+                      onSelect={finetuneTags}
+                    />
+                  </>
+                );
+              })}
+            </Card>
+          </Box>
+        )
       )}
     </Container>
   );

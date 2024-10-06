@@ -17,30 +17,6 @@ import { DropdownMenuContent } from '@radix-ui/react-dropdown-menu';
 import { fetchAutoCompleteQueries } from '@/lib/backend';
 import { debounce } from 'lodash';
 
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faStop } from '@fortawesome/free-solid-svg-icons';
-
-// Styled component for the button
-const PauseButton = styled.button`
-  width: 40px;       /* Ensure the width is equal to the height */
-  height: 40px;      /* Ensures the button remains a circle */
-  background-color: black;
-  border: none;
-  border-radius: 50%; /* This makes it a circle */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.2s ease-in-out;
-  box-sizing: border-box; /* Ensures padding and border don't affect the circle size */
-  padding: 0;            /* Ensures no additional padding distorts the shape */
-
-  &:hover {
-    background-color: #333; /* Changes color on hover */
-  }
-`;
-
-
 const Container = styled.section`
   box-shadow: 0 10px 10px 4px muted;
   width: 100%;
@@ -311,20 +287,7 @@ export default function SearchBar({
           <Spacer $width="15px" />
           {/* <PromptToggle onClick={() => setDialogOpen((dialogOpen) => !dialogOpen)} /> */}
           <Spacer $width="7px" />
-          {
-            abortController &&
-            <PauseButton
-              onClick={() => {
-                abortController!.abort();
-                setAbortController(null);
-                setAnswer('');
-              }}
-            >
-              {/* Using FontAwesome pause icon */}
-              <FontAwesomeIcon icon={faStop} style={{ color: 'white', fontSize: '16px' }} />
-            </PauseButton>
-          }
-          {/* <SaveButton onClick={handleSaveClick} /> */}
+          <SaveButton onClick={handleSaveClick} />
         </SearchArea>
         <div className="w-full mt-2" style={{ backgroundColor: 'white' }}>
           {cacheEnabled &&

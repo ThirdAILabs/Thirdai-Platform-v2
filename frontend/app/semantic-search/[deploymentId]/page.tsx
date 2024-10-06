@@ -760,6 +760,9 @@ function App() {
                             queryInfo={queryInfo}
                             cacheEnabled={cacheEnabled}
                             setCacheEnabled={setCacheEnabled}
+                            abortController={abortController} // Pass abortController here
+                            setAbortController={setAbortController} // Pass setAbortController
+                            setAnswer={setAnswer} // Pass setAnswer
                           />
                         </>
                       )}

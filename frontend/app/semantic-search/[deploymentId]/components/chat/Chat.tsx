@@ -8,7 +8,7 @@ import TypingAnimation from '../TypingAnimation';
 import { useTextClassificationEndpoints, useSentimentClassification } from '@/lib/backend'; // Import for sentiment classification
 // Import FontAwesomeIcon and faPause
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPause } from '@fortawesome/free-solid-svg-icons';
+import { faStop } from '@fortawesome/free-solid-svg-icons';
 
 // Styled component for the pause button
 const PauseButton = styled.button`
@@ -465,7 +465,7 @@ export default function Chat({
           setAiLoading(false);
         }}
       >
-        <FontAwesomeIcon icon={faPause} style={{ color: 'white', fontSize: '16px' }} />
+        <FontAwesomeIcon icon={faStop} style={{ color: 'white', fontSize: '16px' }} />
       </PauseButton>
       )}
       </ChatBarContainer>

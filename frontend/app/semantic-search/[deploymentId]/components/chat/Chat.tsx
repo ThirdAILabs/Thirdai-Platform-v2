@@ -352,13 +352,12 @@ export default function Chat({
     if (e.keyCode === 13 && e.shiftKey === false) {
       e.preventDefault();
       if (aiLoading || !textInput.trim()) return;
-  
-      // Abort existing controller if any
+
+      // If a generation is already in progress, abort it
       if (abortController) {
         abortController.abort();
       }
 
-      // Create a new AbortController
       const controller = new AbortController();
       setAbortController(controller);
 
@@ -414,14 +413,31 @@ export default function Chat({
             }
             
             setAiLoading(false);
+            setAbortController(null);
           },
-          controller.signal // Pass the signal here
+          controller.signal
         );
       } catch (error) {
-        alert('Failed to send chat. Please try again.');
-        setChatHistory(lastChatHistory);
-        setTextInput(lastTextInput);
+        // Type guard for Error objects
+        if (error instanceof Error) {
+          if (error.name === 'AbortError') {
+            console.log('Chat was aborted');
+          } else {
+            // Only show alert and reset state for non-abort errors
+            alert('Failed to send chat. Please try again.');
+            setChatHistory(lastChatHistory);
+            setTextInput(lastTextInput);
+          }
+        } else {
+          // Handle cases where the error is not an Error object
+          console.error('An unknown error occurred:', error);
+          alert('Failed to send chat. Please try again.');
+          setChatHistory(lastChatHistory);
+          setTextInput(lastTextInput);
+        }
+      } finally {
         setAiLoading(false);
+        setAbortController(null);
       }
     }
   };

@@ -471,6 +471,15 @@ def reset_password(
     session.add(password_reset)
     session.commit()
 
+    is_test_environment = os.getenv("TEST_ENVIRONMENT", "False") == "True"
+
+    if is_test_environment:
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully created the reset password code.",
+            data={"reset_password_code": reset_code},
+        )
+
     send_reset_password_code(email=email, reset_password_code=reset_code)
 
     return response(

@@ -77,7 +77,7 @@ RECOVERY_SNAPSHOT_ID = "recovery-snapshot"
 
 @recovery_router.post("/backup", dependencies=[Depends(verify_access_token)])
 def backup(config: dict):
-    local_dir = model_bazaar_path()
+    local_dir = os.getenv("SHARE_DIR")
     if not local_dir:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

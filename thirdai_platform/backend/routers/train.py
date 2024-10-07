@@ -49,7 +49,7 @@ from database.session import get_session
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
-from thirdai_storage import data_types, storage
+from backend.thirdai_storage import data_types, storage
 
 train_router = APIRouter()
 

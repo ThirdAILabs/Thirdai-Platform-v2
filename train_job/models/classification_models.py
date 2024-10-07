@@ -212,7 +212,8 @@ class TokenClassificationModel(ClassificationModel):
             data_types={
                 self.tkn_cls_vars.source_column: bolt.types.text(),
                 self.tkn_cls_vars.target_column: bolt.types.token_tags(
-                    tags=target_labels, default_tag=default_tag
+                    # remove duplicates from target_labels
+                    tags=list(set(target_labels)), default_tag=default_tag
                 ),
             },
             target=self.tkn_cls_vars.target_column,

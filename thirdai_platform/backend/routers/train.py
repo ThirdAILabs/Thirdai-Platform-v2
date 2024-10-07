@@ -681,13 +681,13 @@ def retrain_udt(
     tags_and_status = tag_metadata.tag_and_status
     tags = []
     for tag in tags_and_status.keys():
-        status = tags_and_status[tag]
+        tag_object = tags_and_status[tag]
         tags.append(
             Entity(
                 name=tag,
-                examples=status.examples,
-                description=status.description,
-                status=status.status.name,
+                examples=tag_object.examples,
+                description=tag_object.description,
+                status=tag_object.status.name,
             )
         )
 

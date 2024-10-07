@@ -224,7 +224,6 @@ export default function Interact() {
   // Add a new state to store the parsed rows
   const [parsedRows, setParsedRows] = useState<{label: string, content: string}[]>([]);
 
-  // Update the parseCSV and parseExcel functions to return an array of objects
   const parseCSV = (file: File): Promise<{label: string, content: string}[]> => {
     return new Promise((resolve, reject) => {
       Papa.parse(file, {
@@ -236,13 +235,15 @@ export default function Interact() {
           }
           const headers = data[0];
           const rows = data.slice(1);
-          let parsedRows = rows.map((row, rowIndex) => {
-            let content = headers.map((header, index) => `${header}: ${row[index] || ''}`).join('\n');
-            return {
-              label: `Row ${rowIndex + 1}`,
-              content: content
-            };
-          });
+          let parsedRows = rows
+            .filter(row => row.some(cell => cell.trim() !== '')) // Filter out completely empty rows
+            .map((row, rowIndex) => {
+              let content = headers.map((header, index) => `${header}: ${row[index] || ''}`).join('\n');
+              return {
+                label: `Row ${rowIndex + 1}`,
+                content: content
+              };
+            });
           resolve(parsedRows);
         },
         error: reject,

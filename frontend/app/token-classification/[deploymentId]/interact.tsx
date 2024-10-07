@@ -1,6 +1,6 @@
 'use client';
 
-import { Container, Box, CircularProgress, Typography } from '@mui/material';
+import { Container, Box, CircularProgress, Typography, Switch, FormControlLabel } from '@mui/material';
 import { Button } from '@/components/ui/button';
 import { MouseEventHandler, ReactNode, useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
@@ -398,6 +398,57 @@ export default function Interact() {
     setSelecting(false);
   };
 
+  const [showHighlightedOnly, setShowHighlightedOnly] = useState(false);
+
+  const toggleHighlightedOnly = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setShowHighlightedOnly(event.target.checked);
+  };
+
+  const isWordHighlighted = (word: string) => {
+    return annotations.some(token => token.text === word && token.tag !== 'O');
+  };
+
+  const renderHighlightedContent = (content: string) => {
+    return content.split(' ').map((word, wordIndex) => {
+      const tokenIndex = annotations.findIndex(token => token.text === word);
+      if (tokenIndex !== -1 && annotations[tokenIndex].tag !== 'O') {
+        return (
+          <Highlight
+            key={wordIndex}
+            currentToken={annotations[tokenIndex]}
+            nextToken={annotations[tokenIndex + 1] || null}
+            tagColors={tagColors}
+            onMouseOver={(e) => {
+              if (selecting) {
+                setMouseUpIndex(tokenIndex);
+              }
+            }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              setSelecting(true);
+              setMouseDownIndex(tokenIndex);
+              setMouseUpIndex(tokenIndex);
+              setSelectedRange(null);
+            }}
+            selecting={
+              selecting &&
+              startIndex !== null &&
+              endIndex !== null &&
+              tokenIndex >= startIndex &&
+              tokenIndex <= endIndex
+            }
+            selected={
+              selectedRange !== null &&
+              tokenIndex >= selectedRange[0] &&
+              tokenIndex <= selectedRange[1]
+            }
+          />
+        );
+      }
+      return showHighlightedOnly ? null : <span key={wordIndex}>{word} </span>;
+    });
+  };
+
   return (
     <Container
       style={{
@@ -443,6 +494,21 @@ export default function Interact() {
         Supported file types: .txt, .pdf, .docx, .csv, .xls, .xlsx
       </Typography>
 
+      {annotations.length > 0 && (
+        <Box mt={4} mb={2} display="flex" alignItems="center" justifyContent="flex-end">
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showHighlightedOnly}
+                onChange={toggleHighlightedOnly}
+                color="primary"
+              />
+            }
+            label="Show highlighted only"
+          />
+        </Box>
+      )}
+
       {isLoading ? (
         <Box mt={4} display="flex" justifyContent="center">
           <CircularProgress />
@@ -461,53 +527,32 @@ export default function Interact() {
                 }
               }}
             >
-              {parsedRows.map((row, rowIndex) => (
-                <div key={rowIndex} style={{ marginBottom: '20px', padding: '10px', border: '1px solid #ccc', borderRadius: '5px' }}>
-                  <strong>{row.label}:</strong>
-                  {row.content.split('\n').map((line, lineIndex) => (
-                    <p key={lineIndex}>
-                      {line.split(' ').map((word, wordIndex) => {
-                        const tokenIndex = annotations.findIndex(token => token.text === word);
-                        if (tokenIndex !== -1) {
-                          return (
-                            <Highlight
-                              key={wordIndex}
-                              currentToken={annotations[tokenIndex]}
-                              nextToken={annotations[tokenIndex + 1] || null}
-                              tagColors={tagColors}
-                              onMouseOver={(e) => {
-                                if (selecting) {
-                                  setMouseUpIndex(tokenIndex);
-                                }
-                              }}
-                              onMouseDown={(e) => {
-                                e.stopPropagation();
-                                setSelecting(true);
-                                setMouseDownIndex(tokenIndex);
-                                setMouseUpIndex(tokenIndex);
-                                setSelectedRange(null);
-                              }}
-                              selecting={
-                                selecting &&
-                                startIndex !== null &&
-                                endIndex !== null &&
-                                tokenIndex >= startIndex &&
-                                tokenIndex <= endIndex
-                              }
-                              selected={
-                                selectedRange !== null &&
-                                tokenIndex >= selectedRange[0] &&
-                                tokenIndex <= selectedRange[1]
-                              }
-                            />
-                          );
-                        }
-                        return <span key={wordIndex}>{word} </span>;
-                      })}
-                    </p>
-                  ))}
-                </div>
-              ))}
+              {parsedRows.map((row, rowIndex) => {
+                const columns = row.content.split('\n');
+                const visibleColumns = columns.filter(column => 
+                  !showHighlightedOnly || column.split(':').slice(1).join(':').split(' ').some(isWordHighlighted)
+                );
+
+                if (visibleColumns.length === 0) {
+                  return null; // Don't render the row if all columns are hidden
+                }
+
+                return (
+                  <div key={rowIndex} style={{ marginBottom: '20px', padding: '10px', border: '1px solid #ccc', borderRadius: '5px' }}>
+                    <strong>{row.label}:</strong>
+                    {visibleColumns.map((column, columnIndex) => {
+                      const [columnName, ...columnContent] = column.split(':');
+                      const content = columnContent.join(':').trim();
+                      return (
+                        <p key={columnIndex}>
+                          <strong>{columnName}:</strong>{' '}
+                          {renderHighlightedContent(content)}
+                        </p>
+                      );
+                    })}
+                  </div>
+                );
+              })}
               {annotations.map((_, index) => (
                 <TagSelector
                   key={index}

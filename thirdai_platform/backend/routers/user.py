@@ -479,7 +479,7 @@ def reset_password_verify(
     )
 
 
-@user_router.get("/all-users", dependencies=[Depends(global_admin_only)])
+@user_router.get("/all-users")
 def list_all_users(session: Session = Depends(get_session)):
     """
     List all users in the system along with their team memberships and roles.

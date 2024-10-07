@@ -186,6 +186,66 @@ def list_models(
         data=jsonable_encoder(results),
     )
 
+@model_router.get("/list-models")
+def list_models_temp(
+    access_level: Annotated[Union[list[str], None], Query()] = None,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    List models based on the access level.
+
+    Parameters:
+    - access_level: Annotated[Union[list[str], None], Query()] - Optional access level to filter models.
+    - session: Session - The database session (dependency).
+    - authenticated_user: AuthenticatedUser - The authenticated user (dependency).
+
+    Returns:
+    - JSONResponse - A JSON response with the list of models.
+    """
+    user: schema.User = authenticated_user.user
+    user_teams = [ut.team_id for ut in user.teams]
+
+    query = (
+        session.query(schema.Model)
+    )
+
+    if not user.is_global_admin():
+        access_conditions = []
+
+        def add_access_condition(access, condition):
+            if not access_level or access in access_level:
+                access_conditions.append(condition)
+
+        # Adding access conditions based on the user's role and teams
+        add_access_condition(
+            schema.Access.public, schema.Model.access_level == schema.Access.public
+        )
+        add_access_condition(
+            schema.Access.protected,
+            and_(
+                schema.Model.access_level == schema.Access.protected,
+                schema.Model.team_id.in_(user_teams),
+            ),
+        )
+        add_access_condition(
+            schema.Access.private,
+            and_(
+                schema.Model.access_level == schema.Access.private,
+                schema.Model.user_id == user.id,
+            ),
+        )
+
+        query = query.filter(or_(*access_conditions))
+
+    results = [get_high_level_model_info(result) for result in query]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully retrieved model list",
+        data=jsonable_encoder(results),
+    )
+
 
 @model_router.get("/name-check")
 def check_model(

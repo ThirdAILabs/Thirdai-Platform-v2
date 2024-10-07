@@ -11,6 +11,7 @@ from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session, selectinload
+from auth.jwt import AuthenticatedUser, verify_access_token
 
 team_router = APIRouter()
 
@@ -45,7 +46,7 @@ def add_team(name: str, session: Session = Depends(get_session)):
 
 
 @team_router.post(
-    "/add-user-to-team", dependencies=[Depends(team_admin_or_global_admin)]
+    "/add-user-to-team"
 )
 def add_user_to_team(
     email: str,
@@ -401,6 +402,46 @@ def list_all_teams(session: Session = Depends(get_session)):
             "name": team.name,
         }
         for team in teams
+    ]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the list of all teams",
+        data=jsonable_encoder(teams_info),
+    )
+
+
+@team_router.get("/list-teams")
+def list_all_teams(
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    ):
+    """
+    List all teams related to that user.
+
+    Parameters:
+    - session: Session - The database session (dependency).
+    - authenticated_user: AuthenticatedUser - The authenticated user (dependency).
+
+    Returns:
+    - A JSON response with the list of all teams.
+    """
+
+    user: schema.User = authenticated_user.user
+    user_teams = [ut.team_id for ut in user.teams]
+
+     # Query to filter teams based on team_id present in user_teams
+    query = (
+        session.query(schema.Team)
+        .filter(schema.Team.id.in_(user_teams))  # Filter teams where team_id is in user_teams
+    )
+
+    teams_info = [
+        {
+            "id": team.id,
+            "name": team.name,
+        }
+        for team in query.all()  # Ensure you use `.all()` to execute the query
     ]
 
     return response(

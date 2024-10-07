@@ -46,8 +46,6 @@ type User = {
 };
 
 export default function Models() {
-  const { user } = React.useContext(UserContext);
-
   // State variables
   const [models, setModels] = useState<Model[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -121,6 +119,7 @@ export default function Models() {
         })
       );
       setUsers(userData);
+      console.log("teams data in user-> ", userData);
     } catch (error) {
       console.error('Failed to fetch users', error);
       alert('Failed to fetch users' + error);
@@ -158,9 +157,10 @@ export default function Models() {
       setTeams(teamData);
     } catch (error) {
       console.error('Failed to fetch teams', error);
-      alert('Failed to fetch teams' + error);
+      alert('Failed to fetch teams' + error)
     }
   };
+
   // Function to handle model type change
   const handleModelTypeChange = async (index: number) => {
     if (!selectedType) return;

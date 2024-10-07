@@ -1156,7 +1156,7 @@ export async function fetchAllModels(): Promise<{ data: ModelResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/model/all-models`)
+      .get(`${thirdaiPlatformBaseUrl}/api/model/list-models`)
       .then((res) => {
         resolve(res.data);
       })
@@ -1173,7 +1173,7 @@ export async function fetchAllTeams(): Promise<{ data: TeamResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/team/list`)
+      .get(`${thirdaiPlatformBaseUrl}/api/team/list-teams`)
       .then((res) => {
         resolve(res.data);
       })
@@ -1199,6 +1199,8 @@ export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
       });
   });
 }
+
+
 
 // MODEL //
 

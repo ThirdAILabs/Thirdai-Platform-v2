@@ -8,7 +8,6 @@ from thirdai import bolt
 from thirdai_storage.data_types import (
     DataSample,
     LabelEntityList,
-    LabelStatus,
     TagMetadata,
     TextClassificationSample,
     TokenClassificationSample,

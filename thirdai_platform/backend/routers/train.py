@@ -10,6 +10,7 @@ from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access
 from backend.datagen import generate_data_for_train_job
 from backend.file_handler import download_local_files
+from backend.thirdai_storage import data_types, storage
 from backend.train_config import (
     DatagenOptions,
     Entity,
@@ -49,7 +50,6 @@ from database.session import get_session
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
-from backend.thirdai_storage import data_types, storage
 
 train_router = APIRouter()
 

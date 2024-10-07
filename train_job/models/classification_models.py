@@ -2,7 +2,6 @@ import os
 import time
 import typing
 from abc import abstractmethod
-from collections import defaultdict
 from pathlib import Path
 from typing import List
 

@@ -104,7 +104,7 @@ def backup(config: dict):
     # Convert the incoming dictionary to the correct Pydantic model
     config_object = ConfigClass(**config)
 
-    config_file_path = config_object.save_backup_config(local_dir)
+    config_file_path = config_object.save_backup_config(model_bazaar_path())
 
     nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
     if nomad_job_exists(RECOVERY_SNAPSHOT_ID, nomad_endpoint):

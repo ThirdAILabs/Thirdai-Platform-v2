@@ -76,7 +76,7 @@ RECOVERY_SNAPSHOT_ID = "recovery-snapshot"
 
 
 @recovery_router.post("/backup", dependencies=[Depends(verify_access_token)])
-def backup_to_s3(config: dict):
+def backup(config: dict):
     local_dir = model_bazaar_path()
     if not local_dir:
         raise HTTPException(

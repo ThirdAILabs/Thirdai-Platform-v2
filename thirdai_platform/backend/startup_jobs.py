@@ -234,7 +234,7 @@ def get_grafana_db_uri():
 
     platform = get_platform()
     if db_type == "postgresql":
-        db_type = "postgres"        # Either mysql, postgres or sqlite3
+        db_type = "postgres"  # Either mysql, postgres or sqlite3
     if platform == "local":
         hostname = "host.docker.internal"
 

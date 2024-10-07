@@ -18,6 +18,11 @@ from pydantic_models.inputs import (
 from reporter import Reporter
 from throughput import Throughput
 from utils import propagate_error, response
+from thirdai_storage.data_types import (
+    LabelEntityList,
+    TokenClassificationSample,
+    LabelStatus,
+)
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
@@ -35,6 +40,14 @@ class UDTRouter:
         self.router = APIRouter()
         self.router.add_api_route("/predict", self.predict, methods=["POST"])
         self.router.add_api_route("/stats", self.stats, methods=["GET"])
+
+        # The following routes are only applicable for token classification models
+        if self.model.config.model_options.udt_sub_type == UDTSubType.token:
+            self.router.add_api_route("/add_labels", self.add_labels, methods=["POST"])
+            self.router.add_api_route(
+                "/insert_sample", self.insert_sample, methods=["POST"]
+            )
+            self.router.add_api_route("/get_labels", self.get_labels, methods=["GET"])
 
     @staticmethod
     def get_model(config: DeploymentConfig) -> ClassificationModel:
@@ -130,4 +143,81 @@ class UDTRouter:
                 },
                 "uptime": int(time.time() - self.start_time),
             },
+        )
+
+    @propagate_error
+    def add_labels(
+        self,
+        labels: LabelEntityList,
+        token=Depends(Permissions.verify_permission("write")),
+    ):
+        """
+        Adds new labels to the model.
+        Parameters:
+        - labels: LabelEntityList - A list of LabelEntity specifying the name of the label and description for generating synthetic data for the label.
+        - token: str - Authorization token (inferred from permissions dependency).
+        Returns:
+        - JSONResponse: Status specifying whether or not the request to add labels was successful.
+
+        Example Request Body:
+        ```
+        {
+            "tags": [
+                {
+                    "name": "label1",
+                    "description": "Description for label1"
+                },
+                {
+                    "name": "label2",
+                    "description": "Description for label2"
+                }
+            ]
+        }
+        ```
+        """
+
+        for label in labels.tags:
+            assert label.status == LabelStatus.uninserted
+        self.model.add_labels(labels)
+        return response(status_code=status.HTTP_200_OK, message="Successful")
+
+    @propagate_error
+    def insert_sample(
+        self,
+        sample: TokenClassificationSample,
+        token=Depends(Permissions.verify_permission("write")),
+    ):
+        """
+        Inserts a sample into the model.
+        Parameters:
+        - sample: TokenClassificationSample - The sample to insert into the model.
+        - token: str - Authorization token (inferred from permissions dependency).
+        Returns:
+        - JSONResponse: Status specifying whether or not the request to insert a sample was successful.
+
+        Example Request Body:
+        ```
+        {
+            "tokens": ["This", "is", "a", "test", "sample"],
+            "tags": ["O", "O", "O", "test_label", "O"]
+        }
+        ```
+        """
+        self.model.insert_sample(sample)
+        return response(status_code=status.HTTP_200_OK, message="Successful")
+
+    @propagate_error
+    def get_labels(self, token=Depends(Permissions.verify_permission("read"))):
+        """
+        Retrieves the labels from the model.
+        Parameters:
+        - token: str - Authorization token (inferred from permissions dependency).
+        Returns:
+        - JSONResponse: The labels from the model.
+        """
+        labels = self.model.get_labels()
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successful",
+            data=jsonable_encoder(labels),
         )

@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 from config import DeploymentConfig
 from models.model import Model
@@ -11,6 +11,7 @@ from thirdai_storage.data_types import (
     TagMetadata,
     TextClassificationSample,
     TokenClassificationSample,
+    LabelStatus,
 )
 from thirdai_storage.storage import DataStorage, SQLiteConnector
 
@@ -74,6 +75,10 @@ class TextClassificationModel(ClassificationModel):
 
 
 class TokenClassificationModel(ClassificationModel):
+    def __init__(self, config: DeploymentConfig):
+        super().__init__(config=config)
+        self.load_storage()
+
     def predict(self, text: str, **kwargs):
         predicted_tags = self.model.predict({"source": text}, top_k=1)
         predictions = []
@@ -93,7 +98,7 @@ class TokenClassificationModel(ClassificationModel):
             connector=SQLiteConnector(db_path=data_storage_path)
         )
 
-    def get_labels(self):
+    def get_labels(self) -> List[str]:
         # load tags and their status from the storage
         tag_metadata = self.data_storage.get_metadata("tags_and_status")
         return list(tag_metadata._tag_and_status.keys())
@@ -101,8 +106,9 @@ class TokenClassificationModel(ClassificationModel):
     def add_labels(self, labels: LabelEntityList):
         tag_metadata: TagMetadata = self.data_storage.get_metadata("tags_and_status")
 
-        for label in labels:
+        for label in labels.tags:
             tag_metadata.add_tag(label)
+
         # update the metadata entry in the DB
         self.data_storage.insert_metadata(tag_metadata)
 

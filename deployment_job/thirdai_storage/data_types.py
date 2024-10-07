@@ -140,7 +140,7 @@ class TagMetadata(SerializableModel):
             raise ValueError(f"Tag {tag} not found")
 
     def add_tag(self, tag: LabelEntity):
-        if tag in self.tag_and_status:
+        if tag.name in self.tag_and_status:
             raise Exception(f"Tag {tag.name} is already present in the Tag List")
 
         self.tag_and_status[tag.name] = tag

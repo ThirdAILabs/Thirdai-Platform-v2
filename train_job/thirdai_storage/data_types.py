@@ -98,6 +98,7 @@ class DataSample(BaseModel):
     def datatype(self):
         return self.sample.datatype
 
+
 class TagMetadata(SerializableModel):
     datatype: ClassVar[str] = "token_classification_tags"
     tag_and_status: Dict[str, LabelEntity] = Field(default_factory=dict)

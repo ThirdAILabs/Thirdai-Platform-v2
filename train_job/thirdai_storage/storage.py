@@ -9,6 +9,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from thirdai_storage.data_types import DataSample, ModelMetadata
 from thirdai_storage.schemas import Base, MetaData, Samples
 
+
 class Connector:
     # Interface for data store backend. Can be repurposed to a DB based storage,
     # a file based storage, etc. The DataStore should be persistent.

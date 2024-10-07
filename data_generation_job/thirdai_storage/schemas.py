@@ -13,6 +13,7 @@ class Samples(Base):
     user_provided = Column(Boolean, nullable=False, default=False)
     timestamp = Column(DateTime, default=func.current_timestamp())
 
+
 class MetaData(Base):
     __tablename__ = "metadata"
     name = Column(String, primary_key=True, index=True)

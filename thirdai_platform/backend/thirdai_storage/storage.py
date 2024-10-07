@@ -4,10 +4,11 @@ import typing
 from abc import abstractmethod
 from collections import defaultdict
 
-from sqlalchemy import create_engine, func
-from sqlalchemy.orm import scoped_session, sessionmaker
 from backend.thirdai_storage.data_types import DataSample, ModelMetadata
 from backend.thirdai_storage.schemas import Base, MetaData, Samples
+from sqlalchemy import create_engine, func
+from sqlalchemy.orm import scoped_session, sessionmaker
+
 
 class Connector:
     # Interface for data store backend. Can be repurposed to a DB based storage,

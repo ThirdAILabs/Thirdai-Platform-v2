@@ -55,7 +55,7 @@ def delete_local_backup(zip_file_path: str, dump_file_path: str):
 
 
 def create_backup_files(db_uri: str, local_dir: str, timestamp: str):
-    dump_file_path = os.path.join(local_dir, f"db_backup_{timestamp}.sql")
+    dump_file_path = os.path.join(local_dir, f"db_backup.sql")
     subprocess.run(["pg_dump", db_uri, "-f", dump_file_path], check=True)
     zip_file_path = os.path.join(local_dir, f"backup_{timestamp}")
     shutil.make_archive(zip_file_path, "zip", local_dir)

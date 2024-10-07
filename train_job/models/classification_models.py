@@ -271,6 +271,8 @@ class TokenClassificationModel(ClassificationModel):
         training_time = time.time() - start_time
 
         self.save_model(model)
+        # converts the status of uninserted tags to trained
+        self.update_tag_metadata(tags)
 
         self.evaluate(model, self.test_files())
 
@@ -278,9 +280,6 @@ class TokenClassificationModel(ClassificationModel):
         model_size = self.get_size()
         model_size_in_memory = model_size * 4
         latency = self.get_latency(model)
-
-        # converts the status of uninserted tags to trained
-        self.update_tag_metadata(tags)
 
         self.reporter.report_complete(
             self.config.model_id,
@@ -297,6 +296,7 @@ class TokenClassificationModel(ClassificationModel):
     def insert_samples_in_storage(
         self, supervised_files: typing.List[FileInfo], buffer_size=50_000
     ):
+        # these samples will be used as balancing samples for the training of the model 
         # this sampling is not uniform but we assume that there won't be many samples
         # TODO(Shubh) : make this sampling uniform using reservoir sampling
         df = pd.DataFrame()

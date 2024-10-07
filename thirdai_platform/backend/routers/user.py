@@ -7,7 +7,7 @@ from urllib.parse import urlencode, urljoin
 import bcrypt
 from auth.jwt import AuthenticatedUser, create_access_token, verify_access_token
 from backend.auth_dependencies import global_admin_only
-from backend.mailer import Mailer
+from backend.mailer import mailer
 from backend.utils import hash_password, response
 from database import schema
 from database.session import get_session
@@ -56,7 +56,7 @@ def send_verification_mail(email: str, verification_token: str, username: str):
         verify_link
     )
 
-    Mailer(
+    mailer(
         to=f"{username} <{email}>",
         subject=subject,
         body=body,
@@ -70,7 +70,7 @@ def send_reset_password_code(email: str, reset_password_code: int):
         f"The verification code for resetting your password is {reset_password_code}."
     )
 
-    Mailer(
+    mailer(
         to=f"<{email}>",
         subject=subject,
         body=body,

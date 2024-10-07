@@ -58,7 +58,11 @@ const NERQuestions = ({
 
   const router = useRouter();
 
-  const handleCategoryChange = (index: number, field: keyof Category, value: string | Example[]) => {
+  const handleCategoryChange = (
+    index: number,
+    field: keyof Category,
+    value: string | Example[]
+  ) => {
     const updatedCategories = [...categories];
     if (field === 'examples') {
       updatedCategories[index][field] = value as Example[];
@@ -73,13 +77,13 @@ const NERQuestions = ({
     updatedCategories[categoryIndex].examples[exampleIndex].text = value;
     setCategories(updatedCategories);
   };
-  
+
   const handleAddExample = (categoryIndex: number) => {
     const updatedCategories = [...categories];
     updatedCategories[categoryIndex].examples.push({ text: '' });
     setCategories(updatedCategories);
   };
-  
+
   const handleRemoveExample = (categoryIndex: number, exampleIndex: number) => {
     const updatedCategories = [...categories];
     updatedCategories[categoryIndex].examples.splice(exampleIndex, 1);
@@ -92,7 +96,12 @@ const NERQuestions = ({
 
   const validateCategories = () => {
     return categories.every((category: Category) => {
-      return category.name && category.examples.length > 0 && category.examples.every(ex => ex.text) && category.description;
+      return (
+        category.name &&
+        category.examples.length > 0 &&
+        category.examples.every((ex) => ex.text) &&
+        category.description
+      );
     });
   };
 
@@ -135,7 +144,12 @@ const NERQuestions = ({
   const generateData = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     for (const category of categories) {
-      if (category.name === '' || category.examples.length === 0 || category.examples[0].text === '' || category.description === '') {
+      if (
+        category.name === '' ||
+        category.examples.length === 0 ||
+        category.examples[0].text === '' ||
+        category.description === ''
+      ) {
         alert('All tokens must have a name, at least one example, and a description.');
         return;
       }
@@ -330,8 +344,22 @@ const NERQuestions = ({
           <form onSubmit={(e) => e.preventDefault()}>
             <div style={{ display: 'flex', flexDirection: 'column', marginTop: '10px' }}>
               {categories.map((category, categoryIndex) => (
-                <div key={categoryIndex} style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '10px', borderRadius: '4px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div
+                  key={categoryIndex}
+                  style={{
+                    marginBottom: '20px',
+                    border: '1px solid #ccc',
+                    padding: '10px',
+                    borderRadius: '4px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '10px',
+                    }}
+                  >
                     <TextField
                       style={{ width: '45%' }}
                       className="text-sm"
@@ -354,19 +382,29 @@ const NERQuestions = ({
                       className="text-sm"
                       placeholder="What this category is about."
                       value={category.description}
-                      onChange={(e) => handleCategoryChange(categoryIndex, 'description', e.target.value)}
+                      onChange={(e) =>
+                        handleCategoryChange(categoryIndex, 'description', e.target.value)
+                      }
                     />
                   </div>
                   {category.examples.map((example, exampleIndex) => (
-                    <div key={exampleIndex} style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+                    <div
+                      key={exampleIndex}
+                      style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}
+                    >
                       <TextField
                         style={{ flex: 1 }}
                         className="text-sm"
                         placeholder={`Example ${exampleIndex + 1}`}
                         value={example.text}
-                        onChange={(e) => handleExampleChange(categoryIndex, exampleIndex, e.target.value)}
+                        onChange={(e) =>
+                          handleExampleChange(categoryIndex, exampleIndex, e.target.value)
+                        }
                       />
-                      <IconButton onClick={() => handleRemoveExample(categoryIndex, exampleIndex)} disabled={category.examples.length === 1}>
+                      <IconButton
+                        onClick={() => handleRemoveExample(categoryIndex, exampleIndex)}
+                        disabled={category.examples.length === 1}
+                      >
                         <DeleteIcon />
                       </IconButton>
                     </div>
@@ -429,21 +467,21 @@ const NERQuestions = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-            {categories.map((category, index) => (
-              <TableRow key={index}>
-                <TableCell className="font-medium" align="left">
-                  {category.name}
-                </TableCell>
-                <TableCell className="font-medium" align="left">
-                  {category.examples.map((ex, i) => (
-                    <div key={i}>{ex.text}</div>
-                  ))}
-                </TableCell>
-                <TableCell className="font-medium" align="left">
-                  {category.description}
-                </TableCell>
-              </TableRow>
-            ))}
+              {categories.map((category, index) => (
+                <TableRow key={index}>
+                  <TableCell className="font-medium" align="left">
+                    {category.name}
+                  </TableCell>
+                  <TableCell className="font-medium" align="left">
+                    {category.examples.map((ex, i) => (
+                      <div key={i}>{ex.text}</div>
+                    ))}
+                  </TableCell>
+                  <TableCell className="font-medium" align="left">
+                    {category.description}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </>

@@ -711,7 +711,7 @@ interface TokenClassificationExample {
 function tokenClassifierDatagenForm(modelGoal: string, categories: Category[]) {
   const tags = categories.map((category) => ({
     name: category.name,
-    examples: category.examples.map(ex => ex.text),
+    examples: category.examples.map((ex) => ex.text),
     description: category.description,
   }));
   const numSentences = 10_000;

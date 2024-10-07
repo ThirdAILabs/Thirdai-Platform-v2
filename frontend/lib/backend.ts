@@ -714,13 +714,10 @@ function tokenClassifierDatagenForm(modelGoal: string, examples: TokenClassifica
     examples: [example.example],
     description: example.description,
   }));
-  const numSentences = 10_000;
   return {
     sub_type: 'token',
     task_prompt: modelGoal,
     tags: tags,
-    num_sentences_to_generate: numSentences,
-    num_samples_per_tag: Math.max(Math.ceil(numSentences / tags.length), 50),
   };
 }
 

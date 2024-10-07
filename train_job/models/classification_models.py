@@ -296,7 +296,7 @@ class TokenClassificationModel(ClassificationModel):
     def insert_samples_in_storage(
         self, supervised_files: typing.List[FileInfo], buffer_size=50_000
     ):
-        # these samples will be used as balancing samples for the training of the model 
+        # these samples will be used as balancing samples for the training of the model
         # this sampling is not uniform but we assume that there won't be many samples
         # TODO(Shubh) : make this sampling uniform using reservoir sampling
         df = pd.DataFrame()

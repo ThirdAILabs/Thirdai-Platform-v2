@@ -1,5 +1,4 @@
 import time
-from typing import Union
 
 from config import DeploymentConfig, UDTSubType
 from fastapi import APIRouter, Depends, status
@@ -16,13 +15,13 @@ from pydantic_models.inputs import (
     TextAnalysisPredictParams,
 )
 from reporter import Reporter
-from throughput import Throughput
-from utils import propagate_error, response
 from thirdai_storage.data_types import (
     LabelEntityList,
-    TokenClassificationSample,
     LabelStatus,
+    TokenClassificationSample,
 )
+from throughput import Throughput
+from utils import propagate_error, response
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 

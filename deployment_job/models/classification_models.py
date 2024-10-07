@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 from config import DeploymentConfig
 from models.model import Model
@@ -8,10 +8,10 @@ from thirdai import bolt
 from thirdai_storage.data_types import (
     DataSample,
     LabelEntityList,
+    LabelStatus,
     TagMetadata,
     TextClassificationSample,
     TokenClassificationSample,
-    LabelStatus,
 )
 from thirdai_storage.storage import DataStorage, SQLiteConnector
 

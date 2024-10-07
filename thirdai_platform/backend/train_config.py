@@ -2,8 +2,8 @@ import os
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field, model_validator
 from backend.thirdai_storage import data_types
+from pydantic import BaseModel, Field, model_validator
 
 
 class ModelType(str, Enum):

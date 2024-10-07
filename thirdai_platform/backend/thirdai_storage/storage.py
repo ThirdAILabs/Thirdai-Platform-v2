@@ -4,11 +4,11 @@ import typing
 from abc import abstractmethod
 from collections import defaultdict
 
+from backend.thirdai_storage.data_types import DataSample, ModelMetadata, UserFeedBack
+from backend.thirdai_storage.schemas import Base, FeedBack, MetaData, Samples
 from sqlalchemy import create_engine, event, func, or_
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
-from backend.thirdai_storage.data_types import DataSample, ModelMetadata, UserFeedBack
-from backend.thirdai_storage.schemas import Base, FeedBack, MetaData, Samples
 
 
 # turns on foreign key constraint check for sqlite

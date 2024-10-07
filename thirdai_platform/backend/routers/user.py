@@ -1,6 +1,5 @@
 import os
 import pathlib
-from random import randint
 from typing import List, Optional
 from urllib.parse import urlencode, urljoin
 
@@ -64,7 +63,7 @@ def send_verification_mail(email: str, verification_token: str, username: str):
 
 
 def send_reset_password_code(email: str, reset_password_code: int):
-    subject = "Verify Your Reset Password Code"
+    subject = "Your Reset Password Code"
 
     body = (
         f"The verification code for resetting your password is {reset_password_code}."
@@ -453,13 +452,26 @@ def reset_password(
             message="This email is not registered with any account.",
         )
 
-    reset_password_code = randint(100000, 999999)
+    reset_code = schema.PasswordReset.generate_reset_code(num=6)
 
-    user.reset_password_code = reset_password_code
+    reset_code_hash = bcrypt.hashpw(
+        reset_code.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
 
-    send_reset_password_code(email, reset_password_code=user.reset_password_code)
+    expiration_time = schema.PasswordReset.generate_expiration_time(minutes=15)
+    password_reset = schema.PasswordReset(
+        user_id=user.id,
+        reset_code_hash=reset_code_hash,
+        expiration_time=expiration_time,
+    )
 
+    # Delete any existing reset tokens for this user
+    session.query(schema.PasswordReset).filter_by(user_id=user.id).delete()
+
+    session.add(password_reset)
     session.commit()
+
+    send_reset_password_code(email=email, reset_password_code=reset_code)
 
     return response(
         status_code=status.HTTP_200_OK,
@@ -469,7 +481,7 @@ def reset_password(
 
 class VerifyResetPassword(BaseModel):
     email: str
-    reset_password_code: int
+    reset_password_code: str
     new_password: str
 
 
@@ -487,7 +499,7 @@ def reset_password_verify(
         ```json
         {
             "email": "johndoe@example.com",
-            "reset_password_code": 123456,
+            "reset_password_code": "123456",
             "new_password": "newsecurepassword"
         }
         ```
@@ -506,20 +518,40 @@ def reset_password_verify(
             message="This email is not registered with any account.",
         )
 
-    if not user.reset_password_code:
+    password_reset: schema.PasswordReset = (
+        session.query(schema.PasswordReset)
+        .filter(schema.PasswordReset.user_id == user.id)
+        .first()
+    )
+
+    if not password_reset:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="Click on forgot password to get verification code.",
+            message="No password reset request found. Please initiate a new password reset.",
         )
 
-    if user.reset_password_code != body.reset_password_code:
+    if not password_reset.is_valid():
+        # Delete the expired token
+        session.delete(password_reset)
+        session.commit()
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message="Entered wrong reset password code.",
+            message="The reset code has expired. Please request a new one.",
         )
 
-    user.reset_password_code = None
+    if not bcrypt.checkpw(
+        body.reset_password_code.encode("utf-8"),
+        password_reset.reset_code_hash.encode("utf-8"),
+    ):
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Invalid reset code.",
+        )
+
     user.password_hash = hash_password(body.new_password)
+
+    # Delete the used reset token
+    session.delete(password_reset)
     session.commit()
 
     return response(

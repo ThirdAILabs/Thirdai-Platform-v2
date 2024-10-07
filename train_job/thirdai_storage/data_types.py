@@ -98,37 +98,6 @@ class DataSample(BaseModel):
     def datatype(self):
         return self.sample.datatype
 
-
-class TokenClassificationFeedBack(SerializableModel):
-    datatype: ClassVar[str] = "token_classification"
-    delimiter: str
-    index_to_label: Dict[int, str]
-
-
-class UserFeedBack(BaseModel):
-    name: str
-    sample_uuid: str
-    feedback: TokenClassificationFeedBack
-
-    def serialize_feedback(self) -> str:
-        return self.feedback.serialize()
-
-    @staticmethod
-    def deserialize(
-        type: str, name: str, sample_uuid: str, serialized_feedback: str
-    ) -> "UserFeedBack":
-        if type == TokenClassificationFeedBack.datatype:
-            feedback = TokenClassificationFeedBack.deserialize(serialized_feedback)
-        else:
-            raise ValueError(f"Unknown feedback type: {type}")
-
-        return UserFeedBack(name=name, sample_uuid=sample_uuid, feedback=feedback)
-
-    @property
-    def datatype(self):
-        return self.feedback.datatype
-
-
 class TagMetadata(SerializableModel):
     datatype: ClassVar[str] = "token_classification_tags"
     tag_and_status: Dict[str, LabelEntity] = Field(default_factory=dict)

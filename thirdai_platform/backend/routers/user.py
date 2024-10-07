@@ -55,21 +55,32 @@ def email_signup(
     return identity_provider.create_user(body, session)
 
 
-@user_router.get("/email-login")
-def email_login(
+@user_router.post("/login")
+def login(
     credentials: HTTPBasicCredentials = Depends(basic_security),
     session: Session = Depends(get_session),
+    idp_token: Optional[str] = None,
+    idp_alias: Optional[str] = None,
 ):
     try:
-        user_id, access_token = identity_provider.authenticate_user(
-            credentials.username, credentials.password, session
-        )
+        if idp_token and idp_alias:
+            # Authenticate using the IDP token
+            user_id, access_token = identity_provider.verify_idp_token(
+                idp_token, idp_alias, session
+            )
+        else:
+            # Authenticate using username and password
+            user_id, access_token = identity_provider.authenticate_user(
+                credentials.username, credentials.password, session
+            )
+
         user = session.query(schema.User).filter(schema.User.id == user_id).first()
         if not user:
             return response(
                 status_code=status.HTTP_404_NOT_FOUND,
                 message="User not found in local database.",
             )
+
         return response(
             status_code=status.HTTP_200_OK,
             message="Successfully logged in.",
@@ -273,3 +284,8 @@ def email_verify(verification_token: str, session: Session = Depends(get_session
 @user_router.post("/new-password")
 def reset_password(body: VerifyResetPassword, session: Session = Depends(get_session)):
     return identity_provider.reset_password(body, session)
+
+
+@user_router.post("/get-all-idps")
+def reset_password(body: VerifyResetPassword, session: Session = Depends(get_session)):
+    return identity_provider.get_all_idps()

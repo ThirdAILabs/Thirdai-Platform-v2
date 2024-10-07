@@ -48,3 +48,11 @@ class AbstractIdentityProvider(ABC):
     @abstractmethod
     def email_verify(self, user_id: str):
         pass
+
+    @abstractmethod
+    def verify_idp_token(self, idp_token: str, idp_alias: str, session: Session):
+        pass
+
+    @abstractmethod
+    def get_all_idps(self):
+        pass

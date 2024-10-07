@@ -181,9 +181,12 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
         session.commit()
 
     def authenticate_user(
-        self, username_or_email: str, password: str, session: Session
+        self, username_or_email: str, password: str, idp_alias: str, session: Session
     ):
-        access_token = get_token("new-client", username_or_email, password)
+        """
+        Authenticate a user against the specified Identity Provider.
+        """
+        access_token = get_token(idp_alias, username_or_email, password)
         if not access_token:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials."
@@ -200,44 +203,28 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
 
         return keycloak_user_id, access_token
 
-    # TODO(pratik): keycloak logout is not working, for us, we would just be calling
-    # the endpoint directly so it shouldnot be an issue.
-    def import_google_identity_provider_config(
-        self, client_id: str, client_secret: str
-    ):
-        google_provider_representation = {
-            "alias": "google",
-            "providerId": "google",
-            "enabled": True,
-            "updateProfileFirstLoginMode": "on",
-            "trustEmail": True,
-            "storeToken": False,
-            "addReadTokenRoleOnCreate": False,
-            "authenticateByDefault": False,
-            "linkOnly": False,
-            "config": {
-                "clientId": client_id,
-                "clientSecret": client_secret,
-                "defaultScope": "openid profile email",
-                "useJwksUrl": True,
-                "jwksUrl": "https://www.googleapis.com/oauth2/v3/certs",
-                "authorizationUrl": "https://accounts.google.com/o/oauth2/auth",
-                "tokenUrl": "https://oauth2.googleapis.com/token",
-                "logoutUrl": "https://accounts.google.com/o/oauth2/revoke",
-                "userInfoUrl": "https://openidconnect.googleapis.com/v1/userinfo",
-                "issuer": "https://accounts.google.com",
-                "prompt": "consent",
-                "responseMode": "fragment",
-                "responseType": "code",
-            },
-        }
+    def verify_idp_token(self, idp_token: str, idp_alias: str, session: Session):
+        try:
+            user_info = keycloak_openid.userinfo(idp_token)
+            keycloak_user_id = user_info.get("sub")
 
-        idps = keycloak_admin.get_idps()
-        google_idp = next((idp for idp in idps if idp["alias"] == "google"), None)
+            user = self.get_user(user_info.get("preferred_username"), session)
+            if not user:
+                user = schema.User(
+                    id=keycloak_user_id,
+                    username=user_info.get("preferred_username"),
+                    email=user_info.get("email"),
+                )
+                session.add(user)
+                session.commit()
+                session.refresh(user)
 
-        if google_idp:
-            print("Google Identity Provider already exists, updating...")
-            keycloak_admin.update_idp("google", google_provider_representation)
-        else:
-            print("Google Identity Provider doesn't exist, creating...")
-            keycloak_admin.create_idp(google_provider_representation)
+            return keycloak_user_id, idp_token
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Invalid or expired IDP token: {str(e)}",
+            )
+
+    def get_all_idps(self):
+        return keycloak_admin.get_idps()

@@ -202,3 +202,6 @@ class PostgresIdentityProvider(AbstractIdentityProvider):
             status_code=status.HTTP_200_OK,
             message="Successfully changed the password.",
         )
+
+    def get_all_idps(self):
+        return []

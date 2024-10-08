@@ -258,7 +258,7 @@ class TokenClassificationModel(ClassificationModel):
                 label.status = LabelStatus.trained
 
         if new_labels:
-            model.add_ner_labels(new_labels)
+            model.add_ner_entities(new_labels)
 
         for train_file in self.supervised_files():
             model.train(
@@ -271,7 +271,10 @@ class TokenClassificationModel(ClassificationModel):
         training_time = time.time() - start_time
 
         self.save_model(model)
-        # converts the status of uninserted tags to trained
+
+        # converts the status of all tags to trained and update in the storage
+        for tag in tags.tag_and_status:
+            tags.tag_and_status[tag].status = LabelStatus.trained
         self.update_tag_metadata(tags)
 
         self.evaluate(model, self.test_files())

@@ -31,7 +31,6 @@ class LabelEntity(BaseModel):
     status: LabelStatus = LabelStatus.uninserted
     examples: Optional[List[str]] = None
     description: Optional[str] = None
-    sample: Optional[str] = None
 
     class Config:
         validate_assignment = True

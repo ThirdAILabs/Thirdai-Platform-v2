@@ -200,7 +200,7 @@ class TokenDataFactory(DataFactory):
 
         sampling_weights = np.array(
             [
-                untrained_tag_weight_multiplier if tag.status == "untrained" else 1
+                untrained_tag_weight_multiplier if tag.status != "trained" else 1
                 for tag in tags
             ]
         )

@@ -17,6 +17,7 @@ from backend.train_config import (
     FileInfo,
     FileLocation,
     JobOptions,
+    LLMProvider,
     ModelType,
     NDBData,
     NDBOptions,
@@ -640,6 +641,7 @@ def datagen_callback(
 @train_router.post("/retrain-udt")
 def retrain_udt(
     model_name: str,
+    llm_provider: LLMProvider,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
@@ -668,10 +670,10 @@ def retrain_udt(
             message=f"Cannot retrain model of the type : {model.type}, subtype : {model.sub_type}. Only UDT Token Classification supported.",
         )
 
-    storage_dir = Path(model_bazaar_path()) / "data" / model.id / "data_storage.db"
+    storage_dir = Path(model_bazaar_path()) / "data" / str(model.id)
 
     data_storage = storage.DataStorage(
-        connector=storage.SQLiteConnector(db_path=storage_dir)
+        connector=storage.SQLiteConnector(db_path=storage_dir / "data_storage.db")
     )
 
     tag_metadata: data_types.TagMetadata = data_storage.get_metadata(
@@ -715,14 +717,20 @@ def retrain_udt(
     except Exception as error:
         return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(error))
 
+    datagen_options = DatagenOptions(
+        task_prompt="token_classification",
+        llm_provider=llm_provider,
+        datagen_options=token_classification_options,
+    )
+
     config = TrainConfig(
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
-        model_id=model.id,
-        data_id=model.id,
+        model_id=str(model.id),
+        data_id=str(model.id),
         model_options=UDTOptions(udt_options=placeholder_udt_options),
-        datagen_options=token_classification_options,
+        datagen_options=datagen_options,
         data=data,
         job_options=JobOptions(),
     )
@@ -737,10 +745,10 @@ def retrain_udt(
 
     try:
         generate_data_for_train_job(
-            data_id=model.id,
+            data_id=str(model.id),
             secret_token=secret_token,
             license_key=license_info["boltLicenseKey"],
-            options=token_classification_options,
+            options=datagen_options,
             job_options=JobOptions(),
         )
     except Exception as err:

@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from pathlib import Path
 from typing import List, Optional, Union
 
 from config import DeploymentConfig
@@ -8,6 +9,7 @@ from thirdai import bolt
 from thirdai_storage.data_types import (
     DataSample,
     LabelEntityList,
+    ModelMetadata,
     TagMetadata,
     TextClassificationSample,
     TokenClassificationSample,
@@ -91,25 +93,39 @@ class TokenClassificationModel(ClassificationModel):
         )
 
     def load_storage(self):
-        data_storage_path = self.data_dir / "data_storage.db"
+        data_storage_path = (
+            Path(self.config.model_bazaar_dir)
+            / "data"
+            / self.config.model_id
+            / "data_storage.db"
+        )
+        print(data_storage_path)
         # connector will instantiate an sqlite db at the specified path if it doesn't exist
         self.data_storage = DataStorage(
             connector=SQLiteConnector(db_path=data_storage_path)
         )
 
+    @property
+    def tag_metadata(self) -> TagMetadata:
+        # load tags and their status from the storage
+        return self.data_storage.get_metadata("tags_and_status").metadata
+
+    def update_tag_metadata(self, tag_metadata):
+        self.data_storage.insert_metadata(
+            metadata=ModelMetadata(name="tags_and_status", metadata=tag_metadata)
+        )
+
     def get_labels(self) -> List[str]:
         # load tags and their status from the storage
-        tag_metadata = self.data_storage.get_metadata("tags_and_status")
-        return list(tag_metadata._tag_and_status.keys())
+        return list(self.tag_metadata.tag_and_status.keys())
 
     def add_labels(self, labels: LabelEntityList):
-        tag_metadata: TagMetadata = self.data_storage.get_metadata("tags_and_status")
-
+        tag_metadata = self.tag_metadata
         for label in labels.tags:
             tag_metadata.add_tag(label)
 
         # update the metadata entry in the DB
-        self.data_storage.insert_metadata(tag_metadata)
+        self.update_tag_metadata(tag_metadata)
 
     def insert_sample(self, sample: TokenClassificationSample):
         token_tag_sample = DataSample(name="ner", sample=sample, user_provided=True)

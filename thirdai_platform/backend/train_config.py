@@ -188,8 +188,8 @@ class LLMProvider(str, Enum):
 
 class Entity(BaseModel):
     name: str
-    examples: List[str]
-    description: str
+    examples: Optional[List[str]] = None
+    description: Optional[str] = None
     status: str = "untrained"
 
 
@@ -205,11 +205,11 @@ class TextClassificationDatagenOptions(BaseModel):
 class TokenClassificationDatagenOptions(BaseModel):
     sub_type: Literal[UDTSubType.token] = UDTSubType.token
     tags: List[Entity]
-    num_sentences_to_generate: int = 10_000
+    num_sentences_to_generate: int = 10_00
     num_samples_per_tag: Optional[int] = None
 
     # example NER samples
-    samples: List[data_types.TokenClassificationSample] = None
+    samples: Optional[List[data_types.TokenClassificationSample]] = None
     templates_per_sample: int = 10
 
 

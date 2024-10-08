@@ -193,7 +193,9 @@ class DataStorage:
         self.connector.add_samples(samples_to_insert)
 
     def retrieve_samples(self, name: str, num_samples: int, user_provided: bool):
-        entries = self.connector.get_samples(name, num_samples=num_samples)
+        entries = self.connector.get_samples(
+            name, num_samples=num_samples, user_provided=user_provided
+        )
 
         return [
             DataSample.deserialize(

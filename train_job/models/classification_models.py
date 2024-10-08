@@ -199,13 +199,9 @@ class TokenClassificationModel(ClassificationModel):
         target_labels = list(set(self.tkn_cls_vars.target_labels))
 
         for label in target_labels:
-            tag_status[label] = LabelEntity(
-                name=label, status=LabelStatus.untrained
-            )
+            tag_status[label] = LabelEntity(name=label, status=LabelStatus.untrained)
 
-        self.update_tag_metadata(
-            tag_metadata=TagMetadata(tag_status=tag_status)
-        )
+        self.update_tag_metadata(tag_metadata=TagMetadata(tag_status=tag_status))
 
         default_tag = self.tkn_cls_vars.default_tag
         return bolt.UniversalDeepTransformer(

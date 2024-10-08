@@ -71,6 +71,7 @@ class DataSample(BaseModel):
     **Easy Extension**: To support a new data type, simply define a new data class; DataSample
     will handle serialization without additional changes.
     """
+
     name: str
     data: Union[TextClassificationData, TokenClassificationData]
     unique_id: str = Field(default_factory=lambda: str(uuid4()))

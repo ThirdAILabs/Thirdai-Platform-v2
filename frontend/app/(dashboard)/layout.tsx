@@ -58,7 +58,9 @@ function DesktopNav() {
   const { user } = useContext(UserContext);
 
   // Determine if the user is an admin (global or team admin)
-  const isAdmin = user?.global_admin || user?.teams.some((team) => team.role === 'team_admin');
+  // const isAdmin = user?.global_admin || user?.teams.some((team) => team.role === 'team_admin');
+  const isAdmin = true;
+
 
   return (
     <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">

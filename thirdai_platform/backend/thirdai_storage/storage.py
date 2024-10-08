@@ -4,10 +4,10 @@ import typing
 from abc import abstractmethod
 from collections import defaultdict
 
-from backend.thirdai_storage.data_types import DataSample, ModelMetadata
-from backend.thirdai_storage.schemas import Base, MetaData, Samples
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import scoped_session, sessionmaker
+from backend.thirdai_storage.data_types import DataSample, ModelMetadata
+from backend.thirdai_storage.schemas import Base, MetaData, Samples
 
 
 class Connector:
@@ -183,7 +183,7 @@ class DataStorage:
                         sample.unique_id,
                         sample.datatype,
                         sample.name,
-                        sample.serialize_sample(),
+                        sample.serialize_data(),
                         sample.user_provided,
                     )
                 )
@@ -198,11 +198,11 @@ class DataStorage:
         )
 
         return [
-            DataSample.deserialize(
+            DataSample.from_serialized(
                 type=datatype,
                 unique_id=unique_id,
                 name=name,
-                serialized_sample=data,
+                serialized_data=data,
                 user_provided=user_provided,
             )
             for datatype, unique_id, data in entries
@@ -225,14 +225,14 @@ class DataStorage:
         self.connector.insert_metadata(
             name=metadata.name,
             datatype=metadata.datatype,
-            serialized_data=metadata.serialize_metadata(),
+            serialized_data=metadata.serialize_data(),
         )
 
     def get_metadata(self, name) -> ModelMetadata:
         data = self.connector.get_metadata(name)
         if data:
-            return ModelMetadata.deserialize(
-                type=data[0], name=data[1], serialized_metadata=data[2]
+            return ModelMetadata.from_serialized(
+                type=data[0], name=data[1], serialized_data=data[2]
             )
 
         return None

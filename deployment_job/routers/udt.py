@@ -16,9 +16,9 @@ from pydantic_models.inputs import (
 )
 from reporter import Reporter
 from thirdai_storage.data_types import (
-    LabelEntityList,
+    LabelCollection,
     LabelStatus,
-    TokenClassificationSample,
+    TokenClassificationData,
 )
 from throughput import Throughput
 from utils import propagate_error, response
@@ -147,7 +147,7 @@ class UDTRouter:
     @propagate_error
     def add_labels(
         self,
-        labels: LabelEntityList,
+        labels: LabelCollection,
         token=Depends(Permissions.verify_permission("write")),
     ):
         """
@@ -183,7 +183,7 @@ class UDTRouter:
     @propagate_error
     def insert_sample(
         self,
-        sample: TokenClassificationSample,
+        sample: TokenClassificationData,
         token=Depends(Permissions.verify_permission("write")),
     ):
         """

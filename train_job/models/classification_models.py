@@ -193,17 +193,18 @@ class TokenClassificationModel(ClassificationModel):
         self.load_storage()
 
         # insert the tags into the storage to keep track of their training status
-        tags_and_status = {"O": LabelEntity(name="O", status=LabelStatus.untrained)}
+        tag_status = {"O": LabelEntity(name="O", status=LabelStatus.untrained)}
 
-        target_labels = self.tkn_cls_vars.target_labels
+        # remove duplicates from target_labels
+        target_labels = list(set(self.tkn_cls_vars.target_labels))
 
         for label in target_labels:
-            tags_and_status[label] = LabelEntity(
+            tag_status[label] = LabelEntity(
                 name=label, status=LabelStatus.untrained
             )
 
         self.update_tag_metadata(
-            tag_metadata=TagMetadata(tag_and_status=tags_and_status)
+            tag_metadata=TagMetadata(tag_status=tag_status)
         )
 
         default_tag = self.tkn_cls_vars.default_tag
@@ -211,8 +212,7 @@ class TokenClassificationModel(ClassificationModel):
             data_types={
                 self.tkn_cls_vars.source_column: bolt.types.text(),
                 self.tkn_cls_vars.target_column: bolt.types.token_tags(
-                    # remove duplicates from target_labels
-                    tags=list(set(target_labels)),
+                    tags=target_labels,
                     default_tag=default_tag,
                 ),
             },
@@ -229,11 +229,11 @@ class TokenClassificationModel(ClassificationModel):
     @property
     def tag_metadata(self) -> TagMetadata:
         # load tags and their status from the storage
-        return self.data_storage.get_metadata("tags_and_status").metadata
+        return self.data_storage.get_metadata("tags_and_status").data
 
     def update_tag_metadata(self, tag_metadata):
         self.data_storage.insert_metadata(
-            metadata=ModelMetadata(name="tags_and_status", metadata=tag_metadata)
+            metadata=ModelMetadata(name="tags_and_status", data=tag_metadata)
         )
 
     def train(self, **kwargs):
@@ -251,8 +251,8 @@ class TokenClassificationModel(ClassificationModel):
 
         # new labels to add to the model
         new_labels = []
-        for name in tags.tag_and_status.keys():
-            label = tags.tag_and_status[name]
+        for name in tags.tag_status.keys():
+            label = tags.tag_status[name]
             if label.status == LabelStatus.uninserted:
                 new_labels.append(name)
                 label.status = LabelStatus.trained
@@ -273,8 +273,8 @@ class TokenClassificationModel(ClassificationModel):
         self.save_model(model)
 
         # converts the status of all tags to trained and update in the storage
-        for tag in tags.tag_and_status:
-            tags.tag_and_status[tag].status = LabelStatus.trained
+        for tag in tags.tag_status:
+            tags.tag_status[tag].status = LabelStatus.trained
         self.update_tag_metadata(tags)
 
         self.evaluate(model, self.test_files())
@@ -320,7 +320,7 @@ class TokenClassificationModel(ClassificationModel):
             tags = row[self.tkn_cls_vars.target_column].split()
             assert len(tokens) == len(tags)
 
-            sample = DataSample(name="ner", sample={"tokens": tokens, "tags": tags})
+            sample = DataSample(name="ner", data={"tokens": tokens, "tags": tags})
             samples.append(sample)
 
         self.data_storage.insert_samples(samples=samples)

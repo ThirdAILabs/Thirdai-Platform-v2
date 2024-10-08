@@ -35,100 +35,108 @@ class LabelEntity(BaseModel):
         validate_assignment = True
 
 
-class LabelEntityList(BaseModel):
+class LabelCollection(BaseModel):
     tags: List[LabelEntity]
 
 
-class SerializableModel(BaseModel):
+class SerializableBaseModel(BaseModel):
     def serialize(self) -> str:
         return self.model_dump_json()
 
     @classmethod
-    def deserialize(cls, repr: str) -> "SerializableModel":
+    def deserialize(cls, repr: str) -> "SerializableBaseModel":
         return cls.model_validate_json(repr)
 
 
-# Text Classification Sample
-class TextClassificationSample(SerializableModel):
+# Text Classification Data
+class TextClassificationData(SerializableBaseModel):
     datatype: ClassVar[str] = "text_classification"
     text: str
     label: str
 
 
-# Token Classification Sample
-class TokenClassificationSample(SerializableModel):
+# Token Classification Data
+class TokenClassificationData(SerializableBaseModel):
     datatype: ClassVar[str] = "token_classification"
     tokens: List[str]
     tags: List[str]
 
 
-# DataSample containing the actual sample object and metadata
 class DataSample(BaseModel):
+    """
+    A wrapper class that encapsulates different types of data samples (e.g., TextClassificationData,
+    TokenClassificationData) for simplified storage and retrieval. It abstracts the serialization
+    and deserialization processes, allowing you to handle various data types uniformly.
+
+    **Easy Extension**: To support a new data type, simply define a new data class; DataSample
+    will handle serialization without additional changes.
+    """
     name: str
-    sample: Union[TextClassificationSample, TokenClassificationSample]
+    data: Union[TextClassificationData, TokenClassificationData]
     unique_id: str = Field(default_factory=lambda: str(uuid4()))
     user_provided: bool = False
 
-    def serialize_sample(self) -> str:
-        return self.sample.serialize()
+    def serialize_data(self) -> str:
+        return self.data.serialize()
 
     @staticmethod
-    def deserialize(
+    def from_serialized(
         type: str,
         unique_id: str,
         name: str,
-        serialized_sample: str,
+        serialized_data: str,
         user_provided: bool,
     ) -> "DataSample":
-        # Deserialize the sample based on its type
-        if type == TextClassificationSample.datatype:
-            sample = TextClassificationSample.deserialize(serialized_sample)
-        elif type == TokenClassificationSample.datatype:
-            sample = TokenClassificationSample.deserialize(serialized_sample)
+        # Deserialize the data based on its type
+        if type == TextClassificationData.datatype:
+            data = TextClassificationData.deserialize(serialized_data)
+        elif type == TokenClassificationData.datatype:
+            data = TokenClassificationData.deserialize(serialized_data)
         else:
-            raise ValueError(f"Unknown sample type: {type}")
+            raise ValueError(f"Unknown data type: {type}")
 
         return DataSample(
-            name=name, sample=sample, unique_id=unique_id, user_provided=user_provided
+            name=name, data=data, unique_id=unique_id, user_provided=user_provided
         )
 
     @property
     def datatype(self):
-        return self.sample.datatype
+        return self.data.datatype
 
 
-class TagMetadata(SerializableModel):
+class TagMetadata(SerializableBaseModel):
     datatype: ClassVar[str] = "token_classification_tags"
-    tag_and_status: Dict[str, LabelEntity] = Field(default_factory=dict)
+    tag_status: Dict[str, LabelEntity] = Field(default_factory=dict)
 
-    def update_tag_status(self, tag: str, status: str):
-        if tag in self.tag_and_status:
-            self.tag_and_status[tag].status = status
+    def set_tag_status(self, tag: str, status: str):
+        if tag in self.tag_status:
+            self.tag_status[tag].status = status
         else:
             raise ValueError(f"Tag {tag} not found")
 
     def add_tag(self, tag: LabelEntity):
-        if tag.name in self.tag_and_status:
+        if tag.name in self.tag_status:
             raise Exception(f"Tag {tag.name} is already present in the Tag List")
 
-        self.tag_and_status[tag.name] = tag
+        self.tag_status[tag.name] = tag
 
 
 class ModelMetadata(BaseModel):
     name: str
-    metadata: TagMetadata
+    data: TagMetadata
 
-    def serialize_metadata(self) -> str:
-        return self.metadata.serialize()
+    def serialize_data(self) -> str:
+        return self.data.serialize()
 
-    def deserialize(type: str, name: str, serialized_metadata: str):
+    @staticmethod
+    def from_serialized(type: str, name: str, serialized_data: str):
         if type == TagMetadata.datatype:
-            metadata = TagMetadata.deserialize(serialized_metadata)
+            data = TagMetadata.deserialize(serialized_data)
         else:
-            raise ValueError(f"Unknown metadata type: {type}")
+            raise ValueError(f"Unknown data type: {type}")
 
-        return ModelMetadata(name=name, metadata=metadata)
+        return ModelMetadata(name=name, data=data)
 
     @property
     def datatype(self):
-        return self.metadata.datatype
+        return self.data.datatype

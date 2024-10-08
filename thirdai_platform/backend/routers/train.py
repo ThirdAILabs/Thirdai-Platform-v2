@@ -678,12 +678,12 @@ def retrain_udt(
 
     tag_metadata: data_types.TagMetadata = data_storage.get_metadata(
         "tags_and_status"
-    ).metadata
+    ).data
 
-    tags_and_status = tag_metadata.tag_and_status
+    tag_status = tag_metadata.tag_status
     tags = []
-    for tag in tags_and_status.keys():
-        tag_object = tags_and_status[tag]
+    for tag in tag_status.keys():
+        tag_object = tag_status[tag]
         tags.append(
             Entity(
                 name=tag,
@@ -697,14 +697,14 @@ def retrain_udt(
     samples: List[data_types.DataSample] = data_storage.retrieve_samples(
         name="ner", num_samples=None, user_provided=True
     )
-    samples = [sample.sample for sample in samples]
+    token_classification_samples = [sample.data for sample in samples]
 
     token_classification_options = TokenClassificationDatagenOptions(
         sub_type=UDTSubType.token,
         tags=tags,
         num_sentences_to_generate=10_000,
         num_samples_per_tag=500,
-        samples=samples,
+        samples=token_classification_samples,
     )
 
     placeholder_udt_options = TokenClassificationOptions(

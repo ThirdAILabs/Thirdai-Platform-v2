@@ -8,11 +8,11 @@ from pydantic_models import inputs
 from thirdai import bolt
 from thirdai_storage.data_types import (
     DataSample,
-    LabelEntityList,
+    LabelCollection,
     ModelMetadata,
     TagMetadata,
-    TextClassificationSample,
-    TokenClassificationSample,
+    TextClassificationData,
+    TokenClassificationData,
 )
 from thirdai_storage.storage import DataStorage, SQLiteConnector
 
@@ -43,13 +43,13 @@ class ClassificationModel(Model):
             f"The method 'get_labels' is not implemented for the model class type: {self.__class__.__name__}"
         )
 
-    def add_labels(self, labels: LabelEntityList):
+    def add_labels(self, labels: LabelCollection):
         raise NotImplementedError(
             f"The method 'add_labels' is not implemented for the model class type: {self.__class__.__name__}"
         )
 
     def insert_sample(
-        self, sample: Union[TokenClassificationSample, TextClassificationSample]
+        self, sample: Union[TokenClassificationData, TextClassificationData]
     ):
         raise NotImplementedError(
             f"The method 'insert_sample' is not implemented for the model class type: {self.__class__.__name__}"
@@ -108,18 +108,18 @@ class TokenClassificationModel(ClassificationModel):
     @property
     def tag_metadata(self) -> TagMetadata:
         # load tags and their status from the storage
-        return self.data_storage.get_metadata("tags_and_status").metadata
+        return self.data_storage.get_metadata("tags_and_status").data
 
     def update_tag_metadata(self, tag_metadata):
         self.data_storage.insert_metadata(
-            metadata=ModelMetadata(name="tags_and_status", metadata=tag_metadata)
+            metadata=ModelMetadata(name="tags_and_status", data=tag_metadata)
         )
 
     def get_labels(self) -> List[str]:
         # load tags and their status from the storage
-        return list(self.tag_metadata.tag_and_status.keys())
+        return list(self.tag_metadata.tag_status.keys())
 
-    def add_labels(self, labels: LabelEntityList):
+    def add_labels(self, labels: LabelCollection):
         tag_metadata = self.tag_metadata
         for label in labels.tags:
             tag_metadata.add_tag(label)
@@ -127,8 +127,8 @@ class TokenClassificationModel(ClassificationModel):
         # update the metadata entry in the DB
         self.update_tag_metadata(tag_metadata)
 
-    def insert_sample(self, sample: TokenClassificationSample):
-        token_tag_sample = DataSample(name="ner", sample=sample, user_provided=True)
+    def insert_sample(self, sample: TokenClassificationData):
+        token_tag_sample = DataSample(name="ner", data=sample, user_provided=True)
         self.data_storage.insert_samples(
             samples=[token_tag_sample], override_buffer_limit=True
         )

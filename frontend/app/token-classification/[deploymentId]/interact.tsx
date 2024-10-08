@@ -337,10 +337,30 @@ export default function Interact() {
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
       const page = await pdf.getPage(pageNum);
       const textContent = await page.getTextContent();
-      const pageText = textContent.items.map((item: any) => item.str).join(' ');
-      fullText += pageText + '\n';
+      const pageText = textContent.items
+        .map((item: any) => ({ 
+          text: item.str, 
+          fontName: item.fontName
+        }))
+        .reduce((acc, curr) => {
+          if (acc.length && acc[acc.length - 1].fontName === curr.fontName) {
+            acc[acc.length - 1].text += ' ' + curr.text;
+          } else {
+            acc.push(curr);
+          }
+          return acc;
+        }, [])
+        .map(item => item.text)
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      fullText += pageText + '\n\n';
     }
-    return fullText;
+
+    // Remove the "PDF:" prefix if it exists
+    fullText = fullText.replace(/^PDF:\s*/i, '');
+
+    return fullText.trim();
   };
 
   const parseDOCX = async (file: File) => {
@@ -409,8 +429,14 @@ export default function Interact() {
   };
 
   const renderHighlightedContent = (content: string) => {
-    return content.split(' ').map((word, wordIndex) => {
-      const tokenIndex = annotations.findIndex(token => token.text === word);
+    const words = content.split(/\s+/);
+    return words.map((word, wordIndex) => {
+      const tokenIndex = annotations.findIndex(token => 
+        token.text.toLowerCase() === word.toLowerCase() ||
+        token.text.toLowerCase().includes(word.toLowerCase()) ||
+        word.toLowerCase().includes(token.text.toLowerCase())
+      );
+
       if (tokenIndex !== -1 && annotations[tokenIndex].tag !== 'O') {
         return (
           <Highlight
@@ -518,7 +544,7 @@ export default function Interact() {
           <Box mt={4}>
             <Card
               className="p-7 text-start"
-              style={{ lineHeight: 2 }}
+              style={{ lineHeight: 2, fontWeight: 'normal' }}
               onMouseUp={(e) => {
                 setSelecting(false);
                 if (startIndex !== null && endIndex !== null) {
@@ -527,40 +553,7 @@ export default function Interact() {
                 }
               }}
             >
-              {parsedRows.map((row, rowIndex) => {
-                const columns = row.content.split('\n');
-                const visibleColumns = columns.filter(column => 
-                  !showHighlightedOnly || column.split(':').slice(1).join(':').split(' ').some(isWordHighlighted)
-                );
-
-                if (visibleColumns.length === 0) {
-                  return null; // Don't render the row if all columns are hidden
-                }
-
-                return (
-                  <div key={rowIndex} style={{ marginBottom: '20px', padding: '10px', border: '1px solid #ccc', borderRadius: '5px' }}>
-                    <strong>{row.label}:</strong>
-                    {visibleColumns.map((column, columnIndex) => {
-                      const [columnName, ...columnContent] = column.split(':');
-                      const content = columnContent.join(':').trim();
-                      return (
-                        <p key={columnIndex}>
-                          <strong>{columnName}:</strong>{' '}
-                          {renderHighlightedContent(content)}
-                        </p>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-              {annotations.map((_, index) => (
-                <TagSelector
-                  key={index}
-                  open={!!selectedRange && index === selectedRange[1]}
-                  choices={Object.keys(tagColors)}
-                  onSelect={finetuneTags}
-                />
-              ))}
+              {renderHighlightedContent(inputText)}
             </Card>
           </Box>
         )

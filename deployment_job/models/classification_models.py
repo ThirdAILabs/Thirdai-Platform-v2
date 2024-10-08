@@ -99,7 +99,7 @@ class TokenClassificationModel(ClassificationModel):
             / self.config.model_id
             / "data_storage.db"
         )
-        print(data_storage_path)
+
         # connector will instantiate an sqlite db at the specified path if it doesn't exist
         self.data_storage = DataStorage(
             connector=SQLiteConnector(db_path=data_storage_path)

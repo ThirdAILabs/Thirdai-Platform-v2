@@ -94,8 +94,6 @@ class UDTRouter:
             self.queries_ingested.log(1)
             self.queries_ingested_bytes.log(len(params.text))
 
-        print(results)
-
         return response(
             status_code=status.HTTP_200_OK,
             message="Successful",

@@ -14,7 +14,6 @@ Example Usescase:
 
 NER :
     TokenClassificationSample : Used for storing user provided training data or data generated using our datagen service.
-    TokenClassificationFeedback : Used for storing feedback given by a user about a sample. 
     TagMetaData : Used for storing what tags are present in the pipeline along with their status (trained/untrained)
 """
 

@@ -224,8 +224,10 @@ export default function Interact() {
     return stopSelectingOnOutsideClick;
   }, []);
 
-  const handleInputChange = (event: any) => {
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(event.target.value);
+    // Reset parsedData when manually typing
+    setParsedData(null);
   };
 
   // Add a new state to store the parsed rows
@@ -407,8 +409,22 @@ export default function Interact() {
           tag: tag![0] as string,
         }))
       );
+      // If there's no parsedData, set it as a generic type
+      if (!parsedData) {
+        setParsedData({ type: 'other', content: text });
+      }
       setIsLoading(false);
     });
+  };
+
+  const renderContent = () => {
+    if (!parsedData) return null;
+
+    if (parsedData.type === 'csv' && parsedData.rows) {
+      return renderCSVContent(parsedData.rows);
+    } else {
+      return renderPDFContent(parsedData.content);
+    }
   };
 
   const finetuneTags = (newTag: string) => {
@@ -549,16 +565,21 @@ export default function Interact() {
           value={inputText}
           onChange={handleInputChange}
           placeholder="Enter your text..."
-          onSubmit={() => handleRun(inputText)}
           onKeyDown={(e) => {
-            if (e.keyCode === 13 && e.shiftKey === false) {
+            if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               handleRun(inputText);
             }
           }}
         />
+        <Button 
+          size="sm" 
+          onClick={() => handleRun(inputText)} 
+          style={{ marginLeft: '10px' }}
+        >
+          Run
+        </Button>
       </Box>
-
 
       <Typography variant="caption" display="block" mt={1}>
         Supported file types: .txt, .pdf, .docx, .csv, .xls, .xlsx
@@ -597,9 +618,7 @@ export default function Interact() {
                 }
               }}
             >
-              {parsedData?.type === 'csv' && parsedData.rows
-                ? renderCSVContent(parsedData.rows)
-                : renderPDFContent(inputText)}
+              {renderContent()}
               {annotations.map((_, index) => (
                 <TagSelector
                   key={index}

@@ -433,20 +433,25 @@ export default function Interact() {
   };
 
   const isWordHighlighted = (word: string) => {
-    return annotations.some(token => token.text === word && token.tag !== 'O');
+    return annotations.some(token => 
+      token.text.toLowerCase() === word.toLowerCase() &&
+      token.tag !== 'O'
+    );
   };
 
   const renderCSVContent = (rows: { label: string; content: string }[]) => {
     return rows.map((row, rowIndex) => {
       const columns = row.content.split('\n');
-      const visibleColumns = columns.filter(column => 
-        !showHighlightedOnly || column.split(':').slice(1).join(':').split(' ').some(isWordHighlighted)
-      );
-
+      const visibleColumns = columns.filter(column => {
+        const [columnName, ...columnContent] = column.split(':');
+        const content = columnContent.join(':').trim();
+        return !showHighlightedOnly || content.split(' ').some(isWordHighlighted);
+      });
+  
       if (visibleColumns.length === 0) {
         return null;
       }
-
+  
       return (
         <div key={rowIndex} style={{ marginBottom: '20px', padding: '10px', border: '1px solid #ccc', borderRadius: '5px' }}>
           <strong>{row.label}:</strong>
@@ -473,11 +478,9 @@ export default function Interact() {
     const words = content.split(/\s+/);
     return words.map((word, wordIndex) => {
       const tokenIndex = annotations.findIndex(token => 
-        token.text.toLowerCase() === word.toLowerCase() ||
-        token.text.toLowerCase().includes(word.toLowerCase()) ||
-        word.toLowerCase().includes(token.text.toLowerCase())
+        token.text.toLowerCase() === word.toLowerCase()
       );
-
+  
       if (tokenIndex !== -1 && annotations[tokenIndex].tag !== 'O') {
         return (
           <Highlight

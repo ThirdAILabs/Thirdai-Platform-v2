@@ -99,15 +99,18 @@ def email_login_with_keycloak(
     access_token: AccessToken,
     session: Session = Depends(get_session),
 ):
-    print(access_token.access_token)
+    """
+    This endpoint handles the login process using a Keycloak access token.
+    It verifies the token directly in this function and returns user info.
+    """
     try:
-        # Authenticate using the access token from Keycloak
-        user_id, access_token = identity_provider.verify_idp_token(
-            access_token.access_token, session
-        )
+        # Verify the access token using Keycloak's methods
+        verified_user = verify_access_token(access_token.access_token, session)
 
-        # Retrieve user from the local PostgreSQL database
-        user = session.query(schema.User).filter(schema.User.id == user_id).first()
+        # Retrieve the user object and expiration time from the verified token
+        user = verified_user.user
+        expiration = verified_user.exp
+
         if not user:
             return response(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -123,11 +126,17 @@ def email_login_with_keycloak(
                     "email": user.email,
                     "user_id": str(user.id),
                 },
-                "access_token": access_token,
+                "access_token": access_token.access_token,
+                "expires_in": expiration,  # Include the expiration time for frontend session handling
             },
         )
-    except ValueError as e:
-        return response(status_code=status.HTTP_401_UNAUTHORIZED, message=str(e))
+    except HTTPException as e:
+        return response(status_code=e.status_code, message=e.detail)
+    except Exception as e:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=f"An unexpected error occurred: {str(e)}",
+        )
 
 
 @user_router.post("/add-global-admin", dependencies=[Depends(global_admin_only)])

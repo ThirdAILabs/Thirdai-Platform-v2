@@ -53,37 +53,66 @@ def verify_access_token(
     access_token: str = fastapi.Depends(token_bearer),
     session: Session = fastapi.Depends(get_session),
 ) -> AuthenticatedUser:
-    # This function verifies that the given access token is valid and returns the
-    # email from the payload if it is. Throws if the token is invalid. This function
-    # should be used in the depends clause of any protected endpoint.
-    #
-    # The fastapi.Depends function is a type of dependency manager which will force
-    # the input to meet the required args of the dependent function and then call
-    # the dependent function before executing the main body of the function for
-    # this endpoint. See the comment above for `token_bearer` to see what exactly
-    # it does in this case.
-    # Docs: https://fastapi.tiangolo.com/tutorial/dependencies/
+    """
+    Verifies the access token, distinguishes between Keycloak and non-Keycloak tokens,
+    and handles IDP-based logins through Keycloak.
+    """
     if identity_provider_type == "keycloak":
         # Get the Keycloak public key
-        public_key = keycloak_openid.public_key()
-        KEYCLOAK_PUBLIC_KEY = (
-            f"-----BEGIN PUBLIC KEY-----\n{public_key}\n-----END PUBLIC KEY-----"
-        )
+        # public_key = keycloak_openid.public_key()
+        # KEYCLOAK_PUBLIC_KEY = (
+        #     f"-----BEGIN PUBLIC KEY-----\n{public_key}\n-----END PUBLIC KEY-----"
+        # )
 
         try:
             # Decode and verify the JWT using Keycloak's public key
-            decoded_token = jwt.decode(
-                access_token,
-                key=KEYCLOAK_PUBLIC_KEY,
-                options={"verify_signature": True, "verify_aud": False, "exp": True},
-                algorithms=["RS256"],
-            )
+            # decoded_token = jwt.decode(
+            #     access_token,
+            #     key=KEYCLOAK_PUBLIC_KEY,
+            #     options={"verify_signature": True, "verify_aud": False, "exp": True},
+            #     algorithms=["RS256"],
+            # )
 
-            payload = keycloak_openid.userinfo(access_token)
-            keycloak_user_id = payload.get("sub")
+            # Fetch user information from Keycloak's userinfo endpoint
+            print(access_token)
+            user_info = keycloak_openid.userinfo(access_token)
+            print(user_info)
+            keycloak_user_id = user_info.get("sub")
 
             if not keycloak_user_id:
                 raise CREDENTIALS_EXCEPTION
+
+            # Check if the token is associated with an external IDP (e.g., Google)
+            identity_provider_alias = user_info.get("identity_provider_alias")
+
+            if identity_provider_alias:
+                # If there's an external IDP, ensure user exists in the local DB or create a new entry.
+                user = (
+                    session.query(schema.User)
+                    .filter(schema.User.id == keycloak_user_id)
+                    .first()
+                )
+                if not user:
+                    # Create a new user entry if not found
+                    user = schema.User(
+                        id=keycloak_user_id,
+                        username=user_info.get("preferred_username"),
+                        email=user_info.get("email"),
+                        identity_provider=identity_provider_alias,
+                        full_name=user_info.get("name", ""),
+                    )
+                    session.add(user)
+                    session.commit()
+                    session.refresh(user)
+            else:
+                # If there's no external IDP, proceed as a regular Keycloak login.
+                user = (
+                    session.query(schema.User)
+                    .filter(schema.User.id == keycloak_user_id)
+                    .first()
+                )
+                if not user:
+                    raise CREDENTIALS_EXCEPTION
 
             user_id = keycloak_user_id
             expiration = decoded_token.get("exp")
@@ -92,20 +121,24 @@ def verify_access_token(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired"
             )
-
         except ImmatureSignatureError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token is not yet valid",
             )
-
         except jwt.exceptions.DecodeError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token signature",
             )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Failed to verify access token: {str(e)}",
+            )
 
     else:
+        # Non-Keycloak authentication flow
         try:
             # This function automatically checks for token expiration:
             payload = TokenPayload(
@@ -120,12 +153,13 @@ def verify_access_token(
             user_id = payload.user_id
             expiration = payload.exp
 
+            # Retrieve user from the database for non-Keycloak flows.
+            user: schema.User = session.query(schema.User).get(user_id)
+            if not user:
+                raise CREDENTIALS_EXCEPTION
+
         except jwt.PyJWTError:
             raise CREDENTIALS_EXCEPTION
-
-    user: schema.User = session.query(schema.User).get(user_id)
-    if not user:
-        raise CREDENTIALS_EXCEPTION
 
     return AuthenticatedUser(user=user, exp=expiration)
 

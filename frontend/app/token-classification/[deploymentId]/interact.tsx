@@ -325,7 +325,7 @@ export default function Interact() {
 
       setInputText(parsed.content);
       setParsedData(parsed);
-      handleRun(parsed.content);
+      handleRun(parsed.content, true); // Pass true to indicate it's a file upload
       setIsLoading(false);
     }
   };
@@ -399,7 +399,7 @@ export default function Interact() {
     });
   };
 
-  const handleRun = (text: string) => {
+  const handleRun = (text: string, isFileUpload: boolean = false) => {
     setIsLoading(true);
     predict(text).then((result) => {
       updateTagColors(result.predicted_tags);
@@ -409,6 +409,12 @@ export default function Interact() {
           tag: tag![0] as string,
         }))
       );
+  
+      // Only set parsedData for direct text input, not file uploads
+      if (!isFileUpload && !parsedData) {
+        setParsedData({ type: 'other', content: text });
+      }
+      
       setIsLoading(false);
     });
   };

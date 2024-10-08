@@ -708,11 +708,11 @@ interface TokenClassificationExample {
   description: string;
 }
 
-function tokenClassifierDatagenForm(modelGoal: string, examples: TokenClassificationExample[]) {
-  const tags = examples.map((example) => ({
-    name: example.name,
-    examples: [example.example],
-    description: example.description,
+function tokenClassifierDatagenForm(modelGoal: string, categories: Category[]) {
+  const tags = categories.map((category) => ({
+    name: category.name,
+    examples: category.examples.map((ex) => ex.text),
+    description: category.description,
   }));
   return {
     sub_type: 'token',
@@ -730,10 +730,20 @@ interface TrainTokenClassifierResponse {
   };
 }
 
+type Example = {
+  text: string;
+};
+
+type Category = {
+  name: string;
+  examples: Example[];
+  description: string;
+};
+
 export function trainTokenClassifier(
   modelName: string,
   modelGoal: string,
-  examples: TokenClassificationExample[]
+  categories: Category[]
 ): Promise<TrainTokenClassifierResponse> {
   // Retrieve the access token from local storage
   const accessToken = getAccessToken();
@@ -746,7 +756,7 @@ export function trainTokenClassifier(
     'datagen_options',
     JSON.stringify({
       task_prompt: modelGoal,
-      datagen_options: tokenClassifierDatagenForm(modelGoal, examples),
+      datagen_options: tokenClassifierDatagenForm(modelGoal, categories),
     })
   );
 

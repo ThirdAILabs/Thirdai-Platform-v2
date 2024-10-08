@@ -212,6 +212,20 @@ class TokenClassificationDatagenOptions(BaseModel):
     samples: Optional[List[data_types.TokenClassificationSample]] = None
     templates_per_sample: int = 10
 
+    @model_validator(mode="after")
+    def deduplicate_tags(cls, values):
+        tag_map = {}
+        for tag in values.tags:
+            key = tag.name
+            if key in tag_map:
+                tag_map[key].examples = list(
+                    set(tag_map[key].examples) | set(tag.examples)
+                )
+            else:
+                tag_map[key] = tag
+        values.tags = list(tag_map.values())
+        return values
+
 
 class DatagenOptions(BaseModel):
     task_prompt: str

@@ -409,10 +409,6 @@ export default function Interact() {
           tag: tag![0] as string,
         }))
       );
-      // If there's no parsedData, set it as a generic type
-      if (!parsedData) {
-        setParsedData({ type: 'other', content: text });
-      }
       setIsLoading(false);
     });
   };

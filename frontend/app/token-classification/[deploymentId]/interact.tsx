@@ -33,6 +33,11 @@ interface HighlightColor {
   tag: string;
 }
 
+interface TextItem {
+  text: string;
+  fontName: string;
+}
+
 interface HighlightProps {
   currentToken: Token;
   nextToken?: Token | null;
@@ -342,15 +347,15 @@ export default function Interact() {
           text: item.str, 
           fontName: item.fontName
         }))
-        .reduce((acc, curr) => {
+        .reduce((acc: TextItem[], curr: TextItem) => {
           if (acc.length && acc[acc.length - 1].fontName === curr.fontName) {
             acc[acc.length - 1].text += ' ' + curr.text;
           } else {
             acc.push(curr);
           }
           return acc;
-        }, [])
-        .map(item => item.text)
+        }, [] as TextItem[])
+        .map((item: TextItem) => item.text)
         .join(' ')
         .replace(/\s+/g, ' ')
         .trim();

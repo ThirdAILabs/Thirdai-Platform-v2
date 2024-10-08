@@ -152,6 +152,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: ${{ github.head_ref }}
+          fetch-depth: 0
 
       - name: Latest alembic version in main
         if: always()

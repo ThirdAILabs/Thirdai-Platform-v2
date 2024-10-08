@@ -153,6 +153,12 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
+      
+      - name: ls in alembic versions folder
+        if: always()
+        run: |
+          cd thirdai_platform/database/alembic/versions
+          ls
 
       - name: Latest alembic version in main
         if: always()

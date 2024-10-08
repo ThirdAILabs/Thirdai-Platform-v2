@@ -650,40 +650,68 @@ export async function getWorkflowDetails(workflowId: string): Promise<WorkflowDe
   });
 }
 
+
 export function userEmailLogin(
-  email: string,
-  password: string,
+  accessToken: string,
   setAccessToken: (token: string) => void
 ): Promise<any> {
+  console.debug('userEmailLogin called with accessToken:', accessToken);
+
   return new Promise((resolve, reject) => {
+    console.debug('Sending request to /api/user/email-login-with-keycloak with payload:', {
+      access_token: accessToken,
+    });
+
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/user/email-login`, {
-        headers: {
-          Authorization: `Basic ${window.btoa(`${email}:${password}`)}`,
-        },
-      })
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/user/email-login-with-keycloak`, 
+        { 
+          access_token: accessToken 
+        })
       .then((res) => {
+        console.debug('Response from email-login-with-keycloak:', res);
+
         const accessToken = res.data.data.access_token;
+        const username = res.data.data.user.username;
 
         if (accessToken) {
+          console.debug('Access token received from backend:', accessToken);
           // Store accessToken into local storage, replacing any existing one.
           localStorage.setItem('accessToken', accessToken);
           setAccessToken(accessToken);
+        } else {
+          console.warn('No access token returned from backend response.');
         }
 
-        const username = res.data.data.user.username;
-
         if (username) {
+          console.debug('Username received from backend:', username);
           localStorage.setItem('username', username);
+        } else {
+          console.warn('No username found in backend response.');
         }
 
         resolve(res.data);
       })
       .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          console.error('Axios error during login:', {
+            message: err.message,
+            status: err.response?.status,
+            data: err.response?.data,
+            headers: err.response?.headers,
+          });
+          console.error('Validation details from backend:', err.response?.data?.detail);
+        } else {
+          console.error('Unexpected error during login:', err);
+        }
+
         reject(err);
       });
   });
 }
+
+
+
 
 export function userRegister(email: string, password: string, username: string) {
   return new Promise((resolve, reject) => {

@@ -203,9 +203,9 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
 
         return keycloak_user_id, access_token
 
-    def verify_idp_token(self, idp_token: str, idp_alias: str, session: Session):
+    def verify_idp_token(self, access_token: str, session: Session):
         try:
-            user_info = keycloak_openid.userinfo(idp_token)
+            user_info = keycloak_openid.userinfo(access_token)
             keycloak_user_id = user_info.get("sub")
 
             user = self.get_user(user_info.get("preferred_username"), session)
@@ -219,7 +219,7 @@ class KeycloakIdentityProvider(AbstractIdentityProvider):
                 session.commit()
                 session.refresh(user)
 
-            return keycloak_user_id, idp_token
+            return keycloak_user_id, access_token
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

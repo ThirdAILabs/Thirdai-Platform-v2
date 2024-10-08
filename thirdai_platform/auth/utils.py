@@ -50,7 +50,7 @@ if IDENTITY_PROVIDER == "keycloak":
         current_realms = [
             realms_metadata["realm"] for realms_metadata in keycloak_admin.get_realms()
         ]
-        print(current_realms)
+        return realm_name
         if realm_name in current_realms:
             keycloak_admin.delete_realm(realm_name)
 
@@ -66,37 +66,56 @@ if IDENTITY_PROVIDER == "keycloak":
 
     keycloak_admin.change_current_realm(new_realm_name)
 
-    def create_client(client_name: str, redirect_uris: list):
+    def create_client(
+        client_name: str, redirect_uris: list, root_url: str, base_url: str
+    ):
         """Create a new confidential client in Keycloak with the necessary permissions."""
         clients = keycloak_admin.get_clients()
+        existing_client = next(
+            (client for client in clients if client["clientId"] == client_name), None
+        )
 
-        if any(client["clientId"] == client_name for client in clients):
-            print(f"Client '{client_name}' already exists.")
+        if existing_client:
             return
+            # keycloak_admin.delete_client(existing_client["id"])
+            # print(f"Client '{client_name}' already existed and was deleted.")
 
         new_client = {
             "clientId": client_name,
             "enabled": True,
-            "publicClient": True,
+            "publicClient": True,  # Set to False to use client-secret authentication.
             "redirectUris": redirect_uris,
-            "directAccessGrantsEnabled": True,
+            "rootUrl": root_url,
+            "baseUrl": base_url,
+            "directAccessGrantsEnabled": False,  # Align with account-console if direct grants are not needed.
             "serviceAccountsEnabled": False,
             "standardFlowEnabled": True,
             "implicitFlowEnabled": False,
-            "fullScopeAllowed": True,
-            "defaultClientScopes": [
-                "profile",
-                "email",
-                "openid",
+            "fullScopeAllowed": False,  # Adjust to match account-console settings.
+            "defaultClientScopes": ["profile", "email", "openid", "roles"],
+            "optionalClientScopes": ["offline_access", "microprofile-jwt"],
+            "protocolMappers": [
+                {
+                    "name": "audience resolve",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-audience-resolve-mapper",
+                    "consentRequired": False,
+                    "config": {},
+                }
             ],
-            "optionalClientScopes": ["offline_access"],
+            "webOrigins": ["*", "http://localhost:80/*", "http://localhost:8180/*"],
         }
 
         keycloak_admin.create_client(new_client)
         print(f"Client '{client_name}' created successfully.")
 
     client_name = "new-client"
-    create_client(client_name=client_name, redirect_uris=["http://localhost:8180/*"])
+    # create_client(
+    #     client_name=client_name,
+    #     root_url="http://localhost:8180",
+    #     base_url="/login",
+    #     redirect_uris=["http://localhost:8180/*", "http://localhost:80/*"],
+    # )
 
     keycloak_openid = KeycloakOpenID(
         server_url="http://localhost:8180/",

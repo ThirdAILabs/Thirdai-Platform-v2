@@ -18,6 +18,10 @@ class VerifyResetPassword(BaseModel):
     new_password: str
 
 
+class AccessToken(BaseModel):
+    access_token: str
+
+
 class AbstractIdentityProvider(ABC):
     """
     Abstract base class for identity providers.
@@ -50,7 +54,7 @@ class AbstractIdentityProvider(ABC):
         pass
 
     @abstractmethod
-    def verify_idp_token(self, idp_token: str, idp_alias: str, session: Session):
+    def verify_idp_token(self, access_token: str, session: Session):
         pass
 
     @abstractmethod

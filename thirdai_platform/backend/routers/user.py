@@ -16,6 +16,7 @@ from auth.identity_providers.base import (
     AccountSignupBody,
     AdminRequest,
     VerifyResetPassword,
+    AccessToken,
 )
 
 user_router = APIRouter()
@@ -55,25 +56,21 @@ def email_signup(
     return identity_provider.create_user(body, session)
 
 
-@user_router.post("/login")
-def login(
+@user_router.post("/email-login")
+def email_login(
     credentials: HTTPBasicCredentials = Depends(basic_security),
     session: Session = Depends(get_session),
-    idp_token: Optional[str] = None,
-    idp_alias: Optional[str] = None,
 ):
+    """
+    Handle email and password login using PostgreSQL.
+    """
     try:
-        if idp_token and idp_alias:
-            # Authenticate using the IDP token
-            user_id, access_token = identity_provider.verify_idp_token(
-                idp_token, idp_alias, session
-            )
-        else:
-            # Authenticate using username and password
-            user_id, access_token = identity_provider.authenticate_user(
-                credentials.username, credentials.password, session
-            )
+        # Authenticate using username and password
+        user_id, access_token = identity_provider.authenticate_user(
+            credentials.username, credentials.password, session
+        )
 
+        # Retrieve user from the local PostgreSQL database
         user = session.query(schema.User).filter(schema.User.id == user_id).first()
         if not user:
             return response(
@@ -83,7 +80,43 @@ def login(
 
         return response(
             status_code=status.HTTP_200_OK,
-            message="Successfully logged in.",
+            message="Successfully logged in using email and password.",
+            data={
+                "user": {
+                    "username": user.username,
+                    "email": user.email,
+                    "user_id": str(user.id),
+                },
+                "access_token": access_token,
+            },
+        )
+    except ValueError as e:
+        return response(status_code=status.HTTP_401_UNAUTHORIZED, message=str(e))
+
+
+@user_router.post("/email-login-with-keycloak")
+def email_login_with_keycloak(
+    access_token: AccessToken,
+    session: Session = Depends(get_session),
+):
+    print(access_token.access_token)
+    try:
+        # Authenticate using the access token from Keycloak
+        user_id, access_token = identity_provider.verify_idp_token(
+            access_token.access_token, session
+        )
+
+        # Retrieve user from the local PostgreSQL database
+        user = session.query(schema.User).filter(schema.User.id == user_id).first()
+        if not user:
+            return response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="User not found in local database.",
+            )
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully logged in using Keycloak token.",
             data={
                 "user": {
                     "username": user.username,
@@ -287,5 +320,11 @@ def reset_password(body: VerifyResetPassword, session: Session = Depends(get_ses
 
 
 @user_router.post("/get-all-idps")
-def reset_password(body: VerifyResetPassword, session: Session = Depends(get_session)):
-    return identity_provider.get_all_idps()
+def reset_password(session: Session = Depends(get_session)):
+    identity_providers = identity_provider.get_all_idps()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Returning Identity Providers.",
+        data=identity_providers,
+    )

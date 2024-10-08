@@ -17,8 +17,8 @@ interface UserContext {
 export const UserContext = createContext<UserContext>({
   user: null,
   accessToken: null,
-  setAccessToken: (user) => {},
-  logout: () => {},
+  setAccessToken: (user) => { },
+  logout: () => { },
 });
 
 export default function UserWrapper({ children }: { children: React.ReactNode }) {
@@ -54,3 +54,4 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
     </UserContext.Provider>
   );
 }
+

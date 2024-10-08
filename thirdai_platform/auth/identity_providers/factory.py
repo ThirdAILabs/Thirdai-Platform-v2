@@ -86,23 +86,16 @@ class AdminAddition:
                     .first()
                 )
 
-                if not user:
-                    user = schema.User(
-                        id=keycloak_user_id,
-                        username=admin_username,
-                        email=admin_password,
-                    )
+                # if not user:
+                #     user = schema.User(
+                #         id=keycloak_user_id,
+                #         username=admin_username,
+                #         email=admin_password,
+                #     )
 
-                    user.global_admin = True
-                    session.add(user)
-                    session.commit()
-
-                # If Google client ID and secret are provided, add or update Google identity provider
-                if google_client_id and google_client_secret:
-                    identity_provider.import_google_identity_provider_config(
-                        google_client_id,
-                        google_client_secret,
-                    )
+                #     user.global_admin = True
+                #     session.add(user)
+                #     session.commit()
 
 
 AdminAddition.add_admin(

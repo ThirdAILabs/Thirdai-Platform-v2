@@ -228,6 +228,7 @@ export default function Interact() {
     setInputText(event.target.value);
     // Reset parsedData when manually typing
     setParsedData(null);
+    setAnnotations([]);
   };
 
   // Add a new state to store the parsed rows

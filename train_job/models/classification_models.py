@@ -193,7 +193,11 @@ class TokenClassificationModel(ClassificationModel):
         self.load_storage()
 
         # insert the tags into the storage to keep track of their training status
-        tag_status = {self.tkn_cls_vars.default_tag: LabelEntity(name=self.tkn_cls_vars.default_tag, status=LabelStatus.untrained)}
+        tag_status = {
+            self.tkn_cls_vars.default_tag: LabelEntity(
+                name=self.tkn_cls_vars.default_tag, status=LabelStatus.untrained
+            )
+        }
 
         # remove duplicates from target_labels
         target_labels = list(set(self.tkn_cls_vars.target_labels))

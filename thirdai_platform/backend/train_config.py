@@ -209,7 +209,7 @@ class TokenClassificationDatagenOptions(BaseModel):
     num_samples_per_tag: Optional[int] = None
 
     # example NER samples
-    samples: Optional[List[data_types.TokenClassificationSample]] = None
+    samples: Optional[List[data_types.TokenClassificationData]] = None
     templates_per_sample: int = 10
 
     @model_validator(mode="after")

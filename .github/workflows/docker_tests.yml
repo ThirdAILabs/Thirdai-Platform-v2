@@ -162,7 +162,7 @@ jobs:
       - name: ls in alembic versions folder
         if: always()
         run: |
-          cd thirdai_platform/backend/database/alembic/versions/
+          cd thirdai_platform/database/alembic/versions
           ls
 
       # - name: Install requirements

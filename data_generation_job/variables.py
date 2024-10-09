@@ -105,11 +105,18 @@ class GeneralVariables(EnvLoader):
     test_size: float = 0.05
 
 
+class EntityStatus(str, Enum):
+    trained = "trained"  # if the model has already been trained on the label
+    uninserted = "uninserted"  # if label is scheduled to be added to the model
+
+    untrained = "untrained"  # if the label is present in the model but not trained
+
+
 class Entity(BaseModel):
     name: str
     examples: List[str]
     description: str
-    status: str = "untrained"
+    status: EntityStatus = EntityStatus.untrained
 
     @field_validator("name", mode="before")
     def uppercase_name(cls, v):

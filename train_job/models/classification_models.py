@@ -20,7 +20,7 @@ from thirdai_storage.data_types import (
     DataSample,
     LabelEntity,
     LabelStatus,
-    ModelMetadata,
+    Metadata,
     TagMetadata,
 )
 from thirdai_storage.storage import DataStorage, SQLiteConnector
@@ -233,7 +233,7 @@ class TokenClassificationModel(ClassificationModel):
 
     def update_tag_metadata(self, tag_metadata):
         self.data_storage.insert_metadata(
-            metadata=ModelMetadata(name="tags_and_status", data=tag_metadata)
+            metadata=Metadata(name="tags_and_status", data=tag_metadata)
         )
 
     def train(self, **kwargs):

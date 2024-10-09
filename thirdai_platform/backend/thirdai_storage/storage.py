@@ -4,7 +4,7 @@ import typing
 from abc import abstractmethod
 from collections import defaultdict
 
-from backend.thirdai_storage.data_types import DataSample, ModelMetadata
+from backend.thirdai_storage.data_types import DataSample, Metadata
 from backend.thirdai_storage.schemas import Base, MetaData, Samples
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -219,7 +219,7 @@ class DataStorage:
             # update the sample counter
             self._sample_counter[name] = self.connector.get_sample_count(name=name)
 
-    def insert_metadata(self, metadata: ModelMetadata):
+    def insert_metadata(self, metadata: Metadata):
         # updates the serialized data in place if another entry with the same
         # name exists
         self.connector.insert_metadata(
@@ -228,10 +228,10 @@ class DataStorage:
             serialized_data=metadata.serialize_data(),
         )
 
-    def get_metadata(self, name) -> ModelMetadata:
+    def get_metadata(self, name) -> Metadata:
         data = self.connector.get_metadata(name)
         if data:
-            return ModelMetadata.from_serialized(
+            return Metadata.from_serialized(
                 type=data[0], name=data[1], serialized_data=data[2]
             )
 

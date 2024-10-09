@@ -122,7 +122,7 @@ class TagMetadata(SerializableBaseModel):
         self.tag_status[tag.name] = tag
 
 
-class ModelMetadata(BaseModel):
+class Metadata(BaseModel):
     name: str
     data: TagMetadata
 
@@ -136,7 +136,7 @@ class ModelMetadata(BaseModel):
         else:
             raise ValueError(f"Unknown data type: {type}")
 
-        return ModelMetadata(name=name, data=data)
+        return Metadata(name=name, data=data)
 
     @property
     def datatype(self):

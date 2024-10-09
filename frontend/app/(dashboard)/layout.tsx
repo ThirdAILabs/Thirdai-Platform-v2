@@ -55,11 +55,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 }
 
 function DesktopNav() {
-  const { user } = useContext(UserContext);
 
-  // Determine if the user is an admin (global or team admin)
-  // const isAdmin = user?.global_admin || user?.teams.some((team) => team.role === 'team_admin');
-  const isAdmin = true;
 
 
   return (
@@ -77,17 +73,16 @@ function DesktopNav() {
           <Home className="h-5 w-5" />
         </NavItem>
 
-        {isAdmin && (
-          <>
-            <NavItem href="/access" label="Access">
-              <Users2 className="h-5 w-5" />
-            </NavItem>
+        <>
+          <NavItem href="/access" label="Access">
+            <Users2 className="h-5 w-5" />
+          </NavItem>
 
-            <NavItem href="/analytics" label="Analytics">
-              <LineChart className="h-5 w-5" />
-            </NavItem>
-          </>
-        )}
+          <NavItem href="/analytics" label="Analytics">
+            <LineChart className="h-5 w-5" />
+          </NavItem>
+        </>
+
       </nav>
       <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
         <Tooltip>

@@ -76,9 +76,9 @@ class SQLiteConnector(Connector):
 
         session = self.Session()
 
-        query = session.query(func.count(Samples.id)).filter(Samples.name == name)
-        count = query.scalar()
-        return count
+        return (
+            session.query(func.count(Samples.id)).filter(Samples.name == name).scalar()
+        )
 
     def delete_old_samples(self, name: str, samples_to_store: int):
         # total samples

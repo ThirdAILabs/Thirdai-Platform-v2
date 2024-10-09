@@ -658,7 +658,7 @@ def retrain_udt(
 
     model = get_model(session, username=user.username, model_name=model_name)
 
-    if model is None:
+    if model:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"Model with name {model_name} already exists for user {user.username}",

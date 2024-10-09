@@ -6,7 +6,12 @@ from collections import defaultdict
 
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import scoped_session, sessionmaker
-from thirdai_storage.data_types import DataSample, Metadata
+from thirdai_storage.data_types import (
+    DataSample,
+    Metadata,
+    MetadataStatus,
+    SampleStatus,
+)
 from thirdai_storage.schemas import Base, MetaData, Samples
 
 
@@ -46,6 +51,14 @@ class Connector:
 
     @abstractmethod
     def get_metadata(self, name: str):
+        pass
+
+    @abstractmethod
+    def remove_untrained_samples(self, name: str):
+        pass
+
+    @abstractmethod
+    def remove_updated_metadata(self, name: str):
         pass
 
 
@@ -150,6 +163,22 @@ class SQLiteConnector(Connector):
         )
         return entry
 
+    def remove_untrained_samples(self, name: str):
+        # remove all untrained samples for a given name
+        session = self.Session()
+        session.query(Samples).filter(Samples.name == name).filter(
+            Samples.status == SampleStatus.untrained
+        ).delete()
+        session.commit()
+
+    def remove_updated_metadata(self, name: str):
+        # remove all updated metadata for a given name
+        session = self.Session()
+        session.query(MetaData).filter(MetaData.name == name).filter(
+            MetaData.status == MetadataStatus.updated
+        ).delete()
+        session.commit()
+
 
 class DataStorage:
     def __init__(self, connector: Connector):
@@ -236,3 +265,9 @@ class DataStorage:
             )
 
         return None
+
+    def remove_untrained_samples(self, name: str):
+        self.connector.remove_untrained_samples(name)
+
+    def remove_updated_metadata(self, name: str):
+        self.connector.remove_updated_metadata(name)

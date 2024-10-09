@@ -35,6 +35,16 @@ class LabelEntity(BaseModel):
         validate_assignment = True
 
 
+class SampleStatus(str, Enum):
+    untrained = "untrained"  # if the sample has not been used for training
+    trained = "trained"  # if the sample has been used for training
+
+
+class MetadataStatus(str, Enum):
+    updated = "updated"  # if the metadata has been updated
+    unchanged = "unchanged"  # if the metadata has not been updated
+
+
 class LabelCollection(BaseModel):
     tags: List[LabelEntity]
 
@@ -74,6 +84,7 @@ class DataSample(BaseModel):
 
     name: str
     data: Union[TextClassificationData, TokenClassificationData]
+    status: SampleStatus = SampleStatus.untrained
     unique_id: str = Field(default_factory=lambda: str(uuid4()))
     user_provided: bool = False
 
@@ -87,6 +98,7 @@ class DataSample(BaseModel):
         name: str,
         serialized_data: str,
         user_provided: bool,
+        status: SampleStatus,
     ) -> "DataSample":
         # Deserialize the data based on its type
         if type == TextClassificationData.datatype:
@@ -97,7 +109,11 @@ class DataSample(BaseModel):
             raise ValueError(f"Unknown data type: {type}")
 
         return DataSample(
-            name=name, data=data, unique_id=unique_id, user_provided=user_provided
+            name=name,
+            data=data,
+            unique_id=unique_id,
+            user_provided=user_provided,
+            status=status,
         )
 
     @property
@@ -121,22 +137,30 @@ class TagMetadata(SerializableBaseModel):
 
         self.tag_status[tag.name] = tag
 
+    def remove_uninserted_tags(self):
+        for tag in self.tag_status:
+            if self.tag_status[tag].status == LabelStatus.uninserted:
+                self.tag_status.pop(tag)
+
 
 class Metadata(BaseModel):
     name: str
     data: TagMetadata
+    status: MetadataStatus = MetadataStatus.unchanged
 
     def serialize_data(self) -> str:
         return self.data.serialize()
 
     @staticmethod
-    def from_serialized(type: str, name: str, serialized_data: str):
+    def from_serialized(
+        type: str, name: str, status: MetadataStatus, serialized_data: str
+    ):
         if type == TagMetadata.datatype:
             data = TagMetadata.deserialize(serialized_data)
         else:
             raise ValueError(f"Unknown data type: {type}")
 
-        return Metadata(name=name, data=data)
+        return Metadata(name=name, data=data, status=status)
 
     @property
     def datatype(self):

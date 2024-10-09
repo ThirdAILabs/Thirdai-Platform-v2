@@ -9,6 +9,7 @@ class Samples(Base):
     id = Column(String(36), primary_key=True, index=True)
     datatype = Column(String)
     name = Column(String, index=True)
+    status = Column(String)
     serialized_data = Column(String)
     user_provided = Column(Boolean, nullable=False, default=False)
     timestamp = Column(DateTime, default=func.current_timestamp())
@@ -19,3 +20,4 @@ class MetaData(Base):
     name = Column(String, primary_key=True, index=True)
     datatype = Column(String)
     serialized_data = Column(String)
+    status = Column(String)

@@ -865,12 +865,9 @@ export interface TokenClassificationResult {
 export function useTokenClassificationEndpoints() {
   const accessToken = useAccessToken();
   const params = useParams();
-  console.log(params);
   const workflowId = params.deploymentId as string;
   const [workflowName, setWorkflowName] = useState<string>('');
   const [deploymentUrl, setDeploymentUrl] = useState<string | undefined>();
-
-  console.log('PARAMS', params);
 
   useEffect(() => {
     const init = async () => {
@@ -912,6 +909,40 @@ export function useTokenClassificationEndpoints() {
       console.error('Error predicting tokens:', error);
       alert('Error predicting tokens:' + error);
       throw new Error('Failed to predict tokens');
+    }
+  };
+
+  const insertSample = async (sample: { tokens: string[], tags: string[] }): Promise<void> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      await axios.post(`${deploymentUrl}/insert_sample`, sample);
+    } catch (error) {
+      console.error('Error inserting sample:', error);
+      alert('Error inserting sample:' + error);
+      throw new Error('Failed to insert sample');
+    }
+  };
+
+  const addLabel = async (labels: { tags: { name: string, description: string }[] }): Promise<void> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      await axios.post(`${deploymentUrl}/add_labels`, labels);
+    } catch (error) {
+      console.error('Error adding label:', error);
+      alert('Error adding label:' + error);
+      throw new Error('Failed to add label');
+    }
+  };
+
+  const getLabels = async (): Promise<string[]> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      const response = await axios.get(`${deploymentUrl}/get_labels`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching labels:', error);
+      alert('Error fetching labels:' + error);
+      throw new Error('Failed to fetch labels');
     }
   };
 
@@ -996,6 +1027,9 @@ export function useTokenClassificationEndpoints() {
   return {
     workflowName,
     predict,
+    insertSample,
+    addLabel,
+    getLabels,
     getStats,
   };
 }

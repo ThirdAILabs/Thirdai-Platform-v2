@@ -178,12 +178,13 @@ function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
 }
 
 export default function Interact() {
-  const { predict } = useTokenClassificationEndpoints();
+  const { predict, insertSample, addLabel, getLabels } = useTokenClassificationEndpoints();
 
   const [inputText, setInputText] = useState<string>('');
   const [annotations, setAnnotations] = useState<Token[]>([]);
 
   const [tagColors, setTagColors] = useState<Record<string, HighlightColor>>({});
+  const [allLabels, setAllLabels] = useState<string[]>([]);
 
   const [mouseDownIndex, setMouseDownIndex] = useState<number | null>(null);
   const [mouseUpIndex, setMouseUpIndex] = useState<number | null>(null);
@@ -233,8 +234,9 @@ export default function Interact() {
     });
   };
 
-  const handleRun = () => {
-    predict(inputText).then((result) => {
+  const handleRun = async () => {
+    try {
+      const result = await predict(inputText);
       updateTagColors(result.predicted_tags);
       setAnnotations(
         _.zip(result.tokens, result.predicted_tags).map(([text, tag]) => ({
@@ -242,10 +244,50 @@ export default function Interact() {
           tag: tag![0] as string,
         }))
       );
-    });
+
+      // Fetch labels after prediction
+      const labels = await getLabels();
+      setAllLabels(labels);
+      updateTagColors([labels]);
+    } catch (error) {
+      console.error('Error during prediction or fetching labels:', error);
+    }
   };
 
-  const finetuneTags = (newTag: string) => {
+  const insertNewSample = async (newTag: string) => {
+    if (!selectedRange) return;
+
+    const [start, end] = selectedRange;
+    const selectedTokens = annotations.slice(start, end + 1);
+    const sampleText = selectedTokens.map(token => token.text).join(' ');
+    const tags = selectedTokens.map(() => newTag);
+
+    try {
+      await insertSample({
+        tokens: sampleText.split(' '),
+        tags: tags,
+      });
+      console.log('Sample inserted successfully');
+    } catch (error) {
+      console.error('Error inserting sample:', error);
+    }
+  };
+
+  const finetuneTags = async (newTag: string) => {
+    if (!allLabels.includes(newTag)) {
+      try {
+        await addLabel({
+          tags: [{ name: newTag, description: `Description for ${newTag}` }]
+        });
+        setAllLabels(prevLabels => [...prevLabels, newTag]);
+        console.log('New label added successfully');
+      } catch (error) {
+        console.error('Error adding new label:', error);
+      }
+    }
+
+    await insertNewSample(newTag);
+
     setAnnotations((prev) =>
       prev.map(({ text, tag }, idx) =>
         selectedRange && idx >= selectedRange[0] && idx <= selectedRange[1]
@@ -343,7 +385,7 @@ export default function Interact() {
                   />
                   <TagSelector
                     open={!!selectedRange && index === selectedRange[1]}
-                    choices={Object.keys(tagColors)}
+                    choices={allLabels}
                     onSelect={finetuneTags}
                   />
                 </>

@@ -186,8 +186,8 @@ def list_models(
         data=jsonable_encoder(results),
     )
 
-@model_router.get("/list-models")
-def list_models_temp(
+@model_router.get("/accessible-models")
+def accessible_models(
     access_level: Annotated[Union[list[str], None], Query()] = None,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),

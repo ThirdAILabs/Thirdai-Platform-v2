@@ -46,7 +46,8 @@ def add_team(name: str, session: Session = Depends(get_session)):
 
 
 @team_router.post(
-    "/add-user-to-team"
+    "/add-user-to-team",
+    dependencies=[Depends(team_admin_or_global_admin)]
 )
 def add_user_to_team(
     email: str,
@@ -56,7 +57,6 @@ def add_user_to_team(
 ):
     """
     Add a user to a team.
-
     Parameters:
     - email: The email of the user to add to the team.
     - team_id: The ID of the team to add the user to.
@@ -411,8 +411,8 @@ def list_all_teams(session: Session = Depends(get_session)):
     )
 
 
-@team_router.get("/list-teams")
-def list_all_teams(
+@team_router.get("/accessible-teams")
+def list_accessible_teams(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
     ):
@@ -424,18 +424,21 @@ def list_all_teams(
     - authenticated_user: AuthenticatedUser - The authenticated user (dependency).
 
     Returns:
-    - A JSON response with the list of all teams.
+    Global Admin:-
+        - A JSON response with the list of all teams.
+    Non Global Admin:-
+        - A JSON response with the list of accessible teams.
     """
 
     user: schema.User = authenticated_user.user
     user_teams = [ut.team_id for ut in user.teams]
 
      # Query to filter teams based on team_id present in user_teams
-    query = (
-        session.query(schema.Team)
-        .filter(schema.Team.id.in_(user_teams))  # Filter teams where team_id is in user_teams
-    )
-
+    query = (session.query(schema.Team))
+    if(user.global_admin==False):
+        query = query.filter(
+            schema.Team.id.in_(user_teams))  # Filter teams where team_id is in user_teams
+    
     teams_info = [
         {
             "id": team.id,

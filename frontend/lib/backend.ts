@@ -1156,7 +1156,7 @@ export async function fetchAllModels(): Promise<{ data: ModelResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/model/list-models`)
+      .get(`${thirdaiPlatformBaseUrl}/api/model/accessible-models`)
       .then((res) => {
         resolve(res.data);
       })
@@ -1173,7 +1173,7 @@ export async function fetchAllTeams(): Promise<{ data: TeamResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/team/list-teams`)
+      .get(`${thirdaiPlatformBaseUrl}/api/team/accessible-teams`)
       .then((res) => {
         resolve(res.data);
       })

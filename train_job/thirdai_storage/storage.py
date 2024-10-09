@@ -179,6 +179,20 @@ class SQLiteConnector(Connector):
         ).delete()
         session.commit()
 
+    def update_metadata_status(self, name: str, status: MetadataStatus):
+        session = self.Session()
+        session.query(MetaData).filter(MetaData.name == name).update(
+            {MetaData.status: status}
+        )
+        session.commit()
+
+    def update_sample_status(self, name: str, status: SampleStatus):
+        session = self.Session()
+        session.query(Samples).filter(Samples.name == name).update(
+            {Samples.status: status}
+        )
+        session.commit()
+
 
 class DataStorage:
     def __init__(self, connector: Connector):
@@ -271,3 +285,9 @@ class DataStorage:
 
     def remove_updated_metadata(self, name: str):
         self.connector.remove_updated_metadata(name)
+
+    def update_metadata_status(self, name: str, status: MetadataStatus):
+        self.connector.update_metadata_status(name, status)
+
+    def update_sample_status(self, name: str, status: SampleStatus):
+        self.connector.update_sample_status(name, status)

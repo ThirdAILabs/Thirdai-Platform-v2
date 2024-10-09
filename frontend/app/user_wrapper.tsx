@@ -43,7 +43,7 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
     accessTokenUser(accessToken).then((user) => {
       setUser(user);
       if (!user) {
-        router.push('/login-email');
+        router.push('/keycloak-login');
       }
     });
   }, [accessToken]);

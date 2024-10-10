@@ -23,7 +23,6 @@ export default function ClientHome({ session, accessToken }) {
 
     return (
         <div className="flex flex-col space-y-3 justify-center items-center h-screen">
-            <div>Your name is {session?.user?.name || "Guest"}</div>
             <Logout />
             {!session && (
                 <div>

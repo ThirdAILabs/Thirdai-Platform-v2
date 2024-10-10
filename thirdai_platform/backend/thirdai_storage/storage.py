@@ -60,11 +60,13 @@ class Connector:
 
 class SQLiteConnector(Connector):
     def __init__(self, db_path: str):
-        self.engine = create_engine(f"sqlite:///{db_path}", echo=True)
+        self.engine = create_engine(f"sqlite:///{db_path}", echo=False)
         self.Session = scoped_session(sessionmaker(bind=self.engine))
         Base.metadata.create_all(self.engine)
 
-    def add_samples(self, entries: typing.List[typing.Tuple[str, str, str, str, bool]]):
+    def add_samples(
+        self, entries: typing.List[typing.Tuple[str, str, str, str, str, bool]]
+    ):
         session = self.Session()
         session.bulk_insert_mappings(
             Samples,
@@ -74,9 +76,10 @@ class SQLiteConnector(Connector):
                     "datatype": datatype,
                     "name": name,
                     "serialized_data": data,
+                    "status": status,
                     "user_provided": user_provided,
                 }
-                for unique_id, datatype, name, data, user_provided in entries
+                for unique_id, datatype, name, data, status, user_provided in entries
             ],
         )
         session.commit()
@@ -117,6 +120,7 @@ class SQLiteConnector(Connector):
                 Samples.datatype,
                 Samples.id,
                 Samples.serialized_data,
+                Samples.status,
             )
             .filter(Samples.name == name)
             .filter(Samples.user_provided == user_provided)
@@ -132,7 +136,9 @@ class SQLiteConnector(Connector):
 
         return set([name[0] for name in names])
 
-    def insert_metadata(self, name: str, datatype: str, serialized_data: str):
+    def insert_metadata(
+        self, name: str, status: str, datatype: str, serialized_data: str
+    ):
         session = self.Session()
 
         existing_metadata = (
@@ -141,9 +147,13 @@ class SQLiteConnector(Connector):
         if existing_metadata:
             # update the entry in place
             existing_metadata.serialized_data = serialized_data
+            existing_metadata.status = status
         else:
             new_metadata = MetaData(
-                name=name, datatype=datatype, serialized_data=serialized_data
+                name=name,
+                datatype=datatype,
+                serialized_data=serialized_data,
+                status=status,
             )
             session.add(new_metadata)
 
@@ -153,7 +163,12 @@ class SQLiteConnector(Connector):
         session = self.Session()
 
         entry = (
-            session.query(MetaData.datatype, MetaData.name, MetaData.serialized_data)
+            session.query(
+                MetaData.datatype,
+                MetaData.name,
+                MetaData.serialized_data,
+                MetaData.status,
+            )
             .filter(MetaData.name == name)
             .first()
         )
@@ -215,6 +230,7 @@ class DataStorage:
                         sample.datatype,
                         sample.name,
                         sample.serialize_data(),
+                        sample.status.value,
                         sample.user_provided,
                     )
                 )
@@ -234,9 +250,10 @@ class DataStorage:
                 unique_id=unique_id,
                 name=name,
                 serialized_data=data,
+                status=status,
                 user_provided=user_provided,
             )
-            for datatype, unique_id, data in entries
+            for datatype, unique_id, data, status in entries
         ]
 
     def clip_storage(self):
@@ -255,6 +272,7 @@ class DataStorage:
         # name exists
         self.connector.insert_metadata(
             name=metadata.name,
+            status=metadata.status,
             datatype=metadata.datatype,
             serialized_data=metadata.serialize_data(),
         )
@@ -263,7 +281,7 @@ class DataStorage:
         data = self.connector.get_metadata(name)
         if data:
             return Metadata.from_serialized(
-                type=data[0], name=data[1], serialized_data=data[2]
+                type=data[0], name=data[1], serialized_data=data[2], status=data[3]
             )
 
         return None

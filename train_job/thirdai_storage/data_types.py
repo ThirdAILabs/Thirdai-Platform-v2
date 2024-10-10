@@ -138,9 +138,13 @@ class TagMetadata(SerializableBaseModel):
         self.tag_status[tag.name] = tag
 
     def rollback(self):
-        for tag in self.tag_status:
-            if self.tag_status[tag].status == LabelStatus.uninserted:
-                self.tag_status.pop(tag)
+        keys_to_remove = [
+            tag
+            for tag in self.tag_status
+            if self.tag_status[tag].status == LabelStatus.uninserted
+        ]
+        for key in keys_to_remove:
+            self.tag_status.pop(key)
 
 
 class Metadata(BaseModel):

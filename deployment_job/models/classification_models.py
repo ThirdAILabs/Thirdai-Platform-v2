@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from config import DeploymentConfig
 from models.model import Model

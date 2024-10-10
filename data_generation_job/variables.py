@@ -114,8 +114,8 @@ class EntityStatus(str, Enum):
 
 class Entity(BaseModel):
     name: str
-    examples: List[str]
-    description: str
+    examples: Optional[List[str]] = None
+    description: Optional[str] = None
     status: EntityStatus = EntityStatus.untrained
 
     @field_validator("name", mode="before")

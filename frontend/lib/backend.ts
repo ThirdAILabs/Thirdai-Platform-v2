@@ -1,6 +1,6 @@
 // /lib/backend.js
 
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { access } from 'fs';
 import _ from 'lodash';
 import { useParams } from 'next/navigation';
@@ -299,6 +299,45 @@ export function retrain_ndb({
           reject(new Error(err.response.data.message || 'Failed to retrain model'));
         } else {
           reject(new Error('Failed to retrain model'));
+        }
+      });
+  });
+}
+
+interface RetrainNERParams {
+  model_name: string;
+  base_model_identifier?: string;
+}
+
+export function retrainNER({ model_name, base_model_identifier }: RetrainNERParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({
+    model_name,
+    llm_provider: 'openai',
+  });
+
+  if (base_model_identifier) {
+    params.append('base_model_identifier', base_model_identifier);
+  }
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/retrain-udt?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(new Error((axiosError.response.data as any).detail || 'Failed to retrain UDT model'));
+          } else {
+            reject(new Error('Failed to retrain UDT model'));
+          }
+        } else {
+          reject(new Error('Failed to retrain UDT model'));
         }
       });
   });

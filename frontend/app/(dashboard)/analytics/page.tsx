@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import RecentSamples from './samples';
 import UpdateButton from './updateButton';
+import RetrainButton from './retrainButton';
 import { UsageDurationChart, UsageFrequencyChart, ReformulatedQueriesChart } from './charts';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -17,6 +18,8 @@ export default function AnalyticsPage() {
   const searchParams = useSearchParams();
   const workflowid = searchParams.get('id');
   const [deploymentUrl, setDeploymentUrl] = useState<string | undefined>();
+  const [modelName, setModelName] = useState<string>('');
+  const [username, setUsername] = useState<string>('');
 
   // Ensure that the component only runs on the client
   useEffect(() => {
@@ -26,10 +29,14 @@ export default function AnalyticsPage() {
       if (workflowid) {
         try {
           const workflowDetails = await getWorkflowDetails(workflowid);
+
+          console.log('workflowDetails',workflowDetails)
           for (const model of workflowDetails.data.models) {
             if (model.component === 'nlp') {
               console.log(`here is: ${deploymentBaseUrl}/${model.model_id}`)
               setDeploymentUrl(`${deploymentBaseUrl}/${model.model_id}`);
+              setModelName(model.model_name);
+              setUsername(model.username);
               break;
             }
           }
@@ -157,7 +164,19 @@ export default function AnalyticsPage() {
       </div>
 
       {deploymentUrl && <RecentSamples deploymentUrl={deploymentUrl} />}
-      <UpdateButton />
+
+      {deploymentUrl && modelName && username && (
+        <RetrainButton 
+          modelName={modelName} 
+          username={username} 
+        />
+      )}
+
+      {deploymentUrl && modelName && username && (
+        <UpdateButton 
+          modelName={modelName} 
+        />
+      )}
     </>
   );
 }

@@ -642,9 +642,16 @@ def datagen_callback(
 def retrain_udt(
     model_name: str,
     llm_provider: LLMProvider,
+    base_model_identifier: Optional[str] = None,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    if base_model_identifier is not None:
+        create_new_model with name model_name
+    else:
+        update existing model with name model_name
+    """
     user: schema.User = authenticated_user.user
     license_info = validate_license_info()
 
@@ -656,13 +663,38 @@ def retrain_udt(
             message=f"{model_name} is not a valid model name.",
         )
 
-    model = get_model(session, username=user.username, model_name=model_name)
+    if base_model_identifier:
+        base_model = get_base_model(base_model_identifier, user=user, session=session)
+        if base_model is None:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Base model with id {base_model_identifier} does not exist.",
+            )
 
-    if model:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Model with name {model_name} already exists for user {user.username}",
+        # create a new model
+        model_id = uuid.uuid4()
+        model: schema.Model = schema.Model(
+            id=model_id,
+            user_id=user.id,
+            train_status=schema.Status.not_started,
+            deploy_status=schema.Status.not_started,
+            name=model_name,
+            type=base_model.type,
+            sub_type=base_model.sub_type,
+            domain=user.email.split("@")[1],
+            access_level=base_model.access_level,
+            parent_id=base_model.id,
         )
+
+    else:
+        model = get_model(session, username=user.username, model_name=model_name)
+        if model is None:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Model with name {model_name} does not exist for user {user.username}",
+            )
+
+        model_id = model.id
 
     if model.type != ModelType.UDT and model.sub_type != UDTSubType.token:
         return response(
@@ -670,8 +702,28 @@ def retrain_udt(
             message=f"Cannot retrain model of the type : {model.type}, subtype : {model.sub_type}. Only UDT Token Classification supported.",
         )
 
-    storage_dir = Path(model_bazaar_path()) / "data" / str(model.id)
+    def update_old_storage_and_migrate_data(model, base_model):
+        if base_model:
+            old_storage_dir = Path(model_bazaar_path()) / "data" / str(base_model.id)
+            new_storage_dir = Path(model_bazaar_path()) / "data" / str(model.id)
 
+            os.makedirs(new_storage_dir, exist_ok=True)
+            shutil.copy(old_storage_dir / "data_storage.db", new_storage_dir)
+
+            old_storage = storage.DataStorage(
+                connector=storage.SQLiteConnector(
+                    db_path=old_storage_dir / "data_storage.db"
+                )
+            )
+            # remove unused samples from the old storage and rollback metadata to be in a consistent state
+            old_storage.remove_untrained_samples("ner")
+            old_storage.rollback_metadata("tag_and_status")
+
+    update_old_storage_and_migrate_data(
+        model, base_model=None if not base_model_identifier else base_model
+    )
+
+    storage_dir = Path(model_bazaar_path()) / "data" / str(model.id)
     data_storage = storage.DataStorage(
         connector=storage.SQLiteConnector(db_path=storage_dir / "data_storage.db")
     )
@@ -697,7 +749,12 @@ def retrain_udt(
     samples: List[data_types.DataSample] = data_storage.retrieve_samples(
         name="ner", num_samples=None, user_provided=True
     )
-    token_classification_samples = [sample.data for sample in samples]
+    # only use the samples that we did not generate synthetic data for
+    token_classification_samples = [
+        sample.data
+        for sample in samples
+        if sample.status == data_types.SampleStatus.untrained
+    ]
 
     token_classification_options = TokenClassificationDatagenOptions(
         sub_type=UDTSubType.token,
@@ -727,8 +784,9 @@ def retrain_udt(
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
-        model_id=str(model.id),
-        data_id=str(model.id),
+        model_id=model_id,
+        data_id=model_id,
+        base_model_id=(None if not base_model_identifier else str(base_model.id)),
         model_options=UDTOptions(udt_options=placeholder_udt_options),
         datagen_options=datagen_options,
         data=data,

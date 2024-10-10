@@ -6,6 +6,7 @@ import re
 import socket
 from functools import wraps
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urljoin
 
 import bcrypt
@@ -153,7 +154,9 @@ def validate_name(name):
         raise ValueError("name is not valid")
 
 
-def get_model(session: Session, username: str, model_name: str) -> schema.Model:
+def get_model(
+    session: Session, username: str, model_name: str
+) -> Optional[schema.Model]:
     """
     Get a model by username and model name.
 

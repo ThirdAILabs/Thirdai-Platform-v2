@@ -57,10 +57,6 @@ class Connector:
     def remove_untrained_samples(self, name: str):
         pass
 
-    @abstractmethod
-    def remove_updated_metadata(self, name: str):
-        pass
-
 
 class SQLiteConnector(Connector):
     def __init__(self, db_path: str):
@@ -171,14 +167,6 @@ class SQLiteConnector(Connector):
         ).delete()
         session.commit()
 
-    def remove_updated_metadata(self, name: str):
-        # remove all updated metadata for a given name
-        session = self.Session()
-        session.query(MetaData).filter(MetaData.name == name).filter(
-            MetaData.status == MetadataStatus.updated
-        ).delete()
-        session.commit()
-
     def update_metadata_status(self, name: str, status: MetadataStatus):
         session = self.Session()
         session.query(MetaData).filter(MetaData.name == name).update(
@@ -283,8 +271,12 @@ class DataStorage:
     def remove_untrained_samples(self, name: str):
         self.connector.remove_untrained_samples(name)
 
-    def remove_updated_metadata(self, name: str):
-        self.connector.remove_updated_metadata(name)
+    def rollback_metadata(self, name: str):
+        metadata = self.get_metadata(name)
+
+        if metadata.status == MetadataStatus.updated:
+            metadata.rollback()
+            self.insert_metadata(metadata)
 
     def update_metadata_status(self, name: str, status: MetadataStatus):
         self.connector.update_metadata_status(name, status)

@@ -10,6 +10,8 @@ from thirdai_storage.data_types import (
     DataSample,
     LabelCollection,
     Metadata,
+    MetadataStatus,
+    SampleStatus,
     TagMetadata,
     TokenClassificationData,
 )
@@ -94,7 +96,9 @@ class TokenClassificationModel(ClassificationModel):
 
     def update_tag_metadata(self, tag_metadata):
         self.data_storage.insert_metadata(
-            metadata=Metadata(name="tags_and_status", data=tag_metadata)
+            metadata=Metadata(
+                name="tags_and_status", data=tag_metadata, status=MetadataStatus.updated
+            )
         )
 
     def get_labels(self) -> List[str]:
@@ -110,7 +114,9 @@ class TokenClassificationModel(ClassificationModel):
         self.update_tag_metadata(tag_metadata)
 
     def insert_sample(self, sample: TokenClassificationData):
-        token_tag_sample = DataSample(name="ner", data=sample, user_provided=True)
+        token_tag_sample = DataSample(
+            name="ner", data=sample, user_provided=True, status=SampleStatus.untrained
+        )
         self.data_storage.insert_samples(
             samples=[token_tag_sample], override_buffer_limit=True
         )

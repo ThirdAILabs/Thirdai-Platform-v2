@@ -13,7 +13,6 @@ from backend.file_handler import download_local_files
 from backend.thirdai_storage import data_types, storage
 from backend.train_config import (
     DatagenOptions,
-    Entity,
     FileInfo,
     FileLocation,
     JobOptions,
@@ -33,6 +32,7 @@ from backend.train_config import (
     UDTSubType,
 )
 from backend.utils import (
+    copy_data_storage,
     get_model,
     get_model_from_identifier,
     get_platform,
@@ -40,8 +40,11 @@ from backend.utils import (
     get_root_absolute_path,
     logger,
     model_bazaar_path,
+    remove_unused_samples,
     response,
+    retrieve_token_classification_samples_for_generation,
     submit_nomad_job,
+    tags_in_storage,
     update_json,
     validate_license_info,
     validate_name,
@@ -702,59 +705,21 @@ def retrain_udt(
             message=f"Cannot retrain model of the type : {model.type}, subtype : {model.sub_type}. Only UDT Token Classification supported.",
         )
 
-    def update_old_storage_and_migrate_data(model, base_model):
-        if base_model:
-            old_storage_dir = Path(model_bazaar_path()) / "data" / str(base_model.id)
-            new_storage_dir = Path(model_bazaar_path()) / "data" / str(model.id)
-
-            os.makedirs(new_storage_dir, exist_ok=True)
-            shutil.copy(old_storage_dir / "data_storage.db", new_storage_dir)
-
-            old_storage = storage.DataStorage(
-                connector=storage.SQLiteConnector(
-                    db_path=old_storage_dir / "data_storage.db"
-                )
-            )
-            # remove unused samples from the old storage and rollback metadata to be in a consistent state
-            old_storage.remove_untrained_samples("ner")
-            old_storage.rollback_metadata("tag_and_status")
-
-    update_old_storage_and_migrate_data(
-        model, base_model=None if not base_model_identifier else base_model
-    )
+    if base_model_identifier:
+        # if starting from a base model, copy the storage to the storage_dir of the new model
+        # remove unused samples and rollback metadata to be in a consistent state
+        copy_data_storage(base_model, model)
+        remove_unused_samples(base_model)
 
     storage_dir = Path(model_bazaar_path()) / "data" / str(model.id)
     data_storage = storage.DataStorage(
         connector=storage.SQLiteConnector(db_path=storage_dir / "data_storage.db")
     )
 
-    tag_metadata: data_types.TagMetadata = data_storage.get_metadata(
-        "tags_and_status"
-    ).data
-
-    tag_status = tag_metadata.tag_status
-    tags = []
-    for tag in tag_status.keys():
-        tag_object = tag_status[tag]
-        tags.append(
-            Entity(
-                name=tag,
-                examples=tag_object.examples,
-                description=tag_object.description,
-                status=tag_object.status.name,
-            )
-        )
-
-    # retrieve all the samples
-    samples: List[data_types.DataSample] = data_storage.retrieve_samples(
-        name="ner", num_samples=None, user_provided=True
+    tags = tags_in_storage(data_storage)
+    token_classification_samples = retrieve_token_classification_samples_for_generation(
+        data_storage
     )
-    # only use the samples that we did not generate synthetic data for
-    token_classification_samples = [
-        sample.data
-        for sample in samples
-        if sample.status == data_types.SampleStatus.untrained
-    ]
 
     token_classification_options = TokenClassificationDatagenOptions(
         sub_type=UDTSubType.token,

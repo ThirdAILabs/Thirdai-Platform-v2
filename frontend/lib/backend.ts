@@ -651,7 +651,7 @@ export async function getWorkflowDetails(workflowId: string): Promise<WorkflowDe
 }
 
 
-export function userEmailLogin(
+export function userEmailLoginWithAccessToken(
   accessToken: string,
   setAccessToken: (token: string) => void
 ): Promise<any> {

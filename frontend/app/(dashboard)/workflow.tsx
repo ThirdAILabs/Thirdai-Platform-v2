@@ -211,6 +211,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
 
   // Find the model where component === "search"
   const searchModel = workflow.models.find((model) => model.component === 'search');
+  const nlpModel = workflow.models.find((model) => model.component === 'nlp');
 
   return (
     <TableRow>
@@ -342,6 +343,16 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               >
                 <DropdownMenuItem>
                   <button type="button">Search usage stats</button>
+                </DropdownMenuItem>
+              </Link>
+            )}
+
+            {nlpModel && (
+              <Link
+                href={`/analytics?id=${encodeURIComponent(workflow.id)}&username=${encodeURIComponent(nlpModel.username)}&model_name=${encodeURIComponent(nlpModel.model_name)}&old_model_id=${encodeURIComponent(nlpModel.model_id)}`}
+              >
+                <DropdownMenuItem>
+                  <button type="button">NLP usage stats</button>
                 </DropdownMenuItem>
               </Link>
             )}

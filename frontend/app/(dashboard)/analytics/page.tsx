@@ -7,15 +7,40 @@ import { UsageDurationChart, UsageFrequencyChart, ReformulatedQueriesChart } fro
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@mui/material';
+import { useSearchParams } from 'next/navigation';
+import { getWorkflowDetails, deploymentBaseUrl } from '@/lib/backend';
 import _ from 'lodash';
 
 export default function AnalyticsPage() {
   const [isClient, setIsClient] = useState(false);
 
+  const searchParams = useSearchParams();
+  const workflowid = searchParams.get('id');
+  const [deploymentUrl, setDeploymentUrl] = useState<string | undefined>();
+
   // Ensure that the component only runs on the client
   useEffect(() => {
     setIsClient(true);
-  }, []);
+
+    const init = async () => {
+      if (workflowid) {
+        try {
+          const workflowDetails = await getWorkflowDetails(workflowid);
+          for (const model of workflowDetails.data.models) {
+            if (model.component === 'nlp') {
+              console.log(`here is: ${deploymentBaseUrl}/${model.model_id}`)
+              setDeploymentUrl(`${deploymentBaseUrl}/${model.model_id}`);
+              break;
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching workflow details:', err);
+        }
+      }
+    };
+
+    init();
+  }, [workflowid]);
 
   if (!isClient) {
     return null; // Return null on the first render to avoid hydration mismatch
@@ -131,7 +156,7 @@ export default function AnalyticsPage() {
         </p>
       </div>
 
-      <RecentSamples />
+      {deploymentUrl && <RecentSamples deploymentUrl={deploymentUrl} />}
       <UpdateButton />
     </>
   );

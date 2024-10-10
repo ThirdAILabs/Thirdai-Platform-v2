@@ -1,8 +1,9 @@
 'use client';
-
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { associations, reformulations, upvotes } from './mock_samples';
 import useRollingSamples from './rolling';
+import axios from 'axios';
 
 interface TextPairsProps {
   timestamp: string;
@@ -56,7 +57,41 @@ function Reformulation({ timestamp, original, reformulations }: ReformulationPro
   );
 }
 
-export default function RecentSamples() {
+interface RecentSamplesProps {
+  deploymentUrl: string;
+}
+
+export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
+  const [recentLabels, setRecentLabels] = useState<string[]>([]);
+  const [allLabels, setAllLabels] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const fetchLabels = async () => {
+      try {
+        const response = await axios.get<{ data: string[] }>(`${deploymentUrl}/get_labels`);
+        const labels = response.data.data;
+        setAllLabels(prevLabels => {
+          const newLabels = new Set(prevLabels);
+          labels.forEach(label => {
+            if (!prevLabels.has(label)) {
+              newLabels.add(label);
+              setRecentLabels(prev => [label, ...prev].slice(0, 5)); // Keep only the 5 most recent labels
+            }
+          });
+          return newLabels;
+        });
+      } catch (error) {
+        console.error('Error fetching labels:', error);
+      }
+    };
+
+    fetchLabels(); // Fetch labels immediately on mount
+
+    const intervalId = setInterval(fetchLabels, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(intervalId); // Clean up on unmount
+  }, [deploymentUrl]);
+
   const recentUpvotes = useRollingSamples(
     /* samples= */ upvotes,
     /* numSamples= */ 5,
@@ -86,11 +121,25 @@ export default function RecentSamples() {
       style={{
         display: 'flex',
         flexDirection: 'row',
+        flexWrap: 'wrap',
         justifyContent: 'space-between',
         width: '100%',
       }}
     >
-      <Card style={{ width: '32.5%', height: '45rem' }}>
+      <Card style={{ width: '32.5%', height: '45rem', marginBottom: '1rem' }}>
+        <CardHeader>
+          <CardTitle>Recent Labels</CardTitle>
+          <CardDescription>The latest added labels</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {recentLabels.map((label, idx) => (
+            <div key={idx} className="text-md" style={{ marginBottom: '10px' }}>
+              <span style={{ fontWeight: 'bold' }}>{label}</span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+      <Card style={{ width: '32.5%', height: '45rem', marginBottom: '1rem' }}>
         <CardHeader>
           <CardTitle>Recent Upvotes</CardTitle>
           <CardDescription>The latest user-provided upvotes</CardDescription>
@@ -108,7 +157,7 @@ export default function RecentSamples() {
           ))}
         </CardContent>
       </Card>
-      <Card style={{ width: '32.5%', height: '45rem' }}>
+      <Card style={{ width: '32.5%', height: '45rem', marginBottom: '1rem' }}>
         <CardHeader>
           <CardTitle>Recent Associations</CardTitle>
           <CardDescription>The latest user-provided associations</CardDescription>

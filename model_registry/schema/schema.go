@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	public  = "public"
-	private = "private"
+	Public  = "public"
+	Private = "private"
 )
 
 type Model struct {
@@ -25,7 +25,8 @@ type Model struct {
 type AccessToken struct {
 	gorm.Model
 
-	Token string
+	AccessToken string `gorm:"uniqueIndex"`
+	Name        string
 
 	ModelID  uint
 	ModelRef Model

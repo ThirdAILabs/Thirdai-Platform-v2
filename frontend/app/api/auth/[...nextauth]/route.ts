@@ -3,7 +3,6 @@ import { JWT } from "next-auth/jwt";
 import NextAuth from "next-auth/next";
 import KeycloakProvider from "next-auth/providers/keycloak"
 
-console.log("KEYCLOAK_CLIENT_ID: ", process.env.KEYCLOAK_CLIENT_ID)
 
 function requestRefreshOfAccessToken(token: JWT) {
   return fetch(`${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`, {
@@ -85,9 +84,8 @@ export const authOptions: AuthOptions = {
       }
     },
     async session({ session, token }) {
-      console.log("Session callback invoked with token:", token);
       session.accessToken = token.accessToken;
-      console.log("Modified session:", session);
+      session.error = token.error
       return session;
     }
   }

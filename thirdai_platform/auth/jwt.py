@@ -59,62 +59,46 @@ def verify_access_token(
     """
     if identity_provider_type == "keycloak":
         # Get the Keycloak public key
-        # public_key = keycloak_openid.public_key()
-        # KEYCLOAK_PUBLIC_KEY = (
-        #     f"-----BEGIN PUBLIC KEY-----\n{public_key}\n-----END PUBLIC KEY-----"
-        # )
+        public_key = keycloak_openid.public_key()
+        KEYCLOAK_PUBLIC_KEY = (
+            f"-----BEGIN PUBLIC KEY-----\n{public_key}\n-----END PUBLIC KEY-----"
+        )
 
         try:
             # Decode and verify the JWT using Keycloak's public key
-            # decoded_token = jwt.decode(
-            #     access_token,
-            #     key=KEYCLOAK_PUBLIC_KEY,
-            #     options={"verify_signature": True, "verify_aud": False, "exp": True},
-            #     algorithms=["RS256"],
-            # )
+            decoded_token = jwt.decode(
+                access_token,
+                key=KEYCLOAK_PUBLIC_KEY,
+                options={"verify_signature": True, "verify_aud": False, "exp": True},
+                algorithms=["RS256"],
+            )
 
             # Fetch user information from Keycloak's userinfo endpoint
-            print(access_token)
             user_info = keycloak_openid.userinfo(access_token)
-            print(user_info)
             keycloak_user_id = user_info.get("sub")
 
             if not keycloak_user_id:
                 raise CREDENTIALS_EXCEPTION
 
-            # Check if the token is associated with an external IDP (e.g., Google)
-            identity_provider_alias = user_info.get("identity_provider_alias")
-
-            if identity_provider_alias:
-                # If there's an external IDP, ensure user exists in the local DB or create a new entry.
-                user = (
-                    session.query(schema.User)
-                    .filter(schema.User.id == keycloak_user_id)
-                    .first()
+            # If there's an external IDP, ensure user exists in the local DB or create a new entry.
+            user = (
+                session.query(schema.User)
+                .filter(schema.User.email == user_info.get("email"))
+                .first()
+            )
+            if not user:
+                # Create a new user entry if not found
+                user = schema.User(
+                    id=keycloak_user_id,
+                    # we are using given_name since preferred username may have email
+                    username=user_info.get("given_name"),
+                    email=user_info.get("email"),
                 )
-                if not user:
-                    # Create a new user entry if not found
-                    user = schema.User(
-                        id=keycloak_user_id,
-                        username=user_info.get("preferred_username"),
-                        email=user_info.get("email"),
-                        identity_provider=identity_provider_alias,
-                        full_name=user_info.get("name", ""),
-                    )
-                    session.add(user)
-                    session.commit()
-                    session.refresh(user)
-            else:
-                # If there's no external IDP, proceed as a regular Keycloak login.
-                user = (
-                    session.query(schema.User)
-                    .filter(schema.User.id == keycloak_user_id)
-                    .first()
-                )
-                if not user:
-                    raise CREDENTIALS_EXCEPTION
+                session.add(user)
+                session.commit()
+                session.refresh(user)
 
-            user_id = keycloak_user_id
+            user_id = user.id
             expiration = decoded_token.get("exp")
 
         except ExpiredSignatureError:

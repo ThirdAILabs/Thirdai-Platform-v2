@@ -104,12 +104,9 @@ def email_login_with_keycloak(
     It verifies the token directly in this function and returns user info.
     """
     try:
-        # Verify the access token using Keycloak's methods
         verified_user = verify_access_token(access_token.access_token, session)
 
-        # Retrieve the user object and expiration time from the verified token
         user = verified_user.user
-        expiration = verified_user.exp
 
         if not user:
             return response(
@@ -127,7 +124,6 @@ def email_login_with_keycloak(
                     "user_id": str(user.id),
                 },
                 "access_token": access_token.access_token,
-                "expires_in": expiration,  # Include the expiration time for frontend session handling
             },
         )
     except HTTPException as e:

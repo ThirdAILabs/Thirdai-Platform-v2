@@ -47,6 +47,7 @@ class UDTRouter:
                 "/insert_sample", self.insert_sample, methods=["POST"]
             )
             self.router.add_api_route("/get_labels", self.get_labels, methods=["GET"])
+            self.router.add_api_route("/get_recent_samples", self.get_recent_samples, methods=["GET"])
 
     @staticmethod
     def get_model(config: DeploymentConfig) -> ClassificationModel:
@@ -219,4 +220,21 @@ class UDTRouter:
             status_code=status.HTTP_200_OK,
             message="Successful",
             data=jsonable_encoder(labels),
+        )
+
+    @propagate_error
+    def get_recent_samples(self, token=Depends(Permissions.verify_permission("read"))):
+        """
+        Retrieves the most recent samples from the model.
+        Parameters:
+        - token: str - Authorization token (inferred from permissions dependency).
+        Returns:
+        - JSONResponse: The most recent samples from the model.
+        """
+        recent_samples = self.model.get_recent_samples(limit=5)  # Fetch 5 most recent samples
+        # We're not modifying the samples here as they're already in the correct format
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successful",
+            data=jsonable_encoder(recent_samples),
         )

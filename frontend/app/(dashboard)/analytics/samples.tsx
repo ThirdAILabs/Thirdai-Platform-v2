@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useLabels } from '@/lib/backend';
+import { useLabels, useRecentSamples } from '@/lib/backend';
 import { associations, reformulations, upvotes } from './mock_samples';
 import useRollingSamples from './rolling';
 import axios from 'axios';
@@ -64,6 +64,7 @@ interface RecentSamplesProps {
 
 export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
   const { recentLabels, error } = useLabels({ deploymentUrl });
+  const { recentSamples, error: sampleError } = useRecentSamples({ deploymentUrl });
 
   const recentUpvotes = useRollingSamples(
     /* samples= */ upvotes,
@@ -109,6 +110,27 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
           {recentLabels.map((label, idx) => (
             <div key={idx} className="text-md" style={{ marginBottom: '10px' }}>
               <span style={{ fontWeight: 'bold' }}>{label}</span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+      <Card style={{ width: '32.5%', height: '45rem', marginBottom: '1rem' }}>
+        <CardHeader>
+          <CardTitle>Recent Samples</CardTitle>
+          <CardDescription>The latest inserted samples</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {sampleError && <div>Error fetching samples: {sampleError.message}</div>}
+          {recentSamples.map((sample, idx) => (
+            <div key={idx} className="text-md" style={{ marginBottom: '20px' }}>
+              <div>
+                <span style={{ fontWeight: 'bold' }}>Tokens: </span>
+                {sample.tokens.join(', ')}
+              </div>
+              <div>
+                <span style={{ fontWeight: 'bold' }}>Tags: </span>
+                {sample.tags.join(', ')}
+              </div>
             </div>
           ))}
         </CardContent>

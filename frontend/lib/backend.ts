@@ -910,6 +910,53 @@ export function useLabels({ deploymentUrl, pollingInterval = 5000, maxRecentLabe
   return { allLabels, recentLabels, error };
 }
 
+interface Sample {
+  tokens: string[];
+  tags: string[];
+}
+
+interface UseRecentSamplesOptions {
+  deploymentUrl: string;
+  pollingInterval?: number;
+  maxRecentSamples?: number;
+}
+
+interface UseRecentSamplesResult {
+  recentSamples: Sample[];
+  error: Error | null;
+}
+
+export function useRecentSamples({ 
+  deploymentUrl, 
+  pollingInterval = 5000, 
+  maxRecentSamples = 5 
+}: UseRecentSamplesOptions): UseRecentSamplesResult {
+  const [recentSamples, setRecentSamples] = useState<Sample[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchRecentSamples = useCallback(async () => {
+    try {
+      const accessToken = getAccessToken();
+      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+      const response = await axios.get<{ data: Sample[] }>(`${deploymentUrl}/get_recent_samples`);
+      setRecentSamples(response.data.data.slice(0, maxRecentSamples));
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching recent samples:', err);
+      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+    }
+  }, [deploymentUrl, maxRecentSamples]);
+
+  useEffect(() => {
+    fetchRecentSamples();
+    const intervalId = setInterval(fetchRecentSamples, pollingInterval);
+    return () => clearInterval(intervalId);
+  }, [fetchRecentSamples, pollingInterval]);
+
+  return { recentSamples, error };
+}
+
 export interface TokenClassificationResult {
   query_text: string;
   tokens: string[];

@@ -132,3 +132,20 @@ class TokenClassificationModel(ClassificationModel):
         self.data_storage.insert_samples(
             samples=[token_tag_sample], override_buffer_limit=True
         )
+
+    def get_recent_samples(self, limit: int = 5) -> List[dict]:
+        # Retrieve recent samples using the existing data_storage methods
+        recent_samples = self.data_storage.retrieve_samples(
+            name="ner",
+            num_samples=limit,
+            user_provided=True  # Assuming we want user-provided samples
+        )
+        
+        # Convert DataSample objects to dictionaries
+        return [
+            {
+                "tokens": sample.data.tokens,
+                "tags": sample.data.tags,
+            }
+            for sample in recent_samples
+        ]

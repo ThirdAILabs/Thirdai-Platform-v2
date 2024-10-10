@@ -9,16 +9,21 @@ const (
 	Private = "private"
 )
 
+const (
+	Pending  = "pending"
+	Commited = "commited"
+)
+
 type Model struct {
 	gorm.Model
 	Name         string `gorm:"uniqueIndex"`
-	Path         string
 	Description  string
 	ModelType    string
 	ModelSubtype string
 	Access       string
 	Metadata     string
-
+	Size         int64
+	Status       string
 	// TODO: add checksum
 }
 

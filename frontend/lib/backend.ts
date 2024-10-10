@@ -4,7 +4,7 @@ import axios from 'axios';
 import { access } from 'fs';
 import _ from 'lodash';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 export const thirdaiPlatformBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -854,6 +854,60 @@ function useAccessToken() {
   }, []);
 
   return accessToken;
+}
+
+interface UseLabelsOptions {
+  deploymentUrl: string;
+  pollingInterval?: number;
+  maxRecentLabels?: number;
+}
+
+interface UseLabelsResult {
+  allLabels: Set<string>;
+  recentLabels: string[];
+  error: Error | null;
+}
+
+export function useLabels({ deploymentUrl, pollingInterval = 5000, maxRecentLabels = 5 }: UseLabelsOptions): UseLabelsResult {
+  const [allLabels, setAllLabels] = useState<Set<string>>(new Set());
+  const [recentLabels, setRecentLabels] = useState<string[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchLabels = useCallback(async () => {
+    try {
+      const accessToken = getAccessToken();
+      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+      const response = await axios.get<{ data: string[] }>(`${deploymentUrl}/get_labels`);
+      const labels = response.data.data;
+
+      setAllLabels(prevLabels => {
+        const newLabels = new Set(prevLabels);
+        labels.forEach((label: string) => {
+          if (!prevLabels.has(label)) {
+            newLabels.add(label);
+            setRecentLabels(prev => [label, ...prev].slice(0, maxRecentLabels));
+          }
+        });
+        return newLabels;
+      });
+
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching labels:', err);
+      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+    }
+  }, [deploymentUrl, maxRecentLabels]);
+
+  useEffect(() => {
+    fetchLabels(); // Fetch labels immediately on mount
+
+    const intervalId = setInterval(fetchLabels, pollingInterval);
+
+    return () => clearInterval(intervalId); // Clean up on unmount
+  }, [fetchLabels, pollingInterval]);
+
+  return { allLabels, recentLabels, error };
 }
 
 export interface TokenClassificationResult {

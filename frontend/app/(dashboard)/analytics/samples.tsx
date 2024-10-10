@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useLabels } from '@/lib/backend';
 import { associations, reformulations, upvotes } from './mock_samples';
 import useRollingSamples from './rolling';
 import axios from 'axios';
@@ -62,35 +63,7 @@ interface RecentSamplesProps {
 }
 
 export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
-  const [recentLabels, setRecentLabels] = useState<string[]>([]);
-  const [allLabels, setAllLabels] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    const fetchLabels = async () => {
-      try {
-        const response = await axios.get<{ data: string[] }>(`${deploymentUrl}/get_labels`);
-        const labels = response.data.data;
-        setAllLabels(prevLabels => {
-          const newLabels = new Set(prevLabels);
-          labels.forEach(label => {
-            if (!prevLabels.has(label)) {
-              newLabels.add(label);
-              setRecentLabels(prev => [label, ...prev].slice(0, 5)); // Keep only the 5 most recent labels
-            }
-          });
-          return newLabels;
-        });
-      } catch (error) {
-        console.error('Error fetching labels:', error);
-      }
-    };
-
-    fetchLabels(); // Fetch labels immediately on mount
-
-    const intervalId = setInterval(fetchLabels, 5000); // Poll every 5 seconds
-
-    return () => clearInterval(intervalId); // Clean up on unmount
-  }, [deploymentUrl]);
+  const { recentLabels, error } = useLabels({ deploymentUrl });
 
   const recentUpvotes = useRollingSamples(
     /* samples= */ upvotes,
@@ -132,6 +105,7 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
           <CardDescription>The latest added labels</CardDescription>
         </CardHeader>
         <CardContent>
+          {error && <div>Error fetching labels: {error.message}</div>}
           {recentLabels.map((label, idx) => (
             <div key={idx} className="text-md" style={{ marginBottom: '10px' }}>
               <span style={{ fontWeight: 'bold' }}>{label}</span>

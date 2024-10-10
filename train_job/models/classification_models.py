@@ -16,6 +16,7 @@ from config import (
 )
 from exceptional_handler import apply_exception_handler
 from models.model import Model
+from reporter import Reporter
 from thirdai import bolt
 from thirdai_storage.data_types import (
     DataSample,
@@ -32,8 +33,6 @@ from utils import (
     check_local_nfs_only,
     expand_s3_buckets_and_directories,
 )
-
-from train_job.reporter import Reporter
 
 
 @apply_exception_handler
@@ -190,7 +189,7 @@ class TextClassificationModel(ClassificationModel):
 @apply_exception_handler
 class TokenClassificationModel(ClassificationModel):
     def __init__(self, config: TrainConfig, reporter: Reporter):
-        super().__init__(config)
+        super().__init__(config, reporter)
         self.load_storage()
 
     @property

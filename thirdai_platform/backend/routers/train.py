@@ -672,9 +672,8 @@ def retrain_udt(
             )
 
         # create a new model
-        model_id = uuid.uuid4()
         model: schema.Model = schema.Model(
-            id=model_id,
+            id=uuid.uuid4(),
             user_id=user.id,
             train_status=schema.Status.not_started,
             deploy_status=schema.Status.not_started,
@@ -685,6 +684,9 @@ def retrain_udt(
             access_level=base_model.access_level,
             parent_id=base_model.id,
         )
+        session.add(model)
+        session.commit()
+        session.refresh(model)
 
     else:
         model = get_model(session, username=user.username, model_name=model_name)
@@ -693,8 +695,6 @@ def retrain_udt(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message=f"Model with name {model_name} does not exist for user {user.username}",
             )
-
-        model_id = model.id
 
     if model.type != ModelType.UDT and model.sub_type != UDTSubType.token:
         return response(
@@ -784,8 +784,8 @@ def retrain_udt(
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
-        model_id=model_id,
-        data_id=model_id,
+        model_id=str(model.id),
+        data_id=str(model.id),
         base_model_id=(None if not base_model_identifier else str(base_model.id)),
         model_options=UDTOptions(udt_options=placeholder_udt_options),
         datagen_options=datagen_options,

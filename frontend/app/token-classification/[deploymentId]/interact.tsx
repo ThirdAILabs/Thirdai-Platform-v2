@@ -257,15 +257,21 @@ export default function Interact() {
   const insertNewSample = async (newTag: string) => {
     if (!selectedRange) return;
 
-    const [start, end] = selectedRange;
-    const selectedTokens = annotations.slice(start, end + 1);
-    const sampleText = selectedTokens.map(token => token.text).join(' ');
-    const tags = selectedTokens.map(() => newTag);
+    // Instead of using only selected tokens, we'll use the entire sentence
+    const entireSentence = annotations.map(token => token.text).join(' ');
+    
+    // Create a new array of tags, updating only the selected range
+    const updatedTags = annotations.map((token, index) => {
+      if (selectedRange && index >= selectedRange[0] && index <= selectedRange[1]) {
+        return newTag;
+      }
+      return token.tag;
+    });
 
     try {
       await insertSample({
-        tokens: sampleText.split(' '),
-        tags: tags,
+        tokens: entireSentence.split(' '),
+        tags: updatedTags,
       });
       console.log('Sample inserted successfully');
     } catch (error) {

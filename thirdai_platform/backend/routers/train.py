@@ -10,7 +10,7 @@ from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access
 from backend.datagen import generate_data_for_train_job
 from backend.file_handler import download_local_files
-from backend.thirdai_storage import data_types, storage
+from backend.thirdai_storage import storage
 from backend.train_config import (
     DatagenOptions,
     FileInfo,

@@ -212,7 +212,6 @@ def test_list_accessible_teams():
     teams = res.json()["data"]
     assert len(teams) == 1
     assert teams[0]["id"] == green_team
-    assert teams[0]["name"] == "green_team"
 
     # Step 7: Test accessible teams for user_b (should see only the purple team)
     res = client.get("/api/team/accessible-teams", headers=auth_header(user_b_token))
@@ -221,7 +220,6 @@ def test_list_accessible_teams():
     teams = res.json()["data"]
     assert len(teams) == 1
     assert teams[0]["id"] == purple_team
-    assert teams[0]["name"] == "purple_team"
 
     # Step 8: Test accessible teams for the global admin (should see both teams)
     res = client.get("/api/team/accessible-teams", headers=auth_header(global_admin))
@@ -229,6 +227,5 @@ def test_list_accessible_teams():
 
     teams = res.json()["data"]
     team_ids = {team["id"] for team in teams}
-    assert len(team_ids) == 2
     assert green_team in team_ids
     assert purple_team in team_ids

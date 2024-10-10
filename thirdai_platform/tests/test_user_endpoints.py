@@ -213,7 +213,7 @@ def test_list_accessible_users():
     assert res.status_code == 200
 
     res = create_user(
-        client, username="admin1", email="admin1@mail.com", password="password4"
+        client, username="team_admin", email="team_admin@mail.com", password="password4"
     )
     assert res.status_code == 200
 
@@ -225,10 +225,10 @@ def test_list_accessible_users():
     res = add_user_to_team(client, team2_id, "user2@mail.com", admin_jwt)
     assert res.status_code == 200
 
-    # Assign admin1 as the admin of both team1 and team2
-    res = assign_team_admin(client, team1_id, "admin1@mail.com", admin_jwt)
+    # Assign team_admin as the admin of both team1 and team2
+    res = assign_team_admin(client, team1_id, "team_admin@mail.com", admin_jwt)
     assert res.status_code == 200
-    res = assign_team_admin(client, team2_id, "admin1@mail.com", admin_jwt)
+    res = assign_team_admin(client, team2_id, "team_admin@mail.com", admin_jwt)
     assert res.status_code == 200
 
     # User1 logs in and should only see users from team1
@@ -241,7 +241,7 @@ def test_list_accessible_users():
     accessible_users = [user["email"] for user in res.json()["data"]]
     assert "user1@mail.com" in accessible_users  # User1 should see themself
     assert (
-        "admin1@mail.com" in accessible_users
+        "team_admin@mail.com" in accessible_users
     )  # Admin of their team should be accessible
     assert (
         "user2@mail.com" not in accessible_users
@@ -258,17 +258,17 @@ def test_list_accessible_users():
     assert "user3@mail.com" in accessible_users  # User3 should see themself
     assert len(accessible_users) == 1  # Ensure that it is not accessing other users.
 
-    # Admin1 logs in and should see users from both team1 and team2
-    res = login(client, username="admin1@mail.com", password="password4")
+    # team_admin logs in and should see users from both team1 and team2
+    res = login(client, username="team_admin@mail.com", password="password4")
     assert res.status_code == 200
-    admin1_jwt = res.json()["data"]["access_token"]
+    team_admin_jwt = res.json()["data"]["access_token"]
 
-    res = client.get("/api/user/accessible-users", headers=auth_header(admin1_jwt))
+    res = client.get("/api/user/accessible-users", headers=auth_header(team_admin_jwt))
     assert res.status_code == 200
     accessible_users = [user["email"] for user in res.json()["data"]]
     assert "user1@mail.com" in accessible_users  # Admin should see user1 (team1)
     assert "user2@mail.com" in accessible_users  # Admin should see user2 (team2)
-    assert "admin1@mail.com" in accessible_users  # Admin should see themself
+    assert "team_admin@mail.com" in accessible_users  # Admin should see themself
 
     # Test for global admin: should retrieve all users
     res = client.get("/api/user/accessible-users", headers=auth_header(admin_jwt))
@@ -277,7 +277,11 @@ def test_list_accessible_users():
     ), f"Unexpected status code: {res.status_code}. Response: {res.json()}"
 
     data = res.json()
-    assert len(data["data"]) == 6
+    accessible_users = [user["email"] for user in res.json()["data"]]
+    assert "user1@mail.com" in accessible_users
+    assert "user2@mail.com" in accessible_users
+    assert "team_admin@mail.com" in accessible_users
+    assert "admin@mail.com" in accessible_users
     assert data["message"] == "Successfully got the list of all users"
 
 

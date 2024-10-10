@@ -197,15 +197,15 @@ def test_list_accessible_teams():
     assert res.status_code == 201
     green_team = res.json()["data"]["team_id"]
 
-    # Step 4: Add user_a to the green team
+    # Add user_a to the green team
     res = add_user_to_team(client, green_team, "user_a@mail.com", global_admin)
     assert res.status_code == 200
 
-    # Step 5: Add user_b to the purple team
+    # Add user_b to the purple team
     res = add_user_to_team(client, purple_team, "user_b@mail.com", global_admin)
     assert res.status_code == 200
 
-    # Step 6: Test accessible teams for user_a (should see only the green team)
+    # Test accessible teams for user_a (should see only the green team)
     res = client.get("/api/team/accessible-teams", headers=auth_header(user_a_token))
     assert res.status_code == 200
 
@@ -213,7 +213,7 @@ def test_list_accessible_teams():
     assert len(teams) == 1
     assert teams[0]["id"] == green_team
 
-    # Step 7: Test accessible teams for user_b (should see only the purple team)
+    # Test accessible teams for user_b (should see only the purple team)
     res = client.get("/api/team/accessible-teams", headers=auth_header(user_b_token))
     assert res.status_code == 200
 
@@ -221,7 +221,7 @@ def test_list_accessible_teams():
     assert len(teams) == 1
     assert teams[0]["id"] == purple_team
 
-    # Step 8: Test accessible teams for the global admin (should see both teams)
+    # Test accessible teams for the global admin (should see both teams)
     res = client.get("/api/team/accessible-teams", headers=auth_header(global_admin))
     assert res.status_code == 200
 

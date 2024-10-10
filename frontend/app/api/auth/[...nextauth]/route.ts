@@ -3,6 +3,8 @@ import { JWT } from "next-auth/jwt";
 import NextAuth from "next-auth/next";
 import KeycloakProvider from "next-auth/providers/keycloak"
 
+console.log("KEYCLOAK_CLIENT_ID: ", process.env.KEYCLOAK_CLIENT_ID)
+
 function requestRefreshOfAccessToken(token: JWT) {
   return fetch(`${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/token`, {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -25,6 +27,7 @@ export const authOptions: AuthOptions = {
       issuer: process.env.KEYCLOAK_ISSUER
     })
   ],
+  secret:  process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: '/auth/signin',
     signOut: '/auth/signout',
@@ -33,6 +36,18 @@ export const authOptions: AuthOptions = {
     strategy: "jwt",
     maxAge: 60 * 30
   },
+  debug: true,
+  logger: {
+    error(code, ...message) {
+      console.error('NextAuth error:', code, message);
+    },
+    warn(code, ...message) {
+      console.warn('NextAuth warning:', code, message);
+    },
+    debug(code, ...message) {
+      console.debug('NextAuth debug:', code, message);
+    },
+  },
   callbacks: {
     async jwt({ token, account }) {
       if (account) {
@@ -40,6 +55,7 @@ export const authOptions: AuthOptions = {
         token.accessToken = account.access_token
         token.refreshToken = account.refresh_token
         token.expiresAt = account.expires_at
+        console.log("JWT token updated with access token:", token);
         return token
       }
       if (Date.now() < (token.expiresAt! * 1000 - 60 * 1000)) {
@@ -59,6 +75,8 @@ export const authOptions: AuthOptions = {
             expiresAt: Math.floor(Date.now() / 1000 + (tokens.expires_in as number)),
             refreshToken: tokens.refresh_token ?? token.refreshToken,
           }
+          console.log("JWT token without account:", token);
+
           return updatedToken
         } catch (error) {
           console.error("Error refreshing access token", error)
@@ -67,13 +85,15 @@ export const authOptions: AuthOptions = {
       }
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken
-      session.error = token.error
-      return session
+      console.log("Session callback invoked with token:", token);
+      session.accessToken = token.accessToken;
+      console.log("Modified session:", session);
+      return session;
     }
   }
 }
 
+console.log(authOptions)
 const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST }

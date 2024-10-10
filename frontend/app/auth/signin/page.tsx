@@ -25,6 +25,7 @@ interface SignInPageProp {
 }
 
 export default async function Signin({ searchParams: { callbackUrl, error } }: SignInPageProp) {
+  console.log("Are we here in signin?")
   const session = await getServerSession(authOptions);
   if (session) {
     redirect(callbackUrl || "/")

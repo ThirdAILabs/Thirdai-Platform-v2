@@ -446,6 +446,7 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 			Metadata:     params.Metadata,
 			Size:         params.Size,
 			Status:       schema.Pending,
+			StorageType:  registry.storage.Type(),
 		}
 
 		result = txn.Create(model)

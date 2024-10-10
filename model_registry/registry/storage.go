@@ -16,6 +16,8 @@ import (
 )
 
 type Storage interface {
+	Type() string
+
 	GetDownloadLink(storageUrl string, modelId uint) (string, error)
 
 	StartUpload(modelId uint) error
@@ -35,6 +37,10 @@ type LocalStorage struct {
 
 func NewLocalStorage(path string) Storage {
 	return &LocalStorage{path: path}
+}
+
+func (s *LocalStorage) Type() string {
+	return "local-storage"
 }
 
 func (s *LocalStorage) GetDownloadLink(storageUrl string, modelId uint) (string, error) {

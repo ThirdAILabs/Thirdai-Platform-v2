@@ -24,6 +24,7 @@ type Model struct {
 	Metadata     string
 	Size         int64
 	Status       string
+	StorageType  string
 	// TODO: add checksum
 }
 

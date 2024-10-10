@@ -41,6 +41,7 @@ class UDTRouter:
         self.router.add_api_route("/stats", self.stats, methods=["GET"])
 
         # The following routes are only applicable for token classification models
+        # TODO(Shubh) : Make different routers for text and token classification models
         if self.model.config.model_options.udt_sub_type == UDTSubType.token:
             self.router.add_api_route("/add_labels", self.add_labels, methods=["POST"])
             self.router.add_api_route(

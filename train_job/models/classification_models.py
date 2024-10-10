@@ -11,16 +11,20 @@ from config import (
     FileInfo,
     TextClassificationOptions,
     TokenClassificationOptions,
+    TrainConfig,
     UDTTrainOptions,
 )
 from exceptional_handler import apply_exception_handler
 from models.model import Model
+from reporter import Reporter
 from thirdai import bolt
 from thirdai_storage.data_types import (
     DataSample,
     LabelEntity,
     LabelStatus,
-    ModelMetadata,
+    Metadata,
+    MetadataStatus,
+    SampleStatus,
     TagMetadata,
 )
 from thirdai_storage.storage import DataStorage, SQLiteConnector
@@ -184,14 +188,15 @@ class TextClassificationModel(ClassificationModel):
 
 @apply_exception_handler
 class TokenClassificationModel(ClassificationModel):
+    def __init__(self, config: TrainConfig, reporter: Reporter):
+        super().__init__(config, reporter)
+        self.load_storage()
+
     @property
     def tkn_cls_vars(self) -> TokenClassificationOptions:
         return self.config.model_options.udt_options
 
     def initialize_model(self):
-        # initializes the storage object for the model
-        self.load_storage()
-
         # remove duplicates from target_labels
         target_labels = list(set(self.tkn_cls_vars.target_labels))
 
@@ -233,7 +238,9 @@ class TokenClassificationModel(ClassificationModel):
 
     def update_tag_metadata(self, tag_metadata):
         self.data_storage.insert_metadata(
-            metadata=ModelMetadata(name="tags_and_status", data=tag_metadata)
+            metadata=Metadata(
+                name="tags_and_status", data=tag_metadata, status=MetadataStatus.updated
+            )
         )
 
     def train(self, **kwargs):
@@ -275,7 +282,14 @@ class TokenClassificationModel(ClassificationModel):
         # converts the status of all tags to trained and update in the storage
         for tag in tags.tag_status:
             tags.tag_status[tag].status = LabelStatus.trained
+
+        # once training is complete, update the status of the metadata to unchanged
+        # and the status of the samples to trained
         self.update_tag_metadata(tags)
+        self.data_storage.update_metadata_status(
+            "tags_and_status", MetadataStatus.unchanged
+        )
+        self.data_storage.update_sample_status("ner", SampleStatus.trained)
 
         self.evaluate(model, self.test_files())
 
@@ -320,7 +334,11 @@ class TokenClassificationModel(ClassificationModel):
             tags = row[self.tkn_cls_vars.target_column].split()
             assert len(tokens) == len(tags)
 
-            sample = DataSample(name="ner", data={"tokens": tokens, "tags": tags})
+            sample = DataSample(
+                name="ner",
+                data={"tokens": tokens, "tags": tags},
+                status=SampleStatus.untrained,
+            )
             samples.append(sample)
 
         self.data_storage.insert_samples(samples=samples)

@@ -4,7 +4,12 @@ import typing
 from abc import abstractmethod
 from collections import defaultdict
 
-from backend.thirdai_storage.data_types import DataSample, ModelMetadata
+from backend.thirdai_storage.data_types import (
+    DataSample,
+    Metadata,
+    MetadataStatus,
+    SampleStatus,
+)
 from backend.thirdai_storage.schemas import Base, MetaData, Samples
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -48,14 +53,20 @@ class Connector:
     def get_metadata(self, name: str):
         pass
 
+    @abstractmethod
+    def remove_untrained_samples(self, name: str):
+        pass
+
 
 class SQLiteConnector(Connector):
     def __init__(self, db_path: str):
-        self.engine = create_engine(f"sqlite:///{db_path}", echo=True)
+        self.engine = create_engine(f"sqlite:///{db_path}", echo=False)
         self.Session = scoped_session(sessionmaker(bind=self.engine))
         Base.metadata.create_all(self.engine)
 
-    def add_samples(self, entries: typing.List[typing.Tuple[str, str, str, str, bool]]):
+    def add_samples(
+        self, entries: typing.List[typing.Tuple[str, str, str, str, str, bool]]
+    ):
         session = self.Session()
         session.bulk_insert_mappings(
             Samples,
@@ -65,9 +76,10 @@ class SQLiteConnector(Connector):
                     "datatype": datatype,
                     "name": name,
                     "serialized_data": data,
+                    "status": status,
                     "user_provided": user_provided,
                 }
-                for unique_id, datatype, name, data, user_provided in entries
+                for unique_id, datatype, name, data, status, user_provided in entries
             ],
         )
         session.commit()
@@ -76,9 +88,9 @@ class SQLiteConnector(Connector):
 
         session = self.Session()
 
-        query = session.query(func.count(Samples.id)).filter(Samples.name == name)
-        count = query.scalar()
-        return count
+        return (
+            session.query(func.count(Samples.id)).filter(Samples.name == name).scalar()
+        )
 
     def delete_old_samples(self, name: str, samples_to_store: int):
         # total samples
@@ -108,6 +120,7 @@ class SQLiteConnector(Connector):
                 Samples.datatype,
                 Samples.id,
                 Samples.serialized_data,
+                Samples.status,
             )
             .filter(Samples.name == name)
             .filter(Samples.user_provided == user_provided)
@@ -123,7 +136,9 @@ class SQLiteConnector(Connector):
 
         return set([name[0] for name in names])
 
-    def insert_metadata(self, name: str, datatype: str, serialized_data: str):
+    def insert_metadata(
+        self, name: str, status: str, datatype: str, serialized_data: str
+    ):
         session = self.Session()
 
         existing_metadata = (
@@ -132,9 +147,13 @@ class SQLiteConnector(Connector):
         if existing_metadata:
             # update the entry in place
             existing_metadata.serialized_data = serialized_data
+            existing_metadata.status = status
         else:
             new_metadata = MetaData(
-                name=name, datatype=datatype, serialized_data=serialized_data
+                name=name,
+                datatype=datatype,
+                serialized_data=serialized_data,
+                status=status,
             )
             session.add(new_metadata)
 
@@ -144,11 +163,38 @@ class SQLiteConnector(Connector):
         session = self.Session()
 
         entry = (
-            session.query(MetaData.datatype, MetaData.name, MetaData.serialized_data)
+            session.query(
+                MetaData.datatype,
+                MetaData.name,
+                MetaData.serialized_data,
+                MetaData.status,
+            )
             .filter(MetaData.name == name)
             .first()
         )
         return entry
+
+    def remove_untrained_samples(self, name: str):
+        # remove all untrained samples for a given name
+        session = self.Session()
+        session.query(Samples).filter(Samples.name == name).filter(
+            Samples.status == SampleStatus.untrained
+        ).delete()
+        session.commit()
+
+    def update_metadata_status(self, name: str, status: MetadataStatus):
+        session = self.Session()
+        session.query(MetaData).filter(MetaData.name == name).update(
+            {MetaData.status: status}
+        )
+        session.commit()
+
+    def update_sample_status(self, name: str, status: SampleStatus):
+        session = self.Session()
+        session.query(Samples).filter(Samples.name == name).update(
+            {Samples.status: status}
+        )
+        session.commit()
 
 
 class DataStorage:
@@ -184,6 +230,7 @@ class DataStorage:
                         sample.datatype,
                         sample.name,
                         sample.serialize_data(),
+                        sample.status.value,
                         sample.user_provided,
                     )
                 )
@@ -203,9 +250,10 @@ class DataStorage:
                 unique_id=unique_id,
                 name=name,
                 serialized_data=data,
+                status=status,
                 user_provided=user_provided,
             )
-            for datatype, unique_id, data in entries
+            for datatype, unique_id, data, status in entries
         ]
 
     def clip_storage(self):
@@ -219,20 +267,37 @@ class DataStorage:
             # update the sample counter
             self._sample_counter[name] = self.connector.get_sample_count(name=name)
 
-    def insert_metadata(self, metadata: ModelMetadata):
+    def insert_metadata(self, metadata: Metadata):
         # updates the serialized data in place if another entry with the same
         # name exists
         self.connector.insert_metadata(
             name=metadata.name,
+            status=metadata.status,
             datatype=metadata.datatype,
             serialized_data=metadata.serialize_data(),
         )
 
-    def get_metadata(self, name) -> ModelMetadata:
+    def get_metadata(self, name) -> Metadata:
         data = self.connector.get_metadata(name)
         if data:
-            return ModelMetadata.from_serialized(
-                type=data[0], name=data[1], serialized_data=data[2]
+            return Metadata.from_serialized(
+                type=data[0], name=data[1], serialized_data=data[2], status=data[3]
             )
 
         return None
+
+    def remove_untrained_samples(self, name: str):
+        self.connector.remove_untrained_samples(name)
+
+    def rollback_metadata(self, name: str):
+        metadata = self.get_metadata(name)
+
+        if metadata.status == MetadataStatus.updated:
+            metadata.rollback()
+            self.insert_metadata(metadata)
+
+    def update_metadata_status(self, name: str, status: MetadataStatus):
+        self.connector.update_metadata_status(name, status)
+
+    def update_sample_status(self, name: str, status: SampleStatus):
+        self.connector.update_sample_status(name, status)

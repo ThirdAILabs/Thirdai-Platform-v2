@@ -9,9 +9,10 @@ from thirdai import bolt
 from thirdai_storage.data_types import (
     DataSample,
     LabelCollection,
-    ModelMetadata,
+    Metadata,
+    MetadataStatus,
+    SampleStatus,
     TagMetadata,
-    TextClassificationData,
     TokenClassificationData,
 )
 from thirdai_storage.storage import DataStorage, SQLiteConnector
@@ -37,23 +38,6 @@ class ClassificationModel(Model):
     @abstractmethod
     def predict(self, **kwargs):
         pass
-
-    def get_labels(self):
-        raise NotImplementedError(
-            f"The method 'get_labels' is not implemented for the model class type: {self.__class__.__name__}"
-        )
-
-    def add_labels(self, labels: LabelCollection):
-        raise NotImplementedError(
-            f"The method 'add_labels' is not implemented for the model class type: {self.__class__.__name__}"
-        )
-
-    def insert_sample(
-        self, sample: Union[TokenClassificationData, TextClassificationData]
-    ):
-        raise NotImplementedError(
-            f"The method 'insert_sample' is not implemented for the model class type: {self.__class__.__name__}"
-        )
 
 
 class TextClassificationModel(ClassificationModel):
@@ -112,7 +96,9 @@ class TokenClassificationModel(ClassificationModel):
 
     def update_tag_metadata(self, tag_metadata):
         self.data_storage.insert_metadata(
-            metadata=ModelMetadata(name="tags_and_status", data=tag_metadata)
+            metadata=Metadata(
+                name="tags_and_status", data=tag_metadata, status=MetadataStatus.updated
+            )
         )
 
     def get_labels(self) -> List[str]:
@@ -128,7 +114,9 @@ class TokenClassificationModel(ClassificationModel):
         self.update_tag_metadata(tag_metadata)
 
     def insert_sample(self, sample: TokenClassificationData):
-        token_tag_sample = DataSample(name="ner", data=sample, user_provided=True)
+        token_tag_sample = DataSample(
+            name="ner", data=sample, user_provided=True, status=SampleStatus.untrained
+        )
         self.data_storage.insert_samples(
             samples=[token_tag_sample], override_buffer_limit=True
         )

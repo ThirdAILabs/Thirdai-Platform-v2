@@ -10,10 +10,9 @@ from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access
 from backend.datagen import generate_data_for_train_job
 from backend.file_handler import download_local_files
-from backend.thirdai_storage import data_types, storage
+from backend.thirdai_storage import storage
 from backend.train_config import (
     DatagenOptions,
-    Entity,
     FileInfo,
     FileLocation,
     JobOptions,
@@ -33,6 +32,7 @@ from backend.train_config import (
     UDTSubType,
 )
 from backend.utils import (
+    copy_data_storage,
     get_model,
     get_model_from_identifier,
     get_platform,
@@ -40,8 +40,11 @@ from backend.utils import (
     get_root_absolute_path,
     logger,
     model_bazaar_path,
+    remove_unused_samples,
     response,
+    retrieve_token_classification_samples_for_generation,
     submit_nomad_job,
+    tags_in_storage,
     update_json,
     validate_license_info,
     validate_name,
@@ -642,9 +645,16 @@ def datagen_callback(
 def retrain_udt(
     model_name: str,
     llm_provider: LLMProvider,
+    base_model_identifier: Optional[str] = None,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    if base_model_identifier is not None:
+        create_new_model with name model_name
+    else:
+        update existing model with name model_name
+    """
     user: schema.User = authenticated_user.user
     license_info = validate_license_info()
 
@@ -656,13 +666,38 @@ def retrain_udt(
             message=f"{model_name} is not a valid model name.",
         )
 
-    model = get_model(session, username=user.username, model_name=model_name)
+    if base_model_identifier:
+        base_model = get_base_model(base_model_identifier, user=user, session=session)
+        if base_model is None:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Base model with id {base_model_identifier} does not exist.",
+            )
 
-    if model is None:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Model with name {model_name} already exists for user {user.username}",
+        # create a new model
+        model: schema.Model = schema.Model(
+            id=uuid.uuid4(),
+            user_id=user.id,
+            train_status=schema.Status.not_started,
+            deploy_status=schema.Status.not_started,
+            name=model_name,
+            type=base_model.type,
+            sub_type=base_model.sub_type,
+            domain=user.email.split("@")[1],
+            access_level=base_model.access_level,
+            parent_id=base_model.id,
         )
+        session.add(model)
+        session.commit()
+        session.refresh(model)
+
+    else:
+        model = get_model(session, username=user.username, model_name=model_name)
+        if model is None:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Model with name {model_name} does not exist for user {user.username}",
+            )
 
     if model.type != ModelType.UDT and model.sub_type != UDTSubType.token:
         return response(
@@ -670,34 +705,21 @@ def retrain_udt(
             message=f"Cannot retrain model of the type : {model.type}, subtype : {model.sub_type}. Only UDT Token Classification supported.",
         )
 
-    storage_dir = Path(model_bazaar_path()) / "data" / str(model.id)
+    if base_model_identifier:
+        # if starting from a base model, copy the storage to the storage_dir of the new model
+        # remove unused samples and rollback metadata to be in a consistent state
+        copy_data_storage(base_model, model)
+        remove_unused_samples(base_model)
 
+    storage_dir = Path(model_bazaar_path()) / "data" / str(model.id)
     data_storage = storage.DataStorage(
         connector=storage.SQLiteConnector(db_path=storage_dir / "data_storage.db")
     )
 
-    tag_metadata: data_types.TagMetadata = data_storage.get_metadata(
-        "tags_and_status"
-    ).data
-
-    tag_status = tag_metadata.tag_status
-    tags = []
-    for tag in tag_status.keys():
-        tag_object = tag_status[tag]
-        tags.append(
-            Entity(
-                name=tag,
-                examples=tag_object.examples,
-                description=tag_object.description,
-                status=tag_object.status.name,
-            )
-        )
-
-    # retrieve all the samples
-    samples: List[data_types.DataSample] = data_storage.retrieve_samples(
-        name="ner", num_samples=None, user_provided=True
+    tags = tags_in_storage(data_storage)
+    token_classification_samples = retrieve_token_classification_samples_for_generation(
+        data_storage
     )
-    token_classification_samples = [sample.data for sample in samples]
 
     token_classification_options = TokenClassificationDatagenOptions(
         sub_type=UDTSubType.token,
@@ -729,6 +751,7 @@ def retrain_udt(
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
         model_id=str(model.id),
         data_id=str(model.id),
+        base_model_id=(None if not base_model_identifier else str(base_model.id)),
         model_options=UDTOptions(udt_options=placeholder_udt_options),
         datagen_options=datagen_options,
         data=data,

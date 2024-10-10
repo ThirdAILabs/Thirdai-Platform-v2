@@ -259,3 +259,44 @@ def test_list_accessible_users():
     data = res.json()
     assert len(data["data"]) == 6
     assert data["message"] == "Successfully got the list of all users"
+
+def test_reset_password():
+    from main import app
+
+    client = TestClient(app)
+
+    # Create a new user
+    res = create_user(
+        client,
+        username="reset-user",
+        email="reset-user@mail.com",
+        password="oldpassword",
+    )
+    assert res.status_code == 200  # User should be created successfully
+
+    # Request password reset code
+    res = client.get(
+        "/api/user/reset-password", params={"email": "reset-user@mail.com"}
+    )
+    assert res.status_code == 200  # Reset request should be successful
+
+    # If running in a test environment, extract the reset code from the response
+    reset_password_code = res.json()["data"]["reset_password_code"]
+    assert reset_password_code is not None
+
+    # Use the reset code to change the password
+    new_password_payload = {
+        "email": "reset-user@mail.com",
+        "reset_password_code": reset_password_code,
+        "new_password": "newsecurepassword",
+    }
+    res = client.post("/api/user/new-password", json=new_password_payload)
+    assert res.status_code == 200  # Password should be reset successfully
+
+    # Ensure the user cannot log in with the old password
+    res = login(client, username="reset-user@mail.com", password="oldpassword")
+    assert res.status_code == 401  # Old password should be rejected
+
+    # Ensure the user can log in with the new password
+    res = login(client, username="reset-user@mail.com", password="newsecurepassword")
+    assert res.status_code == 200  # New password should work

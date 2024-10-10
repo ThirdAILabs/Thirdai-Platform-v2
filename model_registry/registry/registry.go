@@ -1,12 +1,16 @@
 package registry
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"model_registry/schema"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -27,8 +31,8 @@ type ModelRegistry struct {
 func New(db *gorm.DB, storage Storage) *ModelRegistry {
 	return &ModelRegistry{
 		db:         db,
-		adminAuth:  jwtauth.New("HS256", []byte("secret-249024"), nil),
-		uploadAuth: jwtauth.New("HS256", []byte("secret-982409"), nil),
+		adminAuth:  jwtauth.New("HS256", getSecret(), nil),
+		uploadAuth: jwtauth.New("HS256", getSecret(), nil),
 		storage:    storage,
 	}
 }
@@ -55,10 +59,13 @@ func (registry *ModelRegistry) Routes() chi.Router {
 
 	r.Group(func(r chi.Router) {
 		r.Post("/login", registry.Login)
-		r.Get("/list-models", registry.ListModels)
-		r.Get("/download-link", registry.DownloadLink)
-		r.Get("/download", registry.storage.DownloadHandler())
+		// list-models and download-link use a post method so that the access tokens
+		// can be passed in the request body.
+		r.Post("/list-models", registry.ListModels)
+		r.Post("/download-link", registry.DownloadLink)
 	})
+
+	r.Mount("/storage", registry.storage.Routes())
 
 	return r
 }
@@ -114,6 +121,18 @@ type generateAccessTokenRequest struct {
 type generateAccessTokenResponse struct {
 	ModelName   string `json:"model_name"`
 	AccessToken string `json:"access_token"`
+}
+
+func createAccessToken() (string, error) {
+	b := make([]byte, 8)
+
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+
+	value := binary.BigEndian.Uint64(b)
+	return strconv.FormatUint(value, 16), nil
 }
 
 func (registry *ModelRegistry) GenerateAccessToken(w http.ResponseWriter, r *http.Request) {
@@ -294,7 +313,16 @@ func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	link, err := registry.storage.GetDownloadLink(model.ID)
+	u := r.URL.String()
+	var storageUrl string
+	if i := strings.Index(u, "/download-link"); i > 0 {
+		storageUrl, err = url.JoinPath(u[:i], "/storage")
+	} else {
+		http.Error(w, "Unable to find base url.", http.StatusInternalServerError)
+		return
+	}
+
+	link, err := registry.storage.GetDownloadLink(storageUrl, model.ID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Storage error: %v", err), http.StatusInternalServerError)
 		return
@@ -488,12 +516,12 @@ func getModelIdFromClaims(r *http.Request) (uint, error) {
 		return 0, fmt.Errorf("Error retrieving session token: %v", err)
 	}
 
-	modelIdStr, ok := claims["model_id"]
+	modelIdUncasted, ok := claims["model_id"]
 	if !ok {
 		return 0, fmt.Errorf("Invalid session token, missing claims")
 	}
 
-	modelId, ok := modelIdStr.(uint)
+	modelId, ok := modelIdUncasted.(uint)
 	if !ok {
 		return 0, fmt.Errorf("Invalid session token, invalid claim format")
 	}

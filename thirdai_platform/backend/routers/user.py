@@ -613,6 +613,7 @@ def list_all_users(session: Session = Depends(get_session)):
         data=jsonable_encoder(users_info),
     )
 
+
 @user_router.get("/accessible-users")
 def list_accessible_users(
     session: Session = Depends(get_session),
@@ -654,7 +655,7 @@ def list_accessible_users(
             .all()
         )
 
-    # Check if the authenticated user is already in the result; if not, add them
+        # Check if the authenticated user is already in the result; if not, add them
         if user not in users:
             users.append(user)  # Add the authenticated user if not present
 

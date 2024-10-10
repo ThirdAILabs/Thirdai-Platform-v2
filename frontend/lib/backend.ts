@@ -1210,8 +1210,6 @@ export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
   });
 }
 
-
-
 // MODEL //
 
 export async function updateModelAccessLevel(

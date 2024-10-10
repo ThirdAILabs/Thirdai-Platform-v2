@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import (
     global_admin_only,
     is_model_owner,
@@ -11,7 +12,6 @@ from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session, selectinload
-from auth.jwt import AuthenticatedUser, verify_access_token
 
 team_router = APIRouter()
 
@@ -46,8 +46,7 @@ def add_team(name: str, session: Session = Depends(get_session)):
 
 
 @team_router.post(
-    "/add-user-to-team",
-    dependencies=[Depends(team_admin_or_global_admin)]
+    "/add-user-to-team", dependencies=[Depends(team_admin_or_global_admin)]
 )
 def add_user_to_team(
     email: str,
@@ -415,7 +414,7 @@ def list_all_teams(session: Session = Depends(get_session)):
 def list_accessible_teams(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
-    ):
+):
     """
     List all teams related to that user.
 
@@ -433,12 +432,13 @@ def list_accessible_teams(
     user: schema.User = authenticated_user.user
     user_teams = [ut.team_id for ut in user.teams]
 
-     # Query to filter teams based on team_id present in user_teams
-    query = (session.query(schema.Team))
-    if(user.global_admin==False):
+    # Query to filter teams based on team_id present in user_teams
+    query = session.query(schema.Team)
+    if user.global_admin == False:
         query = query.filter(
-            schema.Team.id.in_(user_teams))  # Filter teams where team_id is in user_teams
-    
+            schema.Team.id.in_(user_teams)
+        )  # Filter teams where team_id is in user_teams
+
     teams_info = [
         {
             "id": team.id,

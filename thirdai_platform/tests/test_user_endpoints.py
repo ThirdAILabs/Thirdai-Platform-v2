@@ -1,7 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from .utils import auth_header, create_user, login, create_team,add_user_to_team,assign_team_admin
+from .utils import (
+    add_user_to_team,
+    assign_team_admin,
+    auth_header,
+    create_team,
+    create_user,
+    login,
+)
 
 pytestmark = [pytest.mark.unit]
 
@@ -173,9 +180,10 @@ def test_add_remove_global_admin():
         res.status_code == 400
     )  # Should fail as there must be at least one global admin
 
+
 # Add test for list_accessible_users
 def test_list_accessible_users():
-    from main import app  
+    from main import app
 
     client = TestClient(app)
 
@@ -194,13 +202,19 @@ def test_list_accessible_users():
     team2_id = res.json()["data"]["team_id"]
 
     # Create users
-    res = create_user(client, username="user2", email="user2@mail.com", password="password2")
+    res = create_user(
+        client, username="user2", email="user2@mail.com", password="password2"
+    )
     assert res.status_code == 200
 
-    res = create_user(client, username="user3", email="user3@mail.com", password="password3")
+    res = create_user(
+        client, username="user3", email="user3@mail.com", password="password3"
+    )
     assert res.status_code == 200
 
-    res = create_user(client, username="admin1", email="admin1@mail.com", password="password4")
+    res = create_user(
+        client, username="admin1", email="admin1@mail.com", password="password4"
+    )
     assert res.status_code == 200
 
     # Add user1 to team1
@@ -212,9 +226,9 @@ def test_list_accessible_users():
     assert res.status_code == 200
 
     # Assign admin1 as the admin of both team1 and team2
-    res = assign_team_admin(client,team1_id,"admin1@mail.com",admin_jwt)
+    res = assign_team_admin(client, team1_id, "admin1@mail.com", admin_jwt)
     assert res.status_code == 200
-    res = assign_team_admin(client,team2_id,"admin1@mail.com",admin_jwt)
+    res = assign_team_admin(client, team2_id, "admin1@mail.com", admin_jwt)
     assert res.status_code == 200
 
     # User1 logs in and should only see users from team1
@@ -226,8 +240,12 @@ def test_list_accessible_users():
     assert res.status_code == 200
     accessible_users = [user["email"] for user in res.json()["data"]]
     assert "user1@mail.com" in accessible_users  # User1 should see themself
-    assert "admin1@mail.com" in accessible_users  # Admin of their team should be accessible
-    assert "user2@mail.com" not in accessible_users  # User1 should not see users from team2
+    assert (
+        "admin1@mail.com" in accessible_users
+    )  # Admin of their team should be accessible
+    assert (
+        "user2@mail.com" not in accessible_users
+    )  # User1 should not see users from team2
 
     # User3 logs in and should only see User3 as it is not associated with any team
     res = login(client, username="user3@mail.com", password="password3")
@@ -238,7 +256,7 @@ def test_list_accessible_users():
     assert res.status_code == 200
     accessible_users = [user["email"] for user in res.json()["data"]]
     assert "user3@mail.com" in accessible_users  # User3 should see themself
-    assert len(accessible_users) == 1 #Ensure that it is not accessing other users.
+    assert len(accessible_users) == 1  # Ensure that it is not accessing other users.
 
     # Admin1 logs in and should see users from both team1 and team2
     res = login(client, username="admin1@mail.com", password="password4")
@@ -254,11 +272,14 @@ def test_list_accessible_users():
 
     # Test for global admin: should retrieve all users
     res = client.get("/api/user/accessible-users", headers=auth_header(admin_jwt))
-    assert res.status_code == 200, f"Unexpected status code: {res.status_code}. Response: {res.json()}"
+    assert (
+        res.status_code == 200
+    ), f"Unexpected status code: {res.status_code}. Response: {res.json()}"
 
     data = res.json()
     assert len(data["data"]) == 6
     assert data["message"] == "Successfully got the list of all users"
+
 
 def test_reset_password():
     from main import app

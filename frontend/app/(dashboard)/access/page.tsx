@@ -36,7 +36,7 @@ function AccessContent() {
   // Determine the user role
   let userRole = '';
   let roleDescription = '';
-  console.log("in page.tsx user -> ", user);
+  console.log('in page.tsx user -> ', user);
   if (user?.global_admin) {
     userRole = 'Global Admin';
     roleDescription =

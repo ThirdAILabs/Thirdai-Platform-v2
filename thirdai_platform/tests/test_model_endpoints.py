@@ -294,10 +294,11 @@ def test_model_team_permissions(create_models_and_users):
         write=["user_y", "user_z"],
     )
 
+
 @pytest.fixture(scope="session")
 def setup_users_and_models():
-    from main import app
     from licensing.verify import verify_license
+    from main import app
 
     client = TestClient(app)
 
@@ -306,7 +307,7 @@ def setup_users_and_models():
     thirdai.licensing.activate(license_info["boltLicenseKey"])
 
     global_admin = global_admin_token(client)
-    #creating team
+    # creating team
     res = create_team(client, "team1", access_token=global_admin)
     assert res.status_code == 201
     team_id = res.json()["data"]["team_id"]
@@ -317,10 +318,12 @@ def setup_users_and_models():
         "user1": create_and_login(client, "user1"),
         "user2": create_and_login(client, "user2"),
         "user3": create_and_login(client, "user3"),
-        "team1": team_id
+        "team1": team_id,
     }
     # Assigning user2 and user3 to team1
-    res = add_user_to_team(client, team=team_id, user="user2@mail.com", access_token=global_admin)
+    res = add_user_to_team(
+        client, team=team_id, user="user2@mail.com", access_token=global_admin
+    )
     assert res.status_code == 200
 
     res = assign_team_admin(client, team_id, "user3@mail.com", global_admin)
@@ -351,19 +354,31 @@ def test_accessible_models_as_global_admin(setup_users_and_models):
     client, tokens = setup_users_and_models
 
     # Global admin should be able to access all models
-    res = client.get("/api/model/accessible-models", headers=auth_header(tokens["global_admin"]))
+    res = client.get(
+        "/api/model/accessible-models", headers=auth_header(tokens["global_admin"])
+    )
     assert res.status_code == 200
 
     data = res.json()["data"]
     model_names = [model["model_name"] for model in data]
-    assert set(model_names) == {"model1", "model2", "model3", "model4", "model5","test_model_a", "test_model_b"}
+    assert set(model_names) == {
+        "model1",
+        "model2",
+        "model3",
+        "model4",
+        "model5",
+        "test_model_a",
+        "test_model_b",
+    }
 
 
 def test_accessible_models_user1(setup_users_and_models):
     client, tokens = setup_users_and_models
 
     # User1 should see only model1 (public) and model5 (private to them)
-    res = client.get("/api/model/accessible-models", headers=auth_header(tokens["user1"]))
+    res = client.get(
+        "/api/model/accessible-models", headers=auth_header(tokens["user1"])
+    )
     assert res.status_code == 200
 
     data = res.json()["data"]
@@ -375,7 +390,9 @@ def test_accessible_models_user2(setup_users_and_models):
     client, tokens = setup_users_and_models
 
     # User2 should see model1 (public), model4 (private to them), and model3 (protected and owned by them)
-    res = client.get("/api/model/accessible-models", headers=auth_header(tokens["user2"]))
+    res = client.get(
+        "/api/model/accessible-models", headers=auth_header(tokens["user2"])
+    )
     assert res.status_code == 200
 
     data = res.json()["data"]
@@ -387,7 +404,9 @@ def test_accessible_models_user3(setup_users_and_models):
     client, tokens = setup_users_and_models
 
     # User3 should see model1 (public), model2 (private to them), and model3 (protected and they belong to the same team)
-    res = client.get("/api/model/accessible-models", headers=auth_header(tokens["user3"]))
+    res = client.get(
+        "/api/model/accessible-models", headers=auth_header(tokens["user3"])
+    )
     assert res.status_code == 200
 
     data = res.json()["data"]
@@ -399,7 +418,9 @@ def test_accessible_models_no_access(setup_users_and_models):
     client, tokens = setup_users_and_models
 
     # User3 should not see model4 (private to user2) or model5 (private to user1)
-    res = client.get("/api/model/accessible-models", headers=auth_header(tokens["user3"]))
+    res = client.get(
+        "/api/model/accessible-models", headers=auth_header(tokens["user3"])
+    )
     assert res.status_code == 200
 
     data = res.json()["data"]

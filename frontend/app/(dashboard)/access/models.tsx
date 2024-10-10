@@ -119,7 +119,7 @@ export default function Models() {
         })
       );
       setUsers(userData);
-      console.log("teams data in user-> ", userData);
+      console.log('teams data in user-> ', userData);
     } catch (error) {
       console.error('Failed to fetch users', error);
       alert('Failed to fetch users' + error);
@@ -157,7 +157,7 @@ export default function Models() {
       setTeams(teamData);
     } catch (error) {
       console.error('Failed to fetch teams', error);
-      alert('Failed to fetch teams' + error)
+      alert('Failed to fetch teams' + error);
     }
   };
 

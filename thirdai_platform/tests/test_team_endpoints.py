@@ -24,6 +24,7 @@ def create_new_users(client):
 
     return users
 
+
 def fetch_team(client, team_name, user_token):
     """
     Fetch the team by name if it exists.
@@ -170,6 +171,7 @@ def test_team_management():
     all_teams = set([t["id"] for t in res.json()["data"]])
     assert len(set([purple_team]).intersection(all_teams)) == 1
 
+
 def test_list_accessible_teams():
     from main import app
 
@@ -188,7 +190,7 @@ def test_list_accessible_teams():
     user_b_token = res.json()["data"]["access_token"]
 
     # Fetch purple_team by the global admin
-    purple_team = fetch_team(client,"purple_team",global_admin)
+    purple_team = fetch_team(client, "purple_team", global_admin)
 
     # Create green_team
     res = create_team(client, "green_team", global_admin)

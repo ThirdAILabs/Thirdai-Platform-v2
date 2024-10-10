@@ -186,6 +186,7 @@ def list_models(
         data=jsonable_encoder(results),
     )
 
+
 @model_router.get("/accessible-models")
 def accessible_models(
     access_level: Annotated[Union[list[str], None], Query()] = None,
@@ -206,9 +207,7 @@ def accessible_models(
     user: schema.User = authenticated_user.user
     user_teams = [ut.team_id for ut in user.teams]
 
-    query = (
-        session.query(schema.Model)
-    )
+    query = session.query(schema.Model)
 
     if not user.is_global_admin():
         access_conditions = []

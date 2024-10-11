@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, model_validator
-from thirdai_storage.data_types import LabelEntity
+from thirdai_storage.data_types import LabelEntity, TokenClassificationData
 
 
 class ModelType(str, Enum):
@@ -192,6 +192,24 @@ class TokenClassificationDatagenOptions(BaseModel):
     tags: List[LabelEntity]
     num_sentences_to_generate: int
     num_samples_per_tag: Optional[int] = None
+
+    # example NER samples
+    samples: Optional[List[TokenClassificationData]] = None
+    templates_per_sample: int = 10
+
+    @model_validator(mode="after")
+    def deduplicate_tags(cls, values):
+        tag_map = {}
+        for tag in values.tags:
+            key = tag.name
+            if key in tag_map:
+                tag_map[key].examples = list(
+                    set(tag_map[key].examples) | set(tag.examples)
+                )
+            else:
+                tag_map[key] = tag
+        values.tags = list(tag_map.values())
+        return values
 
 
 class DatagenOptions(BaseModel):

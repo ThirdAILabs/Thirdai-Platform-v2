@@ -183,7 +183,7 @@ class TokenGenerationVariables(BaseModel):
     num_sentences_to_generate: int
     num_samples_per_tag: Optional[int] = None
     # example NER samples
-    samples: List[NERSample] = None
+    samples: Optional[List[NERSample]] = None
     templates_per_sample: int = 10
 
     def to_dict(self):

@@ -94,11 +94,9 @@ class TokenClassificationModel(ClassificationModel):
         # load tags and their status from the storage
         return self.data_storage.get_metadata("tags_and_status").data
 
-    def update_tag_metadata(self, tag_metadata):
+    def update_tag_metadata(self, tag_metadata, status: MetadataStatus):
         self.data_storage.insert_metadata(
-            metadata=Metadata(
-                name="tags_and_status", data=tag_metadata, status=MetadataStatus.updated
-            )
+            metadata=Metadata(name="tags_and_status", data=tag_metadata, status=status)
         )
 
     def get_labels(self) -> List[str]:
@@ -111,7 +109,7 @@ class TokenClassificationModel(ClassificationModel):
             tag_metadata.add_tag(label)
 
         # update the metadata entry in the DB
-        self.update_tag_metadata(tag_metadata)
+        self.update_tag_metadata(tag_metadata, MetadataStatus.updated)
 
     def insert_sample(self, sample: TokenClassificationData):
         token_tag_sample = DataSample(

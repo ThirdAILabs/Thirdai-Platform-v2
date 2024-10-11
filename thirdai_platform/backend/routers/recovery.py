@@ -2,7 +2,7 @@ import json
 import os
 import traceback
 from pathlib import Path
-from typing import Optional, Type
+from typing import Optional
 
 from auth.jwt import verify_access_token
 from backend.utils import (
@@ -16,17 +16,86 @@ from backend.utils import (
     submit_nomad_job,
 )
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, root_validator
 
 recovery_router = APIRouter()
 
 
-# Base configuration model for backup
 class BackupConfig(BaseModel):
-    cloud_provider: str
-    bucket_name: str
-    interval_minutes: Optional[int] = None  # For scheduling backups at intervals
+    """
+    Unified backup configuration class that dynamically validates required fields
+    based on the cloud provider type (or if no cloud provider is used for local backups).
+    """
+
+    cloud_provider: Optional[str] = Field(
+        None, description="Cloud provider (s3, azure, gcp, or empty for local)"
+    )
+    bucket_name: Optional[str] = Field(
+        None, description="Cloud bucket name (for cloud providers)"
+    )
+    interval_minutes: Optional[int] = Field(
+        None, description="For scheduling backups at intervals"
+    )
     backup_limit: Optional[int] = Field(5, description="Number of backups to retain")
+
+    # Cloud-specific fields (conditionally required based on cloud_provider)
+    aws_access_key: Optional[str] = Field(None, description="AWS Access Key (for s3)")
+    aws_secret_access_key: Optional[str] = Field(
+        None, description="AWS Secret Key (for s3)"
+    )
+    azure_account_name: Optional[str] = Field(
+        None, description="Azure Storage Account Name (for azure)"
+    )
+    azure_account_key: Optional[str] = Field(
+        None, description="Azure Storage Account Key (for azure)"
+    )
+    gcp_credentials_file_path: Optional[str] = Field(
+        None, description="GCP Credentials JSON File Path (for gcp)"
+    )
+
+    @root_validator(pre=True)
+    def validate_config(cls, values):
+        cloud_provider = values.get("cloud_provider")
+
+        if cloud_provider == "s3":
+            # For S3, ensure AWS keys are provided
+            if not values.get("aws_access_key") or not values.get(
+                "aws_secret_access_key"
+            ):
+                raise ValueError(
+                    "AWS credentials (access key and secret key) are required for S3 backups."
+                )
+            if not values.get("bucket_name"):
+                raise ValueError("Bucket name is required for S3 backups.")
+
+        elif cloud_provider == "azure":
+            # For Azure, ensure account name and key are provided
+            if not values.get("azure_account_name") or not values.get(
+                "azure_account_key"
+            ):
+                raise ValueError(
+                    "Azure account name and key are required for Azure backups."
+                )
+            if not values.get("bucket_name"):
+                raise ValueError("Bucket name is required for Azure backups.")
+
+        elif cloud_provider == "gcp":
+            # For GCP, ensure the credentials file path is provided
+            if not values.get("gcp_credentials_file_path"):
+                raise ValueError(
+                    "GCP credentials file path is required for GCP backups."
+                )
+            if not values.get("bucket_name"):
+                raise ValueError("Bucket name is required for GCP backups.")
+
+        elif cloud_provider is None:
+            # Local backup: no cloud provider means local backup, no extra fields required
+            pass
+
+        else:
+            raise ValueError(f"Unsupported cloud provider: {cloud_provider}")
+
+        return values
 
     def save_backup_config(self, model_bazaar_dir):
         config_path = os.path.join(model_bazaar_dir, "backup_config.json")
@@ -39,44 +108,11 @@ class BackupConfig(BaseModel):
         return config_path
 
 
-# S3 specific configuration
-class S3BackupConfig(BackupConfig):
-    aws_access_key: Optional[str] = Field(None, description="AWS Access Key")
-    aws_secret_access_key: Optional[str] = Field(None, description="AWS Secret Key")
-
-
-# Azure specific configuration
-class AzureBackupConfig(BackupConfig):
-    azure_account_name: str = Field(..., description="Azure Storage Account Name")
-    azure_account_key: str = Field(..., description="Azure Storage Account Key")
-
-
-# GCP specific configuration
-class GCPBackupConfig(BackupConfig):
-    gcp_credentials_file_path: str = Field(
-        ..., description="GCP Credentials JSON File Path"
-    )
-
-
-def get_cloud_config_class(cloud_provider: str) -> Type[BackupConfig]:
-    provider_classes = {
-        "s3": S3BackupConfig,
-        "azure": AzureBackupConfig,
-        "gcp": GCPBackupConfig,
-    }
-    if cloud_provider in provider_classes:
-        return provider_classes[cloud_provider]
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail=f"Unsupported cloud provider: {cloud_provider}",
-    )
-
-
 RECOVERY_SNAPSHOT_ID = "recovery-snapshot"
 
 
 @recovery_router.post("/backup", dependencies=[Depends(verify_access_token)])
-def backup(config: dict):
+def backup(config: BackupConfig):
     local_dir = os.getenv("SHARE_DIR")
     if not local_dir:
         raise HTTPException(
@@ -91,20 +127,8 @@ def backup(config: dict):
             detail="DATABASE_URI environment variable is not set.",
         )
 
-    cloud_provider = config.get("cloud_provider")
-    if not cloud_provider:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="cloud_provider field is required.",
-        )
-
-    # Dynamically select the correct Pydantic model for the cloud provider
-    ConfigClass = get_cloud_config_class(cloud_provider)
-
-    # Convert the incoming dictionary to the correct Pydantic model
-    config_object = ConfigClass(**config)
-
-    config_file_path = config_object.save_backup_config(model_bazaar_path())
+    # Save the configuration for future use
+    config_file_path = config.save_backup_config(model_bazaar_path())
 
     nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
     if nomad_job_exists(RECOVERY_SNAPSHOT_ID, nomad_endpoint):

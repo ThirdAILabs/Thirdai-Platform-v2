@@ -215,7 +215,8 @@ class TokenClassificationModel(ClassificationModel):
         except:
             for label in target_labels:
                 tag_status[label] = LabelEntity(
-                    name=label, status=LabelStatus.untrained, 
+                    name=label,
+                    status=LabelStatus.untrained,
                 )
 
         self.update_tag_metadata(

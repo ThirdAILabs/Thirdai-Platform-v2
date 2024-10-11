@@ -33,6 +33,7 @@ from backend.train_config import (
 )
 from backend.utils import (
     copy_data_storage,
+    delete_nomad_job,
     get_model,
     get_model_from_identifier,
     get_platform,
@@ -40,6 +41,7 @@ from backend.utils import (
     get_root_absolute_path,
     logger,
     model_bazaar_path,
+    nomad_job_exists,
     remove_unused_samples,
     response,
     retrieve_token_classification_samples_for_generation,
@@ -598,6 +600,9 @@ def datagen_callback(
     model: schema.Model = session.query(schema.Model).get(model_id)
 
     try:
+        if nomad_job_exists(model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")):
+            delete_nomad_job(model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT"))
+
         submit_nomad_job(
             str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
             nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),

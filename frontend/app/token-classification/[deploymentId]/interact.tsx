@@ -255,22 +255,20 @@ export default function Interact() {
   };
 
   // New state for caching manual tags
-  const [cachedTags, setCachedTags] = useState<{text: string, tags: Token[]}[]>([]);
+  const [cachedTags, setCachedTags] = useState<{ [sentence: string]: Token[] }>({});
 
   const cacheNewTag = async (newTag: string) => {
     if (!selectedRange) return;
-
-    const selectedText = annotations
-      .slice(selectedRange[0], selectedRange[1] + 1)
-      .map(token => token.text)
-      .join(' ');
 
     const updatedTags = annotations.map((token, index) => ({
       text: token.text,
       tag: (selectedRange && index >= selectedRange[0] && index <= selectedRange[1]) ? newTag : token.tag
     }));
 
-    setCachedTags(prev => [...prev, { text: inputText, tags: updatedTags }]);
+    setCachedTags(prev => ({
+      ...prev,
+      [inputText]: updatedTags
+    }));
 
     setAnnotations(updatedTags);
     updateTagColors([[newTag]]);
@@ -282,14 +280,14 @@ export default function Interact() {
 
   const submitFeedback = async () => {
     try {
-      for (const entry of cachedTags) {
+      for (const [sentence, tags] of Object.entries(cachedTags)) {
         await insertSample({
-          tokens: entry.text.split(' '),
-          tags: entry.tags.map(t => t.tag),
+          tokens: sentence.split(' '),
+          tags: tags.map(t => t.tag),
         });
       }
       console.log('All samples inserted successfully');
-      setCachedTags([]);  // Clear the cache after successful submission
+      setCachedTags({});  // Clear the cache after successful submission
     } catch (error) {
       console.error('Error inserting samples:', error);
     }
@@ -436,15 +434,14 @@ export default function Interact() {
     <div style={{ flex: 1 }}>
       <Card className="p-7 text-start" style={{ marginTop: '3rem' }}>
         <h3 className="text-lg font-semibold mb-4">Feedback from this session</h3>
-        {cachedTags.map((entry, index) => (
+        {Object.entries(cachedTags).map(([sentence, tags], index) => (
           <div key={index} className="mb-4">
-            {/* <p className="font-medium">{entry.text}</p> */}
             <div style={{ lineHeight: 2 }}>
-              {entry.tags.map((token, tokenIndex) => (
+              {tags.map((token, tokenIndex) => (
                 <Highlight
                   key={tokenIndex}
                   currentToken={token}
-                  nextToken={tokenIndex === entry.tags.length - 1 ? null : entry.tags[tokenIndex + 1]}
+                  nextToken={tokenIndex === tags.length - 1 ? null : tags[tokenIndex + 1]}
                   tagColors={tagColors}
                   onMouseOver={() => {}}
                   onMouseDown={() => {}}
@@ -459,7 +456,7 @@ export default function Interact() {
           size="sm"
           style={{ marginTop: '20px' }}
           onClick={submitFeedback}
-          disabled={cachedTags.length === 0}
+          disabled={Object.keys(cachedTags).length === 0}
         >
           Submit Feedback
         </Button>

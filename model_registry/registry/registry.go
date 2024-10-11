@@ -264,7 +264,7 @@ func (registry *ModelRegistry) ListModels(w http.ResponseWriter, r *http.Request
 
 	if len(params.AccessTokens) > 0 {
 		var privateModels []schema.Model
-		query := registry.db.Joins("AccessToken").Where("access = ? and status = ?", schema.Private, schema.Commited).Where("access_token IN ?", params.AccessTokens)
+		query := registry.db.Joins("JOIN access_tokens ON access_tokens.model_id = models.id").Where("access = ? and status = ?", schema.Private, schema.Commited).Where("access_token IN ?", params.AccessTokens)
 		result := params.applyFilters(query).Find(&privateModels)
 		if result.Error != nil {
 			dbError(w, result.Error)

@@ -236,6 +236,28 @@ func createAccessToken(router chi.Router, modelName string, token string) (strin
 	return result["access_token"], nil
 }
 
+func listModels(t *testing.T, router chi.Router, accessTokens []string) []registry.ModelInfo {
+	params := map[string]interface{}{
+		"access_tokens": accessTokens,
+	}
+	body, err := json.Marshal(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("POST", "/list-models", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Result().StatusCode != http.StatusOK {
+		t.Fatalf("list models failed %d %v", w.Result().StatusCode, w.Body.String())
+	}
+
+	result := make(map[string][]registry.ModelInfo)
+	json.NewDecoder(w.Body).Decode(&result)
+	return result["models"]
+}
+
 func TestFullModelWorkflow(t *testing.T) {
 	registry := setupRegistry(t)
 	router := registry.Routes()
@@ -248,6 +270,7 @@ func TestFullModelWorkflow(t *testing.T) {
 	t.Run("UploadModels", func(t *testing.T) {
 		uploadModel(t, router, "abc", model1, token, schema.Public)
 		uploadModel(t, router, "xyz", model2, token, schema.Private)
+		uploadModel(t, router, "123", randomBytes(87), token, schema.Private)
 	})
 
 	t.Run("DownloadPublicModel", func(t *testing.T) {
@@ -307,7 +330,51 @@ func TestFullModelWorkflow(t *testing.T) {
 		}
 	})
 
-	t.Run("ListModels", func(t *testing.T) {
+	t.Run("ListModelsWithoutAccessToken", func(t *testing.T) {
+		models := listModels(t, router, []string{})
+		if len(models) != 1 {
+			t.Fatal("Expected 1 model")
+		}
 
+		if models[0].Name != "abc" {
+			t.Fatal("incorrect model returned")
+		}
+	})
+
+	t.Run("ListModelsWithWrongAccessToken", func(t *testing.T) {
+		models := listModels(t, router, []string{token1})
+		if len(models) != 1 {
+			t.Fatal("Expected 1 model")
+		}
+
+		if models[0].Name != "abc" {
+			t.Fatal("incorrect model returned")
+		}
+	})
+
+	t.Run("ListModelsWithAccessToken", func(t *testing.T) {
+		models := listModels(t, router, []string{token1, token2})
+		if len(models) != 2 {
+			t.Fatal("Expected 2 models")
+		}
+
+		if models[0].Name != "abc" || models[1].Name != "xyz" {
+			t.Fatal("incorrect model returned")
+		}
+	})
+
+	t.Run("DeleteModel", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/delete-model?model_name=xyz", nil)
+		req.Header.Add("Authorization", authHeader(token))
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		if w.Result().StatusCode != http.StatusOK {
+			t.Fatalf("failed to delete model %d %v", w.Result().StatusCode, w.Body.String())
+		}
+
+		if len(listModels(t, router, []string{token1, token2})) != 1 {
+			t.Fatalf("Expected only 1 result after deleting model")
+		}
 	})
 }

@@ -71,6 +71,9 @@ func (registry *ModelRegistry) Routes() chi.Router {
 }
 
 func (registry *ModelRegistry) AddAdmin(email string, password string) {
+	if email == "" || password == "" {
+		panic("Email and password must not be empty")
+	}
 	pwdHash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
 	if err != nil {
 		panic(fmt.Sprintf("Error creating admin: %v", err))

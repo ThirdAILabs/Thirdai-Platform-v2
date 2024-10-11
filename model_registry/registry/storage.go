@@ -36,6 +36,10 @@ type LocalStorage struct {
 }
 
 func NewLocalStorage(path string) Storage {
+	err := os.MkdirAll(path, os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
 	return &LocalStorage{path: path}
 }
 

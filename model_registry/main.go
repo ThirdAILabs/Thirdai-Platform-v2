@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"model_registry/registry"
 	"model_registry/schema"
@@ -13,7 +15,15 @@ import (
 )
 
 func main() {
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	dbPath := flag.String("db", "registry.db", "The sqlite db to create/use")
+	storagePath := flag.String("storage", "storage", "The directory to use for local storage")
+	adminEmail := flag.String("email", "", "The admin email to use")
+	adminPassword := flag.String("password", "", "The admin password to use")
+	port := flag.Int("port", 3040, "The port to run on")
+
+	flag.Parse()
+
+	db, err := gorm.Open(sqlite.Open(*dbPath), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("failed to connect database")
 	}
@@ -22,9 +32,11 @@ func main() {
 	db.AutoMigrate(&schema.AccessToken{})
 	db.AutoMigrate(&schema.Admin{})
 
-	storage := registry.NewLocalStorage("./registry/storage")
+	storage := registry.NewLocalStorage(*storagePath)
 
 	registry := registry.New(db, storage)
+
+	registry.AddAdmin(*adminEmail, *adminPassword)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -32,7 +44,7 @@ func main() {
 
 	r.Mount("/api/v1", registry.Routes())
 
-	err = http.ListenAndServe(":3000", r)
+	err = http.ListenAndServe(fmt.Sprintf(":%d", port), r)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}

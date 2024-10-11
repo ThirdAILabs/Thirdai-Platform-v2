@@ -207,8 +207,9 @@ class TokenClassificationModel(ClassificationModel):
             )
         }
 
-        for label in target_labels:
-            tag_status[label] = LabelEntity(name=label, status=LabelStatus.untrained)
+        new_tags = self.config.datagen_options.datagen_options.tags
+        for tag in new_tags:
+            tag_status[tag.name] = tag
 
         self.update_tag_metadata(tag_metadata=TagMetadata(tag_status=tag_status))
 

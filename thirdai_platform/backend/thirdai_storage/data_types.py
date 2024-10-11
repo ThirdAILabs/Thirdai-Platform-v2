@@ -28,8 +28,8 @@ class LabelStatus(str, Enum):
 class LabelEntity(BaseModel):
     name: str
     status: LabelStatus = LabelStatus.uninserted
-    examples: Optional[List[str]] = None
-    description: Optional[str] = None
+    examples: List[str] = Field(default_factory=list)
+    description: str = Field(default="NA")
 
     class Config:
         validate_assignment = True

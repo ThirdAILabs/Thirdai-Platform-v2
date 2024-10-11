@@ -582,6 +582,8 @@ def tags_in_storage(data_storage: storage.DataStorage) -> List[Entity]:
     tag_status = tag_metadata.tag_status
     tags = []
     for tag in tag_status.keys():
+        if tag == "O":
+            continue
         tag_object = tag_status[tag]
         tags.append(
             Entity(

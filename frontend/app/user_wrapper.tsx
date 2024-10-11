@@ -4,6 +4,7 @@ import { getAccessToken, User, accessTokenUser } from '@/lib/backend';
 import { access } from 'fs';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, createContext, SetStateAction, Dispatch } from 'react';
+import federatedLogout from "@/utils/federatedLogout";
 
 interface UserContext {
   user: User | null;
@@ -26,10 +27,16 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
   const [accessToken, setAccessToken] = useState<string | null | undefined>();
   const [user, setUser] = useState<User | null>(null);
 
-  const logout = () => {
+  const logout = async () => {
     setAccessToken(null);
     localStorage.removeItem('accessToken');
     setUser(null);
+    await federatedLogout();
+
+
+    // Redirect to the keycloak login page after logout
+    window.location.href = '/keycloak-login';
+
   };
 
   useEffect(() => {

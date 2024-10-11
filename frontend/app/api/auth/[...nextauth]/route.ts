@@ -29,7 +29,6 @@ export const authOptions: AuthOptions = {
   secret:  process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: '/auth/signin',
-    signOut: '/auth/signout',
   },
   session: {
     strategy: "jwt",
@@ -42,9 +41,6 @@ export const authOptions: AuthOptions = {
     },
     warn(code, ...message) {
       console.warn('NextAuth warning:', code, message);
-    },
-    debug(code, ...message) {
-      console.debug('NextAuth debug:', code, message);
     },
   },
   callbacks: {
@@ -91,7 +87,6 @@ export const authOptions: AuthOptions = {
   }
 }
 
-console.log(authOptions)
 const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST }

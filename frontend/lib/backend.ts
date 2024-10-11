@@ -650,6 +650,40 @@ export async function getWorkflowDetails(workflowId: string): Promise<WorkflowDe
   });
 }
 
+export function userEmailLogin(
+  email: string,
+  password: string,
+  setAccessToken: (token: string) => void
+): Promise<any> {
+  return new Promise((resolve, reject) => {
+    axios
+      .get(`${thirdaiPlatformBaseUrl}/api/user/email-login`, {
+        headers: {
+          Authorization: `Basic ${window.btoa(`${email}:${password}`)}`,
+        },
+      })
+      .then((res) => {
+        const accessToken = res.data.data.access_token;
+
+        if (accessToken) {
+          // Store accessToken into local storage, replacing any existing one.
+          localStorage.setItem('accessToken', accessToken);
+          setAccessToken(accessToken);
+        }
+
+        const username = res.data.data.user.username;
+
+        if (username) {
+          localStorage.setItem('username', username);
+        }
+
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
 
 export function userEmailLoginWithAccessToken(
   accessToken: string,

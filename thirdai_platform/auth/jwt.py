@@ -77,6 +77,8 @@ def verify_access_token(
             user_info = keycloak_openid.userinfo(access_token)
             keycloak_user_id = user_info.get("sub")
 
+            print(access_token)
+            print(user_info)
             if not keycloak_user_id:
                 raise CREDENTIALS_EXCEPTION
 

@@ -101,7 +101,12 @@ if IDENTITY_PROVIDER == "keycloak":
                         "config": {},
                     }
                 ],
-                "webOrigins": ["*", "http://localhost:80/*", "http://localhost:8180/*"],
+                "webOrigins": [
+                    "*",
+                    "http://localhost:80/*",
+                    "http://localhost:8180/*",
+                    "http://localhost/*",
+                ],
             }
 
             keycloak_admin.create_client(new_client)
@@ -118,6 +123,7 @@ if IDENTITY_PROVIDER == "keycloak":
             "http://localhost:8180/*",
             "http://localhost:80/*",
             "http://localhost:3006/*",
+            "http://localhost/*",
         ],
     )
 

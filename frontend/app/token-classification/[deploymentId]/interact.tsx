@@ -112,9 +112,10 @@ interface TagSelectorProps {
   open: boolean;
   choices: string[];
   onSelect: (tag: string) => void;
+  onNewLabel: (newLabel: string) => Promise<void>;
 }
 
-function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
+function TagSelector({ open, choices, onSelect, onNewLabel }: TagSelectorProps) {
   const [fuse, setFuse] = useState(new Fuse(choices));
   const [query, setQuery] = useState('');
   useEffect(() => {
@@ -125,7 +126,10 @@ function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
     <DropdownMenuItem className="font-medium" key={key}>
       <button
         style={{ width: '100%', height: '100%', textAlign: 'left' }}
-        onClick={() => {
+        onClick={async () => {
+          if (!choices.includes(value)) {
+            await onNewLabel(value);
+          }
           onSelect(value);
           setQuery('');
         }}
@@ -165,7 +169,6 @@ function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
                   borderRadius: '2px',
                   fontWeight: 'bold',
                 }}
-                onClick={() => onSelect(query)}
               >
                 New{' '}
               </span>{' '}
@@ -257,6 +260,22 @@ export default function Interact() {
   // New state for caching manual tags
   const [cachedTags, setCachedTags] = useState<{ [sentence: string]: Token[] }>({});
 
+  const normalizeSentence = (sentence: string): string => {
+    return sentence.replace(/[.,]$/, '').trim();
+  };
+
+  const handleNewLabel = async (newLabel: string) => {
+    try {
+      await addLabel({
+        tags: [{ name: newLabel, description: `Description for ${newLabel}` }]
+      });
+      setAllLabels(prevLabels => [...prevLabels, newLabel]);
+      console.log('New label added successfully');
+    } catch (error) {
+      console.error('Error adding new label:', error);
+    }
+  };
+
   const cacheNewTag = async (newTag: string) => {
     if (!selectedRange) return;
 
@@ -265,9 +284,11 @@ export default function Interact() {
       tag: (selectedRange && index >= selectedRange[0] && index <= selectedRange[1]) ? newTag : token.tag
     }));
 
+    const normalizedSentence = normalizeSentence(inputText);
+
     setCachedTags(prev => ({
       ...prev,
-      [inputText]: updatedTags
+      [normalizedSentence]: updatedTags
     }));
 
     setAnnotations(updatedTags);
@@ -291,60 +312,6 @@ export default function Interact() {
     } catch (error) {
       console.error('Error inserting samples:', error);
     }
-  };
-
-  const insertNewSample = async (newTag: string) => {
-    if (!selectedRange) return;
-
-    // Instead of using only selected tokens, we'll use the entire sentence
-    const entireSentence = annotations.map(token => token.text).join(' ');
-    
-    // Create a new array of tags, updating only the selected range
-    const updatedTags = annotations.map((token, index) => {
-      if (selectedRange && index >= selectedRange[0] && index <= selectedRange[1]) {
-        return newTag;
-      }
-      return token.tag;
-    });
-
-    try {
-      await insertSample({
-        tokens: entireSentence.split(' '),
-        tags: updatedTags,
-      });
-      console.log('Sample inserted successfully');
-    } catch (error) {
-      console.error('Error inserting sample:', error);
-    }
-  };
-
-  const finetuneTags = async (newTag: string) => {
-    if (!allLabels.includes(newTag)) {
-      try {
-        await addLabel({
-          tags: [{ name: newTag, description: `Description for ${newTag}` }]
-        });
-        setAllLabels(prevLabels => [...prevLabels, newTag]);
-        console.log('New label added successfully');
-      } catch (error) {
-        console.error('Error adding new label:', error);
-      }
-    }
-
-    await insertNewSample(newTag);
-
-    setAnnotations((prev) =>
-      prev.map(({ text, tag }, idx) =>
-        selectedRange && idx >= selectedRange[0] && idx <= selectedRange[1]
-          ? { text, tag: newTag }
-          : { text, tag }
-      )
-    );
-    updateTagColors([[newTag]]);
-    setSelectedRange(null);
-    setMouseDownIndex(null);
-    setMouseUpIndex(null);
-    setSelecting(false);
   };
 
   return (
@@ -423,6 +390,7 @@ export default function Interact() {
                     open={!!selectedRange && index === selectedRange[1]}
                     choices={allLabels}
                     onSelect={cacheNewTag}
+                    onNewLabel={handleNewLabel}
                   />
                 </React.Fragment>
               );

@@ -617,4 +617,4 @@ def retrieve_token_classification_samples_for_generation(
         if sample.status == data_types.SampleStatus.untrained
     ]
 
-    return
+    return token_classification_samples

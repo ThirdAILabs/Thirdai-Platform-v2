@@ -3,6 +3,7 @@ import traceback
 from pathlib import Path
 from typing import List, Optional
 
+from backend.thirdai_storage.data_types import TokenClassificationData
 from backend.train_config import (
     DatagenOptions,
     JobOptions,
@@ -164,6 +165,10 @@ class TokenClassificationGenerateArgs(BaseModel):
     num_samples_per_tag: Optional[int] = None
     allocation_cores: Optional[int] = None
     allocation_memory: Optional[int] = None
+
+    # example NER samples
+    samples: Optional[List[TokenClassificationData]] = None
+    templates_per_sample: int = 10
 
 
 def generate_token_data(

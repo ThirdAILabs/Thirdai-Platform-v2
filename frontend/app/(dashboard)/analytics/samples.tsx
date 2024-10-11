@@ -296,58 +296,6 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
           ))}
         </CardContent>
       </Card>
-      <Card style={{ width: '32.5%', height: '45rem', marginBottom: '1rem' }}>
-        <CardHeader>
-          <CardTitle>Recent Upvotes</CardTitle>
-          <CardDescription>The latest user-provided upvotes</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {recentUpvotes.map(({ timestamp, query, upvote }, idx) => (
-            <TextPairs
-              key={idx}
-              timestamp={timestamp}
-              label1="Query"
-              label2="Upvote"
-              text1={query}
-              text2={upvote}
-            />
-          ))}
-        </CardContent>
-      </Card>
-      <Card style={{ width: '32.5%', height: '45rem', marginBottom: '1rem' }}>
-        <CardHeader>
-          <CardTitle>Recent Associations</CardTitle>
-          <CardDescription>The latest user-provided associations</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {recentAssociations.map(({ timestamp, source, target }, idx) => (
-            <TextPairs
-              key={idx}
-              timestamp={timestamp}
-              label1="Source"
-              label2="Target"
-              text1={source}
-              text2={target}
-            />
-          ))}
-        </CardContent>
-      </Card>
-      <Card style={{ width: '32.5%', height: '45rem' }}>
-        <CardHeader>
-          <CardTitle>Recent Query Reformulations</CardTitle>
-          <CardDescription>The latest queries that required reformulation</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {recentReformulations.map(({ timestamp, original, reformulations }, idx) => (
-            <Reformulation
-              key={idx}
-              timestamp={timestamp}
-              original={original}
-              reformulations={reformulations}
-            />
-          ))}
-        </CardContent>
-      </Card>
     </div>
   );
 }

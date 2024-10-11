@@ -70,6 +70,18 @@ func (registry *ModelRegistry) Routes() chi.Router {
 	return r
 }
 
+func (registry *ModelRegistry) AddAdmin(email string, password string) {
+	pwdHash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
+	if err != nil {
+		panic(fmt.Sprintf("Error creating admin: %v", err))
+	}
+
+	result := registry.db.Create(&schema.Admin{Email: email, Password: string(pwdHash)})
+	if result.Error != nil {
+		panic(fmt.Sprintf("Error creating admin: %v", result.Error))
+	}
+}
+
 type loginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -333,74 +345,6 @@ func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(res)
 }
-
-// func (registry *ModelRegistry) DownloadModel(w http.ResponseWriter, r *http.Request) {
-// 	var params downloadRequest
-// 	dec := json.NewDecoder(r.Body)
-// 	err := dec.Decode(&params)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	model, err := registry.getModel(params.ModelName)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusBadRequest)
-// 		return
-// 	}
-
-// 	if model.Access != schema.Public {
-// 		var accessToken schema.AccessToken
-// 		result := registry.db.Find("access_token = ?", params.AccessToken).Take(&accessToken)
-// 		if result.Error != nil {
-// 			http.Error(w, result.Error.Error(), http.StatusBadRequest)
-// 			return
-// 		}
-// 		if accessToken.ModelID != model.ID {
-// 			http.Error(w, fmt.Sprintf("Provided access token does not match model %v'.", params.ModelName), http.StatusUnauthorized)
-// 			return
-// 		}
-// 	}
-
-// 	flusher, ok := w.(http.Flusher)
-// 	if !ok {
-// 		http.Error(w, fmt.Sprintf("Http response does not support chunked response."), http.StatusInternalServerError)
-// 		return
-// 	}
-
-// 	file, err := os.Open(model.Path)
-// 	if err != nil {
-// 		http.Error(w, fmt.Sprintf("Unable to open file for model '%v'", params.ModelName), http.StatusInternalServerError)
-// 		return
-// 	}
-// 	defer file.Close()
-
-// 	buffer := bufio.NewReader(file)
-// 	chunk := make([]byte, 1024*1024)
-
-// 	for {
-// 		readN, err := buffer.Read(chunk)
-// 		if err != nil && err != io.EOF {
-// 			http.Error(w, err.Error(), http.StatusInternalServerError)
-// 			return
-// 		}
-
-// 		writeN, err := w.Write(chunk[:readN])
-// 		if writeN != readN {
-// 			http.Error(w, fmt.Sprintf("Expected to write %d bytes to stream, wrote %d", readN, writeN), http.StatusInternalServerError)
-// 			return
-// 		}
-// 		if err != nil {
-// 			http.Error(w, err.Error(), http.StatusInternalServerError)
-// 			return
-// 		}
-// 		flusher.Flush() // Sends chunk
-
-// 		if err == io.EOF {
-// 			break
-// 		}
-// 	}
-// }
 
 type uploadRequest struct {
 	ModelName    string `json:"model_name"`

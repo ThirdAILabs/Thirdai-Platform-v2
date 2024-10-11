@@ -1,24 +1,9 @@
-from auth.identity_providers.keycloak_provider import KeycloakIdentityProvider
-from auth.identity_providers.postgres_provider import PostgresIdentityProvider
-import os
 from database import schema
-from auth.identity_providers.base import AccountSignupBody
 from database.session import get_session
 from contextlib import contextmanager
 from auth.utils import keycloak_admin
 from auth.jwt import identity_provider_type
-
-
-def get_identity_provider(provider_type: str):
-    if provider_type.lower() == "keycloak":
-        return KeycloakIdentityProvider()
-    elif provider_type.lower() == "postgres":
-        return PostgresIdentityProvider()
-    else:
-        raise ValueError("Invalid provider type. Choose 'keycloak' or 'postgres'.")
-
-
-identity_provider = get_identity_provider(identity_provider_type)
+from backend.utils import hash_password
 
 
 class AdminAddition:
@@ -34,25 +19,29 @@ class AdminAddition:
         If Keycloak is used, Google as an identity provider can also be added or updated.
         """
         with contextmanager(get_session)() as session:
+            user_id = None
             if identity_provider_type == "postgres":
                 # Handle Postgres identity provider logic
-                user = identity_provider.get_user(admin_username, session)
-
-                identity_provider.create_user(
-                    AccountSignupBody(
-                        username=admin_username,
-                        email=admin_mail,
-                        password=admin_password,
-                    ),
-                    session,
-                )
-                user = (
-                    session.query(schema.User)
-                    .filter(schema.User.username == admin_username)
+                user_identity = (
+                    session.query(schema.UserPostgresIdentityProvider)
+                    .filter((schema.UserPostgresIdentityProvider.email == admin_mail))
                     .first()
                 )
-                user.global_admin = True
-                session.commit()
+
+                if not user_identity:
+                    hashed_password = hash_password(admin_password)
+
+                    new_user_identity = schema.UserPostgresIdentityProvider(
+                        username=admin_username,
+                        email=admin_mail,
+                        password_hash=hashed_password,
+                        verified=True,
+                    )
+                    session.add(new_user_identity)
+                    session.commit()
+                    session.refresh(new_user_identity)
+
+                    user_id = new_user_identity.id
 
             elif identity_provider_type == "keycloak":
                 # Keycloak logic
@@ -78,22 +67,20 @@ class AdminAddition:
                         }
                     )
 
-                user = (
-                    session.query(schema.User)
-                    .filter(schema.User.id == keycloak_user_id)
-                    .first()
-                )
+                user_id = keycloak_user_id
 
-                # if not user:
-                #     user = schema.User(
-                #         id=keycloak_user_id,
-                #         username=admin_username,
-                #         email=admin_password,
-                #     )
+            user = session.query(schema.User).filter(schema.User.id == user_id).first()
 
-                #     user.global_admin = True
-                #     session.add(user)
-                #     session.commit()
+            # if not user:
+            #     user = schema.User(
+            #         id=keycloak_user_id,
+            #         username=admin_username,
+            #         email=admin_password,
+            #     )
+
+            #     user.global_admin = True
+            #     session.add(user)
+            #     session.commit()
 
 
 AdminAddition.add_admin(

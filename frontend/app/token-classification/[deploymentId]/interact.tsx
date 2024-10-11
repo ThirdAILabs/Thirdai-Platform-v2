@@ -2,7 +2,7 @@
 
 import { Container, TextField, Box } from '@mui/material';
 import { Button } from '@/components/ui/button';
-import { MouseEventHandler, ReactNode, useEffect, useRef, useState } from 'react';
+import React, { MouseEventHandler, ReactNode, useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import * as _ from 'lodash';
 import { useTokenClassificationEndpoints } from '@/lib/backend';
@@ -254,6 +254,47 @@ export default function Interact() {
     }
   };
 
+  // New state for caching manual tags
+  const [cachedTags, setCachedTags] = useState<{text: string, tags: Token[]}[]>([]);
+
+  const cacheNewTag = async (newTag: string) => {
+    if (!selectedRange) return;
+
+    const selectedText = annotations
+      .slice(selectedRange[0], selectedRange[1] + 1)
+      .map(token => token.text)
+      .join(' ');
+
+    const updatedTags = annotations.map((token, index) => ({
+      text: token.text,
+      tag: (selectedRange && index >= selectedRange[0] && index <= selectedRange[1]) ? newTag : token.tag
+    }));
+
+    setCachedTags(prev => [...prev, { text: inputText, tags: updatedTags }]);
+
+    setAnnotations(updatedTags);
+    updateTagColors([[newTag]]);
+    setSelectedRange(null);
+    setMouseDownIndex(null);
+    setMouseUpIndex(null);
+    setSelecting(false);
+  };
+
+  const submitFeedback = async () => {
+    try {
+      for (const entry of cachedTags) {
+        await insertSample({
+          tokens: entry.text.split(' '),
+          tags: entry.tags.map(t => t.tag),
+        });
+      }
+      console.log('All samples inserted successfully');
+      setCachedTags([]);  // Clear the cache after successful submission
+    } catch (error) {
+      console.error('Error inserting samples:', error);
+    }
+  };
+
   const insertNewSample = async (newTag: string) => {
     if (!selectedRange) return;
 
@@ -309,15 +350,8 @@ export default function Interact() {
   };
 
   return (
-    <Container
-      style={{
-        textAlign: 'center',
-        paddingTop: '20vh',
-        width: '70%',
-        minWidth: '400px',
-        maxWidth: '800px',
-      }}
-    >
+  <Container style={{ display: 'flex', paddingTop: '20vh', width: '90%', maxWidth: '1200px' }}>
+    <div style={{ flex: 2, marginRight: '20px' }}>
       <Box display="flex" justifyContent="center" alignItems="center" width="100%">
         <Input
           autoFocus
@@ -326,9 +360,8 @@ export default function Interact() {
           value={inputText}
           onChange={handleInputChange}
           placeholder="Enter your text..."
-          onSubmit={handleRun}
           onKeyDown={(e) => {
-            if (e.keyCode === 13 && e.shiftKey === false) {
+            if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               handleRun();
             }
@@ -358,9 +391,8 @@ export default function Interact() {
             {annotations.map((token, index) => {
               const nextToken = index === annotations.length - 1 ? null : annotations[index + 1];
               return (
-                <>
+                <React.Fragment key={index}>
                   <Highlight
-                    key={index}
                     currentToken={token}
                     nextToken={nextToken}
                     tagColors={tagColors}
@@ -392,14 +424,47 @@ export default function Interact() {
                   <TagSelector
                     open={!!selectedRange && index === selectedRange[1]}
                     choices={allLabels}
-                    onSelect={finetuneTags}
+                    onSelect={cacheNewTag}
                   />
-                </>
+                </React.Fragment>
               );
             })}
           </Card>
         </Box>
       )}
-    </Container>
+    </div>
+    <div style={{ flex: 1 }}>
+      <Card className="p-7 text-start" style={{ marginTop: '3rem' }}>
+        <h3 className="text-lg font-semibold mb-4">Feedback from this session</h3>
+        {cachedTags.map((entry, index) => (
+          <div key={index} className="mb-4">
+            {/* <p className="font-medium">{entry.text}</p> */}
+            <div style={{ lineHeight: 2 }}>
+              {entry.tags.map((token, tokenIndex) => (
+                <Highlight
+                  key={tokenIndex}
+                  currentToken={token}
+                  nextToken={tokenIndex === entry.tags.length - 1 ? null : entry.tags[tokenIndex + 1]}
+                  tagColors={tagColors}
+                  onMouseOver={() => {}}
+                  onMouseDown={() => {}}
+                  selecting={false}
+                  selected={false}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+        <Button
+          size="sm"
+          style={{ marginTop: '20px' }}
+          onClick={submitFeedback}
+          disabled={cachedTags.length === 0}
+        >
+          Submit Feedback
+        </Button>
+      </Card>
+    </div>
+  </Container>
   );
 }

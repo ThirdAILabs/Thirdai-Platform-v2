@@ -13,11 +13,8 @@ func getSecret() []byte {
 	// tokens issued before the restart (that aren't yet expired) will be invalidated.
 	b := make([]byte, 16)
 
-	n, err := rand.Read(b)
+	_, err := rand.Read(b)
 	if err != nil {
-		panic(err)
-	}
-	if n != len(b) {
 		panic(err)
 	}
 

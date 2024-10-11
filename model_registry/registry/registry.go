@@ -318,7 +318,7 @@ func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Reque
 
 	if model.Access != schema.Public {
 		var accessToken schema.AccessToken
-		result := registry.db.Find("access_token = ?", params.AccessToken).Take(&accessToken)
+		result := registry.db.Find(&accessToken, "access_token = ?", params.AccessToken)
 		if result.Error != nil {
 			dbError(w, result.Error)
 			return
@@ -331,7 +331,7 @@ func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Reque
 
 	u := r.URL.String()
 	var storageUrl string
-	if i := strings.Index(u, "/download-link"); i > 0 {
+	if i := strings.Index(u, "download-link"); i >= 0 {
 		storageUrl, err = url.JoinPath(u[:i], "/storage")
 	} else {
 		http.Error(w, "Unable to find base url.", http.StatusInternalServerError)
@@ -372,6 +372,8 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 		requestParsingError(w, err)
 		return
 	}
+
+	// TODO: check params
 
 	var model *schema.Model
 
@@ -416,7 +418,11 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	_, token, err := registry.uploadAuth.Encode(map[string]interface{}{"model_id": model.ID, "exp": time.Now().Add(time.Minute * 10)})
+	claims := map[string]interface{}{
+		"model_id": strconv.FormatUint(uint64(model.ID), 10),
+		"exp":      time.Now().Add(time.Minute * 10),
+	}
+	_, token, err := registry.uploadAuth.Encode(claims)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error creating upload session token: %v", err), http.StatusInternalServerError)
 		return
@@ -465,17 +471,17 @@ func getModelIdFromClaims(r *http.Request) (uint, error) {
 		return 0, fmt.Errorf("Error retrieving session token: %v", err)
 	}
 
-	modelIdUncasted, ok := claims["model_id"]
+	modelIdStr, ok := claims["model_id"]
 	if !ok {
 		return 0, fmt.Errorf("Invalid session token, missing claims")
 	}
 
-	modelId, ok := modelIdUncasted.(uint)
-	if !ok {
-		return 0, fmt.Errorf("Invalid session token, invalid claim format")
+	modelId, err := strconv.ParseUint(modelIdStr.(string), 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("Invalid session token, invalid claim format: %v", err)
 	}
 
-	return modelId, nil
+	return uint(modelId), nil
 }
 
 func (registry *ModelRegistry) UploadChunk(w http.ResponseWriter, r *http.Request) {
@@ -494,7 +500,7 @@ func (registry *ModelRegistry) UploadChunk(w http.ResponseWriter, r *http.Reques
 	// TODO(Nicholas): Should we validate content-range size against model size?
 
 	expectedBytes := contentRange.end - contentRange.start
-	chunk := make([]byte, 0, expectedBytes)
+	chunk := make([]byte, expectedBytes)
 	n, err := r.Body.Read(chunk)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error reading request body: %v", err), http.StatusBadRequest)
@@ -511,7 +517,7 @@ func (registry *ModelRegistry) UploadChunk(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	w.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (registry *ModelRegistry) CommitUpload(w http.ResponseWriter, r *http.Request) {
@@ -537,7 +543,7 @@ func (registry *ModelRegistry) CommitUpload(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	w.WriteHeader(http.StatusAccepted)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (registry *ModelRegistry) getModel(name string) (schema.Model, error) {

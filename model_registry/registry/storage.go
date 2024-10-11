@@ -40,7 +40,7 @@ func NewLocalStorage(path string) Storage {
 	if err != nil {
 		panic(err)
 	}
-	return &LocalStorage{path: path}
+	return &LocalStorage{path: path, downloadAuth: jwtauth.New("HS256", getSecret(), nil)}
 }
 
 func (s *LocalStorage) Type() string {
@@ -48,7 +48,10 @@ func (s *LocalStorage) Type() string {
 }
 
 func (s *LocalStorage) GetDownloadLink(storageUrl string, modelId uint) (string, error) {
-	claims := map[string]interface{}{"model_id": modelId, "exp": time.Now().Add(time.Minute * 5)}
+	claims := map[string]interface{}{
+		"model_id": strconv.FormatUint(uint64(modelId), 10),
+		"exp":      time.Now().Add(time.Minute * 5),
+	}
 	_, token, err := s.downloadAuth.Encode(claims)
 	if err != nil {
 		return "", err
@@ -78,7 +81,7 @@ func (s *LocalStorage) StartUpload(modelId uint) error {
 }
 
 func (s *LocalStorage) UploadChunk(modelId uint, offset int64, chunk []byte) error {
-	file, err := os.Open(s.getModelPath(modelId))
+	file, err := os.OpenFile(s.getModelPath(modelId), os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		return err
 	}
@@ -86,14 +89,12 @@ func (s *LocalStorage) UploadChunk(modelId uint, offset int64, chunk []byte) err
 
 	_, err = file.Seek(offset, 0)
 	if err != nil {
-		return err
+		return fmt.Errorf("seek error: %v", err)
 	}
 
-	buf := bufio.NewWriter(file)
-
-	n, err := buf.Write(chunk)
+	n, err := file.Write(chunk)
 	if err != nil {
-		return err
+		return fmt.Errorf("write error: %v", err)
 	}
 	if n != len(chunk) {
 		return fmt.Errorf("Attempted to write %d bytes, wrote %d", len(chunk), n)
@@ -119,15 +120,15 @@ func (s *LocalStorage) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	modelIdUncasted, ok := token.Get("model_id")
+	modelIdStr, ok := token.Get("model_id")
 	if !ok {
 		http.Error(w, "Invalid claims in token", http.StatusBadRequest)
 		return
 	}
 
-	modelId, ok := modelIdUncasted.(uint)
-	if !ok {
-		http.Error(w, "Invalid claims in token", http.StatusBadRequest)
+	modelId, err := strconv.ParseUint(modelIdStr.(string), 10, 32)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid claims in token: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -137,7 +138,7 @@ func (s *LocalStorage) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, err := os.Open(s.getModelPath(modelId))
+	file, err := os.Open(s.getModelPath(uint(modelId)))
 	if err != nil {
 		http.Error(w, "Unable to open file for model", http.StatusInternalServerError)
 		return
@@ -149,7 +150,8 @@ func (s *LocalStorage) Download(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		readN, err := buffer.Read(chunk)
-		if err != nil && err != io.EOF {
+		isEof := err == io.EOF
+		if err != nil && !isEof {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -165,7 +167,7 @@ func (s *LocalStorage) Download(w http.ResponseWriter, r *http.Request) {
 		}
 		flusher.Flush() // Sends chunk
 
-		if err == io.EOF {
+		if isEof {
 			break
 		}
 	}

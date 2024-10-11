@@ -28,9 +28,10 @@ func main() {
 		log.Fatalf("failed to connect database")
 	}
 
-	db.AutoMigrate(&schema.Model{})
-	db.AutoMigrate(&schema.AccessToken{})
-	db.AutoMigrate(&schema.Admin{})
+	err = db.AutoMigrate(&schema.Model{}, &schema.AccessToken{}, &schema.Admin{})
+	if err != nil {
+		log.Fatalf("Failed to setup tables: %v", err)
+	}
 
 	storage := registry.NewLocalStorage(*storagePath)
 

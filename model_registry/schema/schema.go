@@ -35,7 +35,7 @@ type AccessToken struct {
 	Name        string
 
 	ModelID  uint
-	ModelRef Model
+	ModelRef Model `gorm:"foreignKey:ModelID"`
 }
 
 type Admin struct {

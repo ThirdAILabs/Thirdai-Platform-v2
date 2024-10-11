@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"model_registry/schema"
 	"net/http"
 	"net/url"
@@ -99,26 +100,26 @@ func (registry *ModelRegistry) Login(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(&params)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		requestParsingError(w, err)
 		return
 	}
 
 	var admin schema.Admin
-	result := registry.db.Take(&admin, "username = ?", params.Email)
+	result := registry.db.Take(&admin, "email = ?", params.Email)
 	if result.Error != nil {
-		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		dbError(w, result.Error)
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(params.Password))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		http.Error(w, fmt.Sprintf("Invalid password: %v", err), http.StatusUnauthorized)
 		return
 	}
 
 	_, token, err := registry.adminAuth.Encode(map[string]interface{}{"email": admin.Email, "exp": time.Now().Add(time.Minute * 15)})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error creating admin auth token: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -155,25 +156,25 @@ func (registry *ModelRegistry) GenerateAccessToken(w http.ResponseWriter, r *htt
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(&params)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		requestParsingError(w, err)
 		return
 	}
 
 	model, err := registry.getModel(params.ModelName)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Unable to find model with name '%v': %v", params.ModelName, err), http.StatusBadRequest)
 		return
 	}
 
 	accessToken, err := createAccessToken()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error creating access token: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	result := registry.db.Create(&schema.AccessToken{AccessToken: accessToken, Name: params.TokenName, ModelID: model.ID})
 	if result.Error != nil {
-		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		dbError(w, result.Error)
 		return
 	}
 
@@ -192,19 +193,19 @@ func (registry *ModelRegistry) DeleteModel(w http.ResponseWriter, r *http.Reques
 
 	model, err := registry.getModel(modelName)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Unable to find model with name '%v': %v", modelName, err), http.StatusBadRequest)
 		return
 	}
 
 	err = registry.storage.DeleteModel(model.ID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Unable to delete model. Storage error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	result := registry.db.Delete(&model)
 	if result.Error != nil {
-		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		dbError(w, result.Error)
 		return
 	}
 
@@ -249,15 +250,15 @@ func (registry *ModelRegistry) ListModels(w http.ResponseWriter, r *http.Request
 	var params listModelsRequest
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(&params)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err != nil && err != io.EOF {
+		requestParsingError(w, err)
 		return
 	}
 
 	var models []schema.Model
 	result := params.applyFilters(registry.db.Where("access = ? and status = ?", schema.Public, schema.Commited)).Find(&models)
 	if result.Error != nil {
-		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		dbError(w, result.Error)
 		return
 	}
 
@@ -266,7 +267,7 @@ func (registry *ModelRegistry) ListModels(w http.ResponseWriter, r *http.Request
 		query := registry.db.Joins("AccessToken").Where("access = ? and status = ?", schema.Private, schema.Commited).Where("access_token IN ?", params.AccessTokens)
 		result := params.applyFilters(query).Find(&privateModels)
 		if result.Error != nil {
-			http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+			dbError(w, result.Error)
 			return
 		}
 		models = append(models, privateModels...)
@@ -305,13 +306,13 @@ func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Reque
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(&params)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		requestParsingError(w, err)
 		return
 	}
 
 	model, err := registry.getModel(params.ModelName)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Unable to find model with name '%v': %v", params.ModelName, err), http.StatusBadRequest)
 		return
 	}
 
@@ -319,7 +320,7 @@ func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Reque
 		var accessToken schema.AccessToken
 		result := registry.db.Find("access_token = ?", params.AccessToken).Take(&accessToken)
 		if result.Error != nil {
-			http.Error(w, result.Error.Error(), http.StatusBadRequest)
+			dbError(w, result.Error)
 			return
 		}
 		if accessToken.ModelID != model.ID {
@@ -339,7 +340,7 @@ func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Reque
 
 	link, err := registry.storage.GetDownloadLink(storageUrl, model.ID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Storage error: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Unable to get download link. Storage error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -368,7 +369,7 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(&params)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		requestParsingError(w, err)
 		return
 	}
 
@@ -411,13 +412,13 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 
 	err = registry.storage.StartUpload(model.ID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Storage error: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Unable to start upload. Storage error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	_, token, err := registry.uploadAuth.Encode(map[string]interface{}{"model_id": model.ID, "exp": time.Now().Add(time.Minute * 10)})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error creating upload session token: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -506,7 +507,7 @@ func (registry *ModelRegistry) UploadChunk(w http.ResponseWriter, r *http.Reques
 
 	err = registry.storage.UploadChunk(modelId, contentRange.start, chunk)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Storage error: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Unable to upload chunk. Storage error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -524,7 +525,7 @@ func (registry *ModelRegistry) CommitUpload(w http.ResponseWriter, r *http.Reque
 
 	result := registry.db.First(&model, modelId)
 	if result.Error != nil {
-		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		dbError(w, result.Error)
 		return
 	}
 
@@ -532,7 +533,7 @@ func (registry *ModelRegistry) CommitUpload(w http.ResponseWriter, r *http.Reque
 
 	result = registry.db.Save(&model)
 	if result.Error != nil {
-		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		dbError(w, result.Error)
 		return
 	}
 

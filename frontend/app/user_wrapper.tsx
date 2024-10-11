@@ -34,8 +34,11 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
     await federatedLogout();
 
 
-    // Redirect to the keycloak login page after logout
-    window.location.href = '/keycloak-login';
+    if (process.env.NEXT_PUBLIC_IDENTITY_PROVIDER && process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes("keycloak")) {
+      window.location.href = '/keycloak-login';
+    } else {
+      window.location.href = '/login-email';
+    }
 
   };
 
@@ -50,7 +53,11 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
     accessTokenUser(accessToken).then((user) => {
       setUser(user);
       if (!user) {
-        router.push('/keycloak-login');
+        if (process.env.NEXT_PUBLIC_IDENTITY_PROVIDER && process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes("keycloak")) {
+          router.push('/keycloak-login');
+        } else {
+          router.push('/login-email');
+        }
       }
     });
   }, [accessToken]);

@@ -28,8 +28,6 @@ class AdminAddition:
         admin_mail: str,
         admin_username: str,
         admin_password: str,
-        google_client_id: str = None,
-        google_client_secret: str = None,
     ):
         """
         Add or update a global admin based on the current identity provider (Keycloak or Postgres).
@@ -102,6 +100,4 @@ AdminAddition.add_admin(
     admin_mail="kc_admin@mail.com",
     admin_username="kc_admin",
     admin_password="password",
-    google_client_id="732733861386-hnofv1207ot1k71i2p3q48ol810jccl1.apps.googleusercontent.com",
-    google_client_secret="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",
 )

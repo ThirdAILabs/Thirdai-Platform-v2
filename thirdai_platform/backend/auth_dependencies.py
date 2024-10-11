@@ -7,8 +7,6 @@ from database import schema
 from database.session import get_session
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from auth.utils import oauth2_scheme
-from auth.identity_providers.factory import identity_provider
 
 
 def get_vault_client() -> hvac.Client:

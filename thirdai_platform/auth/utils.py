@@ -83,15 +83,15 @@ if IDENTITY_PROVIDER == "keycloak":
         new_client = {
             "clientId": client_name,
             "enabled": True,
-            "publicClient": True,  # Set to False to use client-secret authentication.
+            "publicClient": True,
             "redirectUris": redirect_uris,
             "rootUrl": root_url,
             "baseUrl": base_url,
-            "directAccessGrantsEnabled": False,  # Align with account-console if direct grants are not needed.
+            "directAccessGrantsEnabled": False,
             "serviceAccountsEnabled": False,
             "standardFlowEnabled": True,
             "implicitFlowEnabled": False,
-            "fullScopeAllowed": False,  # Adjust to match account-console settings.
+            "fullScopeAllowed": False,
             "defaultClientScopes": ["profile", "email", "openid", "roles"],
             "optionalClientScopes": ["offline_access", "microprofile-jwt"],
             "protocolMappers": [

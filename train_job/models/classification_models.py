@@ -100,7 +100,7 @@ class ClassificationModel(Model):
     def get_model(self):
         # if a model with the same id has already been initialized, return the model
         if os.path.exists(self.model_save_path):
-            return self.load_model(self.model_save_path)
+            return bolt.UniversalDeepTransformer.load(str(self.model_save_path))
 
         # if model with the id not found but has a base model, return the base model
         if self.config.base_model_id:
@@ -209,9 +209,13 @@ class TokenClassificationModel(ClassificationModel):
 
         new_tags = self.config.datagen_options.datagen_options.tags
         for tag in new_tags:
-            tag_status[tag.name] = tag.model_dump()
+            tag.status = LabelStatus.untrained
+            tag_status[tag.name] = tag
 
-        self.update_tag_metadata(tag_metadata=TagMetadata(tag_status=tag_status))
+        self.update_tag_metadata(
+            tag_metadata=TagMetadata(tag_status=tag_status),
+            status=MetadataStatus.unchanged,
+        )
 
         default_tag = self.tkn_cls_vars.default_tag
         return bolt.UniversalDeepTransformer(
@@ -237,11 +241,9 @@ class TokenClassificationModel(ClassificationModel):
         # load tags and their status from the storage
         return self.data_storage.get_metadata("tags_and_status").data
 
-    def update_tag_metadata(self, tag_metadata):
+    def update_tag_metadata(self, tag_metadata, status: MetadataStatus):
         self.data_storage.insert_metadata(
-            metadata=Metadata(
-                name="tags_and_status", data=tag_metadata, status=MetadataStatus.updated
-            )
+            metadata=Metadata(name="tags_and_status", data=tag_metadata, status=status)
         )
 
     def train(self, **kwargs):
@@ -286,10 +288,7 @@ class TokenClassificationModel(ClassificationModel):
 
         # once training is complete, update the status of the metadata to unchanged
         # and the status of the samples to trained
-        self.update_tag_metadata(tags)
-        self.data_storage.update_metadata_status(
-            "tags_and_status", MetadataStatus.unchanged
-        )
+        self.update_tag_metadata(tags, MetadataStatus.unchanged)
         self.data_storage.update_sample_status("ner", SampleStatus.trained)
 
         self.evaluate(model, self.test_files())

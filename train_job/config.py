@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, model_validator
+from thirdai_storage.data_types import LabelStatus
 
 
 class ModelType(str, Enum):
@@ -181,6 +182,7 @@ class Entity(BaseModel):
     name: str
     examples: List[str]
     description: str
+    status: LabelStatus = LabelStatus.untrained
 
 
 class TextClassificationDatagenOptions(BaseModel):

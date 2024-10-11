@@ -190,7 +190,7 @@ class Entity(BaseModel):
     name: str
     examples: Optional[List[str]] = None
     description: Optional[str] = None
-    status: str = "untrained"
+    status: data_types.LabelStatus = data_types.LabelStatus.untrained
 
 
 class TextClassificationDatagenOptions(BaseModel):

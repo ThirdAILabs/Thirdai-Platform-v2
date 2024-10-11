@@ -92,7 +92,7 @@ class ClassificationModel(Model):
         return Path(self.config.model_bazaar_dir) / "models" / model_id / "model.udt"
 
     def load_model(self, model_id):
-        return bolt.UniversalDeepTransformer.load(self.get_udt_path(model_id))
+        return bolt.UniversalDeepTransformer.load(str(self.get_udt_path(model_id)))
 
     def save_model(self, model):
         model.save(str(self.model_save_path))
@@ -209,7 +209,7 @@ class TokenClassificationModel(ClassificationModel):
 
         new_tags = self.config.datagen_options.datagen_options.tags
         for tag in new_tags:
-            tag_status[tag.name] = tag
+            tag_status[tag.name] = tag.model_dump()
 
         self.update_tag_metadata(tag_metadata=TagMetadata(tag_status=tag_status))
 

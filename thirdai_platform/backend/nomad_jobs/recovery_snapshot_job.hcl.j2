@@ -38,8 +38,8 @@ job "recovery-snapshot" {
             "{{ share_dir }}:/model_bazaar"
           ]
         {% elif platform == "local" %}
-          command = "{{ python_path }}"
-          args    = ["{{ recovery_snapshot_script }}"]
+          command = "/bin/sh"
+          args    = ["-c", "cd {{ thirdai_platform_dir }} && {{ python_path }} {{ recovery_snapshot_script }}"]
         {% endif %}
       }
 

@@ -118,7 +118,7 @@ class Entity(BaseModel):
     description: str = Field(default="NA")
     status: EntityStatus = EntityStatus.untrained
 
-    @field_validator("name", mode="before")
+    @field_validator("name", mode="after")
     def uppercase_name(cls, v):
         return v.upper()
 

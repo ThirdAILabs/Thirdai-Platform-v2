@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, model_validator
-from thirdai_storage.data_types import LabelStatus
+from thirdai_storage.data_types import LabelEntity
 
 
 class ModelType(str, Enum):
@@ -178,17 +178,10 @@ class LLMProvider(str, Enum):
     cohere = "cohere"
 
 
-class Entity(BaseModel):
-    name: str
-    examples: List[str]
-    description: str
-    status: LabelStatus = LabelStatus.untrained
-
-
 class TextClassificationDatagenOptions(BaseModel):
     sub_type: Literal[UDTSubType.text] = UDTSubType.text
     samples_per_label: int
-    target_labels: List[Entity]
+    target_labels: List[LabelEntity]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
     vocab_per_sentence: int = 4
@@ -196,7 +189,7 @@ class TextClassificationDatagenOptions(BaseModel):
 
 class TokenClassificationDatagenOptions(BaseModel):
     sub_type: Literal[UDTSubType.token] = UDTSubType.token
-    tags: List[Entity]
+    tags: List[LabelEntity]
     num_sentences_to_generate: int
     num_samples_per_tag: Optional[int] = None
 

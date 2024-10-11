@@ -6,7 +6,7 @@ from dataclasses import MISSING, dataclass, fields
 from enum import Enum
 from typing import Dict, List, Optional, Type, TypeVar, Union, get_args, get_origin
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 T = TypeVar("T", bound="EnvLoader")
 
@@ -114,11 +114,11 @@ class EntityStatus(str, Enum):
 
 class Entity(BaseModel):
     name: str
-    examples: Optional[List[str]] = None
-    description: Optional[str] = None
+    examples: List[str] = Field(default_factory=list)
+    description: str = Field(default="NA")
     status: EntityStatus = EntityStatus.untrained
 
-    @field_validator("name", mode="before")
+    @field_validator("name", mode="after")
     def uppercase_name(cls, v):
         return v.upper()
 

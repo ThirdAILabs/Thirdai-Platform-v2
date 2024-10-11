@@ -13,7 +13,7 @@ from urllib.parse import urljoin
 import bcrypt
 import requests
 from backend.thirdai_storage import data_types, storage
-from backend.train_config import Entity
+from backend.train_config import LabelEntity
 from database import schema
 from fastapi import HTTPException, status
 from fastapi.responses import JSONResponse
@@ -574,23 +574,13 @@ def handle_exceptions(func):
     return wrapper
 
 
-def tags_in_storage(data_storage: storage.DataStorage) -> List[Entity]:
+def tags_in_storage(data_storage: storage.DataStorage) -> List[LabelEntity]:
     tag_metadata: data_types.TagMetadata = data_storage.get_metadata(
         "tags_and_status"
     ).data
 
     tag_status = tag_metadata.tag_status
-    tags = []
-    for tag in tag_status.keys():
-        tag_object = tag_status[tag]
-        tags.append(
-            Entity(
-                name=tag,
-                examples=tag_object.examples,
-                description=tag_object.description,
-                status=tag_object.status.name,
-            )
-        )
+    tags = [tag_status[tag] for tag in tag_status.keys() if tag != "O"]
     return tags
 
 
@@ -627,4 +617,4 @@ def retrieve_token_classification_samples_for_generation(
         if sample.status == data_types.SampleStatus.untrained
     ]
 
-    return
+    return token_classification_samples

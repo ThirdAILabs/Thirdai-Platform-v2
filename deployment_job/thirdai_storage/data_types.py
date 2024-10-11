@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import ClassVar, Dict, List, Optional, Union
+from typing import ClassVar, Dict, List, Union
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 """
 These datatypes are helper objects for storing data into a persistent storage 
@@ -27,12 +27,16 @@ class LabelStatus(str, Enum):
 
 class LabelEntity(BaseModel):
     name: str
+    examples: List[str] = Field(default_factory=list)
+    description: str = Field(default="NA")
     status: LabelStatus = LabelStatus.uninserted
-    examples: Optional[List[str]] = None
-    description: Optional[str] = None
 
     class Config:
         validate_assignment = True
+
+    @field_validator("name", mode="after")
+    def uppercase_name(cls, v):
+        return v.upper()
 
 
 class SampleStatus(str, Enum):

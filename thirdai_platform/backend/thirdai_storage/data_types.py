@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import ClassVar, Dict, List, Optional, Union
+from typing import ClassVar, Dict, List, Union
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator

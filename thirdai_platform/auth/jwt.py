@@ -9,7 +9,7 @@ from database import schema
 from database.session import get_session
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from auth.utils import keycloak_admin, keycloak_openid, get_token
+from auth.utils import keycloak_openid
 from jwt.exceptions import ExpiredSignatureError, ImmatureSignatureError
 from fastapi import HTTPException, status
 
@@ -77,8 +77,6 @@ def verify_access_token(
             user_info = keycloak_openid.userinfo(access_token)
             keycloak_user_id = user_info.get("sub")
 
-            print(access_token)
-            print(user_info)
             if not keycloak_user_id:
                 raise CREDENTIALS_EXCEPTION
 

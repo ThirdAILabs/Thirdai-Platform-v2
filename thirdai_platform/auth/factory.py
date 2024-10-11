@@ -41,8 +41,6 @@ class AdminAddition:
                     session.commit()
                     session.refresh(new_user_identity)
 
-                    user_id = new_user_identity.id
-
             elif identity_provider_type == "keycloak":
                 # Keycloak logic
                 keycloak_user_id = keycloak_admin.get_user_id(admin_username)
@@ -67,20 +65,25 @@ class AdminAddition:
                         }
                     )
 
-                user_id = keycloak_user_id
+            user = (
+                session.query(schema.User)
+                .filter(schema.User.email == admin_mail)
+                .first()
+            )
 
-            user = session.query(schema.User).filter(schema.User.id == user_id).first()
+            if user:
+                session.delete(user)
+                session.commit()
 
-            # if not user:
-            #     user = schema.User(
-            #         id=keycloak_user_id,
-            #         username=admin_username,
-            #         email=admin_password,
-            #     )
+            user = schema.User(
+                id=keycloak_user_id,
+                username=admin_username,
+                email=admin_password,
+            )
 
-            #     user.global_admin = True
-            #     session.add(user)
-            #     session.commit()
+            user.global_admin = True
+            session.add(user)
+            session.commit()
 
 
 AdminAddition.add_admin(

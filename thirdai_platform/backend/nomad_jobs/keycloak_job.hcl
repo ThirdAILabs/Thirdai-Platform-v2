@@ -16,7 +16,7 @@ job "keycloak" {
       config {
         image = "quay.io/keycloak/keycloak:22.0"
         ports = ["keycloak-http"]
-        args  = ["start-dev", "--debug", "--http-port=8180"]
+        args  = ["start", "--debug", "--http-port=8180"]
       }
 
       env {

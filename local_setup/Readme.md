@@ -112,6 +112,7 @@ Without this process, it is cumbersome to test out platform changes. We would ha
         
         ![screenshot](Nomad_driver_status.png)
 
+
 10. **Launch Frontend**
 
     To run the frontend, follow these steps:

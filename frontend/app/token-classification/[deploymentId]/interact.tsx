@@ -113,24 +113,38 @@ interface TagSelectorProps {
   choices: string[];
   onSelect: (tag: string) => void;
   onNewLabel: (newLabel: string) => Promise<void>;
+  currentTag: string;
 }
 
-function TagSelector({ open, choices, onSelect, onNewLabel }: TagSelectorProps) {
-  const [fuse, setFuse] = useState(new Fuse(choices));
+function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSelectorProps) {
+  const [fuse, setFuse] = useState<Fuse<string>>(new Fuse([]));
   const [query, setQuery] = useState('');
+  const [searchableChoices, setSearchableChoices] = useState<string[]>([]);
+
   useEffect(() => {
-    setFuse(new Fuse(choices));
-  }, [choices]);
-  const searchResults = query !== '' ? fuse.search(query).map((val) => val.item) : choices;
+    // Filter out 'O' from choices and add 'Delete TAG' if currentTag is not 'O'
+    const updatedChoices = choices.filter(choice => choice !== 'O');
+    if (currentTag !== 'O') {
+      updatedChoices.unshift('Delete TAG');
+    }
+    setSearchableChoices(updatedChoices);
+    setFuse(new Fuse(updatedChoices));
+  }, [choices, currentTag]);
+
+  const searchResults = query !== '' 
+    ? fuse.search(query).map((result) => result.item) 
+    : searchableChoices;
+
   const makeDropdownMenuItem = (key: number, value: string, child: ReactNode) => (
     <DropdownMenuItem className="font-medium" key={key}>
       <button
         style={{ width: '100%', height: '100%', textAlign: 'left' }}
         onClick={async () => {
-          if (!choices.includes(value)) {
-            await onNewLabel(value);
+          const selectedTag = value === 'Delete TAG' ? 'O' : value;
+          if (!choices.includes(selectedTag) && selectedTag !== 'O') {
+            await onNewLabel(selectedTag);
           }
-          onSelect(value);
+          onSelect(selectedTag);
           setQuery('');
         }}
       >
@@ -138,6 +152,7 @@ function TagSelector({ open, choices, onSelect, onNewLabel }: TagSelectorProps) 
       </button>
     </DropdownMenuItem>
   );
+
   return (
     <DropdownMenu open={open} modal={false}>
       <DropdownMenuTrigger>
@@ -156,9 +171,10 @@ function TagSelector({ open, choices, onSelect, onNewLabel }: TagSelectorProps) 
         />
         {searchResults.map((val, index) => makeDropdownMenuItem(index, val, val))}
         {query !== '' &&
-          !searchResults.map((val) => val).includes(query) &&
+          !searchResults.includes(query) &&
+          query !== 'Delete TAG' &&
           makeDropdownMenuItem(
-            /* key= */ 0,
+            /* key= */ searchResults.length,
             query,
             <>
               <span
@@ -244,14 +260,16 @@ export default function Interact() {
       setAnnotations(
         _.zip(result.tokens, result.predicted_tags).map(([text, tag]) => ({
           text: text as string,
-          tag: tag![0] as string,
+          tag: (tag as string[])[0],
         }))
       );
 
       // Fetch labels after prediction
       const labels = await getLabels();
-      setAllLabels(labels);
-      updateTagColors([labels]);
+      // Filter out 'O' from the list of labels
+      const filteredLabels = labels.filter(label => label !== 'O');
+      setAllLabels(filteredLabels);
+      updateTagColors([filteredLabels]);
     } catch (error) {
       console.error('Error during prediction or fetching labels:', error);
     }
@@ -286,10 +304,19 @@ export default function Interact() {
 
     const normalizedSentence = normalizeSentence(inputText);
 
-    setCachedTags(prev => ({
-      ...prev,
-      [normalizedSentence]: updatedTags
-    }));
+    setCachedTags(prev => {
+      const updatedCachedTags = {
+        ...prev,
+        [normalizedSentence]: updatedTags
+      };
+
+      // Remove the sentence if it doesn't have any tagged tokens
+      if (!updatedTags.some(token => token.tag !== 'O')) {
+        delete updatedCachedTags[normalizedSentence];
+      }
+
+      return updatedCachedTags;
+    });
 
     setAnnotations(updatedTags);
     updateTagColors([[newTag]]);
@@ -298,6 +325,24 @@ export default function Interact() {
     setMouseUpIndex(null);
     setSelecting(false);
   };
+
+  const updateFeedbackDashboard = () => {
+    setCachedTags(prev => {
+      const updatedCachedTags = { ...prev };
+      
+      Object.keys(updatedCachedTags).forEach(sentence => {
+        if (!updatedCachedTags[sentence].some(token => token.tag !== 'O')) {
+          delete updatedCachedTags[sentence];
+        }
+      });
+
+      return updatedCachedTags;
+    });
+  };
+
+  useEffect(() => {
+    updateFeedbackDashboard();
+  }, [annotations]);
 
   const submitFeedback = async () => {
     try {
@@ -391,6 +436,7 @@ export default function Interact() {
                     choices={allLabels}
                     onSelect={cacheNewTag}
                     onNewLabel={handleNewLabel}
+                    currentTag={token.tag}
                   />
                 </React.Fragment>
               );

@@ -124,9 +124,9 @@ class TokenClassificationModel(ClassificationModel):
         recent_samples = self.data_storage.retrieve_samples(
             name="ner",
             num_samples=limit,
-            user_provided=True  # Assuming we want user-provided samples
+            user_provided=True,  # Assuming we want user-provided samples
         )
-        
+
         # Convert DataSample objects to dictionaries
         return [
             {

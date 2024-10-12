@@ -5,23 +5,21 @@ import RecentSamples from './samples';
 import UpdateButton from './updateButton';
 import RetrainButton from './retrainButton';
 import { UsageDurationChart, UsageFrequencyChart, ReformulatedQueriesChart } from './charts';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@mui/material';
 import { useSearchParams } from 'next/navigation';
 import { getWorkflowDetails, deploymentBaseUrl } from '@/lib/backend';
 import _ from 'lodash';
 
-export default function AnalyticsPage() {
+function AnalyticsContent() {
   const [isClient, setIsClient] = useState(false);
-
   const searchParams = useSearchParams();
   const workflowid = searchParams.get('id');
   const [deploymentUrl, setDeploymentUrl] = useState<string | undefined>();
   const [modelName, setModelName] = useState<string>('');
   const [username, setUsername] = useState<string>('');
 
-  // Ensure that the component only runs on the client
   useEffect(() => {
     setIsClient(true);
 
@@ -30,10 +28,10 @@ export default function AnalyticsPage() {
         try {
           const workflowDetails = await getWorkflowDetails(workflowid);
 
-          console.log('workflowDetails',workflowDetails)
+          console.log('workflowDetails', workflowDetails);
           for (const model of workflowDetails.data.models) {
             if (model.component === 'nlp') {
-              console.log(`here is: ${deploymentBaseUrl}/${model.model_id}`)
+              console.log(`here is: ${deploymentBaseUrl}/${model.model_id}`);
               setDeploymentUrl(`${deploymentBaseUrl}/${model.model_id}`);
               setModelName(model.model_name);
               setUsername(model.username);
@@ -58,5 +56,13 @@ export default function AnalyticsPage() {
       {deploymentUrl && <RecentSamples deploymentUrl={deploymentUrl} />}
       {modelName && <UpdateButton modelName={modelName} />}
     </div>
+  );
+}
+
+export default function AnalyticsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AnalyticsContent />
+    </Suspense>
   );
 }

@@ -359,6 +359,14 @@ export default function Interact() {
     }
   };
 
+  const deleteFeedbackExample = (sentenceToDelete: string) => {
+    setCachedTags(prev => {
+      const updatedCachedTags = { ...prev };
+      delete updatedCachedTags[sentenceToDelete];
+      return updatedCachedTags;
+    });
+  };
+
   return (
   <Container style={{ display: 'flex', paddingTop: '20vh', width: '90%', maxWidth: '1200px' }}>
     <div style={{ flex: 2, marginRight: '20px' }}>
@@ -449,8 +457,8 @@ export default function Interact() {
       <Card className="p-7 text-start" style={{ marginTop: '3rem' }}>
         <h3 className="text-lg font-semibold mb-4">Feedback from this session</h3>
         {Object.entries(cachedTags).map(([sentence, tags], index) => (
-          <div key={index} className="mb-4">
-            <div style={{ lineHeight: 2 }}>
+          <div key={index} className="mb-4 flex items-start">
+            <div style={{ flex: 1, lineHeight: 2 }}>
               {tags.map((token, tokenIndex) => (
                 <Highlight
                   key={tokenIndex}
@@ -464,6 +472,14 @@ export default function Interact() {
                 />
               ))}
             </div>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => deleteFeedbackExample(sentence)}
+              style={{ marginLeft: '10px', padding: '0 10px', height: '24px', fontSize: '12px' }}
+            >
+              DELETE
+            </Button>
           </div>
         ))}
         <Button

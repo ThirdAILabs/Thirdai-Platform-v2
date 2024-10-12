@@ -639,7 +639,7 @@ export default function Interact() {
   };
 
   // Feedback Dashboard Logic
-  const [cachedTags, setCachedTags] = useState<{ [sentence: string]: Token[] }>({});
+  const [cachedTags, setCachedTags] = useState<{ tokens: Token[] }[]>([]);
 
   const normalizeSentence = (sentence: string): string => {
     return sentence.replace(/[.,]$/, '').trim();
@@ -648,6 +648,7 @@ export default function Interact() {
   const cacheNewTag = async (newTag: string) => {
     if (!selectedRange) return;
 
+    // Update the annotations with the new tag
     const updatedTags = annotations.map((token, index) => ({
       text: token.text,
       tag:
@@ -655,43 +656,37 @@ export default function Interact() {
           ? newTag
           : token.tag,
     }));
-
-    const normalizedSentence = normalizeSentence(inputText);
-
-    setCachedTags((prev) => {
-      const updatedCachedTags = {
-        ...prev,
-        [normalizedSentence]: updatedTags,
-      };
-
-      if (!updatedTags.some((token) => token.tag !== 'O')) {
-        delete updatedCachedTags[normalizedSentence];
-      }
-
-      return updatedCachedTags;
-    });
-
+  
+    // Calculate snippet start and end indices
+    const snippetStart = Math.max(0, selectedRange[0] - 10);
+    const snippetEnd = Math.min(annotations.length - 1, selectedRange[1] + 10);
+  
+    // Get the snippet tokens
+    const snippetTokens = updatedTags.slice(snippetStart, snippetEnd + 1);
+  
+    // Check if snippetTokens have any tagged tokens (i.e., tag !== 'O')
+    if (snippetTokens.some((token) => token.tag !== 'O')) {
+      setCachedTags((prev) => [...prev, { tokens: snippetTokens }]);
+    }
+  
+    // Update the main annotations
     setAnnotations(updatedTags);
     updateTagColors([[newTag]]);
     setSelectedRange(null);
     setMouseDownIndex(null);
     setMouseUpIndex(null);
     setSelecting(false);
-  };
+  };  
 
   const updateFeedbackDashboard = () => {
     setCachedTags((prev) => {
-      const updatedCachedTags = { ...prev };
-
-      Object.keys(updatedCachedTags).forEach((sentence) => {
-        if (!updatedCachedTags[sentence].some((token) => token.tag !== 'O')) {
-          delete updatedCachedTags[sentence];
-        }
-      });
-
+      // Filter out any snippets where all tokens have tag 'O'
+      const updatedCachedTags = prev.filter((snippet) =>
+        snippet.tokens.some((token) => token.tag !== 'O')
+      );
       return updatedCachedTags;
     });
-  };
+  };  
 
   useEffect(() => {
     updateFeedbackDashboard();
@@ -699,26 +694,22 @@ export default function Interact() {
 
   const submitFeedback = async () => {
     try {
-      for (const [sentence, tags] of Object.entries(cachedTags)) {
+      for (const snippet of cachedTags) {
         await insertSample({
-          tokens: sentence.split(' '),
-          tags: tags.map((t) => t.tag),
+          tokens: snippet.tokens.map((t) => t.text),
+          tags: snippet.tokens.map((t) => t.tag),
         });
       }
       console.log('All samples inserted successfully');
-      setCachedTags({});
+      setCachedTags([]); // Clear the cache after submission
     } catch (error) {
       console.error('Error inserting samples:', error);
     }
-  };
+  };  
 
-  const deleteFeedbackExample = (sentenceToDelete: string) => {
-    setCachedTags((prev) => {
-      const updatedCachedTags = { ...prev };
-      delete updatedCachedTags[sentenceToDelete];
-      return updatedCachedTags;
-    });
-  };
+  const deleteFeedbackExample = (indexToDelete: number) => {
+    setCachedTags((prev) => prev.filter((_, idx) => idx !== indexToDelete));
+  };  
 
   return (
     <Container style={{ display: 'flex', paddingTop: '20vh', width: '90%', maxWidth: '1200px' }}>
@@ -809,15 +800,15 @@ export default function Interact() {
       <div style={{ flex: 1 }}>
         <Card className="p-7 text-start" style={{ marginTop: '3rem' }}>
           <h3 className="text-lg font-semibold mb-4">Feedback from this session</h3>
-          {Object.entries(cachedTags).map(([sentence, tags], index) => (
+          {cachedTags.map((snippet, index) => (
             <div key={index} className="mb-4 flex items-start">
               <div style={{ flex: 1, lineHeight: 2 }}>
-                {tags.map((token, tokenIndex) => (
+                {snippet.tokens.map((token, tokenIndex) => (
                   <Highlight
                     key={tokenIndex}
                     currentToken={token}
                     nextToken={
-                      tokenIndex === tags.length - 1 ? null : tags[tokenIndex + 1]
+                      tokenIndex === snippet.tokens.length - 1 ? null : snippet.tokens[tokenIndex + 1]
                     }
                     tagColors={tagColors}
                     onMouseOver={() => {}}
@@ -830,7 +821,7 @@ export default function Interact() {
               <Button
                 size="sm"
                 variant="destructive"
-                onClick={() => deleteFeedbackExample(sentence)}
+                onClick={() => deleteFeedbackExample(index)}
                 style={{
                   marginLeft: '10px',
                   padding: '0 10px',

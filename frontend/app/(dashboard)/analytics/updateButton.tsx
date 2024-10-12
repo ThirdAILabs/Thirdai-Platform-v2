@@ -25,8 +25,8 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
   };
 
   return (
-    <div className="flex flex-col space-y-4">
-      <Button onClick={handleUpdateModel} disabled={isUpdating}>
+    <div className="flex flex-col items-center space-y-4 mt-6">
+      <Button onClick={handleUpdateModel} disabled={isUpdating} className="w-full max-w-md">
         Update Existing Model
       </Button>
       {isUpdating && <p className="text-blue-500">Updating model...</p>}

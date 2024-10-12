@@ -88,22 +88,19 @@ const Highlight: React.FC<HighlightProps> = ({
   onMouseOver,
   onMouseDown,
   selecting,
-  selected,
+  selected
 }) => {
   const [hover, setHover] = useState<boolean>(false);
 
   return (
     <>
       <span
+        className={`
+          inline-block px-1 py-0.5 rounded transition-colors duration-200 ease-in-out
+          ${hover || selecting ? 'bg-gray-200' : selected ? 'bg-gray-300' : ''}
+        `}
         style={{
-          backgroundColor:
-            hover || selecting
-              ? SELECTING_COLOR
-              : selected
-              ? SELECTED_COLOR
-              : tagColors[currentToken.tag]?.text || 'transparent',
-          padding: '2px',
-          borderRadius: '2px',
+          backgroundColor: tagColors[currentToken.tag]?.text || 'transparent',
           cursor: hover ? 'pointer' : 'default',
           userSelect: 'none',
         }}
@@ -111,42 +108,20 @@ const Highlight: React.FC<HighlightProps> = ({
           setHover(true);
           onMouseOver(e);
         }}
-        onMouseLeave={() => {
-          setHover(false);
-        }}
+        onMouseLeave={() => setHover(false)}
         onMouseDown={onMouseDown}
       >
         {currentToken.text}
         {tagColors[currentToken.tag] && nextToken?.tag !== currentToken.tag && (
           <span
-            style={{
-              backgroundColor: tagColors[currentToken.tag].tag,
-              color: 'white',
-              fontSize: '11px',
-              fontWeight: 'bold',
-              borderRadius: '2px',
-              marginLeft: '4px',
-              padding: '5px 3px 1px 3px',
-              marginBottom: '1px',
-            }}
+            className="text-xs font-bold text-white rounded px-1 py-0.5 ml-1 align-text-top"
+            style={{ backgroundColor: tagColors[currentToken.tag].tag }}
           >
             {currentToken.tag}
           </span>
         )}
       </span>
-      <span
-        style={{ cursor: hover ? 'pointer' : 'default', userSelect: 'none' }}
-        onMouseOver={(e) => {
-          setHover(true);
-          onMouseOver(e);
-        }}
-        onMouseLeave={() => {
-          setHover(false);
-        }}
-        onMouseDown={onMouseDown}
-      >
-        {' '}
-      </span>
+      <span className="mr-1" />
     </>
   );
 };
@@ -157,82 +132,62 @@ interface HighlightedSampleProps {
   tagColors: Record<string, HighlightColor>;
 }
 
-const HighlightedSample: React.FC<HighlightedSampleProps> = ({ tokens, tags, tagColors }) => {
-  const handleMouseOver = (e: ReactMouseEvent<HTMLSpanElement>) => {
-    // Handle mouse over event if needed
-  };
+const HighlightedSample: React.FC<HighlightedSampleProps> = ({ tokens, tags, tagColors }) => (
+  <div className="mb-4 leading-relaxed">
+    {tokens.map((token, index) => (
+      <Highlight
+        key={index}
+        currentToken={{ text: token, tag: tags[index] }}
+        nextToken={index < tokens.length - 1 ? { text: tokens[index + 1], tag: tags[index + 1] } : null}
+        tagColors={tagColors}
+        onMouseOver={() => {}}
+        onMouseDown={() => {}}
+        selecting={false}
+        selected={false}
+      />
+    ))}
+  </div>
+);
 
-  const handleMouseDown = (e: ReactMouseEvent<HTMLSpanElement>) => {
-    // Handle mouse down event if needed
-  };
+interface Upvote {
+  query: string;
+  upvote: string;
+  timestamp: string;
+}
 
-  return (
-    <div style={{ lineHeight: 2, marginBottom: '10px' }}>
-      {tokens.map((token, index) => (
-        <Highlight
-          key={index}
-          currentToken={{ text: token, tag: tags[index] }}
-          nextToken={index < tokens.length - 1 ? { text: tokens[index + 1], tag: tags[index + 1] } : null}
-          tagColors={tagColors}
-          onMouseOver={handleMouseOver}
-          onMouseDown={handleMouseDown}
-          selecting={false}
-          selected={false}
-        />
-      ))}
-    </div>
-  );
-};
+interface Association {
+  source: string;
+  target: string;
+  timestamp: string;
+}
+
+interface Reformulation {
+  original: string;
+  reformulations: string[];
+  timestamp: string;
+}
 
 interface RecentSamplesProps {
   deploymentUrl: string;
 }
 
 export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
-  const { recentLabels, error } = useLabels({ deploymentUrl });
+  const { recentLabels, error: labelError } = useLabels({ deploymentUrl });
   const { recentSamples, error: sampleError } = useRecentSamples({ deploymentUrl });
 
-  const recentUpvotes = useRollingSamples(
-    /* samples= */ upvotes,
-    /* numSamples= */ 5,
-    /* maxNewSamples= */ 2,
-    /* probabilityNewSamples= */ 0.2,
-    /* intervalSeconds= */ 2
-  );
+  const recentUpvotes = useRollingSamples(upvotes, 5, 2, 0.2, 2);
+  const recentAssociations = useRollingSamples(associations, 5, 2, 0.1, 3);
+  const recentReformulations = useRollingSamples(reformulations, 3, 1, 0.4, 2);
 
-  const recentAssociations = useRollingSamples(
-    /* samples= */ associations,
-    /* numSamples= */ 5,
-    /* maxNewSamples= */ 2,
-    /* probabilityNewSamples= */ 0.1,
-    /* intervalSeconds= */ 3
-  );
-
-  const recentReformulations = useRollingSamples(
-    /* samples= */ reformulations,
-    /* numSamples= */ 3,
-    /* maxNewSamples= */ 1,
-    /* probabilityNewSamples= */ 0.4,
-    /* intervalSeconds= */ 2
-  );
-
-  const predefinedColors = [
-    { text: '#E5A49C', tag: '#D34F3E' },
-    { text: '#F6C886', tag: '#F09336' },
-    { text: '#FBE7AA', tag: '#F7CF5F' },
-    { text: '#99E3B5', tag: '#5CC96E' },
-    { text: '#A6E6E7', tag: '#65CFD0' },
-    { text: '#A5A1E1', tag: '#597CE2' },
-    { text: '#D8A4E2', tag: '#B64DC8' },
+  const predefinedColors: HighlightColor[] = [
+    { text: '#FEE2E2', tag: '#EF4444' }, // Red
+    { text: '#FEF3C7', tag: '#F59E0B' }, // Amber
+    { text: '#D1FAE5', tag: '#10B981' }, // Emerald
+    { text: '#DBEAFE', tag: '#3B82F6' }, // Blue
+    { text: '#E0E7FF', tag: '#6366F1' }, // Indigo
+    { text: '#EDE9FE', tag: '#8B5CF6' }, // Violet
+    { text: '#FCE7F3', tag: '#EC4899' }, // Pink
   ];
-
-  const generateColor = (index: number): HighlightColor => {
-    const hue = (index * 137.508) % 360; // Use golden angle approximation
-    return {
-      text: `hsl(${hue}, 70%, 85%)`,
-      tag: `hsl(${hue}, 70%, 35%)`,
-    };
-  };
 
   const [tagColors, setTagColors] = useState<Record<string, HighlightColor>>({});
   const colorAssignmentsRef = useRef<Record<string, HighlightColor>>({});
@@ -249,7 +204,11 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
         } else if (index < predefinedColors.length) {
           newColors[tag] = predefinedColors[index];
         } else {
-          newColors[tag] = generateColor(Object.keys(colorAssignmentsRef.current).length + index);
+          const hue = (index * 137.508) % 360;
+          newColors[tag] = {
+            text: `hsl(${hue}, 70%, 90%)`,
+            tag: `hsl(${hue}, 70%, 40%)`,
+          };
         }
         colorAssignmentsRef.current[tag] = newColors[tag];
       });
@@ -260,37 +219,32 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
     updateTagColors();
   }, [recentSamples]);
 
+    // Create a set of unique labels and convert it back to an array
+    const uniqueLabels = Array.from(new Set(recentLabels));
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        width: '100%',
-      }}
-    >
-      <Card style={{ width: '32.5%', height: '45rem', marginBottom: '1rem' }}>
-        <CardHeader>
-          <CardTitle>Recent Labels</CardTitle>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <Card className="h-[calc(100vh-16rem)] overflow-hidden">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xl font-semibold">Recent Labels</CardTitle>
           <CardDescription>The latest added labels</CardDescription>
         </CardHeader>
-        <CardContent>
-          {error && <div>Error fetching labels: {error.message}</div>}
-          {recentLabels.map((label, idx) => (
-            <div key={idx} className="text-md" style={{ marginBottom: '10px' }}>
-              <span style={{ fontWeight: 'bold' }}>{label}</span>
+        <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">
+          {labelError && <div className="text-red-500">Error fetching labels: {labelError.message}</div>}
+          {uniqueLabels.map((label, idx) => (
+            <div key={idx} className="mb-2 p-2 bg-gray-100 rounded-md">
+              <span className="font-medium">{label}</span>
             </div>
           ))}
         </CardContent>
       </Card>
-      <Card style={{ width: '32.5%', height: '45rem', marginBottom: '1rem' }}>
-        <CardHeader>
-          <CardTitle>Recent Samples</CardTitle>
+      <Card className="h-[calc(100vh-16rem)] overflow-hidden">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xl font-semibold">Recent Samples</CardTitle>
           <CardDescription>The latest inserted samples</CardDescription>
         </CardHeader>
-        <CardContent>
-          {sampleError && <div>Error fetching samples: {sampleError.message}</div>}
+        <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">
+          {sampleError && <div className="text-red-500">Error fetching samples: {sampleError.message}</div>}
           {recentSamples.map((sample, idx) => (
             <HighlightedSample key={idx} tokens={sample.tokens} tags={sample.tags} tagColors={tagColors} />
           ))}

@@ -1,8 +1,10 @@
+import os
 import time
 
 from config import DeploymentConfig, UDTSubType
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, UploadFile, status
 from fastapi.encoders import jsonable_encoder
+from models.ndbv1_parser import convert_to_ndb_file
 from models.classification_models import (
     ClassificationModel,
     TextClassificationModel,
@@ -22,6 +24,7 @@ from thirdai_storage.data_types import (
 )
 from throughput import Throughput
 from utils import propagate_error, response
+from thirdai import neural_db as ndb
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
@@ -39,6 +42,7 @@ class UDTRouter:
         self.router = APIRouter()
         self.router.add_api_route("/predict", self.predict, methods=["POST"])
         self.router.add_api_route("/stats", self.stats, methods=["GET"])
+        self.router.add_api_route("/get-text", self.get_text, methods=["POST"])
 
         # The following routes are only applicable for token classification models
         # TODO(Shubh) : Make different routers for text and token classification models
@@ -48,7 +52,9 @@ class UDTRouter:
                 "/insert_sample", self.insert_sample, methods=["POST"]
             )
             self.router.add_api_route("/get_labels", self.get_labels, methods=["GET"])
-            self.router.add_api_route("/get_recent_samples", self.get_recent_samples, methods=["GET"])
+            self.router.add_api_route(
+                "/get_recent_samples", self.get_recent_samples, methods=["GET"]
+            )
 
     @staticmethod
     def get_model(config: DeploymentConfig) -> ClassificationModel:
@@ -59,6 +65,29 @@ class UDTRouter:
             return TokenClassificationModel(config=config)
         else:
             raise ValueError(f"Unsupported UDT subtype '{subtype}'.")
+
+    @propagate_error
+    def get_text(
+        self,
+        file: UploadFile,
+        _: str = Depends(Permissions.verify_permission("read")),
+    ):
+        destination_path = self.model.data_dir / file.filename
+        with open(destination_path, "wb") as f:
+            f.write(file.file.read())
+            
+        doc: ndb.Document = convert_to_ndb_file(destination_path, metadata=None, options=None)
+        
+        display_list = doc.table.df['display'].tolist()
+        
+        os.remove(destination_path)
+        
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successful",
+            data=jsonable_encoder(display_list),
+        )
+        
 
     @propagate_error
     @udt_predict_metric.time()
@@ -232,7 +261,9 @@ class UDTRouter:
         Returns:
         - JSONResponse: The most recent samples from the model.
         """
-        recent_samples = self.model.get_recent_samples(limit=5)  # Fetch 5 most recent samples
+        recent_samples = self.model.get_recent_samples(
+            limit=5
+        )  # Fetch 5 most recent samples
         # We're not modifying the samples here as they're already in the correct format
         return response(
             status_code=status.HTTP_200_OK,

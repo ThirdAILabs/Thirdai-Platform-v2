@@ -635,7 +635,7 @@ export default function Interact() {
   };
 
   return (
-    <Container style={{ display: 'flex', paddingTop: '20vh', width: '90%', maxWidth: '1200px' }}>
+    <Container style={{ display: 'flex', width: '90%', maxWidth: '1200px', marginTop: '20vh' }}>
       <div style={{ flex: 2, marginRight: '20px' }}>
         <Box display="flex" justifyContent="center" alignItems="center" width="100%">
           <label htmlFor="file-upload" style={{ marginRight: '10px' }}>
@@ -718,7 +718,7 @@ export default function Interact() {
         )}
       </div>
       <div style={{ flex: 1 }}>
-        <Card className="p-7 text-start" style={{ marginTop: '3rem' }}>
+        <Card className="p-7 text-start">
           <h3 className="text-lg font-semibold mb-4">Feedback from this session</h3>
           {Object.entries(cachedTags).map(([sentence, tags], index) => (
             <div key={index} className="mb-4 flex items-start">

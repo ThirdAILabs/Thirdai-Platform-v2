@@ -1,6 +1,6 @@
 'use client';
 
-import { Container, TextField, Box } from '@mui/material';
+import { Container, Box, CircularProgress, Typography, Switch, FormControlLabel } from '@mui/material';
 import { Button } from '@/components/ui/button';
 import React, { MouseEventHandler, ReactNode, useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import Fuse from 'fuse.js';
+import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 
 interface Token {
   text: string;
@@ -33,6 +35,20 @@ interface HighlightProps {
   onMouseDown: MouseEventHandler;
   selecting: boolean;
   selected: boolean;
+}
+
+interface TagSelectorProps {
+  open: boolean;
+  choices: string[];
+  onSelect: (tag: string) => void;
+  onNewLabel: (newLabel: string) => Promise<void>;
+  currentTag: string;
+}
+
+interface ParsedData {
+  type: 'csv' | 'pdf' | 'other';
+  content: string;
+  rows?: { label: string; content: string }[];
 }
 
 const SELECTING_COLOR = '#EFEFEF';
@@ -57,8 +73,8 @@ function Highlight({
             hover || selecting
               ? SELECTING_COLOR
               : selected
-                ? SELECTED_COLOR
-                : tagColors[currentToken.tag]?.text || 'transparent',
+              ? SELECTED_COLOR
+              : tagColors[currentToken.tag]?.text || 'transparent',
           padding: '2px',
           borderRadius: '2px',
           cursor: hover ? 'pointer' : 'default',
@@ -108,21 +124,12 @@ function Highlight({
   );
 }
 
-interface TagSelectorProps {
-  open: boolean;
-  choices: string[];
-  onSelect: (tag: string) => void;
-  onNewLabel: (newLabel: string) => Promise<void>;
-  currentTag: string;
-}
-
 function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSelectorProps) {
   const [fuse, setFuse] = useState<Fuse<string>>(new Fuse([]));
   const [query, setQuery] = useState('');
   const [searchableChoices, setSearchableChoices] = useState<string[]>([]);
 
   useEffect(() => {
-    // Filter out 'O' from choices and add 'Delete TAG' if currentTag is not 'O'
     const updatedChoices = choices.filter(choice => choice !== 'O');
     if (currentTag !== 'O') {
       updatedChoices.unshift('Delete TAG');
@@ -174,7 +181,7 @@ function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSel
           !searchResults.includes(query) &&
           query !== 'Delete TAG' &&
           makeDropdownMenuItem(
-            /* key= */ searchResults.length,
+            searchResults.length,
             query,
             <>
               <span
@@ -197,13 +204,15 @@ function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSel
 }
 
 export default function Interact() {
-  const { predict, insertSample, addLabel, getLabels } = useTokenClassificationEndpoints();
+  const { predict, insertSample, addLabel, getLabels, getTextFromFile } = useTokenClassificationEndpoints();
 
   const [inputText, setInputText] = useState<string>('');
   const [annotations, setAnnotations] = useState<Token[]>([]);
-
   const [tagColors, setTagColors] = useState<Record<string, HighlightColor>>({});
   const [allLabels, setAllLabels] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [parsedData, setParsedData] = useState<ParsedData | null>(null);
+  const [showHighlightedOnly, setShowHighlightedOnly] = useState(false);
 
   const [mouseDownIndex, setMouseDownIndex] = useState<number | null>(null);
   const [mouseUpIndex, setMouseUpIndex] = useState<number | null>(null);
@@ -219,6 +228,9 @@ export default function Interact() {
   const [selectedRange, setSelectedRange] = useState<[number, number] | null>(null);
 
   const triggers = useRef<(HTMLElement | null)[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [cachedTags, setCachedTags] = useState<{ [sentence: string]: Token[] }>({});
 
   useEffect(() => {
     const stopSelectingOnOutsideClick = () => {
@@ -226,11 +238,141 @@ export default function Interact() {
       setSelectedRange(null);
     };
     window.addEventListener('mousedown', stopSelectingOnOutsideClick);
-    return stopSelectingOnOutsideClick;
+    return () => window.removeEventListener('mousedown', stopSelectingOnOutsideClick);
   }, []);
 
-  const handleInputChange = (event: any) => {
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setInputText(event.target.value);
+    setParsedData(null);
+    setAnnotations([]);
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      setIsLoading(true);
+
+      let parsed: ParsedData;
+      if (fileExtension === 'csv') {
+        parsed = await parseCSV(file);
+      } else if (['pdf', 'docx'].includes(fileExtension ?? '')) {
+        try {
+          const content = await getTextFromFile(file);
+          console.log('content', content);
+          parsed = { 
+            type: fileExtension === 'pdf' ? 'pdf' : 'other', 
+            content: content.join('\n') 
+          };
+        } catch (error) {
+          console.error('Error parsing file:', error);
+          setIsLoading(false);
+          return;
+        }
+      } else if (['xls', 'xlsx'].includes(fileExtension ?? '')) {
+        const excelRows = await parseExcel(file);
+        parsed = {
+          type: 'csv',
+          content: excelRows.map((row) => row.content).join('\n\n'),
+          rows: excelRows,
+        };
+      } else {
+        parsed = { type: 'other', content: await parseTXT(file) };
+      }
+
+      setInputText(parsed.content);
+      setParsedData(parsed);
+      handleRun(parsed.content, true);
+      setIsLoading(false);
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const parseCSV = (file: File): Promise<ParsedData> => {
+    return new Promise((resolve, reject) => {
+      Papa.parse(file, {
+        complete: (results) => {
+          const data = results.data as string[][];
+          if (data.length < 2) {
+            resolve({ type: 'csv', content: '', rows: [] });
+            return;
+          }
+          const headers = data[0];
+          const rows = data.slice(1);
+          let parsedRows = rows
+            .filter((row) => row.some((cell) => cell.trim() !== ''))
+            .map((row, rowIndex) => {
+              let content = headers
+                .map((header, index) => `${header}: ${row[index] || ''}`)
+                .join('\n');
+              return {
+                label: `Row ${rowIndex + 1}`,
+                content: content,
+              };
+            });
+          const fullContent = parsedRows.map((row) => row.content).join('\n\n');
+          resolve({ type: 'csv', content: fullContent, rows: parsedRows });
+        },
+        error: reject,
+      });
+    });
+  };
+
+  const parseExcel = (file: File): Promise<{ label: string; content: string }[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as (string | number | null)[][];
+
+        if (jsonData.length < 2) {
+          resolve([]);
+          return;
+        }
+
+        const headers = jsonData[0].map(String);
+        const rows = jsonData.slice(1);
+
+        let parsedRows = rows
+          .map((row, rowIndex) => {
+            if (row.some((cell) => cell !== null && cell !== '')) {
+              let content = headers
+                .map((header, index) => {
+                  const cellValue = row[index];
+                  return `${header}: ${cellValue !== null && cellValue !== undefined ? cellValue : ''}`;
+                })
+                .join('\n');
+              return {
+                label: `Row ${rowIndex + 1}`,
+                content: content,
+              };
+            }
+            return null;
+          })
+          .filter((row): row is { label: string; content: string } => row !== null);
+
+        resolve(parsedRows);
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  const parseTXT = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        resolve(e.target?.result as string);
+      };
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
   };
 
   const updateTagColors = (tags: string[][]) => {
@@ -253,9 +395,10 @@ export default function Interact() {
     });
   };
 
-  const handleRun = async () => {
+  const handleRun = async (text: string, isFileUpload: boolean = false) => {
+    setIsLoading(true);
     try {
-      const result = await predict(inputText);
+      const result = await predict(text);
       updateTagColors(result.predicted_tags);
       setAnnotations(
         _.zip(result.tokens, result.predicted_tags).map(([text, tag]) => ({
@@ -264,19 +407,20 @@ export default function Interact() {
         }))
       );
 
-      // Fetch labels after prediction
+      if (!isFileUpload && !parsedData) {
+        setParsedData({ type: 'other', content: text });
+      }
+
       const labels = await getLabels();
-      // Filter out 'O' from the list of labels
       const filteredLabels = labels.filter(label => label !== 'O');
       setAllLabels(filteredLabels);
       updateTagColors([filteredLabels]);
     } catch (error) {
       console.error('Error during prediction or fetching labels:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
-
-  // New state for caching manual tags
-  const [cachedTags, setCachedTags] = useState<{ [sentence: string]: Token[] }>({});
 
   const normalizeSentence = (sentence: string): string => {
     return sentence.replace(/[.,]$/, '').trim();
@@ -310,7 +454,6 @@ export default function Interact() {
         [normalizedSentence]: updatedTags
       };
 
-      // Remove the sentence if it doesn't have any tagged tokens
       if (!updatedTags.some(token => token.tag !== 'O')) {
         delete updatedCachedTags[normalizedSentence];
       }
@@ -353,7 +496,7 @@ export default function Interact() {
         });
       }
       console.log('All samples inserted successfully');
-      setCachedTags({});  // Clear the cache after successful submission
+      setCachedTags({});
     } catch (error) {
       console.error('Error inserting samples:', error);
     }
@@ -367,131 +510,252 @@ export default function Interact() {
     });
   };
 
-  return (
-  <Container style={{ display: 'flex', paddingTop: '20vh', width: '90%', maxWidth: '1200px' }}>
-    <div style={{ flex: 2, marginRight: '20px' }}>
-      <Box display="flex" justifyContent="center" alignItems="center" width="100%">
-        <Input
-          autoFocus
-          className="text-md"
-          style={{ height: '3rem' }}
-          value={inputText}
-          onChange={handleInputChange}
-          placeholder="Enter your text..."
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleRun();
-            }
+  const toggleHighlightedOnly = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setShowHighlightedOnly(event.target.checked);
+  };
+
+  const isWordHighlighted = (word: string) => {
+    return annotations.some(
+      (token) => token.text.toLowerCase() === word.toLowerCase() && token.tag !== 'O'
+    );
+  };
+
+  const renderCSVContent = (rows: { label: string; content: string }[]) => {
+    return rows.map((row, rowIndex) => {
+      const columns = row.content.split('\n');
+      const visibleColumns = columns.filter((column) => {
+        const [columnName, ...columnContent] = column.split(':');
+        const content = columnContent.join(':').trim();
+        return !showHighlightedOnly || content.split(' ').some(isWordHighlighted);
+      });
+
+      if (visibleColumns.length === 0) {
+        return null;
+      }
+
+      return (
+        <div
+          key={rowIndex}
+          style={{
+            marginBottom: '20px',
+            padding: '10px',
+            border: '1px solid #ccc',
+            borderRadius: '5px',
           }}
-        />
-        <Button
-          size="sm"
-          style={{ height: '3rem', marginLeft: '10px', padding: '0 20px' }}
-          onClick={handleRun}
         >
-          Run
-        </Button>
-      </Box>
-      {annotations.length > 0 && (
-        <Box mt={4}>
-          <Card
-            className="p-7 text-start"
-            style={{ lineHeight: 2 }}
-            onMouseUp={(e) => {
-              setSelecting(false);
-              if (startIndex !== null && endIndex !== null) {
-                setSelectedRange([startIndex, endIndex]);
-                triggers.current[endIndex]?.click();
+          <strong>{row.label}:</strong>
+          {visibleColumns.map((column, columnIndex) => {
+            const [columnName, ...columnContent] = column.split(':');
+            const content = columnContent.join(':').trim();
+            return (
+              <p key={columnIndex}>
+                <strong>{columnName}:</strong> {renderHighlightedContent(content)}
+              </p>
+            );
+          })}
+        </div>
+      );
+    });
+  };
+
+  const renderPDFContent = (content: string) => {
+    return content.split('\n').map((paragraph, index) => (
+      <React.Fragment key={index}>
+        {paragraph === '' ? <br /> : renderHighlightedContent(paragraph)}
+        <br />
+      </React.Fragment>
+    ));
+  };
+
+  const renderHighlightedContent = (content: string) => {
+    const words = content.split(/\s+/);
+    return words.map((word, wordIndex) => {
+      const tokenIndex = annotations.findIndex(
+        (token) => token.text.toLowerCase() === word.toLowerCase()
+      );
+
+      if (tokenIndex !== -1 && annotations[tokenIndex].tag !== 'O') {
+        return (
+          <Highlight
+            key={wordIndex}
+            currentToken={annotations[tokenIndex]}
+            nextToken={annotations[tokenIndex + 1] || null}
+            tagColors={tagColors}
+            onMouseOver={(e) => {
+              if (selecting) {
+                setMouseUpIndex(tokenIndex);
               }
             }}
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              setSelecting(true);
+              setMouseDownIndex(tokenIndex);
+              setMouseUpIndex(tokenIndex);
+              setSelectedRange(null);
+            }}
+            selecting={
+              selecting &&
+              startIndex !== null &&
+              endIndex !== null &&
+              tokenIndex >= startIndex &&
+              tokenIndex <= endIndex
+            }
+            selected={
+              selectedRange !== null &&
+              tokenIndex >= selectedRange[0] &&
+              tokenIndex <= selectedRange[1]
+            }
+          />
+        );
+      }
+      return showHighlightedOnly ? null : <span key={wordIndex}>{word} </span>;
+    });
+  };
+
+  const renderContent = () => {
+    if (!parsedData) return null;
+
+    if (parsedData.type === 'csv' && parsedData.rows) {
+      return renderCSVContent(parsedData.rows);
+    } else if (parsedData.type === 'pdf') {
+      return renderPDFContent(parsedData.content);
+    } else {
+      return renderHighlightedContent(parsedData.content);
+    }
+  };
+
+  return (
+    <Container style={{ display: 'flex', paddingTop: '20vh', width: '90%', maxWidth: '1200px' }}>
+      <div style={{ flex: 2, marginRight: '20px' }}>
+        <Box display="flex" justifyContent="center" alignItems="center" width="100%">
+          <label htmlFor="file-upload" style={{ marginRight: '10px' }}>
+            <Button size="sm" asChild>
+              <span>Upload File</span>
+            </Button>
+          </label>
+          <input
+            ref={fileInputRef}
+            id="file-upload"
+            type="file"
+            accept=".txt,.pdf,.docx,.csv,.xls,.xlsx"
+            onChange={handleFileChange}
+            style={{ display: 'none' }}
+          />
+          <Input
+            autoFocus
+            className="text-md"
+            style={{ height: '3rem', flex: 1 }}
+            value={inputText}
+            onChange={handleInputChange}
+            placeholder="Enter your text..."
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleRun(inputText);
+              }
+            }}
+          />
+          <Button
+            size="sm"
+            style={{ height: '3rem', marginLeft: '10px', padding: '0 20px' }}
+            onClick={() => handleRun(inputText)}
           >
-            {annotations.map((token, index) => {
-              const nextToken = index === annotations.length - 1 ? null : annotations[index + 1];
-              return (
-                <React.Fragment key={index}>
-                  <Highlight
-                    currentToken={token}
-                    nextToken={nextToken}
-                    tagColors={tagColors}
-                    onMouseOver={(e) => {
-                      if (selecting) {
-                        setMouseUpIndex(index);
-                      }
-                    }}
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      setSelecting(true);
-                      setMouseDownIndex(index);
-                      setMouseUpIndex(index);
-                      setSelectedRange(null);
-                    }}
-                    selecting={
-                      selecting &&
-                      startIndex !== null &&
-                      endIndex !== null &&
-                      index >= startIndex &&
-                      index <= endIndex
-                    }
-                    selected={
-                      selectedRange !== null &&
-                      index >= selectedRange[0] &&
-                      index <= selectedRange[1]
-                    }
-                  />
+            Run
+          </Button>
+        </Box>
+
+        <Typography variant="caption" display="block" mt={1}>
+          Supported file types: .txt, .pdf, .docx, .csv, .xls, .xlsx
+        </Typography>
+
+        {annotations.length > 0 && (
+          <Box mt={4} mb={2} display="flex" alignItems="center" justifyContent="flex-end">
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showHighlightedOnly}
+                  onChange={toggleHighlightedOnly}
+                  color="primary"
+                />
+              }
+              label="Tagged Text Only"
+            />
+          </Box>
+        )}
+
+        {isLoading ? (
+          <Box mt={4} display="flex" justifyContent="center">
+            <CircularProgress />
+          </Box>
+        ) : (
+          annotations.length > 0 && (
+            <Box mt={4}>
+              <Card
+                className="p-7 text-start"
+                style={{ lineHeight: 2 }}
+                onMouseUp={(e) => {
+                  setSelecting(false);
+                  if (startIndex !== null && endIndex !== null) {
+                    setSelectedRange([startIndex, endIndex]);
+                    triggers.current[endIndex]?.click();
+                  }
+                }}
+              >
+                {renderContent()}
+                {annotations.map((_, index) => (
                   <TagSelector
+                    key={index}
                     open={!!selectedRange && index === selectedRange[1]}
                     choices={allLabels}
                     onSelect={cacheNewTag}
                     onNewLabel={handleNewLabel}
-                    currentTag={token.tag}
+                    currentTag={annotations[index].tag}
                   />
-                </React.Fragment>
-              );
-            })}
-          </Card>
-        </Box>
-      )}
-    </div>
-    <div style={{ flex: 1 }}>
-      <Card className="p-7 text-start" style={{ marginTop: '3rem' }}>
-        <h3 className="text-lg font-semibold mb-4">Feedback from this session</h3>
-        {Object.entries(cachedTags).map(([sentence, tags], index) => (
-          <div key={index} className="mb-4 flex items-start">
-            <div style={{ flex: 1, lineHeight: 2 }}>
-              {tags.map((token, tokenIndex) => (
-                <Highlight
-                  key={tokenIndex}
-                  currentToken={token}
-                  nextToken={tokenIndex === tags.length - 1 ? null : tags[tokenIndex + 1]}
-                  tagColors={tagColors}
-                  onMouseOver={() => {}}
-                  onMouseDown={() => {}}
-                  selecting={false}
-                  selected={false}
-                />
-              ))}
+                ))}
+              </Card>
+            </Box>
+          )
+        )}
+      </div>
+      <div style={{ flex: 1 }}>
+        <Card className="p-7 text-start" style={{ marginTop: '3rem' }}>
+          <h3 className="text-lg font-semibold mb-4">Feedback from this session</h3>
+          {Object.entries(cachedTags).map(([sentence, tags], index) => (
+            <div key={index} className="mb-4 flex items-start">
+              <div style={{ flex: 1, lineHeight: 2 }}>
+                {tags.map((token, tokenIndex) => (
+                  <Highlight
+                    key={tokenIndex}
+                    currentToken={token}
+                    nextToken={tokenIndex === tags.length - 1 ? null : tags[tokenIndex + 1]}
+                    tagColors={tagColors}
+                    onMouseOver={() => {}}
+                    onMouseDown={() => {}}
+                    selecting={false}
+                    selected={false}
+                  />
+                ))}
+              </div>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => deleteFeedbackExample(sentence)}
+                style={{ marginLeft: '10px', padding: '0 10px', height: '24px', fontSize: '12px' }}
+              >
+                DELETE
+              </Button>
             </div>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => deleteFeedbackExample(sentence)}
-              style={{ marginLeft: '10px', padding: '0 10px', height: '24px', fontSize: '12px' }}
-            >
-              DELETE
-            </Button>
-          </div>
-        ))}
-        <Button
-          size="sm"
-          style={{ marginTop: '20px' }}
-          onClick={submitFeedback}
-          disabled={Object.keys(cachedTags).length === 0}
-        >
-          Submit Feedback
-        </Button>
-      </Card>
-    </div>
-  </Container>
+          ))}
+          <Button
+            size="sm"
+            style={{ marginTop: '20px' }}
+            onClick={submitFeedback}
+            disabled={Object.keys(cachedTags).length === 0}
+          >
+            Submit Feedback
+          </Button>
+        </Card>
+      </div>
+    </Container>
   );
 }

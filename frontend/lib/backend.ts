@@ -1086,6 +1086,25 @@ export function useTokenClassificationEndpoints() {
     }
   };
 
+  const getTextFromFile = async (file: File): Promise<string[]> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post(`${deploymentUrl}/get-text`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error parsing file:', error);
+      alert('Error parsing file:' + error);
+      throw new Error('Failed to parse file');
+    }
+  };
+
   const formatTime = (timeSeconds: number) => {
     const timeMinutes = Math.floor(timeSeconds / 60);
     const timeHours = Math.floor(timeMinutes / 60);
@@ -1171,6 +1190,7 @@ export function useTokenClassificationEndpoints() {
     addLabel,
     getLabels,
     getStats,
+    getTextFromFile,
   };
 }
 

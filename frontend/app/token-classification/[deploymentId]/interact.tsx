@@ -407,7 +407,7 @@ export default function Interact() {
         }))
       );
 
-      if (!isFileUpload && !parsedData) {
+      if (!isFileUpload) {
         setParsedData({ type: 'other', content: text });
       }
 
@@ -574,41 +574,51 @@ export default function Interact() {
         (token) => token.text.toLowerCase() === word.toLowerCase()
       );
 
-      if (tokenIndex !== -1 && annotations[tokenIndex].tag !== 'O') {
+      if (tokenIndex !== -1) {
         return (
-          <Highlight
-            key={wordIndex}
-            currentToken={annotations[tokenIndex]}
-            nextToken={annotations[tokenIndex + 1] || null}
-            tagColors={tagColors}
-            onMouseOver={(e) => {
-              if (selecting) {
+          <React.Fragment key={wordIndex}>
+            <Highlight
+              currentToken={annotations[tokenIndex]}
+              nextToken={annotations[tokenIndex + 1] || null}
+              tagColors={tagColors}
+              onMouseOver={(e) => {
+                if (selecting) {
+                  setMouseUpIndex(tokenIndex);
+                }
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                setSelecting(true);
+                setMouseDownIndex(tokenIndex);
                 setMouseUpIndex(tokenIndex);
+                setSelectedRange(null);
+              }}
+              selecting={
+                selecting &&
+                startIndex !== null &&
+                endIndex !== null &&
+                tokenIndex >= startIndex &&
+                tokenIndex <= endIndex
               }
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              setSelecting(true);
-              setMouseDownIndex(tokenIndex);
-              setMouseUpIndex(tokenIndex);
-              setSelectedRange(null);
-            }}
-            selecting={
-              selecting &&
-              startIndex !== null &&
-              endIndex !== null &&
-              tokenIndex >= startIndex &&
-              tokenIndex <= endIndex
-            }
-            selected={
-              selectedRange !== null &&
-              tokenIndex >= selectedRange[0] &&
-              tokenIndex <= selectedRange[1]
-            }
-          />
+              selected={
+                selectedRange !== null &&
+                tokenIndex >= selectedRange[0] &&
+                tokenIndex <= selectedRange[1]
+              }
+            />
+            <TagSelector
+              open={!!selectedRange && tokenIndex === selectedRange[1]}
+              choices={allLabels}
+              onSelect={cacheNewTag}
+              onNewLabel={handleNewLabel}
+              currentTag={annotations[tokenIndex].tag}
+            />
+          </React.Fragment>
         );
       }
-      return showHighlightedOnly ? null : <span key={wordIndex}>{word} </span>;
+      return showHighlightedOnly && annotations[tokenIndex]?.tag === 'O' ? null : (
+        <span key={wordIndex}>{word} </span>
+      );
     });
   };
 
@@ -702,16 +712,6 @@ export default function Interact() {
                 }}
               >
                 {renderContent()}
-                {annotations.map((_, index) => (
-                  <TagSelector
-                    key={index}
-                    open={!!selectedRange && index === selectedRange[1]}
-                    choices={allLabels}
-                    onSelect={cacheNewTag}
-                    onNewLabel={handleNewLabel}
-                    currentTag={annotations[index].tag}
-                  />
-                ))}
               </Card>
             </Box>
           )

@@ -1,11 +1,28 @@
 import os
+from urllib.parse import urlparse
+import socket
 import fastapi
-import requests
 from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordBearer
 from fastapi import APIRouter, Depends, HTTPException, status
 
+
+def get_ip_from_url(url):
+    try:
+        parsed_url = urlparse(url)
+        hostname = parsed_url.hostname
+
+        ip_address = socket.gethostbyname(hostname)
+
+        return ip_address
+    except Exception as e:
+        return f"Error parsing URL or resolving IP: {e}"
+
+
+identity_provider_type = os.getenv("IDENTITY_PROVIDER", "postgres")
+
 keycloak_openid = None
 keycloak_admin = None
+thirdai_realm = "ThirdAI-Platform"
 
 # This is a helper object provided by FastAPI to extract the access token from a
 # request. The paramter 'tokenURL' specifies which endpoint the user will use in
@@ -30,15 +47,49 @@ IDENTITY_PROVIDER = os.getenv("IDENTITY_PROVIDER", "postgres").lower()
 
 
 if IDENTITY_PROVIDER == "keycloak":
+    KEYCLOAK_SERVER_URL = os.getenv("KEYCLOAK_SERVER_URL")
+
     from keycloak import KeycloakOpenID, KeycloakAdmin
 
     keycloak_admin = KeycloakAdmin(
-        server_url="http://localhost:8180/",
-        username=os.getenv("KEYCLOAK_ADMIN_USER", "kc_admin"),
+        server_url=KEYCLOAK_SERVER_URL,
+        username=os.getenv("KEYCLOAK_ADMIN_USER", "temp_admin"),
         password=os.getenv("KEYCLOAK_ADMIN_PASSWORD", "password"),
         realm_name="master",
         verify=True,
     )
+    admin_username = os.getenv("ADMIN_USERNAME")
+    admin_mail = os.getenv("ADMIN_MAIL")
+    admin_password = os.getenv("ADMIN_PASSWORD")
+
+    keycloak_user_id = keycloak_admin.get_user_id(admin_username)
+    # create permanent admin in master 'realm'
+    # we create another user with same
+    if keycloak_user_id:
+        keycloak_admin.update_user(
+            keycloak_user_id, {"email": admin_mail, "emailVerified": True}
+        )
+    else:
+        keycloak_user_id = keycloak_admin.create_user(
+            {
+                "username": admin_username,
+                "email": admin_mail,
+                "enabled": True,
+                "emailVerified": True,
+                "credentials": [
+                    {
+                        "type": "password",
+                        "value": admin_password,
+                        "temporary": False,
+                    }
+                ],
+            }
+        )
+
+    keycloak_roles = keycloak_admin.get_realm_roles()
+    role = next((r for r in keycloak_roles if r["name"] == "admin"), None)
+
+    keycloak_admin.assign_realm_roles(keycloak_user_id, [role])
 
     def create_realm(realm_name: str):
         """Create a new realm in Keycloak."""
@@ -48,6 +99,8 @@ if IDENTITY_PROVIDER == "keycloak":
             "sslRequired": "None",
             "identityProviders": [],
             "defaultRoles": ["user"],
+            "registrationAllowed": True,
+            "resetPasswordAllowed": True,
         }
 
         current_realms = [
@@ -64,7 +117,7 @@ if IDENTITY_PROVIDER == "keycloak":
 
         return realm_name
 
-    new_realm_name = create_realm(realm_name="ThirdAI-Platform")
+    new_realm_name = create_realm(realm_name=thirdai_realm)
 
     keycloak_admin.change_current_realm(new_realm_name)
 
@@ -103,9 +156,6 @@ if IDENTITY_PROVIDER == "keycloak":
                 ],
                 "webOrigins": [
                     "*",
-                    "http://localhost:80/*",
-                    "http://localhost:8180/*",
-                    "http://localhost/*",
                 ],
             }
 
@@ -117,18 +167,26 @@ if IDENTITY_PROVIDER == "keycloak":
     client_name = "thirdai-login-client"
     create_client(
         client_name=client_name,
-        root_url="http://localhost:8180",
+        root_url=KEYCLOAK_SERVER_URL,
         base_url="/login",
         redirect_uris=[
-            "http://localhost:8180/*",
-            "http://localhost:80/*",
-            "http://localhost:3006/*",
-            "http://localhost/*",
+            f"http://{get_ip_from_url(os.getenv('PUBLIC_MODEL_BAZAAR_ENDPOINT'))}/*",
+            f"https://{get_ip_from_url(os.getenv('PUBLIC_MODEL_BAZAAR_ENDPOINT'))}/*",
+            f"http://{get_ip_from_url(os.getenv('PUBLIC_MODEL_BAZAAR_ENDPOINT'))}:80/*",
+            f"https://{get_ip_from_url(os.getenv('PUBLIC_MODEL_BAZAAR_ENDPOINT'))}:80/*",
+            f"http://{get_ip_from_url(os.getenv('PRIVATE_MODEL_BAZAAR_ENDPOINT'))}/*",
+            f"https://{get_ip_from_url(os.getenv('PRIVATE_MODEL_BAZAAR_ENDPOINT'))}/*",
+            f"http://{get_ip_from_url(os.getenv('PRIVATE_MODEL_BAZAAR_ENDPOINT'))}:80/*",
+            f"https://{get_ip_from_url(os.getenv('PRIVATE_MODEL_BAZAAR_ENDPOINT'))}:80/*",
+            f"http://localhost/*",
+            f"https://localhost/*",
+            f"http://localhost:80/*",
+            f"https://localhost:80/*",
         ],
     )
 
     keycloak_openid = KeycloakOpenID(
-        server_url="http://localhost:8180/",
+        server_url=KEYCLOAK_SERVER_URL,
         client_id=client_name,
         realm_name=new_realm_name,
     )

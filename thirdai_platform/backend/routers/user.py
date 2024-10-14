@@ -17,7 +17,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
-from auth.jwt import identity_provider_type
+from auth.utils import identity_provider_type
 from auth.utils import keycloak_admin
 
 user_router = APIRouter()

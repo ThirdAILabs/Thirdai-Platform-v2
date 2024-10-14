@@ -4,7 +4,7 @@ from typing import Union
 
 import fastapi
 import jwt
-from auth.utils import CREDENTIALS_EXCEPTION, token_bearer
+from auth.utils import CREDENTIALS_EXCEPTION, token_bearer, identity_provider_type
 from database import schema
 from database.session import get_session
 from pydantic import BaseModel
@@ -12,8 +12,6 @@ from sqlalchemy.orm import Session
 from auth.utils import keycloak_openid
 from jwt.exceptions import ExpiredSignatureError, ImmatureSignatureError
 from fastapi import HTTPException, status
-
-identity_provider_type = os.getenv("IDENTITY_PROVIDER", "postgres")
 
 
 class TokenPayload(BaseModel):

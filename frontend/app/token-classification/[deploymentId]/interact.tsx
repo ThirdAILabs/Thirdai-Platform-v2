@@ -39,16 +39,6 @@ interface CachedTags {
   [key: string]: CachedTagEntry;
 }
 
-interface HighlightProps {
-  currentToken: Token;
-  nextToken?: Token | null;
-  tagColors: Record<string, HighlightColor>;
-  onMouseOver: MouseEventHandler;
-  onMouseDown: MouseEventHandler;
-  selecting: boolean;
-  selected: boolean;
-}
-
 interface TagSelectorProps {
   open: boolean;
   choices: string[];
@@ -67,14 +57,34 @@ interface ParsedData {
 const SELECTING_COLOR = '#EFEFEF';
 const SELECTED_COLOR = '#DFDFDF';
 
+interface HighlightProps {
+  currentToken: Token;
+  tokenIndex: number;
+  nextToken?: Token | null;
+  tagColors: Record<string, HighlightColor>;
+  onMouseOver: (index: number) => void;
+  onMouseDown: (index: number) => void;
+  selecting: boolean;
+  selected: boolean;
+  showDropdown: boolean;
+  allLabels: string[];
+  onSelectTag: (tag: string) => void;
+  onNewLabel: (newLabel: string) => Promise<void>;
+}
+
 function Highlight({
   currentToken,
+  tokenIndex,
   nextToken,
   tagColors,
   onMouseOver,
   onMouseDown,
   selecting,
   selected,
+  showDropdown,
+  allLabels,
+  onSelectTag,
+  onNewLabel,
 }: HighlightProps) {
   const [hover, setHover] = useState<boolean>(false);
 
@@ -95,12 +105,12 @@ function Highlight({
         }}
         onMouseOver={(e) => {
           setHover(true);
-          onMouseOver(e);
+          onMouseOver(tokenIndex);
         }}
         onMouseLeave={(e) => {
           setHover(false);
         }}
-        onMouseDown={onMouseDown}
+        onMouseDown={() => onMouseDown(tokenIndex)}
       >
         {currentToken.text}
         {tagColors[currentToken.tag] && nextToken?.tag !== currentToken.tag && (
@@ -120,16 +130,25 @@ function Highlight({
           </span>
         )}
       </span>
+      {showDropdown && (
+        <TagSelector
+          open={true}
+          choices={allLabels}
+          onSelect={onSelectTag}
+          onNewLabel={onNewLabel}
+          currentTag={currentToken.tag}
+        />
+      )}
       <span
         style={{ cursor: hover ? 'pointer' : 'default', userSelect: 'none' }}
         onMouseOver={(e) => {
           setHover(true);
-          onMouseOver(e);
+          onMouseOver(tokenIndex);
         }}
         onMouseLeave={(e) => {
           setHover(false);
         }}
-        onMouseDown={onMouseDown}
+        onMouseDown={() => onMouseDown(tokenIndex)}
       >
         {' '}
       </span>
@@ -178,7 +197,7 @@ function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSel
       <DropdownMenuTrigger>
         <span />
       </DropdownMenuTrigger>
-      <DropdownMenuContent>
+      <DropdownMenuContent className="tag-selector">
         <Input
           autoFocus
           className="font-medium"
@@ -687,60 +706,81 @@ export default function Interact() {
     ));
   };
 
+  const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(null);
+
+  const handleMouseDown = (index: number) => {
+    setSelecting(true);
+    setMouseDownIndex(index);
+    setMouseUpIndex(index);
+    setSelectedTokenIndex(index);
+  };
+  
+  const handleMouseOver = (index: number) => {
+    if (selecting) {
+      setMouseUpIndex(index);
+    }
+  };
+  
   const renderHighlightedContent = (content: string) => {
     const words = content.split(/\s+/);
     return words.map((word, wordIndex) => {
       const tokenIndex = annotations.findIndex(
-        (token) => token.text.toLowerCase() === word.toLowerCase()
+        (token, index) => token.text.toLowerCase() === word.toLowerCase() && index >= wordIndex
       );
 
       if (tokenIndex !== -1) {
         return (
-          <React.Fragment key={wordIndex}>
-            <Highlight
-              currentToken={annotations[tokenIndex]}
-              nextToken={annotations[tokenIndex + 1] || null}
-              tagColors={tagColors}
-              onMouseOver={(e) => {
-                if (selecting) {
-                  setMouseUpIndex(tokenIndex);
-                }
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                setSelecting(true);
-                setMouseDownIndex(tokenIndex);
-                setMouseUpIndex(tokenIndex);
-                setSelectedRange(null);
-              }}
-              selecting={
-                selecting &&
-                startIndex !== null &&
-                endIndex !== null &&
-                tokenIndex >= startIndex &&
-                tokenIndex <= endIndex
-              }
-              selected={
-                selectedRange !== null &&
-                tokenIndex >= selectedRange[0] &&
-                tokenIndex <= selectedRange[1]
-              }
-            />
-            <TagSelector
-              open={!!selectedRange && tokenIndex === selectedRange[1]}
-              choices={allLabels}
-              onSelect={cacheNewTag}
-              onNewLabel={handleNewLabel}
-              currentTag={annotations[tokenIndex].tag}
-            />
-          </React.Fragment>
+          <Highlight
+            key={wordIndex}
+            currentToken={annotations[tokenIndex]}
+            tokenIndex={tokenIndex}
+            nextToken={annotations[tokenIndex + 1] || null}
+            tagColors={tagColors}
+            onMouseOver={handleMouseOver}
+            onMouseDown={handleMouseDown}
+            selecting={
+              selecting &&
+              startIndex !== null &&
+              endIndex !== null &&
+              tokenIndex >= startIndex &&
+              tokenIndex <= endIndex
+            }
+            selected={
+              selectedRange !== null &&
+              tokenIndex >= selectedRange[0] &&
+              tokenIndex <= selectedRange[1]
+            }
+            showDropdown={tokenIndex === selectedTokenIndex}
+            allLabels={allLabels}
+            onSelectTag={cacheNewTag}
+            onNewLabel={handleNewLabel}
+          />
         );
       }
-      return showHighlightedOnly && annotations[tokenIndex]?.tag === 'O' ? null : (
-        <span key={wordIndex}>{word} </span>
-      );
-    });
+
+      // Render non-highlighted words
+      if (!showHighlightedOnly || (tokenIndex !== -1 && annotations[tokenIndex].tag !== 'O')) {
+        return <span key={wordIndex}>{word} </span>;
+      }
+      
+      // If showHighlightedOnly is true and this word is not tagged, return null
+      return null;
+    }).filter(Boolean); // Remove null elements
   };
+  
+  // Add this effect to close the dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (selectedTokenIndex !== null && !(event.target as Element).closest('.tag-selector')) {
+        setSelectedTokenIndex(null);
+      }
+    };
+  
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [selectedTokenIndex]);
 
   const renderContent = () => {
     if (!parsedData) return null;

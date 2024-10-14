@@ -51,10 +51,16 @@ def verify_access_token(
     access_token: str = fastapi.Depends(token_bearer),
     session: Session = fastapi.Depends(get_session),
 ) -> AuthenticatedUser:
-    """
-    Verifies the access token, distinguishes between Keycloak and non-Keycloak tokens,
-    and handles IDP-based logins through Keycloak.
-    """
+    # This function verifies that the given access token is valid and returns the
+    # email from the payload if it is. Throws if the token is invalid. This function
+    # should be used in the depends clause of any protected endpoint.
+    #
+    # The fastapi.Depends function is a type of dependency manager which will force
+    # the input to meet the required args of the dependent function and then call
+    # the dependent function before executing the main body of the function for
+    # this endpoint. See the comment above for `token_bearer` to see what exactly
+    # it does in this case.
+    # Docs: https://fastapi.tiangolo.com/tutorial/dependencies/
     if identity_provider_type == "keycloak":
         # Get the Keycloak public key
         public_key = keycloak_openid.public_key()
@@ -63,7 +69,6 @@ def verify_access_token(
         )
 
         try:
-            # Decode and verify the JWT using Keycloak's public key
             decoded_token = jwt.decode(
                 access_token,
                 key=KEYCLOAK_PUBLIC_KEY,
@@ -71,7 +76,6 @@ def verify_access_token(
                 algorithms=["RS256"],
             )
 
-            # Fetch user information from Keycloak's userinfo endpoint
             user_info = keycloak_openid.userinfo(access_token)
             keycloak_user_id = user_info.get("sub")
 
@@ -123,6 +127,7 @@ def verify_access_token(
         # Non-Keycloak authentication flow
         try:
             # This function automatically checks for token expiration:
+            # https://pyjwt.readthedocs.io/en/stable/usage.html#expiration-time-claim-exp
             payload = TokenPayload(
                 **jwt.decode(
                     jwt=access_token,
@@ -135,7 +140,6 @@ def verify_access_token(
             user_id = payload.user_id
             expiration = payload.exp
 
-            # Retrieve user from the database for non-Keycloak flows.
             user: schema.User = session.query(schema.User).get(user_id)
             if not user:
                 raise CREDENTIALS_EXCEPTION

@@ -1,24 +1,13 @@
 'use client';
 
 import { useContext, useState } from 'react';
-import { Button, TextField } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-
 import { userEmailLogin } from '@/lib/backend';
 import Link from 'next/link';
 import { UserContext } from '../user_wrapper';
 import { EyeIcon, EyeOffIcon } from '@heroicons/react/solid';
 import axios from 'axios';
-
-const StyledTextField = styled(TextField)(({ theme }) => ({
-  '& label': {
-    top: '-4px',
-  },
-  '& label.Mui-focused': {
-    top: '0px',
-  },
-}));
 
 export default function LoginPage() {
   const [email, setEmail] = useState<string>('');
@@ -64,22 +53,26 @@ export default function LoginPage() {
         <CardFooter>
           <form onSubmit={handleSubmit} className="w-full">
             <div className="mb-4">
-              <StyledTextField
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email
+              </label>
+              <input
                 type="email"
                 id="email"
-                label="Email"
-                className="w-full"
+                className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:outline-none focus:border-transparent"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
             <div className="mb-4 relative">
-              <StyledTextField
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
                 type={showPassword ? 'text' : 'password'}
                 id="password"
-                label="Password"
-                className="w-full"
+                className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md pr-10 focus:outline-none focus:border-transparent"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -99,11 +92,11 @@ export default function LoginPage() {
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
             <div className="flex items-center justify-between mb-4">
-              <Button type="submit" variant="contained" className="flex-grow mr-2">
+              <Button type="submit" className="w-full">
                 Login
               </Button>
               <Link href="/signup" className="ml-4">
-                <Button type="button" variant="contained" className="w-full">
+                <Button type="button" className="w-full">
                   Sign up
                 </Button>
               </Link>

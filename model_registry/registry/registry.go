@@ -512,7 +512,23 @@ func (registry *ModelRegistry) UploadChunk(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// TODO(Nicholas): Should we validate content-range size against stored model size?
+	var model schema.Model
+	result := registry.db.First(&model, modelId)
+	if result.Error != nil {
+		dbError(w, result.Error)
+		return
+	}
+
+	if contentRange.size != model.Size {
+		http.Error(w,
+			fmt.Sprintf(
+				"Model %v is specified to have size %d, but Content-Range header specifies the total size as %d",
+				model.Name, int(model.Size), int(contentRange.size),
+			),
+			http.StatusBadRequest,
+		)
+		return
+	}
 
 	expectedBytes := contentRange.end - contentRange.start
 	chunk := make([]byte, expectedBytes)
@@ -543,7 +559,6 @@ func (registry *ModelRegistry) CommitUpload(w http.ResponseWriter, r *http.Reque
 	}
 
 	var model schema.Model
-
 	result := registry.db.First(&model, modelId)
 	if result.Error != nil {
 		dbError(w, result.Error)

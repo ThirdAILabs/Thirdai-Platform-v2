@@ -115,12 +115,15 @@ func TestAdminLogin(t *testing.T) {
 	}
 }
 
-func uploadModel(t *testing.T, router chi.Router, name string, data []byte, token string, access string) {
+func getChecksum(data []byte) string {
 	dataChecksum, err := registry.Checksum(bytes.NewReader(data))
 	if err != nil {
-		t.Fatal(err)
+		panic(err)
 	}
+	return dataChecksum
+}
 
+func uploadModel(router chi.Router, name string, data []byte, checksum string, token string, access string) error {
 	params := map[string]interface{}{
 		"model_name":    name,
 		"description":   "a model called " + name,
@@ -129,12 +132,12 @@ func uploadModel(t *testing.T, router chi.Router, name string, data []byte, toke
 		"access":        access,
 		"metadata":      "",
 		"size":          len(data),
-		"checksum":      string(dataChecksum),
+		"checksum":      checksum,
 	}
 
 	body, err := json.Marshal(params)
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
 
 	req := httptest.NewRequest("POST", "/upload-start", bytes.NewReader(body))
@@ -144,7 +147,7 @@ func uploadModel(t *testing.T, router chi.Router, name string, data []byte, toke
 
 	resp := w.Result()
 	if resp.StatusCode != http.StatusOK {
-		t.Fatal("upload start failed", resp.StatusCode, w.Body.String())
+		return fmt.Errorf("upload start failed %d, %v", resp.StatusCode, w.Body.String())
 	}
 
 	result := make(map[string]string)
@@ -161,7 +164,7 @@ func uploadModel(t *testing.T, router chi.Router, name string, data []byte, toke
 		router.ServeHTTP(w, req)
 
 		if w.Result().StatusCode != http.StatusOK {
-			t.Fatal("upload chunk failed", w.Result().StatusCode, w.Body.String())
+			return fmt.Errorf("upload chunk failed %d %v", w.Result().StatusCode, w.Body.String())
 		}
 	}
 
@@ -171,9 +174,10 @@ func uploadModel(t *testing.T, router chi.Router, name string, data []byte, toke
 	router.ServeHTTP(w, req)
 
 	if w.Result().StatusCode != http.StatusOK {
-		t.Fatal("upload commit failed", w.Result().StatusCode, w.Body.String())
+		return fmt.Errorf("upload commit failed %d, %v", w.Result().StatusCode, w.Body.String())
 	}
 
+	return nil
 }
 
 func randomBytes(n int) []byte {
@@ -286,11 +290,21 @@ func TestFullModelWorkflow(t *testing.T) {
 
 	model1 := randomBytes(107)
 	model2 := randomBytes(362)
+	model3 := randomBytes(84)
 
 	t.Run("UploadModels", func(t *testing.T) {
-		uploadModel(t, router, "abc", model1, token, schema.Public)
-		uploadModel(t, router, "xyz", model2, token, schema.Private)
-		uploadModel(t, router, "123", randomBytes(87), token, schema.Private)
+		err := uploadModel(router, "abc", model1, getChecksum(model1), token, schema.Public)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = uploadModel(router, "xyz", model2, getChecksum(model2), token, schema.Private)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = uploadModel(router, "123", model3, getChecksum(model3), token, schema.Private)
+		if err != nil {
+			t.Fatal(err)
+		}
 	})
 
 	t.Run("DownloadPublicModel", func(t *testing.T) {
@@ -397,4 +411,24 @@ func TestFullModelWorkflow(t *testing.T) {
 			t.Fatalf("Expected only 1 result after deleting model")
 		}
 	})
+}
+
+func TestModelChecksums(t *testing.T) {
+	registry := setupRegistry(t)
+	router := registry.Routes()
+
+	token := login(router, t)
+
+	model := randomBytes(528)
+	checksum := getChecksum(model)
+	model[48] = model[48] + 1 // Corrupt byte
+
+	err := uploadModel(router, "abc", model, checksum, token, schema.Public)
+	if err == nil {
+		t.Fatal("Checksum mismatch should cause upload to fail")
+	}
+
+	if !strings.Contains(err.Error(), "Checksum doesn't match for model") {
+		t.Fatal("Expected checksum error")
+	}
 }

@@ -519,10 +519,14 @@ export default function Interact() {
     }
   };
 
-  const deleteFeedbackExample = (sentenceToDelete: string) => {
+  const deleteFeedbackExample = (normalizedSentence: string) => {
     setCachedTags(prev => {
       const updatedCachedTags = { ...prev };
-      delete updatedCachedTags[sentenceToDelete];
+      Object.keys(updatedCachedTags).forEach(key => {
+        if (updatedCachedTags[key].map(t => t.text).join(' ') === normalizedSentence) {
+          delete updatedCachedTags[key];
+        }
+      });
       return updatedCachedTags;
     });
   };

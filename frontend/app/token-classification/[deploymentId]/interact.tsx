@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import Fuse from 'fuse.js';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
+import FeedbackDashboard from './FeedbackDashboard'
 
 interface Token {
   text: string;
@@ -729,41 +730,12 @@ export default function Interact() {
       </div>
       <div style={{ flex: 1 }}>
         <Card className="p-7 text-start">
-          <h3 className="text-lg font-semibold mb-4">Feedback from this session</h3>
-          {Object.entries(cachedTags).map(([sentence, tags], index) => (
-            <div key={index} className="mb-4 flex items-start">
-              <div style={{ flex: 1, lineHeight: 2 }}>
-                {tags.map((token, tokenIndex) => (
-                  <Highlight
-                    key={tokenIndex}
-                    currentToken={token}
-                    nextToken={tokenIndex === tags.length - 1 ? null : tags[tokenIndex + 1]}
-                    tagColors={tagColors}
-                    onMouseOver={() => {}}
-                    onMouseDown={() => {}}
-                    selecting={false}
-                    selected={false}
-                  />
-                ))}
-              </div>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => deleteFeedbackExample(sentence)}
-                style={{ marginLeft: '10px', padding: '0 10px', height: '24px', fontSize: '12px' }}
-              >
-                DELETE
-              </Button>
-            </div>
-          ))}
-          <Button
-            size="sm"
-            style={{ marginTop: '20px' }}
-            onClick={submitFeedback}
-            disabled={Object.keys(cachedTags).length === 0}
-          >
-            Submit Feedback
-          </Button>
+          <FeedbackDashboard
+            cachedTags={cachedTags}
+            tagColors={tagColors}
+            deleteFeedbackExample={deleteFeedbackExample}
+            submitFeedback={submitFeedback}
+          />
         </Card>
       </div>
     </Container>

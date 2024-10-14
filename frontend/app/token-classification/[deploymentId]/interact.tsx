@@ -843,7 +843,10 @@ export default function Interact() {
           )
         )}
       </div>
-      <div style={{ flex: 1 }}>
+      <div style={{ 
+        flex: 1, 
+        marginTop: '4.7cm' // This will push the FeedbackDashboard 1cm lower
+      }}>
         <Card className="p-7 text-start">
           <FeedbackDashboard
             cachedTags={cachedTags}

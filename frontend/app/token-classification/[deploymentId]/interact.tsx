@@ -490,10 +490,20 @@ export default function Interact() {
   const submitFeedback = async () => {
     try {
       for (const [sentence, tags] of Object.entries(cachedTags)) {
-        await insertSample({
-          tokens: sentence.split(' '),
+        // Debug statement to log what's being sent to the backend
+        console.log('Submitting feedback for sentence:', sentence);
+        console.log('Tags:', tags);
+        
+        const tokens = tags.map(t => t.text);
+        console.log('Tokens:', tokens);
+        
+        const submission = {
+          tokens: tokens,
           tags: tags.map(t => t.tag),
-        });
+        };
+        console.log('Submission to backend:', submission);
+
+        await insertSample(submission);
       }
       console.log('All samples inserted successfully');
       setCachedTags({});

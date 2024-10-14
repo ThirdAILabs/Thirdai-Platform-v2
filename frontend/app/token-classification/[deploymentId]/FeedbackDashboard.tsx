@@ -1,4 +1,4 @@
-import React, { MouseEventHandler, ReactNode, useEffect, useRef, useState } from 'react';
+import React, { MouseEventHandler, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 
 interface HighlightColor {
@@ -14,20 +14,6 @@ onMouseOver: MouseEventHandler;
 onMouseDown: MouseEventHandler;
 selecting: boolean;
 selected: boolean;
-}
-
-interface TagSelectorProps {
-open: boolean;
-choices: string[];
-onSelect: (tag: string) => void;
-onNewLabel: (newLabel: string) => Promise<void>;
-currentTag: string;
-}
-
-interface ParsedData {
-type: 'csv' | 'pdf' | 'other';
-content: string;
-rows?: { label: string; content: string }[];
 }
 
 const SELECTING_COLOR = '#EFEFEF';
@@ -126,6 +112,25 @@ interface FeedbackDashboardProps {
     deleteFeedbackExample,
     submitFeedback,
   }) => {
+    const deduplicatedTags = useMemo(() => {
+      const uniqueSentences: Record<string, Token[]> = {};
+  
+      Object.entries(cachedTags).forEach(([sentence, tokens]) => {
+        const normalizedSentence = tokens.map(t => t.text).join(' ');
+        
+        if (!uniqueSentences[normalizedSentence]) {
+          uniqueSentences[normalizedSentence] = tokens;
+        } else {
+          uniqueSentences[normalizedSentence] = uniqueSentences[normalizedSentence].map((token, index) => ({
+            ...token,
+            tag: token.tag !== 'O' ? token.tag : tokens[index].tag
+          }));
+        }
+      });
+  
+      return uniqueSentences;
+    }, [cachedTags]);
+  
     const renderFeedbackContent = (tags: Token[]) => {
       let result: React.ReactNode[] = [];
       let columnNameBuffer: Token[] = [];
@@ -134,7 +139,6 @@ interface FeedbackDashboardProps {
       const renderBuffer = () => {
         if (columnNameBuffer.length > 0) {
           if (isInColumnName) {
-            // It's a complete column name, render it in bold on a new line
             result.push(
               <React.Fragment key={`col-${result.length}`}>
                 <br />
@@ -145,13 +149,32 @@ interface FeedbackDashboardProps {
               </React.Fragment>
             );
           } else {
-            // It's not a column name, render each token normally or highlighted
-            columnNameBuffer.forEach((token, index) => {
-              result.push(renderToken(token, `content-${result.length}-${index}`));
-            });
+            result.push(...renderTokens(columnNameBuffer));
           }
           columnNameBuffer = [];
         }
+      };
+  
+      const renderTokens = (tokens: Token[]) => {
+        const mergedTokens: Token[] = [];
+        let currentMerge: Token | null = null;
+  
+        tokens.forEach((token) => {
+          if (currentMerge && token.tag === currentMerge.tag) {
+            currentMerge.text += ' ' + token.text;
+          } else {
+            if (currentMerge) {
+              mergedTokens.push(currentMerge);
+            }
+            currentMerge = { ...token };
+          }
+        });
+  
+        if (currentMerge) {
+          mergedTokens.push(currentMerge);
+        }
+  
+        return mergedTokens.map((token, index) => renderToken(token, `content-${index}`));
       };
   
       const renderToken = (token: Token, key: string | number) => {
@@ -175,7 +198,6 @@ interface FeedbackDashboardProps {
   
       for (let i = 0; i < tags.length; i++) {
         const token = tags[i];
-        const nextToken = i < tags.length - 1 ? tags[i + 1] : null;
   
         if (token.text.trim().endsWith(':')) {
           if (isInColumnName) {
@@ -195,12 +217,11 @@ interface FeedbackDashboardProps {
             columnNameBuffer.push(token);
           }
         } else {
-          renderBuffer();
-          result.push(renderToken(token, i));
+          columnNameBuffer.push(token);
         }
       }
   
-      renderBuffer(); // Render any remaining tokens in the buffer
+      renderBuffer();
   
       return result;
     };
@@ -208,7 +229,7 @@ interface FeedbackDashboardProps {
     return (
       <div>
         <h3 className="text-lg font-semibold mb-4">Feedback from this session</h3>
-        {Object.entries(cachedTags).map(([sentence, tags], index) => (
+        {Object.entries(deduplicatedTags).map(([sentence, tags], index) => (
           <div key={index} className="mb-4 flex items-start">
             <div style={{ flex: 1, lineHeight: 2 }}>{renderFeedbackContent(tags)}</div>
             <Button
@@ -225,7 +246,7 @@ interface FeedbackDashboardProps {
           size="sm"
           style={{ marginTop: '20px' }}
           onClick={submitFeedback}
-          disabled={Object.keys(cachedTags).length === 0}
+          disabled={Object.keys(deduplicatedTags).length === 0}
         >
           Submit Feedback
         </Button>

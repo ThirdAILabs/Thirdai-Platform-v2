@@ -358,6 +358,7 @@ type uploadRequest struct {
 	Access       string `json:"access"`
 	Metadata     string `json:"metadata"`
 	Size         int64  `json:"size"`
+	Checksum     string `json:"checksum"`
 }
 
 type uploadResponse struct {
@@ -373,8 +374,8 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if params.ModelName == "" || params.ModelType == "" || params.ModelSubtype == "" {
-		http.Error(w, "Params 'model_name', 'model_type', and 'model_subtype' must be specified as non empty strings.", http.StatusBadRequest)
+	if params.ModelName == "" || params.ModelType == "" || params.ModelSubtype == "" || params.Checksum == "" {
+		http.Error(w, "Params 'model_name', 'model_type', 'model_subtype', and 'checksum' must be specified as non empty strings.", http.StatusBadRequest)
 		return
 	}
 
@@ -408,6 +409,7 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 			Access:       params.Access,
 			Metadata:     params.Metadata,
 			Size:         params.Size,
+			Checksum:     params.Checksum,
 			Status:       schema.Pending,
 			StorageType:  registry.storage.Type(),
 		}
@@ -545,6 +547,12 @@ func (registry *ModelRegistry) CommitUpload(w http.ResponseWriter, r *http.Reque
 	result := registry.db.First(&model, modelId)
 	if result.Error != nil {
 		dbError(w, result.Error)
+		return
+	}
+
+	err = registry.storage.CommitUpload(modelId, model.Checksum)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error committing upload for model %v: %v", model.Name, err), http.StatusBadRequest)
 		return
 	}
 

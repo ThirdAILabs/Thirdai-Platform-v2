@@ -24,6 +24,8 @@ type Storage interface {
 
 	UploadChunk(modelId uint, offset int64, chunk []byte) error
 
+	CommitUpload(modelId uint, expectedChecksum string) error
+
 	DeleteModel(modelId uint) error
 
 	Routes() chi.Router
@@ -98,6 +100,25 @@ func (s *LocalStorage) UploadChunk(modelId uint, offset int64, chunk []byte) err
 	}
 	if n != len(chunk) {
 		return fmt.Errorf("Attempted to write %d bytes, wrote %d", len(chunk), n)
+	}
+
+	return nil
+}
+
+func (s *LocalStorage) CommitUpload(modelId uint, expectedChecksum string) error {
+	file, err := os.Open(s.getModelPath(modelId))
+	if err != nil {
+		return fmt.Errorf("Error opening file for model: %v", err)
+	}
+	defer file.Close()
+
+	actualChecksum, err := Checksum(file)
+	if err != nil {
+		return fmt.Errorf("Error computing checksum for model: %v", err)
+	}
+
+	if actualChecksum != expectedChecksum {
+		return fmt.Errorf("Checksum doesn't match for model")
 	}
 
 	return nil

@@ -2,7 +2,10 @@ package registry
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
 
 	"gorm.io/gorm"
@@ -31,4 +34,12 @@ func dbError(w http.ResponseWriter, err error) {
 	} else {
 		http.Error(w, fmt.Sprintf("Database error: %v", err), http.StatusInternalServerError)
 	}
+}
+
+func Checksum(data io.Reader) (string, error) {
+	h := sha256.New()
+	if _, err := io.Copy(h, data); err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(h.Sum(nil)), nil
 }

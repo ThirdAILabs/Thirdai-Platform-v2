@@ -25,7 +25,7 @@ type Model struct {
 	Size         int64
 	Status       string
 	StorageType  string
-	// TODO: add checksum
+	Checksum     string
 }
 
 type AccessToken struct {

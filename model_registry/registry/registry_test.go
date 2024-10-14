@@ -78,8 +78,22 @@ func TestAdminLogin(t *testing.T) {
 	registry := setupRegistry(t)
 	router := registry.Routes()
 
+	dummyParams := map[string]interface{}{
+		"model_name":    "abc",
+		"model_type":    "1",
+		"model_subtype": "2",
+		"access":        "public",
+		"size":          1,
+		"checksum":      "123",
+	}
+
+	body, err := json.Marshal(dummyParams)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	{
-		req := httptest.NewRequest("POST", "/upload-start", strings.NewReader(`{"model_name": "abc"}`))
+		req := httptest.NewRequest("POST", "/upload-start", bytes.NewReader(body))
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 		if w.Result().StatusCode != http.StatusUnauthorized {
@@ -90,18 +104,23 @@ func TestAdminLogin(t *testing.T) {
 	token := login(router, t)
 
 	{
-		req := httptest.NewRequest("POST", "/upload-start", strings.NewReader(`{"model_name": "abc"}`))
+		req := httptest.NewRequest("POST", "/upload-start", bytes.NewReader(body))
 		req.Header.Add("Authorization", authHeader(token))
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
 		if w.Result().StatusCode != http.StatusOK {
-			t.Fatal("Request should succeed with token")
+			t.Fatalf("Request should succeed with token %d %v", w.Result().StatusCode, w.Body.String())
 		}
 	}
 }
 
 func uploadModel(t *testing.T, router chi.Router, name string, data []byte, token string, access string) {
+	dataChecksum, err := registry.Checksum(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	params := map[string]interface{}{
 		"model_name":    name,
 		"description":   "a model called " + name,
@@ -110,6 +129,7 @@ func uploadModel(t *testing.T, router chi.Router, name string, data []byte, toke
 		"access":        access,
 		"metadata":      "",
 		"size":          len(data),
+		"checksum":      string(dataChecksum),
 	}
 
 	body, err := json.Marshal(params)

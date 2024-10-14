@@ -25,6 +25,9 @@ job "thirdai-platform-frontend" {
          "traefik.enable=true",
          "traefik.http.routers.thirdai-platform-frontend-http.rule=PathPrefix(`/`)",
          "traefik.http.routers.thirdai-platform-frontend-http.priority=1"
+         # for next-auth re-direction priority should be higher than /api which is 10, else it would redirect to model_bazaar
+         "traefik.http.routers.thirdai-platform-frontend-http.rule=PathPrefix(`/api/auth`)",
+         "traefik.http.routers.thirdai-platform-frontend-http.priority=20"
        ]
     }
 

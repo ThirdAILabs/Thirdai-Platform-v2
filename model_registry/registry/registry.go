@@ -212,7 +212,7 @@ func (registry *ModelRegistry) DeleteModel(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	result := registry.db.Delete(&model)
+	result := registry.db.Unscoped().Delete(&model)
 	if result.Error != nil {
 		dbError(w, result.Error)
 		return

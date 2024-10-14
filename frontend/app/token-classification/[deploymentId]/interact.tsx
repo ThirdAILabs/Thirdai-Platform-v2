@@ -28,6 +28,17 @@ interface HighlightColor {
   tag: string;
 }
 
+interface ColumnData {
+  columnName: string;
+  content: Token[];
+}
+
+type CachedTagEntry = Token[] | ColumnData;
+
+interface CachedTags {
+  [key: string]: CachedTagEntry;
+}
+
 interface HighlightProps {
   currentToken: Token;
   nextToken?: Token | null;
@@ -231,7 +242,7 @@ export default function Interact() {
   const triggers = useRef<(HTMLElement | null)[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [cachedTags, setCachedTags] = useState<{ [sentence: string]: Token[] }>({});
+  const [cachedTags, setCachedTags] = useState<CachedTags>({});
 
   useEffect(() => {
     const stopSelectingOnOutsideClick = () => {
@@ -456,13 +467,46 @@ export default function Interact() {
     const normalizedSentence = normalizeSentence(inputText);
 
     setCachedTags(prev => {
-      const updatedCachedTags = {
-        ...prev,
-        [normalizedSentence]: updatedTags
-      };
+      const updatedCachedTags: CachedTags = { ...prev };
 
-      if (!updatedTags.some(token => token.tag !== 'O')) {
-        delete updatedCachedTags[normalizedSentence];
+      if (parsedData && (parsedData.type === 'csv' || parsedData.type === 'other') && parsedData.rows) {
+        // Find the relevant column
+        const relevantColumnIndex = parsedData.rows.findIndex(row => 
+          row.content.split('\n').some(column => 
+            column.includes(updatedTags[selectedRange[0]].text)
+          )
+        );
+
+        if (relevantColumnIndex !== -1) {
+          const relevantColumn = parsedData.rows[relevantColumnIndex].content.split('\n')
+            .find(column => column.includes(updatedTags[selectedRange[0]].text));
+
+          if (relevantColumn) {
+            const [columnName, ...columnContent] = relevantColumn.split(':');
+            const content = columnContent.join(':').trim();
+
+            updatedCachedTags[normalizedSentence] = {
+              columnName,
+              content: content.split(' ').map(word => ({
+                text: word,
+                tag: updatedTags.find(t => t.text === word)?.tag || 'O'
+              }))
+            };
+          }
+        }
+      } else {
+        updatedCachedTags[normalizedSentence] = updatedTags;
+      }
+
+      // Check if any tags are non-'O' before keeping the entry
+      if (Array.isArray(updatedCachedTags[normalizedSentence])) {
+        if (!updatedCachedTags[normalizedSentence].some(token => token.tag !== 'O')) {
+          delete updatedCachedTags[normalizedSentence];
+        }
+      } else if ('content' in updatedCachedTags[normalizedSentence]) {
+        if (!updatedCachedTags[normalizedSentence].content.some(token => token.tag !== 'O')) {
+          delete updatedCachedTags[normalizedSentence];
+        }
       }
 
       return updatedCachedTags;
@@ -478,14 +522,24 @@ export default function Interact() {
 
   const updateFeedbackDashboard = () => {
     setCachedTags(prev => {
-      const updatedCachedTags = { ...prev };
+      const updatedCachedTags: CachedTags = { ...prev };
       
       Object.keys(updatedCachedTags).forEach(sentence => {
-        if (!updatedCachedTags[sentence].some(token => token.tag !== 'O')) {
-          delete updatedCachedTags[sentence];
+        const entry = updatedCachedTags[sentence];
+        
+        if (Array.isArray(entry)) {
+          // Handle Token[] case
+          if (!entry.some(token => token.tag !== 'O')) {
+            delete updatedCachedTags[sentence];
+          }
+        } else if ('content' in entry) {
+          // Handle ColumnData case
+          if (!entry.content.some(token => token.tag !== 'O')) {
+            delete updatedCachedTags[sentence];
+          }
         }
       });
-
+  
       return updatedCachedTags;
     });
   };
@@ -497,19 +551,20 @@ export default function Interact() {
   const submitFeedback = async () => {
     try {
       for (const [sentence, tags] of Object.entries(cachedTags)) {
-        // Debug statement to log what's being sent to the backend
-        console.log('Submitting feedback for sentence:', sentence);
-        console.log('Tags:', tags);
+        let submission: { tokens: string[], tags: string[] };
         
-        const tokens = tags.map(t => t.text);
-        console.log('Tokens:', tokens);
+        if (Array.isArray(tags)) {
+          submission = {
+            tokens: tags.map(t => t.text),
+            tags: tags.map(t => t.tag),
+          };
+        } else {
+          submission = {
+            tokens: tags.content.map(t => t.text),
+            tags: tags.content.map(t => t.tag),
+          };
+        }
         
-        const submission = {
-          tokens: tokens,
-          tags: tags.map(t => t.tag),
-        };
-        console.log('Submission to backend:', submission);
-
         await insertSample(submission);
       }
       console.log('All samples inserted successfully');
@@ -521,12 +576,8 @@ export default function Interact() {
 
   const deleteFeedbackExample = (normalizedSentence: string) => {
     setCachedTags(prev => {
-      const updatedCachedTags = { ...prev };
-      Object.keys(updatedCachedTags).forEach(key => {
-        if (updatedCachedTags[key].map(t => t.text).join(' ') === normalizedSentence) {
-          delete updatedCachedTags[key];
-        }
-      });
+      const updatedCachedTags: CachedTags = { ...prev };
+      delete updatedCachedTags[normalizedSentence];
       return updatedCachedTags;
     });
   };

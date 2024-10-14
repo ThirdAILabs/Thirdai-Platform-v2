@@ -292,6 +292,10 @@ export default function Interact() {
     }
   };
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const rowsPerPage = 10;
+
   const parseCSV = (file: File): Promise<ParsedData> => {
     return new Promise((resolve, reject) => {
       Papa.parse(file, {
@@ -315,6 +319,7 @@ export default function Interact() {
               };
             });
           const fullContent = parsedRows.map((row) => row.content).join('\n\n');
+          setTotalPages(Math.ceil(parsedRows.length / rowsPerPage));
           resolve({ type: 'csv', content: fullContent, rows: parsedRows });
         },
         error: reject,
@@ -358,6 +363,7 @@ export default function Interact() {
           })
           .filter((row): row is { label: string; content: string } => row !== null);
 
+        setTotalPages(Math.ceil(parsedRows.length / rowsPerPage));
         resolve(parsedRows);
       };
       reader.onerror = reject;
@@ -532,41 +538,68 @@ export default function Interact() {
   };
 
   const renderCSVContent = (rows: { label: string; content: string }[]) => {
-    return rows.map((row, rowIndex) => {
-      const columns = row.content.split('\n');
-      const visibleColumns = columns.filter((column) => {
-        const [columnName, ...columnContent] = column.split(':');
-        const content = columnContent.join(':').trim();
-        return !showHighlightedOnly || content.split(' ').some(isWordHighlighted);
-      });
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    const visibleRows = rows.slice(startIndex, endIndex);
 
-      if (visibleColumns.length === 0) {
-        return null;
-      }
-
-      return (
-        <div
-          key={rowIndex}
-          style={{
-            marginBottom: '20px',
-            padding: '10px',
-            border: '1px solid #ccc',
-            borderRadius: '5px',
-          }}
-        >
-          <strong>{row.label}:</strong>
-          {visibleColumns.map((column, columnIndex) => {
+    return (
+      <>
+        {visibleRows.map((row, rowIndex) => {
+          const columns = row.content.split('\n');
+          const visibleColumns = columns.filter((column) => {
             const [columnName, ...columnContent] = column.split(':');
             const content = columnContent.join(':').trim();
-            return (
-              <p key={columnIndex}>
-                <strong>{columnName}:</strong> {renderHighlightedContent(content)}
-              </p>
-            );
-          })}
+            return !showHighlightedOnly || content.split(' ').some(isWordHighlighted);
+          });
+
+          if (visibleColumns.length === 0) {
+            return null;
+          }
+
+          return (
+            <div
+              key={rowIndex}
+              style={{
+                marginBottom: '20px',
+                padding: '10px',
+                border: '1px solid #ccc',
+                borderRadius: '5px',
+              }}
+            >
+              <strong>{row.label}:</strong>
+              {visibleColumns.map((column, columnIndex) => {
+                const [columnName, ...columnContent] = column.split(':');
+                const content = columnContent.join(':').trim();
+                return (
+                  <p key={columnIndex}>
+                    <strong>{columnName}:</strong> {renderHighlightedContent(content)}
+                  </p>
+                );
+              })}
+            </div>
+          );
+        })}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
+          <Button
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <span>
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
         </div>
-      );
-    });
+      </>
+    );
   };
 
   const renderPDFContent = (content: string) => {

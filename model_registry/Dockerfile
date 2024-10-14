@@ -10,10 +10,10 @@ COPY . .
 
 RUN go build -v
 
-ENV registry_db "data/registry.db"
-ENV registry_storage "data/storage"
-ENV registry_port "8080"
-ENV admin_email ""
-ENV admin_password ""
+ENV registry_db="data/registry.db"
+ENV registry_storage="data/storage"
+ENV registry_port="8080"
+ENV admin_email=""
+ENV admin_password=""
 
 CMD ["./model_registry"]

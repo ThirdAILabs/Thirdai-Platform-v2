@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+  <style>
+    #main {
+      line-height: 400px;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    #login-form {
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 14px;
+    }
+  </style>
+  <script>
+    function login() {
+      var email = $("#email").val();
+      var password = $("#password").val();
+
+      $.ajax({
+        url: "/api/v1/login",
+        type: "POST",
+        headers: {
+          "Cache-Control": "no-cache"
+        },
+        contentType: "application/json",
+        data: JSON.stringify({ "email": email, "password": password }),
+        success: function (response) {
+          var token = response["token"];
+          window.localStorage.setItem("jwt", token)
+          window.location.href = '/dashboard';
+        }
+      })
+    }
+
+  </script>
+</head>
+
+<body>
+  <div id="main">
+    <form id="login-form" onsubmit="login();return false">
+      <input type="text" id="email" required name="email" , placeholder="email">
+      <input type="password" id="password" required name="password" , placeholder="password">
+      <button type="submit">Login</button>
+    </form>
+  </div>
+</body>
+
+</html>

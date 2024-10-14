@@ -17,12 +17,11 @@ const (
 type Model struct {
 	gorm.Model
 	Name         string `gorm:"uniqueIndex"`
-	Description  string
 	ModelType    string
 	ModelSubtype string
 	Access       string
-	Metadata     string
 	Size         int64
+	Description  string
 	Status       string
 	StorageType  string
 	Checksum     string

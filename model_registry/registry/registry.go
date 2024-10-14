@@ -48,6 +48,8 @@ func (registry *ModelRegistry) Routes() chi.Router {
 		r.Post("/generate-access-token", registry.GenerateAccessToken)
 		r.Post("/delete-model", registry.DeleteModel)
 		r.Post("/upload-start", registry.StartUpload)
+
+		r.Get("/all-models", registry.AllModels)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -80,9 +82,16 @@ func (registry *ModelRegistry) AddAdmin(email string, password string) {
 		panic(fmt.Sprintf("Error creating admin: %v", err))
 	}
 
-	result := registry.db.Create(&schema.Admin{Email: email, Password: string(pwdHash)})
+	result := registry.db.Find(&schema.Admin{}, "email = ?", email)
 	if result.Error != nil {
-		panic(fmt.Sprintf("Error creating admin: %v", result.Error))
+		panic(fmt.Sprintf("DB error : %v", result.Error))
+	}
+
+	if result.RowsAffected == 0 {
+		result := registry.db.Create(&schema.Admin{Email: email, Password: string(pwdHash)})
+		if result.Error != nil {
+			panic(fmt.Sprintf("Error creating admin: %v", result.Error))
+		}
 	}
 }
 
@@ -234,11 +243,12 @@ func (filters *listModelsRequest) applyFilters(query *gorm.DB) *gorm.DB {
 
 type ModelInfo struct {
 	Name         string    `json:"name"`
-	Description  string    `json:"description"`
+	Id           uint      `json:"id"`
 	ModelType    string    `json:"model_type"`
 	ModelSubtype string    `json:"model_subtype"`
+	Access       string    `json:"access"`
 	Size         int64     `json:"size"`
-	Metadata     string    `json:"metadata"`
+	Description  string    `json:"description"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 
@@ -277,11 +287,40 @@ func (registry *ModelRegistry) ListModels(w http.ResponseWriter, r *http.Request
 	for _, model := range models {
 		modelInfos = append(modelInfos, ModelInfo{
 			Name:         model.Name,
-			Description:  model.Description,
+			Id:           model.ID,
 			ModelType:    model.ModelType,
 			ModelSubtype: model.ModelSubtype,
+			Access:       model.Access,
 			Size:         model.Size,
-			Metadata:     model.Metadata,
+			Description:  model.Description,
+			CreatedAt:    model.CreatedAt,
+		})
+	}
+
+	res := listModelsResponse{Models: modelInfos}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(res)
+}
+
+func (registry *ModelRegistry) AllModels(w http.ResponseWriter, r *http.Request) {
+	var models []schema.Model
+	result := registry.db.Find(&models)
+	if result.Error != nil {
+		dbError(w, result.Error)
+		return
+	}
+
+	modelInfos := make([]ModelInfo, 0, len(models))
+	for _, model := range models {
+		modelInfos = append(modelInfos, ModelInfo{
+			Name:         model.Name,
+			Id:           model.ID,
+			ModelType:    model.ModelType,
+			ModelSubtype: model.ModelSubtype,
+			Access:       model.Access,
+			Size:         model.Size,
+			Description:  model.Description,
 			CreatedAt:    model.CreatedAt,
 		})
 	}
@@ -407,7 +446,6 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 			ModelType:    params.ModelType,
 			ModelSubtype: params.ModelSubtype,
 			Access:       params.Access,
-			Metadata:     params.Metadata,
 			Size:         params.Size,
 			Checksum:     params.Checksum,
 			Status:       schema.Pending,
@@ -533,7 +571,7 @@ func (registry *ModelRegistry) UploadChunk(w http.ResponseWriter, r *http.Reques
 	expectedBytes := contentRange.end - contentRange.start
 	chunk := make([]byte, expectedBytes)
 	n, err := r.Body.Read(chunk)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		http.Error(w, fmt.Sprintf("Error reading request body: %v", err), http.StatusBadRequest)
 		return
 	}

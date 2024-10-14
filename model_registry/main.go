@@ -14,6 +14,14 @@ import (
 	"gorm.io/gorm"
 )
 
+func login(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "frontend/login.html")
+}
+
+func dashboard(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "frontend/dashboard.html")
+}
+
 func main() {
 	dbPath := flag.String("db", "registry.db", "The sqlite db to create/use")
 	storagePath := flag.String("storage", "storage", "The directory to use for local storage")
@@ -45,7 +53,10 @@ func main() {
 
 	r.Mount("/api/v1", registry.Routes())
 
-	err = http.ListenAndServe(fmt.Sprintf(":%d", port), r)
+	r.Get("/login", login)
+	r.Get("/dashboard", dashboard)
+
+	err = http.ListenAndServe(fmt.Sprintf(":%d", *port), r)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}

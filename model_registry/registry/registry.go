@@ -373,7 +373,20 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// TODO: check params
+	if params.ModelName == "" || params.ModelType == "" || params.ModelSubtype == "" {
+		http.Error(w, "Params 'model_name', 'model_type', and 'model_subtype' must be specified as non empty strings.", http.StatusBadRequest)
+		return
+	}
+
+	if params.Access != schema.Private && params.Access != schema.Public {
+		http.Error(w, "Model access param must be either 'public' or 'private'.", http.StatusBadRequest)
+		return
+	}
+
+	if params.Size == 0 {
+		http.Error(w, "Model size should be > 0.", http.StatusBadRequest)
+		return
+	}
 
 	var model *schema.Model
 
@@ -497,7 +510,7 @@ func (registry *ModelRegistry) UploadChunk(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// TODO(Nicholas): Should we validate content-range size against model size?
+	// TODO(Nicholas): Should we validate content-range size against stored model size?
 
 	expectedBytes := contentRange.end - contentRange.start
 	chunk := make([]byte, expectedBytes)

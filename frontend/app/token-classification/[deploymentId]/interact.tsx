@@ -646,7 +646,13 @@ export default function Interact() {
   };
 
   return (
-    <Container style={{ display: 'flex', width: '90%', maxWidth: '1200px', marginTop: '20vh' }}>
+    <Container style={{ 
+      display: 'flex', 
+      width: '90%', 
+      maxWidth: '1200px', 
+      marginTop: '20vh',
+      paddingBottom: '100vh' // Add extra space at the bottom
+    }}>
       <div style={{ flex: 2, marginRight: '20px' }}>
         <Box display="flex" justifyContent="center" alignItems="center" width="100%">
           <label htmlFor="file-upload" style={{ marginRight: '10px' }}>

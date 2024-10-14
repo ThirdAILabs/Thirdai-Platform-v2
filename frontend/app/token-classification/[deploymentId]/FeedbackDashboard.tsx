@@ -133,48 +133,15 @@ interface FeedbackDashboardProps {
   
     const renderFeedbackContent = (tags: Token[]) => {
       let result: React.ReactNode[] = [];
-      let columnNameBuffer: Token[] = [];
-      let isInColumnName = false;
+      let currentTokens: Token[] = [];
   
-      const renderBuffer = () => {
-        if (columnNameBuffer.length > 0) {
-          if (isInColumnName) {
-            result.push(
-              <React.Fragment key={`col-${result.length}`}>
-                <br />
-                <strong>
-                  {columnNameBuffer.map(t => t.text).join(' ')}
-                </strong>
-                {' '}
-              </React.Fragment>
-            );
-          } else {
-            result.push(...renderTokens(columnNameBuffer));
-          }
-          columnNameBuffer = [];
+      const renderTokens = () => {
+        if (currentTokens.length > 0) {
+          result.push(
+            ...currentTokens.map((token, index) => renderToken(token, `content-${result.length}-${index}`))
+          );
+          currentTokens = [];
         }
-      };
-  
-      const renderTokens = (tokens: Token[]) => {
-        const mergedTokens: Token[] = [];
-        let currentMerge: Token | null = null;
-  
-        tokens.forEach((token) => {
-          if (currentMerge && token.tag === currentMerge.tag) {
-            currentMerge.text += ' ' + token.text;
-          } else {
-            if (currentMerge) {
-              mergedTokens.push(currentMerge);
-            }
-            currentMerge = { ...token };
-          }
-        });
-  
-        if (currentMerge) {
-          mergedTokens.push(currentMerge);
-        }
-  
-        return mergedTokens.map((token, index) => renderToken(token, `content-${index}`));
       };
   
       const renderToken = (token: Token, key: string | number) => {
@@ -196,32 +163,35 @@ interface FeedbackDashboardProps {
         }
       };
   
-      for (let i = 0; i < tags.length; i++) {
-        const token = tags[i];
-  
-        if (token.text.trim().endsWith(':')) {
-          if (isInColumnName) {
-            columnNameBuffer.push(token);
-            renderBuffer();
-            isInColumnName = false;
-          } else {
-            renderBuffer();
-            isInColumnName = true;
-            columnNameBuffer.push(token);
-          }
-        } else if (isInColumnName) {
-          if (token.text.trim() === '') {
-            renderBuffer();
-            isInColumnName = false;
-          } else {
-            columnNameBuffer.push(token);
-          }
+      tags.forEach((token, index) => {
+        if (token.text.trim().endsWith(':') && index < tags.length - 1 && tags[index + 1].text.trim() === '') {
+          renderTokens();
+          result.push(
+            <React.Fragment key={`col-${result.length}`}>
+              <br />
+              <strong>
+                {token.tag !== 'O' ? (
+                  <Highlight
+                    currentToken={token}
+                    nextToken={null}
+                    tagColors={tagColors}
+                    onMouseOver={() => {}}
+                    onMouseDown={() => {}}
+                    selecting={false}
+                    selected={false}
+                  />
+                ) : (
+                  token.text
+                )}
+              </strong>{' '}
+            </React.Fragment>
+          );
         } else {
-          columnNameBuffer.push(token);
+          currentTokens.push(token);
         }
-      }
+      });
   
-      renderBuffer();
+      renderTokens();
   
       return result;
     };

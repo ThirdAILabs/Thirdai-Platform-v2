@@ -61,6 +61,7 @@ interface ParsedData {
   type: 'csv' | 'pdf' | 'other';
   content: string;
   rows?: { label: string; content: string }[];
+  pdfParagraphs?: string[];
 }
 
 const SELECTING_COLOR = '#EFEFEF';
@@ -268,13 +269,14 @@ export default function Interact() {
       let parsed: ParsedData;
       if (fileExtension === 'csv') {
         parsed = await parseCSV(file);
-      } else if (['pdf', 'docx'].includes(fileExtension ?? '')) {
+      } else if (fileExtension === 'pdf') {
         try {
           const content = await getTextFromFile(file);
           console.log('content', content);
           parsed = { 
-            type: fileExtension === 'pdf' ? 'pdf' : 'other', 
-            content: content.join('\n') 
+            type: 'pdf', 
+            content: content.join('\n'),
+            pdfParagraphs: content
           };
         } catch (error) {
           console.error('Error parsing file:', error);
@@ -469,33 +471,52 @@ export default function Interact() {
     setCachedTags(prev => {
       const updatedCachedTags: CachedTags = { ...prev };
 
-      if (parsedData && (parsedData.type === 'csv' || parsedData.type === 'other') && parsedData.rows) {
-        // Find the relevant column
-        const relevantColumnIndex = parsedData.rows.findIndex(row => 
-          row.content.split('\n').some(column => 
-            column.includes(updatedTags[selectedRange[0]].text)
-          )
-        );
-
-        if (relevantColumnIndex !== -1) {
-          const relevantColumn = parsedData.rows[relevantColumnIndex].content.split('\n')
-            .find(column => column.includes(updatedTags[selectedRange[0]].text));
-
-          if (relevantColumn) {
-            const [columnName, ...columnContent] = relevantColumn.split(':');
-            const content = columnContent.join(':').trim();
-
+      if ( parsedData ) {
+        if ((parsedData.type === 'csv' || parsedData.type === 'other') && parsedData.rows) {
+          // Find the relevant column
+          const relevantColumnIndex = parsedData.rows.findIndex(row => 
+            row.content.split('\n').some(column => 
+              column.includes(updatedTags[selectedRange[0]].text)
+            )
+          );
+  
+          if (relevantColumnIndex !== -1) {
+            const relevantColumn = parsedData.rows[relevantColumnIndex].content.split('\n')
+              .find(column => column.includes(updatedTags[selectedRange[0]].text));
+  
+            if (relevantColumn) {
+              const [columnName, ...columnContent] = relevantColumn.split(':');
+              const content = columnContent.join(':').trim();
+  
+              updatedCachedTags[normalizedSentence] = {
+                columnName,
+                content: content.split(' ').map(word => ({
+                  text: word,
+                  tag: updatedTags.find(t => t.text === word)?.tag || 'O'
+                }))
+              };
+            }
+          }
+        } else if (parsedData.type === 'pdf' && parsedData.pdfParagraphs) {
+          // Find the relevant paragraph
+          const relevantParagraphIndex = parsedData.pdfParagraphs.findIndex(paragraph => 
+            paragraph.includes(updatedTags[selectedRange[0]].text)
+          );
+  
+          if (relevantParagraphIndex !== -1) {
+            const relevantParagraph = parsedData.pdfParagraphs[relevantParagraphIndex];
+  
             updatedCachedTags[normalizedSentence] = {
-              columnName,
-              content: content.split(' ').map(word => ({
+              columnName: `Paragraph ${relevantParagraphIndex + 1}`,
+              content: relevantParagraph.split(' ').map(word => ({
                 text: word,
                 tag: updatedTags.find(t => t.text === word)?.tag || 'O'
               }))
             };
           }
+        } else {
+          updatedCachedTags[normalizedSentence] = updatedTags;
         }
-      } else {
-        updatedCachedTags[normalizedSentence] = updatedTags;
       }
 
       // Check if any tags are non-'O' before keeping the entry
@@ -657,10 +678,10 @@ export default function Interact() {
     );
   };
 
-  const renderPDFContent = (content: string) => {
-    return content.split('\n').map((paragraph, index) => (
+  const renderPDFContent = (paragraphs: string[]) => {
+    return paragraphs.map((paragraph, index) => (
       <React.Fragment key={index}>
-        {paragraph === '' ? <br /> : renderHighlightedContent(paragraph)}
+        {renderHighlightedContent(paragraph)}
         <br />
       </React.Fragment>
     ));
@@ -726,8 +747,8 @@ export default function Interact() {
 
     if (parsedData.type === 'csv' && parsedData.rows) {
       return renderCSVContent(parsedData.rows);
-    } else if (parsedData.type === 'pdf') {
-      return renderPDFContent(parsedData.content);
+    } else if (parsedData.type === 'pdf' && parsedData.pdfParagraphs) {
+      return renderPDFContent(parsedData.pdfParagraphs);
     } else {
       return renderHighlightedContent(parsedData.content);
     }

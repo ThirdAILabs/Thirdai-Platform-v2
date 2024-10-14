@@ -22,7 +22,7 @@ type Storage interface {
 
 	StartUpload(modelId uint) error
 
-	UploadChunk(modelId uint, offset int64, chunk []byte) error
+	UploadChunk(modelId uint, offset int64, expectedBytes int64, chunk io.Reader) error
 
 	CommitUpload(modelId uint, expectedChecksum string) error
 
@@ -82,7 +82,7 @@ func (s *LocalStorage) StartUpload(modelId uint) error {
 	return nil
 }
 
-func (s *LocalStorage) UploadChunk(modelId uint, offset int64, chunk []byte) error {
+func (s *LocalStorage) UploadChunk(modelId uint, offset int64, expectedBytes int64, chunk io.Reader) error {
 	file, err := os.OpenFile(s.getModelPath(modelId), os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
 		return err
@@ -94,12 +94,12 @@ func (s *LocalStorage) UploadChunk(modelId uint, offset int64, chunk []byte) err
 		return fmt.Errorf("seek error: %v", err)
 	}
 
-	n, err := file.Write(chunk)
+	n, err := io.Copy(file, chunk)
 	if err != nil {
 		return fmt.Errorf("write error: %v", err)
 	}
-	if n != len(chunk) {
-		return fmt.Errorf("Attempted to write %d bytes, wrote %d", len(chunk), n)
+	if n != expectedBytes {
+		return fmt.Errorf("Attempted to write %d bytes, wrote %d", expectedBytes, n)
 	}
 
 	return nil

@@ -569,18 +569,7 @@ func (registry *ModelRegistry) UploadChunk(w http.ResponseWriter, r *http.Reques
 	}
 
 	expectedBytes := contentRange.end - contentRange.start
-	chunk := make([]byte, expectedBytes)
-	n, err := r.Body.Read(chunk)
-	if err != nil && err != io.EOF {
-		http.Error(w, fmt.Sprintf("Error reading request body: %v", err), http.StatusBadRequest)
-		return
-	}
-	if n != int(expectedBytes) {
-		http.Error(w, fmt.Sprintf("Expected %d bytes in request, received %d", expectedBytes, n), http.StatusBadRequest)
-		return
-	}
-
-	err = registry.storage.UploadChunk(modelId, contentRange.start, chunk)
+	err = registry.storage.UploadChunk(modelId, contentRange.start, expectedBytes, r.Body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unable to upload chunk. Storage error: %v", err), http.StatusInternalServerError)
 		return

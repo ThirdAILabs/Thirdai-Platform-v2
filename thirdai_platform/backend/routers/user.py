@@ -462,7 +462,6 @@ def email_login_with_keycloak(
             .first()
         )
         if not user:
-            print("User found: ", user)
             user = schema.User(
                 id=keycloak_user_id,
                 # We are using given_name since preferred username may have email

@@ -6,8 +6,14 @@ import { useEffect } from "react";
 import Login from "@/components/Login";
 import { userEmailLoginWithAccessToken } from "@/lib/backend";
 import { UserContext } from '../app/user_wrapper';
+import { Session } from 'next-auth';
 
-export default function ClientHome({ session, accessToken }) {
+interface ClientHomeProps {
+    session: Session | null; // Session type from next-auth
+    accessToken: string | null | undefined; // accessToken is a string
+}
+
+export default function ClientHome({ session, accessToken }: ClientHomeProps) {
     const { setAccessToken } = useContext(UserContext);
 
     useEffect(() => {

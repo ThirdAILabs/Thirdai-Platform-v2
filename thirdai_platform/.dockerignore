@@ -8,6 +8,7 @@ __pycache__/
 
 # Ignore the tests directory, which includes a permanent license
 /tests/
+ndb_enterprise_license.json
 
 # Ignore the licensing/generate directory, which stores our private key for generating licenses
 /licensing/generate/

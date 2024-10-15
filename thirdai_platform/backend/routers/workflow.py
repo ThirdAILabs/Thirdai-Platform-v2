@@ -782,6 +782,7 @@ async def start_workflow(
                 raise Exception(str(err))
 
     if workflow.gen_ai_provider == "on-prem":
+        # TODO(david) pass in the model name here
         await start_on_prem_generate_job(restart_if_exists=False)
 
     return response(

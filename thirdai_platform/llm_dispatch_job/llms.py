@@ -130,7 +130,9 @@ class OnPremLLM(LLMBase):
     ) -> AsyncGenerator[str, None]:
         system_prompt, user_prompt = make_prompt(query, task_prompt, references)
 
-        url = urljoin(self.backend_endpoint, "/on-prem-llm/v1/chat/completions")
+        url = urljoin(
+            self.backend_endpoint, f"/on-prem-llm/{model}/v1/chat/completions"
+        )
 
         headers = {"Content-Type": "application/json"}
         data = {

@@ -1,4 +1,4 @@
-job "on-prem-llm-generation" {
+job "on-prem-llm-generation-{{ model_name }}" {
   datacenters = ["dc1"]
 
   type = "service"
@@ -37,22 +37,22 @@ job "on-prem-llm-generation" {
     }
 
     network {
-      port "on-prem-generation-http" {
+      port "{{ model_name }}-http" {
       }
     }
 
     service {
-      name = "on-prem-generation"
-      port = "on-prem-generation-http"
+      name = "on-prem-generation-{{ model_name }}"
+      port = "{{ model_name }}-http"
       provider = "nomad"
 
       {# This code adds the prefix 'on-prem-llm' to all endpoints in this service. #}
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.on-prem-generation-http.rule=PathPrefix(`/on-prem-llm`)",
-        "traefik.http.routers.on-prem-generation-http.middlewares=on-prem-llm-stripprefix",
-        "traefik.http.middlewares.on-prem-llm-stripprefix.stripprefix.prefixes=/on-prem-llm",
-        "traefik.http.routers.on-prem-generation-http.priority=10"
+        "traefik.http.routers.{{ model_name }}-http.rule=PathPrefix(`/on-prem-llm/{{ model_name }}`)",
+        "traefik.http.routers.{{ model_name }}-http.middlewares=on-prem-llm-stripprefix",
+        "traefik.http.middlewares.on-prem-llm-stripprefix.stripprefix.prefixes=/on-prem-llm/{{ model_name }}",
+        "traefik.http.routers.{{ model_name }}-http.priority=10"
       ]
     }
 
@@ -62,7 +62,7 @@ job "on-prem-llm-generation" {
       config {
         image = "{{ registry }}/llama.cpp:server"
         image_pull_timeout = "15m"
-        ports = ["on-prem-generation-http"]
+        ports = ["{{ model_name }}-http"]
         volumes = ["{{ mount_dir }}:/gen-ai-models"]
         auth {
           username = "{{ docker_username }}"
@@ -73,7 +73,7 @@ job "on-prem-llm-generation" {
           "-m", "/gen-ai-models/{{ model_name }}",
           "-c", 8192,
           "--host", "0.0.0.0",
-          "--port", "${NOMAD_PORT_on_prem_generation_http}",
+          "--port", "${NOMAD_PORT_{{ model_name | replace("-", "_") }}_http}",
           "--threads", {{ cores_per_allocation }},
           "--threads-http", {{ cores_per_allocation }}
         ]

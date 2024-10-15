@@ -75,21 +75,41 @@ async def start_on_prem_generate_job(
         if not restart_if_exists:
             return
         delete_nomad_job(ON_PREM_GENERATE_JOB_ID, nomad_endpoint)
+
     share_dir = os.getenv("SHARE_DIR")
     if not share_dir:
         raise ValueError("SHARE_DIR variable is not set.")
+
     cwd = Path(os.getcwd())
+
     mount_dir = os.path.join(model_bazaar_path(), "gen-ai-models")
     model_path = os.path.join(mount_dir, model_name)
     if not os.path.exists(model_path):
         raise ValueError(f"Cannot find model at location: {model_path}.")
-    model_size = int(os.path.getsize(model_path) / 1e6)
-    # TODO(david) support configuration for multiple models
-    job_memory_mb = model_size * 2  # give some leeway
-    if os.cpu_count() < 16:
-        raise ValueError("Can't run LLM job on less than 16 cores")
+
+    model_size_mb = int(os.path.getsize(model_path) / 1e6)
+    model_size_gb = model_size_mb / 1000
+    job_memory_mb = model_size_mb * 2  # give some leeway
+
+    # If cores_per_allocation not specified, autotune it.
     if cores_per_allocation is None:
-        cores_per_allocation = min(16, os.cpu_count() - 8)
+        # We autotune differently for quantized and unquantized models because,
+        # although quantization reduces the memory, it doesn't improve the
+        # inference speed much. We still require the same number of cores as the
+        # unquantized model.
+        model_is_quantized = (
+            not model_name.lower().strip(".gguf").endswith(("f16", "fp16"))
+        )
+        # The size of the unquantized qwen1.5B is 3.5GB and the size of the
+        # smallest quantized Llama3B model is 1.5Gb
+        size_threshold_gb = 1.5 if model_is_quantized else 3.5
+        # These thresholds are set so that qwen1.5B, Llama1B, and any smaller model
+        # will run at 8 cores, otherwise we'll use 16 cores.
+        cores_per_allocation = 16 if model_size_gb > size_threshold_gb else 8
+
+    if cores_per_allocation > os.cpu_count():
+        raise ValueError("Insufficient cores for the LLM job.")
+
     return submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "on_prem_generation_job.hcl.j2"),

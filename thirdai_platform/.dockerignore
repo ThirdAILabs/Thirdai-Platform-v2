@@ -1,0 +1,8 @@
+.env
+__pycache__/
+
+# Ignore the tests directory, which includes a permanent license
+tests/
+
+# Ignore the licensing/generate directory, which stores our private key for generating licenses
+licensing/generate/

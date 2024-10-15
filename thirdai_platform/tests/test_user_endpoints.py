@@ -138,10 +138,6 @@ def test_add_remove_global_admin():
     assert res.status_code == 200
     admin_jwt = res.json()["data"]["access_token"]
 
-    # Verify the user does not have admin access initially
-    res = client.get("/api/user/all-users", headers=auth_header(user_jwt))
-    assert res.status_code == 403  # Access forbidden for non-admin
-
     # Promote the user to global admin
     res = client.post(
         "/api/user/add-global-admin",
@@ -150,10 +146,8 @@ def test_add_remove_global_admin():
     )
     assert res.status_code == 200
 
-    # Verify the user can access admin routes after promotion
-    res = client.get("/api/user/all-users", headers=auth_header(user_jwt))
+    res = client.get("/api/user/list", headers=auth_header(user_jwt))
     assert res.status_code == 200
-
     # Check that all expected users are listed
     users_found = set(user["username"] for user in res.json()["data"])
     assert len(users_found.intersection(["future-admin", "user1", "admin"])) == 3
@@ -165,10 +159,6 @@ def test_add_remove_global_admin():
         json={"email": "future-admin@mail.com"},
     )
     assert res.status_code == 200
-
-    # Verify the user no longer has admin access after demotion
-    res = client.get("/api/user/all-users", headers=auth_header(user_jwt))
-    assert res.status_code == 403
 
     # Attempt to remove the last global admin and expect failure
     res = client.post(
@@ -236,7 +226,7 @@ def test_list_accessible_users():
     assert res.status_code == 200
     user1_jwt = res.json()["data"]["access_token"]
 
-    res = client.get("/api/user/accessible-users", headers=auth_header(user1_jwt))
+    res = client.get("/api/user/list", headers=auth_header(user1_jwt))
     assert res.status_code == 200
     accessible_users = [user["email"] for user in res.json()["data"]]
     assert "user1@mail.com" in accessible_users  # User1 should see themself
@@ -252,7 +242,7 @@ def test_list_accessible_users():
     assert res.status_code == 200
     user3_jwt = res.json()["data"]["access_token"]
 
-    res = client.get("/api/user/accessible-users", headers=auth_header(user3_jwt))
+    res = client.get("/api/user/list", headers=auth_header(user3_jwt))
     assert res.status_code == 200
     accessible_users = [user["email"] for user in res.json()["data"]]
     assert "user3@mail.com" in accessible_users  # User3 should see themself
@@ -263,7 +253,7 @@ def test_list_accessible_users():
     assert res.status_code == 200
     team_admin_jwt = res.json()["data"]["access_token"]
 
-    res = client.get("/api/user/accessible-users", headers=auth_header(team_admin_jwt))
+    res = client.get("/api/user/list", headers=auth_header(team_admin_jwt))
     assert res.status_code == 200
     accessible_users = [user["email"] for user in res.json()["data"]]
     assert "user1@mail.com" in accessible_users  # Admin should see user1 (team1)
@@ -271,7 +261,7 @@ def test_list_accessible_users():
     assert "team_admin@mail.com" in accessible_users  # Admin should see themself
 
     # Test for global admin: should retrieve all users
-    res = client.get("/api/user/accessible-users", headers=auth_header(admin_jwt))
+    res = client.get("/api/user/list", headers=auth_header(admin_jwt))
     assert (
         res.status_code == 200
     ), f"Unexpected status code: {res.status_code}. Response: {res.json()}"

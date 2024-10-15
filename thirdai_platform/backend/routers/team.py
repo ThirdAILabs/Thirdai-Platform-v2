@@ -382,35 +382,7 @@ def remove_team_admin(
     )
 
 
-@team_router.get("/list", dependencies=[Depends(global_admin_only)])
-def list_all_teams(session: Session = Depends(get_session)):
-    """
-    List all teams in the system.
-
-    Parameters:
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response with the list of all teams.
-    """
-    teams: List[schema.Team] = session.query(schema.Team).all()
-
-    teams_info = [
-        {
-            "id": team.id,
-            "name": team.name,
-        }
-        for team in teams
-    ]
-
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Successfully got the list of all teams",
-        data=jsonable_encoder(teams_info),
-    )
-
-
-@team_router.get("/accessible-teams")
+@team_router.get("/list")
 def list_accessible_teams(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
@@ -444,7 +416,7 @@ def list_accessible_teams(
             "id": team.id,
             "name": team.name,
         }
-        for team in query.all()  # Ensure you use `.all()` to execute the query
+        for team in query.all()
     ]
 
     return response(

@@ -73,15 +73,24 @@ function AccessContent() {
               <TabsTrigger value="workflows" className="flex-1">
                 Workflows
               </TabsTrigger>
-              <TabsTrigger value="teams" className="flex-1">
-                Teams
-              </TabsTrigger>
+              {user?.teams.length ? (
+                <TabsTrigger value="teams" className="flex-1">
+                  Teams
+                </TabsTrigger>
+              ) : (
+                <></>
+              )}
+
               <TabsTrigger value="users" className="flex-1">
                 Users
               </TabsTrigger>
-              <TabsTrigger value="openai" className="flex-1">
-                API Key
-              </TabsTrigger>
+              {user?.global_admin ? (
+                <TabsTrigger value="openai" className="flex-1">
+                  API Key
+                </TabsTrigger>
+              ) : (
+                <></>
+              )}
             </TabsList>
             <div className="mt-6 w-full">
               <TabsContent value="models" className="w-full">

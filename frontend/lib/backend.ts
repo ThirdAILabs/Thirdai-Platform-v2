@@ -1166,7 +1166,7 @@ export async function fetchAllModels(): Promise<{ data: ModelResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/model/accessible-models`)
+      .get(`${thirdaiPlatformBaseUrl}/api/model/list`)
       .then((res) => {
         resolve(res.data);
       })
@@ -1183,7 +1183,7 @@ export async function fetchAllTeams(): Promise<{ data: TeamResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/team/accessible-teams`)
+      .get(`${thirdaiPlatformBaseUrl}/api/team/list`)
       .then((res) => {
         resolve(res.data);
       })
@@ -1200,7 +1200,7 @@ export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/user/accessible-users`)
+      .get(`${thirdaiPlatformBaseUrl}/api/user/list`)
       .then((res) => {
         resolve(res.data);
       })

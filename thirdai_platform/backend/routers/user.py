@@ -569,52 +569,7 @@ def reset_password_verify(
     )
 
 
-@user_router.get("/all-users", dependencies=[Depends(global_admin_only)])
-def list_all_users(session: Session = Depends(get_session)):
-    """
-    List all users in the system along with their team memberships and roles.
-
-    Parameters:
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response with the list of all users and their team details.
-    """
-    # selectinload loads related collections more efficiently when dealing with large datasets
-    # by fetching related records in a separate, batched query, avoiding heavy JOINs. useful in cases
-    # one to many/ many to many. joinedload will be helpful for many to one case.
-    users: List[schema.User] = (
-        session.query(schema.User)
-        .options(selectinload(schema.User.teams).selectinload(schema.UserTeam.team))
-        .all()
-    )
-
-    users_info = [
-        {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "global_admin": user.global_admin,
-            "teams": [
-                {
-                    "team_id": user_team.team_id,
-                    "team_name": user_team.team.name,
-                    "role": user_team.role,
-                }
-                for user_team in user.teams
-            ],
-        }
-        for user in users
-    ]
-
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Successfully got the list of all users",
-        data=jsonable_encoder(users_info),
-    )
-
-
-@user_router.get("/accessible-users")
+@user_router.get("/list")
 def list_accessible_users(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
@@ -644,7 +599,7 @@ def list_accessible_users(
             .options(selectinload(schema.User.teams).selectinload(schema.UserTeam.team))
             .all()
         )
-    else:
+    elif len(user_teams) != 0:
         # For non-global admins, return users who are part of the user's teams
         users = (
             session.query(schema.User)
@@ -654,10 +609,9 @@ def list_accessible_users(
             .options(selectinload(schema.User.teams).selectinload(schema.UserTeam.team))
             .all()
         )
-
-        # Check if the authenticated user is already in the result; if not, add them
-        if user not in users:
-            users.append(user)  # Add the authenticated user if not present
+    else:
+        # If the user is not present in any team
+        users = [user]
 
     # Build the response data with team membership information
     users_info = [

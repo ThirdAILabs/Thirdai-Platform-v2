@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Button, TextField } from '@mui/material';
+import { Button } from '@mui/material';
 import {
   fetchAllModels,
   updateModelAccessLevel,
@@ -9,6 +9,7 @@ import {
   fetchAllUsers,
 } from '@/lib/backend';
 import { UserContext } from '../../user_wrapper';
+import ConditionalButton from '@/components/ui/ConditionalButton';
 
 // Define types
 type Model = {
@@ -55,6 +56,8 @@ export default function Models() {
     'Private Model' | 'Protected Model' | 'Public Model' | null
   >(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const { user } = React.useContext(UserContext);
+  const modelPermissions: boolean[] = [];
 
   // Fetch models on component mount
   useEffect(() => {
@@ -213,6 +216,32 @@ export default function Models() {
       alert('Failed to delete model: ' + error);
     }
   };
+
+  //The function decides if the user is allowed to make changes in the access level or delete the model out of n-models.
+  const getModelPermissions = () => {
+    for (let index = 0; index < models.length; index++) {
+      const model = models[index];
+      if (user?.global_admin) {
+        modelPermissions.push(true);
+        continue;
+      }
+      if (model.owner === user?.username) modelPermissions.push(true);
+      else {
+        let value = false;
+        if (user?.teams && model.type === 'Protected Model') {
+          for (let itr = 0; itr < user?.teams.length; itr++) {
+            if (user?.teams[itr].team_id === model.team && user.teams[itr].role === 'team_admin') {
+              value = true;
+              break;
+            }
+          }
+          modelPermissions.push(value);
+        } else modelPermissions.push(false);
+      }
+    }
+  };
+  getModelPermissions();
+
   return (
     <div className="mb-12">
       <h3 className="text-xl font-semibold text-gray-800 mb-4">Models</h3>
@@ -295,16 +324,27 @@ export default function Models() {
                     </div>
                   </div>
                 ) : (
-                  <Button onClick={() => setEditingIndex(index)} variant="contained">
+                  <ConditionalButton
+                    onClick={() => setEditingIndex(index)}
+                    isDisabled={!modelPermissions[index]}
+                    tooltipMessage="Global Admin, Model owner and Team Admin can change access"
+                    variant="contained"
+                  >
                     Change Access
-                  </Button>
+                  </ConditionalButton>
                 )}
               </td>
 
               <td className="py-3 px-4">
-                <Button onClick={() => handleDeleteModel(index)} color="error" variant="contained">
+                <ConditionalButton
+                  onClick={() => handleDeleteModel(index)}
+                  isDisabled={!modelPermissions[index]}
+                  tooltipMessage="Global Admin, Model owner and Team Admin can delete"
+                  variant="contained"
+                  color="error"
+                >
                   Delete
-                </Button>
+                </ConditionalButton>
               </td>
             </tr>
           ))}

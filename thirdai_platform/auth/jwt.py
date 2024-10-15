@@ -82,23 +82,13 @@ def verify_access_token(
             if not keycloak_user_id:
                 raise CREDENTIALS_EXCEPTION
 
-            # If there's an external IDP, ensure user exists in the local DB or create a new entry.
             user = (
                 session.query(schema.User)
                 .filter(schema.User.email == user_info.get("email"))
                 .first()
             )
             if not user:
-                # Create a new user entry if not found
-                user = schema.User(
-                    id=keycloak_user_id,
-                    # we are using given_name since preferred username may have email
-                    username=user_info.get("given_name"),
-                    email=user_info.get("email"),
-                )
-                session.add(user)
-                session.commit()
-                session.refresh(user)
+                raise CREDENTIALS_EXCEPTION
 
             user_id = user.id
             expiration = decoded_token.get("exp")

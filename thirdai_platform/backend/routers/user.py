@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
 from auth.utils import identity_provider_type
-from auth.utils import keycloak_admin
+from auth.utils import keycloak_admin, keycloak_openid
 
 user_router = APIRouter()
 basic_security = HTTPBasic()
@@ -449,17 +449,29 @@ def email_login_with_keycloak(
     """
     This endpoint handles the login process using a Keycloak access token.
     It verifies the token directly in this function and returns user info.
+    If the user doesnot exists we create the user here.
     """
     try:
-        verified_user = verify_access_token(access_token.access_token, session)
+        user_info = keycloak_openid.userinfo(access_token.access_token)
 
-        user = verified_user.user
+        keycloak_user_id = user_info.get("sub")
 
+        user = (
+            session.query(schema.User)
+            .filter(schema.User.email == user_info.get("email"))
+            .first()
+        )
         if not user:
-            return response(
-                status_code=status.HTTP_404_NOT_FOUND,
-                message="User not found in local database.",
+            print("User found: ", user)
+            user = schema.User(
+                id=keycloak_user_id,
+                # We are using given_name since preferred username may have email
+                username=user_info.get("given_name"),
+                email=user_info.get("email"),
             )
+            session.add(user)
+            session.commit()
+            session.refresh(user)
 
         return response(
             status_code=status.HTTP_200_OK,

@@ -209,7 +209,7 @@ func getDownloadLink(router chi.Router, name string, apiKey string) (string, err
 	if err != nil {
 		return "", nil
 	}
-	req := httptest.NewRequest("GET", "/download-link", bytes.NewReader(body))
+	req := httptest.NewRequest("POST", "/download-link", bytes.NewReader(body))
 	req.Header.Add(authHeader(apiKey))
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -251,7 +251,7 @@ func listModels(router chi.Router, apiKey string) ([]registry.ModelInfo, error) 
 		return nil, err
 	}
 
-	req := httptest.NewRequest("GET", "/list-models", bytes.NewReader(body))
+	req := httptest.NewRequest("POST", "/list-models", bytes.NewReader(body))
 	req.Header.Add(authHeader(apiKey))
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)

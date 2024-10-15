@@ -30,7 +30,7 @@ func setupRegistry(t *testing.T) *registry.ModelRegistry {
 		t.Fatal(err)
 	}
 
-	err = db.AutoMigrate(&schema.Model{}, &schema.AccessToken{}, &schema.Admin{})
+	err = db.AutoMigrate(&schema.Model{}, &schema.AccessCode{}, &schema.Admin{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,10 +191,10 @@ func randomBytes(n int) []byte {
 
 var unauthorizedError = errors.New("download link is unauthorized")
 
-func getDownloadLink(router chi.Router, name string, token string) (string, error) {
+func getDownloadLink(router chi.Router, name string, accessCode string) (string, error) {
 	params := map[string]interface{}{
-		"model_name":   name,
-		"access_token": token,
+		"model_name":  name,
+		"access_code": accessCode,
 	}
 
 	body, err := json.Marshal(params)
@@ -235,17 +235,17 @@ func downloadModel(router chi.Router, name string, token string) ([]byte, error)
 	return w.Body.Bytes(), nil
 }
 
-func createAccessToken(router chi.Router, modelName string, token string) (string, error) {
+func createAccessCode(router chi.Router, modelName string, token string) (string, error) {
 	params := map[string]interface{}{
-		"model_name": modelName,
-		"token_name": modelName + "-token",
+		"model_name":       modelName,
+		"access_code_name": modelName + "-code",
 	}
 	body, err := json.Marshal(params)
 	if err != nil {
 		return "", nil
 	}
 
-	req := httptest.NewRequest("POST", "/generate-access-token", bytes.NewReader(body))
+	req := httptest.NewRequest("POST", "/generate-access-code", bytes.NewReader(body))
 	req.Header.Add("Authorization", authHeader(token))
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -257,12 +257,12 @@ func createAccessToken(router chi.Router, modelName string, token string) (strin
 
 	result := make(map[string]string)
 	json.NewDecoder(w.Body).Decode(&result)
-	return result["access_token"], nil
+	return result["access_code"], nil
 }
 
-func listModels(t *testing.T, router chi.Router, accessTokens []string) []registry.ModelInfo {
+func listModels(t *testing.T, router chi.Router, accessCodes []string) []registry.ModelInfo {
 	params := map[string]interface{}{
-		"access_tokens": accessTokens,
+		"access_codes": accessCodes,
 	}
 	body, err := json.Marshal(params)
 	if err != nil {
@@ -324,24 +324,24 @@ func TestFullModelWorkflow(t *testing.T) {
 		}
 	})
 
-	var token1, token2 string
+	var code1, code2 string
 
-	t.Run("CreateAccessTokens", func(t *testing.T) {
-		t1, err := createAccessToken(router, "abc", token)
+	t.Run("CreateAccessCodes", func(t *testing.T) {
+		c1, err := createAccessCode(router, "abc", token)
 		if err != nil {
 			t.Fatal(err)
 		}
-		token1 = t1
+		code1 = c1
 
-		t2, err := createAccessToken(router, "xyz", token)
+		c2, err := createAccessCode(router, "xyz", token)
 		if err != nil {
 			t.Fatal(err)
 		}
-		token2 = t2
+		code2 = c2
 	})
 
 	t.Run("DownloadPrivateModelFailsWrongToken", func(t *testing.T) {
-		_, err := downloadModel(router, "xyz", token1)
+		_, err := downloadModel(router, "xyz", code1)
 		if err != unauthorizedError {
 			t.Fatal(err)
 		}
@@ -355,7 +355,7 @@ func TestFullModelWorkflow(t *testing.T) {
 	})
 
 	t.Run("DownloadPrivateModelWithToken", func(t *testing.T) {
-		download, err := downloadModel(router, "xyz", token2)
+		download, err := downloadModel(router, "xyz", code2)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -364,7 +364,7 @@ func TestFullModelWorkflow(t *testing.T) {
 		}
 	})
 
-	t.Run("ListModelsWithoutAccessToken", func(t *testing.T) {
+	t.Run("ListModelsWithoutAccessCode", func(t *testing.T) {
 		models := listModels(t, router, []string{})
 		if len(models) != 1 {
 			t.Fatal("Expected 1 model")
@@ -375,8 +375,8 @@ func TestFullModelWorkflow(t *testing.T) {
 		}
 	})
 
-	t.Run("ListModelsWithWrongAccessToken", func(t *testing.T) {
-		models := listModels(t, router, []string{token1})
+	t.Run("ListModelsWithWrongAccessCode", func(t *testing.T) {
+		models := listModels(t, router, []string{code1})
 		if len(models) != 1 {
 			t.Fatal("Expected 1 model")
 		}
@@ -386,8 +386,8 @@ func TestFullModelWorkflow(t *testing.T) {
 		}
 	})
 
-	t.Run("ListModelsWithAccessToken", func(t *testing.T) {
-		models := listModels(t, router, []string{token1, token2})
+	t.Run("ListModelsWithAccessCode", func(t *testing.T) {
+		models := listModels(t, router, []string{code1, code2})
 		if len(models) != 2 {
 			t.Fatal("Expected 2 models")
 		}
@@ -407,7 +407,7 @@ func TestFullModelWorkflow(t *testing.T) {
 			t.Fatalf("failed to delete model %d %v", w.Result().StatusCode, w.Body.String())
 		}
 
-		if len(listModels(t, router, []string{token1, token2})) != 1 {
+		if len(listModels(t, router, []string{code1, code2})) != 1 {
 			t.Fatalf("Expected only 1 result after deleting model")
 		}
 	})

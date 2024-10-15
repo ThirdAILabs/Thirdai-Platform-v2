@@ -27,11 +27,11 @@ type Model struct {
 	Checksum     string
 }
 
-type AccessToken struct {
+type AccessCode struct {
 	gorm.Model
 
-	AccessToken string `gorm:"uniqueIndex"`
-	Name        string
+	AccessCode string `gorm:"uniqueIndex"`
+	Name       string
 
 	ModelID  uint
 	ModelRef Model `gorm:"foreignKey:ModelID"`

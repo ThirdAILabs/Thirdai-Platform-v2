@@ -43,7 +43,7 @@ func main() {
 		log.Fatalf("failed to connect database")
 	}
 
-	err = db.AutoMigrate(&schema.Model{}, &schema.AccessToken{}, &schema.Admin{})
+	err = db.AutoMigrate(&schema.Model{}, &schema.AccessCode{}, &schema.Admin{})
 	if err != nil {
 		log.Fatalf("Failed to setup tables: %v", err)
 	}

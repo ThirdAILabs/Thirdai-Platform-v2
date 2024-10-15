@@ -45,7 +45,7 @@ func (registry *ModelRegistry) Routes() chi.Router {
 		r.Use(jwtauth.Verifier(registry.adminAuth))
 		r.Use(jwtauth.Authenticator(registry.adminAuth))
 
-		r.Post("/generate-access-token", registry.GenerateAccessToken)
+		r.Post("/generate-access-code", registry.GenerateAccessCode)
 		r.Post("/delete-model", registry.DeleteModel)
 		r.Post("/upload-start", registry.StartUpload)
 
@@ -62,7 +62,7 @@ func (registry *ModelRegistry) Routes() chi.Router {
 
 	r.Group(func(r chi.Router) {
 		r.Post("/login", registry.Login)
-		// list-models and download-link use a post method so that the access tokens
+		// list-models and download-link use a post method so that the access codes
 		// can be passed in the request body.
 		r.Post("/list-models", registry.ListModels)
 		r.Post("/download-link", registry.DownloadLink)
@@ -138,17 +138,17 @@ func (registry *ModelRegistry) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(res)
 }
 
-type generateAccessTokenRequest struct {
-	ModelName string `json:"model_name"`
-	TokenName string `json:"token_name"`
+type generateAccessCodeRequest struct {
+	ModelName      string `json:"model_name"`
+	AccessCodeName string `json:"access_code_name"`
 }
 
-type generateAccessTokenResponse struct {
-	ModelName   string `json:"model_name"`
-	AccessToken string `json:"access_token"`
+type generateAccessCodeResponse struct {
+	ModelName  string `json:"model_name"`
+	AccessCode string `json:"access_code"`
 }
 
-func createAccessToken() (string, error) {
+func createAccessCode() (string, error) {
 	b := make([]byte, 8)
 
 	_, err := rand.Read(b)
@@ -160,8 +160,8 @@ func createAccessToken() (string, error) {
 	return strconv.FormatUint(value, 16), nil
 }
 
-func (registry *ModelRegistry) GenerateAccessToken(w http.ResponseWriter, r *http.Request) {
-	var params generateAccessTokenRequest
+func (registry *ModelRegistry) GenerateAccessCode(w http.ResponseWriter, r *http.Request) {
+	var params generateAccessCodeRequest
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(&params)
 	if err != nil {
@@ -175,19 +175,19 @@ func (registry *ModelRegistry) GenerateAccessToken(w http.ResponseWriter, r *htt
 		return
 	}
 
-	accessToken, err := createAccessToken()
+	accessCode, err := createAccessCode()
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Error creating access token: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error creating access code: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	result := registry.db.Create(&schema.AccessToken{AccessToken: accessToken, Name: params.TokenName, ModelID: model.ID})
+	result := registry.db.Create(&schema.AccessCode{AccessCode: accessCode, Name: params.AccessCodeName, ModelID: model.ID})
 	if result.Error != nil {
 		dbError(w, result.Error)
 		return
 	}
 
-	res := generateAccessTokenResponse{AccessToken: accessToken, ModelName: params.ModelName}
+	res := generateAccessCodeResponse{AccessCode: accessCode, ModelName: params.ModelName}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(res)
@@ -225,7 +225,7 @@ type listModelsRequest struct {
 	NameFilter    string   `json:"name_filter"`
 	TypeFilter    string   `json:"type_filter"`
 	SubtypeFilter string   `json:"subtype_filter"`
-	AccessTokens  []string `json:"access_tokens"`
+	AccessCodes   []string `json:"access_codes"`
 }
 
 func (filters *listModelsRequest) applyFilters(query *gorm.DB) *gorm.DB {
@@ -272,9 +272,9 @@ func (registry *ModelRegistry) ListModels(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if len(params.AccessTokens) > 0 {
+	if len(params.AccessCodes) > 0 {
 		var privateModels []schema.Model
-		query := registry.db.Joins("JOIN access_tokens ON access_tokens.model_id = models.id").Where("access = ? and status = ?", schema.Private, schema.Commited).Where("access_token IN ?", params.AccessTokens)
+		query := registry.db.Joins("JOIN access_codes ON access_codes.model_id = models.id").Where("access = ? and status = ?", schema.Private, schema.Commited).Where("access_code IN ?", params.AccessCodes)
 		result := params.applyFilters(query).Find(&privateModels)
 		if result.Error != nil {
 			dbError(w, result.Error)
@@ -332,8 +332,8 @@ func (registry *ModelRegistry) AllModels(w http.ResponseWriter, r *http.Request)
 }
 
 type downloadRequest struct {
-	ModelName   string `json:"model_name"`
-	AccessToken string `json:"access_token"`
+	ModelName  string `json:"model_name"`
+	AccessCode string `json:"access_code"`
 }
 
 type downloadResponse struct {
@@ -356,14 +356,14 @@ func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Reque
 	}
 
 	if model.Access != schema.Public {
-		var accessToken schema.AccessToken
-		result := registry.db.Find(&accessToken, "access_token = ?", params.AccessToken)
+		var accessCode schema.AccessCode
+		result := registry.db.Find(&accessCode, "access_code = ?", params.AccessCode)
 		if result.Error != nil {
 			dbError(w, result.Error)
 			return
 		}
-		if accessToken.ModelID != model.ID {
-			http.Error(w, fmt.Sprintf("Provided access token does not match model %v'.", params.ModelName), http.StatusUnauthorized)
+		if accessCode.ModelID != model.ID {
+			http.Error(w, fmt.Sprintf("Provided access code does not match model %v'.", params.ModelName), http.StatusUnauthorized)
 			return
 		}
 	}

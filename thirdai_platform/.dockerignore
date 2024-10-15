@@ -2,7 +2,7 @@
 __pycache__/
 
 # Ignore the tests directory, which includes a permanent license
-tests/
+/tests/
 
 # Ignore the licensing/generate directory, which stores our private key for generating licenses
-licensing/generate/
+/licensing/generate/

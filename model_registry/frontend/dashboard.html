@@ -23,12 +23,28 @@
       return date.toUTCString();
     }
 
+    function deleteModel(modelName) {
+      $.ajax({
+        url: `/api/v1/delete-model?model_name=${modelName}`,
+        type: "POST",
+        headers: {
+          "Authorization": `Bearer ${window.localStorage.getItem("jwt")}`,
+        },
+        contentType: "application/json",
+        success: function (response) {
+          location.reload();
+        },
+        error: function (xhr, status, error) {
+          alert(`Failed to delete model, received status=${status} error='${error}'`)
+        },
+      })
+    }
+
     function getModels() {
       $.ajax({
         url: "/api/v1/all-models",
         type: "GET",
         headers: {
-          "Cache-Control": "no-cache",
           "Authorization": `Bearer ${window.localStorage.getItem("jwt")}`,
         },
         contentType: "application/json",
@@ -44,6 +60,7 @@
               <td>${(model.size / 1000000).toFixed(3)}</td>
               <td>${formatTime(model.created_at)}</td>
               <td>${model.description}</td>
+              <td><a href="#" onclick="deleteModel('${model.name}')">delete</a></td>
             </tr>`
           ).join("");
           var table = `
@@ -57,6 +74,7 @@
               <th>Size (Mb)</th>
               <th>Created At</th>
               <th>Description</th>
+              <th>Delete</th>
             </tr>
             ${items}
           </table>`;

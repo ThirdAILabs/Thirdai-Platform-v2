@@ -33,6 +33,9 @@
           var token = response["token"];
           window.localStorage.setItem("jwt", token)
           window.location.href = '/dashboard';
+        },
+        error: function (xhr, status, error) {
+          alert(`Login failed, received status=${status} error='${error}'`)
         }
       })
     }

@@ -1,8 +1,6 @@
 package registry
 
 import (
-	"crypto/rand"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,7 +14,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/jwtauth/v5"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -42,15 +39,11 @@ func (registry *ModelRegistry) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Group(func(r chi.Router) {
-		r.Use(jwtauth.Verifier(registry.adminAuth))
-		r.Use(jwtauth.Authenticator(registry.adminAuth))
+		r.Use(adminOnlyAuth(registry.db))
 
-		r.Post("/generate-access-code", registry.GenerateAccessCode)
+		r.Post("/new-api-key", registry.NewApiKey)
 		r.Post("/delete-model", registry.DeleteModel)
 		r.Post("/upload-start", registry.StartUpload)
-
-		r.Get("/list-models-admin", registry.AllModels)
-		r.Post("/download-link-admin", registry.AdminDownloadLink)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -62,9 +55,8 @@ func (registry *ModelRegistry) Routes() chi.Router {
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Post("/login", registry.Login)
-		// list-models and download-link use a post method so that the access codes
-		// can be passed in the request body.
+		r.Use(allUsersAuth(registry.db))
+
 		r.Post("/list-models", registry.ListModels)
 		r.Post("/download-link", registry.DownloadLink)
 	})
@@ -74,39 +66,24 @@ func (registry *ModelRegistry) Routes() chi.Router {
 	return r
 }
 
-func (registry *ModelRegistry) AddAdmin(email string, password string) {
-	if email == "" || password == "" {
-		panic("Email and password must not be empty")
-	}
-	pwdHash, err := bcrypt.GenerateFromPassword([]byte(password), 8)
+func (registry *ModelRegistry) AdminApiKey() string {
+	key, err := generateApiKey(registry.db, schema.AdminRole)
 	if err != nil {
-		panic(fmt.Sprintf("Error creating admin: %v", err))
+		panic(err)
 	}
-
-	result := registry.db.Find(&schema.Admin{}, "email = ?", email)
-	if result.Error != nil {
-		panic(fmt.Sprintf("DB error : %v", result.Error))
-	}
-
-	if result.RowsAffected == 0 {
-		result := registry.db.Create(&schema.Admin{Email: email, Password: string(pwdHash)})
-		if result.Error != nil {
-			panic(fmt.Sprintf("Error creating admin: %v", result.Error))
-		}
-	}
+	return key
 }
 
-type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+type generateApiKeyRequest struct {
+	Role string `json:"role"`
 }
 
-type loginResponse struct {
-	Token string `json:"token"`
+type generateApiKeyResponse struct {
+	ApiKey string `json:"api_key"`
 }
 
-func (registry *ModelRegistry) Login(w http.ResponseWriter, r *http.Request) {
-	var params loginRequest
+func (registry *ModelRegistry) NewApiKey(w http.ResponseWriter, r *http.Request) {
+	var params generateApiKeyRequest
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(&params)
 	if err != nil {
@@ -114,81 +91,13 @@ func (registry *ModelRegistry) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var admin schema.Admin
-	result := registry.db.Take(&admin, "email = ?", params.Email)
-	if result.Error != nil {
-		dbError(w, result.Error)
-		return
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(params.Password))
+	key, err := generateApiKey(registry.db, params.Role)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Invalid password: %v", err), http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	_, token, err := registry.adminAuth.Encode(map[string]interface{}{"email": admin.Email, "exp": time.Now().Add(time.Minute * 15)})
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error creating admin auth token: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	res := loginResponse{Token: token}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
-}
-
-type generateAccessCodeRequest struct {
-	ModelName      string `json:"model_name"`
-	AccessCodeName string `json:"access_code_name"`
-}
-
-type generateAccessCodeResponse struct {
-	ModelName  string `json:"model_name"`
-	AccessCode string `json:"access_code"`
-}
-
-func createAccessCode() (string, error) {
-	b := make([]byte, 8)
-
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
-
-	value := binary.BigEndian.Uint64(b)
-	return strconv.FormatUint(value, 16), nil
-}
-
-func (registry *ModelRegistry) GenerateAccessCode(w http.ResponseWriter, r *http.Request) {
-	var params generateAccessCodeRequest
-	dec := json.NewDecoder(r.Body)
-	err := dec.Decode(&params)
-	if err != nil {
-		requestParsingError(w, err)
-		return
-	}
-
-	model, err := registry.getModel(params.ModelName)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Unable to find model with name '%v': %v", params.ModelName, err), http.StatusBadRequest)
-		return
-	}
-
-	accessCode, err := createAccessCode()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Error creating access code: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	result := registry.db.Create(&schema.AccessCode{AccessCode: accessCode, Name: params.AccessCodeName, ModelID: model.ID})
-	if result.Error != nil {
-		dbError(w, result.Error)
-		return
-	}
-
-	res := generateAccessCodeResponse{AccessCode: accessCode, ModelName: params.ModelName}
+	res := generateApiKeyResponse{ApiKey: key}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(res)
@@ -223,10 +132,9 @@ func (registry *ModelRegistry) DeleteModel(w http.ResponseWriter, r *http.Reques
 }
 
 type listModelsRequest struct {
-	NameFilter    string   `json:"name_filter"`
-	TypeFilter    string   `json:"type_filter"`
-	SubtypeFilter string   `json:"subtype_filter"`
-	AccessCodes   []string `json:"access_codes"`
+	NameFilter    string `json:"name_filter"`
+	TypeFilter    string `json:"type_filter"`
+	SubtypeFilter string `json:"subtype_filter"`
 }
 
 func (filters *listModelsRequest) applyFilters(query *gorm.DB) *gorm.DB {
@@ -247,7 +155,6 @@ type ModelInfo struct {
 	Id           uint      `json:"id"`
 	ModelType    string    `json:"model_type"`
 	ModelSubtype string    `json:"model_subtype"`
-	Access       string    `json:"access"`
 	Size         int64     `json:"size"`
 	Description  string    `json:"description"`
 	CreatedAt    time.Time `json:"created_at"`
@@ -273,17 +180,6 @@ func (registry *ModelRegistry) ListModels(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if len(params.AccessCodes) > 0 {
-		var privateModels []schema.Model
-		query := registry.db.Joins("JOIN access_codes ON access_codes.model_id = models.id").Where("access = ? and status = ?", schema.Private, schema.Commited).Where("access_code IN ?", params.AccessCodes)
-		result := params.applyFilters(query).Find(&privateModels)
-		if result.Error != nil {
-			dbError(w, result.Error)
-			return
-		}
-		models = append(models, privateModels...)
-	}
-
 	modelInfos := make([]ModelInfo, 0, len(models))
 	for _, model := range models {
 		modelInfos = append(modelInfos, ModelInfo{
@@ -291,35 +187,6 @@ func (registry *ModelRegistry) ListModels(w http.ResponseWriter, r *http.Request
 			Id:           model.ID,
 			ModelType:    model.ModelType,
 			ModelSubtype: model.ModelSubtype,
-			Access:       model.Access,
-			Size:         model.Size,
-			Description:  model.Description,
-			CreatedAt:    model.CreatedAt,
-		})
-	}
-
-	res := listModelsResponse{Models: modelInfos}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
-}
-
-func (registry *ModelRegistry) AllModels(w http.ResponseWriter, r *http.Request) {
-	var models []schema.Model
-	result := registry.db.Find(&models)
-	if result.Error != nil {
-		dbError(w, result.Error)
-		return
-	}
-
-	modelInfos := make([]ModelInfo, 0, len(models))
-	for _, model := range models {
-		modelInfos = append(modelInfos, ModelInfo{
-			Name:         model.Name,
-			Id:           model.ID,
-			ModelType:    model.ModelType,
-			ModelSubtype: model.ModelSubtype,
-			Access:       model.Access,
 			Size:         model.Size,
 			Description:  model.Description,
 			CreatedAt:    model.CreatedAt,
@@ -333,8 +200,7 @@ func (registry *ModelRegistry) AllModels(w http.ResponseWriter, r *http.Request)
 }
 
 type downloadRequest struct {
-	ModelName  string `json:"model_name"`
-	AccessCode string `json:"access_code"`
+	ModelName string `json:"model_name"`
 }
 
 type downloadResponse struct {
@@ -357,7 +223,7 @@ func formatDownloadName(modelName string, modelType string, compressed bool) str
 	return modelFilename
 }
 
-func (registry *ModelRegistry) downloadLinkForModel(w http.ResponseWriter, r *http.Request, isAdmin bool) {
+func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Request) {
 	var params downloadRequest
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(&params)
@@ -370,19 +236,6 @@ func (registry *ModelRegistry) downloadLinkForModel(w http.ResponseWriter, r *ht
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unable to find model with name '%v': %v", params.ModelName, err), http.StatusBadRequest)
 		return
-	}
-
-	if model.Access != schema.Public && !isAdmin {
-		var accessCode schema.AccessCode
-		result := registry.db.Find(&accessCode, "access_code = ?", params.AccessCode)
-		if result.Error != nil {
-			dbError(w, result.Error)
-			return
-		}
-		if accessCode.ModelID != model.ID {
-			http.Error(w, fmt.Sprintf("Provided access code does not match model %v'.", params.ModelName), http.StatusUnauthorized)
-			return
-		}
 	}
 
 	u := r.URL.String()
@@ -404,14 +257,6 @@ func (registry *ModelRegistry) downloadLinkForModel(w http.ResponseWriter, r *ht
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(res)
-}
-
-func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Request) {
-	registry.downloadLinkForModel(w, r, false)
-}
-
-func (registry *ModelRegistry) AdminDownloadLink(w http.ResponseWriter, r *http.Request) {
-	registry.downloadLinkForModel(w, r, true)
 }
 
 type uploadRequest struct {
@@ -444,8 +289,8 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if params.Access != schema.Private && params.Access != schema.Public {
-		http.Error(w, "Model access param must be either 'public' or 'private'.", http.StatusBadRequest)
+	if params.Access != schema.Public {
+		http.Error(w, "Model access param must be either 'public'.", http.StatusBadRequest)
 		return
 	}
 

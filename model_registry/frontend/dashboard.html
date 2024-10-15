@@ -19,10 +19,10 @@
   <script>
     function downloadModel(modelName) {
       $.ajax({
-        url: "/api/v1/download-link-admin",
+        url: "/api/v1/download-link",
         type: "POST",
         headers: {
-          "Authorization": `Bearer ${window.localStorage.getItem("jwt")}`,
+          "Authorization": `Bearer ${window.localStorage.getItem("apikey")}`,
         },
         contentType: "application/json",
         data: JSON.stringify({ "model_name": modelName }),
@@ -35,7 +35,7 @@
           document.body.removeChild(link);
         },
         error: function (xhr, status, error) {
-          alert(`Download failed, received status=${status} error='${error}'`)
+          alert(`Download failed, error='${error}'`)
         }
       });
     }
@@ -45,14 +45,14 @@
         url: `/api/v1/delete-model?model_name=${modelName}`,
         type: "POST",
         headers: {
-          "Authorization": `Bearer ${window.localStorage.getItem("jwt")}`,
+          "Authorization": `Bearer ${window.localStorage.getItem("apikey")}`,
         },
         contentType: "application/json",
         success: function (response) {
           location.reload();
         },
         error: function (xhr, status, error) {
-          alert(`Failed to delete model, received status=${status} error='${error}'`)
+          alert(`Failed to delete model, error='${error}'`)
         },
       })
     }
@@ -65,10 +65,10 @@
 
     function getModels() {
       $.ajax({
-        url: "/api/v1/list-models-admin",
-        type: "GET",
+        url: "/api/v1/list-models",
+        type: "POST",
         headers: {
-          "Authorization": `Bearer ${window.localStorage.getItem("jwt")}`,
+          "Authorization": `Bearer ${window.localStorage.getItem("apikey")}`,
         },
         contentType: "application/json",
         success: function (response) {
@@ -79,7 +79,6 @@
               <td>${model.id}</td>
               <td>${model.model_type}</td>
               <td>${model.model_subtype}</td>
-              <td>${model.access}</td>
               <td>${(model.size / 1000000).toFixed(3)}</td>
               <td>${formatTime(model.created_at)}</td>
               <td>${model.description}</td>
@@ -94,7 +93,6 @@
               <th>Id</th>
               <th>Model Type</th>
               <th>Model Subtype</th>
-              <th>Access</th>
               <th>Size (Mb)</th>
               <th>Created At</th>
               <th>Description</th>
@@ -105,6 +103,27 @@
           </table>`;
 
           document.getElementById("model-list").innerHTML = table
+        },
+        error: function (xhr, status, error) {
+          alert(`Failed to load dashboard, error='${error}'`)
+        }
+      })
+    }
+
+    function getApiKey(role) {
+      $.ajax({
+        url: "/api/v1/new-api-key",
+        type: "POST",
+        headers: {
+          "Authorization": `Bearer ${window.localStorage.getItem("apikey")}`,
+        },
+        contentType: "application/json",
+        data: JSON.stringify({ "role": role }),
+        success: function (response) {
+          alert("your api key is " + response["api_key"])
+        },
+        error: function (xhr, status, error) {
+          alert(`Failed to get api key, error='${error}'`)
         }
       })
     }
@@ -115,8 +134,11 @@
 
 <body>
   <h2>Admin Dashboard</h2>
+  <div style="padding: 10px;">
+    <button onclick="getApiKey('user')">User api key</button>
+    <button onclick="getApiKey('admin')">Admin api key (internal only)</button>
+  </div>
   <div id="model-list">
-
   </div>
 </body>
 

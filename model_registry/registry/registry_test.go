@@ -19,18 +19,13 @@ import (
 	"gorm.io/gorm"
 )
 
-const (
-	defaultEmail    = "admin@mail.com"
-	defaultPassword = "password"
-)
-
 func setupRegistry(t *testing.T) *registry.ModelRegistry {
 	db, err := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = db.AutoMigrate(&schema.Model{}, &schema.AccessCode{}, &schema.Admin{})
+	err = db.AutoMigrate(&schema.Model{}, &schema.ApiKey{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,8 +35,6 @@ func setupRegistry(t *testing.T) *registry.ModelRegistry {
 	storage := registry.NewLocalStorage(localStoragePath)
 
 	registry := registry.New(db, storage)
-
-	registry.AddAdmin(defaultEmail, defaultPassword)
 
 	t.Cleanup(func() {
 		err := os.RemoveAll(localStoragePath)
@@ -53,28 +46,11 @@ func setupRegistry(t *testing.T) *registry.ModelRegistry {
 	return registry
 }
 
-func login(router chi.Router, t *testing.T) string {
-	body := fmt.Sprintf(`{"email": "%v", "password": "%v"}`, defaultEmail, defaultPassword)
-	req := httptest.NewRequest("POST", "/login", strings.NewReader(body))
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-	resp := w.Result()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatal("Login should succeed")
-	}
-
-	result := make(map[string]string)
-	json.NewDecoder(resp.Body).Decode(&result)
-
-	return result["token"]
+func authHeader(token string) (string, string) {
+	return "Authorization", fmt.Sprintf("Bearer %v", token)
 }
 
-func authHeader(token string) string {
-	return fmt.Sprintf("Bearer %v", token)
-}
-
-func TestAdminLogin(t *testing.T) {
+func TestApiKey(t *testing.T) {
 	registry := setupRegistry(t)
 	router := registry.Routes()
 
@@ -101,16 +77,28 @@ func TestAdminLogin(t *testing.T) {
 		}
 	}
 
-	token := login(router, t)
+	adminKey := newApiKey(t, router, "admin", registry.AdminApiKey())
+	userKey := newApiKey(t, router, "user", registry.AdminApiKey())
 
 	{
 		req := httptest.NewRequest("POST", "/upload-start", bytes.NewReader(body))
-		req.Header.Add("Authorization", authHeader(token))
+		req.Header.Add(authHeader(adminKey))
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
 		if w.Result().StatusCode != http.StatusOK {
-			t.Fatalf("Request should succeed with token %d %v", w.Result().StatusCode, w.Body.String())
+			t.Fatalf("Request should succeed with admin token %d %v", w.Result().StatusCode, w.Body.String())
+		}
+	}
+
+	{
+		req := httptest.NewRequest("POST", "/upload-start", bytes.NewReader(body))
+		req.Header.Add(authHeader(userKey))
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		if w.Result().StatusCode != http.StatusUnauthorized {
+			t.Fatalf("Request should fail with user token %d %v", w.Result().StatusCode, w.Body.String())
 		}
 	}
 }
@@ -123,13 +111,36 @@ func getChecksum(data []byte) string {
 	return dataChecksum
 }
 
-func uploadModel(router chi.Router, name string, data []byte, checksum string, token string, access string) error {
+func newApiKey(t *testing.T, router chi.Router, role string, adminToken string) string {
+	params := map[string]interface{}{"role": role}
+	body, err := json.Marshal(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("POST", "/new-api-key", bytes.NewReader(body))
+	req.Header.Add("Authorization", "Bearer "+adminToken)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatal("new api key failed")
+	}
+
+	result := make(map[string]string)
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	return result["api_key"]
+}
+
+func uploadModel(router chi.Router, name string, data []byte, checksum string, adminKey string) error {
 	params := map[string]interface{}{
 		"model_name":    name,
 		"description":   "a model called " + name,
 		"model_type":    name,
 		"model_subtype": name + "::" + name,
-		"access":        access,
+		"access":        "public",
 		"metadata":      "",
 		"size":          len(data),
 		"compressed":    false,
@@ -142,7 +153,7 @@ func uploadModel(router chi.Router, name string, data []byte, checksum string, t
 	}
 
 	req := httptest.NewRequest("POST", "/upload-start", bytes.NewReader(body))
-	req.Header.Add("Authorization", "Bearer "+token)
+	req.Header.Add("Authorization", "Bearer "+adminKey)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -159,7 +170,7 @@ func uploadModel(router chi.Router, name string, data []byte, checksum string, t
 		end := min(start+10, len(data))
 
 		req := httptest.NewRequest("POST", "/upload-chunk", bytes.NewReader(data[start:end]))
-		req.Header.Add("Authorization", authHeader(session))
+		req.Header.Add(authHeader(session))
 		req.Header.Add("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(data)))
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
@@ -170,7 +181,7 @@ func uploadModel(router chi.Router, name string, data []byte, checksum string, t
 	}
 
 	req = httptest.NewRequest("POST", "/upload-commit", nil)
-	req.Header.Add("Authorization", authHeader(session))
+	req.Header.Add(authHeader(session))
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -192,17 +203,14 @@ func randomBytes(n int) []byte {
 
 var unauthorizedError = errors.New("download link is unauthorized")
 
-func getDownloadLink(router chi.Router, name string, accessCode string) (string, error) {
-	params := map[string]interface{}{
-		"model_name":  name,
-		"access_code": accessCode,
-	}
-
+func getDownloadLink(router chi.Router, name string, apiKey string) (string, error) {
+	params := map[string]interface{}{"model_name": name}
 	body, err := json.Marshal(params)
 	if err != nil {
 		return "", nil
 	}
-	req := httptest.NewRequest("POST", "/download-link", bytes.NewReader(body))
+	req := httptest.NewRequest("GET", "/download-link", bytes.NewReader(body))
+	req.Header.Add(authHeader(apiKey))
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -219,8 +227,8 @@ func getDownloadLink(router chi.Router, name string, accessCode string) (string,
 	return result["download_link"], nil
 }
 
-func downloadModel(router chi.Router, name string, token string) ([]byte, error) {
-	link, err := getDownloadLink(router, name, token)
+func downloadModel(router chi.Router, name string, apiKey string) ([]byte, error) {
+	link, err := getDownloadLink(router, name, apiKey)
 	if err != nil {
 		return nil, err
 	}
@@ -236,127 +244,72 @@ func downloadModel(router chi.Router, name string, token string) ([]byte, error)
 	return w.Body.Bytes(), nil
 }
 
-func createAccessCode(router chi.Router, modelName string, token string) (string, error) {
-	params := map[string]interface{}{
-		"model_name":       modelName,
-		"access_code_name": modelName + "-code",
-	}
+func listModels(router chi.Router, apiKey string) ([]registry.ModelInfo, error) {
+	params := map[string]interface{}{}
 	body, err := json.Marshal(params)
 	if err != nil {
-		return "", nil
+		return nil, err
 	}
 
-	req := httptest.NewRequest("POST", "/generate-access-code", bytes.NewReader(body))
-	req.Header.Add("Authorization", authHeader(token))
+	req := httptest.NewRequest("GET", "/list-models", bytes.NewReader(body))
+	req.Header.Add(authHeader(apiKey))
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	code := w.Result().StatusCode
-	if code != http.StatusOK {
-		return "", fmt.Errorf("Failed to generate token %d %v", code, w.Body.String())
+	if w.Result().StatusCode == http.StatusUnauthorized {
+		return nil, unauthorizedError
 	}
-
-	result := make(map[string]string)
-	json.NewDecoder(w.Body).Decode(&result)
-	return result["access_code"], nil
-}
-
-func listModels(t *testing.T, router chi.Router, accessCodes []string) []registry.ModelInfo {
-	params := map[string]interface{}{
-		"access_codes": accessCodes,
-	}
-	body, err := json.Marshal(params)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req := httptest.NewRequest("POST", "/list-models", bytes.NewReader(body))
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
 
 	if w.Result().StatusCode != http.StatusOK {
-		t.Fatalf("list models failed %d %v", w.Result().StatusCode, w.Body.String())
+		return nil, fmt.Errorf("list models failed %d %v", w.Result().StatusCode, w.Body.String())
 	}
 
 	result := make(map[string][]registry.ModelInfo)
 	json.NewDecoder(w.Body).Decode(&result)
-	return result["models"]
+	return result["models"], nil
 }
 
 func TestFullModelWorkflow(t *testing.T) {
 	registry := setupRegistry(t)
 	router := registry.Routes()
 
-	token := login(router, t)
-
 	model1 := randomBytes(107)
 	model2 := randomBytes(362)
-	model3 := randomBytes(84)
 
 	t.Run("UploadModels", func(t *testing.T) {
-		err := uploadModel(router, "abc", model1, getChecksum(model1), token, schema.Public)
+		err := uploadModel(router, "abc", model1, getChecksum(model1), registry.AdminApiKey())
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = uploadModel(router, "xyz", model2, getChecksum(model2), token, schema.Private)
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = uploadModel(router, "123", model3, getChecksum(model3), token, schema.Private)
+		err = uploadModel(router, "xyz", model2, getChecksum(model2), registry.AdminApiKey())
 		if err != nil {
 			t.Fatal(err)
 		}
 	})
 
-	t.Run("DownloadPublicModel", func(t *testing.T) {
-		download, err := downloadModel(router, "abc", "")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !bytes.Equal(model1, download) {
-			t.Fatal("downloaded model doesn't match")
-		}
+	var adminKey, userKey string
+
+	t.Run("CreateApiKeys", func(t *testing.T) {
+		adminKey = newApiKey(t, router, "admin", registry.AdminApiKey())
+		userKey = newApiKey(t, router, "user", registry.AdminApiKey())
 	})
 
-	t.Run("DownloadPrivateModelFails", func(t *testing.T) {
+	t.Run("DownloadModelFailsNoApiKey", func(t *testing.T) {
 		_, err := downloadModel(router, "xyz", "")
 		if err != unauthorizedError {
 			t.Fatal(err)
 		}
 	})
 
-	var code1, code2 string
-
-	t.Run("CreateAccessCodes", func(t *testing.T) {
-		c1, err := createAccessCode(router, "abc", token)
-		if err != nil {
-			t.Fatal(err)
-		}
-		code1 = c1
-
-		c2, err := createAccessCode(router, "xyz", token)
-		if err != nil {
-			t.Fatal(err)
-		}
-		code2 = c2
-	})
-
-	t.Run("DownloadPrivateModelFailsWrongToken", func(t *testing.T) {
-		_, err := downloadModel(router, "xyz", code1)
+	t.Run("DownloadModelFailsInvalidApiKey", func(t *testing.T) {
+		_, err := downloadModel(router, "xyz", "lasjflkjlks")
 		if err != unauthorizedError {
 			t.Fatal(err)
 		}
 	})
 
-	t.Run("DownloadPrivateModelFailsRandomTokenToken", func(t *testing.T) {
-		_, err := downloadModel(router, "xyz", "lsjdflk")
-		if err != unauthorizedError {
-			t.Fatal(err)
-		}
-	})
-
-	t.Run("DownloadPrivateModelWithToken", func(t *testing.T) {
-		download, err := downloadModel(router, "xyz", code2)
+	t.Run("DownloadModelAdminApiKey", func(t *testing.T) {
+		download, err := downloadModel(router, "xyz", adminKey)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -365,30 +318,49 @@ func TestFullModelWorkflow(t *testing.T) {
 		}
 	})
 
-	t.Run("ListModelsWithoutAccessCode", func(t *testing.T) {
-		models := listModels(t, router, []string{})
-		if len(models) != 1 {
-			t.Fatal("Expected 1 model")
+	t.Run("DownloadModelUserApiKey", func(t *testing.T) {
+		download, err := downloadModel(router, "xyz", userKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(model2, download) {
+			t.Fatal("downloaded model doesn't match")
+		}
+	})
+
+	t.Run("ListModelsFailsNoApiKey", func(t *testing.T) {
+		_, err := listModels(router, "")
+		if err != unauthorizedError {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("ListModelsFailsInvalidApiKey", func(t *testing.T) {
+		_, err := listModels(router, "2asldkfj")
+		if err != unauthorizedError {
+			t.Fatal(err)
+		}
+	})
+
+	t.Run("ListModelsAdminApiKey", func(t *testing.T) {
+		models, err := listModels(router, adminKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(models) != 2 {
+			t.Fatal("Expected 2 models")
 		}
 
-		if models[0].Name != "abc" {
+		if models[0].Name != "abc" || models[1].Name != "xyz" {
 			t.Fatal("incorrect model returned")
 		}
 	})
 
-	t.Run("ListModelsWithWrongAccessCode", func(t *testing.T) {
-		models := listModels(t, router, []string{code1})
-		if len(models) != 1 {
-			t.Fatal("Expected 1 model")
+	t.Run("ListModelsUserApiKey", func(t *testing.T) {
+		models, err := listModels(router, userKey)
+		if err != nil {
+			t.Fatal(err)
 		}
-
-		if models[0].Name != "abc" {
-			t.Fatal("incorrect model returned")
-		}
-	})
-
-	t.Run("ListModelsWithAccessCode", func(t *testing.T) {
-		models := listModels(t, router, []string{code1, code2})
 		if len(models) != 2 {
 			t.Fatal("Expected 2 models")
 		}
@@ -400,7 +372,7 @@ func TestFullModelWorkflow(t *testing.T) {
 
 	t.Run("DeleteModel", func(t *testing.T) {
 		req := httptest.NewRequest("POST", "/delete-model?model_name=xyz", nil)
-		req.Header.Add("Authorization", authHeader(token))
+		req.Header.Add(authHeader(adminKey))
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 
@@ -408,7 +380,11 @@ func TestFullModelWorkflow(t *testing.T) {
 			t.Fatalf("failed to delete model %d %v", w.Result().StatusCode, w.Body.String())
 		}
 
-		if len(listModels(t, router, []string{code1, code2})) != 1 {
+		models, err := listModels(router, userKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(models) != 1 {
 			t.Fatalf("Expected only 1 result after deleting model")
 		}
 	})
@@ -418,13 +394,13 @@ func TestModelChecksums(t *testing.T) {
 	registry := setupRegistry(t)
 	router := registry.Routes()
 
-	token := login(router, t)
+	token := registry.AdminApiKey()
 
 	model := randomBytes(528)
 	checksum := getChecksum(model)
 	model[48] = model[48] + 1 // Corrupt byte
 
-	err := uploadModel(router, "abc", model, checksum, token, schema.Public)
+	err := uploadModel(router, "abc", model, checksum, token)
 	if err == nil {
 		t.Fatal("Checksum mismatch should cause upload to fail")
 	}

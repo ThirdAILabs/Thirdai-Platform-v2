@@ -5,8 +5,7 @@ import (
 )
 
 const (
-	Public  = "public"
-	Private = "private"
+	Public = "public"
 )
 
 const (
@@ -14,12 +13,17 @@ const (
 	Commited = "commited"
 )
 
+const (
+	AdminRole = "admin"
+	UserRole  = "user"
+)
+
 type Model struct {
 	gorm.Model
 	Name         string `gorm:"uniqueIndex"`
 	ModelType    string
 	ModelSubtype string
-	Access       string
+	Access       string // placeholder in case we want this in the future
 	Size         int64
 	Compressed   bool
 	Description  string
@@ -28,19 +32,9 @@ type Model struct {
 	Checksum     string
 }
 
-type AccessCode struct {
+type ApiKey struct {
 	gorm.Model
 
-	AccessCode string `gorm:"uniqueIndex"`
-	Name       string
-
-	ModelID  uint
-	ModelRef Model `gorm:"foreignKey:ModelID"`
-}
-
-type Admin struct {
-	gorm.Model
-
-	Email    string `gorm:"uniqueIndex"`
-	Password string
+	Key  string `gorm:"uniqueIndex"`
+	Role string
 }

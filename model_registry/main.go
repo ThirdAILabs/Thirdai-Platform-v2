@@ -35,15 +35,12 @@ func main() {
 	storagePath := getEnvWithDefault("registry_storage", "storage")
 	port := getEnvWithDefault("registry_port", "3040")
 
-	adminEmail := os.Getenv("admin_email")
-	adminPassword := os.Getenv("admin_password")
-
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("failed to connect database")
 	}
 
-	err = db.AutoMigrate(&schema.Model{}, &schema.AccessCode{}, &schema.Admin{})
+	err = db.AutoMigrate(&schema.Model{}, &schema.ApiKey{})
 	if err != nil {
 		log.Fatalf("Failed to setup tables: %v", err)
 	}
@@ -52,7 +49,7 @@ func main() {
 
 	registry := registry.New(db, storage)
 
-	registry.AddAdmin(adminEmail, adminPassword)
+	fmt.Println("apikey: ", registry.AdminApiKey())
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)

@@ -465,86 +465,137 @@ export default function Interact() {
     }
   };
 
+  function isColumnData(entry: CachedTagEntry): entry is ColumnData {
+    return (entry as ColumnData).content !== undefined;
+  }
+  
+
+  function mergeTokens(existingTokens: Token[], newTokens: Token[]): Token[] {
+    return existingTokens.map((token, index) => {
+      const newToken = newTokens[index];
+      if (newToken && newToken.tag !== 'O') {
+        return { ...token, tag: newToken.tag };
+      }
+      return token;
+    });
+  }  
+  
+
   const cacheNewTag = async (newTag: string) => {
     if (!selectedRange) return;
 
     const updatedTags = annotations.map((token, index) => ({
       text: token.text,
-      tag: (selectedRange && index >= selectedRange[0] && index <= selectedRange[1]) ? newTag : token.tag
+      tag:
+        selectedRange && index >= selectedRange[0] && index <= selectedRange[1]
+          ? newTag
+          : token.tag,
     }));
 
     const normalizedSentence = normalizeSentence(inputText);
-
-    setCachedTags(prev => {
+  
+    setCachedTags((prev) => {
       const updatedCachedTags: CachedTags = { ...prev };
 
       if (parsedData) {
         if ((parsedData.type === 'csv' || parsedData.type === 'other') && parsedData.rows) {
           // Find the relevant column
-          const relevantColumnIndex = parsedData.rows.findIndex(row => 
-            row.content.split('\n').some(column => 
+          const relevantRowIndex = parsedData.rows.findIndex((row) =>
+            row.content.split('\n').some((column) =>
               column.includes(updatedTags[selectedRange[0]].text)
             )
           );
   
-          if (relevantColumnIndex !== -1) {
-            const relevantColumn = parsedData.rows[relevantColumnIndex].content.split('\n')
-              .find(column => column.includes(updatedTags[selectedRange[0]].text));
+          if (relevantRowIndex !== -1) {
+            const relevantRow = parsedData.rows[relevantRowIndex];
+            const relevantColumn = relevantRow.content.split('\n').find((column) =>
+              column.includes(updatedTags[selectedRange[0]].text)
+            );
   
             if (relevantColumn) {
               const [columnName, ...columnContent] = relevantColumn.split(':');
               const content = columnContent.join(':').trim();
   
-              // Generate a unique key for this feedback
-              const feedbackKey = `${normalizedSentence}-${Date.now()}`;
+              // Use column name and row index as key
+              const feedbackKey = `${columnName}-${relevantRowIndex}`;
   
-              updatedCachedTags[feedbackKey] = {
-                columnName,
-                content: content.split(' ').map(word => ({
-                  text: word,
-                  tag: updatedTags.find(t => t.text === word)?.tag || 'O'
-                }))
-              };
+              const newContent = content.split(' ').map((word) => ({
+                text: word,
+                tag: updatedTags.find((t) => t.text === word)?.tag || 'O',
+              }));
+  
+              // Update cachedTags
+              if (updatedCachedTags[feedbackKey]) {
+                if (isColumnData(updatedCachedTags[feedbackKey])) {
+                  // Merge existing content with new content
+                  const existingContent = updatedCachedTags[feedbackKey].content;
+                  const mergedContent = mergeTokens(existingContent, newContent);
+                  updatedCachedTags[feedbackKey].content = mergedContent;
+                }
+              } else {
+                updatedCachedTags[feedbackKey] = {
+                  columnName,
+                  content: newContent,
+                };
+              }
             }
           }
         } else if (parsedData.type === 'pdf' && parsedData.pdfParagraphs) {
           // Find the relevant paragraph
-          const relevantParagraphIndex = parsedData.pdfParagraphs.findIndex(paragraph => 
+          const relevantParagraphIndex = parsedData.pdfParagraphs.findIndex((paragraph) =>
             paragraph.includes(updatedTags[selectedRange[0]].text)
           );
   
           if (relevantParagraphIndex !== -1) {
             const relevantParagraph = parsedData.pdfParagraphs[relevantParagraphIndex];
   
-            // Generate a unique key for this feedback
-            const feedbackKey = `${normalizedSentence}-${Date.now()}`;
+            // Use paragraph index as key
+            const feedbackKey = `paragraph-${relevantParagraphIndex}`;
   
-            updatedCachedTags[feedbackKey] = {
-              columnName: `Paragraph ${relevantParagraphIndex + 1}`,
-              content: relevantParagraph.split(' ').map(word => ({
-                text: word,
-                tag: updatedTags.find(t => t.text === word)?.tag || 'O'
-              }))
-            };
+            const newContent = relevantParagraph.split(' ').map((word) => ({
+              text: word,
+              tag: updatedTags.find((t) => t.text === word)?.tag || 'O',
+            }));
+  
+            // Update cachedTags
+            if (updatedCachedTags[feedbackKey]) {
+              if (isColumnData(updatedCachedTags[feedbackKey])) {
+                // Merge existing content with new content
+                const existingContent = updatedCachedTags[feedbackKey].content;
+                const mergedContent = mergeTokens(existingContent, newContent);
+                updatedCachedTags[feedbackKey].content = mergedContent;
+              }
+            } else {
+              updatedCachedTags[feedbackKey] = {
+                columnName: `Paragraph ${relevantParagraphIndex + 1}`,
+                content: newContent,
+              };
+            }
           }
         } else {
-          // Generate a unique key for this feedback
-          const feedbackKey = `${normalizedSentence}-${Date.now()}`;
-          updatedCachedTags[feedbackKey] = updatedTags;
+          // For 'other' types
+          const feedbackKey = normalizedSentence; // Use normalized sentence as key
+  
+          // Update cachedTags
+          if (updatedCachedTags[feedbackKey]) {
+            const existingEntry = updatedCachedTags[feedbackKey];
+            if (Array.isArray(existingEntry)) {
+              // Merge existing content with new content
+              const mergedContent = mergeTokens(existingEntry, updatedTags);
+              updatedCachedTags[feedbackKey] = mergedContent;
+            }
+          } else {
+            updatedCachedTags[feedbackKey] = updatedTags;
+          }
         }
       }
   
-      // Check if any tags are non-'O' before keeping the entry
-      Object.keys(updatedCachedTags).forEach(key => {
+      // Remove entries with no tags
+      Object.keys(updatedCachedTags).forEach((key) => {
         const entry = updatedCachedTags[key];
-        if (Array.isArray(entry)) {
-          if (!entry.some(token => token.tag !== 'O')) {
-            delete updatedCachedTags[key];
-          }
-        } else if ('content' in entry) {
-          if (!entry.content.some(token => token.tag !== 'O')) {
-            delete updatedCachedTags[key];
-          }
+        const content = Array.isArray(entry) ? entry : entry.content;
+        if (!content.some((token) => token.tag !== 'O')) {
+          delete updatedCachedTags[key];
         }
       });
   

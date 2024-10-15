@@ -723,15 +723,20 @@ export default function Interact() {
   
   const renderHighlightedContent = (content: string) => {
     const words = content.split(/\s+/);
+    let currentIndex = 0;
+
     return words.map((word, wordIndex) => {
       const tokenIndex = annotations.findIndex(
-        (token, index) => token.text.toLowerCase() === word.toLowerCase() && index >= wordIndex
+        (token, index) => 
+          token.text.toLowerCase() === word.toLowerCase() && 
+          index >= currentIndex
       );
 
       if (tokenIndex !== -1) {
+        currentIndex = tokenIndex + 1;
         return (
           <Highlight
-            key={wordIndex}
+            key={`${wordIndex}-${tokenIndex}`}
             currentToken={annotations[tokenIndex]}
             tokenIndex={tokenIndex}
             nextToken={annotations[tokenIndex + 1] || null}
@@ -760,7 +765,7 @@ export default function Interact() {
 
       // Render non-highlighted words
       if (!showHighlightedOnly || (tokenIndex !== -1 && annotations[tokenIndex].tag !== 'O')) {
-        return <span key={wordIndex}>{word} </span>;
+        return <span key={`${wordIndex}-text`}>{word} </span>;
       }
       
       // If showHighlightedOnly is true and this word is not tagged, return null

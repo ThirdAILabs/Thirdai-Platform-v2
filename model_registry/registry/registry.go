@@ -386,8 +386,6 @@ func (registry *ModelRegistry) downloadLinkForModel(w http.ResponseWriter, r *ht
 	}
 
 	u := r.URL.String()
-
-	fmt.Println("URL: ", u)
 	var storageUrl string
 	if i := strings.Index(u, "download-link"); i >= 0 {
 		storageUrl, err = url.JoinPath(u[:i], "/storage")
@@ -395,7 +393,6 @@ func (registry *ModelRegistry) downloadLinkForModel(w http.ResponseWriter, r *ht
 		http.Error(w, "Unable to find base url.", http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("storage URL: ", storageUrl)
 
 	link, err := registry.storage.GetDownloadLink(storageUrl, model.ID, formatDownloadName(model.Name, model.ModelType, model.Compressed))
 	if err != nil {

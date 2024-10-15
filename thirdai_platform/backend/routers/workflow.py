@@ -11,12 +11,6 @@ from backend.auth_dependencies import (
     is_workflow_accessible,
     is_workflow_owner,
 )
-from backend.deployment_config import (
-    DeploymentConfig,
-    ModelType,
-    NDBDeploymentOptions,
-    UDTDeploymentOptions,
-)
 from backend.startup_jobs import start_on_prem_generate_job
 from backend.utils import (
     delete_nomad_job,
@@ -25,7 +19,6 @@ from backend.utils import (
     get_workflow,
     list_workflow_models,
     model_bazaar_path,
-    response,
     submit_nomad_job,
     thirdai_platform_dir,
 )
@@ -34,6 +27,13 @@ from database.session import get_session
 from fastapi import APIRouter, Depends, status
 from fastapi.encoders import jsonable_encoder
 from licensing.verify.verify_license import verify_license
+from platform_common.pydantic_models.deployment import (
+    DeploymentConfig,
+    NDBDeploymentOptions,
+    UDTDeploymentOptions,
+)
+from platform_common.pydantic_models.training import ModelType
+from platform_common.utils import response
 from pydantic import BaseModel, validator
 from sqlalchemy.orm import Session, selectinload
 

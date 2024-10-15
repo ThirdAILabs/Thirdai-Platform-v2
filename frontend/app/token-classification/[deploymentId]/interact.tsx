@@ -2,7 +2,7 @@
 
 import { Container, Box, CircularProgress, Typography, Switch, FormControlLabel } from '@mui/material';
 import { Button } from '@/components/ui/button';
-import React, { MouseEventHandler, ReactNode, useEffect, useRef, useState } from 'react';
+import React, { CSSProperties, MouseEventHandler, ReactNode, useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import * as _ from 'lodash';
 import { useTokenClassificationEndpoints } from '@/lib/backend';
@@ -75,7 +75,6 @@ interface HighlightProps {
 function Highlight({
   currentToken,
   tokenIndex,
-  nextToken,
   tagColors,
   onMouseOver,
   onMouseDown,
@@ -102,6 +101,8 @@ function Highlight({
           borderRadius: '2px',
           cursor: hover ? 'pointer' : 'default',
           userSelect: 'none',
+          display: 'inline-flex',
+          alignItems: 'center',
         }}
         onMouseOver={(e) => {
           setHover(true);
@@ -113,17 +114,16 @@ function Highlight({
         onMouseDown={() => onMouseDown(tokenIndex)}
       >
         {currentToken.text}
-        {tagColors[currentToken.tag] && nextToken?.tag !== currentToken.tag && (
+        {currentToken.tag !== 'O' && (
           <span
             style={{
-              backgroundColor: tagColors[currentToken.tag].tag,
+              backgroundColor: tagColors[currentToken.tag]?.tag,
               color: 'white',
               fontSize: '11px',
               fontWeight: 'bold',
               borderRadius: '2px',
               marginLeft: '4px',
-              padding: '5px 3px 1px 3px',
-              marginBottom: '1px',
+              padding: '1px 3px',
             }}
           >
             {currentToken.tag}
@@ -139,19 +139,7 @@ function Highlight({
           currentTag={currentToken.tag}
         />
       )}
-      <span
-        style={{ cursor: hover ? 'pointer' : 'default', userSelect: 'none' }}
-        onMouseOver={(e) => {
-          setHover(true);
-          onMouseOver(tokenIndex);
-        }}
-        onMouseLeave={(e) => {
-          setHover(false);
-        }}
-        onMouseDown={() => onMouseDown(tokenIndex)}
-      >
-        {' '}
-      </span>
+      <span> </span>
     </>
   );
 }
@@ -790,12 +778,17 @@ export default function Interact() {
   const renderContent = () => {
     if (!parsedData) return null;
 
+    const contentStyle: CSSProperties = {
+      lineHeight: 2, // Adjusted line height
+      position: 'relative',
+    };
+  
     if (parsedData.type === 'csv' && parsedData.rows) {
-      return renderCSVContent(parsedData.rows);
+      return <div style={contentStyle}>{renderCSVContent(parsedData.rows)}</div>;
     } else if (parsedData.type === 'pdf' && parsedData.pdfParagraphs) {
-      return renderPDFContent(parsedData.pdfParagraphs);
+      return <div style={contentStyle}>{renderPDFContent(parsedData.pdfParagraphs)}</div>;
     } else {
-      return renderHighlightedContent(parsedData.content);
+      return <div style={contentStyle}>{renderHighlightedContent(parsedData.content)}</div>;
     }
   };
 

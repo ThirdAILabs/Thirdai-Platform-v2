@@ -24,6 +24,7 @@ from backend.utils import (
     get_python_path,
     get_workflow,
     list_workflow_models,
+    model_bazaar_path,
     response,
     submit_nomad_job,
     thirdai_platform_dir,
@@ -274,6 +275,7 @@ def add_models(
 class WorkflowGenAIModel(BaseModel):
     workflow_id: str
     provider: str
+    gen_ai_model_name: str
 
 
 @workflow_router.post("/set-gen-ai-provider")
@@ -285,12 +287,31 @@ def set_gen_ai_provider(
     workflow = get_workflow(session, body.workflow_id, authenticated_user)
 
     workflow.gen_ai_provider = body.provider
+    workflow.gen_ai_model_name = body.gen_ai_model_name
     session.commit()
 
     return response(
         status_code=status.HTTP_200_OK,
         message="Successful",
         success=True,
+    )
+
+
+@workflow_router.post("/get-on-prem-models")
+def get_eligible_on_prem_models(
+    _: AuthenticatedUser = Depends(verify_access_token),
+):
+    gen_ai_folder = os.path.join(model_bazaar_path(), "gen-ai-models")
+    files = [
+        f
+        for f in os.listdir(gen_ai_folder)
+        if os.path.isfile(os.path.join(gen_ai_folder, f))
+    ]
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successful",
+        data={"on_prem_models": files},
     )
 
 
@@ -782,8 +803,9 @@ async def start_workflow(
                 raise Exception(str(err))
 
     if workflow.gen_ai_provider == "on-prem":
-        # TODO(david) pass in the model name here
-        await start_on_prem_generate_job(restart_if_exists=False)
+        await start_on_prem_generate_job(
+            model_name=workflow.gen_ai_model_name, restart_if_exists=False
+        )
 
     return response(
         status_code=status.HTTP_202_ACCEPTED,
@@ -999,6 +1021,7 @@ def get_workflow_details(
         "type": workflow.workflow_type.name,
         "type_id": str(workflow.type_id),
         "gen_ai_provider": workflow.gen_ai_provider,
+        "gen_ai_model_name": workflow.gen_ai_model_name,
         "status": workflow.status,
         "publish_date": str(workflow.published_date),
         "models": jsonable_encoder(list_workflow_models(workflow=workflow)),
@@ -1150,6 +1173,7 @@ def list_accessible_workflows(
             "models": jsonable_encoder(list_workflow_models(workflow=workflow)),
             "publish_date": str(workflow.published_date),
             "gen_ai_provider": workflow.gen_ai_provider,
+            "gen_ai_model_name": workflow.gen_ai_model_name,
             "created_by": {
                 "id": str(workflow.user.id),
                 "username": workflow.user.username,

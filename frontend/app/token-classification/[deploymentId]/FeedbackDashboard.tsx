@@ -161,13 +161,13 @@ const FeedbackDashboard: React.FC<FeedbackDashboardProps> = ({
   return (
     <div>
       <h3 className="text-lg font-semibold mb-4">Feedback from this session</h3>
-      {Object.entries(cachedTags).map(([sentence, tags], index) => (
-        <div key={index} className="mb-4 flex items-start">
+      {Object.entries(cachedTags).map(([feedbackKey, tags], index) => (
+        <div key={feedbackKey} className="mb-4 flex items-start">
           <div style={{ flex: 1, lineHeight: 2 }}>{renderFeedbackContent(tags)}</div>
           <Button
             size="sm"
             variant="destructive"
-            onClick={() => deleteFeedbackExample(sentence)}
+            onClick={() => deleteFeedbackExample(feedbackKey)}
             style={{ marginLeft: '10px', padding: '0 10px', height: '24px', fontSize: '12px' }}
           >
             DELETE

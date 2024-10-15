@@ -478,7 +478,7 @@ export default function Interact() {
     setCachedTags(prev => {
       const updatedCachedTags: CachedTags = { ...prev };
 
-      if ( parsedData ) {
+      if (parsedData) {
         if ((parsedData.type === 'csv' || parsedData.type === 'other') && parsedData.rows) {
           // Find the relevant column
           const relevantColumnIndex = parsedData.rows.findIndex(row => 
@@ -495,7 +495,10 @@ export default function Interact() {
               const [columnName, ...columnContent] = relevantColumn.split(':');
               const content = columnContent.join(':').trim();
   
-              updatedCachedTags[normalizedSentence] = {
+              // Generate a unique key for this feedback
+              const feedbackKey = `${normalizedSentence}-${Date.now()}`;
+  
+              updatedCachedTags[feedbackKey] = {
                 columnName,
                 content: content.split(' ').map(word => ({
                   text: word,
@@ -513,7 +516,10 @@ export default function Interact() {
           if (relevantParagraphIndex !== -1) {
             const relevantParagraph = parsedData.pdfParagraphs[relevantParagraphIndex];
   
-            updatedCachedTags[normalizedSentence] = {
+            // Generate a unique key for this feedback
+            const feedbackKey = `${normalizedSentence}-${Date.now()}`;
+  
+            updatedCachedTags[feedbackKey] = {
               columnName: `Paragraph ${relevantParagraphIndex + 1}`,
               content: relevantParagraph.split(' ').map(word => ({
                 text: word,
@@ -522,24 +528,29 @@ export default function Interact() {
             };
           }
         } else {
-          updatedCachedTags[normalizedSentence] = updatedTags;
+          // Generate a unique key for this feedback
+          const feedbackKey = `${normalizedSentence}-${Date.now()}`;
+          updatedCachedTags[feedbackKey] = updatedTags;
         }
       }
-
+  
       // Check if any tags are non-'O' before keeping the entry
-      if (Array.isArray(updatedCachedTags[normalizedSentence])) {
-        if (!updatedCachedTags[normalizedSentence].some(token => token.tag !== 'O')) {
-          delete updatedCachedTags[normalizedSentence];
+      Object.keys(updatedCachedTags).forEach(key => {
+        const entry = updatedCachedTags[key];
+        if (Array.isArray(entry)) {
+          if (!entry.some(token => token.tag !== 'O')) {
+            delete updatedCachedTags[key];
+          }
+        } else if ('content' in entry) {
+          if (!entry.content.some(token => token.tag !== 'O')) {
+            delete updatedCachedTags[key];
+          }
         }
-      } else if ('content' in updatedCachedTags[normalizedSentence]) {
-        if (!updatedCachedTags[normalizedSentence].content.some(token => token.tag !== 'O')) {
-          delete updatedCachedTags[normalizedSentence];
-        }
-      }
-
+      });
+  
       return updatedCachedTags;
     });
-
+  
     setAnnotations(updatedTags);
     updateTagColors([[newTag]]);
     setSelectedRange(null);
@@ -602,10 +613,10 @@ export default function Interact() {
     }
   };
 
-  const deleteFeedbackExample = (normalizedSentence: string) => {
+  const deleteFeedbackExample = (feedbackKey: string) => {
     setCachedTags(prev => {
-      const updatedCachedTags: CachedTags = { ...prev };
-      delete updatedCachedTags[normalizedSentence];
+      const updatedCachedTags = { ...prev };
+      delete updatedCachedTags[feedbackKey];
       return updatedCachedTags;
     });
   };

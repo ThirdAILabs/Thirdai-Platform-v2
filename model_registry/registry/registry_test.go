@@ -132,6 +132,7 @@ func uploadModel(router chi.Router, name string, data []byte, checksum string, t
 		"access":        access,
 		"metadata":      "",
 		"size":          len(data),
+		"compressed":    false,
 		"checksum":      checksum,
 	}
 

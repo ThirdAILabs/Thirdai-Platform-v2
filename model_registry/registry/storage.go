@@ -18,7 +18,7 @@ import (
 type Storage interface {
 	Type() string
 
-	GetDownloadLink(storageUrl string, modelId uint) (string, error)
+	GetDownloadLink(storageUrl string, modelId uint, modelFilename string) (string, error)
 
 	StartUpload(modelId uint) error
 
@@ -49,10 +49,11 @@ func (s *LocalStorage) Type() string {
 	return "local-storage"
 }
 
-func (s *LocalStorage) GetDownloadLink(storageUrl string, modelId uint) (string, error) {
+func (s *LocalStorage) GetDownloadLink(storageUrl string, modelId uint, modelFilename string) (string, error) {
 	claims := map[string]interface{}{
-		"model_id": strconv.FormatUint(uint64(modelId), 10),
-		"exp":      time.Now().Add(time.Minute * 5),
+		"model_id":       strconv.FormatUint(uint64(modelId), 10),
+		"model_filename": modelFilename,
+		"exp":            time.Now().Add(time.Minute * 5),
 	}
 	_, token, err := s.downloadAuth.Encode(claims)
 	if err != nil {
@@ -146,10 +147,15 @@ func (s *LocalStorage) Download(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid claims in token", http.StatusBadRequest)
 		return
 	}
-
 	modelId, err := strconv.ParseUint(modelIdStr.(string), 10, 32)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Invalid claims in token: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	modelFilename, ok := token.Get("model_filename")
+	if !ok {
+		http.Error(w, "Invalid claims in token", http.StatusBadRequest)
 		return
 	}
 
@@ -165,6 +171,10 @@ func (s *LocalStorage) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
+
+	fmt.Println(modelFilename)
+
+	w.Header().Add("Content-Disposition", fmt.Sprintf("attachment; filename=\"%v\"", modelFilename))
 
 	buffer := bufio.NewReader(file)
 	chunk := make([]byte, 1024*1024)

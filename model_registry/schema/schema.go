@@ -21,6 +21,7 @@ type Model struct {
 	ModelSubtype string
 	Access       string
 	Size         int64
+	Compressed   bool
 	Description  string
 	Status       string
 	StorageType  string

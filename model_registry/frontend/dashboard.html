@@ -17,10 +17,27 @@
   </style>
   <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
   <script>
-    function formatTime(timestamp) {
-      var date = new Date();
-      date.setTime(Date.parse(timestamp));
-      return date.toUTCString();
+    function downloadModel(modelName) {
+      $.ajax({
+        url: "/api/v1/download-link-admin",
+        type: "POST",
+        headers: {
+          "Authorization": `Bearer ${window.localStorage.getItem("jwt")}`,
+        },
+        contentType: "application/json",
+        data: JSON.stringify({ "model_name": modelName }),
+        success: function (response) {
+          var link = document.createElement('a');
+          document.body.appendChild(link);
+          link.download = modelName;
+          link.href = response["download_link"];
+          link.click();
+          document.body.removeChild(link);
+        },
+        error: function (xhr, status, error) {
+          alert(`Download failed, received status=${status} error='${error}'`)
+        }
+      });
     }
 
     function deleteModel(modelName) {
@@ -40,9 +57,15 @@
       })
     }
 
+    function formatTime(timestamp) {
+      var date = new Date();
+      date.setTime(Date.parse(timestamp));
+      return date.toUTCString();
+    }
+
     function getModels() {
       $.ajax({
-        url: "/api/v1/all-models",
+        url: "/api/v1/list-models-admin",
         type: "GET",
         headers: {
           "Authorization": `Bearer ${window.localStorage.getItem("jwt")}`,
@@ -60,6 +83,7 @@
               <td>${(model.size / 1000000).toFixed(3)}</td>
               <td>${formatTime(model.created_at)}</td>
               <td>${model.description}</td>
+              <td><a href="#" onclick="downloadModel('${model.name}')">download</a></td>
               <td><a href="#" onclick="deleteModel('${model.name}')">delete</a></td>
             </tr>`
           ).join("");
@@ -74,6 +98,7 @@
               <th>Size (Mb)</th>
               <th>Created At</th>
               <th>Description</th>
+              <th>Download</th>
               <th>Delete</th>
             </tr>
             ${items}

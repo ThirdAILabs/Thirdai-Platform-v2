@@ -24,9 +24,6 @@
       $.ajax({
         url: "/api/v1/login",
         type: "POST",
-        headers: {
-          "Cache-Control": "no-cache"
-        },
         contentType: "application/json",
         data: JSON.stringify({ "email": email, "password": password }),
         success: function (response) {

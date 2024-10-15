@@ -49,7 +49,8 @@ func (registry *ModelRegistry) Routes() chi.Router {
 		r.Post("/delete-model", registry.DeleteModel)
 		r.Post("/upload-start", registry.StartUpload)
 
-		r.Get("/all-models", registry.AllModels)
+		r.Get("/list-models-admin", registry.AllModels)
+		r.Post("/download-link-admin", registry.AdminDownloadLink)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -340,7 +341,23 @@ type downloadResponse struct {
 	DownloadLink string `json:"download_link"`
 }
 
-func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Request) {
+func formatDownloadName(modelName string, modelType string, compressed bool) string {
+	modelFilename := strings.Replace(modelName, " ", "_", -1)
+	if modelType == "ndb" {
+		modelFilename += ".ndb"
+	} else if modelType == "udt" {
+		modelFilename += ".udt"
+	} else {
+		modelFilename += ".model"
+	}
+	if compressed {
+		modelFilename += ".zip"
+	}
+
+	return modelFilename
+}
+
+func (registry *ModelRegistry) downloadLinkForModel(w http.ResponseWriter, r *http.Request, isAdmin bool) {
 	var params downloadRequest
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(&params)
@@ -355,7 +372,7 @@ func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if model.Access != schema.Public {
+	if model.Access != schema.Public && !isAdmin {
 		var accessCode schema.AccessCode
 		result := registry.db.Find(&accessCode, "access_code = ?", params.AccessCode)
 		if result.Error != nil {
@@ -377,7 +394,7 @@ func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	link, err := registry.storage.GetDownloadLink(storageUrl, model.ID)
+	link, err := registry.storage.GetDownloadLink(storageUrl, model.ID, formatDownloadName(model.Name, model.ModelType, model.Compressed))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Unable to get download link. Storage error: %v", err), http.StatusInternalServerError)
 		return
@@ -389,6 +406,14 @@ func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(res)
 }
 
+func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Request) {
+	registry.downloadLinkForModel(w, r, false)
+}
+
+func (registry *ModelRegistry) AdminDownloadLink(w http.ResponseWriter, r *http.Request) {
+	registry.downloadLinkForModel(w, r, true)
+}
+
 type uploadRequest struct {
 	ModelName    string `json:"model_name"`
 	Description  string `json:"description"`
@@ -397,6 +422,7 @@ type uploadRequest struct {
 	Access       string `json:"access"`
 	Metadata     string `json:"metadata"`
 	Size         int64  `json:"size"`
+	Compressed   bool   `json:"compressed"`
 	Checksum     string `json:"checksum"`
 }
 
@@ -447,6 +473,7 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 			ModelSubtype: params.ModelSubtype,
 			Access:       params.Access,
 			Size:         params.Size,
+			Compressed:   params.Compressed,
 			Checksum:     params.Checksum,
 			Status:       schema.Pending,
 			StorageType:  registry.storage.Type(),

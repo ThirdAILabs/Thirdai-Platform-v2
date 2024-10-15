@@ -133,7 +133,7 @@ def list_models(
         .options(joinedload(schema.Model.user))
         .filter(
             schema.Model.name.ilike(f"%{name}%"),
-            # schema.Model.train_status == schema.Status.complete,
+            schema.Model.train_status == schema.Status.complete,
         )
     )
 

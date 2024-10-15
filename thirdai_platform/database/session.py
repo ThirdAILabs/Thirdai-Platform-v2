@@ -79,34 +79,19 @@ class AdminAddition:
         If Keycloak is used, Google as an identity provider can also be added or updated.
         """
         with contextmanager(get_session)() as session:
-            user_id = None
-            if identity_provider_type == "postgres":
-                # Handle Postgres identity provider logic
-                user_identity = (
-                    session.query(schema.UserPostgresIdentityProvider)
-                    .filter((schema.UserPostgresIdentityProvider.email == admin_mail))
-                    .first()
-                )
 
-                if not user_identity:
-                    hashed_password = hash_password(admin_password)
-
-                    new_user_identity = schema.UserPostgresIdentityProvider(
-                        username=admin_username,
-                        email=admin_mail,
-                        password_hash=hashed_password,
-                        verified=True,
-                    )
-                    session.add(new_user_identity)
-                    session.commit()
-                    session.refresh(new_user_identity)
-
-            elif identity_provider_type == "keycloak":
+            if identity_provider_type == "keycloak":
                 # Keycloak logic
                 keycloak_user_id = keycloak_admin.get_user_id(admin_username)
                 if keycloak_user_id:
                     keycloak_admin.update_user(
-                        keycloak_user_id, {"email": admin_mail, "emailVerified": True}
+                        keycloak_user_id,
+                        {
+                            "email": admin_mail,
+                            "emailVerified": True,
+                            "firstName": "Admin",
+                            "lastName": "User",
+                        },
                     )
                 else:
 
@@ -124,28 +109,31 @@ class AdminAddition:
                                 }
                             ],
                             "realmRoles": ["admin"],
+                            "firstName": "Admin",
+                            "lastName": "User",
                         }
                     )
 
-            user = (
+            user: schema.User = (
                 session.query(schema.User)
                 .filter(schema.User.email == admin_mail)
                 .first()
             )
 
-            if user:
-                session.delete(user)
+            if not user:
+                user = schema.User(
+                    username=admin_username,
+                    email=admin_mail,
+                    password_hash=hash_password(admin_password),
+                    verified=True,
+                    global_admin=True,
+                )
+                session.add(user)
                 session.commit()
-
-            user = schema.User(
-                id=keycloak_user_id,
-                username=admin_username,
-                email=admin_mail,
-            )
-
-            user.global_admin = True
-            session.add(user)
-            session.commit()
+                session.refresh(user)
+            else:
+                user.global_admin = True
+                session.commit()
 
 
 AdminAddition.add_admin(

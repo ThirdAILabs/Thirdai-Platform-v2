@@ -79,28 +79,21 @@ class Team(SQLDeclarativeBase):
     models = relationship("Model", back_populates="team", cascade="all, delete-orphan")
 
 
-class UserPostgresIdentityProvider(SQLDeclarativeBase):
-    __tablename__ = "usersidentity"
+class User(SQLDeclarativeBase):
+    __tablename__ = "users"
 
     id = Column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
     username = Column(String(50), nullable=False, unique=True)
     email = Column(String(254), nullable=False, unique=True)
-    password_hash = Column(String, nullable=True)
+    password_hash = Column(
+        String, nullable=True
+    )  # If NULL then it's verified from some of the OAuth providers.
     verified = Column(Boolean, default=False)
     verification_token = Column(
         UUID(as_uuid=True), unique=True, server_default=text("gen_random_uuid()")
     )
-    reset_password_code = Column(Integer, nullable=True)
-
-
-class User(SQLDeclarativeBase):
-    __tablename__ = "users"
-
-    id = Column(UUID(as_uuid=True), primary_key=True)  # keycloak id
-    username = Column(String(50), nullable=False, unique=True)
-    email = Column(String(254), nullable=False, unique=True)
 
     # checks whether this user is global_admin or not
     global_admin = Column(Boolean, default=False, nullable=False)
@@ -115,6 +108,8 @@ class User(SQLDeclarativeBase):
     model_permissions = relationship(
         "ModelPermission", back_populates="user", cascade="all, delete-orphan"
     )
+
+    reset_password_code = Column(Integer, nullable=True)
 
     @validates("username")
     def validate_username(self, key, username):

@@ -133,26 +133,16 @@ def email_signup(
                 message="There is already a user associated with this name.",
             )
 
-    hashed_password = hash_password(body.password)
-    is_test_environment = os.getenv("TEST_ENVIRONMENT", "False") == "True"
-
-    new_user_identity = schema.UserPostgresIdentityProvider(
-        username=body.username,
-        email=body.email,
-        password_hash=hashed_password,
-        verified=is_test_environment,
-    )
-
     try:
-        session.add(new_user_identity)
-        session.commit()
-        session.refresh(new_user_identity)
+        is_test_environment = os.getenv("TEST_ENVIRONMENT", "False") == "True"
 
         new_user = schema.User(
-            id=new_user_identity.id,
             username=body.username,
             email=body.email,
+            password_hash=hash_password(body.password),
+            verified=is_test_environment,
         )
+
         session.add(new_user)
         session.commit()
         session.refresh(new_user)
@@ -160,28 +150,24 @@ def email_signup(
         if not is_test_environment:
             send_verification_mail(
                 new_user.email,
-                new_user_identity.verification_token,
+                str(new_user.verification_token),
                 new_user.username,
             )
 
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Successfully signed up via email.",
-            data={
-                "user": {
-                    "username": new_user.username,
-                    "email": new_user.email,
-                    "user_id": str(new_user.id),
-                },
-            },
-        )
+    except Exception as err:
+        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(err))
 
-    except IntegrityError:
-        session.rollback()
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="User with this email or username already exists.",
-        )
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully signed up via email.",
+        data={
+            "user": {
+                "username": new_user.username,
+                "email": new_user.email,
+                "user_id": str(new_user.id),
+            },
+        },
+    )
 
 
 @user_router.post("/add-global-admin", dependencies=[Depends(global_admin_only)])
@@ -330,15 +316,7 @@ def delete_user(
     if user:
         session.delete(user)
 
-    if identity_provider_type == "postgres":
-        user_identity = (
-            session.query(schema.UserPostgresIdentityProvider)
-            .filter(schema.UserPostgresIdentityProvider.email == email)
-            .first()
-        )
-        if user_identity:
-            session.delete(user_identity)
-    elif identity_provider_type == "keycloak":
+    if identity_provider_type == "keycloak":
         try:
             keycloak_admin.delete_user(user.id)
         except Exception as e:
@@ -387,21 +365,19 @@ def email_verify(verification_token: str, session: Session = Depends(get_session
     Returns:
     - A JSON response indicating the verification status.
     """
-    user_identity = (
-        session.query(schema.UserPostgresIdentityProvider)
-        .filter(
-            schema.UserPostgresIdentityProvider.verification_token == verification_token
-        )
+    user: Optional[schema.User] = (
+        session.query(schema.User)
+        .filter(schema.User.verification_token == verification_token)
         .first()
     )
 
-    if not user_identity:
+    if not user:
         return {
             "message": "Token not found: this could be due to user already being verified or invalid token."
         }
 
-    user_identity.verified = True
-    user_identity.verification_token = None
+    user.verified = True
+    user.verification_token = None
     session.commit()
 
     return {"message": "Email verification successful."}
@@ -429,37 +405,25 @@ def email_login(
     Returns:
     - A JSON response indicating the login status and user details along with an access token.
     """
-    user_identity = (
-        session.query(schema.UserPostgresIdentityProvider)
-        .filter(
-            (schema.UserPostgresIdentityProvider.username == credentials.username)
-            | (schema.UserPostgresIdentityProvider.email == credentials.email)
-        )
+    user: Optional[schema.User] = (
+        session.query(schema.User)
+        .filter(schema.User.email == credentials.username)
         .first()
     )
-    if not user_identity:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found."
+    if not user:
+        return response(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            message="User is not yet registered.",
+        )
+    byte_password = credentials.password.encode("utf-8")
+    if not bcrypt.checkpw(byte_password, user.password_hash.encode("utf-8")):
+        return response(
+            status_code=status.HTTP_401_UNAUTHORIZED, message="Invalid password."
         )
 
-    if not user_identity.password_hash:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password authentication not available for this user.",
-        )
-
-    if not bcrypt.checkpw(
-        credentials.password.encode("utf-8"),
-        user_identity.password_hash.encode("utf-8"),
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password."
-        )
-
-    if not user_identity.verified:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User is not verified yet.",
+    if not user.verified:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST, message="User is not verified yet."
         )
 
     return response(
@@ -467,12 +431,12 @@ def email_login(
         message="Successfully logged in via email",
         data={
             "user": {
-                "username": user_identity.username,
-                "email": user_identity.email,
-                "user_id": str(user_identity.id),
+                "username": user.username,
+                "email": user.email,
+                "user_id": str(user.id),
             },
-            "access_token": create_access_token(user_identity.id, expiration_min=120),
-            "verified": user_identity.verified,
+            "access_token": create_access_token(user.id, expiration_min=120),
+            "verified": user.verified,
         },
     )
 
@@ -547,32 +511,30 @@ def reset_password_verify(
     Returns:
     - A JSON response indicating the password reset status.
     """
-    user_identity = (
-        session.query(schema.UserPostgresIdentityProvider)
-        .filter(schema.UserPostgresIdentityProvider.email == body.email)
-        .first()
+    user: Optional[schema.User] = (
+        session.query(schema.User).filter(schema.User.email == body.email).first()
     )
 
-    if not user_identity:
+    if not user:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="This email is not registered with any account.",
         )
 
-    if not user_identity.reset_password_code:
+    if not user.reset_password_code:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Click on forgot password to get verification code.",
         )
 
-    if user_identity.reset_password_code != body.reset_password_code:
+    if user.reset_password_code != body.reset_password_code:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Entered wrong reset password code.",
         )
 
-    user_identity.reset_password_code = None
-    user_identity.password_hash = hash_password(body.new_password)
+    user.reset_password_code = None
+    user.password_hash = hash_password(body.new_password)
     session.commit()
 
     return response(

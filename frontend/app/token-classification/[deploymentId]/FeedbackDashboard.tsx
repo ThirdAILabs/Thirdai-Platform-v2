@@ -1,6 +1,10 @@
 import React, { MouseEventHandler, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 
+const Separator: React.FC = () => (
+  <hr className="my-4 border-t border-gray-200" />
+);
+
 interface HighlightColor {
     text: string;
     tag: string;
@@ -162,21 +166,25 @@ const FeedbackDashboard: React.FC<FeedbackDashboardProps> = ({
     <div>
       <h3 className="text-lg font-semibold mb-4">Feedback from this session</h3>
       {Object.entries(cachedTags).map(([feedbackKey, tags], index) => (
-        <div key={feedbackKey} className="mb-4 flex items-start">
-          <div style={{ flex: 1, lineHeight: 2 }}>{renderFeedbackContent(tags)}</div>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => deleteFeedbackExample(feedbackKey)}
-            style={{ marginLeft: '10px', padding: '0 10px', height: '24px', fontSize: '12px' }}
-          >
-            DELETE
-          </Button>
-        </div>
+        <React.Fragment key={feedbackKey}>
+          {index > 0 && <Separator />}
+          <div className="flex items-start">
+            <div style={{ flex: 1, lineHeight: 2 }}>{renderFeedbackContent(tags)}</div>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => deleteFeedbackExample(feedbackKey)}
+              className="ml-2 px-2 h-6 text-xs"
+            >
+              DELETE
+            </Button>
+          </div>
+        </React.Fragment>
       ))}
+      <Separator />
       <Button
         size="sm"
-        style={{ marginTop: '20px' }}
+        className="mt-4"
         onClick={submitFeedback}
         disabled={Object.keys(cachedTags).length === 0}
       >

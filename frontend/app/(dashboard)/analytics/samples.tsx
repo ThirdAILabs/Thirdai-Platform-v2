@@ -6,6 +6,10 @@ import { associations, reformulations, upvotes } from './mock_samples';
 import useRollingSamples from './rolling';
 import axios from 'axios';
 
+const Separator: React.FC = () => (
+  <hr className="my-3 border-t border-gray-200" />
+);
+
 interface TextPairsProps {
   timestamp: string;
   label1: string;
@@ -232,9 +236,12 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
         <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">
           {labelError && <div className="text-red-500">Error fetching labels: {labelError.message}</div>}
           {uniqueLabels.map((label, idx) => (
-            <div key={idx} className="mb-2 p-2 bg-gray-100 rounded-md">
-              <span className="font-medium">{label}</span>
-            </div>
+            <React.Fragment key={idx}>
+              {idx > 0 && <Separator />}
+              <div className="mb-2 p-2 bg-gray-100 rounded-md">
+                <span className="font-medium">{label}</span>
+              </div>
+            </React.Fragment>
           ))}
         </CardContent>
       </Card>
@@ -246,7 +253,10 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
         <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">
           {sampleError && <div className="text-red-500">Error fetching samples: {sampleError.message}</div>}
           {recentSamples.map((sample, idx) => (
-            <HighlightedSample key={idx} tokens={sample.tokens} tags={sample.tags} tagColors={tagColors} />
+            <React.Fragment key={idx}>
+              {idx > 0 && <Separator />}
+              <HighlightedSample tokens={sample.tokens} tags={sample.tags} tagColors={tagColors} />
+            </React.Fragment>
           ))}
         </CardContent>
       </Card>

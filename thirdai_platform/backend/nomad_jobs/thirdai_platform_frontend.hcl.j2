@@ -41,7 +41,7 @@ job "thirdai-platform-frontend" {
 
       env {
         NEXT_PUBLIC_OPENAI_API_KEY = "{{ openai_api_key }}"
-        NEXT_PUBLIC_IDENTITY_PROVIDER: "{{ identity_provider }}"
+        NEXT_PUBLIC_IDENTITY_PROVIDER = "{{ identity_provider }}"
       }
 
       config {

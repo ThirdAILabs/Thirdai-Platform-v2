@@ -26,7 +26,7 @@ job "keycloak" {
         KC_HOSTNAME_STRICT_HTTPS      = "false"
         KEYCLOAK_SSL_REQUIRED        = "none"
         KC_HOSTNAME_STRICT_BACKCHANNEL = "false"
-        KC_HOSTNAME_URL              = "http://localhost:8180"
+        KC_HOSTNAME_URL            = "http://localhost:8180"
 
         # Database connection
         DB_VENDOR                    = "postgres"
@@ -35,18 +35,13 @@ job "keycloak" {
         DB_USER                      = "postgres"
         DB_PASSWORD                  = "newpassword"
 
-        KC_DB                        = "postgres"
-        KC_DB_URL                    = "jdbc:postgresql://172.17.0.1:5432/keycloakdb"
-        KC_DB_USERNAME               = "postgres"
-        KC_DB_PASSWORD               = "newpassword"
-
-        KEYCLOAK_ADMIN               = "kc_admin"
+        KEYCLOAK_ADMIN               = "temp_admin"
         KEYCLOAK_ADMIN_PASSWORD      = "password"
       }
 
       resources {
         cpu    = 500
-        memory = 512
+        memory = 2048
       }
 
       service {

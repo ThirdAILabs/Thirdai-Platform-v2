@@ -48,6 +48,7 @@ IDENTITY_PROVIDER = os.getenv("IDENTITY_PROVIDER", "postgres").lower()
 
 if IDENTITY_PROVIDER == "keycloak":
     KEYCLOAK_SERVER_URL = os.getenv("KEYCLOAK_SERVER_URL")
+    print("KEYCLOAK SERVER URL: ", KEYCLOAK_SERVER_URL)
 
     from keycloak import KeycloakOpenID, KeycloakAdmin
 

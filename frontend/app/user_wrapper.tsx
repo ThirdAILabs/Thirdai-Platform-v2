@@ -35,7 +35,7 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
 
 
     if (process.env.NEXT_PUBLIC_IDENTITY_PROVIDER && process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes("keycloak")) {
-      window.location.href = '/keycloak-login';
+      window.location.href = '/login-keycloak';
     } else {
       window.location.href = '/login-email';
     }
@@ -54,7 +54,7 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
       setUser(user);
       if (!user) {
         if (process.env.NEXT_PUBLIC_IDENTITY_PROVIDER && process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes("keycloak")) {
-          router.push('/keycloak-login');
+          router.push('/login-keycloak');
         } else {
           router.push('/login-email');
         }

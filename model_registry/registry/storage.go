@@ -172,8 +172,6 @@ func (s *LocalStorage) Download(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	fmt.Println(modelFilename)
-
 	w.Header().Add("Content-Disposition", fmt.Sprintf("attachment; filename=\"%v\"", modelFilename))
 
 	buffer := bufio.NewReader(file)

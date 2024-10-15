@@ -1,5 +1,4 @@
 import datetime
-import json
 import logging
 import os
 import subprocess
@@ -14,6 +13,7 @@ from platform_common.file_handler import (
     GCPStorageHandler,
     S3StorageHandler,
 )
+from platform_common.pydantic_models.recovery_snapshot import BackupConfig
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -24,22 +24,19 @@ scheduler = BlockingScheduler()
 
 
 def load_config(config_file):
-    with open(config_file, "r") as f:
-        return json.load(f)
+    return BackupConfig.parse_file(config_file)
 
 
-def get_cloud_storage_handler(config):
-    if config["cloud_provider"] == "s3":
+def get_cloud_storage_handler(config: BackupConfig):
+    if config.cloud_provider == "s3":
         return S3StorageHandler(
-            aws_access_key=config["aws_access_key"],
-            aws_secret_access_key=config["aws_secret_access_key"],
+            aws_access_key=config.aws_access_key,
+            aws_secret_access_key=config.aws_secret_access_key,
         )
-    elif config["cloud_provider"] == "azure":
-        return AzureStorageHandler(
-            config["azure_account_name"], config["azure_account_key"]
-        )
-    elif config["cloud_provider"] == "gcp":
-        return GCPStorageHandler(config["gcp_credentials_file_path"])
+    elif config.cloud_provider == "azure":
+        return AzureStorageHandler(config.azure_account_name, config.azure_account_key)
+    elif config.cloud_provider == "gcp":
+        return GCPStorageHandler(config.gcp_credentials_file_path)
     else:
         return None  # No cloud provider
 
@@ -105,46 +102,47 @@ def manage_backup_limit(
 def perform_backup(config_file):
     config = load_config(config_file)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-
     model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
-    backup_dir = os.path.join(model_bazaar_dir, "backups")
-    os.makedirs(backup_dir, exist_ok=True)
 
-    db_uri = os.getenv("DB_URI")
-    bucket_name = config.get("bucket_name")
-    backup_limit = config.get("backup_limit", 5)
+    try:
+        backup_dir = os.path.join(model_bazaar_dir, "backups")
+        os.makedirs(backup_dir, exist_ok=True)
 
-    # Create the backup files (zip and database dump)
-    zip_file_path, dump_file_path = create_backup_files(
-        db_uri, model_bazaar_dir, backup_dir, timestamp
-    )
+        db_uri = os.getenv("DB_URI")
+        bucket_name = config.bucket_name
+        backup_limit = config.backup_limit
 
-    # If a cloud provider is configured, upload the backup to the cloud
-    cloud_handler = get_cloud_storage_handler(config)
-    if cloud_handler:
-        cloud_handler.create_bucket_if_not_exists(bucket_name)
-        cloud_handler.upload_file(
-            f"{zip_file_path}", bucket_name, f"backup_{timestamp}.zip"
+        zip_file_path, dump_file_path = create_backup_files(
+            db_uri, model_bazaar_dir, backup_dir, timestamp
         )
-        manage_backup_limit(cloud_handler, bucket_name, backup_limit)
-        delete_local_backup(zip_file_path, dump_file_path)
-    else:
-        # No cloud provider, manage local backups
-        manage_backup_limit_local(backup_dir, backup_limit)
-        os.remove(dump_file_path)
-        logging.info(f"Deleted local DB dump file: {dump_file_path}")
 
-    logging.info(f"Backup completed successfully at {timestamp}.")
+        # If a cloud provider is configured, upload the backup to the cloud
+        cloud_handler = get_cloud_storage_handler(config)
+        if cloud_handler:
+            cloud_handler.create_bucket_if_not_exists(bucket_name)
+            cloud_handler.upload_file(
+                f"{zip_file_path}", bucket_name, f"backup_{timestamp}.zip"
+            )
+            manage_backup_limit(cloud_handler, bucket_name, backup_limit)
+            delete_local_backup(zip_file_path, dump_file_path)
+        else:
+            # No cloud provider, manage local backups
+            manage_backup_limit_local(backup_dir, backup_limit)
+            os.remove(dump_file_path)
+            logging.info(f"Deleted local DB dump file: {dump_file_path}")
 
-    # If this is a one-time backup, shut down the scheduler
-    if not config.get("interval_minutes"):
-        scheduler.shutdown(wait=False)  # Stops the scheduler after the job completes
+    except Exception as e:
+        logging.error(f"Backup failed: {e}")
+    finally:
+        # If this is a one-time backup, shut down the scheduler
+        if not config.interval_minutes:
+            scheduler.shutdown(wait=False)
 
 
 def schedule_backup(config_file):
     """Schedule backup based on interval in config or run once."""
     config = load_config(config_file)
-    interval_minutes = config.get("interval_minutes")
+    interval_minutes = config.interval_minutes
 
     if interval_minutes:
         # Schedule recurring backups

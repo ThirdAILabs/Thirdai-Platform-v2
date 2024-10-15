@@ -14,6 +14,7 @@ from backend.utils import (
     nomad_job_exists,
     response,
     submit_nomad_job,
+    get_ip_from_url,
 )
 from fastapi import status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
@@ -119,6 +120,9 @@ async def restart_thirdai_platform_frontend():
         docker_password=os.getenv("DOCKER_PASSWORD"),
         image_name=os.getenv("FRONTEND_IMAGE_NAME"),
         identity_provider=os.getenv("IDENTITY_PROVIDER", "postgres"),
+        model_bazaar_public_ip=get_ip_from_url(
+            os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT")
+        ),
         # Model bazaar dockerfile does not include neuraldb_frontend code,
         # but app_dir is only used if platform == local.
         app_dir=str(get_root_absolute_path() / "frontend"),

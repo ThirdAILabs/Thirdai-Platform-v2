@@ -39,6 +39,11 @@ job "thirdai-platform-frontend" {
       env {
         NEXT_PUBLIC_OPENAI_API_KEY = "{{ openai_api_key }}"
         NEXT_PUBLIC_IDENTITY_PROVIDER = "{{ identity_provider }}"
+        KEYCLOAK_CLIENT_ID = "thirdai-login-client"
+        KEYCLOAK_CLIENT_SECRET = ""
+        KEYCLOAK_ISSUER = "http://{{ model_bazaar_public_ip }}/keycloak/realms/ThirdAI-Platform"
+        NEXTAUTH_URL = "http://{{ model_bazaar_public_ip }}"
+        NEXTAUTH_SECRET = "random secret"
       }
 
       config {

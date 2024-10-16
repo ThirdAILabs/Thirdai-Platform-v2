@@ -341,7 +341,7 @@ export default function Interact() {
               };
             });
           const fullContent = parsedRows.map((row) => row.content).join('\n\n');
-          setTotalPages(Math.ceil(parsedRows.length / rowsPerPage));
+          // Remove this line: setTotalPages(Math.ceil(parsedRows.length / rowsPerPage));
           resolve({ type: 'csv', content: fullContent, rows: parsedRows });
         },
         error: reject,
@@ -385,7 +385,7 @@ export default function Interact() {
           })
           .filter((row): row is { label: string; content: string } => row !== null);
 
-        setTotalPages(Math.ceil(parsedRows.length / rowsPerPage));
+        // Remove this line: setTotalPages(Math.ceil(parsedRows.length / rowsPerPage));
         resolve(parsedRows);
       };
       reader.onerror = reject;
@@ -522,6 +522,16 @@ export default function Interact() {
     return -1; // This should never happen if selectedRange is valid
   };
 
+  // New function to find the correct row index for CSV data
+  const findCSVRowIndex = (selectedRange: [number, number], rowIndices: number[]): number => {
+    for (let i = 0; i < rowIndices.length - 1; i++) {
+      if (selectedRange[0] >= rowIndices[i] && selectedRange[0] < rowIndices[i + 1]) {
+        return i;
+      }
+    }
+    return -1; // This should never happen if selectedRange is valid
+  };
+
   const cacheNewTag = async (newTag: string) => {
     if (!selectedRange) return;
 
@@ -556,8 +566,15 @@ export default function Interact() {
 
         console.log('selectedRange', selectedRange)
 
-        const relevantParagraphIndex = findParagraphIndex(selectedRange, paragraphs);
+        let relevantParagraphIndex: number;
+        if (isCSV && rowIndices) {
+          relevantParagraphIndex = findCSVRowIndex(selectedRange, rowIndices);
+        } else {
+          relevantParagraphIndex = findParagraphIndex(selectedRange, paragraphs);
+        }
   
+        console.log('relevantParagraphIndex', relevantParagraphIndex)
+
         if (relevantParagraphIndex !== -1) {
           const relevantParagraph = paragraphs[relevantParagraphIndex];
   
@@ -739,15 +756,11 @@ export default function Interact() {
   };
 
   const renderCSVContent = (rows: { label: string; content: string }[]) => {
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    const endIndex = startIndex + rowsPerPage;
-    const visibleRows = rows.slice(startIndex, endIndex);
-
     const { words, rowIndices } = convertCSVToPDFFormat(rows);
 
     return (
       <>
-        {visibleRows.map((row, rowIndex) => {
+        {rows.map((row, rowIndex) => {
           const columns = row.content.split('\n');
           const visibleColumns = columns.filter((column) => {
             const [columnName, ...columnContent] = column.split(':');
@@ -786,25 +799,6 @@ export default function Interact() {
             </div>
           );
         })}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-          <Button
-            size="sm"
-            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-            disabled={currentPage === 1}
-          >
-            Previous
-          </Button>
-          <span>
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            size="sm"
-            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </Button>
-        </div>
       </>
     );
   };
@@ -988,7 +982,7 @@ export default function Interact() {
             <Box mt={4}>
               <Card
                 className="p-7 text-start"
-                style={{ lineHeight: 2 }}
+                style={{ lineHeight: 2, maxHeight: '70vh', overflowY: 'auto' }}
                 onMouseUp={(e) => {
                   setSelecting(false);
                   if (startIndex !== null && endIndex !== null) {

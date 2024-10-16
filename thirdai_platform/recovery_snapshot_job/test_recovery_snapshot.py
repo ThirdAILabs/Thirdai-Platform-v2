@@ -1,8 +1,8 @@
-import datetime
 import json
 import os
 import shutil
 import tempfile
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -42,19 +42,11 @@ def setup_and_teardown():
 
 
 @patch("subprocess.run")  # Mock subprocess.run for pg_dump
-@patch(
-    "recovery_snapshot_job.run.datetime"
-)  # Mock datetime to simulate different timestamps
-def test_local_backup(mock_datetime, mock_subprocess_run):
+def test_local_backup(mock_subprocess_run):
     config_path = os.getenv("CONFIG_PATH")
 
     # Simulate a successful pg_dump execution
     mock_subprocess_run.return_value = MagicMock(returncode=0)
-
-    # Simulate unique timestamps for the backup process
-    mock_datetime.datetime.now.return_value = datetime.datetime(
-        2024, 10, 16, 18, 55, 32
-    )
 
     # Manually create the mocked db_backup.sql file as pg_dump would create
     model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
@@ -82,23 +74,12 @@ def test_local_backup(mock_datetime, mock_subprocess_run):
 
 
 @patch("subprocess.run")  # Mock subprocess.run for pg_dump
-@patch(
-    "recovery_snapshot_job.run.datetime",
-    wraps=datetime.datetime,
-)  # Wrap datetime to simulate different timestamps but still use the real datetime class
-def test_backup_limit(mock_datetime, mock_subprocess_run):
+def test_backup_limit(mock_subprocess_run):
     """Test to check if the backup limit is respected."""
     config_path = os.getenv("CONFIG_PATH")
 
     # Simulate a successful pg_dump execution
     mock_subprocess_run.return_value = MagicMock(returncode=0)
-
-    # Simulate different timestamps for each backup operation
-    mock_datetime.now.side_effect = [
-        datetime.datetime(2024, 10, 16, 18, 55, 32),
-        datetime.datetime(2024, 10, 16, 18, 55, 33),
-        datetime.datetime(2024, 10, 16, 18, 55, 34),
-    ]
 
     # Manually create the mocked db_backup.sql file as pg_dump would create
     for _ in range(3):
@@ -108,6 +89,7 @@ def test_backup_limit(mock_datetime, mock_subprocess_run):
             f.write("")  # Create an empty backup file
 
         # Perform the backup three times to exceed the backup limit of 2
+        time.sleep(3)
         perform_backup(config_path)
 
     # Check if the backup directory has no more than 2 backups

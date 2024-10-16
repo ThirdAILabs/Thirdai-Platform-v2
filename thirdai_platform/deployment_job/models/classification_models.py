@@ -3,6 +3,10 @@ from pathlib import Path
 from typing import List, Optional
 
 from deployment_job.models.model import Model
+from deployment_job.pydantic_models.inputs import (
+    SearchResultsTextClassification,
+    SearchResultsTokenClassification,
+)
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
     DataSample,
@@ -15,8 +19,6 @@ from platform_common.thirdai_storage.data_types import (
 )
 from platform_common.thirdai_storage.storage import DataStorage, SQLiteConnector
 from thirdai import bolt
-
-from deployment_job.pydantic_models import inputs
 
 
 class ClassificationModel(Model):
@@ -54,7 +56,7 @@ class TextClassificationModel(ClassificationModel):
             for class_id, activation in zip(*prediction)
         ]
 
-        return inputs.SearchResultsTextClassification(
+        return SearchResultsTextClassification(
             query_text=text,
             predicted_classes=predicted_classes,
         )
@@ -71,7 +73,7 @@ class TokenClassificationModel(ClassificationModel):
         for predicted_tag in predicted_tags:
             predictions.append([x[0] for x in predicted_tag])
 
-        return inputs.SearchResultsTokenClassification(
+        return SearchResultsTokenClassification(
             query_text=text,
             tokens=text.split(),
             predicted_tags=predictions,

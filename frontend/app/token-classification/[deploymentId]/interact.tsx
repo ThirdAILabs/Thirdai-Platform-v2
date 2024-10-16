@@ -483,8 +483,27 @@ export default function Interact() {
   }  
   
 
-  const convertCSVToPDFFormat = (rows: { label: string; content: string }[]): string[] => {
-    return rows.map(row => row.content.replace(/\n/g, ' '));
+  const convertCSVToPDFFormat = (rows: { label: string; content: string }[]):
+    { words: { text: string; originalIndex: number }[], rowIndices: number[] } => {
+    let globalIndex = 0;
+    const words: { text: string; originalIndex: number }[] = [];
+    const rowIndices: number[] = [];
+
+    rows.forEach((row, index) => {
+      rowIndices.push(globalIndex);
+      // Trim the content and replace multiple spaces with a single space
+      const trimmedContent = row.content.replace(/\s+/g, ' ').trim();
+      const rowWords = trimmedContent.split(' ').filter(word => word !== '');
+      // console.log(`Row ${index}: "${trimmedContent}" -> ${rowWords.length} words`);
+      rowWords.forEach(word => {
+        words.push({ text: word, originalIndex: globalIndex });
+        globalIndex++;
+      });
+    });
+    rowIndices.push(globalIndex); // Add the end index of the last row
+
+    // console.log('Row Indices:', rowIndices);
+    return { words, rowIndices };
   };
 
   const tokenizeParagraph = (paragraph: string): string[] => {
@@ -521,16 +540,21 @@ export default function Interact() {
 
       if (parsedData) {
         let paragraphs: string[];
+        let rowIndices: number[] | null = null;
         let isCSV = false;
   
         if (parsedData.type === 'pdf' && parsedData.pdfParagraphs) {
           paragraphs = parsedData.pdfParagraphs;
         } else if ((parsedData.type === 'csv' || parsedData.type === 'other') && parsedData.rows) {
-          paragraphs = convertCSVToPDFFormat(parsedData.rows);
+          const csvData = convertCSVToPDFFormat(parsedData.rows);
+          paragraphs = parsedData.rows.map(row => row.content.replace(/\n/g, ' '));
+          rowIndices = csvData.rowIndices;
           isCSV = true;
         } else {
           return updatedCachedTags;
         }
+
+        console.log('selectedRange', selectedRange)
 
         const relevantParagraphIndex = findParagraphIndex(selectedRange, paragraphs);
   
@@ -545,12 +569,17 @@ export default function Interact() {
 
           // Find the start index of this paragraph in the overall annotations
           let paragraphStartIndex = 0;
+          if (isCSV && rowIndices) {
+            paragraphStartIndex = rowIndices[relevantParagraphIndex];
+          } else {
           let tokenCount = 0;
           for (let i = 0; i < relevantParagraphIndex; i++) {
             tokenCount += tokenizeParagraph(paragraphs[i]).length;
           }
           paragraphStartIndex = tokenCount;
+          }
 
+          console.log('rowIndices', rowIndices)
           console.log('updatedTags 2', updatedTags)
           console.log('paragraphStartIndex', paragraphStartIndex)
 
@@ -662,10 +691,59 @@ export default function Interact() {
     );
   };
 
+  const renderHighlightedCSVContent = (content: string, rowWords: { text: string; originalIndex: number }[]) => {
+    const words = content.split(/\s+/);
+    let currentRowWordIndex = 0;
+  
+    return words.map((word, wordIndex) => {
+      while (currentRowWordIndex < rowWords.length && 
+             rowWords[currentRowWordIndex].text.toLowerCase() !== word.toLowerCase()) {
+        currentRowWordIndex++;
+      }
+  
+      if (currentRowWordIndex < rowWords.length) {
+        const { text, originalIndex } = rowWords[currentRowWordIndex];
+        currentRowWordIndex++;
+  
+        return (
+          <Highlight
+            key={`${wordIndex}-${originalIndex}`}
+            currentToken={annotations[originalIndex]}
+            tokenIndex={originalIndex}
+            nextToken={annotations[originalIndex + 1] || null}
+            tagColors={tagColors}
+            onMouseOver={handleMouseOver}
+            onMouseDown={handleMouseDown}
+            selecting={
+              selecting &&
+              startIndex !== null &&
+              endIndex !== null &&
+              originalIndex >= startIndex &&
+              originalIndex <= endIndex
+            }
+            selected={
+              selectedRange !== null &&
+              originalIndex >= selectedRange[0] &&
+              originalIndex <= selectedRange[1]
+            }
+            showDropdown={originalIndex === selectedTokenIndex}
+            allLabels={allLabels}
+            onSelectTag={cacheNewTag}
+            onNewLabel={handleNewLabel}
+          />
+        );
+      }
+  
+      return <span key={`${wordIndex}-text`}>{word} </span>;
+    });
+  };
+
   const renderCSVContent = (rows: { label: string; content: string }[]) => {
     const startIndex = (currentPage - 1) * rowsPerPage;
     const endIndex = startIndex + rowsPerPage;
     const visibleRows = rows.slice(startIndex, endIndex);
+
+    const { words, rowIndices } = convertCSVToPDFFormat(rows);
 
     return (
       <>
@@ -680,6 +758,10 @@ export default function Interact() {
           if (visibleColumns.length === 0) {
             return null;
           }
+
+          const rowStartIndex = rowIndices[rowIndex];
+          const rowEndIndex = rowIndices[rowIndex + 1];
+          const rowWords = words.slice(rowStartIndex, rowEndIndex);
 
           return (
             <div
@@ -697,7 +779,7 @@ export default function Interact() {
                 const content = columnContent.join(':').trim();
                 return (
                   <p key={columnIndex}>
-                    <strong>{columnName}:</strong> {renderHighlightedContent(content)}
+                    <strong>{columnName}:</strong> {renderHighlightedCSVContent(content, rowWords)}
                   </p>
                 );
               })}

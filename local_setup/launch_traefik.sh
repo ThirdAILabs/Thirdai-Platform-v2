@@ -13,6 +13,8 @@ ARGS=(
     "--providers.file.watch=true"
     "--log.level=DEBUG"
     "--providers.http.pollInterval=5s"
+    "--experimental.plugins.jwt-validation-middleware.modulename=github.com/legege/jwt-validation-middleware"
+    "--experimental.plugins.jwt-validation-middleware.version=v0.2.1"
 )
 
 traefik ${ARGS[@]}

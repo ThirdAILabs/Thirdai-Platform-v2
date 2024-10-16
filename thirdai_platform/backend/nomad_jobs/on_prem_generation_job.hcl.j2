@@ -50,7 +50,7 @@ job "on-prem-llm-generation" {
       tags = [
         "traefik.enable=true",
         "traefik.http.routers.on-prem-generation-http.rule=PathPrefix(`/on-prem-llm`)",
-        "traefik.http.routers.on-prem-generation-http.middlewares=on-prem-llm-stripprefix",
+        "traefik.http.routers.on-prem-generation-http.middlewares=on-prem-llm-stripprefix,jwt-auth@file",
         "traefik.http.middlewares.on-prem-llm-stripprefix.stripprefix.prefixes=/on-prem-llm",
         "traefik.http.routers.on-prem-generation-http.priority=10"
       ]

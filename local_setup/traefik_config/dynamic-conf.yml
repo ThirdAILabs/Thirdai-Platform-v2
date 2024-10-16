@@ -1,4 +1,12 @@
 http:
+  middlewares:
+    jwt-auth:
+      plugin:
+        jwt-validation-middleware:
+          secret: CsnCr3lebs9eJQ
+          optional: false
+          forwardAuth: false
+
   routers:
     modelbazaar-http:
       rule: "PathPrefix(`/api`)"

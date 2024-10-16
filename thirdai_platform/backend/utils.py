@@ -16,7 +16,6 @@ from backend.thirdai_storage import data_types, storage
 from backend.train_config import LabelEntity
 from database import schema
 from fastapi import HTTPException, status
-from fastapi.responses import JSONResponse
 from jinja2 import Template
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from sqlalchemy.orm import Session
@@ -52,29 +51,6 @@ setup_logger()
 
 def model_bazaar_path():
     return "/model_bazaar" if os.path.exists("/.dockerenv") else os.getenv("SHARE_DIR")
-
-
-def response(status_code: int, message: str, data={}, success: bool = None):
-    """
-    Create a JSON response.
-
-    Parameters:
-    - status_code: HTTP status code for the response.
-    - message: Message to include in the response.
-    - data: Optional data to include in the response (default is an empty dictionary).
-    - success: Optional boolean indicating success or failure (default is None).
-
-    Returns:
-    - JSONResponse: FastAPI JSONResponse object.
-    """
-    if success is not None:
-        status = "success" if success else "failed"
-    else:
-        status = "success" if status_code < 400 else "failed"
-    return JSONResponse(
-        status_code=status_code,
-        content={"status": status, "message": message, "data": data},
-    )
 
 
 def hash_password(password: str):
@@ -479,20 +455,6 @@ def model_accessible(model: schema.Model, user: schema.User) -> bool:
     return True
 
 
-def get_empty_port():
-    """
-    Get an empty port.
-
-    Returns:
-    - int: The empty port number.
-    """
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(("", 0))  # Bind to an empty
-    port = sock.getsockname()[1]
-    sock.close()
-    return port
-
-
 def get_expiry_min(size: int):
     """
     This is a helper function to calculate the expiry time for the signed
@@ -530,11 +492,6 @@ def get_workflow(session, workflow_id, authenticated_user):
         )
 
     return workflow
-
-
-def save_dict(obj: dict, path: str):
-    with open(path, "w") as fp:
-        json.dump(obj, fp, indent=4)
 
 
 def validate_license_info():

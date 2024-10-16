@@ -7,7 +7,8 @@ from typing import List
 
 import pandas as pd
 import thirdai
-from config import (
+from platform_common.file_handler import expand_s3_buckets_and_directories
+from platform_common.pydantic_models.training import (
     FileInfo,
     TextClassificationOptions,
     TokenClassificationOptions,
@@ -28,11 +29,9 @@ from thirdai_storage.data_types import (
     TagMetadata,
 )
 from thirdai_storage.storage import DataStorage, SQLiteConnector
-from utils import (
-    check_csv_only,
-    check_local_nfs_only,
-    expand_s3_buckets_and_directories,
-)
+from train_job.exceptional_handler import apply_exception_handler
+from train_job.models.model import Model
+from train_job.utils import check_csv_only, check_local_nfs_only
 
 
 @apply_exception_handler

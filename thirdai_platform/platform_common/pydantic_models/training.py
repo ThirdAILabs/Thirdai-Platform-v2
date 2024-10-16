@@ -2,8 +2,8 @@ import os
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
+from backend.thirdai_storage.data_types import LabelEntity, TokenClassificationData
 from pydantic import BaseModel, Field, model_validator
-from thirdai_storage.data_types import LabelEntity, TokenClassificationData
 
 
 class ModelType(str, Enum):
@@ -93,6 +93,9 @@ class NDBOptions(BaseModel):
         NDBv2Options(), discriminator="ndb_sub_type"
     )
 
+    class Config:
+        protected_namespaces = ()
+
 
 class NDBData(BaseModel):
     model_data_type: Literal[ModelDataType.NDB] = ModelDataType.NDB
@@ -102,6 +105,9 @@ class NDBData(BaseModel):
     test_files: List[FileInfo] = []
 
     deletions: List[str] = []
+
+    class Config:
+        protected_namespaces = ()
 
     @model_validator(mode="after")
     def check_nonempty(self):
@@ -154,12 +160,18 @@ class UDTOptions(BaseModel):
 
     train_options: UDTTrainOptions = UDTTrainOptions()
 
+    class Config:
+        protected_namespaces = ()
+
 
 class UDTData(BaseModel):
     model_data_type: Literal[ModelDataType.UDT] = ModelDataType.UDT
 
     supervised_files: List[FileInfo]
     test_files: List[FileInfo] = []
+
+    class Config:
+        protected_namespaces = ()
 
     @model_validator(mode="after")
     def check_nonempty(self):
@@ -190,7 +202,7 @@ class TextClassificationDatagenOptions(BaseModel):
 class TokenClassificationDatagenOptions(BaseModel):
     sub_type: Literal[UDTSubType.token] = UDTSubType.token
     tags: List[LabelEntity]
-    num_sentences_to_generate: int
+    num_sentences_to_generate: int = 10_00
     num_samples_per_tag: Optional[int] = None
 
     # example NER samples
@@ -250,8 +262,21 @@ class TrainConfig(BaseModel):
         ..., discriminator="model_data_type"
     )
 
+    class Config:
+        protected_namespaces = ()
+
     @model_validator(mode="after")
     def check_model_data_match(self):
         if self.model_options.model_type.value not in self.data.model_data_type.value:
             raise ValueError("Model and data fields don't match")
         return self
+
+    def save_train_config(self):
+        config_path = os.path.join(
+            self.model_bazaar_dir, "models", str(self.model_id), "train_config.json"
+        )
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        with open(config_path, "w") as file:
+            file.write(self.model_dump_json(indent=4))
+
+        return config_path

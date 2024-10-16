@@ -3,7 +3,6 @@ import traceback
 from pathlib import Path
 from typing import List, Optional
 
-from backend.thirdai_storage.data_types import TokenClassificationData
 from backend.utils import (
     get_platform,
     get_python_path,
@@ -21,6 +20,7 @@ from platform_common.pydantic_models.training import (
     LLMProvider,
     UDTSubType,
 )
+from platform_common.thirdai_storage.data_types import TokenClassificationData
 from platform_common.utils import response, save_dict
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session

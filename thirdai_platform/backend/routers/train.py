@@ -9,7 +9,6 @@ from typing import Dict, List, Optional
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access
 from backend.datagen import generate_data_for_train_job
-from backend.thirdai_storage import storage
 from backend.utils import (
     copy_data_storage,
     delete_nomad_job,
@@ -54,6 +53,7 @@ from platform_common.pydantic_models.training import (
     UDTOptions,
     UDTSubType,
 )
+from platform_common.thirdai_storage import storage
 from platform_common.utils import response
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session

@@ -17,9 +17,7 @@ from platform_common.pydantic_models.training import (
     TrainConfig,
     UDTTrainOptions,
 )
-from reporter import Reporter
-from thirdai import bolt
-from thirdai_storage.data_types import (
+from platform_common.thirdai_storage.data_types import (
     DataSample,
     LabelEntity,
     LabelStatus,
@@ -28,7 +26,9 @@ from thirdai_storage.data_types import (
     SampleStatus,
     TagMetadata,
 )
-from thirdai_storage.storage import DataStorage, SQLiteConnector
+from platform_common.thirdai_storage.storage import DataStorage, SQLiteConnector
+from reporter import Reporter
+from thirdai import bolt
 from train_job.exceptional_handler import apply_exception_handler
 from train_job.models.model import Model
 from train_job.utils import check_csv_only, check_local_nfs_only

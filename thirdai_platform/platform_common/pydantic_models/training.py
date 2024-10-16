@@ -2,7 +2,10 @@ import os
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from backend.thirdai_storage.data_types import LabelEntity, TokenClassificationData
+from platform_common.thirdai_storage.data_types import (
+    LabelEntity,
+    TokenClassificationData,
+)
 from pydantic import BaseModel, Field, model_validator
 
 

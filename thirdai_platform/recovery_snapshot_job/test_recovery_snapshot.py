@@ -1,42 +1,13 @@
 import json
 import os
-import random
 import shutil
 import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
-from dotenv import load_dotenv
 from platform_common.pydantic_models.recovery_snapshot import BackupConfig
 from recovery_snapshot_job.run import perform_backup
-from sqlalchemy import NullPool, create_engine, text
-
 MODEL_BAZAAR_DIR = "./model_bazaar_tmp"
-
-
-@pytest.fixture(scope="session")
-def db_engine():
-    """Fixture to create and drop the database."""
-    load_dotenv()  # Load environment variables
-
-    # Get the base DB URI
-    db_uri = os.getenv("DB_BASE_URI")
-    db_name = f"model_bazaar_{random.randint(0, 1e6)}"
-
-    # Create the engine and database
-    engine = create_engine(db_uri, isolation_level="AUTOCOMMIT", poolclass=NullPool)
-
-    with engine.connect() as conn:
-        conn.execute(text(f"CREATE DATABASE {db_name}"))
-
-    # Provide the full DB URI with the test database
-    os.environ["DATABASE_URI"] = f"{db_uri}/{db_name}"
-
-    yield engine  # This will be passed into tests
-
-    # Teardown: Drop the database after all tests are done
-    with engine.connect() as conn:
-        conn.execute(text(f"DROP DATABASE {db_name}"))
 
 
 @pytest.fixture(autouse=True)
@@ -58,6 +29,8 @@ def setup_and_teardown(db_engine):
 
     # Set additional environment variables required for the backup
     os.environ["CONFIG_PATH"] = config_path
+
+    os.environ["DATABASE_URI"] = f"random db_uri"
 
     yield  # This allows the test to run after the setup
 
@@ -126,6 +99,7 @@ def test_backup_limit(mock_subprocess_run):
         for f in os.listdir(backups_dir)
         if f.startswith("backup_") and f.endswith(".zip")
     ]
+    print(backup_files)
     assert (
         len(backup_files) == 2
     ), "Backup limit should enforce only 2 backups to be retained"

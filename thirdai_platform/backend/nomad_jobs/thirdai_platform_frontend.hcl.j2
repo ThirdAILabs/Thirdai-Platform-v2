@@ -9,13 +9,6 @@ job "thirdai-platform-frontend" {
     network {
       port "thirdai-platform-frontend-http" {
         {% if platform == "docker" %}
-          to = 300
-        {% elif platform == "local" %}
-          static = 3000
-        {% endif %}
-      }
-      port "keycloak-next-auth-http" {
-        {% if platform == "docker" %}
           to = 3000
         {% elif platform == "local" %}
           static = 3000
@@ -25,14 +18,12 @@ job "thirdai-platform-frontend" {
 
     service {
       name = "thirdai-platform-frontend"
-      ports = ["thirdai-platform-frontend-http", "keycloak-next-auth-http"]
+      ports = ["thirdai-platform-frontend-http"]
       provider = "nomad"
 
       tags = [
         "traefik.enable=true",
-        "traefik.http.routers.keycloak-next-auth-http.rule=PathPrefix(`/api/auth`)",
-        "traefik.http.routers.keycloak-next-auth-http.priority=20",
-        "traefik.http.routers.thirdai-platform-frontend-http.rule=PathPrefix(`/`)",
+        "traefik.http.routers.thirdai-platform-frontend-http.rule=PathPrefix(`/api/auth`) || PathPrefix(`/`)",
         "traefik.http.routers.thirdai-platform-frontend-http.priority=1"
       ]
     }
@@ -64,7 +55,7 @@ job "thirdai-platform-frontend" {
         {% if platform == "docker" %}
           image = "{{ registry }}/{{ image_name }}:{{ tag }}"
           image_pull_timeout = "15m"
-          ports = ["thirdai-platform-frontend-http", "keycloak-next-auth-http"]
+          ports = ["thirdai-platform-frontend-http"]
           auth {
             username = "{{ docker_username }}"
             password = "{{ docker_password }}"

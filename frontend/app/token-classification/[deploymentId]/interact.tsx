@@ -483,32 +483,27 @@ export default function Interact() {
   }  
   
 
-  const cacheNewTag = async (newTag: string) => {
-    console.log('selectedTokenIndex', selectedTokenIndex)
+  const convertCSVToPDFFormat = (rows: { label: string; content: string }[]): string[] => {
+    return rows.map(row => row.content.replace(/\n/g, ' '));
+  };
 
-    const tokenizeParagraph = (paragraph: string): string[] => {
-      return paragraph.split(/\s+/);
-    };
+  const tokenizeParagraph = (paragraph: string): string[] => {
+    return paragraph.split(/\s+/);
+  };
 
-    const findParagraphIndex = (selectedRange: [number, number], paragraphs: string[]): number => {
-      let tokenCount = 0;
-
-      console.log('selectedRange', selectedRange)
-
-      for (let i = 0; i < paragraphs.length; i++) {
-        const paragraphTokens = paragraphs[i].split(/\s+/).length;
-        tokenCount += paragraphTokens;
-
-        console.log('paragraphTokens', paragraphTokens)
-        console.log('tokenCount', tokenCount)
-
-        if (tokenCount > selectedRange[0]) {
-          return i;
-        }
+  const findParagraphIndex = (selectedRange: [number, number], paragraphs: string[]): number => {
+    let tokenCount = 0;
+    for (let i = 0; i < paragraphs.length; i++) {
+      const paragraphTokens = tokenizeParagraph(paragraphs[i]);
+      tokenCount += paragraphTokens.length;
+      if (tokenCount > selectedRange[0]) {
+        return i;
       }
-      return -1; // This should never happen if selectedRange is valid
-    };
+    }
+    return -1; // This should never happen if selectedRange is valid
+  };
 
+  const cacheNewTag = async (newTag: string) => {
     if (!selectedRange) return;
 
     const updatedTags = annotations.map((token, index) => ({
@@ -519,125 +514,70 @@ export default function Interact() {
           : token.tag,
     }));
 
-    const normalizedSentence = normalizeSentence(inputText);
-  
+    console.log('updatedTags', updatedTags)
+
     setCachedTags((prev) => {
       const updatedCachedTags: CachedTags = { ...prev };
 
       if (parsedData) {
-        if ((parsedData.type === 'csv' || parsedData.type === 'other') && parsedData.rows) {
-          // Find the relevant column
-          const relevantRowIndex = parsedData.rows.findIndex((row) =>
-            row.content.split('\n').some((column) =>
-              column.includes(updatedTags[selectedRange[0]].text)
-            )
-          );
+        let paragraphs: string[];
+        let isCSV = false;
   
-          if (relevantRowIndex !== -1) {
-            const relevantRow = parsedData.rows[relevantRowIndex];
-            const relevantColumn = relevantRow.content.split('\n').find((column) =>
-              column.includes(updatedTags[selectedRange[0]].text)
-            );
-  
-            if (relevantColumn) {
-              const [columnName, ...columnContent] = relevantColumn.split(':');
-              const content = columnContent.join(':').trim();
-  
-              // Use column name and row index as key
-              const feedbackKey = `${columnName}-${relevantRowIndex}`;
-  
-              const newContent = content.split(' ').map((word) => ({
-                text: word,
-                tag: updatedTags.find((t) => t.text === word)?.tag || 'O',
-              }));
-  
-              // Update cachedTags
-              if (updatedCachedTags[feedbackKey]) {
-                if (isColumnData(updatedCachedTags[feedbackKey])) {
-                  // Merge existing content with new content
-                  const existingContent = updatedCachedTags[feedbackKey].content;
-                  const mergedContent = mergeTokens(existingContent, newContent);
-                  updatedCachedTags[feedbackKey].content = mergedContent;
-                }
-              } else {
-                updatedCachedTags[feedbackKey] = {
-                  columnName,
-                  content: newContent,
-                };
-              }
-            }
-          }
-        } else if (parsedData.type === 'pdf' && parsedData.pdfParagraphs) {
-          // Find the relevant paragraph
-          const relevantParagraphIndex = findParagraphIndex(selectedRange, parsedData.pdfParagraphs);
-
-          console.log('relevantParagraphIndex', relevantParagraphIndex)
-  
-          if (relevantParagraphIndex !== -1) {
-            const relevantParagraph = parsedData.pdfParagraphs[relevantParagraphIndex];
-  
-            // Use paragraph index as key
-            const feedbackKey = `paragraph-${relevantParagraphIndex}`;
-
-            // Tokenize the paragraph
-            const paragraphTokens = tokenizeParagraph(relevantParagraph);
-
-            // Find the start index of this paragraph in the overall annotations
-            const paragraphStartIndex = annotations.findIndex(
-              (token) => token.text === paragraphTokens[0]
-            );
-
-            console.log('updatedTags', updatedTags)
-
-            // Create new content with correct tags
-            const newContent = paragraphTokens.map((word, index) => ({
-              text: word,
-              tag: updatedTags[paragraphStartIndex + index]?.tag || 'O',
-            }));
-
-            console.log('newContent',newContent)
-  
-            // Update cachedTags
-            if (updatedCachedTags[feedbackKey]) {
-              if (isColumnData(updatedCachedTags[feedbackKey])) {
-                // Merge existing content with new content
-                const existingContent = updatedCachedTags[feedbackKey].content;
-                const mergedContent = mergeTokens(existingContent, newContent);
-                updatedCachedTags[feedbackKey].content = mergedContent;
-              }
-            } else {
-              updatedCachedTags[feedbackKey] = {
-                columnName: `Paragraph ${relevantParagraphIndex + 1}`,
-                content: newContent,
-              };
-            }
-          }
+        if (parsedData.type === 'pdf' && parsedData.pdfParagraphs) {
+          paragraphs = parsedData.pdfParagraphs;
+        } else if ((parsedData.type === 'csv' || parsedData.type === 'other') && parsedData.rows) {
+          paragraphs = convertCSVToPDFFormat(parsedData.rows);
+          isCSV = true;
         } else {
-          // For 'other' types
-          const feedbackKey = normalizedSentence; // Use normalized sentence as key
+          return updatedCachedTags;
+        }
+
+        const relevantParagraphIndex = findParagraphIndex(selectedRange, paragraphs);
   
+        if (relevantParagraphIndex !== -1) {
+          const relevantParagraph = paragraphs[relevantParagraphIndex];
+  
+          // Use paragraph index as key
+          const feedbackKey = isCSV ? `row-${relevantParagraphIndex}` : `paragraph-${relevantParagraphIndex}`;
+
+          // Tokenize the paragraph
+          const paragraphTokens = tokenizeParagraph(relevantParagraph);
+
+          // Find the start index of this paragraph in the overall annotations
+          let paragraphStartIndex = 0;
+          let tokenCount = 0;
+          for (let i = 0; i < relevantParagraphIndex; i++) {
+            tokenCount += tokenizeParagraph(paragraphs[i]).length;
+          }
+          paragraphStartIndex = tokenCount;
+
+          console.log('updatedTags 2', updatedTags)
+          console.log('paragraphStartIndex', paragraphStartIndex)
+
+          // Create new content with correct tags
+          const newContent = paragraphTokens.map((word, index) => ({
+            text: word,
+            tag: updatedTags[paragraphStartIndex + index]?.tag || 'O',
+          }));
+
+          console.log('newContent', newContent)
+
           // Update cachedTags
           if (updatedCachedTags[feedbackKey]) {
-            const existingEntry = updatedCachedTags[feedbackKey];
-            if (Array.isArray(existingEntry)) {
+            if (isColumnData(updatedCachedTags[feedbackKey])) {
               // Merge existing content with new content
-              const mergedContent = mergeTokens(existingEntry, updatedTags);
-              updatedCachedTags[feedbackKey] = mergedContent;
+              const existingContent = updatedCachedTags[feedbackKey].content;
+              const mergedContent = mergeTokens(existingContent, newContent);
+              updatedCachedTags[feedbackKey].content = mergedContent;
             }
           } else {
-            updatedCachedTags[feedbackKey] = updatedTags;
+            updatedCachedTags[feedbackKey] = {
+              columnName: isCSV ? `Row ${relevantParagraphIndex + 1}` : `Paragraph ${relevantParagraphIndex + 1}`,
+              content: newContent,
+            };
           }
         }
       }
-  
-      // Remove entries with no tags
-      Object.keys(updatedCachedTags).forEach((key) => {
-        const entry = updatedCachedTags[key];
-        const content = Array.isArray(entry) ? entry : entry.content;
-        if (!content.some((token) => token.tag !== 'O')) {
-          delete updatedCachedTags[key];
-        }
-      });
   
       return updatedCachedTags;
     });

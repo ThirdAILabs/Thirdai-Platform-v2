@@ -83,8 +83,9 @@ def test_local_backup(mock_datetime, mock_subprocess_run):
 
 @patch("subprocess.run")  # Mock subprocess.run for pg_dump
 @patch(
-    "recovery_snapshot_job.run.datetime"
-)  # Mock datetime to simulate different timestamps
+    "recovery_snapshot_job.run.datetime",
+    wraps=datetime.datetime,
+)  # Wrap datetime to simulate different timestamps but still use the real datetime class
 def test_backup_limit(mock_datetime, mock_subprocess_run):
     """Test to check if the backup limit is respected."""
     config_path = os.getenv("CONFIG_PATH")
@@ -93,7 +94,7 @@ def test_backup_limit(mock_datetime, mock_subprocess_run):
     mock_subprocess_run.return_value = MagicMock(returncode=0)
 
     # Simulate different timestamps for each backup operation
-    mock_datetime.datetime.now.side_effect = [
+    mock_datetime.now.side_effect = [
         datetime.datetime(2024, 10, 16, 18, 55, 32),
         datetime.datetime(2024, 10, 16, 18, 55, 33),
         datetime.datetime(2024, 10, 16, 18, 55, 34),

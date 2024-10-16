@@ -65,6 +65,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17  # Install pg_dump 17
 
+          locate pg_dump
+
       - name: install dependencies
         run: |
           pip3 install -r thirdai_platform/requirements.txt

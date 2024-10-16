@@ -12,7 +12,12 @@ from platform_common.file_handler import (
     GCPStorageHandler,
     S3StorageHandler,
 )
-from platform_common.pydantic_models.recovery_snapshot import BackupConfig
+from platform_common.pydantic_models.recovery_snapshot import (
+    AzureConfig,
+    BackupConfig,
+    GCPConfig,
+    S3Config,
+)
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -23,20 +28,27 @@ scheduler = BlockingScheduler()
 
 
 def get_cloud_storage_handler(config: BackupConfig):
-    if config.cloud_provider == "s3":
+    """Get the appropriate cloud storage handler based on the provider."""
+    provider_config = config.provider
+
+    if isinstance(provider_config, S3Config):
         return S3StorageHandler(
-            aws_access_key=config.aws_access_key,
-            aws_secret_access_key=config.aws_secret_access_key,
+            aws_access_key=provider_config.aws_access_key,
+            aws_secret_access_key=provider_config.aws_secret_access_key,
         )
-    elif config.cloud_provider == "azure":
-        return AzureStorageHandler(config.azure_account_name, config.azure_account_key)
-    elif config.cloud_provider == "gcp":
-        return GCPStorageHandler(config.gcp_credentials_file_path)
+    elif isinstance(provider_config, AzureConfig):
+        return AzureStorageHandler(
+            account_name=provider_config.azure_account_name,
+            account_key=provider_config.azure_account_key,
+        )
+    elif isinstance(provider_config, GCPConfig):
+        return GCPStorageHandler(provider_config.gcp_credentials_file_path)
     else:
-        return None  # No cloud provider
+        return None  # Local backup, no cloud handler
 
 
 def delete_local_backup(zip_file_path: str, dump_file_path: str):
+    """Delete local backup files after successful backup."""
     try:
         os.remove(f"{zip_file_path}")
         logging.info(f"Deleted local zip file: {zip_file_path}")
@@ -74,6 +86,7 @@ def create_backup_files(
 
 
 def manage_backup_limit_local(backup_dir: str, backup_limit: int):
+    """Ensure that the number of local backups does not exceed the limit."""
     all_backups = [f for f in os.listdir(backup_dir) if f.startswith("backup_")]
     sorted_backups = sorted(all_backups, key=lambda x: x.split("_")[-1], reverse=True)
     if len(sorted_backups) > backup_limit:
@@ -86,6 +99,7 @@ def manage_backup_limit_local(backup_dir: str, backup_limit: int):
 def manage_backup_limit(
     cloud_handler: CloudStorageHandler, bucket_name: str, backup_limit: int
 ):
+    """Ensure that the number of backups in the cloud does not exceed the limit."""
     all_backups = cloud_handler.list_files(bucket_name, "backup_")
     sorted_backups = sorted(all_backups, key=lambda x: x.split("_")[-1], reverse=True)
     if len(sorted_backups) > backup_limit:
@@ -95,6 +109,7 @@ def manage_backup_limit(
 
 
 def perform_backup(config_file):
+    """Perform the backup operation based on the provided config."""
     config = BackupConfig.parse_file(config_file)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
@@ -104,7 +119,6 @@ def perform_backup(config_file):
         os.makedirs(backup_dir, exist_ok=True)
 
         db_uri = os.getenv("DATABASE_URI")
-        bucket_name = config.bucket_name
         backup_limit = config.backup_limit
 
         zip_file_path, dump_file_path = create_backup_files(
@@ -114,11 +128,15 @@ def perform_backup(config_file):
         # If a cloud provider is configured, upload the backup to the cloud
         cloud_handler = get_cloud_storage_handler(config)
         if cloud_handler:
-            cloud_handler.create_bucket_if_not_exists(bucket_name)
+            cloud_handler.create_bucket_if_not_exists(config.provider.bucket_name)
             cloud_handler.upload_file(
-                f"{zip_file_path}", bucket_name, f"backup_{timestamp}.zip"
+                f"{zip_file_path}",
+                config.provider.bucket_name,
+                f"backup_{timestamp}.zip",
             )
-            manage_backup_limit(cloud_handler, bucket_name, backup_limit)
+            manage_backup_limit(
+                cloud_handler, config.provider.bucket_name, backup_limit
+            )
             delete_local_backup(zip_file_path, dump_file_path)
         else:
             # No cloud provider, manage local backups

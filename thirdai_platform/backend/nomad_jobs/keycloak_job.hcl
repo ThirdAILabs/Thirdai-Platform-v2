@@ -14,23 +14,19 @@ job "keycloak" {
       driver = "docker"
 
       config {
-        image = "quay.io/keycloak/keycloak:22.0"
+        image = "quay.io/keycloak/keycloak:26.0.0"
         ports = ["keycloak-http"]
         args  = ["start", "--debug", "--http-port=8180"]
       }
 
       env {
-        KC_HEALTH_ENABLED            = "true"
-        KC_METRICS_ENABLED           = "true"
-        KC_HTTP_ENABLED              = "true"
-        KC_HOSTNAME_STRICT_HTTPS      = "false"
-        KEYCLOAK_SSL_REQUIRED        = "none"
-        KC_HOSTNAME_STRICT_BACKCHANNEL = "false"
-        KC_HOSTNAME_URL            = "http://localhost/keycloak"
-        KC_HOSTNAME_ADMIN_URL             = "http://localhost/keycloak"
-        KC_HTTP_RELATIVE_PATH     =  "/keycloak"
-        KC_PROXY                 = "edge"
-        KC_HOSTNAME_STRICT      =false
+        KC_HTTP_ENABLED                   = "true"
+        KC_HOSTNAME_STRICT_BACKCHANNEL    = "false"
+        KC_HOSTNAME                       = "http://localhost/keycloak"
+        KC_HOSTNAME_ADMIN                 = "http://localhost/keycloak"
+        KC_HOSTNAME_BACKCHANNEL_DYNAMIC   = "true"
+        KC_HTTP_RELATIVE_PATH             = "/keycloak"
+        KC_HOSTNAME_STRICT                = "true"
 
         # Database connection
         DB_VENDOR                    = "postgres"
@@ -39,8 +35,8 @@ job "keycloak" {
         DB_USER                      = "postgres"
         DB_PASSWORD                  = "newpassword"
 
-        KEYCLOAK_ADMIN               = "temp_admin"
-        KEYCLOAK_ADMIN_PASSWORD      = "password"
+        KC_BOOTSTRAP_ADMIN_USERNAME  = "temp_admin"
+        KC_BOOTSTRAP_ADMIN_PASSWORD  = "password"
       }
 
       resources {

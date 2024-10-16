@@ -2,8 +2,6 @@ import os
 from urllib.parse import urlparse
 import socket
 import fastapi
-from fastapi.security import OAuth2AuthorizationCodeBearer, OAuth2PasswordBearer
-from fastapi import APIRouter, Depends, HTTPException, status
 
 
 def get_ip_from_url(url):
@@ -52,13 +50,28 @@ if IDENTITY_PROVIDER == "keycloak":
 
     from keycloak import KeycloakOpenID, KeycloakAdmin
 
-    keycloak_admin = KeycloakAdmin(
-        server_url=KEYCLOAK_SERVER_URL,
-        username=os.getenv("KEYCLOAK_ADMIN_USER", "temp_admin"),
-        password=os.getenv("KEYCLOAK_ADMIN_PASSWORD", "password"),
-        realm_name="master",
-        verify=True,
-    )
+    USE_SSL_IN_LOGIN = os.getenv("USE_SSL_IN_LOGIN", "False").lower() == "true"
+
+    if USE_SSL_IN_LOGIN:
+        keycloak_admin = KeycloakAdmin(
+            server_url=KEYCLOAK_SERVER_URL,
+            username=os.getenv("KEYCLOAK_ADMIN_USER", "temp_admin"),
+            password=os.getenv("KEYCLOAK_ADMIN_PASSWORD", "password"),
+            realm_name="master",
+            verify="/model_bazaar/certs/traefik.crt",
+            cert=(
+                "/model_bazaar/certs/traefik.crt",
+                "/model_bazaar/certs/traefik.key",
+            ),
+        )
+    else:
+        keycloak_admin = KeycloakAdmin(
+            server_url=KEYCLOAK_SERVER_URL,
+            username=os.getenv("KEYCLOAK_ADMIN_USER", "temp_admin"),
+            password=os.getenv("KEYCLOAK_ADMIN_PASSWORD", "password"),
+            realm_name="master",
+            verify=False,
+        )
     admin_username = os.getenv("ADMIN_USERNAME")
     admin_mail = os.getenv("ADMIN_MAIL")
     admin_password = os.getenv("ADMIN_PASSWORD")
@@ -97,7 +110,6 @@ if IDENTITY_PROVIDER == "keycloak":
         payload = {
             "realm": realm_name,
             "enabled": True,
-            "sslRequired": "None",
             "identityProviders": [],
             "defaultRoles": ["user"],
             "registrationAllowed": True,

@@ -63,7 +63,7 @@ job "thirdai-platform-frontend" {
           }
           {% if use_ssl_in_login == "true" %}
             volumes = [
-              "{{ SHARE_DIR }}/certs:/certs",
+              "{{ share_dir }}/certs:/certs",
             ]
           {% endif %}
         {% endif %}

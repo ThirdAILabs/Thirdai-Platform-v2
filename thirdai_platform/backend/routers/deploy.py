@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -331,6 +332,39 @@ def deployment_status(
     )
 
 
+class UsageStatOptions(BaseModel):
+    duration: int  # In seconds
+    step: str  # 1h, 20s, 3m, 2w, 1h30m or any other prometheus supported duration regex (https://prometheus.io/docs/prometheus/latest/configuration/configuration/#:~:text=(((%5B0%2D9%5D%2B)y)%3F((%5B0%2D9%5D%2B)w)%3F((%5B0%2D9%5D%2B)d)%3F((%5B0%2D9%5D%2B)h)%3F((%5B0%2D9%5D%2B)m)%3F((%5B0%2D9%5D%2B)s)%3F((%5B0%2D9%5D%2B)ms)%3F%7C0))
+
+    def step_in_words(self):
+        unit_map = {
+            "y": "year",
+            "w": "week",
+            "d": "day",
+            "h": "hour",
+            "m": "minute",
+            "s": "second",
+            "ms": "millisecond",
+        }
+
+        pattern = r"(\d+)([ywdhms]|ms)"
+        matches = re.findall(pattern, self.step)
+
+        parts = []
+        for value, unit in matches:
+            value = int(value)
+            if unit in unit_map:
+                unit_name = unit_map[unit]
+                if value != 1:
+                    parts.append(f"{value} {unit_name}s")
+                else:
+                    parts.append(f"{unit_name}")
+            else:
+                parts.append(f"{value} {unit}")
+
+        return f"per {' '.join(parts)}"
+
+
 @deploy_router.get("/usage-stats")
 def usage_stats(
     model_identifier: str,
@@ -416,12 +450,12 @@ def usage_stats(
     worded_steps = usage_stat_option.step_in_words()
     metrics = (
         [
-            (f"Query_{worded_steps}", "ndb_query_count"),
-            (f"Upvote_{worded_steps}", "ndb_upvote_count"),
-            (f"Associate_{worded_steps}", "ndb_associate_count"),
+            (f"Query {worded_steps}", "ndb_query_count"),
+            (f"Upvote {worded_steps}", "ndb_upvote_count"),
+            (f"Associate {worded_steps}", "ndb_associate_count"),
         ]
         if model.type == "ndb"
-        else [(f"Query_{worded_steps}", "udt_predict")]
+        else [(f"Query {worded_steps}", "udt_predict")]
     )
 
     usage_data = {}
@@ -430,7 +464,7 @@ def usage_stats(
             params["query"] = (
                 f'increase({metric_id}{{job="deployment-jobs", model_id="{model.id}"}}[{usage_stat_option.step}])'  # Not summing over because there will be only one timeseries data returned
             )
-            query_response = requests.get(f"{query_endpoint}", params=params)
+            query_response = requests.get(query_endpoint, params=params)
             if query_response.status_code == 200:
                 timeseries_data = query_response.json()["data"]["result"]
                 if len(timeseries_data) == 0:

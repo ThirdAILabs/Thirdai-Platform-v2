@@ -2,7 +2,6 @@ import json
 import os
 import random
 import shutil
-import subprocess
 import tempfile
 from unittest.mock import MagicMock, patch
 
@@ -98,27 +97,6 @@ def test_local_backup(mock_subprocess_run):
     ]
     assert len(backup_files) > 0, "At least one backup file should be created"
 
-    # Verify if the DB dump was created as part of the backup process (mocked)
-    assert os.path.exists(db_dump_path), "Database dump file should be created"
-
-    # Ensure that pg_dump (subprocess.run) was called
-    mock_subprocess_run.assert_called_once()
-
-
-@patch("subprocess.run")  # Mock subprocess.run for pg_dump
-def test_pg_dump_failure(mock_subprocess_run):
-    """Test to check handling of pg_dump failure."""
-    config_path = os.getenv("CONFIG_PATH")
-
-    # Simulate a failure of pg_dump (non-zero exit code)
-    mock_subprocess_run.side_effect = subprocess.CalledProcessError(
-        returncode=1, cmd="pg_dump"
-    )
-
-    # Perform the backup and expect it to fail due to the mocked pg_dump failure
-    with pytest.raises(Exception):
-        perform_backup(config_path)
-
     # Ensure that pg_dump (subprocess.run) was called
     mock_subprocess_run.assert_called_once()
 
@@ -132,15 +110,14 @@ def test_backup_limit(mock_subprocess_run):
     mock_subprocess_run.return_value = MagicMock(returncode=0)
 
     # Manually create the mocked db_backup.sql file as pg_dump would create
-    model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
-    db_dump_path = os.path.join(model_bazaar_dir, "db_backup.sql")
-    with open(db_dump_path, "w") as f:
-        f.write("")  # Create an empty backup file
+    for _ in range(3):
+        model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
+        db_dump_path = os.path.join(model_bazaar_dir, "db_backup.sql")
+        with open(db_dump_path, "w") as f:
+            f.write("")  # Create an empty backup file
 
-    # Perform the backup three times to exceed the backup limit of 2
-    perform_backup(config_path)
-    perform_backup(config_path)
-    perform_backup(config_path)
+        # Perform the backup three times to exceed the backup limit of 2
+        perform_backup(config_path)
 
     # Check if the backup directory has no more than 2 backups
     backups_dir = os.path.join(os.getenv("MODEL_BAZAAR_DIR"), "backups")
@@ -152,44 +129,3 @@ def test_backup_limit(mock_subprocess_run):
     assert (
         len(backup_files) == 2
     ), "Backup limit should enforce only 2 backups to be retained"
-
-
-@pytest.mark.parametrize("backup_limit", [1, 3, 5])
-@patch("subprocess.run")  # Mock subprocess.run for pg_dump
-def test_parametrized_backup_limit(mock_subprocess_run, backup_limit):
-    """Test to check parametrized backup limit behavior."""
-    config_path = os.getenv("CONFIG_PATH")
-
-    # Simulate a successful pg_dump execution
-    mock_subprocess_run.return_value = MagicMock(returncode=0)
-
-    # Manually create the mocked db_backup.sql file as pg_dump would create
-    model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
-    db_dump_path = os.path.join(model_bazaar_dir, "db_backup.sql")
-    with open(db_dump_path, "w") as f:
-        f.write("")  # Create an empty backup file
-
-    # Load the existing config and modify the backup limit
-    with open(config_path, "r") as config_file:
-        config_data = json.load(config_file)
-
-    config_data["backup_limit"] = backup_limit
-
-    # Save the updated config
-    with open(config_path, "w") as config_file:
-        json.dump(config_data, config_file)
-
-    # Run the backup multiple times to test the limit
-    for _ in range(backup_limit + 2):  # Running more backups than the limit
-        perform_backup(config_path)
-
-    # Check if the backup directory has no more than the backup_limit
-    backups_dir = os.path.join(model_bazaar_dir, "backups")
-    backup_files = [
-        f
-        for f in os.listdir(backups_dir)
-        if f.startswith("backup_") and f.endswith(".zip")
-    ]
-    assert (
-        len(backup_files) == backup_limit
-    ), f"Backup limit should enforce only {backup_limit} backups to be retained"

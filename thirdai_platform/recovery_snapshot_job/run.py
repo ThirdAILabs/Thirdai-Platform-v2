@@ -108,7 +108,7 @@ def perform_backup(config_file):
         backup_dir = os.path.join(model_bazaar_dir, "backups")
         os.makedirs(backup_dir, exist_ok=True)
 
-        db_uri = os.getenv("DB_URI")
+        db_uri = os.getenv("DATABASE_URI")
         bucket_name = config.bucket_name
         backup_limit = config.backup_limit
 

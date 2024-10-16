@@ -77,6 +77,17 @@ jobs:
           cd thirdai_platform
           python3 -m pytest tests -v
 
+      - name: Prepare for recovery snapshot tests
+        run: |
+          pip3 install -r thirdai_platform/recovery_snapshot/requirements.txt
+          pip3 install httpx
+          pip3 install pytest
+
+      - name: run unit tests
+        run: |
+          cd thirdai_platform
+          python3 -m pytest recovery_snapshot -v
+
       - name: Stop Services
         if: always()
         run: |

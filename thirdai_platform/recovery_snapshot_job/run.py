@@ -5,7 +5,6 @@ import subprocess
 import zipfile
 
 from apscheduler.schedulers.blocking import BlockingScheduler
-from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from platform_common.file_handler import (
     AzureStorageHandler,
@@ -148,25 +147,17 @@ def schedule_backup(config_file):
             replace_existing=True,
         )
         logging.info(f"Scheduled periodic backup every {interval_minutes} minutes.")
+
+        # Start the scheduler for periodic backups
+        try:
+            scheduler.start()
+        except Exception as e:
+            logging.error(f"Scheduler encountered an error: {e}")
+            scheduler.shutdown()
     else:
-        # Run one-time backup
-        scheduler.add_job(
-            perform_backup,
-            trigger=DateTrigger(run_date=datetime.datetime.now()),
-            args=[config_file],
-            id="one_time_backup_job",
-            replace_existing=True,
-        )
-        logging.info("Scheduled one-time backup.")
-
-    # Start the scheduler
-    try:
-        scheduler.start()
-    except Exception as e:
-        logging.error(f"Scheduler encountered an error: {e}")
-        scheduler.shutdown()
-
-    return scheduler
+        # Run one-time backup directly, no scheduler needed
+        logging.info("Starting one-time backup.")
+        perform_backup(config_file)
 
 
 if __name__ == "__main__":

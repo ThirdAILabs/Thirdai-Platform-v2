@@ -18,6 +18,7 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+# Global scheduler instance
 scheduler = BlockingScheduler()
 
 
@@ -54,6 +55,7 @@ def create_backup_files(
 ):
     # Create database dump file
     dump_file_path = os.path.join(model_bazaar_dir, f"db_backup.sql")
+    # TODO(YASH): Only backup completed models.
     subprocess.run(["pg_dump", db_uri, "-f", dump_file_path], check=True)
 
     # Path for the zip file in the backups folder

@@ -9,12 +9,9 @@ import pytest
 from platform_common.pydantic_models.recovery_snapshot import BackupConfig
 from recovery_snapshot_job.run import perform_backup
 
-MODEL_BAZAAR_DIR = "./model_bazaar_tmp"
-
 
 @pytest.fixture(autouse=True)
 def setup_and_teardown():
-    """Fixture to setup temporary model_bazaar directory and config file."""
     # Setup: create a temporary directory for the model_bazaar_dir
     temp_dir = tempfile.mkdtemp()
     os.environ["MODEL_BAZAAR_DIR"] = temp_dir
@@ -44,7 +41,6 @@ def setup_and_teardown():
     "recovery_snapshot_job.run.datetime"
 )  # Mock datetime to simulate different timestamps
 def test_local_backup(mock_datetime, mock_subprocess_run):
-    """Test to check local backup functionality with mocked pg_dump."""
     config_path = os.getenv("CONFIG_PATH")
 
     # Simulate a successful pg_dump execution
@@ -116,7 +112,6 @@ def test_backup_limit(mock_datetime, mock_subprocess_run):
         if f.startswith("backup_") and f.endswith(".zip")
     ]
 
-    print(backup_files)
     assert (
         len(backup_files) == 2
     ), "Backup limit should enforce only 2 backups to be retained"

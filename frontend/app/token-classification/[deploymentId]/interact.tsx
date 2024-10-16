@@ -486,6 +486,10 @@ export default function Interact() {
   const cacheNewTag = async (newTag: string) => {
     console.log('selectedTokenIndex', selectedTokenIndex)
 
+    const tokenizeParagraph = (paragraph: string): string[] => {
+      return paragraph.split(/\s+/);
+    };
+
     const findParagraphIndex = (selectedRange: [number, number], paragraphs: string[]): number => {
       let tokenCount = 0;
 
@@ -574,10 +578,21 @@ export default function Interact() {
   
             // Use paragraph index as key
             const feedbackKey = `paragraph-${relevantParagraphIndex}`;
-  
-            const newContent = relevantParagraph.split(' ').map((word) => ({
+
+            // Tokenize the paragraph
+            const paragraphTokens = tokenizeParagraph(relevantParagraph);
+
+            // Find the start index of this paragraph in the overall annotations
+            const paragraphStartIndex = annotations.findIndex(
+              (token) => token.text === paragraphTokens[0]
+            );
+
+            console.log('updatedTags', updatedTags)
+
+            // Create new content with correct tags
+            const newContent = paragraphTokens.map((word, index) => ({
               text: word,
-              tag: updatedTags.find((t) => t.text === word)?.tag || 'O',
+              tag: updatedTags[paragraphStartIndex + index]?.tag || 'O',
             }));
 
             console.log('newContent',newContent)

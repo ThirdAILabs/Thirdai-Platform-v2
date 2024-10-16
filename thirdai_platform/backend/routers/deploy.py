@@ -1,9 +1,12 @@
 import json
 import os
 import traceback
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Union
+from urllib.parse import urljoin
 
+import requests
 from auth.jwt import (
     AuthenticatedUser,
     now_plus_minutes,
@@ -31,6 +34,7 @@ from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     NDBDeploymentOptions,
     UDTDeploymentOptions,
+    UsageStatOptions,
 )
 from platform_common.pydantic_models.training import ModelType
 from platform_common.utils import response
@@ -324,6 +328,111 @@ def deployment_status(
         status_code=status.HTTP_200_OK,
         message="Successfully got the deployment status",
         data={"deploy_status": model.deploy_status, "model_id": str(model.id)},
+    )
+
+
+@deploy_router.get("/usage-stats")
+def usage_stats(
+    model_identifier: str,
+    usage_stat_option: UsageStatOptions,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Get the usage stats of the deployment
+
+    Parameters:
+    - model_identifier: The identifier of the model.
+    - duration: Duration for which stats are required. (In seconds)
+    - step: Time difference between the intervals
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Example Usage:
+    ```json
+    {
+        "model_identifier": "user123/model_name"
+        "duration":"604800       # 1 week in seconds
+        "steps": 86400           # 1 day in seconds
+    }
+    ```
+    Response data:
+    ```json
+    {
+        Query_per_day: {
+                "2024-10-16 16:35:00": 7,
+                "2024-10-17 16:35:00": 15,
+                "2024-10-18 16:35:00": 8,
+                "2024-10-19 16:35:00": 45,
+                "2024-10-20 16:35:00": 51,
+                "2024-10-21 16:35:00": 13,
+                "2024-10-22 16:35:00": 15,
+                "2024-10-23 16:35:00": 20,
+            }
+    }
+    ```
+    """
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    query_endpoint = urljoin(
+        os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"), "/victoriametric/api/v1/query_range"
+    )
+
+    # Common params
+    start_time = datetime.now()
+    end_time = start_time - timedelta(seconds=usage_stat_option.duration)
+    params = {
+        "start": int(start_time.timestamp()),
+        "end": int(end_time.timestamp()),
+        "step": usage_stat_option.step,
+    }
+
+    worded_steps = usage_stat_option.step_in_words()
+    metrics = (
+        [
+            (f"Query_{worded_steps}", "ndb_query_count"),
+            (f"Upvote_{worded_steps}", "ndb_upvote_count"),
+            (f"Associate_{worded_steps}", "ndb_associate_count"),
+        ]
+        if model.type == "ndb"
+        else [(f"Query_{worded_steps}", "udt_predict")]
+    )
+
+    usage_data = {}
+    for metric_name, metric_id in metrics:
+        try:
+            params["query"] = (
+                f'{metric_id}{{job="deployment-job", model_id="{model.id}"}}'  # promQL
+                f'increase({metric_id}{{job="deployment-jobs", model_id="{model.id}"}}[{usage_stat_option.step}])'  # Not summing over because there will be only one timeseries data returned
+            )
+            query_response = requests.get(f"{query_endpoint}", params=params)
+            if query_response.status_code == 200:
+                timeseries_data = query_response.json()["data"]["result"]
+                if len(timeseries_data) == 0:
+                    # model was never deployed, so there will be no usage stats
+                    break
+
+                usage_data[metric_name] = {}
+                for timestamp, value in timeseries_data[0]["values"]:
+                    dt = datetime.fromtimestamp(timestamp)
+                    usage_data[metric_name][str(dt)] = value
+
+        except Exception as e:
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message=f"Error: {str(e)}",
+            )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully retreived the usage stats",
+        data=usage_data,
     )
 
 

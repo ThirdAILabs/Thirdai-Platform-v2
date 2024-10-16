@@ -4,7 +4,6 @@ import os
 import subprocess
 import zipfile
 
-from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
@@ -20,12 +19,7 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-
-def initialize_scheduler(test_mode=False):
-    """Initialize BlockingScheduler for production or BackgroundScheduler for tests."""
-    if test_mode:
-        return BackgroundScheduler()  # Non-blocking for tests
-    return BlockingScheduler()  # BlockingScheduler for production
+scheduler = BlockingScheduler()
 
 
 def load_config(config_file):
@@ -139,13 +133,10 @@ def perform_backup(config_file):
         logging.error(f"Backup failed: {e}")
 
 
-def schedule_backup(config_file, test_mode=False):
+def schedule_backup(config_file):
     """Schedule backup based on interval in config or run once."""
     config = load_config(config_file)
     interval_minutes = config.interval_minutes
-
-    # Initialize scheduler based on the environment (test or production)
-    scheduler = initialize_scheduler(test_mode=test_mode)
 
     if interval_minutes:
         # Schedule recurring backups

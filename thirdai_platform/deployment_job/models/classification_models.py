@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import List, Optional
 
 from deployment_job.models.model import Model
-from deployment_job.pydantic_models import inputs
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from thirdai import bolt
 from thirdai_storage.data_types import (
@@ -16,6 +15,8 @@ from thirdai_storage.data_types import (
     TokenClassificationData,
 )
 from thirdai_storage.storage import DataStorage, SQLiteConnector
+
+from deployment_job.pydantic_models import inputs
 
 
 class ClassificationModel(Model):

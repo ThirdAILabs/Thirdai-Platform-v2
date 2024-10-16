@@ -10,8 +10,8 @@ from platform_common.pydantic_models.feedback_logs import (
     UpvoteLog,
 )
 from platform_common.pydantic_models.training import (
-    FileInfo,
     DatagenOptions,
+    FileInfo,
     JobOptions,
     NDBData,
     NDBOptions,

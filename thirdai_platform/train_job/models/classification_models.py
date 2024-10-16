@@ -7,6 +7,8 @@ from typing import List
 
 import pandas as pd
 import thirdai
+from exceptional_handler import apply_exception_handler
+from models.model import Model
 from platform_common.file_handler import expand_s3_buckets_and_directories
 from platform_common.pydantic_models.training import (
     FileInfo,
@@ -15,8 +17,6 @@ from platform_common.pydantic_models.training import (
     TrainConfig,
     UDTTrainOptions,
 )
-from exceptional_handler import apply_exception_handler
-from models.model import Model
 from reporter import Reporter
 from thirdai import bolt
 from thirdai_storage.data_types import (

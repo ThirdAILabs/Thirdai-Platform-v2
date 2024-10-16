@@ -16,8 +16,8 @@ from database.session import get_session
 from fastapi import Depends, status
 from platform_common.pydantic_models.training import (
     DatagenOptions,
-    LabelEntity,
     JobOptions,
+    LabelEntity,
     LLMProvider,
     UDTSubType,
 )

@@ -9,7 +9,6 @@ import jwt
 import thirdai
 from deployment_job.models.ndb_models import NDBModel, NDBV1Model, NDBV2Model
 from deployment_job.permissions import Permissions
-from deployment_job.pydantic_models import inputs
 from deployment_job.pydantic_models.inputs import NDBSearchParams
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
@@ -30,6 +29,8 @@ from platform_common.pydantic_models.feedback_logs import (
 from platform_common.utils import response
 from prometheus_client import Counter, Summary
 from pydantic import ValidationError
+
+from deployment_job.pydantic_models import inputs
 
 ndb_query_metric = Summary("ndb_query", "NDB Queries")
 ndb_upvote_metric = Summary("ndb_upvote", "NDB upvotes")

@@ -354,9 +354,7 @@ def test_accessible_models_as_global_admin(setup_users_and_models):
     client, tokens = setup_users_and_models
 
     # Global admin should be able to access all models
-    res = client.get(
-        "/api/model/list", headers=auth_header(tokens["global_admin"])
-    )
+    res = client.get("/api/model/list", headers=auth_header(tokens["global_admin"]))
     assert res.status_code == 200
 
     data = res.json()["data"]
@@ -376,9 +374,7 @@ def test_accessible_models_user_1_model(setup_users_and_models):
     client, tokens = setup_users_and_models
 
     # user_1_model should see only model1 (public) and model5 (private to them)
-    res = client.get(
-        "/api/model/list", headers=auth_header(tokens["user_1_model"])
-    )
+    res = client.get("/api/model/list", headers=auth_header(tokens["user_1_model"]))
     assert res.status_code == 200
 
     data = res.json()["data"]
@@ -390,9 +386,7 @@ def test_accessible_models_user_2_model(setup_users_and_models):
     client, tokens = setup_users_and_models
 
     # user_2_model should see model1 (public), model4 (private to them), and model3 (protected and owned by them)
-    res = client.get(
-        "/api/model/list", headers=auth_header(tokens["user_2_model"])
-    )
+    res = client.get("/api/model/list", headers=auth_header(tokens["user_2_model"]))
     assert res.status_code == 200
 
     data = res.json()["data"]
@@ -404,9 +398,7 @@ def test_accessible_models_user_3_model(setup_users_and_models):
     client, tokens = setup_users_and_models
 
     # user_3_model should see model1 (public), model2 (private to them), and model3 (protected and they belong to the same team)
-    res = client.get(
-        "/api/model/list", headers=auth_header(tokens["user_3_model"])
-    )
+    res = client.get("/api/model/list", headers=auth_header(tokens["user_3_model"]))
     assert res.status_code == 200
 
     data = res.json()["data"]
@@ -418,9 +410,7 @@ def test_accessible_models_no_access(setup_users_and_models):
     client, tokens = setup_users_and_models
 
     # user_3_model should not see model4 (private to user_2_model) or model5 (private to user_1_model)
-    res = client.get(
-        "/api/model/list", headers=auth_header(tokens["user_3_model"])
-    )
+    res = client.get("/api/model/list", headers=auth_header(tokens["user_3_model"]))
     assert res.status_code == 200
 
     data = res.json()["data"]

@@ -4,6 +4,7 @@ import os
 import subprocess
 import zipfile
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
@@ -19,8 +20,12 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# Global scheduler instance
-scheduler = BlockingScheduler()
+
+def initialize_scheduler(test_mode=False):
+    """Initialize BlockingScheduler for production or BackgroundScheduler for tests."""
+    if test_mode:
+        return BackgroundScheduler()  # Non-blocking for tests
+    return BlockingScheduler()  # BlockingScheduler for production
 
 
 def load_config(config_file):
@@ -56,7 +61,6 @@ def create_backup_files(
 ):
     # Create database dump file
     dump_file_path = os.path.join(model_bazaar_dir, f"db_backup.sql")
-    # TODO(YASH): Only backup completed models.
     subprocess.run(["pg_dump", db_uri, "-f", dump_file_path], check=True)
 
     # Path for the zip file in the backups folder
@@ -133,16 +137,15 @@ def perform_backup(config_file):
 
     except Exception as e:
         logging.error(f"Backup failed: {e}")
-    finally:
-        # If this is a one-time backup, shut down the scheduler
-        if not config.interval_minutes:
-            scheduler.shutdown(wait=True)
 
 
-def schedule_backup(config_file):
+def schedule_backup(config_file, test_mode=False):
     """Schedule backup based on interval in config or run once."""
     config = load_config(config_file)
     interval_minutes = config.interval_minutes
+
+    # Initialize scheduler based on the environment (test or production)
+    scheduler = initialize_scheduler(test_mode=test_mode)
 
     if interval_minutes:
         # Schedule recurring backups
@@ -171,6 +174,8 @@ def schedule_backup(config_file):
     except Exception as e:
         logging.error(f"Scheduler encountered an error: {e}")
         scheduler.shutdown()
+
+    return scheduler
 
 
 if __name__ == "__main__":

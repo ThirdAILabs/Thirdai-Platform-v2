@@ -7,7 +7,7 @@ import tempfile
 import pytest
 from dotenv import load_dotenv
 from platform_common.pydantic_models.recovery_snapshot import BackupConfig
-from recovery_snapshot_job.run import schedule_backup
+from recovery_snapshot_job.run import perform_backup
 from sqlalchemy import NullPool, create_engine, text
 
 MODEL_BAZAAR_DIR = "./model_bazaar_tmp"
@@ -71,8 +71,8 @@ def test_local_backup():
     """Test to check local backup functionality."""
     config_path = os.getenv("CONFIG_PATH")
 
-    # Perform the backup
-    schedule_backup(config_path)
+    # Perform the backup immediately
+    perform_backup(config_path)
 
     # Check if the backups directory is created in the model_bazaar_dir
     backups_dir = os.path.join(os.getenv("MODEL_BAZAAR_DIR"), "backups")
@@ -95,10 +95,10 @@ def test_backup_limit():
     """Test to check if the backup limit is respected."""
     config_path = os.getenv("CONFIG_PATH")
 
-    # Run the backup three times to exceed the backup limit of 2
-    schedule_backup(config_path)
-    schedule_backup(config_path)
-    schedule_backup(config_path)
+    # Perform the backup three times to exceed the backup limit of 2
+    perform_backup(config_path)
+    perform_backup(config_path)
+    perform_backup(config_path)
 
     # Check if the backup directory has no more than 2 backups
     backups_dir = os.path.join(os.getenv("MODEL_BAZAAR_DIR"), "backups")
@@ -129,7 +129,7 @@ def test_parametrized_backup_limit(backup_limit):
 
     # Run the backup multiple times to test the limit
     for _ in range(backup_limit + 2):  # Running more backups than the limit
-        schedule_backup(config_path)
+        perform_backup(config_path)
 
     # Check if the backup directory has no more than the backup_limit
     backups_dir = os.path.join(os.getenv("MODEL_BAZAAR_DIR"), "backups")

@@ -403,11 +403,11 @@ def list_accessible_teams(
     """
 
     user: schema.User = authenticated_user.user
-    user_teams = [ut.team_id for ut in user.teams]
 
     # Query to filter teams based on team_id present in user_teams
     query = session.query(schema.Team)
     if not user.global_admin:
+        user_teams = [ut.team_id for ut in user.teams]
         query = query.filter(
             schema.Team.id.in_(user_teams)
         )  # Filter teams where team_id is in user_teams

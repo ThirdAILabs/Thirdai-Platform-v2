@@ -591,7 +591,6 @@ def list_accessible_users(
     """
 
     user: schema.User = authenticated_user.user
-    user_teams = [ut.team_id for ut in user.teams]
 
     # If the user is a Global Admin, return all users
     if user.global_admin:
@@ -600,8 +599,9 @@ def list_accessible_users(
             .options(selectinload(schema.User.teams).selectinload(schema.UserTeam.team))
             .all()
         )
-    elif len(user_teams) != 0:
+    elif len(user.teams) != 0:
         # For non-global admins, return users who are part of the user's teams
+        user_teams = [ut.team_id for ut in user.teams]
         users = (
             session.query(schema.User)
             .join(schema.UserTeam)

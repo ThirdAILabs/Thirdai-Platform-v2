@@ -408,7 +408,6 @@ def usage_stats(
     for metric_name, metric_id in metrics:
         try:
             params["query"] = (
-                f'{metric_id}{{job="deployment-job", model_id="{model.id}"}}'  # promQL
                 f'increase({metric_id}{{job="deployment-jobs", model_id="{model.id}"}}[{usage_stat_option.step}])'  # Not summing over because there will be only one timeseries data returned
             )
             query_response = requests.get(f"{query_endpoint}", params=params)

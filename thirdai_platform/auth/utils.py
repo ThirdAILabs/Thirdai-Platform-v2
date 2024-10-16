@@ -203,3 +203,23 @@ if IDENTITY_PROVIDER == "keycloak":
         client_id=client_name,
         realm_name=new_realm_name,
     )
+
+    USE_SSL_IN_LOGIN = os.getenv("USE_SSL_IN_LOGIN", "False").lower() == "true"
+
+    if USE_SSL_IN_LOGIN:
+        keycloak_openid = KeycloakOpenID(
+            server_url=KEYCLOAK_SERVER_URL,
+            client_id=client_name,
+            realm_name=new_realm_name,
+            verify="/model_bazaar/certs/traefik.crt",
+            cert=(
+                "/model_bazaar/certs/traefik.crt",
+                "/model_bazaar/certs/traefik.key",
+            ),
+        )
+    else:
+        keycloak_openid = KeycloakOpenID(
+            server_url=KEYCLOAK_SERVER_URL,
+            client_id=client_name,
+            realm_name=new_realm_name,
+        )

@@ -10,7 +10,7 @@ job "telemetry" {
 
       The issue originates from ownerships of files created by victoriametric on nfs.
         if server starts the job, files created is having (root, nomad_nfs) as ownership and group ownership
-        if client starts the job, file files created is having (root, nomad_nfs) as ownership and group ownership,
+        if client starts the job, file files created is having (nomad_nfs, nomad_nfs) as ownership and group ownership,
 
         so, different client is able to restart the victoriametric task but not the server.
       

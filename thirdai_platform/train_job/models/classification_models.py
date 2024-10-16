@@ -1,7 +1,10 @@
 import os
+import shutil
+import tempfile
 import time
 import typing
 from abc import abstractmethod
+from copy import deepcopy
 from pathlib import Path
 from typing import List
 
@@ -193,6 +196,35 @@ class TokenClassificationModel(ClassificationModel):
     def tkn_cls_vars(self) -> TokenClassificationOptions:
         return self.config.model_options.udt_options
 
+    def save_model_and_metadata(
+        self, model, old_metadata: TagMetadata, latest_metadata: TagMetadata
+    ):
+        # if both model and db are saved successfully -> consistent state
+        # if either fails -> rollback to last state to maintain consistency
+        # hotswaping the model reduces the chances of model being in an inconsistent state
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_model_path = Path(temp_dir) / "model.udt"
+                model.save(temp_model_path)
+                self.logger.debug(f"Model saved temporarily at {temp_model_path}")
+
+                self.data_storage.update_tag_metadata(
+                    latest_metadata, MetadataStatus.unchanged
+                )
+                self.logger.debug("Metadata updated to latest state")
+
+                shutil.move(temp_model_path, self.model_save_path)
+                self.logger.debug(
+                    f"Model moved to final destination at {self.model_save_path}"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Failed to save model and metadata with error {e}")
+            self.data_storage.update_tag_metadata(
+                old_metadata, MetadataStatus.unchanged
+            )
+            raise e
+
     def initialize_model(self):
         # remove duplicates from target_labels
         target_labels = list(set(self.tkn_cls_vars.target_labels))
@@ -269,10 +301,15 @@ class TokenClassificationModel(ClassificationModel):
             label = tags.tag_status[name]
             if label.status == LabelStatus.uninserted:
                 new_labels.append(name)
-                label.status = LabelStatus.trained
 
         if new_labels:
-            model.add_ner_entities(new_labels)
+            for new_label in new_labels:
+                try:
+                    model.add_ner_entities([new_label])
+                except Exception as e:
+                    self.logger.error(
+                        f"Failed to add new label {new_label} to the model with error {e}"
+                    )
 
         for train_file in self.supervised_files():
             model.train(
@@ -284,15 +321,17 @@ class TokenClassificationModel(ClassificationModel):
             )
         training_time = time.time() - start_time
 
-        self.save_model(model)
-
         # converts the status of all tags to trained and update in the storage
         for tag in tags.tag_status:
             tags.tag_status[tag].status = LabelStatus.trained
 
-        # once training is complete, update the status of the metadata to unchanged
-        # and the status of the samples to trained
-        self.update_tag_metadata(tags, MetadataStatus.unchanged)
+        # this is atomic in the sense that if model and db are in a consistent state if anything fails
+        self.save_model_and_metadata(
+            model,
+            old_metadata=self.tag_metadata,  # db still holds old metadata
+            latest_metadata=tags,
+        )
+
         self.data_storage.update_sample_status("ner", SampleStatus.trained)
 
         self.evaluate(model, self.test_files())

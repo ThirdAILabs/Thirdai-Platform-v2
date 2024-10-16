@@ -807,7 +807,12 @@ export default function Interact() {
   const renderPDFContent = (paragraphs: string[]) => {
     return paragraphs.map((paragraph, index) => (
       <React.Fragment key={index}>
-        {renderHighlightedContent(paragraph)}
+        {paragraph.split('\n').map((line, lineIndex) => (
+          <>
+            {renderHighlightedContent(line)}
+            <br />
+          </>
+        ))}
         <br />
       </React.Fragment>
     ));

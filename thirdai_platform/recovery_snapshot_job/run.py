@@ -136,7 +136,7 @@ def perform_backup(config_file):
     finally:
         # If this is a one-time backup, shut down the scheduler
         if not config.interval_minutes:
-            scheduler.shutdown(wait=False)
+            scheduler.shutdown(wait=True)
 
 
 def schedule_backup(config_file):

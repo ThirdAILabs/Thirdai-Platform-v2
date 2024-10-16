@@ -237,6 +237,9 @@ export default function Interact() {
   const [mouseDownIndex, setMouseDownIndex] = useState<number | null>(null);
   const [mouseUpIndex, setMouseUpIndex] = useState<number | null>(null);
   const [selecting, setSelecting] = useState<boolean>(false);
+  const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(null);
+  const [selectedRange, setSelectedRange] = useState<[number, number] | null>(null);
+
   const startIndex =
     mouseDownIndex !== null && mouseUpIndex !== null
       ? Math.min(mouseDownIndex, mouseUpIndex)
@@ -245,7 +248,6 @@ export default function Interact() {
     mouseDownIndex !== null && mouseUpIndex !== null
       ? Math.max(mouseDownIndex, mouseUpIndex)
       : null;
-  const [selectedRange, setSelectedRange] = useState<[number, number] | null>(null);
 
   const triggers = useRef<(HTMLElement | null)[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -482,6 +484,27 @@ export default function Interact() {
   
 
   const cacheNewTag = async (newTag: string) => {
+    console.log('selectedTokenIndex', selectedTokenIndex)
+
+    const findParagraphIndex = (selectedRange: [number, number], paragraphs: string[]): number => {
+      let tokenCount = 0;
+
+      console.log('selectedRange', selectedRange)
+
+      for (let i = 0; i < paragraphs.length; i++) {
+        const paragraphTokens = paragraphs[i].split(/\s+/).length;
+        tokenCount += paragraphTokens;
+
+        console.log('paragraphTokens', paragraphTokens)
+        console.log('tokenCount', tokenCount)
+
+        if (tokenCount > selectedRange[0]) {
+          return i;
+        }
+      }
+      return -1; // This should never happen if selectedRange is valid
+    };
+
     if (!selectedRange) return;
 
     const updatedTags = annotations.map((token, index) => ({
@@ -542,9 +565,9 @@ export default function Interact() {
           }
         } else if (parsedData.type === 'pdf' && parsedData.pdfParagraphs) {
           // Find the relevant paragraph
-          const relevantParagraphIndex = parsedData.pdfParagraphs.findIndex((paragraph) =>
-            paragraph.includes(updatedTags[selectedRange[0]].text)
-          );
+          const relevantParagraphIndex = findParagraphIndex(selectedRange, parsedData.pdfParagraphs);
+
+          console.log('relevantParagraphIndex', relevantParagraphIndex)
   
           if (relevantParagraphIndex !== -1) {
             const relevantParagraph = parsedData.pdfParagraphs[relevantParagraphIndex];
@@ -556,6 +579,8 @@ export default function Interact() {
               text: word,
               tag: updatedTags.find((t) => t.text === word)?.tag || 'O',
             }));
+
+            console.log('newContent',newContent)
   
             // Update cachedTags
             if (updatedCachedTags[feedbackKey]) {
@@ -755,8 +780,6 @@ export default function Interact() {
       </React.Fragment>
     ));
   };
-
-  const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(null);
 
   const handleMouseDown = (index: number) => {
     setSelecting(true);

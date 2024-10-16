@@ -25,10 +25,10 @@ from platform_common.thirdai_storage.data_types import (
     TagMetadata,
 )
 from platform_common.thirdai_storage.storage import DataStorage, SQLiteConnector
-from reporter import Reporter
 from thirdai import bolt
 from train_job.exceptional_handler import apply_exception_handler
 from train_job.models.model import Model
+from train_job.reporter import Reporter
 from train_job.utils import check_csv_only, check_local_nfs_only
 
 

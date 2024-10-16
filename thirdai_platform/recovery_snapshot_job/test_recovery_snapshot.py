@@ -77,6 +77,12 @@ def test_local_backup(mock_subprocess_run):
     # Simulate a successful pg_dump execution
     mock_subprocess_run.return_value = MagicMock(returncode=0)
 
+    # Manually create the mocked db_backup.sql file as pg_dump would create
+    model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
+    db_dump_path = os.path.join(model_bazaar_dir, "db_backup.sql")
+    with open(db_dump_path, "w") as f:
+        f.write("")  # Create an empty backup file
+
     # Perform the backup immediately
     perform_backup(config_path)
 
@@ -93,7 +99,6 @@ def test_local_backup(mock_subprocess_run):
     assert len(backup_files) > 0, "At least one backup file should be created"
 
     # Verify if the DB dump was created as part of the backup process (mocked)
-    db_dump_path = os.path.join(os.getenv("MODEL_BAZAAR_DIR"), "db_backup.sql")
     assert os.path.exists(db_dump_path), "Database dump file should be created"
 
     # Ensure that pg_dump (subprocess.run) was called
@@ -126,6 +131,12 @@ def test_backup_limit(mock_subprocess_run):
     # Simulate a successful pg_dump execution
     mock_subprocess_run.return_value = MagicMock(returncode=0)
 
+    # Manually create the mocked db_backup.sql file as pg_dump would create
+    model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
+    db_dump_path = os.path.join(model_bazaar_dir, "db_backup.sql")
+    with open(db_dump_path, "w") as f:
+        f.write("")  # Create an empty backup file
+
     # Perform the backup three times to exceed the backup limit of 2
     perform_backup(config_path)
     perform_backup(config_path)
@@ -152,6 +163,12 @@ def test_parametrized_backup_limit(mock_subprocess_run, backup_limit):
     # Simulate a successful pg_dump execution
     mock_subprocess_run.return_value = MagicMock(returncode=0)
 
+    # Manually create the mocked db_backup.sql file as pg_dump would create
+    model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
+    db_dump_path = os.path.join(model_bazaar_dir, "db_backup.sql")
+    with open(db_dump_path, "w") as f:
+        f.write("")  # Create an empty backup file
+
     # Load the existing config and modify the backup limit
     with open(config_path, "r") as config_file:
         config_data = json.load(config_file)
@@ -167,7 +184,7 @@ def test_parametrized_backup_limit(mock_subprocess_run, backup_limit):
         perform_backup(config_path)
 
     # Check if the backup directory has no more than the backup_limit
-    backups_dir = os.path.join(os.getenv("MODEL_BAZAAR_DIR"), "backups")
+    backups_dir = os.path.join(model_bazaar_dir, "backups")
     backup_files = [
         f
         for f in os.listdir(backups_dir)

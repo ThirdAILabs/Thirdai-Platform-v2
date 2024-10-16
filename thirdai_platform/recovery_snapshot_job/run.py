@@ -47,6 +47,23 @@ def get_cloud_storage_handler(config: BackupConfig):
         return None  # Local backup, no cloud handler
 
 
+def extract_timestamp(backup_name: str) -> datetime:
+    """
+    Extract the timestamp from the backup filename and convert it to a datetime object.
+    Assumes the backup format is 'backup_YYYYMMDD_HHMMSS.zip'.
+    """
+    try:
+        # Extract the timestamp part (e.g., '20241010_203418') from the backup filename
+        timestamp_str = (
+            backup_name.split("_")[1] + "_" + backup_name.split("_")[2].split(".")[0]
+        )
+        # Convert the timestamp string to a datetime object
+        return datetime.datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
+    except (IndexError, ValueError):
+        # If the timestamp format is invalid, return a minimum date to avoid deletion
+        return datetime.datetime.min
+
+
 def delete_local_backup(zip_file_path: str, dump_file_path: str):
     """Delete local backup files after successful backup."""
     try:
@@ -88,7 +105,7 @@ def create_backup_files(
 def manage_backup_limit_local(backup_dir: str, backup_limit: int):
     """Ensure that the number of local backups does not exceed the limit."""
     all_backups = [f for f in os.listdir(backup_dir) if f.startswith("backup_")]
-    sorted_backups = sorted(all_backups, key=lambda x: x.split("_")[-1], reverse=True)
+    sorted_backups = sorted(all_backups, key=extract_timestamp, reverse=True)
     if len(sorted_backups) > backup_limit:
         for backup in sorted_backups[backup_limit:]:
             backup_path = os.path.join(backup_dir, backup)
@@ -101,7 +118,7 @@ def manage_backup_limit(
 ):
     """Ensure that the number of backups in the cloud does not exceed the limit."""
     all_backups = cloud_handler.list_files(bucket_name, "backup_")
-    sorted_backups = sorted(all_backups, key=lambda x: x.split("_")[-1], reverse=True)
+    sorted_backups = sorted(all_backups, key=extract_timestamp, reverse=True)
     if len(sorted_backups) > backup_limit:
         for backup in sorted_backups[backup_limit:]:
             cloud_handler.delete_path(bucket_name, backup)

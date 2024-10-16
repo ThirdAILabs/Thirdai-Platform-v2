@@ -782,7 +782,12 @@ async def start_workflow(
                 raise Exception(str(err))
 
     if workflow.gen_ai_provider == "on-prem":
-        await start_on_prem_generate_job(restart_if_exists=False)
+        llm_autoscaling_enabled = (
+            True if os.getenv("AUTOSCALING_ENABLED", "true") == "true" else False
+        )
+        await start_on_prem_generate_job(
+            restart_if_exists=False, autoscaling_enabled=llm_autoscaling_enabled
+        )
 
     return response(
         status_code=status.HTTP_202_ACCEPTED,

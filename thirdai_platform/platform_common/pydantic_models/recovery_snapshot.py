@@ -1,85 +1,45 @@
 import json
 import os
-from typing import Optional
+from typing import Literal, Optional, Union
 
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field
 
 
-class BackupConfig(BaseModel):
-    """
-    Unified backup configuration class that dynamically validates required fields
-    based on the cloud provider type (or if no cloud provider is used for local backups).
-    """
+class S3Config(BaseModel):
+    provider: Literal["s3"] = "s3"
+    aws_access_key: str = Field(..., description="AWS Access Key (for s3)")
+    aws_secret_access_key: str = Field(..., description="AWS Secret Key (for s3)")
+    bucket_name: str = Field(..., description="S3 bucket name")
 
-    cloud_provider: Optional[str] = Field(
-        None, description="Cloud provider (s3, azure, gcp, or empty for local)"
+
+class AzureConfig(BaseModel):
+    provider: Literal["azure"] = "azure"
+    azure_account_name: str = Field(..., description="Azure Storage Account Name")
+    azure_account_key: str = Field(..., description="Azure Storage Account Key")
+    bucket_name: str = Field(..., description="Azure bucket/container name")
+
+
+class GCPConfig(BaseModel):
+    provider: Literal["gcp"] = "gcp"
+    gcp_credentials_file_path: str = Field(
+        ..., description="GCP Credentials JSON File Path"
     )
-    bucket_name: Optional[str] = Field(
-        None, description="Cloud bucket name (for cloud providers)"
+    bucket_name: str = Field(..., description="GCP bucket name")
+
+
+class LocalBackupConfig(BaseModel):
+    provider: Literal["local"] = "local"
+
+
+# The main BackupConfig class that uses Union with discriminator
+class BackupConfig(BaseModel):
+    provider: Union[S3Config, AzureConfig, GCPConfig, LocalBackupConfig] = Field(
+        ..., discriminator="provider"
     )
     interval_minutes: Optional[int] = Field(
         None, description="For scheduling backups at intervals"
     )
     backup_limit: Optional[int] = Field(5, description="Number of backups to retain")
-
-    # Cloud-specific fields (conditionally required based on cloud_provider)
-    aws_access_key: Optional[str] = Field(None, description="AWS Access Key (for s3)")
-    aws_secret_access_key: Optional[str] = Field(
-        None, description="AWS Secret Key (for s3)"
-    )
-    azure_account_name: Optional[str] = Field(
-        None, description="Azure Storage Account Name (for azure)"
-    )
-    azure_account_key: Optional[str] = Field(
-        None, description="Azure Storage Account Key (for azure)"
-    )
-    gcp_credentials_file_path: Optional[str] = Field(
-        None, description="GCP Credentials JSON File Path (for gcp)"
-    )
-
-    @root_validator(pre=True)
-    def validate_config(cls, values):
-        cloud_provider = values.get("cloud_provider")
-
-        if cloud_provider == "s3":
-            # For S3, ensure AWS keys are provided
-            if not values.get("aws_access_key") or not values.get(
-                "aws_secret_access_key"
-            ):
-                raise ValueError(
-                    "AWS credentials (access key and secret key) are required for S3 backups."
-                )
-            if not values.get("bucket_name"):
-                raise ValueError("Bucket name is required for S3 backups.")
-
-        elif cloud_provider == "azure":
-            # For Azure, ensure account name and key are provided
-            if not values.get("azure_account_name") or not values.get(
-                "azure_account_key"
-            ):
-                raise ValueError(
-                    "Azure account name and key are required for Azure backups."
-                )
-            if not values.get("bucket_name"):
-                raise ValueError("Bucket name is required for Azure backups.")
-
-        elif cloud_provider == "gcp":
-            # For GCP, ensure the credentials file path is provided
-            if not values.get("gcp_credentials_file_path"):
-                raise ValueError(
-                    "GCP credentials file path is required for GCP backups."
-                )
-            if not values.get("bucket_name"):
-                raise ValueError("Bucket name is required for GCP backups.")
-
-        elif cloud_provider is None:
-            # Local backup: no cloud provider means local backup, no extra fields required
-            pass
-
-        else:
-            raise ValueError(f"Unsupported cloud provider: {cloud_provider}")
-
-        return values
 
     def save_backup_config(self, model_bazaar_dir):
         config_path = os.path.join(model_bazaar_dir, "backup_config.json")

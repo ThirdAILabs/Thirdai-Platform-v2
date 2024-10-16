@@ -22,10 +22,6 @@ logging.basicConfig(
 scheduler = BlockingScheduler()
 
 
-def load_config(config_file):
-    return BackupConfig.parse_file(config_file)
-
-
 def get_cloud_storage_handler(config: BackupConfig):
     if config.cloud_provider == "s3":
         return S3StorageHandler(
@@ -99,7 +95,7 @@ def manage_backup_limit(
 
 
 def perform_backup(config_file):
-    config = load_config(config_file)
+    config = BackupConfig.parse_file(config_file)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
 
@@ -136,7 +132,7 @@ def perform_backup(config_file):
 
 def schedule_backup(config_file):
     """Schedule backup based on interval in config or run once."""
-    config = load_config(config_file)
+    config = BackupConfig.parse_file(config_file)
     interval_minutes = config.interval_minutes
 
     if interval_minutes:
@@ -170,4 +166,5 @@ if __name__ == "__main__":
     try:
         schedule_backup(config_file)
     except Exception as err:
+        # TODO(YASH): Figure out a way to propagate this error messages to user.
         logging.error(f"Error during backup: {err}")

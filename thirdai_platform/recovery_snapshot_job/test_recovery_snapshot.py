@@ -6,7 +6,10 @@ import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
-from platform_common.pydantic_models.recovery_snapshot import BackupConfig
+from platform_common.pydantic_models.recovery_snapshot import (
+    BackupConfig,
+    LocalBackupConfig,
+)
 from recovery_snapshot_job.run import perform_backup
 
 
@@ -19,7 +22,9 @@ def setup_and_teardown():
     # Create a config.json file with local backup settings
     config_path = os.path.join(temp_dir, "backup_config.json")
     config = BackupConfig(
-        cloud_provider=None,  # No cloud provider, so local backup
+        provider=LocalBackupConfig(
+            provider="local"
+        ),  # No cloud provider, so local backup
         interval_minutes=None,  # One-time backup
         backup_limit=2,  # Set backup limit to 2
     )

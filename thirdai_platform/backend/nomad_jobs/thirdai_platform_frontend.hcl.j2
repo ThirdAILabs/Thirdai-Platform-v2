@@ -9,7 +9,7 @@ job "thirdai-platform-frontend" {
     network {
       port "thirdai-platform-frontend-http" {
         {% if platform == "docker" %}
-          to = 3000
+          to = 300
         {% elif platform == "local" %}
           static = 3000
         {% endif %}
@@ -25,7 +25,7 @@ job "thirdai-platform-frontend" {
 
     service {
       name = "thirdai-platform-frontend"
-      ports = ["thirdai-platform-frontend-http", keycloak-next-auth-http]
+      ports = ["thirdai-platform-frontend-http", "keycloak-next-auth-http"]
       provider = "nomad"
 
       tags = [
@@ -54,6 +54,10 @@ job "thirdai-platform-frontend" {
         # The following is URL for http application
         NEXTAUTH_URL = "http://{{ model_bazaar_public_ip }}"
         NEXTAUTH_SECRET = "random secret"
+
+        {% if use_ssl_in_login == "true" %}
+        NODE_EXTRA_CA_CERTS = "/certs/traefik.crt"
+        {% endif %}
       }
 
       config {
@@ -66,6 +70,11 @@ job "thirdai-platform-frontend" {
             password = "{{ docker_password }}"
             server_address = "{{ registry }}"
           }
+          {% if use_ssl_in_login == "true" %}
+            volumes = [
+              "{{ SHARE_DIR }}/certs:/certs",
+            ]
+          {% endif %}
         {% endif %}
       }
 

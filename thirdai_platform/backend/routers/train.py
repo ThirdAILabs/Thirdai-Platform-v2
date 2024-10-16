@@ -10,6 +10,9 @@ from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access
 from backend.datagen import generate_data_for_train_job
 from backend.utils import (
+    copy_data_storage,
+    delete_nomad_job,
+    nomad_job_exists,
     get_model,
     get_model_from_identifier,
     get_platform,
@@ -21,6 +24,9 @@ from backend.utils import (
     update_json,
     validate_license_info,
     validate_name,
+    remove_unused_samples,
+    retrieve_token_classification_samples_for_generation,
+    tags_in_storage,
 )
 from database import schema
 from database.session import get_session
@@ -48,26 +54,7 @@ from platform_common.pydantic_models.training import (
     UDTOptions,
     UDTSubType,
 )
-from backend.utils import (
-    copy_data_storage,
-    delete_nomad_job,
-    get_model,
-    get_model_from_identifier,
-    get_platform,
-    get_python_path,
-    logger,
-    model_bazaar_path,
-    nomad_job_exists,
-    remove_unused_samples,
-    response,
-    retrieve_token_classification_samples_for_generation,
-    submit_nomad_job,
-    tags_in_storage,
-    thirdai_platform_dir,
-    update_json,
-    validate_license_info,
-    validate_name,
-)
+from platform_common.utils import response
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status

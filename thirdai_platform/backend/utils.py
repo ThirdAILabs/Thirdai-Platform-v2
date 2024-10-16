@@ -13,7 +13,7 @@ from urllib.parse import urljoin
 import bcrypt
 import requests
 from backend.thirdai_storage import data_types, storage
-from backend.train_config import LabelEntity
+from platform_common.pydantic_models.training import LabelEntity
 from database import schema
 from fastapi import HTTPException, status
 from jinja2 import Template

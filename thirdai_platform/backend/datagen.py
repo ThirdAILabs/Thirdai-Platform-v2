@@ -4,13 +4,6 @@ from pathlib import Path
 from typing import List, Optional
 
 from backend.thirdai_storage.data_types import TokenClassificationData
-from backend.train_config import (
-    DatagenOptions,
-    JobOptions,
-    LabelEntity,
-    LLMProvider,
-    UDTSubType,
-)
 from backend.utils import (
     get_platform,
     get_python_path,
@@ -23,7 +16,7 @@ from database.session import get_session
 from fastapi import Depends, status
 from platform_common.pydantic_models.training import (
     DatagenOptions,
-    Entity,
+    LabelEntity,
     JobOptions,
     LLMProvider,
     UDTSubType,

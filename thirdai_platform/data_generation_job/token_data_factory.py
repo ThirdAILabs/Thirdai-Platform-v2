@@ -16,7 +16,7 @@ from data_generation_job.utils import (
     train_test_split,
     write_to_csv,
 )
-from data_generation_job.variables import Entity, EntityStatusNERSample
+from data_generation_job.variables import Entity, EntityStatus, NERSample
 from faker import Faker
 from platform_common.utils import save_dict
 from tqdm import tqdm

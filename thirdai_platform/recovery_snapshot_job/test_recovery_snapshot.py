@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import shutil
@@ -11,7 +12,7 @@ from recovery_snapshot_job.run import perform_backup
 MODEL_BAZAAR_DIR = "./model_bazaar_tmp"
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope="session")
 def setup_and_teardown():
     """Fixture to setup temporary model_bazaar directory and config file."""
     # Setup: create a temporary directory for the model_bazaar_dir
@@ -30,7 +31,6 @@ def setup_and_teardown():
 
     # Set additional environment variables required for the backup
     os.environ["CONFIG_PATH"] = config_path
-
     os.environ["DATABASE_URI"] = f"random db_uri"
 
     yield  # This allows the test to run after the setup
@@ -40,12 +40,20 @@ def setup_and_teardown():
 
 
 @patch("subprocess.run")  # Mock subprocess.run for pg_dump
-def test_local_backup(mock_subprocess_run):
+@patch(
+    "recovery_snapshot_job.run.datetime"
+)  # Mock datetime to simulate different timestamps
+def test_local_backup(mock_datetime, mock_subprocess_run):
     """Test to check local backup functionality with mocked pg_dump."""
     config_path = os.getenv("CONFIG_PATH")
 
     # Simulate a successful pg_dump execution
     mock_subprocess_run.return_value = MagicMock(returncode=0)
+
+    # Simulate unique timestamps for the backup process
+    mock_datetime.datetime.now.return_value = datetime.datetime(
+        2024, 10, 16, 18, 55, 32
+    )
 
     # Manually create the mocked db_backup.sql file as pg_dump would create
     model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
@@ -73,12 +81,22 @@ def test_local_backup(mock_subprocess_run):
 
 
 @patch("subprocess.run")  # Mock subprocess.run for pg_dump
-def test_backup_limit(mock_subprocess_run):
+@patch(
+    "recovery_snapshot_job.run.datetime"
+)  # Mock datetime to simulate different timestamps
+def test_backup_limit(mock_datetime, mock_subprocess_run):
     """Test to check if the backup limit is respected."""
     config_path = os.getenv("CONFIG_PATH")
 
     # Simulate a successful pg_dump execution
     mock_subprocess_run.return_value = MagicMock(returncode=0)
+
+    # Simulate different timestamps for each backup operation
+    mock_datetime.datetime.now.side_effect = [
+        datetime.datetime(2024, 10, 16, 18, 55, 32),
+        datetime.datetime(2024, 10, 16, 18, 55, 33),
+        datetime.datetime(2024, 10, 16, 18, 55, 34),
+    ]
 
     # Manually create the mocked db_backup.sql file as pg_dump would create
     for _ in range(3):
@@ -97,6 +115,7 @@ def test_backup_limit(mock_subprocess_run):
         for f in os.listdir(backups_dir)
         if f.startswith("backup_") and f.endswith(".zip")
     ]
+
     print(backup_files)
     assert (
         len(backup_files) == 2

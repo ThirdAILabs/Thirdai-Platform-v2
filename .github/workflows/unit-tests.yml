@@ -79,7 +79,7 @@ jobs:
 
       - name: Prepare for recovery snapshot tests
         run: |
-          pip3 install -r thirdai_platform/recovery_snapshot/requirements.txt
+          pip3 install -r thirdai_platform/recovery_snapshot_job/requirements.txt
           pip3 install httpx
           pip3 install pytest
 

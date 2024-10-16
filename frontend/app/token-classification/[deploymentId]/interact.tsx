@@ -475,7 +475,8 @@ export default function Interact() {
   function mergeTokens(existingTokens: Token[], newTokens: Token[]): Token[] {
     return existingTokens.map((token, index) => {
       const newToken = newTokens[index];
-      if (newToken && newToken.tag !== 'O') {
+      if (newToken) {
+        // Always update the tag, even if it's 'O'
         return { ...token, tag: newToken.tag };
       }
       return token;

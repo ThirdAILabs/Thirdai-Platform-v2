@@ -12,7 +12,7 @@ from recovery_snapshot_job.run import perform_backup
 MODEL_BAZAAR_DIR = "./model_bazaar_tmp"
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(autouse=True)
 def setup_and_teardown():
     """Fixture to setup temporary model_bazaar directory and config file."""
     # Setup: create a temporary directory for the model_bazaar_dir

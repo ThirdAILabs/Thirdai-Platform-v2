@@ -7,11 +7,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 from platform_common.pydantic_models.recovery_snapshot import BackupConfig
 from recovery_snapshot_job.run import perform_backup
+
 MODEL_BAZAAR_DIR = "./model_bazaar_tmp"
 
 
 @pytest.fixture(autouse=True)
-def setup_and_teardown(db_engine):
+def setup_and_teardown():
     """Fixture to setup temporary model_bazaar directory and config file."""
     # Setup: create a temporary directory for the model_bazaar_dir
     temp_dir = tempfile.mkdtemp()
@@ -36,9 +37,6 @@ def setup_and_teardown(db_engine):
 
     # Teardown: remove the temporary directory after the test completes
     shutil.rmtree(temp_dir)
-
-    # Close any lingering sessions
-    db_engine.dispose()
 
 
 @patch("subprocess.run")  # Mock subprocess.run for pg_dump

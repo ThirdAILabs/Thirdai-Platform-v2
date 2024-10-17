@@ -5,7 +5,11 @@ interface ConditionalButtonProps extends ButtonProps {
   isDisabled: boolean;
   tooltipMessage: string;
 }
-
+/**
+ * A button that is only enabled when a certain condition is met.
+ * If the enabling condition is not met, a tooltip appears to explain
+ * why it is disabled.
+ */
 const ConditionalButton: React.FC<ConditionalButtonProps> = ({
   isDisabled,
   tooltipMessage,

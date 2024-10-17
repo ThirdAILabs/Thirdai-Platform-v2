@@ -7,6 +7,7 @@ from typing import AsyncGenerator, List
 import fitz
 import jwt
 import thirdai
+from deployment_job.feedback_collector import FeedbackCollector
 from deployment_job.models.ndb_models import NDBModel, NDBV1Model, NDBV2Model
 from deployment_job.permissions import Permissions
 from deployment_job.pydantic_models.inputs import (
@@ -63,6 +64,9 @@ class NDBRouter:
         self.feedback_logger = UpdateLogger.get_feedback_logger(self.model.data_dir)
         self.insertion_logger = UpdateLogger.get_insertion_logger(self.model.data_dir)
         self.deletion_logger = UpdateLogger.get_deletion_logger(self.model.data_dir)
+        self.feedback_collector = FeedbackCollector(
+            self.model.data_dir / "collected_feedbacks"
+        )
 
         self.router = APIRouter()
         self.router.add_api_route("/search", self.search, methods=["POST"])
@@ -144,7 +148,6 @@ class NDBRouter:
         }
         ```
         """
-
         results = self.model.predict(**params.model_dump())
 
         return response(
@@ -294,6 +297,7 @@ class NDBRouter:
         }
         ```
         """
+        self.feedback_collector.add(input)
         write_permission = Permissions.check_permission(
             token=token, permission_type="write"
         )
@@ -348,6 +352,7 @@ class NDBRouter:
         }
         ```
         """
+        self.feedback_collector.add(input)
         write_permission = Permissions.check_permission(
             token=token, permission_type="write"
         )

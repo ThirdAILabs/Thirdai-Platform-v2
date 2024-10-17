@@ -111,8 +111,8 @@ def list_models(
             .exists(),
         ]
 
-        def add_access_condition(access, condition):
-            if not access_level or access in access_level:
+        def add_access_condition(access: schema.Access, condition):
+            if not access_level or access.value in access_level:
                 access_conditions.append(condition)
 
         # Adding access conditions based on the user's role and teams

@@ -46,7 +46,7 @@ def upload_guardrail_model(admin_client: ModelBazaar):
 
     # create a storage db for the model
     data_dir = Path(os.environ.get("SHARE_DIR", None)) / "data" / model_id
-    os.makedirs(data_dir, exist_ok=True)
+    os.makedirs(data_dir, exist_ok=True, mode=0o777)
 
     tag_metadata = TagMetadata(
         tag_status={"PHONENUMBER": LabelEntity(name="PHONENUMBER", status="trained")}

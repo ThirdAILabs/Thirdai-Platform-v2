@@ -13,7 +13,8 @@ from fastapi import HTTPException, status
 from jinja2 import Template
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from sqlalchemy.orm import Session
-from urllib.parse import urlparse
+
+pass
 
 logger = logging.getLogger("ThirdAI_Platform")
 

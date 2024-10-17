@@ -32,7 +32,10 @@ export default function SignupForm() {
       const data = await userRegister(email, password, username);
       console.log('User registered successfully:', data);
 
-      if (process.env.NEXT_PUBLIC_IDENTITY_PROVIDER && process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes("keycloak")) {
+      if (
+        process.env.NEXT_PUBLIC_IDENTITY_PROVIDER &&
+        process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes('keycloak')
+      ) {
         router.push('/login-keycloak');
       } else {
         router.push('/login-email');

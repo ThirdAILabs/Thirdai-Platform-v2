@@ -1,6 +1,7 @@
 import os
-from urllib.parse import urlparse
 import socket
+from urllib.parse import urlparse
+
 import fastapi
 
 
@@ -127,10 +128,10 @@ IDENTITY_PROVIDER = os.getenv("IDENTITY_PROVIDER", "postgres").lower()
 
 
 if IDENTITY_PROVIDER == "keycloak":
-    from keycloak import (
-        KeycloakOpenID,
+    from keycloak import (  # Keycloak SDK for managing users, roles, and OpenID authentication.
         KeycloakAdmin,
-    )  # Keycloak SDK for managing users, roles, and OpenID authentication.
+        KeycloakOpenID,
+    )
 
     KEYCLOAK_SERVER_URL = os.getenv(
         "KEYCLOAK_SERVER_URL"

@@ -3,7 +3,7 @@
 import { getAccessToken, User, accessTokenUser } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, createContext, SetStateAction, Dispatch } from 'react';
-import federatedLogout from "@/utils/federatedLogout";
+import federatedLogout from '@/utils/federatedLogout';
 
 interface UserContext {
   user: User | null;
@@ -17,8 +17,8 @@ interface UserContext {
 export const UserContext = createContext<UserContext>({
   user: null,
   accessToken: null,
-  setAccessToken: (user) => { },
-  logout: () => { },
+  setAccessToken: (user) => {},
+  logout: () => {},
 });
 
 export default function UserWrapper({ children }: { children: React.ReactNode }) {
@@ -32,13 +32,14 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
     setUser(null);
     await federatedLogout();
 
-
-    if (process.env.NEXT_PUBLIC_IDENTITY_PROVIDER && process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes("keycloak")) {
+    if (
+      process.env.NEXT_PUBLIC_IDENTITY_PROVIDER &&
+      process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes('keycloak')
+    ) {
       router.push('/login-keycloak');
     } else {
       router.push('/login-email');
     }
-
   };
 
   useEffect(() => {
@@ -52,7 +53,10 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
     accessTokenUser(accessToken).then((user) => {
       setUser(user);
       if (!user) {
-        if (process.env.NEXT_PUBLIC_IDENTITY_PROVIDER && process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes("keycloak")) {
+        if (
+          process.env.NEXT_PUBLIC_IDENTITY_PROVIDER &&
+          process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes('keycloak')
+        ) {
           router.push('/login-keycloak');
         } else {
           router.push('/login-email');
@@ -67,4 +71,3 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
     </UserContext.Provider>
   );
 }
-

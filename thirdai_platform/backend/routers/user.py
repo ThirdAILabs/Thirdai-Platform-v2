@@ -5,6 +5,7 @@ from urllib.parse import urlencode, urljoin
 
 import bcrypt
 from auth.jwt import AuthenticatedUser, create_access_token, verify_access_token
+from auth.utils import identity_provider, keycloak_admin, keycloak_openid
 from backend.auth_dependencies import global_admin_only
 from backend.mailer import mailer
 from backend.utils import hash_password
@@ -16,9 +17,6 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from platform_common.utils import response
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from auth.utils import identity_provider
-from auth.utils import keycloak_admin, keycloak_openid
 from sqlalchemy import exists
 from sqlalchemy.orm import Session, selectinload
 

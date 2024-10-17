@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 import requests
 import yaml
+from auth.utils import get_ip_from_url
 from backend.utils import (
     delete_nomad_job,
     get_platform,
@@ -16,7 +17,6 @@ from backend.utils import (
     submit_nomad_job,
     thirdai_platform_dir,
 )
-from auth.utils import get_ip_from_url
 from fastapi import status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from platform_common.utils import response

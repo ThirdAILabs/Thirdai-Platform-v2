@@ -4,14 +4,18 @@ from typing import Union
 
 import fastapi
 import jwt
-from auth.utils import CREDENTIALS_EXCEPTION, token_bearer, identity_provider
+from auth.utils import (
+    CREDENTIALS_EXCEPTION,
+    identity_provider,
+    keycloak_openid,
+    token_bearer,
+)
 from database import schema
 from database.session import get_session
+from fastapi import HTTPException, status
+from jwt.exceptions import ExpiredSignatureError, ImmatureSignatureError
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from auth.utils import keycloak_openid
-from jwt.exceptions import ExpiredSignatureError, ImmatureSignatureError
-from fastapi import HTTPException, status
 
 
 class TokenPayload(BaseModel):

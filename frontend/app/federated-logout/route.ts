@@ -1,5 +1,5 @@
-import { JWT, getToken } from 'next-auth/jwt'
-import { NextRequest, NextResponse } from 'next/server'
+import { JWT, getToken } from 'next-auth/jwt';
+import { NextRequest, NextResponse } from 'next/server';
 
 function logoutParams(token: JWT): Record<string, string> {
   return {
@@ -9,7 +9,7 @@ function logoutParams(token: JWT): Record<string, string> {
 }
 
 function handleEmptyToken() {
-  const response = { error: "No session present" };
+  const response = { error: 'No session present' };
   const responseHeaders = { status: 400 };
   return NextResponse.json(response, responseHeaders);
 }
@@ -26,7 +26,7 @@ function sendEndSessionEndpointToURL(token: JWT) {
 
 export async function GET(req: NextRequest) {
   try {
-    const token = await getToken({ req })
+    const token = await getToken({ req });
     if (token) {
       return sendEndSessionEndpointToURL(token);
     }
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error(error);
     const response = {
-      error: "Unable to logout from the session",
+      error: 'Unable to logout from the session',
     };
     const responseHeaders = {
       status: 500,

@@ -697,11 +697,9 @@ export function userEmailLoginWithAccessToken(
     });
 
     axios
-      .post(
-        `${thirdaiPlatformBaseUrl}/api/user/email-login-with-keycloak`, 
-        { 
-          access_token: accessToken 
-        })
+      .post(`${thirdaiPlatformBaseUrl}/api/user/email-login-with-keycloak`, {
+        access_token: accessToken,
+      })
       .then((res) => {
         console.debug('Response from email-login-with-keycloak:', res);
 
@@ -743,9 +741,6 @@ export function userEmailLoginWithAccessToken(
       });
   });
 }
-
-
-
 
 export function userRegister(email: string, password: string, username: string) {
   return new Promise((resolve, reject) => {

@@ -1,15 +1,12 @@
 import os
+from contextlib import contextmanager
 
-
+from auth.utils import identity_provider, keycloak_admin
+from backend.utils import hash_password
+from database import schema
 from database.schema import SQLDeclarativeBase as Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
-from database import schema
-from contextlib import contextmanager
-from auth.utils import keycloak_admin, identity_provider
-from backend.utils import hash_password
-
 
 db_uri = os.getenv("DATABASE_URI")
 if db_uri is None:

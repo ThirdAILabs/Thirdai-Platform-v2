@@ -2,8 +2,8 @@ import './globals.css';
 
 import { Analytics } from '@vercel/analytics/react';
 import UserWrapper from './user_wrapper';
-import SessionGuard from '@/utils/SessionGuard'
-import { Providers } from './Providers'
+import SessionGuard from '@/utils/SessionGuard';
+import { Providers } from './Providers';
 
 import ThemeProvider from '../theme';
 export const metadata = {
@@ -22,8 +22,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </SessionGuard>
           </Providers>
         </ThemeProvider>
-      </body >
+      </body>
       <Analytics />
-    </html >
+    </html>
   );
 }

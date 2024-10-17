@@ -2,9 +2,10 @@ from abc import abstractmethod
 from typing import Optional
 
 from deployment_job.models.model import Model
-from deployment_job.pydantic_models import inputs
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from thirdai import bolt
+
+from deployment_job.pydantic_models import inputs
 
 
 class ClassificationModel(Model):

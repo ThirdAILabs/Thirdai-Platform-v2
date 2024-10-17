@@ -624,8 +624,14 @@ def datagen_callback(
         model.train_status = schema.Status.starting
         session.commit()
     except Exception as err:
-        model.train_status = schema.Status.failed
+        # failed retraining job -> model is still valid
+        # failed non-retraining job -> model is not valid
+        if config.is_retraining:
+            model.train_status = schema.Status.complete
+        else:
+            model.train_status = schema.Status.failed
         session.commit()
+
         logger.info(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -757,6 +763,7 @@ def retrain_udt(
         datagen_options=datagen_options,
         data=data,
         job_options=JobOptions(),
+        is_retraining=True if not base_model_identifier else False,
     )
 
     config_path = os.path.join(

@@ -265,6 +265,8 @@ class TrainConfig(BaseModel):
         ..., discriminator="model_data_type"
     )
 
+    is_retraining: bool = False
+
     class Config:
         protected_namespaces = ()
 

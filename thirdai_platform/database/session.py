@@ -89,7 +89,7 @@ class AdminAddition:
                         {
                             "email": admin_mail,
                             "emailVerified": True,
-                            "firstName": "Admin",
+                            "firstName": admin_username,
                             "lastName": "User",
                         },
                     )
@@ -109,7 +109,7 @@ class AdminAddition:
                                 }
                             ],
                             "realmRoles": ["admin"],
-                            "firstName": "Admin",
+                            "firstName": admin_username,
                             "lastName": "User",
                         }
                     )

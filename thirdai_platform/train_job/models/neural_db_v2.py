@@ -6,7 +6,7 @@ from collections import defaultdict
 from typing import List
 
 import thirdai
-from platform_common.file_handler import expand_s3_buckets_and_directories
+from platform_common.file_handler import expand_cloud_buckets_and_directories
 from platform_common.ndb.ndbv2_parser import parse_doc
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
 from platform_common.pydantic_models.training import FileInfo, NDBv2Options, TrainConfig
@@ -57,10 +57,12 @@ class NeuralDBV2(Model):
         return os.path.join(self.ndb_save_path(), "documents")
 
     def unsupervised_files(self) -> List[FileInfo]:
-        return expand_s3_buckets_and_directories(self.config.data.unsupervised_files)
+        return expand_cloud_buckets_and_directories(self.config.data.unsupervised_files)
 
     def supervised_files(self) -> List[FileInfo]:
-        all_files = expand_s3_buckets_and_directories(self.config.data.supervised_files)
+        all_files = expand_cloud_buckets_and_directories(
+            self.config.data.supervised_files
+        )
         for file in all_files:
             if file.ext() != ".csv" and file.ext() != ".jsonl":
                 raise ValueError(

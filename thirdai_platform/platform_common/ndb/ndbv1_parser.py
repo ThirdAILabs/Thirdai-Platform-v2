@@ -56,7 +56,7 @@ def parse_doc(doc: FileInfo, tmp_dir: str) -> ndb.Document:
             aws_access_key=os.getenv("AWS_ACCESS_KEY"),
             aws_secret_access_key=os.getenv("AWS_ACCESS_SECRET"),
         )
-        bucket_name, prefix = doc.path.replace("s3://", "").split("/", 1)
+        bucket_name, prefix = doc.parse_s3_url()
         local_file_path = os.path.join(tmp_dir, os.path.basename(prefix))
 
         try:

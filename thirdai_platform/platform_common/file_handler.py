@@ -81,25 +81,56 @@ def list_files_in_nfs_dir(path: str):
     return [path]
 
 
-def expand_s3_buckets_and_directories(file_infos: List[FileInfo]) -> List[FileInfo]:
+def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[FileInfo]:
     """
     This function takes in a list of file infos and expands it so that each file info
     represents a single file that can be passed to NDB or UDT. This is because we allow
-    users to specify s3 buckets or nfs directories in train, that could contain multiple
+    users to specify s3, gcp, azure buckets or nfs directories in train, that could contain multiple
     files, however UDT only accepts single files, and we need the individual docs themselves
     so that we can parallelize doc parsing in NDB. If one of the input file infos
     is an s3 bucket with N documents in it, then this will replace it with N file infos,
     one per document in the bucket.
     """
-    s3_client = S3StorageHandler()
     expanded_files = []
     for file_info in file_infos:
         if file_info.location == FileLocation.local:
             expanded_files.append(file_info)
         elif file_info.location == FileLocation.s3:
-            s3_objects = s3_client.list_s3_files(file_info.path)
+            aws_access_key = os.getenv("AWS_ACCESS_KEY", None)
+            aws_secret_access_key = os.getenv("AWS_ACCESS_SECRET", None)
+            s3_client = S3StorageHandler(
+                aws_access_key=aws_access_key,
+                aws_secret_access_key=aws_secret_access_key,
+            )
+            bucket_name, source_path = file_info.parse_s3_url()
+            print(bucket_name, source_path)
+            s3_objects = s3_client.list_files(
+                bucket_name=bucket_name, source_path=source_path
+            )
+            print(s3_objects)
             expanded_files.extend(
                 expand_file_info(paths=s3_objects, file_info=file_info)
+            )
+        elif file_info.location == FileLocation.azure:
+            account_name = os.getenv("AZURE_ACCOUNT_NAME")
+            account_key = os.getenv("ACCOUNT_KEY")
+            azure_client = AzureStorageHandler(
+                account_name=account_name, account_key=account_key
+            )
+            container_name, blob_path = file_info.parse_azure_url()
+            azure_objects = azure_client.list_files(
+                bucket_name=container_name, source_path=blob_path
+            )
+            expanded_files.extend(
+                expand_file_info(paths=azure_objects, file_info=file_info)
+            )
+        elif file_info.location == FileLocation.gcp:
+            gcp_credentials_file = os.getenv("GCP_CREDENTIALS_FILE")
+            gcp_client = GCPStorageHandler(credentials_file_path=gcp_credentials_file)
+            bucket_name, source_path = file_info.parse_gcp_url()
+            gcp_objects = gcp_client.list_files(bucket_name, source_path)
+            expanded_files.extend(
+                expand_file_info(paths=gcp_objects, file_info=file_info)
             )
         elif file_info.location == FileLocation.nfs:
             directory_files = list_files_in_nfs_dir(file_info.path)

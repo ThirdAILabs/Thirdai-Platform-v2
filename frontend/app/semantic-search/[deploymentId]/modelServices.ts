@@ -476,7 +476,9 @@ export class ModelService {
   }
 
   openSource(source: string): void {
-    if (source.toLowerCase().endsWith('.pdf')) {
+    if (source.includes('amazonaws.com')) {
+      this.openAWSReference(source);
+    } else if (source.toLowerCase().endsWith('.pdf')) {
       this.openPDF(source);
     } else if (source.toLowerCase().endsWith('.docx')) {
       this.openDOCX(source);
@@ -485,10 +487,8 @@ export class ModelService {
     }
   }
 
-  openAWSReference(ref: ReferenceInfo): void {
-    const [start, end] = startAndEnd(ref.content);
-    const highlightedSourceURL =
-      'https://' + ref.sourceURL.replace(/^(https?:\/\/)?/, '') + '#:~:text=' + start + ',' + end;
+  openAWSReference(source: string): void {
+    const highlightedSourceURL = 'https://' + source.replace(/^(https?:\/\/)?/, '');
     window.open(highlightedSourceURL);
   }
 

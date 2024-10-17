@@ -4,15 +4,11 @@ import typing
 from abc import abstractmethod
 from collections import defaultdict
 
-from platform_common.thirdai_storage.data_types import (
-    DataSample,
-    Metadata,
-    MetadataStatus,
-    SampleStatus,
-)
-from platform_common.thirdai_storage.schemas import Base, MetaData, Samples
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import scoped_session, sessionmaker
+
+from .data_types import DataSample, Metadata, MetadataStatus, SampleStatus
+from .schemas import Base, MetaData, Samples
 
 
 class Connector:

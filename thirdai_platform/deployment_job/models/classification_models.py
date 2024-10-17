@@ -11,6 +11,8 @@ from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
     DataSample,
     LabelCollection,
+    LabelEntity,
+    LabelStatus,
     Metadata,
     MetadataStatus,
     SampleStatus,
@@ -87,17 +89,31 @@ class TokenClassificationModel(ClassificationModel):
             / "data_storage.db"
         )
 
-        # connector will instantiate an sqlite db at the specified path if it doesn't exist
+        if not data_storage_path.exists():
+            data_storage_path.mkdir(parents=True, exist_ok=True)
 
-        import os
+            tags = self.model.list_ner_tags()
+            tag_metadata = TagMetadata()
+            for tag in tags:
+                tag_metadata.add_tag(LabelEntity(name=tag, status=LabelStatus.trained))
 
-        print(f"inside deployment job for the model: {self.config.model_id}")
-        print(f"{data_storage_path=}")
-        print(f"db exists? : {os.path.exists(data_storage_path)}")
-        self.logger.info(f"db exists? : {os.path.exists(data_storage_path)}")
-        self.data_storage = DataStorage(
-            connector=SQLiteConnector(db_path=data_storage_path)
-        )
+            # connector will instantiate an sqlite db at the specified path if it doesn't exist
+            self.data_storage = DataStorage(
+                connector=SQLiteConnector(db_path=data_storage_path)
+            )
+
+            self.data_storage.insert_metadata(
+                Metadata(
+                    name="tags_and_status",
+                    data=tag_metadata,
+                    status=MetadataStatus.unchanged,
+                )
+            )
+
+        else:
+            self.data_storage = DataStorage(
+                connector=SQLiteConnector(db_path=data_storage_path)
+            )
 
     @property
     def tag_metadata(self) -> TagMetadata:

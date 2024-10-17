@@ -105,10 +105,15 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
           options.llm_provider = 'self-host';
           break;
         default:
-          console.error('Invalid LLM type selected');
-          alert('Invalid LLM type selected');
-          setIsLoading(false);
-          return;
+          if (isChatbot) {
+            console.error('Invalid LLM type selected');
+            alert('Invalid LLM type selected');
+            setIsLoading(false);
+            return;
+          } else {
+            // LLM is not required for enterprise search
+            break;
+          }
       }
 
       // Clean up options by removing undefined or empty values

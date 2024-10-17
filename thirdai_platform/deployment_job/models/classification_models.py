@@ -91,6 +91,7 @@ class TokenClassificationModel(ClassificationModel):
 
         import os
 
+        print(f"{data_storage_path=}")
         print(f"db exists? : {os.path.exists(data_storage_path)}")
         self.logger.info(f"db exists? : {os.path.exists(data_storage_path)}")
         self.data_storage = DataStorage(

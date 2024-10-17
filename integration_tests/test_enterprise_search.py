@@ -1,5 +1,6 @@
 import os
 import uuid
+from pathlib import Path
 from urllib.parse import urljoin
 
 import pytest
@@ -8,6 +9,15 @@ from utils import doc_dir
 
 from client.bazaar import ModelBazaar
 from client.utils import auth_header, http_post_with_error
+from thirdai_platform.platform_common.thirdai_storage.data_types import (
+    LabelEntity,
+    Metadata,
+    TagMetadata,
+)
+from thirdai_platform.platform_common.thirdai_storage.storage import (
+    DataStorage,
+    SQLiteConnector,
+)
 
 
 def upload_guardrail_model(admin_client: ModelBazaar):
@@ -33,6 +43,21 @@ def upload_guardrail_model(admin_client: ModelBazaar):
         model_type="udt",
         model_subtype="token",
     )["model_id"]
+
+    # create a storage db for the model
+    data_dir = Path(os.environ.get("SHARE_DIR", None)) / "data" / model_id
+    os.makedirs(data_dir, exist_ok=True)
+
+    tag_metadata = TagMetadata(
+        tag_status={"PHONENUMBER": LabelEntity(name="PHONENUMBER", status="trained")}
+    )
+
+    data_storage = DataStorage(
+        connector=SQLiteConnector(db_path=data_dir / "data_storage.db")
+    )
+    data_storage.insert_metadata(
+        Metadata(name="tags_and_status", data=tag_metadata, status="unchanged")
+    )
 
     os.remove(path)
 

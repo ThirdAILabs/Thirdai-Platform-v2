@@ -88,6 +88,11 @@ class TokenClassificationModel(ClassificationModel):
         )
 
         # connector will instantiate an sqlite db at the specified path if it doesn't exist
+
+        import os
+
+        print(f"db exists? : {os.path.exists(data_storage_path)}")
+        self.logger.info(f"db exists? : {os.path.exists(data_storage_path)}")
         self.data_storage = DataStorage(
             connector=SQLiteConnector(db_path=data_storage_path)
         )

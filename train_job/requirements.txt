@@ -1,8 +1,0 @@
-fastapi
-uvicorn
-boto3
-pandas
-requests
-thirdai[neural_db_v2]>=0.9.12
-colorlog
-pydantic>=2.1.0

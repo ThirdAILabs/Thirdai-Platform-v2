@@ -1,4 +1,3 @@
-import { genaiQuery } from './genai';
 import { Box, Chunk, DocChunks } from './components/pdf_viewer/interfaces';
 import { temporaryCacheToken } from '@/lib/backend';
 import _ from 'lodash';
@@ -161,15 +160,13 @@ export class ModelService {
   async piiDetect(query: string): Promise<any> {
     const url = new URL(this.tokenModelUrl + '/predict');
 
-    const baseParams = { query: query, top_k: 1 };
-
     return fetch(url, {
       method: 'POST',
       headers: {
         ...this.authHeader(),
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(baseParams),
+      body: JSON.stringify({ text: query, top_k: 1 }),
     })
       .then(this.handleInvalidAuth())
       .then((response) => {
@@ -230,27 +227,44 @@ export class ModelService {
 
   async addSources(files: File[], s3Urls: string[]): Promise<any> {
     const formData = new FormData();
-    const documentData: object[] = [];
+    const documents: object[] = [];
 
-    // Append local files to formData and documentData
+    // Process local files
     for (let i = 0; i < files.length; i++) {
       formData.append('files', files[i]);
-      documentData.push({
+      const extension = files[i].name.split('.').pop();
+      documents.push({
+        document_type: extension!.toUpperCase(),
         path: files[i].name,
         location: 'local',
+        metadata: {},
+        chunk_size: 100,
+        stride: 40,
+        emphasize_first_words: 0,
+        ignore_header_footer: true,
+        ignore_nonstandard_orientation: true,
       });
     }
 
-    // Append S3 URLs to documentData
+    // Process S3 URLs
     for (let i = 0; i < s3Urls.length; i++) {
       const url = s3Urls[i];
-      documentData.push({
+      const extension = url.split('.').pop();
+      documents.push({
+        document_type: extension ? extension.toUpperCase() : 'URL',
         path: url,
         location: 's3',
+        metadata: {},
+        chunk_size: 100,
+        stride: 40,
+        emphasize_first_words: 0,
+        ignore_header_footer: true,
+        ignore_nonstandard_orientation: true,
       });
     }
 
-    formData.append('documents', JSON.stringify({ documents: documentData }));
+    // Wrap the documents array in an object with a 'documents' key
+    formData.append('documents', JSON.stringify({ documents }));
     const url = new URL(this.url + '/insert');
 
     return fetch(url, {
@@ -261,17 +275,19 @@ export class ModelService {
       },
     })
       .then(this.handleInvalidAuth())
-      .then((response) => {
+      .then(async (response) => {
         if (response.ok) {
           return response.json();
         }
+        const errorBody = await response.json();
+        throw new Error(JSON.stringify(errorBody));
       })
       .then(({ data }) => {
         return data;
       })
       .catch((e) => {
-        console.log(e);
-        return [];
+        console.error('Error in addSources:', e);
+        throw e;
       });
   }
 
@@ -304,15 +320,12 @@ export class ModelService {
   }
 
   async predict(queryText: string, topK: number, queryId?: string): Promise<SearchResult | null> {
-    const url = new URL(this.url + '/predict');
+    const url = new URL(this.url + '/search');
 
     // TODO(Geordie): Accept a "timeout" / "longer than expected" callback.
     // E.g. if the query takes too long, then we can display a message
     // saying that they should check the url, or maybe it's just taking a
     // while.
-
-    const baseParams = { query: queryText, top_k: topK };
-    const ndbParams = { constraints: {} };
 
     return fetch(url, {
       method: 'POST',
@@ -320,7 +333,7 @@ export class ModelService {
         ...this.authHeader(),
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ base_params: baseParams, ndb_params: ndbParams }),
+      body: JSON.stringify({ query: queryText, top_k: topK, constraints: {} }),
     })
       .then(this.handleInvalidAuth())
       .then((response) => {
@@ -570,7 +583,8 @@ export class ModelService {
     onNextWord: (str: string) => void,
     genAiProvider?: string,
     workflowId?: string,
-    onComplete?: (finalAnswer: string) => void
+    onComplete?: (finalAnswer: string) => void,
+    signal?: AbortSignal // <-- Add this parameter
   ) {
     let finalAnswer = ''; // Variable to accumulate the response
 
@@ -583,11 +597,14 @@ export class ModelService {
         console.error('Error getting cache access token:', error);
       }
       const args: any = {
-        query: genaiQuery(question, references, genaiPrompt),
+        query: question,
+        prompt: genaiPrompt,
+        references: references.map((ref) => {
+          return { text: ref.content, source: ref.sourceName, metadata: ref.metadata };
+        }),
         key: apiKey,
         provider: genAiProvider,
         workflow_id: workflowId,
-        original_query: question,
         cache_access_token: cache_access_token,
       };
 
@@ -598,6 +615,7 @@ export class ModelService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(args),
+        signal: signal,
       });
 
       if (!response.ok) {
@@ -622,33 +640,29 @@ export class ModelService {
       if (onComplete) {
         onComplete(finalAnswer);
       }
-    } catch (error) {
-      console.error('Generation Error:', error);
-      alert('Generation Error:' + error);
-      onNextWord('An error occurred during generation.');
+    } catch (error: unknown) {
+      if (isAbortError(error)) {
+        console.log('Fetch aborted');
+        onNextWord(finalAnswer);
+      } else {
+        console.error('Generation Error:', error);
+        alert('Generation Error:' + (error instanceof Error ? error.message : String(error)));
+        // onNextWord('An error occurred during generation.');
+      }
+    }
+
+    // Type guard to check if the error is an AbortError
+    function isAbortError(error: any): error is { name: string } {
+      return error && typeof error === 'object' && 'name' in error && error.name === 'AbortError';
     }
   }
 
-  getChatHistory(): Promise<ChatMessage[]> {
+  getChatHistory(provider: string): Promise<ChatMessage[]> {
     return fetch(this.url + '/get-chat-history', {
-      method: 'POST',
-      body: JSON.stringify({ session_id: this.sessionId }),
-      headers: {
-        'Content-type': 'application/json; charset=UTF-8',
-        ...this.authHeader(),
-      },
-    })
-      .then(this.handleInvalidAuth())
-      .then((res) => res.json())
-      .then((response) => response['data']['chat_history'] as ChatMessage[]);
-  }
-
-  chat(textInput: string): Promise<ChatResponse> {
-    return fetch(this.url + '/chat', {
       method: 'POST',
       body: JSON.stringify({
         session_id: this.sessionId,
-        user_input: textInput,
+        provider: provider,
       }),
       headers: {
         'Content-type': 'application/json; charset=UTF-8',
@@ -656,8 +670,117 @@ export class ModelService {
       },
     })
       .then(this.handleInvalidAuth())
-      .then((res) => res.json())
-      .then((response) => response['data'] as ChatResponse);
+      .then((res) => {
+        if (res.ok) {
+          return res.json();
+        } else {
+          return res.json().then((err) => {
+            throw new Error(err.detail || 'Failed to fetch chat history');
+          });
+        }
+      })
+      .then((response) => response['data']['chat_history'] as ChatMessage[])
+      .catch((e) => {
+        console.error('Error fetching chat history:', e);
+        alert('Error fetching chat history: ' + e);
+        throw e;
+      });
+  }
+
+  async chat(
+    textInput: string,
+    provider: string,
+    onNextWord: (str: string) => void,
+    onComplete?: (finalResponse: string) => void,
+    signal?: AbortSignal
+  ): Promise<void> {
+    try {
+      const response = await fetch(this.url + '/chat', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: this.sessionId,
+          user_input: textInput,
+          provider: provider,
+        }),
+        headers: {
+          'Content-type': 'application/json; charset=UTF-8',
+          ...this.authHeader(),
+        },
+        signal,
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let finalResponse = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        const newData = decoder.decode(value, { stream: true });
+        finalResponse += newData;
+
+        onNextWord(newData);
+      }
+
+      if (onComplete) {
+        onComplete(finalResponse);
+      }
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          console.log('Chat was aborted');
+        } else {
+          console.error('Error in chat:', error);
+          alert('Error in chat: ' + error);
+        }
+      } else {
+        console.error('An unknown error occurred:', error);
+        alert('An unknown error occurred');
+      }
+      throw error;
+    }
+  }
+
+  setChat(provider: string): Promise<any> {
+    const url = new URL(this.url + '/update-chat-settings');
+    const settings = {
+      provider,
+    };
+
+    return fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.authHeader(),
+      },
+      body: JSON.stringify(settings),
+    })
+      .then(this.handleInvalidAuth())
+      .then((res) => {
+        if (res.ok) {
+          return res.json();
+        } else {
+          return res.json().then((json) => {
+            throw new Error(json.message);
+          });
+        }
+      })
+      .then((data) => {
+        console.log('Chat settings updated successfully:', data);
+        return data;
+      })
+      .catch((e) => {
+        console.error('Error updating chat settings:', e);
+        alert('Error updating chat settings: ' + e);
+        throw e;
+      });
   }
 
   async recordImplicitFeedback(feedback: ImplicitFeecback) {

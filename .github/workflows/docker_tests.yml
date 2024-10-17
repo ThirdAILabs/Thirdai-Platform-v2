@@ -75,7 +75,7 @@ jobs:
     strategy:
       fail-fast: false
 
-    runs-on: self-hosted
+    runs-on: [self-hosted, docker-tests]
 
     if: github.event_name != 'pull_request'
 
@@ -123,6 +123,7 @@ jobs:
           python3 -m headless.run_locally --base-url ${{ secrets.BASE_URL }} --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag NDB --on-prem --generation
           python3 -m headless.run_locally --base-url ${{ secrets.BASE_URL }} --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag UDT
           python3 -m headless.run_locally --base-url ${{ secrets.BASE_URL }} --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag UDT_DATAGEN
+          python3 -m headless.run_locally --base-url ${{ secrets.BASE_URL }} --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag Recovery_Backup
 
       - name: Cleanup SHARE_DIR Folder
         if: always()
@@ -147,10 +148,6 @@ jobs:
         run: |
           pip install gitpython
 
-      - name: Checkout current branch
-        if: always()
-        uses: actions/checkout@v3
-
       - name: Latest alembic version in main
         if: always()
         id: version
@@ -158,6 +155,19 @@ jobs:
           alembic_version=$(python alembic_version.py)
           echo "::set-output name=alembic_version::$alembic_version"
           echo "$alembic_version"
+      
+      - name: Checkout current branch
+        if: always()
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: ls in alembic versions folder
+        if: always()
+        run: |
+          cd thirdai_platform/database/alembic/versions
+          ls
 
       - name: Install requirements
         if: always()

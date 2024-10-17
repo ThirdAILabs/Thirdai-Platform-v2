@@ -8,7 +8,26 @@ from typing import Dict, List, Optional
 
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access
-from backend.config import (
+from backend.datagen import generate_data_for_train_job
+from backend.utils import (
+    get_model,
+    get_model_from_identifier,
+    get_platform,
+    get_python_path,
+    logger,
+    model_bazaar_path,
+    submit_nomad_job,
+    thirdai_platform_dir,
+    update_json,
+    validate_license_info,
+    validate_name,
+)
+from database import schema
+from database.session import get_session
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from platform_common.file_handler import download_local_files
+from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
+from platform_common.pydantic_models.training import (
     DatagenOptions,
     FileInfo,
     FileLocation,
@@ -26,49 +45,11 @@ from backend.config import (
     UDTOptions,
     UDTSubType,
 )
-from backend.datagen import generate_data_for_train_job
-from backend.file_handler import download_local_files
-from backend.utils import (
-    get_model,
-    get_model_from_identifier,
-    get_platform,
-    get_python_path,
-    get_root_absolute_path,
-    logger,
-    model_bazaar_path,
-    response,
-    submit_nomad_job,
-    update_json,
-    validate_name,
-)
-from database import schema
-from database.session import get_session
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
-from licensing.verify.verify_license import valid_job_allocation, verify_license
+from platform_common.utils import response
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 train_router = APIRouter()
-
-
-def validate_license_info():
-    try:
-        license_info = verify_license(
-            os.getenv(
-                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
-            )
-        )
-        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Resource limit reached, cannot allocate new jobs.",
-            )
-        return license_info
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"License is not valid. {str(e)}",
-        )
 
 
 def get_base_model(base_model_identifier: str, user: schema.User, session: Session):
@@ -202,7 +183,8 @@ def train_ndb(
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("TRAIN_IMAGE_NAME"),
-            train_script=str(get_root_absolute_path() / "train_job/run.py"),
+            thirdai_platform_dir=thirdai_platform_dir(),
+            train_script="train_job.run",
             model_id=str(model_id),
             share_dir=os.getenv("SHARE_DIR", None),
             python_path=get_python_path(),
@@ -236,14 +218,6 @@ def train_ndb(
             "user_id": str(user.id),
         },
     )
-
-
-class InsertLog(BaseModel):
-    documents: List[FileInfo]
-
-
-class DeleteLog(BaseModel):
-    doc_ids: List[str]
 
 
 def list_insertions(deployment_dir: str) -> List[FileInfo]:
@@ -379,7 +353,8 @@ def retrain_ndb(
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("TRAIN_IMAGE_NAME"),
-            train_script=str(get_root_absolute_path() / "train_job/run.py"),
+            thirdai_platform_dir=thirdai_platform_dir(),
+            train_script="train_job.run",
             model_id=str(model_id),
             share_dir=os.getenv("SHARE_DIR", None),
             python_path=get_python_path(),
@@ -620,7 +595,8 @@ def datagen_callback(
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("TRAIN_IMAGE_NAME"),
-            train_script=str(get_root_absolute_path() / "train_job/run.py"),
+            thirdai_platform_dir=thirdai_platform_dir(),
+            train_script="train_job.run",
             model_id=str(model_id),
             share_dir=os.getenv("SHARE_DIR", None),
             python_path=get_python_path(),
@@ -677,22 +653,7 @@ def train_udt(
             message="Invalid options format: " + str(e),
         )
 
-    try:
-        license_info = verify_license(
-            os.getenv(
-                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
-            )
-        )
-        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="Resource limit reached, cannot allocate new jobs.",
-            )
-    except Exception as e:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"License is not valid. {str(e)}",
-        )
+    license_info = validate_license_info()
 
     try:
         validate_name(model_name)
@@ -791,7 +752,8 @@ def train_udt(
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("TRAIN_IMAGE_NAME"),
-            train_script=str(get_root_absolute_path() / "train_job/run.py"),
+            thirdai_platform_dir=thirdai_platform_dir(),
+            train_script="train_job.run",
             model_id=str(model_id),
             share_dir=os.getenv("SHARE_DIR", None),
             python_path=get_python_path(),

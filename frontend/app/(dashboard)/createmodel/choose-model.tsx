@@ -16,7 +16,7 @@ import {
 } from '@/lib/backend';
 import { Divider } from '@mui/material';
 import { CardDescription } from '@/components/ui/card';
-
+import DropdownMenu from '@/components/ui/dropDownMenu';
 export default function ChooseProblem() {
   const [modelType, setModelType] = useState('');
 
@@ -71,14 +71,19 @@ export default function ChooseProblem() {
 
   const workflowNames = workflows.map((workflow) => workflow.name);
 
-  const RETRIEVAL = 'Retrieval';
-  const NLP = 'Natural Language Processing';
-  const RAG = 'Retrieval Augmented Generation';
+  // Updated Use Case names
+  const ENTERPRISE_SEARCH = 'Enterprise Search';
+  const NLP_TEXT_ANALYSIS = 'NLP / Text Analytics';
+  const CHATBOT = 'Chatbot';
+
   // const DOC_CLASSIFICATION = "Document Classification";
   // const TABULAR_CLASSIFICATION = "Tabular Classification";
 
-  // const useCases = [RETRIEVAL, NLP, RAG, DOC_CLASSIFICATION, TABULAR_CLASSIFICATION];
-  const useCases = [RETRIEVAL, NLP, RAG];
+  // Update the useCases array with new names
+  const useCases = [{ name: ENTERPRISE_SEARCH }, { name: CHATBOT }, { name: NLP_TEXT_ANALYSIS }];
+  const handleSetModelType = (model: string) => {
+    setModelType(model);
+  };
 
   return (
     <>
@@ -86,36 +91,23 @@ export default function ChooseProblem() {
         <span className="block text-lg font-semibold">Use case</span>
         <CardDescription>Please select the app type based on your use case.</CardDescription>
         <div style={{ marginTop: '10px' }}>
-          <select
-            value={modelType || ''}
-            onChange={(e) => setModelType(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px',
-              fontSize: '16px',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-            }}
-          >
-            <option value="" disabled>
-              Select a use case
-            </option>
-            {useCases.map((type, index) => (
-              <option key={index} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+          <DropdownMenu
+            title="Select a use case"
+            handleSelectedTeam={handleSetModelType}
+            teams={useCases}
+          />
         </div>
 
         {modelType && (
           <div style={{ width: '100%', marginTop: '20px' }}>
             <Divider style={{ marginBottom: '20px' }} />
-            {modelType === RAG && (
+            {modelType === CHATBOT && (
               <RAGQuestions models={privateModels} workflowNames={workflowNames} />
             )}
-            {modelType === NLP && <NLPQuestions workflowNames={workflowNames} />}
-            {modelType === RETRIEVAL && <SemanticSearchQuestions workflowNames={workflowNames} />}
+            {modelType === NLP_TEXT_ANALYSIS && <NLPQuestions workflowNames={workflowNames} />}
+            {modelType === ENTERPRISE_SEARCH && (
+              <SemanticSearchQuestions models={privateModels} workflowNames={workflowNames} />
+            )}
             {/* {modelType === DOC_CLASSIFICATION && <DocumentClassificationQuestions workflowNames={workflowNames} />} */}
             {/* {modelType === TABULAR_CLASSIFICATION && <TabularClassificationQuestions workflowNames={workflowNames} />} */}
           </div>

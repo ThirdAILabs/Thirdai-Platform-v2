@@ -62,6 +62,19 @@ class UDTFunctions:
         )
 
     @staticmethod
+    def check_predict(inputs: Dict[str, Any]):
+        logging.info(f"inputs: {inputs}")
+        deployment = inputs.get("deployment")
+
+        logging.info(f"checking the deployment for {deployment.model_identifier}")
+
+        logging.info("Calling predict on the deployment")
+        return deployment.predict(
+            text="Can autism and down syndrome be in conjunction",
+            top_k=5,
+        )
+
+    @staticmethod
     def udt_deploy(inputs: Dict[str, Any]) -> Any:
         logging.info(f"inputs: {inputs}")
         model = inputs.get("model")
@@ -120,19 +133,6 @@ class CommonFunctions:
         flow.bazaar_client.undeploy(deployment)
 
     @staticmethod
-    def check_search(inputs: Dict[str, Any]):
-        logging.info(f"inputs: {inputs}")
-        deployment = inputs.get("deployment")
-
-        logging.info(f"checking the deployment for {deployment.model_identifier}")
-
-        logging.info("Searching the deployment")
-        return deployment.search(
-            query="Can autism and down syndrome be in conjunction",
-            top_k=5,
-        )
-
-    @staticmethod
     def await_deploy(inputs: Dict[str, Any]):
         """
         Awaits the completion of model deployment.
@@ -185,8 +185,29 @@ class CommonFunctions:
         flow.bazaar_client.cleanup_cache()
         logging.info(f"Bazaar cache is cleaned")
 
+    @staticmethod
+    def recovery_snapshot(inputs: Dict[str, Any]):
+        logging.info(f"Recovery snapshot with inputs: {inputs}")
+        config = {
+            "provider": {"provider": "local"},
+        }
+        flow.bazaar_client.recovery_snapshot(config=config)
+
 
 class NDBFunctions:
+    @staticmethod
+    def check_search(inputs: Dict[str, Any]):
+        logging.info(f"inputs: {inputs}")
+        deployment = inputs.get("deployment")
+
+        logging.info(f"checking the deployment for {deployment.model_identifier}")
+
+        logging.info("Searching the deployment")
+        return deployment.search(
+            query="Can autism and down syndrome be in conjunction",
+            top_k=5,
+        )
+
     @staticmethod
     def check_deployment_ndb(inputs: Dict[str, Any]):
         """
@@ -209,23 +230,27 @@ class NDBFunctions:
         good_answer = references[2]
 
         logging.info("Associating the model")
-        deployment.associate(
+        associate_response = deployment.associate(
             [
                 {"source": "authors", "target": "contributors"},
                 {"source": "paper", "target": "document"},
             ]
         )
 
+        assert associate_response.status_code == 200
+
         logging.info(f"upvoting the model")
-        deployment.upvote(
+        upvote_response = deployment.upvote(
             [
                 {"query_text": query_text, "reference_id": best_answer["id"]},
                 {"query_text": query_text, "reference_id": good_answer["id"]},
             ]
         )
 
+        assert upvote_response.status_code == 200
+
         logging.info(f"inserting the docs to the model")
-        deployment.insert(
+        insert_response = deployment.insert(
             [
                 {
                     "path": os.path.join(config.base_path, file),
@@ -234,6 +259,7 @@ class NDBFunctions:
                 for file in config.insert_paths
             ],
         )
+        assert insert_response.status_code == 200
 
         logging.info("Checking the sources")
         deployment.sources()
@@ -256,10 +282,28 @@ class NDBFunctions:
                 if not generated_answer:
                     raise Exception(f"Openai answer is not generated")
 
+                deployment.update_chat_settings(provider="openai")
+
+                chat_response = deployment.chat(
+                    user_input=best_answer["text"],
+                    session_id=deployment.model_id,
+                    provider="openai",
+                )
+
+                logging.info(f"OpenAI Chat response {chat_response}")
+
+                chat_history = deployment.get_chat_history(
+                    session_id=deployment.model_id
+                )
+
+                logging.info(f"OpenAI Chat history {chat_history}")
+
             if on_prem:
-                flow.bazaar_client.start_on_prem(autoscaling_enabled=False)
+                flow.bazaar_client.start_on_prem(
+                    autoscaling_enabled=False, cores_per_allocation=config.on_prem_cores
+                )
                 # waiting for our on-prem to start and trafeik to discover the service
-                time.sleep(45)
+                time.sleep(90)
                 generated_answer = llm_client.generate(
                     query=best_answer["text"],
                     api_key="no key",
@@ -269,6 +313,22 @@ class NDBFunctions:
                 logging.info(f"on-prem generated answer: {generated_answer}")
                 if not generated_answer:
                     raise Exception(f"On prem answer is not generated")
+
+                deployment.update_chat_settings(provider="on-prem")
+
+                deployment.chat(
+                    user_input=best_answer["text"],
+                    session_id=deployment.model_id,
+                    provider="on-prem",
+                )
+
+                logging.info(f"On prem Chat response {chat_response}")
+
+                chat_history = deployment.get_chat_history(
+                    session_id=deployment.model_id
+                )
+
+                logging.info(f"On prem Chat history {chat_history}")
 
     @staticmethod
     def check_unsupervised(inputs: Dict[str, Any]) -> Any:

@@ -3,7 +3,6 @@ import logging
 import math
 import os
 import re
-import socket
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -11,8 +10,8 @@ import bcrypt
 import requests
 from database import schema
 from fastapi import HTTPException, status
-from fastapi.responses import JSONResponse
 from jinja2 import Template
+from licensing.verify.verify_license import valid_job_allocation, verify_license
 from sqlalchemy.orm import Session
 from urllib.parse import urlparse
 
@@ -47,29 +46,6 @@ setup_logger()
 
 def model_bazaar_path():
     return "/model_bazaar" if os.path.exists("/.dockerenv") else os.getenv("SHARE_DIR")
-
-
-def response(status_code: int, message: str, data={}, success: bool = None):
-    """
-    Create a JSON response.
-
-    Parameters:
-    - status_code: HTTP status code for the response.
-    - message: Message to include in the response.
-    - data: Optional data to include in the response (default is an empty dictionary).
-    - success: Optional boolean indicating success or failure (default is None).
-
-    Returns:
-    - JSONResponse: FastAPI JSONResponse object.
-    """
-    if success is not None:
-        status = "success" if success else "failed"
-    else:
-        status = "success" if status_code < 400 else "failed"
-    return JSONResponse(
-        status_code=status_code,
-        content={"status": status, "message": message, "data": data},
-    )
 
 
 def hash_password(password: str):
@@ -405,6 +381,10 @@ def get_root_absolute_path():
     return Path(__file__).parent.parent.parent.absolute()
 
 
+def thirdai_platform_dir():
+    return str(get_root_absolute_path() / "thirdai_platform")
+
+
 def update_json(current_json, new_dict):
     """
     Update a JSON object with a new dictionary.
@@ -468,20 +448,6 @@ def model_accessible(model: schema.Model, user: schema.User) -> bool:
     return True
 
 
-def get_empty_port():
-    """
-    Get an empty port.
-
-    Returns:
-    - int: The empty port number.
-    """
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.bind(("", 0))  # Bind to an empty
-    port = sock.getsockname()[1]
-    sock.close()
-    return port
-
-
 def get_expiry_min(size: int):
     """
     This is a helper function to calculate the expiry time for the signed
@@ -521,6 +487,21 @@ def get_workflow(session, workflow_id, authenticated_user):
     return workflow
 
 
-def save_dict(obj: dict, path: str):
-    with open(path, "w") as fp:
-        json.dump(obj, fp, indent=4)
+def validate_license_info():
+    try:
+        license_info = verify_license(
+            os.getenv(
+                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
+            )
+        )
+        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Resource limit reached, cannot allocate new jobs.",
+            )
+        return license_info
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"License is not valid. {str(e)}",
+        )

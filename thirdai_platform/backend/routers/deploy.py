@@ -17,17 +17,23 @@ from backend.utils import (
     get_model_from_identifier,
     get_platform,
     get_python_path,
-    get_root_absolute_path,
     logger,
     model_accessible,
-    response,
     submit_nomad_job,
+    thirdai_platform_dir,
+    validate_license_info,
 )
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
-from licensing.verify.verify_license import valid_job_allocation, verify_license
+from platform_common.pydantic_models.deployment import (
+    DeploymentConfig,
+    NDBDeploymentOptions,
+    UDTDeploymentOptions,
+)
+from platform_common.pydantic_models.training import ModelType
+from platform_common.utils import response
 from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()
@@ -167,22 +173,7 @@ def deploy_model(
     """
     user = authenticated_user.user
 
-    try:
-        license_info = verify_license(
-            os.getenv(
-                "LICENSE_PATH", "/model_bazaar/license/ndb_enterprise_license.json"
-            )
-        )
-        if not valid_job_allocation(license_info, os.getenv("NOMAD_ENDPOINT")):
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message="Resource limit reached, cannot allocate new jobs.",
-            )
-    except Exception as e:
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"License is not valid. {str(e)}",
-        )
+    license_info = validate_license_info()
 
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
@@ -232,6 +223,31 @@ def deploy_model(
     work_dir = os.getcwd()
     platform = get_platform()
 
+    if model.type == ModelType.NDB:
+        model_options = NDBDeploymentOptions(
+            ndb_sub_type=model.sub_type,
+            llm_provider=(llm_provider or os.getenv("LLM_PROVIDER", "openai")),
+            genai_key=(genai_key or os.getenv("GENAI_KEY", "")),
+        )
+    elif model.type == ModelType.UDT:
+        model_options = UDTDeploymentOptions(udt_sub_type=model.sub_type)
+    else:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Unsupported model type '{model.type}'.",
+        )
+
+    config = DeploymentConfig(
+        model_id=str(model.id),
+        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+        model_bazaar_dir=(
+            os.getenv("SHARE_DIR", None) if platform == "local" else "/model_bazaar"
+        ),
+        license_key=license_info["boltLicenseKey"],
+        autoscaling_enabled=autoscaling_enabled,
+        model_options=model_options,
+    )
+
     try:
         submit_nomad_job(
             str(Path(work_dir) / "backend" / "nomad_jobs" / "deployment_job.hcl.j2"),
@@ -242,19 +258,15 @@ def deploy_model(
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("DEPLOY_IMAGE_NAME"),
-            deployment_app_dir=str(get_root_absolute_path() / "deployment_job"),
             model_id=str(model.id),
-            model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
             share_dir=os.getenv("SHARE_DIR", None),
-            license_key=license_info["boltLicenseKey"],
-            genai_key=(genai_key or os.getenv("GENAI_KEY", "")),
-            llm_provider=(llm_provider or os.getenv("LLM_PROVIDER", "openai")),
+            config_path=config.save_deployment_config(),
             autoscaling_enabled=("true" if autoscaling_enabled else "false"),
             autoscaler_max_count=str(autoscaler_max_count),
             memory=memory,
-            type=model.type,
-            sub_type=model.sub_type,
             python_path=get_python_path(),
+            thirdai_platform_dir=thirdai_platform_dir(),
+            app_dir="deployment_job",
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
         )
@@ -448,16 +460,24 @@ def get_deployment_info(
 
 @deploy_router.post("/start-on-prem")
 async def start_on_prem_job(
-    model_name: str = "qwen2-0_5b-instruct-fp16.gguf",
+    model_name: str = "Llama-3.2-3B-Instruct-f16.gguf",
     restart_if_exists: bool = True,
     autoscaling_enabled: bool = True,
+    cores_per_allocation: Optional[int] = None,
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    await start_on_prem_generate_job(
-        model_name=model_name,
-        restart_if_exists=restart_if_exists,
-        autoscaling_enabled=autoscaling_enabled,
-    )
+    try:
+        await start_on_prem_generate_job(
+            model_name=model_name,
+            restart_if_exists=restart_if_exists,
+            autoscaling_enabled=autoscaling_enabled,
+            cores_per_allocation=cores_per_allocation,
+        )
+    except Exception as e:
+        return HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to start on prem LLM job with error: {str(e)}",
+        )
 
     return response(
         status_code=status.HTTP_200_OK, message="On-prem job started successfully"

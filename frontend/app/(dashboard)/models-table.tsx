@@ -15,7 +15,7 @@ import { WorkFlow } from './workflow';
 import { SelectModel } from '@/lib/db';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@mui/material';
 import {
   fetchPublicModels,
   fetchPrivateModels,
@@ -121,16 +121,12 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Apps</CardTitle>
-        <CardDescription>Manage your Apps and view their performance.</CardDescription>
+        <CardTitle>App Catalog</CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="hidden w-[100px] sm:table-cell">
-                <span className="sr-only">Image</span>
-              </TableHead>
               <TableHead className="text-center">Name</TableHead>
               <TableHead className="text-center">Status</TableHead>
               <TableHead className="hidden md:table-cell text-center">Type</TableHead>
@@ -143,17 +139,6 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* {privateModels.map((model, index) => (
-                <Model key={index} model={model} />
-            ))}
-
-            {pendingModels.map((model, index) => (
-                <Model key={index + 100} model={model} pending = {true} />
-            ))}  */}
-
-            {/* {workflows.map((workflow, index) => (
-                <WorkFlow key={index + 200} workflow={workflow} />
-            ))} */}
             {displayedWorkflows
               .sort((a, b) => a.name.localeCompare(b.name)) // Sort by name alphabetically
               .map((workflow, index) => (
@@ -175,8 +160,8 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
           <div className="flex">
             <Button
               onClick={prevPage}
-              variant="ghost"
-              size="sm"
+              variant="contained"
+              color="error"
               type="button"
               disabled={offset <= 0}
             >
@@ -185,8 +170,8 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
             </Button>
             <Button
               onClick={nextPage}
-              variant="ghost"
-              size="sm"
+              className="ml-5"
+              variant="contained"
               type="button"
               disabled={offset + modelsPerPage >= totalWorkflows}
             >

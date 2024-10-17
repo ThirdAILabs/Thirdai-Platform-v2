@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button } from '@mui/material';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +60,13 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         const genAiProvider = `${workflow.gen_ai_provider}`;
         // TODO don't use url params
         const newUrl = `/semantic-search/${workflow.id}?workflowId=${workflow.id}&ifGenerationOn=${ifGenerationOn}&genAiProvider=${genAiProvider}`;
+        window.open(newUrl, '_blank');
+        break;
+      }
+      case 'chatbot': {
+        let ifGenerationOn = true; // true for chatbot
+        const genAiProvider = `${workflow.gen_ai_provider}`;
+        const newUrl = `/semantic-search/${workflow.id}?workflowId=${workflow.id}&ifGenerationOn=${ifGenerationOn}&genAiProvider=${genAiProvider}&chatMode=true`;
         window.open(newUrl, '_blank');
         break;
       }
@@ -171,11 +178,13 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
 
   useEffect(() => {
     if (workflow.type === 'semantic_search') {
-      setDeployType('Semantic Search');
+      setDeployType('Enterprise Search');
     } else if (workflow.type === 'nlp') {
       setDeployType('Natural Language Processing');
     } else if (workflow.type === 'rag') {
-      setDeployType('Retrieval Augmented Generation');
+      setDeployType('Enterprise Search & Summarizer');
+    } else if (workflow.type === 'chatbot') {
+      setDeployType('Chatbot');
     }
   }, [workflow.type]);
 
@@ -214,16 +223,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
 
   return (
     <TableRow>
-      <TableCell className="hidden sm:table-cell">
-        <Image
-          alt="workflow image"
-          className="aspect-square rounded-md object-cover"
-          height="64"
-          src={'/thirdai-small.png'}
-          width="64"
-        />
-      </TableCell>
-      <TableCell className="font-medium text-center">{workflow.name}</TableCell>
+      <TableCell className="font-bold text-center">{workflow.name}</TableCell>
       <TableCell className="text-center font-medium">
         <Badge variant="outline" className={`capitalize ${getBadgeColor(deployStatus)}`}>
           {deployStatus}
@@ -240,7 +240,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       <TableCell className="hidden md:table-cell text-center font-medium">
         <Button
           onClick={deployStatus === 'Active' ? goToEndpoint : handleDeploy}
-          className="text-white focus:ring-4 focus:outline-none font-medium text-sm p-2.5 text-center inline-flex items-center me-2"
+          variant="contained"
           style={{ width: '100px' }}
           disabled={
             isTrainingIncomplete ||
@@ -273,7 +273,18 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       <TableCell className="text-center font-medium">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button aria-haspopup="true" size="icon" variant="ghost">
+            <Button
+              aria-haspopup="true"
+              size="small"
+              variant="text" // Using "text" as base variant
+              sx={{
+                color: 'inherit', // Default text color
+                '&:hover': {
+                  backgroundColor: 'var(--accent)', // Replace with your accent color
+                  color: 'var(--accent-foreground)', // Replace with your foreground color for hover
+                },
+              }}
+            >
               <MoreHorizontal className="h-4 w-4" />
               <span className="sr-only">Toggle menu</span>
             </Button>

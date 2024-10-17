@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, model_validator
 class ModelType(str, Enum):
     NDB = "ndb"
     UDT = "udt"
+    ENTERPRISE_SEARCH = "enterprise-search"
 
 
 class ModelDataType(str, Enum):
@@ -186,6 +187,9 @@ class UDTData(BaseModel):
 class UDTGeneratedData(BaseModel):
     model_data_type: Literal[ModelDataType.UDT_DATAGEN] = ModelDataType.UDT_DATAGEN
     secret_token: str
+
+    class Config:
+        protected_namespaces = ()
 
 
 class LLMProvider(str, Enum):

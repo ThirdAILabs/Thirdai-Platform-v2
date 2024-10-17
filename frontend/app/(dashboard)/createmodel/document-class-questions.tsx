@@ -6,6 +6,7 @@ enum SourceType {
   LOCAL = 'local',
   S3 = 's3',
   NSF = 'nsf',
+  AZURE = 'azure',
 }
 
 interface DocumentClassificationQuestionsProps {

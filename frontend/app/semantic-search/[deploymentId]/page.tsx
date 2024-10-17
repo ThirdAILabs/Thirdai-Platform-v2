@@ -388,6 +388,10 @@ function App() {
       modelService!.openAWSReference(ref.sourceURL);
       return;
     }
+    if (ref.sourceURL.includes('blob.core.windows.net')) {
+      modelService!.openAWSReference(ref.sourceURL);
+      return;
+    }
     if (!ref.sourceName.toLowerCase().endsWith('.pdf')) {
       modelService!.openReferenceSource(ref);
       return;

@@ -113,7 +113,8 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
             )
         elif file_info.location == FileLocation.azure:
             account_name = os.getenv("AZURE_ACCOUNT_NAME")
-            account_key = os.getenv("ACCOUNT_KEY")
+            account_key = os.getenv("AZURE_ACCOUNT_KEY")
+            print(account_key, account_name, flush=True)
             azure_client = AzureStorageHandler(
                 account_name=account_name, account_key=account_key
             )
@@ -122,7 +123,15 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
                 bucket_name=container_name, source_path=blob_path
             )
             expanded_files.extend(
-                expand_file_info(paths=azure_objects, file_info=file_info)
+                expand_file_info(
+                    paths=[
+                        azure_client.full_path(
+                            bucket_name=container_name, source_path=azure_object
+                        )
+                        for azure_object in azure_objects
+                    ],
+                    file_info=file_info,
+                )
             )
         elif file_info.location == FileLocation.gcp:
             gcp_credentials_file = os.getenv("GCP_CREDENTIALS_FILE")
@@ -349,9 +358,15 @@ class AzureStorageHandler(CloudStorageHandler):
             conn_str=connection_string
         )
 
+        self._account_name = account_name
+
     @handle_exceptions
     def container_client(self, bucket_name: str):
         return self._blob_service_client.get_container_client(container=bucket_name)
+
+    @handle_exceptions
+    def full_path(self, bucket_name: str, source_path: str):
+        return f"https://{self._account_name}.blob.core.windows.net/{bucket_name}/{source_path}"
 
     @handle_exceptions
     def create_bucket_if_not_exists(self, bucket_name: str):

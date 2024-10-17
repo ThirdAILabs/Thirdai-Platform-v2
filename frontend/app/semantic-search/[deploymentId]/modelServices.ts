@@ -478,6 +478,8 @@ export class ModelService {
   openSource(source: string): void {
     if (source.includes('amazonaws.com')) {
       this.openAWSReference(source);
+    } else if (source.includes('blob.core.windows.net')) {
+      this.openAWSReference(source);
     } else if (source.toLowerCase().endsWith('.pdf')) {
       this.openPDF(source);
     } else if (source.toLowerCase().endsWith('.docx')) {

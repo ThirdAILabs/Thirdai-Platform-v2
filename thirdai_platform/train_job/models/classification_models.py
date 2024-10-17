@@ -217,6 +217,7 @@ class TokenClassificationModel(ClassificationModel):
 
         except Exception as e:
             self.logger.error(f"Failed to save model and metadata with error {e}")
+            self.update_tag_metadata(old_metadata, MetadataStatus.unchanged)
             raise e
 
     def initialize_model(self):

@@ -88,8 +88,10 @@ class TokenClassificationModel(ClassificationModel):
             / self.config.model_id
             / "data_storage.db"
         )
-
+        self.logger.info(f"Data storage path: {data_storage_path}")
         if not data_storage_path.exists():
+            self.logger.info(f"Data storage path does not exist, creating it")
+
             data_storage_path.mkdir(parents=True, exist_ok=True)
 
             tags = self.model.list_ner_tags()
@@ -111,6 +113,7 @@ class TokenClassificationModel(ClassificationModel):
             )
 
         else:
+            self.logger.info(f"Data storage path exists: {data_storage_path}")
             self.data_storage = DataStorage(
                 connector=SQLiteConnector(db_path=data_storage_path)
             )

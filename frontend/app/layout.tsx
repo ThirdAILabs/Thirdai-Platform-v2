@@ -2,7 +2,7 @@ import './globals.css';
 
 import { Analytics } from '@vercel/analytics/react';
 import UserWrapper from './user_wrapper';
-import SessionGuard from '@/components/SessionGuard'
+import SessionGuard from '@/utils/SessionGuard'
 import { Providers } from './Providers'
 
 export const metadata = {

@@ -46,8 +46,7 @@ def upload_guardrail_model(admin_client: ModelBazaar):
 
     # create a storage db for the model
     data_dir = Path(os.environ.get("SHARE_DIR", None)) / "data" / model_id
-    os.chmod(data_dir, 0o777)
-    os.makedirs(data_dir, exist_ok=True)
+    os.makedirs(data_dir, exist_ok=True, mode=0o777)
 
     tag_metadata = TagMetadata(
         tag_status={"PHONENUMBER": LabelEntity(name="PHONENUMBER", status="trained")}
@@ -63,6 +62,7 @@ def upload_guardrail_model(admin_client: ModelBazaar):
     os.remove(path)
 
     return name, model_id
+
 
 @pytest.mark.unit
 def test_enterprise_search_with_guardrails():

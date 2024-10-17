@@ -1,24 +1,16 @@
 http:
   routers:
-    keycloak-http:
-      rule: "PathPrefix(`/api/auth`)"
-      priority: 20
-      service: "keycloak-service"
     modelbazaar-http:
-      rule: "PathPrefix(`/api`)"
+      rule: "(PathPrefix(`/api`) && !PathPrefix(`/api/auth`))"
       priority: 10
       service: "modelbazaar-service"
+
     frontend-http:
-      rule: "PathPrefix(`/`)"
+      rule: "(PathPrefix(`/api/auth`) || PathPrefix(`/`))"
       priority: 1
       service: "frontend-service"
 
   services:
-    keycloak-service:
-      loadBalancer:
-        servers:
-          - url: "http://localhost:3006"
-
     modelbazaar-service:
       loadBalancer:
         servers:

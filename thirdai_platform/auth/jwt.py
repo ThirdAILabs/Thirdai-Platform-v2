@@ -4,7 +4,7 @@ from typing import Union
 
 import fastapi
 import jwt
-from auth.utils import CREDENTIALS_EXCEPTION, token_bearer, identity_provider_type
+from auth.utils import CREDENTIALS_EXCEPTION, token_bearer, identity_provider
 from database import schema
 from database.session import get_session
 from pydantic import BaseModel
@@ -61,7 +61,7 @@ def verify_access_token(
     # this endpoint. See the comment above for `token_bearer` to see what exactly
     # it does in this case.
     # Docs: https://fastapi.tiangolo.com/tutorial/dependencies/
-    if identity_provider_type == "keycloak":
+    if identity_provider == "keycloak":
         # Get the Keycloak public key
         public_key = keycloak_openid.public_key()
         KEYCLOAK_PUBLIC_KEY = (

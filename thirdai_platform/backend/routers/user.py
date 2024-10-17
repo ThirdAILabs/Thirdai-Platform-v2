@@ -17,7 +17,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
-from auth.utils import identity_provider_type
+from auth.utils import identity_provider
 from auth.utils import keycloak_admin, keycloak_openid
 
 user_router = APIRouter()
@@ -316,7 +316,7 @@ def delete_user(
     if user:
         session.delete(user)
 
-    if identity_provider_type == "keycloak":
+    if identity_provider == "keycloak":
         try:
             keycloak_admin.delete_user(user.id)
         except Exception as e:

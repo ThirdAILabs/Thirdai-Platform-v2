@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 
 from database import schema
 from contextlib import contextmanager
-from auth.utils import keycloak_admin, identity_provider_type
+from auth.utils import keycloak_admin, identity_provider
 from backend.utils import hash_password
 
 
@@ -80,7 +80,7 @@ class AdminAddition:
         """
         with contextmanager(get_session)() as session:
 
-            if identity_provider_type == "keycloak":
+            if identity_provider == "keycloak":
                 # Keycloak logic
                 keycloak_user_id = keycloak_admin.get_user_id(admin_username)
                 if keycloak_user_id:

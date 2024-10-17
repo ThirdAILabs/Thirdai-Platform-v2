@@ -3,6 +3,8 @@ from urllib.parse import urlparse
 import socket
 import fastapi
 
+socket.setdefaulttimeout(5)
+
 
 def get_ip_from_url(url):
     try:
@@ -16,7 +18,7 @@ def get_ip_from_url(url):
         return f"Error parsing URL or resolving IP: {e}"
 
 
-identity_provider_type = os.getenv("IDENTITY_PROVIDER", "postgres")
+identity_provider = os.getenv("IDENTITY_PROVIDER", "postgres")
 
 keycloak_openid = None
 keycloak_admin = None
@@ -46,13 +48,18 @@ IDENTITY_PROVIDER = os.getenv("IDENTITY_PROVIDER", "postgres").lower()
 
 if IDENTITY_PROVIDER == "keycloak":
     KEYCLOAK_SERVER_URL = os.getenv("KEYCLOAK_SERVER_URL")
-    print("KEYCLOAK SERVER URL: ", KEYCLOAK_SERVER_URL)
+
+    if not KEYCLOAK_SERVER_URL:
+        raise ValueError(
+            "The environment variable 'KEYCLOAK_SERVER_URL' is required but was not found."
+        )
 
     from keycloak import KeycloakOpenID, KeycloakAdmin
 
     USE_SSL_IN_LOGIN = os.getenv("USE_SSL_IN_LOGIN", "False").lower() == "true"
 
     if USE_SSL_IN_LOGIN:
+        # Refer: https://github.com/marcospereirampj/python-keycloak/blob/7cfad72a68346ca4cbcba69f9e8808091ae47daa/src/keycloak/keycloak_admin.py#L47
         keycloak_admin = KeycloakAdmin(
             server_url=KEYCLOAK_SERVER_URL,
             username=os.getenv("KEYCLOAK_ADMIN_USER", "temp_admin"),
@@ -65,6 +72,7 @@ if IDENTITY_PROVIDER == "keycloak":
             ),
         )
     else:
+        # Refer: https://github.com/marcospereirampj/python-keycloak/blob/7cfad72a68346ca4cbcba69f9e8808091ae47daa/src/keycloak/keycloak_admin.py#L47
         keycloak_admin = KeycloakAdmin(
             server_url=KEYCLOAK_SERVER_URL,
             username=os.getenv("KEYCLOAK_ADMIN_USER", "temp_admin"),
@@ -72,6 +80,7 @@ if IDENTITY_PROVIDER == "keycloak":
             realm_name="master",
             verify=False,
         )
+
     admin_username = os.getenv("ADMIN_USERNAME")
     admin_mail = os.getenv("ADMIN_MAIL")
     admin_password = os.getenv("ADMIN_PASSWORD")
@@ -107,6 +116,7 @@ if IDENTITY_PROVIDER == "keycloak":
 
     def create_realm(realm_name: str):
         """Create a new realm in Keycloak."""
+        # Refer: https://www.keycloak.org/docs-api/21.1.1/rest-api/#_realmrepresentation
         payload = {
             "realm": realm_name,
             "enabled": True,
@@ -144,6 +154,7 @@ if IDENTITY_PROVIDER == "keycloak":
         )
 
         if not existing_client:
+            # Refer: https://www.keycloak.org/docs-api/21.1.1/rest-api/#_clientrepresentation
             new_client = {
                 "clientId": client_name,
                 "enabled": True,
@@ -178,19 +189,21 @@ if IDENTITY_PROVIDER == "keycloak":
             print(f"Client '{client_name}' already exists.")
 
     client_name = "thirdai-login-client"
+    public_ip = get_ip_from_url(os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT"))
+    private_ip = get_ip_from_url(os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"))
     create_client(
         client_name=client_name,
         root_url=KEYCLOAK_SERVER_URL,
         base_url="/login",
         redirect_uris=[
-            f"http://{get_ip_from_url(os.getenv('PUBLIC_MODEL_BAZAAR_ENDPOINT'))}/*",
-            f"https://{get_ip_from_url(os.getenv('PUBLIC_MODEL_BAZAAR_ENDPOINT'))}/*",
-            f"http://{get_ip_from_url(os.getenv('PUBLIC_MODEL_BAZAAR_ENDPOINT'))}:80/*",
-            f"https://{get_ip_from_url(os.getenv('PUBLIC_MODEL_BAZAAR_ENDPOINT'))}:80/*",
-            f"http://{get_ip_from_url(os.getenv('PRIVATE_MODEL_BAZAAR_ENDPOINT'))}/*",
-            f"https://{get_ip_from_url(os.getenv('PRIVATE_MODEL_BAZAAR_ENDPOINT'))}/*",
-            f"http://{get_ip_from_url(os.getenv('PRIVATE_MODEL_BAZAAR_ENDPOINT'))}:80/*",
-            f"https://{get_ip_from_url(os.getenv('PRIVATE_MODEL_BAZAAR_ENDPOINT'))}:80/*",
+            f"http://{public_ip}/*",
+            f"https://{public_ip}/*",
+            f"http://{public_ip}:80/*",
+            f"https://{public_ip}:80/*",
+            f"http://{private_ip}/*",
+            f"https://{private_ip}/*",
+            f"http://{private_ip}:80/*",
+            f"https://{private_ip}:80/*",
             f"http://localhost/*",
             f"https://localhost/*",
             f"http://localhost:80/*",
@@ -204,9 +217,8 @@ if IDENTITY_PROVIDER == "keycloak":
         realm_name=new_realm_name,
     )
 
-    USE_SSL_IN_LOGIN = os.getenv("USE_SSL_IN_LOGIN", "False").lower() == "true"
-
     if USE_SSL_IN_LOGIN:
+        # Refer: https://github.com/marcospereirampj/python-keycloak/blob/7cfad72a68346ca4cbcba69f9e8808091ae47daa/src/keycloak/keycloak_openid.py#L65
         keycloak_openid = KeycloakOpenID(
             server_url=KEYCLOAK_SERVER_URL,
             client_id=client_name,
@@ -218,6 +230,7 @@ if IDENTITY_PROVIDER == "keycloak":
             ),
         )
     else:
+        # Refer: https://github.com/marcospereirampj/python-keycloak/blob/7cfad72a68346ca4cbcba69f9e8808091ae47daa/src/keycloak/keycloak_openid.py#L65
         keycloak_openid = KeycloakOpenID(
             server_url=KEYCLOAK_SERVER_URL,
             client_id=client_name,

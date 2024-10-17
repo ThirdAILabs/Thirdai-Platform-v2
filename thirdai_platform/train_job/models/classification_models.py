@@ -4,7 +4,6 @@ import tempfile
 import time
 import typing
 from abc import abstractmethod
-from copy import deepcopy
 from pathlib import Path
 from typing import List
 
@@ -205,12 +204,10 @@ class TokenClassificationModel(ClassificationModel):
         try:
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_model_path = Path(temp_dir) / "model.udt"
-                model.save(temp_model_path)
+                model.save(str(temp_model_path))
                 self.logger.debug(f"Model saved temporarily at {temp_model_path}")
 
-                self.data_storage.update_tag_metadata(
-                    latest_metadata, MetadataStatus.unchanged
-                )
+                self.update_tag_metadata(latest_metadata, MetadataStatus.unchanged)
                 self.logger.debug("Metadata updated to latest state")
 
                 shutil.move(temp_model_path, self.model_save_path)
@@ -220,9 +217,6 @@ class TokenClassificationModel(ClassificationModel):
 
         except Exception as e:
             self.logger.error(f"Failed to save model and metadata with error {e}")
-            self.data_storage.update_tag_metadata(
-                old_metadata, MetadataStatus.unchanged
-            )
             raise e
 
     def initialize_model(self):

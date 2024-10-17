@@ -1,11 +1,10 @@
 http:
   middlewares:
-    jwt-auth:
-      plugin:
-        jwt-validation-middleware:
-          secret: CsnCr3lebs9eJQ
-          optional: false
-          forwardAuth: false
+    forwardauth-middleware:
+      forwardAuth:
+        address: "http://localhost:8000/api/user/auth"
+        authResponseHeaders:
+          - "Authorization"
 
   routers:
     modelbazaar-http:

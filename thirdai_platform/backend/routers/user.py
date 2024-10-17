@@ -662,3 +662,14 @@ def get_user_info(
         message="Successfully retrieved user information",
         data=jsonable_encoder(user_info),
     )
+
+
+@user_router.get("/auth")
+def get_user_info(
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Verified access token.",
+    )

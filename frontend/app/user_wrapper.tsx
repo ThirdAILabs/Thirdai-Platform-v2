@@ -1,7 +1,6 @@
 'use client';
 
 import { getAccessToken, User, accessTokenUser } from '@/lib/backend';
-import { access } from 'fs';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, createContext, SetStateAction, Dispatch } from 'react';
 import federatedLogout from "@/utils/federatedLogout";
@@ -35,9 +34,9 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
 
 
     if (process.env.NEXT_PUBLIC_IDENTITY_PROVIDER && process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes("keycloak")) {
-      window.location.href = '/login-keycloak';
+      router.push('/login-keycloak');
     } else {
-      window.location.href = '/login-email';
+      router.push('/login-email');
     }
 
   };

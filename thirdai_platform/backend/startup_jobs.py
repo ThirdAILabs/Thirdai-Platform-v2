@@ -124,6 +124,7 @@ async def restart_thirdai_platform_frontend():
             os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT")
         ),
         use_ssl_in_login=os.getenv("USE_SSL_IN_LOGIN").lower(),
+        share_dir=os.getenv("SHARE_DIR"),
         # Model bazaar dockerfile does not include neuraldb_frontend code,
         # but app_dir is only used if platform == local.
         app_dir=str(get_root_absolute_path() / "frontend"),

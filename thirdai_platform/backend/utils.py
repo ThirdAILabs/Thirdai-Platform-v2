@@ -19,18 +19,6 @@ from urllib.parse import urlparse
 logger = logging.getLogger("ThirdAI_Platform")
 
 
-def get_ip_from_url(url):
-    try:
-        parsed_url = urlparse(url)
-        hostname = parsed_url.hostname
-
-        ip_address = socket.gethostbyname(hostname)
-
-        return ip_address
-    except Exception as e:
-        return f"Error parsing URL or resolving IP: {e}"
-
-
 def setup_logger(
     level=logging.DEBUG, format="%(asctime)s | [%(name)s] [%(levelname)s] %(message)s"
 ):

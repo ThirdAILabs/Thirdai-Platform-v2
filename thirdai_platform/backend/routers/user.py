@@ -313,8 +313,7 @@ def delete_user(
 
     delete_all_models_for_user(user, session)
 
-    if user:
-        session.delete(user)
+    session.delete(user)
 
     if identity_provider == "keycloak":
         try:

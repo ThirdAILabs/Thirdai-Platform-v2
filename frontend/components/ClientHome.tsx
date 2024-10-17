@@ -3,7 +3,7 @@
 
 import { useContext } from 'react';
 import { useEffect } from "react";
-import Login from "@/utils/Login";
+import Login from "@/components/Login";
 import { userEmailLoginWithAccessToken } from "@/lib/backend";
 import { UserContext } from '../app/user_wrapper';
 import { Session } from 'next-auth';

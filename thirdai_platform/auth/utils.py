@@ -3,10 +3,9 @@ from urllib.parse import urlparse
 import socket
 import fastapi
 
-socket.setdefaulttimeout(5)
-
 
 def get_ip_from_url(url):
+    socket.setdefaulttimeout(100)
     try:
         parsed_url = urlparse(url)
         hostname = parsed_url.hostname
@@ -90,7 +89,7 @@ def create_client(
                     "config": {},  # Mapper configuration.
                 }
             ],
-            "webOrigins": ["*"],  # Allowed web origins for CORS.
+            "webOrigins": redirect_uris,  # Allowed web origins for CORS.
         }
 
         keycloak_admin.create_client(new_client)  # Create the new client in the realm.

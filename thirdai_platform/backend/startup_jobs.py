@@ -14,8 +14,8 @@ from backend.utils import (
     nomad_job_exists,
     response,
     submit_nomad_job,
-    get_ip_from_url,
 )
+from auth.utils import get_ip_from_url
 from fastapi import status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 
@@ -125,6 +125,7 @@ async def restart_thirdai_platform_frontend():
         ),
         use_ssl_in_login=os.getenv("USE_SSL_IN_LOGIN").lower(),
         share_dir=os.getenv("SHARE_DIR"),
+        nextauth_secret=os.getenv("JWT_SECRET", "random secret"),
         # Model bazaar dockerfile does not include neuraldb_frontend code,
         # but app_dir is only used if platform == local.
         app_dir=str(get_root_absolute_path() / "frontend"),

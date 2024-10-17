@@ -30,7 +30,6 @@ export default function Users() {
   const getUsers = async () => {
     try {
       const response = await fetchAllUsers();
-      console.log('Fetched Users:', response.data);
       const userData = response.data.map(
         (user): User => ({
           id: user.id,

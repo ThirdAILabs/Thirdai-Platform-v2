@@ -36,7 +36,6 @@ function AccessContent() {
   // Determine the user role
   let userRole = '';
   let roleDescription = '';
-  console.log('in page.tsx user -> ', user);
   if (user?.global_admin) {
     userRole = 'Global Admin';
     roleDescription =
@@ -73,23 +72,19 @@ function AccessContent() {
               <TabsTrigger value="workflows" className="flex-1">
                 Workflows
               </TabsTrigger>
-              {user?.teams.length ? (
+              {user?.teams.length && (
                 <TabsTrigger value="teams" className="flex-1">
                   Teams
                 </TabsTrigger>
-              ) : (
-                <></>
               )}
 
               <TabsTrigger value="users" className="flex-1">
                 Users
               </TabsTrigger>
-              {user?.global_admin ? (
+              {user?.global_admin && (
                 <TabsTrigger value="openai" className="flex-1">
                   API Key
                 </TabsTrigger>
-              ) : (
-                <></>
               )}
             </TabsList>
             <div className="mt-6 w-full">

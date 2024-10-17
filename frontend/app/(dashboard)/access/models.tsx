@@ -57,7 +57,8 @@ export default function Models() {
   >(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const { user } = React.useContext(UserContext);
-  const modelPermissions: boolean[] = [];
+  const [modelEditPermissions, setModelEditPermissions] = useState<boolean[]>([]);
+
 
   // Fetch models on component mount
   useEffect(() => {
@@ -93,7 +94,6 @@ export default function Models() {
         })
       );
       setModels(modelData);
-      console.log('Fetched Models:', modelData);
     } catch (error) {
       console.error('Failed to fetch models', error);
       alert('Failed to fetch models' + error);
@@ -107,7 +107,6 @@ export default function Models() {
   const getUsers = async () => {
     try {
       const response = await fetchAllUsers();
-      console.log('Fetched Users:', response.data);
       const userData = response.data.map(
         (user): User => ({
           id: user.id,
@@ -122,7 +121,6 @@ export default function Models() {
         })
       );
       setUsers(userData);
-      console.log('teams data in user-> ', userData);
     } catch (error) {
       console.error('Failed to fetch users', error);
       alert('Failed to fetch users' + error);
@@ -218,14 +216,15 @@ export default function Models() {
   };
 
   //The function decides if the user is allowed to make changes in the access level or delete the model out of n-models.
-  const getModelPermissions = () => {
+  const getModelEditPermissions = () => {
+    const permissions = [];
     for (let index = 0; index < models.length; index++) {
       const model = models[index];
       if (user?.global_admin) {
-        modelPermissions.push(true);
+        permissions.push(true);
         continue;
       }
-      if (model.owner === user?.username) modelPermissions.push(true);
+      if (model.owner === user?.username) permissions.push(true);
       else {
         let value = false;
         if (user?.teams && model.type === 'Protected Model') {
@@ -235,12 +234,16 @@ export default function Models() {
               break;
             }
           }
-          modelPermissions.push(value);
-        } else modelPermissions.push(false);
+          permissions.push(value);
+        } else permissions.push(false);
       }
     }
+    setModelEditPermissions(permissions);
   };
-  getModelPermissions();
+
+  useEffect(() => {
+    getModelEditPermissions();
+  }, [models])
 
   return (
     <div className="mb-12">
@@ -326,7 +329,7 @@ export default function Models() {
                 ) : (
                   <ConditionalButton
                     onClick={() => setEditingIndex(index)}
-                    isDisabled={!modelPermissions[index]}
+                    isDisabled={!modelEditPermissions[index]}
                     tooltipMessage="Global Admin, Model owner and Team Admin can change access"
                     variant="contained"
                   >
@@ -338,7 +341,7 @@ export default function Models() {
               <td className="py-3 px-4">
                 <ConditionalButton
                   onClick={() => handleDeleteModel(index)}
-                  isDisabled={!modelPermissions[index]}
+                  isDisabled={!modelEditPermissions[index]}
                   tooltipMessage="Global Admin, Model owner and Team Admin can delete"
                   variant="contained"
                   color="error"

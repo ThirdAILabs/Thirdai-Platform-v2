@@ -77,7 +77,6 @@ export default function Teams() {
   const getUsers = async () => {
     try {
       const response = await fetchAllUsers();
-      console.log('Fetched Users:', response.data);
       const userData = response.data.map(
         (user): User => ({
           id: user.id,
@@ -318,31 +317,31 @@ export default function Teams() {
     };
   };
 
-  const handleSelectedTeamAdd = (team: string) => {
-    setSelectedTeamForAdd(team);
+  const handleSelectedTeamAdd = (teamName: string) => {
+    setSelectedTeamForAdd(teamName);
     setCanAddMember(false);
     if (user?.teams.length !== undefined) {
       for (let index = 0; index < user?.teams.length; index++) {
-        const element = user?.teams[index];
-        if (element.team_name === team && element.role === 'team_admin') setCanAddMember(true);
+        const team = user?.teams[index];
+        if (team.team_name === teamName && team.role === 'team_admin') setCanAddMember(true);
       }
     }
   };
-  const handleSelectedTeamRemove = (team: string) => {
-    setSelectedTeamForRemove(team);
+  const handleSelectedTeamRemove = (teamName: string) => {
+    setSelectedTeamForRemove(teamName);
     setCanRemoveMember(false);
     if (user?.teams.length !== undefined) {
       for (let index = 0; index < user?.teams.length; index++) {
-        const element = user?.teams[index];
-        if (element.team_name === team && element.role === 'team_admin') setCanRemoveMember(true);
+        const team = user?.teams[index];
+        if (team.team_name === teamName && team.role === 'team_admin') setCanRemoveMember(true);
       }
     }
   };
-  const handleAdminAdd = (team: string) => {
-    setSelectedTeamForAddAdmin(team);
+  const handleAdminAdd = (teamName: string) => {
+    setSelectedTeamForAddAdmin(teamName);
   };
-  const handleAdminRemove = (team: string) => {
-    setSelectedTeamForRemoveAdmin(team);
+  const handleAdminRemove = (teamName: string) => {
+    setSelectedTeamForRemoveAdmin(teamName);
   };
   //Check if the user is Team Admin
   useEffect(() => {
@@ -370,7 +369,7 @@ export default function Teams() {
                 ))}
             </ul>
           </div>
-          {isGlobalAdmin ? (
+          {isGlobalAdmin && (
             <Button
               onClick={() => deleteTeam(team.name)}
               variant="contained"
@@ -379,14 +378,12 @@ export default function Teams() {
             >
               Delete Team
             </Button>
-          ) : (
-            <></>
           )}
         </div>
       ))}
 
       {/* Create New Team */}
-      {isGlobalAdmin ? (
+      {isGlobalAdmin && (
         <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
           <h4 className="text-lg font-semibold text-gray-800">Create New Team</h4>
           <div className="grid grid-cols-1 gap-4 mt-4">
@@ -424,12 +421,10 @@ export default function Teams() {
             </Button>
           </div>
         </div>
-      ) : (
-        <></>
       )}
 
       {/* Add Member to Team */}
-      {isGlobalAdmin || isTeamAdmin ? (
+      {(isGlobalAdmin || isTeamAdmin) && (
         <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
           <h4 className="text-lg font-semibold text-gray-800">Add Member to Team</h4>
           <div className="grid grid-cols-1 gap-4 mt-4">
@@ -447,13 +442,13 @@ export default function Teams() {
               options={
                 selectedTeamForAdd
                   ? users
-                      .map((user) => user.name)
-                      .filter(
-                        (userName) =>
-                          !teams
-                            .find((team) => team.name === selectedTeamForAdd)
-                            ?.members.includes(userName)
-                      )
+                    .map((user) => user.name)
+                    .filter(
+                      (userName) =>
+                        !teams
+                          .find((team) => team.name === selectedTeamForAdd)
+                          ?.members.includes(userName)
+                    )
                   : []
               }
               placeholder="New Member"
@@ -470,12 +465,10 @@ export default function Teams() {
             </ConditionalButton>
           </div>
         </div>
-      ) : (
-        <></>
       )}
 
       {/* Remove Member from Team */}
-      {isGlobalAdmin || isTeamAdmin ? (
+      {(isGlobalAdmin || isTeamAdmin) && (
         <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
           <h4 className="text-lg font-semibold text-gray-800">Remove Member from Team</h4>
           <div className="grid grid-cols-1 gap-4 mt-4">
@@ -508,12 +501,10 @@ export default function Teams() {
             </ConditionalButton>
           </div>
         </div>
-      ) : (
-        <></>
       )}
 
       {/* Add Admin to Team */}
-      {isGlobalAdmin ? (
+      {isGlobalAdmin && (
         <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
           <h4 className="text-lg font-semibold text-gray-800">Add Admin to Team</h4>
           <div className="grid grid-cols-1 gap-4 mt-4">
@@ -535,12 +526,10 @@ export default function Teams() {
             </Button>
           </div>
         </div>
-      ) : (
-        <></>
       )}
 
       {/* Remove Admin from Team */}
-      {isGlobalAdmin ? (
+      {isGlobalAdmin && (
         <div className="bg-gray-100 p-6 rounded-lg shadow-md mb-8">
           <h4 className="text-lg font-semibold text-gray-800">Remove Admin from Team</h4>
           <div className="grid grid-cols-1 gap-4 mt-4">
@@ -571,8 +560,6 @@ export default function Teams() {
             </Button>
           </div>
         </div>
-      ) : (
-        <></>
       )}
     </div>
   );

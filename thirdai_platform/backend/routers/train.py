@@ -765,13 +765,7 @@ def retrain_udt(
         is_retraining=True if not base_model_identifier else False,
     )
 
-    config_path = os.path.join(
-        config.model_bazaar_dir, "models", str(model.id), "train_config.json"
-    )
-
-    os.makedirs(os.path.dirname(config_path), exist_ok=True)
-    with open(config_path, "w") as file:
-        file.write(config.model_dump_json(indent=4))
+    config.save_train_config()
 
     try:
         generate_data_for_train_job(

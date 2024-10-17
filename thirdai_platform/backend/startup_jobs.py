@@ -103,8 +103,6 @@ async def start_on_prem_generate_job(
         docker_username=os.getenv("DOCKER_USERNAME"),
         docker_password=os.getenv("DOCKER_PASSWORD"),
         autoscaling_enabled="true" if autoscaling_enabled else "false",
-        jwt_secret=os.getenv("JWT_SECRET"),
-        jwt_algorithm="HS256",
     )
 
 

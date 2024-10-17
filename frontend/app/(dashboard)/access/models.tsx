@@ -59,7 +59,6 @@ export default function Models() {
   const { user } = React.useContext(UserContext);
   const [modelEditPermissions, setModelEditPermissions] = useState<boolean[]>([]);
 
-
   // Fetch models on component mount
   useEffect(() => {
     getModels();
@@ -243,7 +242,7 @@ export default function Models() {
 
   useEffect(() => {
     getModelEditPermissions();
-  }, [models])
+  }, [models]);
 
   return (
     <div className="mb-12">

@@ -272,6 +272,12 @@ export default function Interact() {
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Reset relevant state
+      setAnnotations([]);
+      setCachedTags({});
+      setParsedData(null);
+      setInputText('');
+
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
       setIsLoading(true);
 

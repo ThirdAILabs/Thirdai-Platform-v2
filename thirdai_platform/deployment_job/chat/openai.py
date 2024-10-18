@@ -61,4 +61,5 @@ class OnPremChat(ChatInterface):
         return ChatOpenAI(
             base_url=urljoin(self.base_url, "on-prem-llm"),
             openai_api_key=self.key,
+            default_headers={"Authorization": f"Bearer {self.key}"}
         )

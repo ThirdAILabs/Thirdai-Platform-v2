@@ -11,7 +11,7 @@ import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from llm_dispatch_job.llms import LLMBase, default_keys, model_classes
+from llm_dispatch_job.llms import LLMBase, model_classes
 from llm_dispatch_job.utils import GenerateArgs
 
 app = FastAPI()
@@ -29,8 +29,15 @@ logging.basicConfig(
 )
 
 
+optional_oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/api/user/email-login", auto_error=False
+)
+
+
 @app.post("/llm-dispatch/generate")
-async def generate(generate_args: GenerateArgs):
+async def generate(
+    generate_args: GenerateArgs, token: str | None = Depends(optional_oauth2_scheme)
+):
     """
     Generate text using a specified generative AI model, with content streamed in real-time.
     Returns a StreamingResponse with chunks of generated text.
@@ -77,8 +84,9 @@ async def generate(generate_args: GenerateArgs):
     Caching:
     - If `original_query` and `cache_access_token` are provided, the generated content will be cached after completion.
     """
-
-    key = generate_args.key or default_keys.get(generate_args.provider.lower())
+    key = generate_args.key
+    if generate_args.provider == "on-prem":
+        key = token
     if not key:
         raise HTTPException(status_code=400, detail="No generative AI key provided")
 

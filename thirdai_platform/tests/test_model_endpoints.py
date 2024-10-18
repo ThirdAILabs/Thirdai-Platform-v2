@@ -162,7 +162,6 @@ def test_update_access_level(create_models_and_users):
         headers=auth_header(user_tokens[0]),
     )
     assert res.status_code == 200
-    print(res.json()["data"])
     assert ["test_model_a"] == [m["model_name"] for m in res.json()["data"]]
 
     res = client.post(

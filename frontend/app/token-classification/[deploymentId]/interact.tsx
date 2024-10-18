@@ -1,8 +1,22 @@
 'use client';
 
-import { Container, Box, CircularProgress, Typography, Switch, FormControlLabel } from '@mui/material';
+import {
+  Container,
+  Box,
+  CircularProgress,
+  Typography,
+  Switch,
+  FormControlLabel,
+} from '@mui/material';
 import { Button } from '@/components/ui/button';
-import React, { CSSProperties, MouseEventHandler, ReactNode, useEffect, useRef, useState } from 'react';
+import React, {
+  CSSProperties,
+  MouseEventHandler,
+  ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Card } from '@/components/ui/card';
 import * as _ from 'lodash';
 import { useTokenClassificationEndpoints } from '@/lib/backend';
@@ -16,7 +30,7 @@ import { Input } from '@/components/ui/input';
 import Fuse from 'fuse.js';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
-import FeedbackDashboard from './FeedbackDashboard'
+import FeedbackDashboard from './FeedbackDashboard';
 
 interface Token {
   text: string;
@@ -95,8 +109,8 @@ function Highlight({
             hover || selecting
               ? SELECTING_COLOR
               : selected
-              ? SELECTED_COLOR
-              : tagColors[currentToken.tag]?.text || 'transparent',
+                ? SELECTED_COLOR
+                : tagColors[currentToken.tag]?.text || 'transparent',
           padding: '2px',
           borderRadius: '2px',
           cursor: hover ? 'pointer' : 'default',
@@ -150,7 +164,7 @@ function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSel
   const [searchableChoices, setSearchableChoices] = useState<string[]>([]);
 
   useEffect(() => {
-    const updatedChoices = choices.filter(choice => choice !== 'O');
+    const updatedChoices = choices.filter((choice) => choice !== 'O');
     if (currentTag !== 'O') {
       updatedChoices.unshift('Delete TAG');
     }
@@ -158,9 +172,8 @@ function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSel
     setFuse(new Fuse(updatedChoices));
   }, [choices, currentTag]);
 
-  const searchResults = query !== '' 
-    ? fuse.search(query).map((result) => result.item) 
-    : searchableChoices;
+  const searchResults =
+    query !== '' ? fuse.search(query).map((result) => result.item) : searchableChoices;
 
   const makeDropdownMenuItem = (key: number, value: string, child: ReactNode) => (
     <DropdownMenuItem className="font-medium" key={key}>
@@ -224,7 +237,8 @@ function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSel
 }
 
 export default function Interact() {
-  const { predict, insertSample, addLabel, getLabels, getTextFromFile } = useTokenClassificationEndpoints();
+  const { predict, insertSample, addLabel, getLabels, getTextFromFile } =
+    useTokenClassificationEndpoints();
 
   const [inputText, setInputText] = useState<string>('');
   const [annotations, setAnnotations] = useState<Token[]>([]);
@@ -288,10 +302,10 @@ export default function Interact() {
         try {
           const content = await getTextFromFile(file);
           console.log('content', content);
-          parsed = { 
-            type: 'pdf', 
+          parsed = {
+            type: 'pdf',
             content: content.join('\n'),
-            pdfParagraphs: content
+            pdfParagraphs: content,
           };
         } catch (error) {
           console.error('Error parsing file:', error);
@@ -363,7 +377,11 @@ export default function Interact() {
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as (string | number | null)[][];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as (
+          | string
+          | number
+          | null
+        )[][];
 
         if (jsonData.length < 2) {
           resolve([]);
@@ -447,7 +465,7 @@ export default function Interact() {
       }
 
       const labels = await getLabels();
-      const filteredLabels = labels.filter(label => label !== 'O');
+      const filteredLabels = labels.filter((label) => label !== 'O');
       setAllLabels(filteredLabels);
       updateTagColors([filteredLabels]);
     } catch (error) {
@@ -464,9 +482,9 @@ export default function Interact() {
   const handleNewLabel = async (newLabel: string) => {
     try {
       await addLabel({
-        tags: [{ name: newLabel, description: `Description for ${newLabel}` }]
+        tags: [{ name: newLabel, description: `Description for ${newLabel}` }],
       });
-      setAllLabels(prevLabels => [...prevLabels, newLabel]);
+      setAllLabels((prevLabels) => [...prevLabels, newLabel]);
       console.log('New label added successfully');
     } catch (error) {
       console.error('Error adding new label:', error);
@@ -476,7 +494,6 @@ export default function Interact() {
   function isColumnData(entry: CachedTagEntry): entry is ColumnData {
     return (entry as ColumnData).content !== undefined;
   }
-  
 
   function mergeTokens(existingTokens: Token[], newTokens: Token[]): Token[] {
     return existingTokens.map((token, index) => {
@@ -487,11 +504,11 @@ export default function Interact() {
       }
       return token;
     });
-  }  
-  
+  }
 
-  const convertCSVToPDFFormat = (rows: { label: string; content: string }[]):
-    { words: { text: string; originalIndex: number }[], rowIndices: number[] } => {
+  const convertCSVToPDFFormat = (
+    rows: { label: string; content: string }[]
+  ): { words: { text: string; originalIndex: number }[]; rowIndices: number[] } => {
     let globalIndex = 0;
     const words: { text: string; originalIndex: number }[] = [];
     const rowIndices: number[] = [];
@@ -500,9 +517,9 @@ export default function Interact() {
       rowIndices.push(globalIndex);
       // Trim the content and replace multiple spaces with a single space
       const trimmedContent = row.content.replace(/\s+/g, ' ').trim();
-      const rowWords = trimmedContent.split(' ').filter(word => word !== '');
+      const rowWords = trimmedContent.split(' ').filter((word) => word !== '');
       // console.log(`Row ${index}: "${trimmedContent}" -> ${rowWords.length} words`);
-      rowWords.forEach(word => {
+      rowWords.forEach((word) => {
         words.push({ text: word, originalIndex: globalIndex });
         globalIndex++;
       });
@@ -550,7 +567,7 @@ export default function Interact() {
           : token.tag,
     }));
 
-    console.log('updatedTags', updatedTags)
+    console.log('updatedTags', updatedTags);
 
     setCachedTags((prev) => {
       const updatedCachedTags: CachedTags = { ...prev };
@@ -560,12 +577,12 @@ export default function Interact() {
         let rowIndices: number[] | null = null;
         let isCSV = false;
         let isDirectQuery = false;
-  
+
         if (parsedData.type === 'pdf' && parsedData.pdfParagraphs) {
           paragraphs = parsedData.pdfParagraphs;
         } else if ((parsedData.type === 'csv' || parsedData.type === 'other') && parsedData.rows) {
           const csvData = convertCSVToPDFFormat(parsedData.rows);
-          paragraphs = parsedData.rows.map(row => row.content.replace(/\n/g, ' '));
+          paragraphs = parsedData.rows.map((row) => row.content.replace(/\n/g, ' '));
           rowIndices = csvData.rowIndices;
           isCSV = true;
         } else {
@@ -574,7 +591,7 @@ export default function Interact() {
           paragraphs = [parsedData.content]; // Treat the entire content as a single paragraph
         }
 
-        console.log('selectedRange', selectedRange)
+        console.log('selectedRange', selectedRange);
 
         let relevantParagraphIndex: number;
         if (isDirectQuery) {
@@ -584,16 +601,18 @@ export default function Interact() {
         } else {
           relevantParagraphIndex = findParagraphIndex(selectedRange, paragraphs);
         }
-  
-        console.log('relevantParagraphIndex', relevantParagraphIndex)
+
+        console.log('relevantParagraphIndex', relevantParagraphIndex);
 
         if (relevantParagraphIndex !== -1) {
           const relevantParagraph = paragraphs[relevantParagraphIndex];
-  
+
           // Use paragraph index as key
-          const feedbackKey = isDirectQuery ? 'direct-query' : 
-          isCSV ? `row-${relevantParagraphIndex}` : 
-          `paragraph-${relevantParagraphIndex}`;
+          const feedbackKey = isDirectQuery
+            ? 'direct-query'
+            : isCSV
+              ? `row-${relevantParagraphIndex}`
+              : `paragraph-${relevantParagraphIndex}`;
 
           // Tokenize the paragraph
           const paragraphTokens = tokenizeParagraph(relevantParagraph);
@@ -605,16 +624,16 @@ export default function Interact() {
           } else if (isCSV && rowIndices) {
             paragraphStartIndex = rowIndices[relevantParagraphIndex];
           } else {
-          let tokenCount = 0;
+            let tokenCount = 0;
             for (let i = 0; i < relevantParagraphIndex; i++) {
               tokenCount += tokenizeParagraph(paragraphs[i]).length;
             }
             paragraphStartIndex = tokenCount;
           }
 
-          console.log('rowIndices', rowIndices)
-          console.log('updatedTags 2', updatedTags)
-          console.log('paragraphStartIndex', paragraphStartIndex)
+          console.log('rowIndices', rowIndices);
+          console.log('updatedTags 2', updatedTags);
+          console.log('paragraphStartIndex', paragraphStartIndex);
 
           // Create new content with correct tags
           const newContent = paragraphTokens.map((word, index) => ({
@@ -622,7 +641,7 @@ export default function Interact() {
             tag: updatedTags[paragraphStartIndex + index]?.tag || 'O',
           }));
 
-          console.log('newContent', newContent)
+          console.log('newContent', newContent);
 
           // Update cachedTags
           if (updatedCachedTags[feedbackKey]) {
@@ -634,18 +653,20 @@ export default function Interact() {
             }
           } else {
             updatedCachedTags[feedbackKey] = {
-              columnName: isDirectQuery ? 'Direct Query' : 
-                          isCSV ? `Row ${relevantParagraphIndex + 1}` : 
-                          `Paragraph ${relevantParagraphIndex + 1}`,
+              columnName: isDirectQuery
+                ? 'Direct Query'
+                : isCSV
+                  ? `Row ${relevantParagraphIndex + 1}`
+                  : `Paragraph ${relevantParagraphIndex + 1}`,
               content: newContent,
             };
           }
         }
       }
-  
+
       return updatedCachedTags;
     });
-  
+
     setAnnotations(updatedTags);
     updateTagColors([[newTag]]);
     setSelectedRange(null);
@@ -655,25 +676,25 @@ export default function Interact() {
   };
 
   const updateFeedbackDashboard = () => {
-    setCachedTags(prev => {
+    setCachedTags((prev) => {
       const updatedCachedTags: CachedTags = { ...prev };
-      
-      Object.keys(updatedCachedTags).forEach(sentence => {
+
+      Object.keys(updatedCachedTags).forEach((sentence) => {
         const entry = updatedCachedTags[sentence];
-        
+
         if (Array.isArray(entry)) {
           // Handle Token[] case
-          if (!entry.some(token => token.tag !== 'O')) {
+          if (!entry.some((token) => token.tag !== 'O')) {
             delete updatedCachedTags[sentence];
           }
         } else if ('content' in entry) {
           // Handle ColumnData case
-          if (!entry.content.some(token => token.tag !== 'O')) {
+          if (!entry.content.some((token) => token.tag !== 'O')) {
             delete updatedCachedTags[sentence];
           }
         }
       });
-  
+
       return updatedCachedTags;
     });
   };
@@ -685,20 +706,20 @@ export default function Interact() {
   const submitFeedback = async () => {
     try {
       for (const [sentence, tags] of Object.entries(cachedTags)) {
-        let submission: { tokens: string[], tags: string[] };
-        
+        let submission: { tokens: string[]; tags: string[] };
+
         if (Array.isArray(tags)) {
           submission = {
-            tokens: tags.map(t => t.text),
-            tags: tags.map(t => t.tag),
+            tokens: tags.map((t) => t.text),
+            tags: tags.map((t) => t.tag),
           };
         } else {
           submission = {
-            tokens: tags.content.map(t => t.text),
-            tags: tags.content.map(t => t.tag),
+            tokens: tags.content.map((t) => t.text),
+            tags: tags.content.map((t) => t.tag),
           };
         }
-        
+
         await insertSample(submission);
       }
       console.log('All samples inserted successfully');
@@ -709,7 +730,7 @@ export default function Interact() {
   };
 
   const deleteFeedbackExample = (feedbackKey: string) => {
-    setCachedTags(prev => {
+    setCachedTags((prev) => {
       const updatedCachedTags = { ...prev };
       delete updatedCachedTags[feedbackKey];
       return updatedCachedTags;
@@ -726,20 +747,25 @@ export default function Interact() {
     );
   };
 
-  const renderHighlightedCSVContent = (content: string, rowWords: { text: string; originalIndex: number }[]) => {
+  const renderHighlightedCSVContent = (
+    content: string,
+    rowWords: { text: string; originalIndex: number }[]
+  ) => {
     const words = content.split(/\s+/);
     let currentRowWordIndex = 0;
-  
+
     return words.map((word, wordIndex) => {
-      while (currentRowWordIndex < rowWords.length && 
-             rowWords[currentRowWordIndex].text.toLowerCase() !== word.toLowerCase()) {
+      while (
+        currentRowWordIndex < rowWords.length &&
+        rowWords[currentRowWordIndex].text.toLowerCase() !== word.toLowerCase()
+      ) {
         currentRowWordIndex++;
       }
-  
+
       if (currentRowWordIndex < rowWords.length) {
         const { text, originalIndex } = rowWords[currentRowWordIndex];
         currentRowWordIndex++;
-  
+
         return (
           <Highlight
             key={`${wordIndex}-${originalIndex}`}
@@ -768,7 +794,7 @@ export default function Interact() {
           />
         );
       }
-  
+
       return <span key={`${wordIndex}-text`}>{word} </span>;
     });
   };
@@ -841,65 +867,65 @@ export default function Interact() {
     setMouseUpIndex(index);
     setSelectedTokenIndex(index);
   };
-  
+
   const handleMouseOver = (index: number) => {
     if (selecting) {
       setMouseUpIndex(index);
     }
   };
-  
+
   const renderHighlightedContent = (content: string) => {
     const words = content.split(/\s+/);
     let currentIndex = 0;
 
-    return words.map((word, wordIndex) => {
-      const tokenIndex = annotations.findIndex(
-        (token, index) => 
-          token.text.toLowerCase() === word.toLowerCase() && 
-          index >= currentIndex
-      );
-
-      if (tokenIndex !== -1) {
-        currentIndex = tokenIndex + 1;
-        return (
-          <Highlight
-            key={`${wordIndex}-${tokenIndex}`}
-            currentToken={annotations[tokenIndex]}
-            tokenIndex={tokenIndex}
-            nextToken={annotations[tokenIndex + 1] || null}
-            tagColors={tagColors}
-            onMouseOver={handleMouseOver}
-            onMouseDown={handleMouseDown}
-            selecting={
-              selecting &&
-              startIndex !== null &&
-              endIndex !== null &&
-              tokenIndex >= startIndex &&
-              tokenIndex <= endIndex
-            }
-            selected={
-              selectedRange !== null &&
-              tokenIndex >= selectedRange[0] &&
-              tokenIndex <= selectedRange[1]
-            }
-            showDropdown={tokenIndex === selectedTokenIndex}
-            allLabels={allLabels}
-            onSelectTag={cacheNewTag}
-            onNewLabel={handleNewLabel}
-          />
+    return words
+      .map((word, wordIndex) => {
+        const tokenIndex = annotations.findIndex(
+          (token, index) => token.text.toLowerCase() === word.toLowerCase() && index >= currentIndex
         );
-      }
 
-      // Render non-highlighted words
-      if (!showHighlightedOnly || (tokenIndex !== -1 && annotations[tokenIndex].tag !== 'O')) {
-        return <span key={`${wordIndex}-text`}>{word} </span>;
-      }
-      
-      // If showHighlightedOnly is true and this word is not tagged, return null
-      return null;
-    }).filter(Boolean); // Remove null elements
+        if (tokenIndex !== -1) {
+          currentIndex = tokenIndex + 1;
+          return (
+            <Highlight
+              key={`${wordIndex}-${tokenIndex}`}
+              currentToken={annotations[tokenIndex]}
+              tokenIndex={tokenIndex}
+              nextToken={annotations[tokenIndex + 1] || null}
+              tagColors={tagColors}
+              onMouseOver={handleMouseOver}
+              onMouseDown={handleMouseDown}
+              selecting={
+                selecting &&
+                startIndex !== null &&
+                endIndex !== null &&
+                tokenIndex >= startIndex &&
+                tokenIndex <= endIndex
+              }
+              selected={
+                selectedRange !== null &&
+                tokenIndex >= selectedRange[0] &&
+                tokenIndex <= selectedRange[1]
+              }
+              showDropdown={tokenIndex === selectedTokenIndex}
+              allLabels={allLabels}
+              onSelectTag={cacheNewTag}
+              onNewLabel={handleNewLabel}
+            />
+          );
+        }
+
+        // Render non-highlighted words
+        if (!showHighlightedOnly || (tokenIndex !== -1 && annotations[tokenIndex].tag !== 'O')) {
+          return <span key={`${wordIndex}-text`}>{word} </span>;
+        }
+
+        // If showHighlightedOnly is true and this word is not tagged, return null
+        return null;
+      })
+      .filter(Boolean); // Remove null elements
   };
-  
+
   // Add this effect to close the dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -907,7 +933,7 @@ export default function Interact() {
         setSelectedTokenIndex(null);
       }
     };
-  
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
@@ -921,7 +947,7 @@ export default function Interact() {
       lineHeight: 2, // Adjusted line height
       position: 'relative',
     };
-  
+
     if (parsedData.type === 'csv' && parsedData.rows) {
       return <div style={contentStyle}>{renderCSVContent(parsedData.rows)}</div>;
     } else if (parsedData.type === 'pdf' && parsedData.pdfParagraphs) {
@@ -932,13 +958,15 @@ export default function Interact() {
   };
 
   return (
-    <Container style={{ 
-      display: 'flex', 
-      width: '90%', 
-      maxWidth: '1200px', 
-      marginTop: '20vh',
-      paddingBottom: '100vh' // Add extra space at the bottom
-    }}>
+    <Container
+      style={{
+        display: 'flex',
+        width: '90%',
+        maxWidth: '1200px',
+        marginTop: '20vh',
+        paddingBottom: '100vh', // Add extra space at the bottom
+      }}
+    >
       <div style={{ flex: 2, marginRight: '20px' }}>
         <Box display="flex" justifyContent="center" alignItems="center" width="100%">
           <label htmlFor="file-upload" style={{ marginRight: '10px' }}>
@@ -1020,10 +1048,12 @@ export default function Interact() {
           )
         )}
       </div>
-      <div style={{ 
-        flex: 1, 
-        marginTop: '4.7cm' // This will push the FeedbackDashboard 1cm lower
-      }}>
+      <div
+        style={{
+          flex: 1,
+          marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
+        }}
+      >
         <Card className="p-7 text-start">
           <FeedbackDashboard
             cachedTags={cachedTags}

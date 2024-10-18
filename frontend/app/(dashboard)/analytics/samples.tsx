@@ -6,9 +6,7 @@ import { associations, reformulations, upvotes } from './mock_samples';
 import useRollingSamples from './rolling';
 import axios from 'axios';
 
-const Separator: React.FC = () => (
-  <hr className="my-3 border-t border-gray-200" />
-);
+const Separator: React.FC = () => <hr className="my-3 border-t border-gray-200" />;
 
 interface TextPairsProps {
   timestamp: string;
@@ -92,7 +90,7 @@ const Highlight: React.FC<HighlightProps> = ({
   onMouseOver,
   onMouseDown,
   selecting,
-  selected
+  selected,
 }) => {
   const [hover, setHover] = useState<boolean>(false);
 
@@ -142,7 +140,9 @@ const HighlightedSample: React.FC<HighlightedSampleProps> = ({ tokens, tags, tag
       <Highlight
         key={index}
         currentToken={{ text: token, tag: tags[index] }}
-        nextToken={index < tokens.length - 1 ? { text: tokens[index + 1], tag: tags[index + 1] } : null}
+        nextToken={
+          index < tokens.length - 1 ? { text: tokens[index + 1], tag: tags[index + 1] } : null
+        }
         tagColors={tagColors}
         onMouseOver={() => {}}
         onMouseDown={() => {}}
@@ -198,7 +198,7 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
 
   useEffect(() => {
     const updateTagColors = () => {
-      const allTags = recentSamples.flatMap(sample => sample.tags);
+      const allTags = recentSamples.flatMap((sample) => sample.tags);
       const uniqueTags = Array.from(new Set(allTags)).filter((tag) => tag !== 'O');
       const newColors: Record<string, HighlightColor> = {};
 
@@ -223,8 +223,8 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
     updateTagColors();
   }, [recentSamples]);
 
-    // Create a set of unique labels and convert it back to an array
-    const uniqueLabels = Array.from(new Set(recentLabels));
+  // Create a set of unique labels and convert it back to an array
+  const uniqueLabels = Array.from(new Set(recentLabels));
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -234,7 +234,9 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
           <CardDescription>The latest added labels</CardDescription>
         </CardHeader>
         <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">
-          {labelError && <div className="text-red-500">Error fetching labels: {labelError.message}</div>}
+          {labelError && (
+            <div className="text-red-500">Error fetching labels: {labelError.message}</div>
+          )}
           {uniqueLabels.map((label, idx) => (
             <React.Fragment key={idx}>
               {idx > 0 && <Separator />}
@@ -251,7 +253,9 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
           <CardDescription>The latest inserted samples</CardDescription>
         </CardHeader>
         <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">
-          {sampleError && <div className="text-red-500">Error fetching samples: {sampleError.message}</div>}
+          {sampleError && (
+            <div className="text-red-500">Error fetching samples: {sampleError.message}</div>
+          )}
           {recentSamples.map((sample, idx) => (
             <React.Fragment key={idx}>
               {idx > 0 && <Separator />}

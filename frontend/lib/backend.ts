@@ -332,7 +332,9 @@ export function retrainNER({ model_name, base_model_identifier }: RetrainNERPara
         if (axios.isAxiosError(err)) {
           const axiosError = err as AxiosError;
           if (axiosError.response && axiosError.response.data) {
-            reject(new Error((axiosError.response.data as any).detail || 'Failed to retrain UDT model'));
+            reject(
+              new Error((axiosError.response.data as any).detail || 'Failed to retrain UDT model')
+            );
           } else {
             reject(new Error('Failed to retrain UDT model'));
           }
@@ -795,7 +797,11 @@ interface UseLabelsResult {
   error: Error | null;
 }
 
-export function useLabels({ deploymentUrl, pollingInterval = 5000, maxRecentLabels = 5 }: UseLabelsOptions): UseLabelsResult {
+export function useLabels({
+  deploymentUrl,
+  pollingInterval = 5000,
+  maxRecentLabels = 5,
+}: UseLabelsOptions): UseLabelsResult {
   const [allLabels, setAllLabels] = useState<Set<string>>(new Set());
   const [recentLabels, setRecentLabels] = useState<string[]>([]);
   const [error, setError] = useState<Error | null>(null);
@@ -808,12 +814,12 @@ export function useLabels({ deploymentUrl, pollingInterval = 5000, maxRecentLabe
       const response = await axios.get<{ data: string[] }>(`${deploymentUrl}/get_labels`);
       const labels = response.data.data;
 
-      setAllLabels(prevLabels => {
+      setAllLabels((prevLabels) => {
         const newLabels = new Set(prevLabels);
         labels.forEach((label: string) => {
           if (!prevLabels.has(label)) {
             newLabels.add(label);
-            setRecentLabels(prev => [label, ...prev].slice(0, maxRecentLabels));
+            setRecentLabels((prev) => [label, ...prev].slice(0, maxRecentLabels));
           }
         });
         return newLabels;
@@ -853,10 +859,10 @@ interface UseRecentSamplesResult {
   error: Error | null;
 }
 
-export function useRecentSamples({ 
-  deploymentUrl, 
-  pollingInterval = 5000, 
-  maxRecentSamples = 5 
+export function useRecentSamples({
+  deploymentUrl,
+  pollingInterval = 5000,
+  maxRecentSamples = 5,
 }: UseRecentSamplesOptions): UseRecentSamplesResult {
   const [recentSamples, setRecentSamples] = useState<Sample[]>([]);
   const [error, setError] = useState<Error | null>(null);
@@ -1019,58 +1025,60 @@ export function useTokenClassificationEndpoints() {
       }
     });
 
-    const insertSample = async (sample: { tokens: string[], tags: string[] }): Promise<void> => {
-      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-      try {
-        await axios.post(`${deploymentUrl}/insert_sample`, sample);
-      } catch (error) {
-        console.error('Error inserting sample:', error);
-        alert('Error inserting sample:' + error);
-        throw new Error('Failed to insert sample');
-      }
-    };
-  
-    const addLabel = async (labels: { tags: { name: string, description: string }[] }): Promise<void> => {
-      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-      try {
-        await axios.post(`${deploymentUrl}/add_labels`, labels);
-      } catch (error) {
-        console.error('Error adding label:', error);
-        alert('Error adding label:' + error);
-        throw new Error('Failed to add label');
-      }
-    };
-  
-    const getLabels = async (): Promise<string[]> => {
-      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-      try {
-        const response = await axios.get(`${deploymentUrl}/get_labels`);
-        return response.data.data;
-      } catch (error) {
-        console.error('Error fetching labels:', error);
-        alert('Error fetching labels:' + error);
-        throw new Error('Failed to fetch labels');
-      }
-    };
-  
-    const getTextFromFile = async (file: File): Promise<string[]> => {
-      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-      const formData = new FormData();
-      formData.append('file', file);
-  
-      try {
-        const response = await axios.post(`${deploymentUrl}/get-text`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-        return response.data.data;
-      } catch (error) {
-        console.error('Error parsing file:', error);
-        alert('Error parsing file:' + error);
-        throw new Error('Failed to parse file');
-      }
-    };
+  const insertSample = async (sample: { tokens: string[]; tags: string[] }): Promise<void> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      await axios.post(`${deploymentUrl}/insert_sample`, sample);
+    } catch (error) {
+      console.error('Error inserting sample:', error);
+      alert('Error inserting sample:' + error);
+      throw new Error('Failed to insert sample');
+    }
+  };
+
+  const addLabel = async (labels: {
+    tags: { name: string; description: string }[];
+  }): Promise<void> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      await axios.post(`${deploymentUrl}/add_labels`, labels);
+    } catch (error) {
+      console.error('Error adding label:', error);
+      alert('Error adding label:' + error);
+      throw new Error('Failed to add label');
+    }
+  };
+
+  const getLabels = async (): Promise<string[]> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      const response = await axios.get(`${deploymentUrl}/get_labels`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching labels:', error);
+      alert('Error fetching labels:' + error);
+      throw new Error('Failed to fetch labels');
+    }
+  };
+
+  const getTextFromFile = async (file: File): Promise<string[]> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post(`${deploymentUrl}/get-text`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error parsing file:', error);
+      alert('Error parsing file:' + error);
+      throw new Error('Failed to parse file');
+    }
+  };
 
   return {
     workflowName,

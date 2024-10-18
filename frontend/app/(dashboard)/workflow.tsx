@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { useContext, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@mui/material';
+import { Button, RadioGroup, Radio } from '@mui/material';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,11 +27,18 @@ enum DeployStatus {
   Failed = 'Failed',
 }
 
+enum DeployMode {
+  Dev = 'Dev',
+  Production = 'Production',
+}
+
 export function WorkFlow({ workflow }: { workflow: Workflow }) {
   const { user } = useContext(UserContext);
   const [deployStatus, setDeployStatus] = useState<DeployStatus>(DeployStatus.None);
   const [deployType, setDeployType] = useState<string>('');
   const [modelOwner, setModelOwner] = useState<{ [key: string]: string }>({});
+  const [selectedMode, setSelectedMode] = useState<DeployMode>(DeployMode.Dev);
+  const [showDeploymentModal, setShowDeploymentModal] = useState(false);
 
   useEffect(() => {
     getModelsData();
@@ -104,15 +111,35 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
     }
   }
 
-  const handleDeploy = async () => {
+  const handleStartWorkflow = () => {
+    if (deployStatus === DeployStatus.Active) {
+      goToEndpoint();
+    } else if (workflow.type === 'ndb' || workflow.type  === 'enterprise-search') {
+      setShowDeploymentModal(true);
+    } else {
+      handleDeploy(null); // For 'udt' type, start directly without mode selection
+    }
+  };
+
+  const handleDeploy = async (mode: DeployMode | null = null) => {
     if (deployStatus == DeployStatus.Inactive) {
       setDeployStatus(DeployStatus.Starting);
       try {
-        await start_workflow(workflow.username, workflow.model_name);
+        const autoscalingEnabled = mode === DeployMode.Production;
+        await start_workflow(workflow.username, workflow.model_name, autoscalingEnabled);
       } catch (e) {
         console.error('Failed to start workflow.', e);
       }
     }
+  };
+
+  const toggleDeploymentModal = () => {
+    setShowDeploymentModal(!showDeploymentModal);
+  };
+
+  const handleModeSelection = async () => {
+    toggleDeploymentModal();
+    await handleDeploy();
   };
 
   useEffect(() => {
@@ -192,10 +219,10 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       </TableCell>
       <TableCell className="hidden md:table-cell text-center font-medium">
         <Button
-          onClick={deployStatus === 'Active' ? goToEndpoint : handleDeploy}
+          onClick={handleStartWorkflow}
           variant="contained"
           style={{ width: '100px' }}
-          disabled={deployStatus != DeployStatus.Active && deployStatus != DeployStatus.Inactive}
+          disabled={deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive}
         >
           {getButtonValue(deployStatus)}
         </Button>
@@ -322,6 +349,36 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                   {/* ))} */}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal for selecting between Dev mode and Production mode */}
+      {showDeploymentModal && (
+        <Modal onClose={toggleDeploymentModal}>
+          <div className="p-4">
+            <h2 className="text-lg font-bold mb-4">Choose Configuration</h2>
+            <div>
+              <RadioGroup
+                aria-label="mode-selection"
+                value={selectedMode}
+                onChange={(e) => setSelectedMode(e.target.value as DeployMode)}
+              >
+                <div className="flex items-center">
+                  <Radio value={DeployMode.Dev} />
+                  <span>Dev Mode</span>
+                </div>
+                <div className="flex items-center">
+                  <Radio value={DeployMode.Production} />
+                  <span>Production Mode</span>
+                </div>
+              </RadioGroup>
+              <div className="mt-4">
+                <Button onClick={handleModeSelection} variant="contained">
+                  Confirm
+                </Button>
+              </div>
             </div>
           </div>
         </Modal>

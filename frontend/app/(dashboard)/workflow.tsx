@@ -42,7 +42,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
     const tempModelOwner: { [key: string]: string } = {}; // TypeScript object to store name as key and owner as value
     if (modelData) {
       for (let index = 0; index < modelData.length; index++) {
-        const name = modelData[index].name
+        const name = modelData[index].name;
         const owner = modelData[index].owner;
         tempModelOwner[name] = owner;
       }
@@ -252,42 +252,43 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               </DropdownMenuItem>
             )}
 
-            {(workflow.type === 'ndb' && ((modelOwner[workflow.model_name] === user?.username) || user?.global_admin)) && (
-              <DropdownMenuItem>
-                <form>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (window.confirm('Are you sure you want to delete this workflow?')) {
-                        try {
-                          const response = await delete_workflow(
-                            workflow.username,
-                            workflow.model_name
-                          );
-                          console.log('Workflow deleted successfully:', response);
-                        } catch (error) {
-                          console.error('Error deleting workflow:', error);
-                          alert('Error deleting workflow:' + error);
-                        }
-                      }
-                    }}
-                  >
-                    Delete App
-                  </button>
-                </form>
-              </DropdownMenuItem>
-            )}
-
-            {(workflow.type === 'ndb' && ((modelOwner[workflow.model_name] === user?.username) || user?.global_admin)) && (
-              <Link
-                href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
-              >
+            {workflow.type === 'ndb' &&
+              (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
                 <DropdownMenuItem>
-                  <button type="button">Search usage stats</button>
+                  <form>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (window.confirm('Are you sure you want to delete this workflow?')) {
+                          try {
+                            const response = await delete_workflow(
+                              workflow.username,
+                              workflow.model_name
+                            );
+                            console.log('Workflow deleted successfully:', response);
+                          } catch (error) {
+                            console.error('Error deleting workflow:', error);
+                            alert('Error deleting workflow:' + error);
+                          }
+                        }
+                      }}
+                    >
+                      Delete App
+                    </button>
+                  </form>
                 </DropdownMenuItem>
-              </Link>
-            )}
+              )}
 
+            {workflow.type === 'ndb' &&
+              (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
+                <Link
+                  href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
+                >
+                  <DropdownMenuItem>
+                    <button type="button">Search usage stats</button>
+                  </DropdownMenuItem>
+                </Link>
+              )}
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

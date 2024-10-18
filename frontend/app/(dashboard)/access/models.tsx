@@ -1,10 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@mui/material';
-import {
-  updateModelAccessLevel,
-  deleteModel,
-} from '@/lib/backend';
+import { updateModelAccessLevel, deleteModel } from '@/lib/backend';
 import { UserContext } from '../../user_wrapper';
 import ConditionalButton from '@/components/ui/ConditionalButton';
 import { getModels, getTeams, getUsers, Model, Team, User } from '@/utils/apiRequests';
@@ -28,8 +25,7 @@ export default function Models() {
 
   async function getModelsData() {
     const modelData = await getModels();
-    if (modelData)
-      setModels(modelData);
+    if (modelData) setModels(modelData);
   }
 
   useEffect(() => {
@@ -38,8 +34,7 @@ export default function Models() {
 
   async function getUsersData() {
     const userData = await getUsers();
-    if (userData)
-      setUsers(userData);
+    if (userData) setUsers(userData);
   }
 
   useEffect(() => {
@@ -48,8 +43,7 @@ export default function Models() {
 
   async function getTeamsData() {
     const teamData = await getTeams();
-    if (teamData)
-      setTeams(teamData);
+    if (teamData) setTeams(teamData);
   }
 
   // Function to handle model type change

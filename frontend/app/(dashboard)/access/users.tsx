@@ -16,8 +16,7 @@ export default function Users() {
 
   async function getUsersData() {
     const userData = await getUsers();
-    if (userData)
-      setUsers(userData);
+    if (userData) setUsers(userData);
   }
 
   const deleteUser = async (userName: string) => {

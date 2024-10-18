@@ -57,8 +57,7 @@ export default function Teams() {
 
   async function getModelsData() {
     const modelData = await getModels();
-    if (modelData)
-      setModels(modelData);
+    if (modelData) setModels(modelData);
   }
 
   useEffect(() => {
@@ -67,8 +66,7 @@ export default function Teams() {
 
   async function getUsersData() {
     const userData = await getUsers();
-    if (userData)
-      setUsers(userData);
+    if (userData) setUsers(userData);
   }
 
   useEffect(() => {
@@ -77,8 +75,7 @@ export default function Teams() {
 
   async function getTeamsData() {
     const teamData = await getTeams();
-    if (teamData)
-      setTeams(teamData);
+    if (teamData) setTeams(teamData);
   }
 
   const createNewTeam = async () => {
@@ -391,13 +388,13 @@ export default function Teams() {
               options={
                 selectedTeamForAdd
                   ? users
-                    .map((user) => user.name)
-                    .filter(
-                      (userName) =>
-                        !teams
-                          .find((team) => team.name === selectedTeamForAdd)
-                          ?.members.includes(userName)
-                    )
+                      .map((user) => user.name)
+                      .filter(
+                        (userName) =>
+                          !teams
+                            .find((team) => team.name === selectedTeamForAdd)
+                            ?.members.includes(userName)
+                      )
                   : []
               }
               placeholder="New Member"

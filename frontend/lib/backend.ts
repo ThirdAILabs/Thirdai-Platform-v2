@@ -1066,7 +1066,7 @@ export async function fetchAllModels(): Promise<{ data: ModelResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/model/all-models`)
+      .get(`${thirdaiPlatformBaseUrl}/api/model/list`)
       .then((res) => {
         resolve(res.data);
       })
@@ -1100,7 +1100,7 @@ export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/user/all-users`)
+      .get(`${thirdaiPlatformBaseUrl}/api/user/list`)
       .then((res) => {
         resolve(res.data);
       })

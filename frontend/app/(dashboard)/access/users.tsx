@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@mui/material';
 import { fetchAllUsers, deleteUserAccount } from '@/lib/backend';
-
+import { UserContext } from '../../user_wrapper';
 type UserTeam = {
   id: string;
   name: string;
@@ -19,6 +19,8 @@ type User = {
 };
 
 export default function Users() {
+  const { user } = React.useContext(UserContext);
+  const isGlobalAdmin = user?.global_admin;
   const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
@@ -28,7 +30,6 @@ export default function Users() {
   const getUsers = async () => {
     try {
       const response = await fetchAllUsers();
-      console.log('Fetched Users:', response.data);
       const userData = response.data.map(
         (user): User => ({
           id: user.id,
@@ -88,9 +89,18 @@ export default function Users() {
           {user.ownedModels.length > 0 && (
             <div className="text-gray-700">Owned Models: {user.ownedModels.join(', ')}</div>
           )}
-          <Button onClick={() => deleteUser(user.name)} variant="contained" color="error">
-            Delete User
-          </Button>
+          {isGlobalAdmin ? (
+            <Button
+              onClick={() => deleteUser(user.name)}
+              variant="contained"
+              color="error"
+              disabled={!isGlobalAdmin}
+            >
+              Delete User
+            </Button>
+          ) : (
+            <></>
+          )}
         </div>
       ))}
     </div>

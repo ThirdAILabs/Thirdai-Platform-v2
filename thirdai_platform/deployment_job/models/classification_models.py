@@ -89,34 +89,38 @@ class TokenClassificationModel(ClassificationModel):
             / "data_storage.db"
         )
         self.logger.info(f"Data storage path: {data_storage_path}")
-        if not data_storage_path.exists():
-            self.logger.info(f"Data storage path does not exist, creating it")
+        try:
+            if not data_storage_path.exists():
+                self.logger.info(f"Data storage path does not exist, creating it")
 
-            data_storage_path.mkdir(parents=True, exist_ok=True)
+                data_storage_path.mkdir(parents=True, exist_ok=True)
 
-            tags = self.model.list_ner_tags()
-            tag_metadata = TagMetadata()
-            for tag in tags:
-                tag_metadata.add_tag(LabelEntity(name=tag, status=LabelStatus.trained))
+                tags = self.model.list_ner_tags()
+                tag_metadata = TagMetadata()
+                for tag in tags:
+                    tag_metadata.add_tag(LabelEntity(name=tag, status=LabelStatus.trained))
 
-            # connector will instantiate an sqlite db at the specified path if it doesn't exist
-            self.data_storage = DataStorage(
-                connector=SQLiteConnector(db_path=data_storage_path)
-            )
-
-            self.data_storage.insert_metadata(
-                Metadata(
-                    name="tags_and_status",
-                    data=tag_metadata,
-                    status=MetadataStatus.unchanged,
+                # connector will instantiate an sqlite db at the specified path if it doesn't exist
+                self.data_storage = DataStorage(
+                    connector=SQLiteConnector(db_path=data_storage_path)
                 )
-            )
 
-        else:
-            self.logger.info(f"Data storage path exists: {data_storage_path}")
-            self.data_storage = DataStorage(
-                connector=SQLiteConnector(db_path=data_storage_path)
-            )
+                self.data_storage.insert_metadata(
+                    Metadata(
+                        name="tags_and_status",
+                        data=tag_metadata,
+                        status=MetadataStatus.unchanged,
+                    )
+                )
+
+            else:
+                self.logger.info(f"Data storage path exists: {data_storage_path}")
+                self.data_storage = DataStorage(
+                    connector=SQLiteConnector(db_path=data_storage_path)
+                )
+        except Exception as e:
+            self.logger.error(f"Error loading data storage: {e} for the model {self.config.model_id}")
+            raise e
 
     @property
     def tag_metadata(self) -> TagMetadata:

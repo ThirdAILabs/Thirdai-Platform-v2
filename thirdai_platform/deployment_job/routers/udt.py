@@ -278,8 +278,10 @@ class UDTRouter:
     @propagate_error
     def get_recent_samples(
         self,
-        num_samples: int = Query(default=5, ge=1, le=100, description="Number of recent samples to retrieve"),
-        token: str = Depends(Permissions.verify_permission("read"))
+        num_samples: int = Query(
+            default=5, ge=1, le=100, description="Number of recent samples to retrieve"
+        ),
+        token: str = Depends(Permissions.verify_permission("read")),
     ):
         """
         Retrieves the most recent samples from the model.

@@ -103,18 +103,15 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
                 aws_secret_access_key=aws_secret_access_key,
             )
             bucket_name, source_path = file_info.parse_s3_url()
-            print(bucket_name, source_path)
             s3_objects = s3_client.list_files(
                 bucket_name=bucket_name, source_path=source_path
             )
-            print(s3_objects)
             expanded_files.extend(
                 expand_file_info(paths=s3_objects, file_info=file_info)
             )
         elif file_info.location == FileLocation.azure:
-            account_name = os.getenv("AZURE_ACCOUNT_NAME")
-            account_key = os.getenv("AZURE_ACCOUNT_KEY")
-            print(account_key, account_name, flush=True)
+            account_name = os.getenv("AZURE_ACCOUNT_NAME", None)
+            account_key = os.getenv("AZURE_ACCOUNT_KEY", None)
             azure_client = AzureStorageHandler(
                 account_name=account_name, account_key=account_key
             )
@@ -134,7 +131,7 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
                 )
             )
         elif file_info.location == FileLocation.gcp:
-            gcp_credentials_file = os.getenv("GCP_CREDENTIALS_FILE")
+            gcp_credentials_file = os.getenv("GCP_CREDENTIALS_FILE", None)
             gcp_client = GCPStorageHandler(credentials_file_path=gcp_credentials_file)
             bucket_name, source_path = file_info.parse_gcp_url()
             gcp_objects = gcp_client.list_files(bucket_name, source_path)
@@ -349,16 +346,30 @@ class S3StorageHandler(CloudStorageHandler):
 
 
 class AzureStorageHandler(CloudStorageHandler):
-    def __init__(self, account_name, account_key):
+    def __init__(self, account_name=None, account_key=None):
+        self._blob_service_client = self.create_azure_client(
+            account_name=account_name, account_key=account_key
+        )
+        self._account_name = account_name
+
+    @handle_exceptions
+    def create_azure_client(self, account_name=None, account_key=None):
         from azure.storage.blob import BlobServiceClient
 
-        connection_string = f"DefaultEndpointsProtocol=https;AccountName={account_name};AccountKey={account_key};EndpointSuffix=core.windows.net"
+        if account_name and account_key:
+            # Authenticated access
+            connection_string = f"DefaultEndpointsProtocol=https;AccountName={account_name};AccountKey={account_key};EndpointSuffix=core.windows.net"
+            blob_service_client = BlobServiceClient.from_connection_string(
+                conn_str=connection_string
+            )
+        elif account_name:
+            # Anonymous (public) access using account_url
+            account_url = f"https://{account_name}.blob.core.windows.net"
+            blob_service_client = BlobServiceClient(account_url=account_url)
+        else:
+            raise ValueError("Account name is required for Azure Blob Storage.")
 
-        self._blob_service_client = BlobServiceClient.from_connection_string(
-            conn_str=connection_string
-        )
-
-        self._account_name = account_name
+        return blob_service_client
 
     @handle_exceptions
     def container_client(self, bucket_name: str):
@@ -445,20 +456,24 @@ class AzureStorageHandler(CloudStorageHandler):
 
 
 class GCPStorageHandler(CloudStorageHandler):
-    def __init__(self, credentials_file_path: str):
+    def __init__(self, credentials_file_path: str = None):
         from google.cloud import storage
-        from google.oauth2 import service_account
 
-        try:
-            credentials = service_account.Credentials.from_service_account_file(
-                credentials_file_path
-            )
-            self._client = storage.Client(credentials=credentials)
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to authenticate using the provided service account file: {str(e)}",
-            )
+        if credentials_file_path:
+            from google.oauth2 import service_account
+
+            try:
+                credentials = service_account.Credentials.from_service_account_file(
+                    credentials_file_path
+                )
+                self._client = storage.Client(credentials=credentials)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to authenticate using the provided service account file: {str(e)}",
+                )
+        else:
+            self._client = storage.Client()
 
     @handle_exceptions
     def create_bucket_if_not_exists(self, bucket_name: str):

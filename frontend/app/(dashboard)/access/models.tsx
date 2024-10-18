@@ -1,50 +1,10 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@mui/material';
-import {
-  fetchAllModels,
-  updateModelAccessLevel,
-  deleteModel,
-  fetchAllTeams,
-  fetchAllUsers,
-} from '@/lib/backend';
+import { updateModelAccessLevel, deleteModel } from '@/lib/backend';
 import { UserContext } from '../../user_wrapper';
 import ConditionalButton from '@/components/ui/ConditionalButton';
-
-// Define types
-type Model = {
-  name: string;
-  type: 'Private Model' | 'Protected Model' | 'Public Model';
-  owner: string;
-  users?: string[];
-  team?: string;
-  teamAdmin?: string;
-  domain: string;
-  latency: string;
-  modelId: string;
-  numParams: string;
-  publishDate: string;
-  size: string;
-  sizeInMemory: string;
-  subType: string;
-  thirdaiVersion: string;
-  trainingTime: string;
-};
-
-type Team = {
-  id: string;
-  name: string;
-  admins: string[];
-  members: string[];
-};
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: 'Member' | 'Team Admin' | 'Global Admin';
-  teams: { id: string; name: string; role: 'Member' | 'team_admin' | 'Global Admin' }[];
-};
+import { getModels, getTeams, getUsers, Model, Team, User } from '@/utils/apiRequests';
 
 export default function Models() {
   // State variables
@@ -59,107 +19,32 @@ export default function Models() {
   const { user } = React.useContext(UserContext);
   const [modelEditPermissions, setModelEditPermissions] = useState<boolean[]>([]);
 
-  // Fetch models on component mount
   useEffect(() => {
-    getModels();
-  }, []);
-  // Function to fetch models
-  const getModels = async () => {
-    try {
-      const response = await fetchAllModels();
-      const modelData = response.data.map(
-        (model): Model => ({
-          name: model.model_name,
-          type:
-            model.access_level === 'private'
-              ? 'Private Model'
-              : model.access_level === 'protected'
-                ? 'Protected Model'
-                : 'Public Model',
-          owner: model.username,
-          users: [],
-          team: model.team_id !== 'None' ? model.team_id : undefined,
-          teamAdmin: undefined,
-          domain: model.domain,
-          latency: model.latency,
-          modelId: model.model_id,
-          numParams: model.num_params,
-          publishDate: model.publish_date,
-          size: model.size,
-          sizeInMemory: model.size_in_memory,
-          subType: model.sub_type,
-          thirdaiVersion: model.thirdai_version,
-          trainingTime: model.training_time,
-        })
-      );
-      setModels(modelData);
-    } catch (error) {
-      console.error('Failed to fetch models', error);
-      alert('Failed to fetch models' + error);
-    }
-  };
-
-  useEffect(() => {
-    getUsers();
+    getModelsData();
   }, []);
 
-  const getUsers = async () => {
-    try {
-      const response = await fetchAllUsers();
-      const userData = response.data.map(
-        (user): User => ({
-          id: user.id,
-          name: user.username,
-          email: user.email,
-          role: user.global_admin ? 'Global Admin' : 'Member',
-          teams: user.teams.map((team) => ({
-            id: team.team_id,
-            name: team.team_name,
-            role: team.role,
-          })),
-        })
-      );
-      setUsers(userData);
-    } catch (error) {
-      console.error('Failed to fetch users', error);
-      alert('Failed to fetch users' + error);
-    }
-  };
+  async function getModelsData() {
+    const modelData = await getModels();
+    if (modelData) setModels(modelData);
+  }
 
   useEffect(() => {
-    getTeams();
+    getUsersData();
+  }, []);
+
+  async function getUsersData() {
+    const userData = await getUsers();
+    if (userData) setUsers(userData);
+  }
+
+  useEffect(() => {
+    getTeamsData();
   }, [users]);
-  const getTeams = async () => {
-    try {
-      const response = await fetchAllTeams();
-      const teamData = response.data.map((team): Team => {
-        const members: string[] = [];
-        const admins: string[] = [];
 
-        users.forEach((user) => {
-          const userTeam = user.teams.find((ut) => ut.id === team.id);
-          if (userTeam) {
-            members.push(user.name);
-            if (userTeam.role === 'team_admin') {
-              admins.push(user.name);
-            }
-          }
-        });
-
-        return {
-          id: team.id,
-          name: team.name,
-          admins: admins,
-          members: members,
-        };
-      });
-
-      setTeams(teamData);
-    } catch (error) {
-      console.error('Failed to fetch teams', error);
-      alert('Failed to fetch teams' + error);
-    }
-  };
+  async function getTeamsData() {
+    const teamData = await getTeams();
+    if (teamData) setTeams(teamData);
+  }
 
   // Function to handle model type change
   const handleModelTypeChange = async (index: number) => {
@@ -184,7 +69,7 @@ export default function Models() {
           break;
       }
       await updateModelAccessLevel(model_identifier, access_level, team_id);
-      await getModels();
+      await getModelsData();
 
       setEditingIndex(null);
       setSelectedType(null);
@@ -207,7 +92,7 @@ export default function Models() {
       if (!isConfirmed) return;
 
       await deleteModel(model_identifier);
-      await getModels();
+      await getModelsData();
     } catch (error) {
       console.error('Failed to delete model', error);
       alert('Failed to delete model: ' + error);

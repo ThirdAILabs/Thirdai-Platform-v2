@@ -15,27 +15,7 @@ import {
 } from '@/lib/backend';
 import DropdownMenu from '@/components/ui/dropDownMenu';
 import { UserContext } from '../../user_wrapper';
-
-type Team = {
-  id: string;
-  name: string;
-  admins: string[];
-  members: string[];
-};
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: 'Member' | 'Team Admin' | 'Global Admin';
-  teams: { id: string; name: string; role: 'Member' | 'team_admin' | 'Global Admin' }[];
-};
-
-type Model = {
-  name: string;
-  type: 'Private Model' | 'Protected Model' | 'Public Model';
-  team?: string;
-};
+import { getModels, getTeams, getUsers, Model, Team, User } from '@/utils/apiRequests';
 
 export default function Teams() {
   const { user } = React.useContext(UserContext);
@@ -70,67 +50,33 @@ export default function Teams() {
   const [removeMemberKey, setRemoveMemberKey] = useState(0);
   const [addAdminKey, setAddAdminKey] = useState(0);
   const [removeAdminKey, setRemoveAdminKey] = useState(0);
+
   useEffect(() => {
-    getUsers();
+    getModelsData();
   }, []);
 
-  const getUsers = async () => {
-    try {
-      const response = await fetchAllUsers();
-      const userData = response.data.map(
-        (user): User => ({
-          id: user.id,
-          name: user.username,
-          email: user.email,
-          role: user.global_admin ? 'Global Admin' : 'Member',
-          teams: user.teams.map((team) => ({
-            id: team.team_id,
-            name: team.team_name,
-            role: team.role,
-          })),
-        })
-      );
-      setUsers(userData);
-    } catch (error) {
-      console.error('Failed to fetch users', error);
-      alert('Failed to fetch users' + error);
-    }
-  };
+  async function getModelsData() {
+    const modelData = await getModels();
+    if (modelData) setModels(modelData);
+  }
 
   useEffect(() => {
-    getTeams();
+    getUsersData();
+  }, []);
+
+  async function getUsersData() {
+    const userData = await getUsers();
+    if (userData) setUsers(userData);
+  }
+
+  useEffect(() => {
+    getTeamsData();
   }, [users]);
-  const getTeams = async () => {
-    try {
-      const response = await fetchAllTeams();
-      const teamData = response.data.map((team): Team => {
-        const members: string[] = [];
-        const admins: string[] = [];
 
-        users.forEach((user) => {
-          const userTeam = user.teams.find((ut) => ut.id === team.id);
-          if (userTeam) {
-            members.push(user.name);
-            if (userTeam.role === 'team_admin') {
-              admins.push(user.name);
-            }
-          }
-        });
-
-        return {
-          id: team.id,
-          name: team.name,
-          admins: admins,
-          members: members,
-        };
-      });
-
-      setTeams(teamData);
-    } catch (error) {
-      console.error('Failed to fetch teams', error);
-      alert('Failed to fetch teams' + error);
-    }
-  };
+  async function getTeamsData() {
+    const teamData = await getTeams();
+    if (teamData) setTeams(teamData);
+  }
 
   const createNewTeam = async () => {
     try {
@@ -155,8 +101,8 @@ export default function Teams() {
         alert(`User with name ${newTeamAdmin} not found`);
       }
 
-      await getTeams();
-      await getUsers();
+      await getTeamsData();
+      await getUsersData();
       setNewTeamName('');
       setNewTeamAdmin('');
       setNewTeamMembers([]);
@@ -183,8 +129,8 @@ export default function Teams() {
       }
 
       await addUserToTeam(user.email, team.id);
-      await getTeams();
-      await getUsers();
+      await getTeamsData();
+      await getUsersData();
       setSelectedTeamForAdd('Select Team');
       setNewMember('');
       setCanAddMember(false);
@@ -212,8 +158,8 @@ export default function Teams() {
       }
 
       await deleteUserFromTeam(user.email, team.id);
-      await getTeams();
-      await getUsers();
+      await getTeamsData();
+      await getUsersData();
       setSelectedTeamForRemove('Select Team');
       setMemberToRemove('');
       setCanRemoveMember(false);
@@ -234,7 +180,7 @@ export default function Teams() {
       }
 
       await deleteTeamById(team.id);
-      await getTeams();
+      await getTeamsData();
     } catch (error) {
       console.error('Failed to delete team', error);
       alert('Failed to delete team' + error);
@@ -257,8 +203,8 @@ export default function Teams() {
 
       try {
         await assignTeamAdmin(user.email, selectedTeam.id);
-        await getTeams();
-        await getUsers();
+        await getTeamsData();
+        await getUsersData();
         setSelectedTeamForAddAdmin('Select Team');
         setNewAdmin('');
         setAddAdminKey((prevKey) => prevKey + 1); // Increment key to force re-render
@@ -287,8 +233,8 @@ export default function Teams() {
 
       try {
         await removeTeamAdmin(user.email, selectedTeam.id);
-        await getTeams();
-        await getUsers();
+        await getTeamsData();
+        await getUsersData();
         setSelectedTeamForRemoveAdmin('Select Team');
         setAdminToRemove('');
         setRemoveAdminKey((prevKey) => prevKey + 1); // Increment key to force re-render
@@ -363,7 +309,7 @@ export default function Teams() {
             <h5 className="text-md font-semibold text-gray-800">Protected Models</h5>
             <ul className="list-disc pl-5">
               {models
-                .filter((model) => model.type === 'Protected Model' && model.team === team.name)
+                .filter((model) => model.type === 'Protected Model' && model.team === team.id)
                 .map((model, modelIndex) => (
                   <li key={modelIndex}>{model.name}</li>
                 ))}

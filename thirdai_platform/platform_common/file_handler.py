@@ -136,7 +136,15 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
             bucket_name, source_path = file_info.parse_gcp_url()
             gcp_objects = gcp_client.list_files(bucket_name, source_path)
             expanded_files.extend(
-                expand_file_info(paths=gcp_objects, file_info=file_info)
+                expand_file_info(
+                    paths=[
+                        gcp_client.full_path(
+                            bucket_name=bucket_name, source_path=gcp_object
+                        )
+                        for gcp_object in gcp_objects
+                    ],
+                    file_info=file_info,
+                )
             )
         elif file_info.location == FileLocation.nfs:
             directory_files = list_files_in_nfs_dir(file_info.path)
@@ -473,7 +481,7 @@ class GCPStorageHandler(CloudStorageHandler):
                     detail=f"Failed to authenticate using the provided service account file: {str(e)}",
                 )
         else:
-            self._client = storage.Client()
+            self._client = storage.Client.create_anonymous_client()
 
     @handle_exceptions
     def create_bucket_if_not_exists(self, bucket_name: str):
@@ -483,6 +491,10 @@ class GCPStorageHandler(CloudStorageHandler):
         else:
             self._client.create_bucket(bucket_name)
             print(f"Bucket {bucket_name} created successfully.")
+
+    @handle_exceptions
+    def full_path(self, bucket_name: str, source_path: str):
+        return f"gs://{bucket_name}/{source_path}"
 
     @handle_exceptions
     def upload_file(self, source_path: str, bucket_name: str, dest_path: str):

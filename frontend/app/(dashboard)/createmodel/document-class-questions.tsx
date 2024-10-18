@@ -7,6 +7,7 @@ enum SourceType {
   S3 = 's3',
   NSF = 'nsf',
   AZURE = 'azure',
+  GCP = 'gcp',
 }
 
 interface DocumentClassificationQuestionsProps {

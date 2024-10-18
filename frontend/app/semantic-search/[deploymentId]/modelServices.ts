@@ -198,7 +198,10 @@ export class ModelService {
       });
   }
 
-  async addSources(files: File[], s3Urls: string[]): Promise<any> {
+  async addSources(
+    files: File[],
+    cloudUrls: { type: 's3' | 'azure' | 'gcp'; url: string }[]
+  ): Promise<any> {
     const formData = new FormData();
     const documents: object[] = [];
 
@@ -219,14 +222,24 @@ export class ModelService {
       });
     }
 
-    // Process S3 URLs
-    for (let i = 0; i < s3Urls.length; i++) {
-      const url = s3Urls[i];
+    // Process cloud URLs (S3, Azure, GCP)
+    for (let i = 0; i < cloudUrls.length; i++) {
+      const { type, url } = cloudUrls[i];
       const extension = url.split('.').pop();
+
+      let location = '';
+      if (type === 's3') {
+        location = 's3';
+      } else if (type === 'azure') {
+        location = 'azure';
+      } else if (type === 'gcp') {
+        location = 'gcp';
+      }
+
       documents.push({
         document_type: extension ? extension.toUpperCase() : 'URL',
         path: url,
-        location: 's3',
+        location: location,
         metadata: {},
         chunk_size: 100,
         stride: 40,
@@ -479,6 +492,8 @@ export class ModelService {
     if (source.includes('amazonaws.com')) {
       this.openAWSReference(source);
     } else if (source.includes('blob.core.windows.net')) {
+      this.openAWSReference(source);
+    } else if (source.includes('storage.googleapis.com')) {
       this.openAWSReference(source);
     } else if (source.toLowerCase().endsWith('.pdf')) {
       this.openPDF(source);

@@ -263,6 +263,7 @@ async def deploy_single_model(
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
             azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
             azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
+            gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
         )
 
         model.deploy_status = schema.Status.starting

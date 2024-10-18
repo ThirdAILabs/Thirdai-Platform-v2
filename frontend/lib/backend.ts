@@ -602,13 +602,10 @@ function tokenClassifierDatagenForm(modelGoal: string, categories: Category[]) {
     examples: category.examples.map((ex) => ex.text),
     description: category.description,
   }));
-  const numSentences = 10_000;
   return {
     sub_type: 'token',
     task_prompt: modelGoal,
     tags: tags,
-    num_sentences_to_generate: numSentences,
-    num_samples_per_tag: Math.max(Math.ceil(numSentences / tags.length), 50),
   };
 }
 
@@ -1066,7 +1063,7 @@ export async function fetchAllModels(): Promise<{ data: ModelResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/model/all-models`)
+      .get(`${thirdaiPlatformBaseUrl}/api/model/list`)
       .then((res) => {
         resolve(res.data);
       })
@@ -1100,7 +1097,7 @@ export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
 
   return new Promise((resolve, reject) => {
     axios
-      .get(`${thirdaiPlatformBaseUrl}/api/user/all-users`)
+      .get(`${thirdaiPlatformBaseUrl}/api/user/list`)
       .then((res) => {
         resolve(res.data);
       })

@@ -3,9 +3,11 @@ import logging
 import math
 import os
 import re
+import shutil
 from collections import defaultdict, deque
+from functools import wraps
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from urllib.parse import urljoin
 
 import bcrypt
@@ -14,6 +16,8 @@ from database import schema
 from fastapi import HTTPException, status
 from jinja2 import Template
 from licensing.verify.verify_license import valid_job_allocation, verify_license
+from platform_common.pydantic_models.training import LabelEntity
+from platform_common.thirdai_storage import data_types, storage
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger("ThirdAI_Platform")
@@ -208,7 +212,9 @@ def validate_name(name):
         raise ValueError("name is not valid")
 
 
-def get_model(session: Session, username: str, model_name: str):
+def get_model(
+    session: Session, username: str, model_name: str
+) -> Optional[schema.Model]:
     """
     Get a model by username and model name.
 
@@ -555,3 +561,70 @@ def validate_license_info():
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"License is not valid. {str(e)}",
         )
+
+
+def handle_exceptions(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            class_name = args[0].__class__.__name__ if args else "UnknownClass"
+            method_name = func.__name__
+            logging.error(
+                f"Error in class '{class_name}', method '{method_name}' "
+                f"with arguments {args[1:]}, and keyword arguments {kwargs}. "
+                f"Error: {str(e)}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"An error occurred: {str(e)}",
+            )
+
+    return wrapper
+
+
+def tags_in_storage(data_storage: storage.DataStorage) -> List[LabelEntity]:
+    tag_metadata: data_types.TagMetadata = data_storage.get_metadata(
+        "tags_and_status"
+    ).data
+
+    tag_status = tag_metadata.tag_status
+    tags = [tag_status[tag] for tag in tag_status.keys() if tag != "O"]
+    return tags
+
+
+def copy_data_storage(old_model: schema.Model, new_model: schema.Model):
+
+    old_storage_dir = Path(model_bazaar_path()) / "data" / str(old_model.id)
+    new_storage_dir = Path(model_bazaar_path()) / "data" / str(new_model.id)
+
+    os.makedirs(new_storage_dir, exist_ok=True)
+    shutil.copy(old_storage_dir / "data_storage.db", new_storage_dir)
+
+
+def remove_unused_samples(model: schema.Model):
+    # remove unused samples from the old storage and rollback metadata to be in a consistent state
+    storage_dir = Path(model_bazaar_path()) / "data" / str(model.id)
+    data_storage = storage.DataStorage(
+        connector=storage.SQLiteConnector(db_path=storage_dir / "data_storage.db")
+    )
+    data_storage.remove_untrained_samples("ner")
+    data_storage.rollback_metadata("tags_and_status")
+
+
+def retrieve_token_classification_samples_for_generation(
+    data_storage: storage.DataStorage,
+) -> List[data_types.DataSample]:
+    # retrieve all the samples
+    samples: List[data_types.DataSample] = data_storage.retrieve_samples(
+        name="ner", num_samples=None, user_provided=True
+    )
+    # only use the samples that we did not generate synthetic data for
+    token_classification_samples = [
+        sample.data
+        for sample in samples
+        if sample.status == data_types.SampleStatus.untrained
+    ]
+
+    return token_classification_samples

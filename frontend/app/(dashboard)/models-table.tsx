@@ -52,7 +52,6 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
     async function getWorkflows() {
       try {
         const fetchedWorkflows = await fetchWorkflows();
-        console.log('workflows', fetchedWorkflows);
         setWorkflows(fetchedWorkflows);
       } catch (err) {
         if (err instanceof Error) {

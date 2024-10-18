@@ -12,14 +12,6 @@ import {
   Users2,
 } from 'lucide-react';
 
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -29,8 +21,6 @@ import { ThirdAILogo } from '@/components/icons';
 import Providers from './providers';
 import { NavItem } from './nav-item';
 import { SearchInput } from './search';
-import { useContext } from 'react';
-import { UserContext } from '../user_wrapper';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -40,7 +30,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
           <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
             <MobileNav />
-            {/* <DashboardBreadcrumb /> */}
             <SearchInput />
             <User />
           </header>
@@ -75,9 +64,9 @@ function DesktopNav() {
             <Users2 className="h-5 w-5" />
           </NavItem>
 
-          <NavItem href="/analytics" label="Analytics">
+          {/* <NavItem href="/analytics" label="Analytics">
             <LineChart className="h-5 w-5" />
-          </NavItem>
+          </NavItem> */}
         </>
       </nav>
       <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
@@ -153,27 +142,3 @@ function MobileNav() {
     </Sheet>
   );
 }
-
-// function DashboardBreadcrumb() {
-//   return (
-//     <Breadcrumb className="hidden md:flex">
-//       <BreadcrumbList>
-//         <BreadcrumbItem>
-//           <BreadcrumbLink asChild>
-//             <Link href="#">Dashboard</Link>
-//           </BreadcrumbLink>
-//         </BreadcrumbItem>
-//         <BreadcrumbSeparator />
-//         <BreadcrumbItem>
-//           <BreadcrumbLink asChild>
-//             <Link href="#">Apps</Link>
-//           </BreadcrumbLink>
-//         </BreadcrumbItem>
-//         <BreadcrumbSeparator />
-//         <BreadcrumbItem>
-//           <BreadcrumbPage>All Apps</BreadcrumbPage>
-//         </BreadcrumbItem>
-//       </BreadcrumbList>
-//     </Breadcrumb>
-//   );
-// }

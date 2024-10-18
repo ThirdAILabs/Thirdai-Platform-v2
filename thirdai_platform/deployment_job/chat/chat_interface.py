@@ -26,21 +26,32 @@ class ChatInterface(ABC):
         **kwargs,
     ):
         self.chat_history_sql_uri = chat_history_sql_uri
+        self.top_k = top_k
+        self.chat_prompt = chat_prompt
+        self.query_reformulation_prompt = query_reformulation_prompt
+
         if isinstance(db, ndb.NeuralDB):
-            vectorstore = NeuralDBVectorStore(db)
+            self.vectorstore = NeuralDBVectorStore(db)
         elif isinstance(db, ndbv2.NeuralDB):
-            vectorstore = NeuralDBV2VectorStore(db)
+            self.vectorstore = NeuralDBV2VectorStore(db)
         else:
             raise ValueError(f"Cannot support db of type {type(db)}")
 
-        retriever = vectorstore.as_retriever(search_kwargs={"k": top_k})
+        # Chain creation is moved to a separate method because the OnPremChat calls it periodically.
+        # The OnPremChat calls this when it needs to refresh its access token.
+        # Refreshing the access token involves recreating the self.llm()
+        # object, which requires rebuilding the chains
+        self._create_chains()
+
+    def _create_chains(self):
+        retriever = self.vectorstore.as_retriever(search_kwargs={"k": self.top_k})
 
         query_transform_prompt = ChatPromptTemplate.from_messages(
             [
                 MessagesPlaceholder(variable_name="messages"),
                 (
                     "user",
-                    query_reformulation_prompt,
+                    self.query_reformulation_prompt,
                 ),
             ]
         )
@@ -59,7 +70,7 @@ class ChatInterface(ABC):
             [
                 (
                     "system",
-                    chat_prompt + "\n\n{context}",
+                    self.chat_prompt + "\n\n{context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]

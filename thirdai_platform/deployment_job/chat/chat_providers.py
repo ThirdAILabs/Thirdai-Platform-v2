@@ -64,21 +64,21 @@ class OnPremChat(ChatInterface):
             default_headers=headers,
         )
 
-    def set_token(self, token: str):
-        self.token = token
+    def set_key(self, key: str):
+        self.key = key
         self.conversational_retrieval_chain = (
             self._create_conversational_retrieval_chain()
         )
 
-    def chat(self, user_input: str, session_id: str, token: str = None, **kwargs):
-        if token:
-            self.set_token(token)
+    def chat(self, user_input: str, session_id: str, key: str = None, **kwargs):
+        if key:
+            self.set_key(key)
         return super().chat(user_input, session_id, **kwargs)
 
     async def stream_chat(
-        self, user_input: str, session_id: str, token: str = None, **kwargs
+        self, user_input: str, session_id: str, key: str = None, **kwargs
     ):
-        if token:
-            self.set_token(token)
+        if key:
+            self.set_key(key)
         async for chunk in super().stream_chat(user_input, session_id, **kwargs):
             yield chunk

@@ -1,7 +1,5 @@
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-
-import Image from 'next/image';
+import { useContext, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@mui/material';
 import {
@@ -14,9 +12,10 @@ import {
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Workflow, start_workflow, stop_workflow, delete_workflow } from '@/lib/backend';
-import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/Modal';
 import { InformationCircleIcon } from '@heroicons/react/solid';
+import { Model, getModels } from '@/utils/apiRequests';
+import { UserContext } from '../user_wrapper';
 
 enum DeployStatus {
   None = '',
@@ -29,10 +28,27 @@ enum DeployStatus {
 }
 
 export function WorkFlow({ workflow }: { workflow: Workflow }) {
-  const router = useRouter();
+  const { user } = useContext(UserContext);
   const [deployStatus, setDeployStatus] = useState<DeployStatus>(DeployStatus.None);
   const [deployType, setDeployType] = useState<string>('');
+  const [modelOwner, setModelOwner] = useState<{ [key: string]: string }>({});
 
+  useEffect(() => {
+    getModelsData();
+  }, []);
+
+  async function getModelsData() {
+    const modelData = await getModels();
+    const tempModelOwner: { [key: string]: string } = {}; // TypeScript object to store name as key and owner as value
+    if (modelData) {
+      for (let index = 0; index < modelData.length; index++) {
+        const name = modelData[index].name
+        const owner = modelData[index].owner;
+        tempModelOwner[name] = owner;
+      }
+    }
+    setModelOwner(tempModelOwner);
+  }
   function goToEndpoint() {
     switch (workflow.type) {
       case 'enterprise-search': {
@@ -211,57 +227,58 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             {deployStatus === DeployStatus.Active && (
-              <>
-                <DropdownMenuItem>
-                  <form>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const response = await stop_workflow(
-                            workflow.username,
-                            workflow.model_name
-                          );
-                          console.log('Workflow undeployed successfully:', response);
-                          // Optionally, update the UI state to reflect the undeployment
-                          setDeployStatus(DeployStatus.Inactive);
-                        } catch (error) {
-                          console.error('Error undeploying workflow:', error);
-                          alert('Error undeploying workflow:' + error);
-                        }
-                      }}
-                    >
-                      Stop App
-                    </button>
-                  </form>
-                </DropdownMenuItem>
-              </>
-            )}
-            <DropdownMenuItem>
-              <form>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (window.confirm('Are you sure you want to delete this workflow?')) {
+              <DropdownMenuItem>
+                <form>
+                  <button
+                    type="button"
+                    onClick={async () => {
                       try {
-                        const response = await delete_workflow(
+                        const response = await stop_workflow(
                           workflow.username,
                           workflow.model_name
                         );
-                        console.log('Workflow deleted successfully:', response);
+                        console.log('Workflow undeployed successfully:', response);
+                        // Optionally, update the UI state to reflect the undeployment
+                        setDeployStatus(DeployStatus.Inactive);
                       } catch (error) {
-                        console.error('Error deleting workflow:', error);
-                        alert('Error deleting workflow:' + error);
+                        console.error('Error undeploying workflow:', error);
+                        alert('Error undeploying workflow:' + error);
                       }
-                    }
-                  }}
-                >
-                  Delete App
-                </button>
-              </form>
-            </DropdownMenuItem>
+                    }}
+                  >
+                    Stop App
+                  </button>
+                </form>
+              </DropdownMenuItem>
+            )}
 
-            {workflow.type === 'ndb' && (
+            {(workflow.type === 'ndb' && ((modelOwner[workflow.model_name] === user?.username) || user?.global_admin)) && (
+              <DropdownMenuItem>
+                <form>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to delete this workflow?')) {
+                        try {
+                          const response = await delete_workflow(
+                            workflow.username,
+                            workflow.model_name
+                          );
+                          console.log('Workflow deleted successfully:', response);
+                        } catch (error) {
+                          console.error('Error deleting workflow:', error);
+                          alert('Error deleting workflow:' + error);
+                        }
+                      }
+                    }}
+                  >
+                    Delete App
+                  </button>
+                </form>
+              </DropdownMenuItem>
+            )}
+
+            {(workflow.type === 'ndb' && ((modelOwner[workflow.model_name] === user?.username) || user?.global_admin)) && (
               <Link
                 href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
               >
@@ -270,6 +287,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 </DropdownMenuItem>
               </Link>
             )}
+
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

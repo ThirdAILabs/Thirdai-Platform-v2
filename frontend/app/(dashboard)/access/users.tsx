@@ -3,20 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@mui/material';
 import { fetchAllUsers, deleteUserAccount } from '@/lib/backend';
 import { UserContext } from '../../user_wrapper';
-type UserTeam = {
-  id: string;
-  name: string;
-  role: 'Member' | 'team_admin' | 'Global Admin';
-};
-
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: 'Member' | 'Team Admin' | 'Global Admin';
-  teams: UserTeam[];
-  ownedModels: string[];
-};
+import { getUsers, User } from '@/utils/apiRequests';
 
 export default function Users() {
   const { user } = React.useContext(UserContext);
@@ -24,32 +11,14 @@ export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
-    getUsers();
+    getUsersData();
   }, []);
 
-  const getUsers = async () => {
-    try {
-      const response = await fetchAllUsers();
-      const userData = response.data.map(
-        (user): User => ({
-          id: user.id,
-          name: user.username,
-          email: user.email,
-          role: user.global_admin ? 'Global Admin' : 'Member',
-          teams: user.teams.map((team) => ({
-            id: team.team_id,
-            name: team.team_name,
-            role: team.role,
-          })),
-          ownedModels: [], // This should be populated with actual data if available
-        })
-      );
+  async function getUsersData() {
+    const userData = await getUsers();
+    if (userData)
       setUsers(userData);
-    } catch (error) {
-      console.error('Failed to fetch users', error);
-      alert('Failed to fetch users' + error);
-    }
-  };
+  }
 
   const deleteUser = async (userName: string) => {
     try {

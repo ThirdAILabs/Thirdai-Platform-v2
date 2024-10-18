@@ -13,7 +13,7 @@ from deployment_job.pydantic_models.inputs import (
 )
 from deployment_job.reporter import Reporter
 from deployment_job.utils import propagate_error
-from fastapi import APIRouter, Depends, UploadFile, status
+from fastapi import APIRouter, Depends, Query, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
 from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
@@ -75,18 +75,37 @@ class UDTRouter:
         file: UploadFile,
         _: str = Depends(Permissions.verify_permission("read")),
     ):
+        """
+        Process an uploaded file to extract text content.
+
+        Args:
+            file (UploadFile): The uploaded file to process.
+            _ (str): Unused parameter for permission check dependency injection.
+
+        Returns:
+            A JSON response containing the extracted text content.
+        """
+        # Define the path where the uploaded file will be temporarily saved
         destination_path = self.model.data_dir / file.filename
+
+        # Save the uploaded file to the temporary location
         with open(destination_path, "wb") as f:
             f.write(file.file.read())
 
+        # Convert the file to an ndb Document object
+        # This likely involves parsing and processing the file content
         doc: ndb.Document = convert_to_ndb_file(
             destination_path, metadata=None, options=None
         )
 
+        # Extract the 'display' column from the document's table
+        # and convert it to a list
         display_list = doc.table.df["display"].tolist()
 
+        # Remove the temporary file
         os.remove(destination_path)
 
+        # Return a JSON response with the extracted text content
         return response(
             status_code=status.HTTP_200_OK,
             message="Successful",
@@ -257,18 +276,22 @@ class UDTRouter:
         )
 
     @propagate_error
-    def get_recent_samples(self, token=Depends(Permissions.verify_permission("read"))):
+    def get_recent_samples(
+        self,
+        num_samples: int = Query(default=5, ge=1, le=100, description="Number of recent samples to retrieve"),
+        token: str = Depends(Permissions.verify_permission("read"))
+    ):
         """
         Retrieves the most recent samples from the model.
+
         Parameters:
-        - token: str - Authorization token (inferred from permissions dependency).
+        - num_samples: int - Number of recent samples to retrieve (default: 5, min: 1, max: 100)
+        - token: str - Authorization token (inferred from permissions dependency)
+
         Returns:
-        - JSONResponse: The most recent samples from the model.
+        - JSONResponse: The most recent samples from the model
         """
-        recent_samples = self.model.get_recent_samples(
-            limit=5
-        )  # Fetch 5 most recent samples
-        # We're not modifying the samples here as they're already in the correct format
+        recent_samples = self.model.get_recent_samples(num_samples=num_samples)
         return response(
             status_code=status.HTTP_200_OK,
             message="Successful",

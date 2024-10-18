@@ -132,7 +132,7 @@ class OnPremLLM(LLMBase):
 
         url = urljoin(self.backend_endpoint, "/on-prem-llm/v1/chat/completions")
 
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}",}
         data = {
             "messages": [
                 {"role": "system", "content": system_prompt},

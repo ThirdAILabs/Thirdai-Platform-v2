@@ -610,6 +610,7 @@ export class ModelService {
       const response = await fetch(uri, {
         method: 'POST',
         headers: {
+          ...this.authHeader(),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(args),

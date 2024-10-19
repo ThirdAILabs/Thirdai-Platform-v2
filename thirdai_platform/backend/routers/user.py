@@ -1,3 +1,5 @@
+from fastapi import Header
+from fastapi.responses import JSONResponse
 import os
 import pathlib
 from typing import List, Optional
@@ -693,8 +695,10 @@ def get_user_info(
 def get_user_info(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    authorization: str = Header(None)
 ):
-    return response(
+    return JSONResponse(
         status_code=status.HTTP_200_OK,
-        message="Verified access token.",
+        content={"message": "Verified access token."},
+        headers={"Authorization": authorization}
     )

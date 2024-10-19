@@ -14,7 +14,7 @@ from deployment_job.pydantic_models.inputs import NDBSearchParams
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
 from deployment_job.utils import propagate_error, validate_name
-from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
+from fastapi import APIRouter, Depends, Form, Response, UploadFile, status, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from platform_common.file_handler import download_local_files
@@ -437,9 +437,11 @@ class NDBRouter:
     @propagate_error
     def chat(
         self,
+        request: Request,
         input: inputs.ChatInput,
         token=Depends(Permissions.verify_permission("read")),
     ):
+        print(request.headers)
         chat = self.model.get_chat(provider=input.provider)
         if not chat:
             raise Exception(

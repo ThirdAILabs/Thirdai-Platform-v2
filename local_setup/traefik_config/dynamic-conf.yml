@@ -5,6 +5,8 @@ http:
         address: "http://localhost:8000/api/user/auth"
         authResponseHeaders:
           - "Authorization"
+        authRequestHeaders:
+          - "Authorization"
 
   routers:
     modelbazaar-http:

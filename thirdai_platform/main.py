@@ -22,7 +22,7 @@ from backend.startup_jobs import (
     restart_llm_cache_job,
     restart_telemetry_jobs,
     restart_thirdai_platform_frontend,
-    start_on_prem_generate_job
+    start_on_prem_generate_job,
 )
 from backend.status_sync import sync_job_statuses
 from backend.utils import get_platform

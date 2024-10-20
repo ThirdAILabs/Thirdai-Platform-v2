@@ -5,12 +5,13 @@ load_dotenv()
 import asyncio
 import logging
 import os
+from typing import Annotated
 from urllib.parse import urljoin
 
 import requests
-from typing import Annotated
-from typing import Optional
-from fastapi import FastAPI, HTTPException, Depends, Request
+
+pass
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
@@ -32,9 +33,7 @@ logging.basicConfig(
 )
 
 
-oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/api/user/email-login", auto_error=False
-)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/user/email-login", auto_error=False)
 
 
 @app.post("/llm-dispatch/generate")

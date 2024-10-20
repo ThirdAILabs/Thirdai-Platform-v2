@@ -62,13 +62,14 @@ class OnPremChat(ChatInterface):
         return ChatOpenAI(
             base_url=urljoin(self.base_url, "on-prem-llm"),
             default_headers=headers,
+            openai_api_key=self.key,  # this key not used but fails without it
         )
 
     def set_key(self, key: str):
         self.key = key
-        self.conversational_retrieval_chain = (
-            self._create_conversational_retrieval_chain()
-        )
+        # We recreate the chains because the self.llm() method needs to use the
+        # updated access token key
+        self._create_chains()
 
     def chat(self, user_input: str, session_id: str, key: str = None, **kwargs):
         if key:

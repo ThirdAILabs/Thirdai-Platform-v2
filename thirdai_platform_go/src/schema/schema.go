@@ -56,7 +56,7 @@ type User struct {
 
 	Username string `gorm:"uniqueIndex"`
 	Email    string `gorm:"uniqueIndex"`
-	Password string
+	Password []byte
 
 	IsAdmin bool
 
@@ -70,8 +70,9 @@ type Team struct {
 }
 
 type UserTeam struct {
-	UserId string `gorm:"primaryKey"`
-	TeamId string `gorm:"primaryKey"`
-
+	UserId      string `gorm:"primaryKey"`
+	TeamId      string `gorm:"primaryKey"`
 	IsTeamAdmin bool
+
+	Team *Team
 }

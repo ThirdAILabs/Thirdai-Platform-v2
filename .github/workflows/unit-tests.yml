@@ -94,8 +94,7 @@ jobs:
 
     - name: install dependencies
       run: |
-        pip3 install -r thirdai_platform/train_job/requirements.txt
-        pip3 install -r thirdai_platform/platform_common/requirements.txt
+        pip3 install -r thirdai_platform/requirements.txt
         pip3 install pytest
         pip3 install pyopenssl --upgrade
 
@@ -116,8 +115,7 @@ jobs:
 
     - name: install dependencies
       run: |
-        pip3 install -r thirdai_platform/recovery_snapshot_job/requirements.txt
-        pip3 install -r thirdai_platform/platform_common/requirements.txt
+        pip3 install -r thirdai_platform/requirements.txt
         pip3 install pytest
         pip3 install pyopenssl --upgrade
 
@@ -138,7 +136,7 @@ jobs:
 
     - name: install dependencies
       run: |
-        pip3 install -r thirdai_platform/llm_dispatch_job/requirements.txt
+        pip3 install -r thirdai_platform/requirements.txt
         pip3 install httpx
         pip3 install pytest
 
@@ -159,8 +157,7 @@ jobs:
 
     - name: install dependencies
       run: |
-        pip3 install -r thirdai_platform/deployment_job/requirements.txt
-        pip3 install -r thirdai_platform/platform_common/requirements.txt
+        pip3 install -r thirdai_platform/requirements.txt
         pip3 install pyopenssl --upgrade
         pip3 install pytest
         pip3 install thirdai[neural_db_v2]
@@ -170,8 +167,4 @@ jobs:
       # don't get reset correctly between tests. 
       # TODO(Nicholas): Refactor the deployment job to avoid this.
       run: |
-        cd thirdai_platform
-        python3 -m pytest deployment_job -k dev_mode[v1]
-        python3 -m pytest deployment_job -k dev_mode[v2]
-        python3 -m pytest deployment_job -k prod_mode[v1]
-        python3 -m pytest deployment_job -k prod_mode[v2]
+        python3 -m pytest ./thirdai_platform/deployment_job -v

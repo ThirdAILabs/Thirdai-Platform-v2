@@ -9,6 +9,7 @@ from backend.auth_dependencies import (
     is_model_owner,
     team_admin_or_global_admin,
     verify_model_read_access,
+    verify_model_read_access_from_id,
 )
 from backend.utils import (
     delete_nomad_job,
@@ -36,8 +37,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from platform_common.utils import response
 from pydantic import BaseModel
 from sqlalchemy import and_, or_
-from sqlalchemy.orm import Session, joinedload
-
+from sqlalchemy.orm import Session, joinedload, selectinload
 from storage import interface, local
 
 model_router = APIRouter()
@@ -45,63 +45,22 @@ model_router = APIRouter()
 storage: interface.StorageInterface = local.LocalStorage(model_bazaar_path())
 
 
-@model_router.get("/public-list")
-def list_public_models(
-    name: str,
-    domain: Optional[str] = None,
-    username: Optional[str] = None,
-    type: Optional[str] = None,
-    sub_type: Optional[str] = None,
-    session: Session = Depends(get_session),
+@model_router.get("/details")
+def get_model_details(
+    model_id: str,
+    model: schema.Model = Depends(verify_model_read_access_from_id),
 ):
-    """
-    List public models.
-
-    Parameters:
-    - name: str - The name to filter models.
-    - domain: Optional[str] - Optional domain to filter models.
-    - username: Optional[str] - Optional username to filter models.
-    - type: Optional[str] - Optional type to filter models.
-    - sub_type: Optional[str] - Optional sub-type to filter models.
-    - session: Session - The database session (dependency).
-
-    Returns:
-    - JSONResponse - A JSON response with the list of public models.
-    """
-    query = (
-        session.query(schema.Model)
-        .options(joinedload(schema.Model.user))
-        .filter(
-            schema.Model.name.ilike(f"%{name}%"),
-            schema.Model.access_level == schema.Access.public,
-            schema.Model.train_status == schema.Status.complete,
-        )
-    )
-
-    if domain:
-        query = query.filter(schema.Model.domain == domain)
-
-    if username:
-        query = query.join(schema.User).filter(schema.User.username == username)
-
-    if type:
-        query = query.filter(schema.Model.type == type)
-
-    if sub_type:
-        query = query.filter(schema.Model.sub_type == sub_type)
-
-    results = [get_high_level_model_info(result) for result in query.all()]
 
     return response(
         status_code=status.HTTP_200_OK,
-        message="Successfully got the public list",
-        data=jsonable_encoder(results),
+        message="Successfully retrieved model details.",
+        data=jsonable_encoder(get_high_level_model_info(model)),
     )
 
 
 @model_router.get("/list")
 def list_models(
-    name: str,
+    name: Optional[str] = None,
     domain: Optional[str] = None,
     username: Optional[str] = None,
     type: Optional[str] = None,
@@ -129,20 +88,30 @@ def list_models(
     user: schema.User = authenticated_user.user
     user_teams = [ut.team_id for ut in user.teams]
 
-    query = (
-        session.query(schema.Model)
-        .options(joinedload(schema.Model.user))
-        .filter(
-            schema.Model.name.ilike(f"%{name}%"),
-            schema.Model.train_status == schema.Status.complete,
-        )
+    query = session.query(schema.Model).options(
+        joinedload(schema.Model.user),
+        selectinload(schema.Model.attributes),
+        selectinload(schema.Model.dependencies),
+        selectinload(schema.Model.used_by),
     )
 
-    if not user.is_global_admin():
-        access_conditions = []
+    if name:
+        query.filter(schema.Model.name.ilike(f"%{name}%"))
 
-        def add_access_condition(access, condition):
-            if not access_level or access in access_level:
+    if not user.is_global_admin():
+        access_conditions = [
+            session.query(schema.ModelPermission)
+            .where(
+                and_(
+                    schema.ModelPermission.model_id == schema.Model.id,
+                    schema.ModelPermission.user_id == user.id,
+                )
+            )
+            .exists(),
+        ]
+
+        def add_access_condition(access: schema.Access, condition):
+            if not access_level or access.value in access_level:
                 access_conditions.append(condition)
 
         # Adding access conditions based on the user's role and teams
@@ -262,6 +231,21 @@ def save_deployed_model(
     )
 
     session.add(new_model)
+
+    for dependency in base_model.dependencies:
+        session.add(
+            schema.ModelDependency(
+                model_id=body.model_id, dependency_id=dependency.dependency_id
+            )
+        )
+
+    for attribute in base_model.attributes:
+        session.add(
+            schema.ModelAttribute(
+                model_id=body.model_id, key=attribute.key, value=attribute.value
+            )
+        )
+
     session.commit()
     session.refresh(new_model)
 
@@ -280,47 +264,6 @@ class ModelInfo(BaseModel):
     sub_type: Optional[str] = None
     access_level: schema.Access = "public"
     metadata: Optional[Dict[str, str]] = None
-
-
-@model_router.get("/pending-train-models")
-def pending_train_models(
-    session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
-):
-    """
-    Get a list of all in progress or not started training models for the logged-in user.
-
-    Returns:
-    - JSONResponse: A list of models that are in progress or not started.
-    """
-    user: schema.User = authenticated_user.user
-
-    pending_model_train = (
-        session.query(schema.Model)
-        .filter(
-            schema.Model.user_id == user.id,
-            schema.Model.train_status.in_(
-                [schema.Status.in_progress, schema.Status.not_started]
-            ),
-        )
-        .all()
-    )
-
-    results = [
-        {
-            "model_name": result.name,
-            "train_status": result.train_status,
-            "username": user.username,
-            "deploy_status": result.deploy_status,
-        }
-        for result in pending_model_train
-    ]
-
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Successfully fetched the pending list models",
-        data=jsonable_encoder(results),
-    )
 
 
 @model_router.get("/upload-token")
@@ -437,7 +380,11 @@ def upload_chunk(
     try:
         chunk_data = chunk.file.read()
         storage.upload_chunk(
-            payload["model_id"], chunk_data, chunk_number, model_type, compressed
+            model_id=payload["model_id"],
+            chunk_data=chunk_data,
+            chunk_number=chunk_number,
+            model_type=model_type,
+            compressed=compressed,
         )
     except Exception as error:
         return response(
@@ -455,6 +402,7 @@ def upload_chunk(
 def upload_commit(
     total_chunks: int,
     body: ModelInfo,
+    compressed: bool = True,
     authorization: str = Header(None),
     session: Session = Depends(get_session),
 ):
@@ -532,7 +480,12 @@ def upload_commit(
         )
 
     try:
-        storage.commit_upload(payload["model_id"], total_chunks)
+        storage.commit_upload(
+            model_id=payload["model_id"],
+            total_chunks=total_chunks,
+            model_type=body.type,
+            compressed=compressed,
+        )
     except Exception as error:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -574,6 +527,7 @@ def upload_commit(
     return response(
         status_code=status.HTTP_200_OK,
         message="Committed model",
+        data={"model_id": str(new_model.id)},
     )
 
 
@@ -705,7 +659,12 @@ def list_team_models(
     results = (
         session.query(schema.Model)
         .filter(schema.Model.team_id == team.id)
-        .options(joinedload(schema.Model.user))
+        .options(
+            joinedload(schema.Model.user),
+            selectinload(schema.Model.attributes),
+            selectinload(schema.Model.dependencies),
+            selectinload(schema.Model.used_by),
+        )
         .all()
     )
 
@@ -1018,6 +977,12 @@ def delete_model(
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=str(error),
+        )
+
+    if len(model.used_by) > 0:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Cannot delete model '{model_identifier}' since it is used in other workflows.",
         )
 
     errors = []

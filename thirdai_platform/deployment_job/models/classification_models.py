@@ -22,8 +22,6 @@ from platform_common.thirdai_storage.data_types import (
 from platform_common.thirdai_storage.storage import DataStorage, SQLiteConnector
 from thirdai import bolt
 
-pass
-
 
 class ClassificationModel(Model):
     def __init__(self, config: DeploymentConfig):

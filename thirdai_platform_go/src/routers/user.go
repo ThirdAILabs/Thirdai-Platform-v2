@@ -6,6 +6,7 @@ import (
 	"thirdai_platform/src/auth"
 	"thirdai_platform/src/schema"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -14,6 +15,34 @@ import (
 type UserRouter struct {
 	db           *gorm.DB
 	tokenManager *auth.JwtManager
+}
+
+func (u *UserRouter) Routes() chi.Router {
+	r := chi.NewRouter()
+
+	r.Group(func(r chi.Router) {
+		r.Post("/signup", u.Signup)
+		r.Post("/login", u.Login)
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(u.tokenManager.Verifier())
+		r.Use(u.tokenManager.Authenticator())
+
+		r.Get("/list", u.List)
+		r.Get("/info", u.Info)
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(u.tokenManager.Verifier())
+		r.Use(u.tokenManager.Authenticator())
+		r.Use(u.tokenManager.AdminOnly(u.db))
+
+		r.Post("/promote-admin", u.PromoteAdmin)
+		r.Post("/demote-admin", u.DemoteAdmin)
+	})
+
+	return r
 }
 
 type signupRequest struct {

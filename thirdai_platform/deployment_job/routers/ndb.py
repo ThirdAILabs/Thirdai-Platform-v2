@@ -41,7 +41,6 @@ from platform_common.utils import response
 from prometheus_client import Counter, Summary
 from pydantic import ValidationError
 
-
 ndb_query_metric = Summary("ndb_query", "NDB Queries")
 ndb_upvote_metric = Summary("ndb_upvote", "NDB upvotes")
 ndb_associate_metric = Summary("ndb_associate", "NDB associations")

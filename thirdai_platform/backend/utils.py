@@ -20,7 +20,6 @@ from platform_common.pydantic_models.training import LabelEntity
 from platform_common.thirdai_storage import data_types, storage
 from sqlalchemy.orm import Session
 
-
 logger = logging.getLogger("ThirdAI_Platform")
 
 

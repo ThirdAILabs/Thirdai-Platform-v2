@@ -41,7 +41,7 @@ from platform_common.utils import response
 from prometheus_client import Counter, Summary
 from pydantic import ValidationError
 
-from deployment_job.pydantic_models import inputs
+pass
 
 ndb_query_metric = Summary("ndb_query", "NDB Queries")
 ndb_upvote_metric = Summary("ndb_upvote", "NDB upvotes")

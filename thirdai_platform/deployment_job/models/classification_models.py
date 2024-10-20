@@ -22,7 +22,7 @@ from platform_common.thirdai_storage.data_types import (
 from platform_common.thirdai_storage.storage import DataStorage, SQLiteConnector
 from thirdai import bolt
 
-from deployment_job.pydantic_models import inputs
+pass
 
 
 class ClassificationModel(Model):

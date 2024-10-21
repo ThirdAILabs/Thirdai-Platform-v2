@@ -55,6 +55,7 @@ def main():
 
         factory = TokenDataFactory()
         args = TokenGenerationVariables.model_validate(load_dict(generation_arg_fp))
+        common_patterns = args.find_common_patterns()
         args.remove_common_patterns()
 
     dataset_config = factory.generate_data(
@@ -73,7 +74,7 @@ def main():
             "udt_sub_type": "token",
             "source_column": dataset_config["input_feature"],
             "target_column": dataset_config["target_feature"],
-            "target_labels": dataset_config["target_labels"],
+            "target_labels": dataset_config["target_labels"] + common_patterns,
         }
 
     if general_variables.secret_token:

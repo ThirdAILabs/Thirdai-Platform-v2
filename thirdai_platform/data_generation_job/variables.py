@@ -195,3 +195,6 @@ class TokenGenerationVariables(BaseModel):
 
     def remove_common_patterns(self):
         self.tags = [tag for tag in self.tags if find_common_pattern(tag.name) is None]
+
+    def find_common_patterns(self):
+        return [tag.name for tag in self.tags if find_common_pattern(tag.name)]

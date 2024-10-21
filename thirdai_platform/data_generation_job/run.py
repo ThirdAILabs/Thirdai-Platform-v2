@@ -55,6 +55,7 @@ def main():
 
         factory = TokenDataFactory()
         args = TokenGenerationVariables.model_validate(load_dict(generation_arg_fp))
+        args.remove_common_patterns()
 
     dataset_config = factory.generate_data(
         general_variables.task_prompt, **args.to_dict()

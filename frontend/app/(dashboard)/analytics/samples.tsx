@@ -88,42 +88,46 @@ export default function RecentSamples() {
         width: '100%',
       }}
     >
-      {(upvotes !== undefined) && (<Card style={{ width: '32.5%', height: '45rem' }}>
-        <CardHeader>
-          <CardTitle>Recent Upvotes</CardTitle>
-          <CardDescription>The latest user-provided upvotes</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {upvotes.map(({ timestamp, query, reference_text }, idx) => (
-            <TextPairs
-              key={idx}
-              timestamp={timestamp}
-              label1="Query"
-              label2="Upvote"
-              text1={query}
-              text2={reference_text}
-            />
-          ))}
-        </CardContent>
-      </Card>)}
-      {(associates !== undefined) && (<Card style={{ width: '32.5%', height: '45rem' }}>
-        <CardHeader>
-          <CardTitle>Recent Associations</CardTitle>
-          <CardDescription>The latest user-provided associations</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {associates.map(({ timestamp, source, target }, idx) => (
-            <TextPairs
-              key={idx}
-              timestamp={timestamp}
-              label1="Source"
-              label2="Target"
-              text1={source}
-              text2={target}
-            />
-          ))}
-        </CardContent>
-      </Card>)}
+      {upvotes !== undefined && (
+        <Card style={{ width: '32.5%', height: '45rem' }}>
+          <CardHeader>
+            <CardTitle>Recent Upvotes</CardTitle>
+            <CardDescription>The latest user-provided upvotes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {upvotes.map(({ timestamp, query, reference_text }, idx) => (
+              <TextPairs
+                key={idx}
+                timestamp={timestamp}
+                label1="Query"
+                label2="Upvote"
+                text1={query}
+                text2={reference_text}
+              />
+            ))}
+          </CardContent>
+        </Card>
+      )}
+      {associates !== undefined && (
+        <Card style={{ width: '32.5%', height: '45rem' }}>
+          <CardHeader>
+            <CardTitle>Recent Associations</CardTitle>
+            <CardDescription>The latest user-provided associations</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {associates.map(({ timestamp, source, target }, idx) => (
+              <TextPairs
+                key={idx}
+                timestamp={timestamp}
+                label1="Source"
+                label2="Target"
+                text1={source}
+                text2={target}
+              />
+            ))}
+          </CardContent>
+        </Card>
+      )}
       <Card style={{ width: '32.5%', height: '45rem' }}>
         <CardHeader>
           <CardTitle>Recent Query Reformulations</CardTitle>

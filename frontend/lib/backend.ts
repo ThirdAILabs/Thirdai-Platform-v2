@@ -1380,7 +1380,10 @@ export async function fetchFeedback() {
     return response?.data?.data;
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
-      if (error.response?.status === 400 && error.response.data?.message === "No feedback found for the model.") {
+      if (
+        error.response?.status === 400 &&
+        error.response.data?.message === 'No feedback found for the model.'
+      ) {
         console.warn('No feedback data found for the model');
         return [];
       }

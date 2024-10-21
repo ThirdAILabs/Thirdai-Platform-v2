@@ -165,6 +165,7 @@ class NDBv2Options(BaseModel):
     ndb_sub_type: Literal[NDBSubType.v2] = NDBSubType.v2
 
     on_disk: bool = True
+    advanced_search: bool = False
 
 
 class NDBOptions(BaseModel):

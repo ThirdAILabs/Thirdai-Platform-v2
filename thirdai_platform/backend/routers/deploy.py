@@ -578,7 +578,7 @@ def usage_stats(
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully retreived the usage stats",
-        data=usage_data,
+        data=graphical_data,
     )
 
 

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional, Union
 from urllib.parse import urljoin
 
+pass
 import requests
 from auth.jwt import (
     AuthenticatedUser,
@@ -40,9 +41,9 @@ from platform_common.pydantic_models.deployment import (
     NDBDeploymentOptions,
     UDTDeploymentOptions,
 )
-from pydantic import BaseModel
 from platform_common.pydantic_models.training import ModelType
 from platform_common.utils import response
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()
@@ -551,6 +552,28 @@ def usage_stats(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 message=f"Error: {str(e)}",
             )
+
+    graphical_data = {}
+    # pretifying the timestamp
+    for metric_name, data in usage_data.items():
+        graphical_data[metric_name] = []
+        prev_ts = None
+        for i, ts, value in enumerate(data.items()):
+            if i == 0:
+                graphical_data[metric_name].append(ts.strftime("%Y-%m-%d %H:%M"))
+            else:
+                # Compare each component to find the first change
+                if ts.year != prev_ts.year:
+                    graphical_data[metric_name].append(ts.strftime("%Y-%m-%d %H:%M"))
+                elif ts.month != prev_ts.month:
+                    graphical_data[metric_name].append(ts.strftime("%m-%d %H:%M"))
+                elif ts.day != prev_ts.day:
+                    graphical_data[metric_name].append(ts.strftime("%d %H:%M"))
+                elif ts.hour != prev_ts.hour:
+                    graphical_data[metric_name].append(ts.strftime("%H:%M"))
+                else:
+                    graphical_data[metric_name].append(ts.strftime("%H:%M:%S"))
+            prev_ts = ts
 
     return response(
         status_code=status.HTTP_200_OK,

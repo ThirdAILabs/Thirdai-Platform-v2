@@ -1,19 +1,15 @@
 import os
-import socket
 from urllib.parse import urlparse
 
 import fastapi
 
 
-def get_ip_from_url(url):
-    socket.setdefaulttimeout(100)
+def get_hostname_from_url(url):
     try:
         parsed_url = urlparse(url)
         hostname = parsed_url.hostname
 
-        ip_address = socket.gethostbyname(hostname)
-
-        return ip_address
+        return hostname
     except Exception as e:
         return f"Error parsing URL or resolving IP: {e}"
 
@@ -139,10 +135,10 @@ if IDENTITY_PROVIDER == "keycloak":
 
     client_name = "thirdai-login-client"
 
-    public_ip = get_ip_from_url(
+    public_hostname = get_hostname_from_url(
         os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT")
     )  # Get the IP address from the public endpoint.
-    private_ip = get_ip_from_url(
+    private_hostname = get_hostname_from_url(
         os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT")
     )  # Get the IP address from the private endpoint.
 
@@ -235,14 +231,14 @@ if IDENTITY_PROVIDER == "keycloak":
         root_url=KEYCLOAK_SERVER_URL,
         base_url="/login",
         redirect_uris=[
-            f"http://{public_ip}/*",
-            f"https://{public_ip}/*",
-            f"http://{public_ip}:80/*",
-            f"https://{public_ip}:80/*",
-            f"http://{private_ip}/*",
-            f"https://{private_ip}/*",
-            f"http://{private_ip}:80/*",
-            f"https://{private_ip}:80/*",
+            f"http://{public_hostname}/*",
+            f"https://{public_hostname}/*",
+            f"http://{public_hostname}:80/*",
+            f"https://{public_hostname}:80/*",
+            f"http://{private_hostname}/*",
+            f"https://{private_hostname}/*",
+            f"http://{private_hostname}:80/*",
+            f"https://{private_hostname}:80/*",
             f"http://localhost/*",
             f"https://localhost/*",
             f"http://localhost:80/*",

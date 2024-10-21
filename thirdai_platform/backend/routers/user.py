@@ -1,5 +1,6 @@
 import os
 import pathlib
+import re
 from typing import List, Optional
 from urllib.parse import urlencode, urljoin
 
@@ -62,6 +63,12 @@ def delete_all_models_for_user(user_to_delete, session):
         model.user_id = new_owner_id
 
     session.bulk_save_objects(models)
+
+
+def slugify_username(preferred_username):
+    safe_username = re.sub(r"[^\w]", "", preferred_username)
+
+    return safe_username
 
 
 def send_verification_mail(email: str, verification_token: str, username: str):
@@ -477,8 +484,7 @@ def email_login_with_keycloak(
         if not user:
             user = schema.User(
                 id=keycloak_user_id,
-                # We are using given_name since preferred username may have email
-                username=user_info.get("given_name"),
+                username=slugify_username(user_info.get("preferred_username")),
                 email=user_info.get("email"),
             )
             session.add(user)

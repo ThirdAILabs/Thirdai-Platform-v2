@@ -103,14 +103,6 @@ class User(SQLDeclarativeBase):
         "ModelPermission", back_populates="user", cascade="all, delete-orphan"
     )
 
-    @validates("username")
-    def validate_username(self, key, username):
-        # allow only alphanumeric characters, underscores, and hyphens
-        assert re.match(
-            r"^[\w-]+$", username
-        ), "Username should only contain alphanumeric characters, underscores, and hyphens"
-        return username
-
     @property
     def domain(self) -> str:
         return self.email.split("@")[1]

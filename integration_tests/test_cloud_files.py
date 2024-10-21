@@ -1,3 +1,4 @@
+import os
 import uuid
 
 import pytest
@@ -41,6 +42,7 @@ def test_azure_training():
     admin_client.log_in("admin@mail.com", "password")
 
     model_name = f"azure_ndb_{uuid.uuid4()}"
+    os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     model = admin_client.train(
         model_name,
         unsupervised_docs=[

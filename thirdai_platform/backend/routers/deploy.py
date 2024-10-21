@@ -1,13 +1,13 @@
 import json
 import os
-import re
+
+pass
 import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Union
 from urllib.parse import urljoin
 
-pass
 import requests
 from auth.jwt import (
     AuthenticatedUser,
@@ -33,6 +33,7 @@ from backend.utils import (
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
+from typing_extensions import Annotated
 
 pass
 from platform_common.pydantic_models.deployment import (
@@ -43,7 +44,7 @@ from platform_common.pydantic_models.deployment import (
 )
 from platform_common.pydantic_models.training import ModelType
 from platform_common.utils import response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()
@@ -405,43 +406,62 @@ def deployment_status(
 
 class UsageStatOptions(BaseModel):
     duration: int  # In seconds
-    step: str  # 1h, 20s, 3m, 2w, 1h30m or any other prometheus supported duration regex (https://prometheus.io/docs/prometheus/latest/configuration/configuration/#:~:text=(((%5B0%2D9%5D%2B)y)%3F((%5B0%2D9%5D%2B)w)%3F((%5B0%2D9%5D%2B)d)%3F((%5B0%2D9%5D%2B)h)%3F((%5B0%2D9%5D%2B)m)%3F((%5B0%2D9%5D%2B)s)%3F((%5B0%2D9%5D%2B)ms)%3F%7C0))
+    num_datapoints: Annotated[int, Field(strict=True, gt=0)]  # Data points required
+
+    @property
+    def interval(self):
+        return f"{self.duration // self.num_datapoints}s"
 
     def step_in_words(self):
-        unit_map = {
-            "y": "year",
-            "w": "week",
-            "d": "day",
-            "h": "hour",
-            "m": "minute",
-            "s": "second",
-            "ms": "millisecond",
-        }
+        seconds_per_minute = 60
+        seconds_per_hour = 60 * seconds_per_minute
+        seconds_per_day = 24 * seconds_per_hour
+        seconds_per_month = (
+            30.44 * seconds_per_day
+        )  # Average days in a month 30.44 days
+        seconds_per_year = 12 * seconds_per_month
 
-        pattern = r"(\d+)([ywdhms]|ms)"
-        matches = re.findall(pattern, self.step)
+        temp = int(self.interval.rstrip("s"))
+        years = temp // seconds_per_year
+        temp %= seconds_per_year
+
+        months = temp // seconds_per_month
+        temp %= seconds_per_month
+
+        days = temp // seconds_per_day
+        temp %= seconds_per_day
+
+        hours = temp // seconds_per_hour
+        temp %= seconds_per_hour
+
+        minutes = temp // seconds_per_minute
+        seconds = temp % seconds_per_minute
 
         parts = []
-        for value, unit in matches:
-            value = int(value)
-            if unit in unit_map:
-                unit_name = unit_map[unit]
-                if value != 1:
-                    parts.append(f"{value} {unit_name}s")
-                else:
-                    parts.append(f"{unit_name}")
-            else:
-                parts.append(f"{value} {unit}")
+        if years > 0:
+            parts.append(f"{str(int(years)) + ' years' if years > 1 else 'year'}")
+
+        for unit_name, unit_value in [
+            ("month", months),
+            ("day", days),
+            ("hour", hours),
+            ("minute", minutes),
+            ("second", seconds),
+        ]:
+            if unit_value > 0:
+                parts.append(
+                    f"{int(unit_value)} {unit_name + 's' if unit_value > 1 else unit_name}"
+                )
 
         return f"per {' '.join(parts)}"
 
 
-@deploy_router.get("/usage-stats")
+@deploy_router.post("/usage-stats")
 def usage_stats(
     model_identifier: str,
     usage_stat_option: UsageStatOptions,
     session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+    # authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     """
     Get the usage stats of the deployment
@@ -510,12 +530,12 @@ def usage_stats(
     )
 
     # Common params
-    start_time = datetime.now()
-    end_time = start_time - timedelta(seconds=usage_stat_option.duration)
+    end_time = datetime.now()
+    start_time = end_time - timedelta(seconds=usage_stat_option.duration)
     params = {
         "start": int(start_time.timestamp()),
         "end": int(end_time.timestamp()),
-        "step": usage_stat_option.step,
+        "step": usage_stat_option.interval,
     }
 
     worded_steps = usage_stat_option.step_in_words()
@@ -528,57 +548,28 @@ def usage_stats(
         if model.type == "ndb"
         else [(f"Query {worded_steps}", "udt_predict")]
     )
-
     usage_data = {}
     for metric_name, metric_id in metrics:
-        try:
-            params["query"] = (
-                f'increase({metric_id}{{job="deployment-jobs", model_id="{model.id}"}}[{usage_stat_option.step}])'  # Not summing over because there will be only one timeseries data returned
-            )
-            query_response = requests.get(query_endpoint, params=params)
-            if query_response.status_code == 200:
-                timeseries_data = query_response.json()["data"]["result"]
-                if len(timeseries_data) == 0:
-                    # model was never deployed, so there will be no usage stats
-                    break
+        params["query"] = (
+            f'sum(increase({metric_id}{{job="deployment-jobs", model_id="{model.id}"}}[{usage_stat_option.interval}]))'  # summing over all allocations
+        )
+        query_response = requests.get(query_endpoint, params=params)
+        if query_response.status_code == 200:
+            timeseries_data = query_response.json()["data"]["result"]
 
-                usage_data[metric_name] = {}
-                for timestamp, value in timeseries_data[0]["values"]:
-                    dt = datetime.fromtimestamp(timestamp)
-                    usage_data[metric_name][str(dt)] = value
+            if len(timeseries_data) == 0:
+                # model was never deployed, so there will be no usage stats
+                break
 
-        except Exception as e:
-            return response(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message=f"Error: {str(e)}",
-            )
-
-    graphical_data = {}
-    # pretifying the timestamp
-    for metric_name, data in usage_data.items():
-        graphical_data[metric_name] = []
-        prev_ts = None
-        for i, ts, value in enumerate(data.items()):
-            if i == 0:
-                graphical_data[metric_name].append(ts.strftime("%Y-%m-%d %H:%M"))
-            else:
-                # Compare each component to find the first change
-                if ts.year != prev_ts.year:
-                    graphical_data[metric_name].append(ts.strftime("%Y-%m-%d %H:%M"))
-                elif ts.month != prev_ts.month:
-                    graphical_data[metric_name].append(ts.strftime("%m-%d %H:%M"))
-                elif ts.day != prev_ts.day:
-                    graphical_data[metric_name].append(ts.strftime("%d %H:%M"))
-                elif ts.hour != prev_ts.hour:
-                    graphical_data[metric_name].append(ts.strftime("%H:%M"))
-                else:
-                    graphical_data[metric_name].append(ts.strftime("%H:%M:%S"))
-            prev_ts = ts
+            usage_data[metric_name] = {}
+            for timestamp, value in timeseries_data[0]["values"]:
+                dt = datetime.fromtimestamp(timestamp)
+                usage_data[metric_name][str(dt)] = value
 
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully retreived the usage stats",
-        data=graphical_data,
+        data=usage_data,
     )
 
 

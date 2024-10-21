@@ -65,6 +65,7 @@ job "telemetry" {
         args = [
           "--storageDataPath={{ nomad_monitoring_dir }}/victoriametric",
           "--retentionPeriod=1d",
+          "--http.pathPrefix=/victoriametric",
           "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
           "--promscrape.config={{ nomad_monitoring_dir }}/node_discovery/prometheus.yaml"
         ]

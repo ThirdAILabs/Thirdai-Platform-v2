@@ -1,8 +1,9 @@
 import os
 from typing import Literal, Optional, Union
 
-from platform_common.pydantic_models.training import ModelType, NDBSubType, UDTSubType
 from pydantic import BaseModel, Field
+
+from platform_common.pydantic_models.training import ModelType, NDBSubType, UDTSubType
 
 
 class NDBDeploymentOptions(BaseModel):

@@ -7,6 +7,8 @@ load_dotenv()
 
 import fastapi
 import uvicorn
+from fastapi.middleware.cors import CORSMiddleware
+
 from backend.routers.data import data_router
 from backend.routers.deploy import deploy_router as deploy
 from backend.routers.models import model_router as model
@@ -25,7 +27,6 @@ from backend.startup_jobs import (
 )
 from backend.status_sync import sync_job_statuses
 from backend.utils import get_platform
-from fastapi.middleware.cors import CORSMiddleware
 
 app = fastapi.FastAPI()
 

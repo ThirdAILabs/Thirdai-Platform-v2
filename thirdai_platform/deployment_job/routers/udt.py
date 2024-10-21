@@ -1,5 +1,11 @@
 import time
 
+from fastapi import APIRouter, Depends, status
+from fastapi.encoders import jsonable_encoder
+from prometheus_client import Summary
+from reporter import Reporter
+from throughput import Throughput
+
 from deployment_job.models.classification_models import (
     ClassificationModel,
     TextClassificationModel,
@@ -12,8 +18,6 @@ from deployment_job.pydantic_models.inputs import (
 )
 from deployment_job.reporter import Reporter
 from deployment_job.utils import propagate_error
-from fastapi import APIRouter, Depends, status
-from fastapi.encoders import jsonable_encoder
 from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
 from platform_common.thirdai_storage.data_types import (
     LabelCollection,
@@ -21,9 +25,6 @@ from platform_common.thirdai_storage.data_types import (
     TokenClassificationData,
 )
 from platform_common.utils import response
-from prometheus_client import Summary
-from reporter import Reporter
-from throughput import Throughput
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 

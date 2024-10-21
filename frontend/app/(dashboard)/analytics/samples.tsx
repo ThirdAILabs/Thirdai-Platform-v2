@@ -5,7 +5,6 @@ import useRollingSamples from './rolling';
 import { fetchFeedback } from '@/lib/backend';
 import { useEffect, useState } from 'react';
 
-
 interface TextPairsProps {
   timestamp: string;
   label1: string;
@@ -13,7 +12,6 @@ interface TextPairsProps {
   text1: string;
   text2: string;
 }
-
 
 function TextPairs({ timestamp, label1, label2, text1, text2 }: TextPairsProps) {
   return (
@@ -34,13 +32,11 @@ function TextPairs({ timestamp, label1, label2, text1, text2 }: TextPairsProps) 
   );
 }
 
-
 interface ReformulationProps {
   timestamp: string;
   original: string;
   reformulations: string[];
 }
-
 
 function Reformulation({ timestamp, original, reformulations }: ReformulationProps) {
   return (
@@ -61,34 +57,27 @@ function Reformulation({ timestamp, original, reformulations }: ReformulationPro
   );
 }
 
-
-
-
 export default function RecentSamples() {
   const [upvotes, setUpvotes] = useState([]);
   const [associates, setAssociates] = useState([]);
 
-
   useEffect(() => {
     getFeedbackData();
-  }, [])
-
+  }, []);
 
   const getFeedbackData = async () => {
     const data = await fetchFeedback();
     setUpvotes(data.upvote);
     setAssociates(data.associate);
-  }
-
+  };
 
   const recentReformulations = useRollingSamples(
-   /* samples= */ reformulations,
-   /* numSamples= */ 3,
-   /* maxNewSamples= */ 1,
-   /* probabilityNewSamples= */ 0.4,
-   /* intervalSeconds= */ 2
+    /* samples= */ reformulations,
+    /* numSamples= */ 3,
+    /* maxNewSamples= */ 1,
+    /* probabilityNewSamples= */ 0.4,
+    /* intervalSeconds= */ 2
   );
-
 
   return (
     <div
@@ -104,20 +93,20 @@ export default function RecentSamples() {
           <CardTitle>Recent Upvotes</CardTitle>
           <CardDescription>The latest user-provided upvotes</CardDescription>
         </CardHeader>
-        {(upvotes.length !== 0) && <CardContent>
-          {upvotes.map(({ timestamp, query, reference_text }, idx) => (
-            <TextPairs
-              key={idx}
-              timestamp={timestamp}
-              label1="Query"
-              label2="Upvote"
-              text1={query}
-              text2={reference_text}
-            />
-          ))}
-        </CardContent>}
-
-
+        {upvotes.length !== 0 && (
+          <CardContent>
+            {upvotes.map(({ timestamp, query, reference_text }, idx) => (
+              <TextPairs
+                key={idx}
+                timestamp={timestamp}
+                label1="Query"
+                label2="Upvote"
+                text1={query}
+                text2={reference_text}
+              />
+            ))}
+          </CardContent>
+        )}
       </Card>
       <Card style={{ width: '32.5%', height: '45rem' }}>
         <CardHeader>

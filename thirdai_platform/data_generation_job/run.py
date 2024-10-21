@@ -2,6 +2,7 @@ import json
 from urllib.parse import urljoin
 
 import requests
+
 from data_generation_job.variables import DataCategory, GeneralVariables
 from platform_common.utils import load_dict
 

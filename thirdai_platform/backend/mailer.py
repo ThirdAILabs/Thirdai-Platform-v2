@@ -1,8 +1,9 @@
 import os
 
-from backend.utils import logger
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
+
+from backend.utils import logger
 
 # mailer which can be used to send mails from our webserver.
 

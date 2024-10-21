@@ -4,6 +4,9 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+from faker import Faker
+from tqdm import tqdm
+
 from data_generation_job.data_factory_interface import DataFactory
 from data_generation_job.prompt_resources.token_prompts import (
     dataset_generation_prompt,
@@ -17,9 +20,7 @@ from data_generation_job.utils import (
     write_to_csv,
 )
 from data_generation_job.variables import Entity, EntityStatus, NERSample
-from faker import Faker
 from platform_common.utils import save_dict
-from tqdm import tqdm
 
 
 class TokenDataFactory(DataFactory):

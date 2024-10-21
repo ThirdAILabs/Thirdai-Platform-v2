@@ -4,20 +4,21 @@ from typing import List, Optional
 from urllib.parse import urlencode, urljoin
 
 import bcrypt
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+from sqlalchemy import exists
+from sqlalchemy.orm import Session, selectinload
+
 from auth.jwt import AuthenticatedUser, create_access_token, verify_access_token
 from backend.auth_dependencies import global_admin_only
 from backend.mailer import mailer
 from backend.utils import hash_password
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.encoders import jsonable_encoder
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from fastapi.templating import Jinja2Templates
 from platform_common.utils import response
-from pydantic import BaseModel
-from sqlalchemy import exists
-from sqlalchemy.orm import Session, selectinload
 
 user_router = APIRouter()
 basic_security = HTTPBasic()

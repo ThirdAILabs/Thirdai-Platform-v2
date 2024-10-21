@@ -1,9 +1,10 @@
 import os
 
+from fastapi_utils.tasks import repeat_every
+
 from backend.utils import get_nomad_job
 from database import schema
 from database.session import get_session
-from fastapi_utils.tasks import repeat_every
 
 
 @repeat_every(seconds=5)

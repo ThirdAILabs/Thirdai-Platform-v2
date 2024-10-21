@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { retrainNER } from '@/lib/backend';
+import { retrainTokenClassifier } from '@/lib/backend';
 
 interface UpdateButtonProps {
   modelName: string;
@@ -15,7 +15,7 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
     setUpdateError('');
 
     try {
-      await retrainNER({ model_name: modelName });
+      await retrainTokenClassifier({ model_name: modelName });
       console.log('Model updated successfully');
     } catch (error) {
       setUpdateError(

@@ -80,10 +80,7 @@ interface HighlightProps {
   selected: boolean;
 }
 
-const SELECTING_COLOR = '#EFEFEF';
-const SELECTED_COLOR = '#DFDFDF';
-
-const Highlight: React.FC<HighlightProps> = ({
+function Highlight({
   currentToken,
   nextToken,
   tagColors,
@@ -91,7 +88,7 @@ const Highlight: React.FC<HighlightProps> = ({
   onMouseDown,
   selecting,
   selected,
-}) => {
+}: HighlightProps) {
   const [hover, setHover] = useState<boolean>(false);
 
   return (
@@ -126,7 +123,7 @@ const Highlight: React.FC<HighlightProps> = ({
       <span className="mr-1" />
     </>
   );
-};
+}
 
 interface HighlightedSampleProps {
   tokens: string[];
@@ -134,24 +131,26 @@ interface HighlightedSampleProps {
   tagColors: Record<string, HighlightColor>;
 }
 
-const HighlightedSample: React.FC<HighlightedSampleProps> = ({ tokens, tags, tagColors }) => (
-  <div className="mb-4 leading-relaxed">
-    {tokens.map((token, index) => (
-      <Highlight
-        key={index}
-        currentToken={{ text: token, tag: tags[index] }}
-        nextToken={
-          index < tokens.length - 1 ? { text: tokens[index + 1], tag: tags[index + 1] } : null
-        }
-        tagColors={tagColors}
-        onMouseOver={() => {}}
-        onMouseDown={() => {}}
-        selecting={false}
-        selected={false}
-      />
-    ))}
-  </div>
-);
+function HighlightedSample({ tokens, tags, tagColors }: HighlightedSampleProps) {
+  return (
+    <div className="mb-4 leading-relaxed">
+      {tokens.map((token, index) => (
+        <Highlight
+          key={index}
+          currentToken={{ text: token, tag: tags[index] }}
+          nextToken={
+            index < tokens.length - 1 ? { text: tokens[index + 1], tag: tags[index + 1] } : null
+          }
+          tagColors={tagColors}
+          onMouseOver={() => {}}
+          onMouseDown={() => {}}
+          selecting={false}
+          selected={false}
+        />
+      ))}
+    </div>
+  );
+}
 
 interface Upvote {
   query: string;

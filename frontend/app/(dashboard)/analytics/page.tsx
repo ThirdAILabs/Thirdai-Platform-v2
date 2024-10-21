@@ -3,7 +3,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import RecentSamples from './samples';
 import UpdateButton from './updateButton';
-// import RetrainButton from './retrainButton';
 import { UsageDurationChart, UsageFrequencyChart, ReformulatedQueriesChart } from './charts';
 import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';

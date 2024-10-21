@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { retrainNER } from '@/lib/backend';
+import { retrainTokenClassifier } from '@/lib/backend';
 
 interface RetrainButtonProps {
   modelName: string;
@@ -23,7 +23,7 @@ export default function RetrainButton({ modelName, username }: RetrainButtonProp
     setRetrainError('');
 
     try {
-      await retrainNER({
+      await retrainTokenClassifier({
         model_name: newModelName,
         base_model_identifier: `${username}/${modelName}`,
       });

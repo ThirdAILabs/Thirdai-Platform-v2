@@ -304,12 +304,15 @@ export function retrain_ndb({
   });
 }
 
-interface RetrainNERParams {
+interface RetrainTokenClassifierParams {
   model_name: string;
   base_model_identifier?: string;
 }
 
-export function retrainNER({ model_name, base_model_identifier }: RetrainNERParams): Promise<any> {
+export function retrainTokenClassifier({
+  model_name,
+  base_model_identifier,
+}: RetrainTokenClassifierParams): Promise<any> {
   const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
@@ -896,6 +899,11 @@ export interface TokenClassificationResult {
   predicted_tags: string[][];
 }
 
+interface InsertSamplePayload {
+  tokens: string[];
+  tags: string[];
+}
+
 export function useTokenClassificationEndpoints() {
   const accessToken = useAccessToken();
   const params = useParams();
@@ -1025,7 +1033,7 @@ export function useTokenClassificationEndpoints() {
       }
     });
 
-  const insertSample = async (sample: { tokens: string[]; tags: string[] }): Promise<void> => {
+  const insertSample = async (sample: InsertSamplePayload): Promise<void> => {
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
     try {
       await axios.post(`${deploymentUrl}/insert_sample`, sample);
@@ -1086,8 +1094,8 @@ export function useTokenClassificationEndpoints() {
     insertSample,
     addLabel,
     getLabels,
-    getStats,
     getTextFromFile,
+    getStats,
   };
 }
 

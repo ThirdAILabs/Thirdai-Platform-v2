@@ -343,6 +343,7 @@ class TokenClassificationModel(ClassificationModel):
                 batch_size=self.train_options.batch_size,
                 metrics=self.train_options.metrics,
             )
+
         training_time = time.time() - start_time
 
         # converts the status of all tags to trained and update in the storage

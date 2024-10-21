@@ -429,9 +429,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
         templates_per_sample: int = 4,
     ):
         if len(tags) == 0:
-            write_to_csv(str(self.train_file_location), [], ["source", "target"])
             return {
-                "filepath": str(self.train_file_location),
                 "error_file": str(self.errored_file_location),
                 "task": "TOKEN_CLASSIFICATION",
                 "input_feature": TokenDataFactory.SOURCE_COLUMN,

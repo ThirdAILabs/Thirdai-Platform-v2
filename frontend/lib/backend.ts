@@ -1364,7 +1364,7 @@ export async function fetchFeedback() {
   const modelName = params.get('model_name');
   const modelIdentifier = `${userName}/${modelName}`;
   const accessToken = getAccessToken();
-
+  // console.log("modelIdentifier ", modelIdentifier);
   try {
     const response = await axios({
       method: 'get',
@@ -1378,19 +1378,8 @@ export async function fetchFeedback() {
     });
 
     return response?.data?.data;
-  } catch (error: unknown) {
-    if (axios.isAxiosError(error)) {
-      if (
-        error.response?.status === 400 &&
-        error.response.data?.message === 'No feedback found for the model.'
-      ) {
-        console.warn('No feedback data found for the model');
-        return [];
-      }
-      console.error('Axios error getting Feedback Response:', error);
-    } else {
-      console.error('Unexpected error:', error);
-    }
+  } catch (error) {
+    console.error('Error getting Feedback Response:', error);
     throw error;
   }
 }

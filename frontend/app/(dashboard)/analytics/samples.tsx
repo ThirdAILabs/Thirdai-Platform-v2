@@ -4,6 +4,7 @@ import { reformulations } from './mock_samples';
 import useRollingSamples from './rolling';
 import { fetchFeedback } from '@/lib/backend';
 import { useEffect, useState } from 'react';
+// import previewNoData from '../../../assets/no-Data-Png.png'
 
 interface TextPairsProps {
   timestamp: string;
@@ -63,12 +64,17 @@ export default function RecentSamples() {
 
   useEffect(() => {
     getFeedbackData();
+    // Refresh the feedback data after every 5 seconds
+    const intervalId = setInterval(() => {
+      getFeedbackData();
+    }, 5000);
+    return () => clearInterval(intervalId);
   }, []);
 
   const getFeedbackData = async () => {
     const data = await fetchFeedback();
-    setUpvotes(data.upvote);
-    setAssociates(data.associate);
+    setUpvotes(data?.upvote);
+    setAssociates(data?.associate);
   };
 
   const recentReformulations = useRollingSamples(
@@ -88,46 +94,54 @@ export default function RecentSamples() {
         width: '100%',
       }}
     >
-      {upvotes !== undefined && (
-        <Card style={{ width: '32.5%', height: '45rem' }}>
-          <CardHeader>
-            <CardTitle>Recent Upvotes</CardTitle>
-            <CardDescription>The latest user-provided upvotes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {upvotes.map(({ timestamp, query, reference_text }, idx) => (
-              <TextPairs
-                key={idx}
-                timestamp={timestamp}
-                label1="Query"
-                label2="Upvote"
-                text1={query}
-                text2={reference_text}
-              />
-            ))}
-          </CardContent>
-        </Card>
-      )}
-      {associates !== undefined && (
-        <Card style={{ width: '32.5%', height: '45rem' }}>
-          <CardHeader>
-            <CardTitle>Recent Associations</CardTitle>
-            <CardDescription>The latest user-provided associations</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {associates.map(({ timestamp, source, target }, idx) => (
-              <TextPairs
-                key={idx}
-                timestamp={timestamp}
-                label1="Source"
-                label2="Target"
-                text1={source}
-                text2={target}
-              />
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      <Card style={{ width: '32.5%', height: '45rem' }}>
+        <CardHeader>
+          <CardTitle>Recent Upvotes</CardTitle>
+          <CardDescription>The latest user-provided upvotes</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {upvotes !== undefined ? upvotes.map(({ timestamp, query, reference_text }, idx) => (
+            <TextPairs
+              key={idx}
+              timestamp={timestamp}
+              label1="Query"
+              label2="Upvote"
+              text1={query}
+              text2={reference_text}
+            />
+          )) : (
+            <div className="flex flex-col justify-center items-center h-full mt-20">
+              <img src="/no-Data-Png.png" alt="No Data Available" className="mb-4" />
+              <span className='font-mono italic'>Oops! No upvote data available.</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card style={{ width: '32.5%', height: '45rem' }}>
+        <CardHeader>
+          <CardTitle>Recent Associations</CardTitle>
+          <CardDescription>The latest user-provided associations</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {(associates !== undefined) ? associates.map(({ timestamp, source, target }, idx) => (
+            <TextPairs
+              key={idx}
+              timestamp={timestamp}
+              label1="Source"
+              label2="Target"
+              text1={source}
+              text2={target}
+            />
+          )) : (
+            <div className="flex flex-col justify-center items-center h-full mt-20">
+              <img src="/no-Data-Png.png" alt="No Data Available" className="mb-4" />
+              <span className='font-mono italic'>Oops! No associations data available.</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Card style={{ width: '32.5%', height: '45rem' }}>
         <CardHeader>
           <CardTitle>Recent Query Reformulations</CardTitle>

@@ -29,7 +29,7 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
 
     try {
       const response: UpdateResponse = await retrainTokenClassifier({ model_name: modelName });
-      if (response.status === "success") {
+      if (response.status === 'success') {
         setInitiateUpdateSuccess(true);
         setJobDetails(response.data);
         console.log('Model update initiated successfully:', response.message);
@@ -38,7 +38,9 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
       }
     } catch (error) {
       setUpdateError(
-        error instanceof Error ? error.message : 'An error occurred while initiating the model update'
+        error instanceof Error
+          ? error.message
+          : 'An error occurred while initiating the model update'
       );
     } finally {
       setIsUpdating(false);
@@ -46,14 +48,14 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
   };
 
   const getButtonText = () => {
-    if (isUpdating) return "Initiating Update...";
-    if (initiateUpdateSuccess) return "Update Initiated!";
-    return "Update Existing Model";
+    if (isUpdating) return 'Initiating Update...';
+    if (initiateUpdateSuccess) return 'Update Initiated!';
+    return 'Update Existing Model';
   };
 
   const getButtonColor = () => {
-    if (initiateUpdateSuccess) return "success";
-    return "primary";
+    if (initiateUpdateSuccess) return 'success';
+    return 'primary';
   };
 
   return (
@@ -73,8 +75,8 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
           <p>Update process initiated successfully. This may take some time to complete.</p>
           {jobDetails && (
             <p>
-              Job Details - Model ID: {jobDetails.model_id.slice(0, 8)}..., 
-              User ID: {jobDetails.user_id.slice(0, 8)}...
+              Job Details - Model ID: {jobDetails.model_id.slice(0, 8)}..., User ID:{' '}
+              {jobDetails.user_id.slice(0, 8)}...
             </p>
           )}
         </div>

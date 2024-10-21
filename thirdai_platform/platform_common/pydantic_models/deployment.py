@@ -1,6 +1,4 @@
 import os
-
-pass
 from typing import Literal, Optional, Union
 
 from platform_common.pydantic_models.training import ModelType, NDBSubType, UDTSubType

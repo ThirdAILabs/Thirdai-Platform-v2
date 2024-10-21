@@ -1,8 +1,10 @@
 'use client';
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { associations, reformulations, upvotes } from './mock_samples';
+import { reformulations } from './mock_samples';
 import useRollingSamples from './rolling';
+import { fetchFeedback } from '@/lib/backend';
+import { useEffect, useState } from 'react';
+
 
 interface TextPairsProps {
   timestamp: string;
@@ -11,6 +13,7 @@ interface TextPairsProps {
   text1: string;
   text2: string;
 }
+
 
 function TextPairs({ timestamp, label1, label2, text1, text2 }: TextPairsProps) {
   return (
@@ -31,11 +34,13 @@ function TextPairs({ timestamp, label1, label2, text1, text2 }: TextPairsProps) 
   );
 }
 
+
 interface ReformulationProps {
   timestamp: string;
   original: string;
   reformulations: string[];
 }
+
 
 function Reformulation({ timestamp, original, reformulations }: ReformulationProps) {
   return (
@@ -56,30 +61,34 @@ function Reformulation({ timestamp, original, reformulations }: ReformulationPro
   );
 }
 
-export default function RecentSamples() {
-  const recentUpvotes = useRollingSamples(
-    /* samples= */ upvotes,
-    /* numSamples= */ 5,
-    /* maxNewSamples= */ 2,
-    /* probabilityNewSamples= */ 0.2,
-    /* intervalSeconds= */ 2
-  );
 
-  const recentAssociations = useRollingSamples(
-    /* samples= */ associations,
-    /* numSamples= */ 5,
-    /* maxNewSamples= */ 2,
-    /* probabilityNewSamples= */ 0.1,
-    /* intervalSeconds= */ 3
-  );
+
+
+export default function RecentSamples() {
+  const [upvotes, setUpvotes] = useState([]);
+  const [associates, setAssociates] = useState([]);
+
+
+  useEffect(() => {
+    getFeedbackData();
+  }, [])
+
+
+  const getFeedbackData = async () => {
+    const data = await fetchFeedback();
+    setUpvotes(data.upvote);
+    setAssociates(data.associate);
+  }
+
 
   const recentReformulations = useRollingSamples(
-    /* samples= */ reformulations,
-    /* numSamples= */ 3,
-    /* maxNewSamples= */ 1,
-    /* probabilityNewSamples= */ 0.4,
-    /* intervalSeconds= */ 2
+   /* samples= */ reformulations,
+   /* numSamples= */ 3,
+   /* maxNewSamples= */ 1,
+   /* probabilityNewSamples= */ 0.4,
+   /* intervalSeconds= */ 2
   );
+
 
   return (
     <div
@@ -95,18 +104,20 @@ export default function RecentSamples() {
           <CardTitle>Recent Upvotes</CardTitle>
           <CardDescription>The latest user-provided upvotes</CardDescription>
         </CardHeader>
-        <CardContent>
-          {recentUpvotes.map(({ timestamp, query, upvote }, idx) => (
+        {(upvotes.length !== 0) && <CardContent>
+          {upvotes.map(({ timestamp, query, reference_text }, idx) => (
             <TextPairs
               key={idx}
               timestamp={timestamp}
               label1="Query"
               label2="Upvote"
               text1={query}
-              text2={upvote}
+              text2={reference_text}
             />
           ))}
-        </CardContent>
+        </CardContent>}
+
+
       </Card>
       <Card style={{ width: '32.5%', height: '45rem' }}>
         <CardHeader>
@@ -114,7 +125,7 @@ export default function RecentSamples() {
           <CardDescription>The latest user-provided associations</CardDescription>
         </CardHeader>
         <CardContent>
-          {recentAssociations.map(({ timestamp, source, target }, idx) => (
+          {associates.map(({ timestamp, source, target }, idx) => (
             <TextPairs
               key={idx}
               timestamp={timestamp}

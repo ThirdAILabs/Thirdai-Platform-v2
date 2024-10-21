@@ -20,6 +20,7 @@ from backend.utils import (
     get_model_status,
     get_platform,
     get_python_path,
+    list_all_dependencies,
     logger,
     model_accessible,
     model_bazaar_path,
@@ -273,8 +274,81 @@ async def deploy_single_model(
         logger.info(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message=str(err),
+            detail=str(err),
         )
+
+    if requires_on_prem_llm:
+        llm_autoscaling_env = os.getenv("AUTOSCALING_ENABLED")
+        if llm_autoscaling_env is not None:
+            llm_autoscaling_enabled = llm_autoscaling_env.lower() == "true"
+        else:
+            llm_autoscaling_enabled = autoscaling_enabled
+        await start_on_prem_generate_job(
+            restart_if_exists=False, autoscaling_enabled=llm_autoscaling_enabled
+        )
+
+
+@deploy_router.post("/run", dependencies=[Depends(is_model_owner)])
+async def deploy_model(
+    model_identifier: str,
+    memory: Optional[int] = None,
+    autoscaling_enabled: bool = False,
+    autoscaler_max_count: int = 1,
+    genai_key: Optional[str] = None,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Deploy a model.
+
+    Parameters:
+    - model_identifier: The identifier of the model to deploy.
+    - memory: Optional memory allocation for the deployment.
+    - autoscaling_enabled: Whether autoscaling is enabled.
+    - autoscaler_max_count: The maximum count for the autoscaler.
+    - genai_key: Optional GenAI key.
+    - session: The database session (dependency).
+    - authenticated_user: The authenticated user (dependency).
+
+    Example Usage:
+    ```json
+    {
+        "deployment_name": "my_deployment",
+        "model_identifier": "model_123",
+        "memory": 2048,
+        "autoscaling_enabled": true,
+        "autoscaler_max_count": 5,
+        "genai_key": "your_genai_key"
+    }
+    ```
+    """
+    user = authenticated_user.user
+
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    for dependency in list_all_dependencies(model=model):
+        try:
+            await deploy_single_model(
+                model_id=dependency.id,
+                memory=memory,
+                autoscaling_enabled=autoscaling_enabled,
+                autoscaler_max_count=autoscaler_max_count,
+                genai_key=genai_key,
+                session=session,
+                user=user,
+            )
+        except HTTPException as err:
+            raise HTTPException(
+                status_code=err.status_code,
+                detail=f"Error deploying dependent model {dependency.name}: "
+                + err.detail,
+            )
 
     return response(
         status_code=status.HTTP_202_ACCEPTED,

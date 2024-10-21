@@ -200,7 +200,6 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
       title: 'App Name',
       content: (
         <div>
-          <span className="block text-lg font-semibold">App Name</span>
           <TextField
             className="text-md w-full"
             value={modelName}
@@ -246,7 +245,6 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
       title: 'Retrieval App',
       content: (
         <div>
-          <span className="block text-lg font-semibold">Retrieval App</span>
           {!createdSS && (
             <>
               <CardDescription>Use an existing retrieval app?</CardDescription>
@@ -567,10 +565,9 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
       ),
     },
     {
-      title: 'Advanced Configuration',
+      title: 'Advanced',
       content: (
         <div>
-          <span className="block text-lg font-semibold">Advanced Configuration</span>
           
           {/* Indexing Configuration */}
           <div>
@@ -616,13 +613,6 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
                 style={{ width: '140px' }}
               >
                 Basic
-              </Button>
-              <Button
-                variant={indexingType === IndexingType.Better ? 'contained' : 'outlined'}
-                onClick={() => setIndexingType(IndexingType.Better)}
-                style={{ width: '140px' }}
-              >
-                Better
               </Button>
               <Button
                 variant={indexingType === IndexingType.Advanced ? 'contained' : 'outlined'}

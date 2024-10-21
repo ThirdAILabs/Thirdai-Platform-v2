@@ -355,25 +355,31 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       {/* Modal for selecting between Dev mode and Production mode */}
       {showDeploymentModal && (
         <Modal onClose={toggleDeploymentModal}>
-          <div className="p-4">
-            <h2 className="text-lg font-bold mb-4">Choose Configuration</h2>
+          <div className="p-2">
+            <h2 className="text-sm font-semibold mb-2">Choose Configuration</h2>
             <div>
               <RadioGroup
                 aria-label="mode-selection"
                 value={selectedMode}
                 onChange={(e) => setSelectedMode(e.target.value as DeployMode)}
+                className="space-y-1"
               >
-                <div className="flex items-center">
-                  <Radio value={DeployMode.Dev} />
-                  <span>Dev Mode</span>
+                <div className="flex items-center space-x-1">
+                  <Radio value={DeployMode.Dev} size="small" />
+                  <span className="text-sm">Dev</span>
                 </div>
-                <div className="flex items-center">
-                  <Radio value={DeployMode.Production} />
-                  <span>Production Mode</span>
+                <div className="flex items-center space-x-1">
+                  <Radio value={DeployMode.Production} size="small" />
+                  <span className="text-sm">Prod</span>
                 </div>
               </RadioGroup>
-              <div className="mt-4">
-                <Button onClick={handleModeSelection} variant="contained">
+              <div className="mt-2">
+                <Button 
+                  onClick={handleModeSelection} 
+                  variant="contained" 
+                  size="small"
+                  className="text-sm py-1 px-3"
+                >
                   Confirm
                 </Button>
               </div>

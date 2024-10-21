@@ -239,7 +239,7 @@ datasources:
     type: prometheus
     access: proxy
     {% if platform == "local" -%}
-    url: http://host.docker.internal:{% raw %}{{ range nomadService "vicky-web" }}{{ .Port }}{{ end }}{% endraw %}
+    url: http://host.docker.internal/victoriametric
     {%- else -%}
     {% raw %}{{ range nomadService "vicky-web" }}url: http://{{ .Address }}:{{ .Port }}{{ end }}{% endraw %}
     {%- endif %}

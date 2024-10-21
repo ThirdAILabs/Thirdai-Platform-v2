@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import SaveButton from './buttons/SaveButton';
 import Teach from './Teach';
+import { HiChevronLeft } from 'react-icons/hi';
 
-const PanelContainer = styled.div`
+const PanelContainer = styled.div<{ $isVisible: boolean }>`
   position: fixed;
-  right: -300px;
+  right: ${props => props.$isVisible ? '0' : '-300px'};
   top: 0;
   width: 300px;
   height: 100%;
@@ -17,11 +18,35 @@ const PanelContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 25px;
+`;
+
+const TriggerIcon = styled.button<{ $isVisible: boolean }>`
+  position: fixed;
+  top: 40%;
+  right: 20px;
+  transform: translateY(-50%);
+  cursor: pointer;
+  background-color: #1a1a1a;
+  border: none;
+  border-radius: 8px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: all 0.3s ease;
 
   &:hover {
-    right: 0;
+    background-color: #333;
+  }
+
+  svg {
+    transition: transform 0.3s ease;
+    transform: ${props => props.$isVisible ? 'rotate(180deg)' : 'rotate(0)'};
   }
 `;
+
 
 const PanelTitle = styled.h2`
   font-size: 24px;
@@ -70,52 +95,67 @@ interface SidePanelProps {
 }
 
 const SidePanel: React.FC<SidePanelProps> = ({ cacheEnabled, setCacheEnabled, onSaveClick }) => {
-  return (
-    <PanelContainer>
-      <PanelTitle>Advanced Configuration</PanelTitle>
-      
-      <SectionContainer>
-        <SectionTitle>Cache Control</SectionTitle>
-        <SectionContent>
-          <SectionText>Enable cache for faster responses</SectionText>
-          <div className="flex items-center">
-            <button
-              onClick={() => setCacheEnabled(!cacheEnabled)}
-              className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-300 focus:outline-none ${
-                cacheEnabled ? 'bg-blue-500' : 'bg-gray-300'
-              }`}
-            >
-              <span
-                className={`transform transition-transform duration-300 inline-block w-4 h-4 bg-white rounded-full ${
-                  cacheEnabled ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
-            </button>
-          </div>
-        </SectionContent>
-      </SectionContainer>
+    const [isVisible, setIsVisible] = useState(false);
+  
+    return (
+        <>
+        <TriggerIcon 
+            $isVisible={isVisible}
+            onMouseEnter={() => setIsVisible(true)}
+            onMouseLeave={() => setIsVisible(false)}
+        >
+            <HiChevronLeft size={28} color="white" />
+        </TriggerIcon>
+        <PanelContainer 
+            $isVisible={isVisible}
+            onMouseEnter={() => setIsVisible(true)}
+            onMouseLeave={() => setIsVisible(false)}
+        >
+            <PanelTitle>Advanced Configuration</PanelTitle>
+            
+            <SectionContainer>
+            <SectionTitle>Cache Control</SectionTitle>
+            <SectionContent>
+                <SectionText>Enable cache for faster responses</SectionText>
+                <div className="flex items-center">
+                <button
+                    onClick={() => setCacheEnabled(!cacheEnabled)}
+                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-300 focus:outline-none ${
+                    cacheEnabled ? 'bg-blue-500' : 'bg-gray-300'
+                    }`}
+                >
+                    <span
+                    className={`transform transition-transform duration-300 inline-block w-4 h-4 bg-white rounded-full ${
+                        cacheEnabled ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                    />
+                </button>
+                </div>
+            </SectionContent>
+            </SectionContainer>
 
-      <SectionContainer>
-        <SectionTitle>Save Model</SectionTitle>
-        <SectionContent>
-          <SectionText>Save current model configuration</SectionText>
-          <ButtonContainer>
-            <SaveButton onClick={onSaveClick} />
-          </ButtonContainer>
-        </SectionContent>
-      </SectionContainer>
+            <SectionContainer>
+            <SectionTitle>Save Model</SectionTitle>
+            <SectionContent>
+                <SectionText>Save current model configuration</SectionText>
+                <ButtonContainer>
+                <SaveButton onClick={onSaveClick} />
+                </ButtonContainer>
+            </SectionContent>
+            </SectionContainer>
 
-      <SectionContainer>
-        <SectionTitle>Teaching Mode</SectionTitle>
-        <SectionContent>
-          <SectionText>Enter teaching mode to train the model</SectionText>
-          <ButtonContainer>
-            <Teach />
-          </ButtonContainer>
-        </SectionContent>
-      </SectionContainer>
-    </PanelContainer>
-  );
+            <SectionContainer>
+            <SectionTitle>Teaching Mode</SectionTitle>
+            <SectionContent>
+                <SectionText>Enter teaching mode to train the model</SectionText>
+                <ButtonContainer>
+                <Teach />
+                </ButtonContainer>
+            </SectionContent>
+            </SectionContainer>
+        </PanelContainer>
+        </>
+    );
 };
 
 export default SidePanel;

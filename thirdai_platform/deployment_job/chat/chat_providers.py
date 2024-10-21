@@ -1,3 +1,4 @@
+pass
 from urllib.parse import urljoin
 
 from deployment_job.chat.chat_interface import ChatInterface
@@ -18,8 +19,6 @@ class OpenAIChat(ChatInterface):
         query_reformulation_prompt: str = "Given the above conversation, generate a search query that would help retrieve relevant sources for responding to the last message.",
         **kwargs,
     ):
-        # Set instance variables necessary for self.llm() before calling super().__init__(),
-        # because super().__init__() calls self.llm()
         self.model = model
         self.key = key
         self.temperature = temperature
@@ -28,12 +27,18 @@ class OpenAIChat(ChatInterface):
             db, chat_history_sql_uri, top_k, chat_prompt, query_reformulation_prompt
         )
 
-    def llm(self):
-        return ChatOpenAI(
+    async def stream_chat(
+        self, user_input: str, session_id: str, access_token: str = None, **kwargs
+    ):
+        llm = lambda: ChatOpenAI(
             model=self.model,
             temperature=self.temperature,
             openai_api_key=self.key,
         )
+        async for chunk in super().stream_chat_helper(
+            user_input, session_id, llm, **kwargs
+        ):
+            yield chunk
 
 
 class OnPremChat(ChatInterface):
@@ -42,44 +47,25 @@ class OnPremChat(ChatInterface):
         db: ndb.NeuralDB,
         chat_history_sql_uri: str,
         base_url: str,
-        key: str = None,
         top_k: int = 5,
         chat_prompt: str = "Answer the user's questions based on the below context:",
         query_reformulation_prompt: str = "Given the above conversation, generate a search query that would help retrieve relevant sources for responding to the last message.",
         **kwargs,
     ):
-        # Set instance variables necessary for self.llm() before calling super().__init__(),
-        # because super().__init__() calls self.llm()
         self.base_url = base_url
-        self.key = key
 
         super().__init__(
             db, chat_history_sql_uri, top_k, chat_prompt, query_reformulation_prompt
         )
 
-    def llm(self):
-        headers = {"Authorization": f"Bearer {self.key}"} if self.key else {}
-        return ChatOpenAI(
-            base_url=urljoin(self.base_url, "on-prem-llm"),
-            default_headers=headers,
-            openai_api_key=self.key,  # this key not used but fails without it
-        )
-
-    def set_key(self, key: str):
-        self.key = key
-        # We recreate the chains because the self.llm() method needs to use the
-        # updated access token key
-        self._create_chains()
-
-    def chat(self, user_input: str, session_id: str, key: str = None, **kwargs):
-        if key:
-            self.set_key(key)
-        return super().chat(user_input, session_id, **kwargs)
-
     async def stream_chat(
-        self, user_input: str, session_id: str, key: str = None, **kwargs
+        self, user_input: str, session_id: str, access_token: str = None, **kwargs
     ):
-        if key:
-            self.set_key(key)
-        async for chunk in super().stream_chat(user_input, session_id, **kwargs):
+        llm = lambda: ChatOpenAI(
+            base_url=urljoin(self.base_url, "on-prem-llm"),
+            openai_api_key=access_token,
+        )
+        async for chunk in super().stream_chat_helper(
+            user_input, session_id, llm, **kwargs
+        ):
             yield chunk

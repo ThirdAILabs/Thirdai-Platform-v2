@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator, List, Union
+from typing import AsyncGenerator, Callable, List, Union
 
 from deployment_job.chat.ndbv2_vectorstore import NeuralDBV2VectorStore
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -11,6 +11,8 @@ from langchain_core.messages import AIMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableBranch, RunnablePassthrough
+
+pass
 from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
 
@@ -23,7 +25,6 @@ class ChatInterface(ABC):
         top_k: int = 5,
         chat_prompt: str = "Answer the user's questions based on the below context:",
         query_reformulation_prompt: str = "Given the above conversation, generate a search query that would help retrieve relevant sources for responding to the last message.",
-        **kwargs,
     ):
         self.chat_history_sql_uri = chat_history_sql_uri
         self.top_k = top_k
@@ -37,13 +38,10 @@ class ChatInterface(ABC):
         else:
             raise ValueError(f"Cannot support db of type {type(db)}")
 
-        # Chain creation is moved to a separate method because the OnPremChat calls it periodically.
-        # The OnPremChat calls this when it needs to refresh its access token.
-        # Refreshing the access token involves recreating the self.llm()
-        # object, which requires rebuilding the chains
-        self._create_chains()
-
-    def _create_chains(self):
+    def create_chain(
+        self,
+        llm: Callable[[], LLM],
+    ):
         retriever = self.vectorstore.as_retriever(search_kwargs={"k": self.top_k})
 
         query_transform_prompt = ChatPromptTemplate.from_messages(
@@ -63,7 +61,7 @@ class ChatInterface(ABC):
                 (lambda x: x["messages"][-1].content) | retriever,
             ),
             # If messages, then we pass inputs to LLM chain to transform the query, then pass to retriever
-            query_transform_prompt | self.llm() | StrOutputParser() | retriever,
+            query_transform_prompt | llm() | StrOutputParser() | retriever,
         ).with_config(run_name="chat_retriever_chain")
 
         question_answering_prompt = ChatPromptTemplate.from_messages(
@@ -76,20 +74,14 @@ class ChatInterface(ABC):
             ]
         )
 
-        document_chain = create_stuff_documents_chain(
-            self.llm(), question_answering_prompt
-        )
+        document_chain = create_stuff_documents_chain(llm(), question_answering_prompt)
 
-        self.conversational_retrieval_chain = RunnablePassthrough.assign(
+        return RunnablePassthrough.assign(
             context=query_transforming_retriever_chain
             | ChatInterface.parse_retriever_output,
         ).assign(
             answer=document_chain,
         )
-
-    @abstractmethod
-    def llm(self) -> LLM:
-        raise NotImplementedError()
 
     @staticmethod
     def parse_retriever_output(documents: List[Document]):
@@ -114,30 +106,26 @@ class ChatInterface(ABC):
         ]
         return chat_history_list
 
-    def chat(self, user_input: str, session_id: str, **kwargs):
-        chat_history = SQLChatMessageHistory(
-            session_id=session_id, connection_string=self.chat_history_sql_uri
-        )
-        chat_history.add_user_message(user_input)
-        response = self.conversational_retrieval_chain.invoke(
-            {"messages": chat_history.messages}
-        )
-        chat_history.add_ai_message(response["answer"])
-
-        return response["answer"]
-
+    @abstractmethod
     async def stream_chat(
-        self, user_input: str, session_id: str, **kwargs
+        self, user_input: str, session_id: str, access_token: str = None, **kwargs
+    ):
+        raise NotImplementedError()
+
+    async def stream_chat_helper(
+        self,
+        user_input: str,
+        session_id: str,
+        llm: Callable[[], LLM],
     ) -> AsyncGenerator[str, None]:
+        chain = self.create_chain(llm)
         chat_history = SQLChatMessageHistory(
             session_id=session_id, connection_string=self.chat_history_sql_uri
         )
         chat_history.add_user_message(user_input)
 
         response_chunks = []
-        async for chunk in self.conversational_retrieval_chain.astream(
-            {"messages": chat_history.messages}
-        ):
+        async for chunk in chain.astream({"messages": chat_history.messages}):
             if "answer" in chunk:
                 response_chunks.append(chunk["answer"])
                 yield chunk["answer"]

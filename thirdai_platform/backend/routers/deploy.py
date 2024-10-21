@@ -249,7 +249,7 @@ async def deploy_single_model(
             registry=os.getenv("DOCKER_REGISTRY"),
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
-            image_name=os.getenv("DEPLOY_IMAGE_NAME"),
+            image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
             model_id=str(model.id),
             share_dir=os.getenv("SHARE_DIR", None),
             config_path=config.save_deployment_config(),
@@ -275,7 +275,14 @@ async def deploy_single_model(
         )
 
     if requires_on_prem_llm:
-        await start_on_prem_generate_job(restart_if_exists=False)
+        llm_autoscaling_env = os.getenv("AUTOSCALING_ENABLED")
+        if llm_autoscaling_env is not None:
+            llm_autoscaling_enabled = llm_autoscaling_env.lower() == "true"
+        else:
+            llm_autoscaling_enabled = autoscaling_enabled
+        await start_on_prem_generate_job(
+            restart_if_exists=False, autoscaling_enabled=llm_autoscaling_enabled
+        )
 
 
 @deploy_router.post("/run", dependencies=[Depends(is_model_owner)])

@@ -19,19 +19,16 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState('');
   const [initiateUpdateSuccess, setInitiateUpdateSuccess] = useState(false);
-  const [jobDetails, setJobDetails] = useState<UpdateResponse['data'] | null>(null);
 
   const handleUpdateModel = async () => {
     setIsUpdating(true);
     setUpdateError('');
     setInitiateUpdateSuccess(false);
-    setJobDetails(null);
 
     try {
       const response: UpdateResponse = await retrainTokenClassifier({ model_name: modelName });
       if (response.status === 'success') {
         setInitiateUpdateSuccess(true);
-        setJobDetails(response.data);
         console.log('Model update initiated successfully:', response.message);
       } else {
         throw new Error(response.message || 'Failed to initiate update');
@@ -73,12 +70,6 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
       {initiateUpdateSuccess && (
         <div className="text-green-500">
           <p>Update process initiated successfully. This may take some time to complete.</p>
-          {jobDetails && (
-            <p>
-              Job Details - Model ID: {jobDetails.model_id.slice(0, 8)}..., User ID:{' '}
-              {jobDetails.user_id.slice(0, 8)}...
-            </p>
-          )}
         </div>
       )}
     </div>

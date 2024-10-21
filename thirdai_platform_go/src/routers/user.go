@@ -132,7 +132,7 @@ func (u *UserRouter) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := u.userAuth.CreateToken(user.Id)
+	token, err := u.userAuth.CreateUserJwt(user.Id)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error generating access token: %v", err), http.StatusInternalServerError)
 		return

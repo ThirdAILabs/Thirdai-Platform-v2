@@ -22,16 +22,20 @@ func (m *JwtManager) Authenticator() func(http.Handler) http.Handler {
 
 const userIdKey = "user_id"
 
-func (m *JwtManager) CreateToken(user_id string) (string, error) {
+func (m *JwtManager) CreateToken(key, value string, exp time.Duration) (string, error) {
 	claims := map[string]interface{}{
-		userIdKey: user_id,
-		"exp":     time.Now().Add(time.Minute * 15),
+		key:   value,
+		"exp": time.Now().Add(exp),
 	}
 	_, token, err := m.auth.Encode(claims)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate access token: %v", err)
 	}
 	return token, nil
+}
+
+func (m *JwtManager) CreateUserJwt(userId string) (string, error) {
+	return m.CreateToken(userIdKey, userId, 15*time.Minute)
 }
 
 func UserIdFromContext(r *http.Request) (string, error) {

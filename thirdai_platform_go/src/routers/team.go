@@ -193,7 +193,7 @@ func (t *TeamRouter) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
 	teamId, modelId := params.Get("team_id"), params.Get("model_id")
 
 	err := t.db.Transaction(func(db *gorm.DB) error {
-		model, err := schema.GetModel(modelId, db, false, false)
+		model, err := schema.GetModel(modelId, db, false, false, false)
 		if err != nil {
 			return err
 		}

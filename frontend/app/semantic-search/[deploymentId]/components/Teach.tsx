@@ -51,7 +51,8 @@ export default function Teach() {
   }
 
   return (
-    <Container ref={containerRef}>
+    // <Container ref={containerRef}>
+    <>
       <Button style={{ width: '60px', height: '50px' }} onClick={togglePanel}>
         <TeachIcon $active={showPanel} />
       </Button>
@@ -68,6 +69,7 @@ export default function Teach() {
           />
         </PanelContainer>
       )}
-    </Container>
+    </>
+    // </Container>
   );
 }

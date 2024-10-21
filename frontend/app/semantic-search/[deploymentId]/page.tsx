@@ -33,6 +33,7 @@ import PillButton from './components/buttons/PillButton';
 import { useParams, useSearchParams } from 'next/navigation';
 import { CardTitle } from '@/components/ui/card';
 import { getWorkflowDetails, fetchCachedGeneration } from '@/lib/backend';
+import SidePanel from './components/SidePanel';
 
 const Frame = styled.section<{ $opacity: string }>`
   position: absolute;
@@ -489,7 +490,6 @@ function App() {
                 />
               )}
               <Spacer $width="40px" />
-              <Teach />
             </TopRightCorner>
             {chatMode ? (
               <Chat
@@ -570,6 +570,11 @@ function App() {
                 )}
               </>
             )}
+            <SidePanel 
+              cacheEnabled={cacheEnabled}
+              setCacheEnabled={setCacheEnabled}
+              onSaveClick={()=>{}}
+            />
           </div>
         </Frame>
       )}

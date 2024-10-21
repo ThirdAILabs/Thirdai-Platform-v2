@@ -16,7 +16,6 @@ class FeedbackCollector:
         self.update_counter = 0
 
     def add(self, input: Union[AssociateInput, UpvoteInput]):
-        print(input)
         current_time = str(datetime.now().strftime("%d %B %Y %H:%M:%S"))
         if isinstance(input, AssociateInput):
             for text_pair in input.text_pairs:

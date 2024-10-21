@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-chi/jwtauth/v5"
-	"gorm.io/gorm"
 )
 
 type JwtManager struct {
@@ -19,27 +18,6 @@ func (m *JwtManager) Verifier() func(http.Handler) http.Handler {
 
 func (m *JwtManager) Authenticator() func(http.Handler) http.Handler {
 	return jwtauth.Authenticator(m.auth)
-}
-
-func (m *JwtManager) AdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		hfn := func(w http.ResponseWriter, r *http.Request) {
-			userId, err := UserIdFromContext(r)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
-				return
-			}
-
-			err = ExpectAdmin(userId, db)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		}
-		return http.HandlerFunc(hfn)
-	}
 }
 
 const userIdKey = "user_id"

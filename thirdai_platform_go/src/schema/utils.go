@@ -26,3 +26,25 @@ func GetUser(userId string, db *gorm.DB, loadTeams bool) (User, error) {
 
 	return user, nil
 }
+
+func GetModel(modelId string, db *gorm.DB, loadDeps, loadAttrs bool) (Model, error) {
+	var model Model
+
+	var result *gorm.DB = db
+	if loadDeps {
+		result = result.Preload("Dependencies")
+	}
+	if loadAttrs {
+		result = result.Preload("Attributes")
+	}
+	result = result.First(&model, "id = ?", modelId)
+
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return model, fmt.Errorf("no model with id %v", modelId)
+		}
+		return model, fmt.Errorf("error locating model with id %v: %v", modelId, result.Error)
+	}
+
+	return model, nil
+}

@@ -66,16 +66,16 @@ func main() {
 		var u Model
 		db.Preload("Parent").Preload("Attributes").Preload("Dependencies").Preload("Dependencies.Dependency").Find(&u, "Id = ?", strconv.Itoa(i))
 
-		// data, _ := json.MarshalIndent(u, "", "    ")
-		// fmt.Println(string(data))
+		data, _ := json.MarshalIndent(u, "", "    ")
+		fmt.Println(string(data))
 	}
 
-	var m []Model
+	// var m []Model
 
-	db.Joins("JOIN model_dependencies on model_dependencies.model_id = models.id").Distinct().Find(&m)
+	// db.Joins("JOIN model_dependencies on model_dependencies.model_id = models.id").Distinct().Find(&m)
 
-	data, _ := json.MarshalIndent(m, "", "    ")
-	fmt.Println(string(data))
+	// data, _ := json.MarshalIndent(m, "", "    ")
+	// fmt.Println(string(data))
 
 	// db.Delete(&Model{Id: "1"})
 

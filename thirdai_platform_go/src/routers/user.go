@@ -13,8 +13,8 @@ import (
 )
 
 type UserRouter struct {
-	db           *gorm.DB
-	tokenManager *auth.JwtManager
+	db       *gorm.DB
+	userAuth *auth.JwtManager
 }
 
 func (u *UserRouter) Routes() chi.Router {
@@ -26,17 +26,17 @@ func (u *UserRouter) Routes() chi.Router {
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(u.tokenManager.Verifier())
-		r.Use(u.tokenManager.Authenticator())
+		r.Use(u.userAuth.Verifier())
+		r.Use(u.userAuth.Authenticator())
 
 		r.Get("/list", u.List)
 		r.Get("/info", u.Info)
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(u.tokenManager.Verifier())
-		r.Use(u.tokenManager.Authenticator())
-		r.Use(u.tokenManager.AdminOnly(u.db))
+		r.Use(u.userAuth.Verifier())
+		r.Use(u.userAuth.Authenticator())
+		r.Use(auth.AdminOnly(u.db))
 
 		r.Post("/promote-admin", u.PromoteAdmin)
 		r.Post("/demote-admin", u.DemoteAdmin)
@@ -61,21 +61,6 @@ func (u *UserRouter) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var existingUser schema.User
-	result := u.db.Find(&existingUser, "username = ? or email = ?", params.Username, params.Email)
-	if result.Error != nil {
-		dbError(w, result.Error)
-		return
-	}
-	if result.RowsAffected != 0 {
-		if existingUser.Username == params.Username {
-			http.Error(w, fmt.Sprintf("username %v is already in use", params.Username), http.StatusBadRequest)
-		} else {
-			http.Error(w, fmt.Sprintf("email %v is already in use", params.Email), http.StatusBadRequest)
-		}
-		return
-	}
-
 	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(params.Password), 10)
 	if err != nil {
 		http.Error(w, "error encrypting password", http.StatusInternalServerError)
@@ -84,11 +69,30 @@ func (u *UserRouter) Signup(w http.ResponseWriter, r *http.Request) {
 
 	newUser := schema.User{Id: uuid.New().String(), Username: params.Username, Email: params.Email, Password: hashedPwd}
 
-	// TODO(Nicholas): should this be done in a transaction to handle edge case of
-	// concurrent signups? Not correctness issue, just for better error messages to user
-	result = u.db.Create(&newUser)
-	if result.Error != nil {
-		dbError(w, result.Error)
+	err = u.db.Transaction(func(db *gorm.DB) error {
+		var existingUser schema.User
+		result := db.Find(&existingUser, "username = ? or email = ?", params.Username, params.Email)
+		if result.Error != nil {
+			return fmt.Errorf("database error: %v", result.Error)
+		}
+		if result.RowsAffected != 0 {
+			if existingUser.Username == params.Username {
+				return fmt.Errorf("username %v is already in use", params.Username)
+			} else {
+				return fmt.Errorf("email %v is already in use", params.Email)
+			}
+		}
+
+		result = db.Create(&newUser)
+		if result.Error != nil {
+			return fmt.Errorf("database error: %v", result.Error)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -128,7 +132,7 @@ func (u *UserRouter) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := u.tokenManager.CreateToken(user.Id)
+	token, err := u.userAuth.CreateToken(user.Id)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error generating access token: %v", err), http.StatusInternalServerError)
 		return
@@ -205,24 +209,24 @@ func (u *UserRouter) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-type teamInfo struct {
+type userTeamInfo struct {
 	TeamId    string `json:"team_id"`
 	TeamName  string `json:"team_name"`
 	TeamAdmin bool   `json:"team_admin"`
 }
 
 type userInfo struct {
-	Id       string     `json:"id"`
-	Username string     `json:"username"`
-	Email    string     `json:"email"`
-	Admin    bool       `json:"admin"`
-	Teams    []teamInfo `json:"teams"`
+	Id       string         `json:"id"`
+	Username string         `json:"username"`
+	Email    string         `json:"email"`
+	Admin    bool           `json:"admin"`
+	Teams    []userTeamInfo `json:"teams"`
 }
 
 func convertToUserInfo(user *schema.User) userInfo {
-	teams := make([]teamInfo, 0, len(user.Teams))
+	teams := make([]userTeamInfo, 0, len(user.Teams))
 	for _, team := range user.Teams {
-		teams = append(teams, teamInfo{
+		teams = append(teams, userTeamInfo{
 			TeamId:    team.TeamId,
 			TeamName:  team.Team.Name,
 			TeamAdmin: team.IsTeamAdmin,

@@ -27,7 +27,7 @@ type Model struct {
 
 	Permissions []ModelPermission
 
-	TeamId string
+	TeamId *string
 	Team   *Team
 }
 
@@ -46,8 +46,8 @@ type ModelDependency struct {
 }
 
 type ModelPermission struct {
-	UserId     string `gorm:"primaryKey"`
-	ModelId    string `gorm:"primaryKey"`
+	UserId     string `gorm:"primaryKey;constraint:OnDelete:CASCADE;"`
+	ModelId    string `gorm:"primaryKey;constraint:OnDelete:CASCADE;"`
 	Permission string
 }
 
@@ -70,9 +70,10 @@ type Team struct {
 }
 
 type UserTeam struct {
-	UserId      string `gorm:"primaryKey"`
-	TeamId      string `gorm:"primaryKey"`
+	UserId      string `gorm:"primaryKey;constraint:OnDelete:CASCADE;"`
+	TeamId      string `gorm:"primaryKey;constraint:OnDelete:CASCADE;"`
 	IsTeamAdmin bool
 
+	User *User
 	Team *Team
 }

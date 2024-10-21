@@ -254,28 +254,26 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             {deployStatus === DeployStatus.Active && (
-              <DropdownMenuItem>
-                <form>
-                  <button
+              <DropdownMenuItem onClick={async () => {
+                try {
+                  const response = await stop_workflow(
+                    workflow.username,
+                    workflow.model_name
+                  );
+                  console.log('Workflow undeployed successfully:', response);
+                  // Optionally, update the UI state to reflect the undeployment
+                  setDeployStatus(DeployStatus.Inactive);
+                } catch (error) {
+                  console.error('Error undeploying workflow:', error);
+                  alert('Error undeploying workflow:' + error);
+                }
+              }}>
+                <button
                     type="button"
-                    onClick={async () => {
-                      try {
-                        const response = await stop_workflow(
-                          workflow.username,
-                          workflow.model_name
-                        );
-                        console.log('Workflow undeployed successfully:', response);
-                        // Optionally, update the UI state to reflect the undeployment
-                        setDeployStatus(DeployStatus.Inactive);
-                      } catch (error) {
-                        console.error('Error undeploying workflow:', error);
-                        alert('Error undeploying workflow:' + error);
-                      }
-                    }}
+                    
                   >
                     Stop App
                   </button>
-                </form>
               </DropdownMenuItem>
             )}
 

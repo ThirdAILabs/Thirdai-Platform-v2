@@ -19,6 +19,7 @@ enum LlmProvider {
   OpenAI = 'openai',
   OnPrem = 'on-prem',
   SelfHosted = 'self-hosted',
+  None = 'none',
 }
 
 enum IndexingType {
@@ -122,6 +123,8 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
         case LlmProvider.SelfHosted:
           options.llm_provider = 'self-host';
           break;
+        case LlmProvider.None:
+          // LLM is not added
         default:
           if (isChatbot) {
             console.error('Invalid LLM type selected');
@@ -320,7 +323,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
           {/* LLM selection */}
           <div>
             <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
-              LLM
+              LLM {!isChatbot && "(Optional)"}
             </span>
             <div>
               <CardDescription>Choose an LLM option</CardDescription>
@@ -350,6 +353,14 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
                 >
                   Self-host
                 </Button>
+                {!isChatbot && (
+                  <Button
+                    variant={llmType === LlmProvider.None ? 'contained' : 'outlined'}
+                    onClick={() => setLlmType(LlmProvider.None)}
+                  >
+                    None
+                  </Button>
+                )}
               </div>
             </div>
           </div>

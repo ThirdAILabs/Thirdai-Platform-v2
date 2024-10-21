@@ -413,8 +413,9 @@ def get_feedback(
     print("step-1")
     if model.type != ModelType.NDB:
         return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_200_OK,
             message="Feedback is only recorded for ndb model",
+            data=[],
         )
     print("step-2")
     feedback_dir = os.path.join(

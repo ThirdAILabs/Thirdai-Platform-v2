@@ -14,7 +14,7 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { Workflow, start_workflow, stop_workflow, delete_workflow } from '@/lib/backend';
 import { Modal } from '@/components/ui/Modal';
 import { InformationCircleIcon } from '@heroicons/react/solid';
-import { Model, getModels } from '@/utils/apiRequests';
+import { getModels } from '@/utils/apiRequests';
 import { UserContext } from '../user_wrapper';
 
 enum DeployStatus {

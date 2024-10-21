@@ -3,10 +3,6 @@ import traceback
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import Depends, status
-from pydantic import BaseModel, ValidationError
-from sqlalchemy.orm import Session
-
 from backend.utils import (
     get_platform,
     get_python_path,
@@ -16,6 +12,7 @@ from backend.utils import (
 )
 from database import schema
 from database.session import get_session
+from fastapi import Depends, status
 from platform_common.pydantic_models.training import (
     DatagenOptions,
     JobOptions,
@@ -25,6 +22,8 @@ from platform_common.pydantic_models.training import (
 )
 from platform_common.thirdai_storage.data_types import TokenClassificationData
 from platform_common.utils import response, save_dict
+from pydantic import BaseModel, ValidationError
+from sqlalchemy.orm import Session
 
 
 def get_catalogs(task: schema.UDT_Task, session: Session):

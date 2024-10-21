@@ -3,9 +3,8 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi import Response
-from thirdai import neural_db as ndb
-
 from platform_common.file_handler import FileInfo, FileLocation, S3StorageHandler
+from thirdai import neural_db as ndb
 
 
 def convert_to_ndb_file(

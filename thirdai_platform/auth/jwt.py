@@ -4,12 +4,11 @@ from typing import Union
 
 import fastapi
 import jwt
-from pydantic import BaseModel
-from sqlalchemy.orm import Session
-
 from auth.utils import CREDENTIALS_EXCEPTION, token_bearer
 from database import schema
 from database.session import get_session
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 
 class TokenPayload(BaseModel):

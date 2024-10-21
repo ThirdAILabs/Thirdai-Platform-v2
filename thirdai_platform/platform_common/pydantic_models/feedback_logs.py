@@ -1,9 +1,8 @@
 from enum import Enum
 from typing import List, Literal, Union
 
-from pydantic import BaseModel, Field
-
 from platform_common.file_handler import FileInfo
+from pydantic import BaseModel, Field
 
 
 class ActionType(str, Enum):

@@ -6,10 +6,6 @@ import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
-from pydantic import BaseModel, ValidationError
-from sqlalchemy.orm import Session
-
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access
 from backend.datagen import generate_data_for_train_job
@@ -35,6 +31,7 @@ from backend.utils import (
 )
 from database import schema
 from database.session import get_session
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from platform_common.file_handler import download_local_files
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
 from platform_common.pydantic_models.training import (
@@ -59,6 +56,8 @@ from platform_common.pydantic_models.training import (
 )
 from platform_common.thirdai_storage import storage
 from platform_common.utils import response
+from pydantic import BaseModel, ValidationError
+from sqlalchemy.orm import Session
 
 train_router = APIRouter()
 

@@ -9,8 +9,6 @@ from typing import List
 
 import pandas as pd
 import thirdai
-from thirdai import bolt
-
 from platform_common.file_handler import expand_s3_buckets_and_directories
 from platform_common.pydantic_models.training import (
     FileInfo,
@@ -29,6 +27,7 @@ from platform_common.thirdai_storage.data_types import (
     TagMetadata,
 )
 from platform_common.thirdai_storage.storage import DataStorage, SQLiteConnector
+from thirdai import bolt
 from train_job.exceptional_handler import apply_exception_handler
 from train_job.models.model import Model
 from train_job.reporter import Reporter

@@ -5,9 +5,8 @@ import threading
 import time
 from typing import List
 
-from thirdai import neural_db as ndb
-
 from platform_common.pydantic_models.training import FileInfo
+from thirdai import neural_db as ndb
 from train_job.exceptional_handler import apply_exception_handler
 from train_job.models.ndb_model_interface import NDBModel
 from train_job.utils import check_disk, consumer, producer

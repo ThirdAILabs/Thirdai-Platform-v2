@@ -7,7 +7,6 @@ import argparse
 import os
 
 import thirdai
-
 from platform_common.pydantic_models.training import (
     ModelType,
     NDBSubType,

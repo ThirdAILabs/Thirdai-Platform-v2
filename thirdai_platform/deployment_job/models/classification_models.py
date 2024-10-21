@@ -2,8 +2,6 @@ from abc import abstractmethod
 from pathlib import Path
 from typing import List, Optional
 
-from thirdai import bolt
-
 from deployment_job.models.model import Model
 from deployment_job.pydantic_models.inputs import (
     SearchResultsTextClassification,
@@ -22,6 +20,7 @@ from platform_common.thirdai_storage.data_types import (
     TokenClassificationData,
 )
 from platform_common.thirdai_storage.storage import DataStorage, SQLiteConnector
+from thirdai import bolt
 
 
 class ClassificationModel(Model):

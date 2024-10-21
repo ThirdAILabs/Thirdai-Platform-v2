@@ -5,10 +5,9 @@ Defines input models for Pydantic validation and utility functions for conversio
 import json
 from typing import Any, Dict, List, Optional, Tuple
 
-from pydantic import BaseModel, Field
-
 from deployment_job.pydantic_models.constraints import Constraints
 from platform_common.pydantic_models.training import FileInfo
+from pydantic import BaseModel, Field
 
 
 class NDBSearchParams(BaseModel):

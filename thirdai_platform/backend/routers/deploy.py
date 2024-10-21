@@ -6,8 +6,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
 
-from fastapi import APIRouter, Depends, HTTPException, status
-
 from auth.jwt import (
     AuthenticatedUser,
     now_plus_minutes,
@@ -31,10 +29,9 @@ from backend.utils import (
 )
 from database import schema
 from database.session import get_session
+from fastapi import APIRouter, Depends, HTTPException, status
 
 pass
-from sqlalchemy.orm import Session
-
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     EnterpriseSearchOptions,
@@ -43,6 +40,7 @@ from platform_common.pydantic_models.deployment import (
 )
 from platform_common.pydantic_models.training import ModelType
 from platform_common.utils import response
+from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()
 

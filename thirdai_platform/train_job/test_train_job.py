@@ -3,10 +3,6 @@ import shutil
 from typing import Dict
 
 import pytest
-from thirdai import bolt, licensing
-from thirdai import neural_db as ndb
-from thirdai import neural_db_v2 as ndbv2
-
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
     FeedbackLog,
@@ -28,6 +24,9 @@ from platform_common.pydantic_models.training import (
     UDTData,
     UDTOptions,
 )
+from thirdai import bolt, licensing
+from thirdai import neural_db as ndb
+from thirdai import neural_db_v2 as ndbv2
 from train_job.reporter import Reporter
 from train_job.run import get_model
 

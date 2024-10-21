@@ -1,13 +1,12 @@
 import os
 
 import hvac  # type: ignore
-from fastapi import Depends, HTTPException, status
-from sqlalchemy.orm import Session
-
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.utils import get_model_from_identifier
 from database import schema
 from database.session import get_session
+from fastapi import Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 
 def get_vault_client() -> hvac.Client:

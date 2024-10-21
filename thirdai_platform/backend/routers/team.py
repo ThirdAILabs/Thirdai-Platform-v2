@@ -1,9 +1,5 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.encoders import jsonable_encoder
-from sqlalchemy.orm import Session, selectinload
-
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import (
     global_admin_only,
@@ -13,7 +9,10 @@ from backend.auth_dependencies import (
 from backend.utils import get_model_from_identifier
 from database import schema
 from database.session import get_session
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.encoders import jsonable_encoder
 from platform_common.utils import response
+from sqlalchemy.orm import Session, selectinload
 
 team_router = APIRouter()
 

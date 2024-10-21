@@ -5,9 +5,8 @@ from typing import Any, Dict, Optional, Tuple
 
 import pdftitle
 from fastapi import Response
-from thirdai import neural_db_v2 as ndbv2
-
 from platform_common.file_handler import FileInfo, FileLocation, S3StorageHandler
+from thirdai import neural_db_v2 as ndbv2
 
 
 def convert_to_ndb_doc(

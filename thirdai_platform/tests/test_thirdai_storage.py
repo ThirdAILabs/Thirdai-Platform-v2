@@ -1,7 +1,6 @@
 from uuid import uuid4
 
 import pytest
-
 from platform_common.thirdai_storage.data_types import (
     DataSample,
     LabelEntity,

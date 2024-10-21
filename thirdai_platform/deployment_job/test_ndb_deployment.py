@@ -5,16 +5,15 @@ from unittest.mock import patch
 
 import pytest
 import thirdai
-from fastapi.testclient import TestClient
-from thirdai import neural_db as ndbv1
-from thirdai import neural_db_v2 as ndbv2
-
 from deployment_job.permissions import Permissions
+from fastapi.testclient import TestClient
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     NDBDeploymentOptions,
 )
 from platform_common.pydantic_models.training import NDBSubType
+from thirdai import neural_db as ndbv1
+from thirdai import neural_db_v2 as ndbv2
 
 MODEL_ID = "xyz"
 LICENSE_KEY = "236C00-47457C-4641C5-52E3BB-3D1F34-V3"

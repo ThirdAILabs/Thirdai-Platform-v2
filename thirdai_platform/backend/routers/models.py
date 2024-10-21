@@ -3,22 +3,6 @@ import os
 import uuid
 from typing import Annotated, Dict, Optional, Union
 
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Depends,
-    Header,
-    HTTPException,
-    Query,
-    UploadFile,
-    status,
-)
-from fastapi.encoders import jsonable_encoder
-from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel
-from sqlalchemy import and_, or_
-from sqlalchemy.orm import Session, joinedload, selectinload
-
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import (
     global_admin_only,
@@ -38,7 +22,22 @@ from backend.utils import (
 )
 from database import schema
 from database.session import get_session
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import FileResponse, StreamingResponse
 from platform_common.utils import response
+from pydantic import BaseModel
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session, joinedload, selectinload
 from storage import interface, local
 
 model_router = APIRouter()

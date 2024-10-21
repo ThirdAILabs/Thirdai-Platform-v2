@@ -5,10 +5,9 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import List
 
-from thirdai import neural_db as ndb
-
 from platform_common.ndb.ndbv1_parser import parse_doc
 from platform_common.pydantic_models.training import FileInfo, FileLocation
+from thirdai import neural_db as ndb
 
 GB_1 = 1024 * 1024 * 1024  # Define 1 GB in bytes
 

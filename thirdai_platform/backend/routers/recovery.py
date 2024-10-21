@@ -2,8 +2,6 @@ import os
 import traceback
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
-
 from auth.jwt import verify_access_token
 from backend.utils import (
     delete_nomad_job,
@@ -14,6 +12,7 @@ from backend.utils import (
     submit_nomad_job,
     thirdai_platform_dir,
 )
+from fastapi import APIRouter, Depends, HTTPException, status
 from platform_common.pydantic_models.recovery_snapshot import BackupConfig
 from platform_common.utils import response
 

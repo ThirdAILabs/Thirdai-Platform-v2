@@ -6,7 +6,6 @@ import time
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from platform_common.pydantic_models.recovery_snapshot import (
     BackupConfig,
     LocalBackupConfig,

@@ -1370,14 +1370,14 @@ export async function fetchFeedback() {
       method: 'get',
       url: `${deploymentBaseUrl}/api/deploy/feedbacks`,
       params: {
-        model_identifier: modelIdentifier, // Make sure parameter name matches backend
+        model_identifier: modelIdentifier,
       },
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
     });
 
-    return response.data.data;
+    return response?.data?.data;
   } catch (error) {
     console.error('Error getting Feedback Response:', error);
     throw error;

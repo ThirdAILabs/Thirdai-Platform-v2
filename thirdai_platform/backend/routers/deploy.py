@@ -410,13 +410,13 @@ def get_feedback(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=str(error),
         )
-
+    print("step-1")
     if model.type != ModelType.NDB:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Feedback is only recorded for ndb model",
         )
-
+    print("step-2")
     feedback_dir = os.path.join(
         model_bazaar_path(),
         "models",
@@ -426,12 +426,12 @@ def get_feedback(
         "recent_feedbacks",
     )
 
-    if not os.path.exists(feedback_dir) or len(os.listdir(feedback_dir)) == 0:
+    if not os.path.exists(feedback_dir):
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"No feedback found for the model.",
         )
-
+    print("step-3")
     accumlated_feedbacks = defaultdict(list)
     for alloc_dirEntry in os.scandir(feedback_dir):
         if alloc_dirEntry.is_file() and alloc_dirEntry.name.endswith(".json"):

@@ -100,19 +100,21 @@ export default function RecentSamples() {
           <CardDescription>The latest user-provided upvotes</CardDescription>
         </CardHeader>
         <CardContent>
-          {upvotes !== undefined ? upvotes.map(({ timestamp, query, reference_text }, idx) => (
-            <TextPairs
-              key={idx}
-              timestamp={timestamp}
-              label1="Query"
-              label2="Upvote"
-              text1={query}
-              text2={reference_text}
-            />
-          )) : (
+          {upvotes !== undefined ? (
+            upvotes.map(({ timestamp, query, reference_text }, idx) => (
+              <TextPairs
+                key={idx}
+                timestamp={timestamp}
+                label1="Query"
+                label2="Upvote"
+                text1={query}
+                text2={reference_text}
+              />
+            ))
+          ) : (
             <div className="flex flex-col justify-center items-center h-full mt-20">
               <img src="/no-Data-Png.png" alt="No Data Available" className="mb-4" />
-              <span className='font-mono italic'>Oops! No upvote data available.</span>
+              <span className="font-mono italic">Oops! No upvote data available.</span>
             </div>
           )}
         </CardContent>
@@ -124,19 +126,21 @@ export default function RecentSamples() {
           <CardDescription>The latest user-provided associations</CardDescription>
         </CardHeader>
         <CardContent>
-          {(associates !== undefined) ? associates.map(({ timestamp, source, target }, idx) => (
-            <TextPairs
-              key={idx}
-              timestamp={timestamp}
-              label1="Source"
-              label2="Target"
-              text1={source}
-              text2={target}
-            />
-          )) : (
+          {associates !== undefined ? (
+            associates.map(({ timestamp, source, target }, idx) => (
+              <TextPairs
+                key={idx}
+                timestamp={timestamp}
+                label1="Source"
+                label2="Target"
+                text1={source}
+                text2={target}
+              />
+            ))
+          ) : (
             <div className="flex flex-col justify-center items-center h-full mt-20">
               <img src="/no-Data-Png.png" alt="No Data Available" className="mb-4" />
-              <span className='font-mono italic'>Oops! No associations data available.</span>
+              <span className="font-mono italic">Oops! No associations data available.</span>
             </div>
           )}
         </CardContent>

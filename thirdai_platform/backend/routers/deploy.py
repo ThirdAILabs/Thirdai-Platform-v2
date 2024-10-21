@@ -413,9 +413,8 @@ def get_feedback(
     print("step-1")
     if model.type != ModelType.NDB:
         return response(
-            status_code=status.HTTP_200_OK,
+            status_code=status.HTTP_400_BAD_REQUEST,
             message="Feedback is only recorded for ndb model",
-            data=[],
         )
     print("step-2")
     feedback_dir = os.path.join(
@@ -429,8 +428,9 @@ def get_feedback(
 
     if not os.path.exists(feedback_dir):
         return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_200_OK,
             message=f"No feedback found for the model.",
+            data=[],    
         )
     print("step-3")
     accumlated_feedbacks = defaultdict(list)

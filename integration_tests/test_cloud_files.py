@@ -59,7 +59,7 @@ def test_azure_training():
     admin_client.await_deploy(ndb_client)
 
     # Search and validate
-    res = ndb_client.search("sample query", top_k=1)
+    res = ndb_client.search("Alice in wonderland", top_k=1)
     assert res["references"][0]["id"] is not None
 
     admin_client.undeploy(ndb_client)
@@ -86,7 +86,7 @@ def test_gcp_training():
     admin_client.await_deploy(ndb_client)
 
     # Search and validate
-    res = ndb_client.search("sample query", top_k=1)
+    res = ndb_client.search("confidentiality agreement", top_k=1)
     assert res["references"][0]["id"] is not None
 
     admin_client.undeploy(ndb_client)

@@ -423,7 +423,7 @@ def get_feedback(
         str(model.id),
         "deployments",
         "data",
-        "collected_feedbacks",
+        "recent_feedbacks",
     )
 
     if not os.path.exists(feedback_dir) or len(os.listdir(feedback_dir)) == 0:

@@ -18,22 +18,22 @@ class FeedbackCollector:
     def add(self, input: Union[AssociateInput, UpvoteInput]):
         current_time = str(datetime.now().strftime("%d %B %Y %H:%M:%S"))
         if isinstance(input, AssociateInput):
-            for text_id_pair in input.text_id_pairs:
+            for text_pair in input.text_pairs:
                 self._queue["associate"].append(
+                    {
+                        "timestamp": current_time,
+                        "source": text_pair.source,
+                        "target": text_pair.target,
+                    }
+                )
+        elif isinstance(input, UpvoteInput):
+            for text_id_pair in input.text_id_pairs:
+                self._queue["upvote"].append(
                     {
                         "timestamp": current_time,
                         "query_text": text_id_pair.query_text,
                         "reference_id": text_id_pair.reference_id,
                         "reference_text": text_id_pair.reference_text,
-                    }
-                )
-        elif isinstance(input, UpvoteInput):
-            for text_pair in input.text_pairs:
-                self._queue["upvote"].append(
-                    {
-                        "timestamp": current_time,
-                        "source": text_pair.source,
-                        "target": text_pair.target,
                     }
                 )
         else:

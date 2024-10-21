@@ -35,8 +35,8 @@ from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     NDBDeploymentOptions,
     UDTDeploymentOptions,
-    UsageStatOptions,
 )
+from pydantic import BaseModel
 from platform_common.pydantic_models.training import ModelType
 from platform_common.utils import response
 from sqlalchemy.orm import Session

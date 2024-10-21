@@ -16,17 +16,10 @@ class FeedbackCollector:
         self.update_counter = 0
 
     def add(self, input: Union[AssociateInput, UpvoteInput]):
-        if isinstance(input, AssociateInput):
-            event = "associate"
-        elif isinstance(input, UpvoteInput):
-            event = "upvote"
-        else:
-            raise ValueError("Input type not supported")
-
         current_time = str(datetime.now().strftime("%d %B %Y %H:%M:%S"))
-        if event == "upvote":
+        if isinstance(input, AssociateInput):
             for text_id_pair in input.text_id_pairs:
-                self._queue[event].append(
+                self._queue["associate"].append(
                     {
                         "timestamp": current_time,
                         "query_text": text_id_pair.query_text,
@@ -34,15 +27,17 @@ class FeedbackCollector:
                         "reference_text": text_id_pair.reference_text,
                     }
                 )
-        else:
+        elif isinstance(input, UpvoteInput):
             for text_pair in input.text_pairs:
-                self._queue[event].append(
+                self._queue["upvote"].append(
                     {
                         "timestamp": current_time,
                         "source": text_pair.source,
                         "target": text_pair.target,
                     }
                 )
+        else:
+            raise ValueError("Input type not supported for logging")
 
         self.update_counter += 1
 

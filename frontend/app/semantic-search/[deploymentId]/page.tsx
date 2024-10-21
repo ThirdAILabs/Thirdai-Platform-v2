@@ -442,6 +442,17 @@ function App() {
     }
   }
 
+  // These states and handleSaveClick are used inside <SearchBar/> and <SidePanel/>
+  const [modalOpen, setModalOpen] = useState(false);
+  const [showModelNameInput, setShowModelNameInput] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSaveClick = () => {
+    setModalOpen(true);
+    setShowModelNameInput(false);
+    setError('');
+  };
+
   return (
     <ModelServiceContext.Provider value={modelService}>
       {modelService && (
@@ -518,6 +529,13 @@ function App() {
                     abortController={abortController}
                     setAbortController={setAbortController}
                     setAnswer={setAnswer}
+
+                    modalOpen={modalOpen}
+                    setModalOpen={setModalOpen}
+                    showModelNameInput={showModelNameInput}
+                    setShowModelNameInput={setShowModelNameInput}
+                    error={error}
+                    setError={setError}
                   />
                   {failed && (
                     <Pad $top="100px">
@@ -573,7 +591,7 @@ function App() {
             <SidePanel 
               cacheEnabled={cacheEnabled}
               setCacheEnabled={setCacheEnabled}
-              onSaveClick={()=>{}}
+              onSaveClick={handleSaveClick}
             />
           </div>
         </Frame>

@@ -263,6 +263,6 @@ def test_udt_token_train():
         os.path.join(MODEL_BAZAAR_DIR, "models", "udt_123", "model.udt")
     )
 
-    predictions = boltmodel.predict({"source": "shubh@gmail.com"})
+    predictions = boltmodel.predict({"text": "shubh@gmail.com"})
 
     assert predictions[0][0][0] == "EMAIL", f"predictions : {predictions}"

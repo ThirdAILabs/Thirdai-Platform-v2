@@ -217,10 +217,14 @@ class ModelBazaar:
             + [x[0] for x in (supervised_docs or [])]
             + ([test_doc] if test_doc else [])
         )
-        if doc_type == "local":
-            files = [("files", open(file_path, "rb")) for file_path in all_file_paths]
-        else:
-            files = []
+        files = [
+            (
+                ("files", open(file_path, "rb"))
+                if doc_type == "local"
+                else ("files", (file_path, "don't care"))
+            )
+            for file_path in all_file_paths
+        ]
 
         if model_options:
             files.append(

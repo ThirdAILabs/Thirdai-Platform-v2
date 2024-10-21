@@ -1,8 +1,9 @@
 'use client';
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { associations, reformulations, upvotes } from './mock_samples';
+import { reformulations } from './mock_samples';
 import useRollingSamples from './rolling';
+import { fetchFeedback } from '@/lib/backend';
+import { useEffect, useState } from 'react';
 
 interface TextPairsProps {
   timestamp: string;
@@ -57,21 +58,18 @@ function Reformulation({ timestamp, original, reformulations }: ReformulationPro
 }
 
 export default function RecentSamples() {
-  const recentUpvotes = useRollingSamples(
-    /* samples= */ upvotes,
-    /* numSamples= */ 5,
-    /* maxNewSamples= */ 2,
-    /* probabilityNewSamples= */ 0.2,
-    /* intervalSeconds= */ 2
-  );
+  const [upvotes, setUpvotes] = useState([]);
+  const [associates, setAssociates] = useState([]);
 
-  const recentAssociations = useRollingSamples(
-    /* samples= */ associations,
-    /* numSamples= */ 5,
-    /* maxNewSamples= */ 2,
-    /* probabilityNewSamples= */ 0.1,
-    /* intervalSeconds= */ 3
-  );
+  useEffect(() => {
+    getFeedbackData();
+  }, []);
+
+  const getFeedbackData = async () => {
+    const data = await fetchFeedback();
+    setUpvotes(data.upvote);
+    setAssociates(data.associate);
+  };
 
   const recentReformulations = useRollingSamples(
     /* samples= */ reformulations,
@@ -95,18 +93,20 @@ export default function RecentSamples() {
           <CardTitle>Recent Upvotes</CardTitle>
           <CardDescription>The latest user-provided upvotes</CardDescription>
         </CardHeader>
-        <CardContent>
-          {recentUpvotes.map(({ timestamp, query, upvote }, idx) => (
-            <TextPairs
-              key={idx}
-              timestamp={timestamp}
-              label1="Query"
-              label2="Upvote"
-              text1={query}
-              text2={upvote}
-            />
-          ))}
-        </CardContent>
+        {upvotes.length !== 0 && (
+          <CardContent>
+            {upvotes.map(({ timestamp, query, reference_text }, idx) => (
+              <TextPairs
+                key={idx}
+                timestamp={timestamp}
+                label1="Query"
+                label2="Upvote"
+                text1={query}
+                text2={reference_text}
+              />
+            ))}
+          </CardContent>
+        )}
       </Card>
       <Card style={{ width: '32.5%', height: '45rem' }}>
         <CardHeader>
@@ -114,7 +114,7 @@ export default function RecentSamples() {
           <CardDescription>The latest user-provided associations</CardDescription>
         </CardHeader>
         <CardContent>
-          {recentAssociations.map(({ timestamp, source, target }, idx) => (
+          {associates.map(({ timestamp, source, target }, idx) => (
             <TextPairs
               key={idx}
               timestamp={timestamp}

@@ -35,7 +35,7 @@ class ModelBazaar:
         self._login_instance = Login(base_url=base_url)
         self._username = None
         self._access_token = None
-        self._doc_types = ["local", "nfs", "s3"]
+        self._doc_types = ["local", "nfs", "s3", "azure", "gcp"]
 
     def sign_up(self, email, password, username):
         json_data = {
@@ -162,7 +162,7 @@ class ModelBazaar:
             unsupervised_docs (Optional[List[str]]): A list of document paths for unsupervised training.
             supervised_docs (Optional[List[Tuple[str, str]]]): A list of document path and source id pairs.
             test_doc (Optional[str]): A path to a test file for evaluating the trained NeuralDB.
-            doc_type (str): Specifies document location type : "local"(default), "nfs" or "s3".
+            doc_type (str): Specifies document location type : "local"(default), "nfs" , "s3", "azure" or "gcp".
             sharded (bool): Whether NeuralDB training will be distributed over NeuralDB shards.
             is_async (bool): Whether training should be asynchronous (default is False).
             train_extra_options: (Optional[dict])

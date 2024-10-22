@@ -1,4 +1,3 @@
-import os
 import uuid
 
 import pytest
@@ -22,30 +21,30 @@ from client.bazaar import ModelBazaar
             "s3",
             "Alice in wonderland",
         ),
-        # (
-        #     "azure_public_ndb",
-        #     "https://csg100320028d93f3bc.blob.core.windows.net/test/insert.pdf",
-        #     "azure",
-        #     "Alice in wonderland",
-        # ),
-        # (
-        #     "azure_private_ndb",
-        #     "https://csg100320028d93f3bc.blob.core.windows.net/private-platform/insert.pdf",
-        #     "azure",
-        #     "Alice in wonderland",
-        # ),
-        # (
-        #     "gcp_public_ndb",
-        #     "gs://public-training-platform/sample_nda.pdf",
-        #     "gcp",
-        #     "confidentiality agreement",
-        # ),
-        # (
-        #     "gcp_private_ndb",
-        #     "gs://private-thirdai-platform/sample_nda.pdf",
-        #     "gcp",
-        #     "confidentiality agreement",
-        # ),
+        (
+            "azure_public_ndb",
+            "https://csg100320028d93f3bc.blob.core.windows.net/test/insert.pdf",
+            "azure",
+            "Alice in wonderland",
+        ),
+        (
+            "azure_private_ndb",
+            "https://csg100320028d93f3bc.blob.core.windows.net/private-platform/insert.pdf",
+            "azure",
+            "Alice in wonderland",
+        ),
+        (
+            "gcp_public_ndb",
+            "gs://public-training-platform/sample_nda.pdf",
+            "gcp",
+            "confidentiality agreement",
+        ),
+        (
+            "gcp_private_ndb",
+            "gs://private-thirdai-platform/sample_nda.pdf",
+            "gcp",
+            "confidentiality agreement",
+        ),
     ],
 )
 @pytest.mark.unit
@@ -86,7 +85,9 @@ def test_cloud_training(model_name_prefix, doc_url, provider, expected_query):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
     }
     response = requests.get(signed_url, headers=headers)
-    assert response.status_code == 200, f"Failed to access {provider} signed URL: {signed_url}"
+    assert (
+        response.status_code == 200
+    ), f"Failed to access {provider} signed URL: {signed_url}"
 
     # Undeploy the model after validation
     admin_client.undeploy(ndb_client)

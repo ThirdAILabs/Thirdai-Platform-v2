@@ -48,11 +48,12 @@ ndb_implicit_feedback_metric = Summary("ndb_implicit_feedback", "NDB implicit fe
 ndb_insert_metric = Summary("ndb_insert", "NDB insertions")
 ndb_delete_metric = Summary("ndb_delete", "NDB deletions")
 
+TOPK_SELECTIONS_TO_TRACK = 5
 ndb_top_k_selections = [
     Counter(
         f"ndb_result_{i}_selections", f"Number of selections of result {i} by user."
     )
-    for i in range(1, 6)
+    for i in range(1, 1 + TOPK_SELECTIONS_TO_TRACK)
 ]
 
 

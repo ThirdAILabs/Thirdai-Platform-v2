@@ -97,7 +97,7 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
         if file_info.location == FileLocation.local:
             expanded_files.append(file_info)
         elif file_info.location == FileLocation.s3:
-            s3_client=get_cloud_client(provider="s3")
+            s3_client = get_cloud_client(provider="s3")
             bucket_name, source_path = file_info.parse_s3_url()
             s3_objects = s3_client.list_files(
                 bucket_name=bucket_name, source_path=source_path

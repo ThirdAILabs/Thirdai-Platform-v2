@@ -48,9 +48,13 @@ ndb_implicit_feedback_metric = Summary("ndb_implicit_feedback", "NDB implicit fe
 ndb_insert_metric = Summary("ndb_insert", "NDB insertions")
 ndb_delete_metric = Summary("ndb_delete", "NDB deletions")
 
-ndb_top_k_selections = Counter(
-    "ndb_top_k_selections", "Number of top-k results selected by user."
-)
+TOPK_SELECTIONS_TO_TRACK = 5
+ndb_top_k_selections = [
+    Counter(
+        f"ndb_result_{i}_selections", f"Number of selections of result {i} by user."
+    )
+    for i in range(1, 1 + TOPK_SELECTIONS_TO_TRACK)
+]
 
 
 class NDBRouter:
@@ -393,8 +397,10 @@ class NDBRouter:
             )
         )
 
-        if feedback.reference_rank is not None and feedback.reference_rank < 5:
-            ndb_top_k_selections.inc()
+        if feedback.reference_rank is not None and feedback.reference_rank < len(
+            ndb_top_k_selections
+        ):
+            ndb_top_k_selections[feedback.reference_rank].inc()
 
         return response(
             status_code=status.HTTP_200_OK,

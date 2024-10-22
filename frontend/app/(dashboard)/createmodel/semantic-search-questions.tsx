@@ -285,7 +285,7 @@ const SemanticSearchQuestions = ({
           className="flex items-center gap-2 cursor-pointer" 
           onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
         >
-          <span className="block text-lg font-semibold">Advanced Configuration</span>
+          <span className="block text-lg font-semibold">Advanced Options</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="20"

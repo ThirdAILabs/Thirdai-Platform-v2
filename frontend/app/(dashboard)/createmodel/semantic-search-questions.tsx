@@ -281,14 +281,11 @@ const SemanticSearchQuestions = ({
 
       {/* Advanced Configuration Dropdown */}
       <div className="mt-6">
-        <span className="block text-lg font-semibold">Advanced Configuration</span>
-        <Button
+        <div 
+          className="flex items-center gap-2 cursor-pointer" 
           onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
-          variant="outlined"
-          className="w-full justify-between mt-2"
-          style={{ textTransform: 'none' }}
         >
-          <span>advanced options</span>
+          <span className="block text-lg font-semibold">Advanced Configuration</span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="20"
@@ -303,7 +300,7 @@ const SemanticSearchQuestions = ({
           >
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
-        </Button>
+        </div>
 
         {showAdvancedConfig && (
           <div className="mt-4 border rounded-lg p-4">
@@ -337,14 +334,7 @@ const SemanticSearchQuestions = ({
                 </Tooltip>
               </div>
               <CardDescription>Choose an indexing option</CardDescription>
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  gap: '10px',
-                  marginTop: '10px',
-                }}
-              >
+              <div className="flex flex-row gap-2 mt-2">
                 <Button
                   variant={indexingType === IndexingType.Basic ? 'contained' : 'outlined'}
                   onClick={() => setIndexingType(IndexingType.Basic)}
@@ -363,19 +353,10 @@ const SemanticSearchQuestions = ({
             </div>
 
             {/* Parsing Configuration */}
-            <div>
-              <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
-                Parsing
-              </span>
+            <div className="mt-4">
+              <span className="block text-lg font-semibold">Parsing</span>
               <CardDescription>Choose a parsing option</CardDescription>
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  gap: '10px',
-                  marginTop: '10px',
-                }}
-              >
+              <div className="flex flex-row gap-2 mt-2">
                 <Button
                   variant={parsingType === ParsingType.Basic ? 'contained' : 'outlined'}
                   onClick={() => setParsingType(ParsingType.Basic)}

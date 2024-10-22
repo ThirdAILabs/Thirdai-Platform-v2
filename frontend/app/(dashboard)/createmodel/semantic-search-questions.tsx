@@ -5,6 +5,7 @@ import { Button, TextField } from '@mui/material';
 import { CardDescription } from '@/components/ui/card';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface SemanticSearchQuestionsProps {
   workflowNames: string[];
@@ -20,6 +21,16 @@ enum SourceType {
   NSF = 'nsf',
 }
 
+enum IndexingType {
+  Basic = 'basic',
+  Advanced = 'advanced',
+}
+
+enum ParsingType {
+  Basic = 'basic',
+  Advanced = 'advanced',
+}
+
 const SemanticSearchQuestions = ({
   workflowNames,
   models,
@@ -30,6 +41,8 @@ const SemanticSearchQuestions = ({
   const [modelName, setModelName] = useState(!appName ? '' : appName);
   const [sources, setSources] = useState<Array<{ type: string; files: File[] }>>([]);
   const [fileCount, setFileCount] = useState<number[]>([]);
+  const [indexingType, setIndexingType] = useState<IndexingType>(IndexingType.Basic);
+  const [parsingType, setParsingType] = useState<ParsingType>(ParsingType.Basic);
 
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -95,7 +108,14 @@ const SemanticSearchQuestions = ({
       return null;
     }
 
-    const modelOptionsForm = { ndb_options: { ndb_sub_type: 'v2' } };
+    // If user didn't select advanced, it will not add the advanced_search field at all
+    const modelOptionsForm = {
+      ndb_options: {
+        ndb_sub_type: 'v2',
+        ...(indexingType === IndexingType.Advanced && { advanced_search: true })
+      }
+    };
+    
     formData.append('model_options', JSON.stringify(modelOptionsForm));
     formData.append('file_info', JSON.stringify({ unsupervised_files: unsupervisedFiles }));
 
@@ -168,7 +188,7 @@ const SemanticSearchQuestions = ({
 
   return (
     <div>
-      <span className="block text-lg font-semibold">App Name</span>
+      <span className="block text-lg font-semibold mt-6">App Name</span>
       <TextField
         className="text-md w-full"
         value={modelName}
@@ -177,105 +197,175 @@ const SemanticSearchQuestions = ({
           const regexPattern = /^[\w-]+$/;
           let warningMessage = '';
 
-          // Check if the name contains spaces or periods
           if (name.includes(' ')) {
             warningMessage = 'The app name cannot contain spaces. Please remove the spaces.';
           } else if (name.includes('.')) {
-            warningMessage =
-              "The app name cannot contain periods ('.'). Please remove the periods.";
-          }
-          // Check if the name contains invalid characters (not matching the regex)
-          else if (!regexPattern.test(name)) {
-            warningMessage =
-              'The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.';
-          }
-          // Check if the name is already taken
-          else if (workflowNames.includes(name)) {
-            warningMessage =
-              'An app with the same name already exists. Please choose a different name.';
+            warningMessage = "The app name cannot contain periods ('.'). Please remove the periods.";
+          } else if (!regexPattern.test(name)) {
+            warningMessage = 'The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.';
+          } else if (workflowNames.includes(name)) {
+            warningMessage = 'An app with the same name already exists. Please choose a different name.';
           }
 
-          // Update the warning message or clear it if valid
           setWarningMessage(warningMessage);
           setModelName(name);
         }}
         placeholder="Enter app name"
         style={{ marginTop: '10px' }}
-        disabled={!!appName && !workflowNames.includes(modelName)} // Use !! to explicitly convert to boolean
+        disabled={!!appName && !workflowNames.includes(modelName)}
       />
 
       {warningMessage && <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>}
 
-      {/* Retrieval App Selection */}
-      <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
-        Retrieval App
-      </span>
-
-      {
+      {/* Advanced Options Section */}
+      <div>
+        {/* Indexing Configuration */}
         <div>
-          <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
-            Sources
-          </span>
-          <CardDescription>Select files to search over.</CardDescription>
-
-          {sources.map(({ type }, index) => (
-            <div key={index}>
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  gap: '20px',
-                  justifyContent: 'space-between',
-                  marginTop: '10px',
-                }}
-              >
-                {type === SourceType.S3 && (
-                  <TextField
-                    className="text-md w-full"
-                    onChange={(e) => setS3SourceValue(index, e.target.value)}
-                    placeholder="http://s3.amazonaws.com/bucketname/"
-                  />
-                )}
-                {type === SourceType.LOCAL && (
-                  <div>
-                    <Input
-                      type="file"
-                      onChange={(e) => {
-                        if (e.target.files) {
-                          setSourceValue(index, e.target.files);
-                        }
-                      }}
-                      multiple
-                    />
-                  </div>
-                )}
-                {type === SourceType.NSF && ( // New input for NSF server path
-                  <TextField
-                    className="text-md w-full"
-                    onChange={(e) => setNSFSourceValue(index, e.target.value)}
-                    placeholder="Enter NSF server file path"
-                  />
-                )}
-                <Button variant="contained" color="error" onClick={() => deleteSource(index)}>
-                  Delete
-                </Button>
-              </div>
-            </div>
-          ))}
-
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-            <Button onClick={() => addSource(SourceType.LOCAL)} variant="contained">
-              Add Local File
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: '20px' }}>
+            <span className="block text-lg font-semibold">Indexing</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span style={{ marginLeft: '8px', cursor: 'pointer' }}>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-5 h-5"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="right" style={{ maxWidth: '300px' }}>
+                <strong>Better:</strong> Up to 5K paragraphs. Includes document level and paragraph level keywords.<br/><br/>
+                <strong>Advanced:</strong> Up to 1000 paragraphs. Generates questions for each chunk, upvotes right away, and caches the answers.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <CardDescription>Choose an indexing option</CardDescription>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              gap: '10px',
+              marginTop: '10px',
+            }}
+          >
+            <Button
+              variant={indexingType === IndexingType.Basic ? 'contained' : 'outlined'}
+              onClick={() => setIndexingType(IndexingType.Basic)}
+              style={{ width: '140px' }}
+            >
+              Basic
             </Button>
-            <Button onClick={() => addSource(SourceType.S3)} variant="contained">
-              Add S3 File
+            <Button
+              variant={indexingType === IndexingType.Advanced ? 'contained' : 'outlined'}
+              onClick={() => setIndexingType(IndexingType.Advanced)}
+              style={{ width: '140px' }}
+            >
+              Advanced
             </Button>
           </div>
         </div>
-        //     )}
-        //   </>
-        // )
-      }
+
+        {/* Parsing Configuration */}
+        <div>
+          <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
+            Parsing
+          </span>
+          <CardDescription>Choose a parsing option</CardDescription>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              gap: '10px',
+              marginTop: '10px',
+            }}
+          >
+            <Button
+              variant={parsingType === ParsingType.Basic ? 'contained' : 'outlined'}
+              onClick={() => setParsingType(ParsingType.Basic)}
+              style={{ width: '140px' }}
+            >
+              Basic
+            </Button>
+            <Button
+              variant={parsingType === ParsingType.Advanced ? 'contained' : 'outlined'}
+              onClick={() => setParsingType(ParsingType.Advanced)}
+              style={{ width: '140px' }}
+            >
+              Advanced
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Sources Section */}
+      <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
+        Sources
+      </span>
+      <CardDescription>Select files to search over.</CardDescription>
+
+      {sources.map(({ type }, index) => (
+        <div key={index}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              gap: '20px',
+              justifyContent: 'space-between',
+              marginTop: '10px',
+            }}
+          >
+            {type === SourceType.S3 && (
+              <TextField
+                className="text-md w-full"
+                onChange={(e) => setS3SourceValue(index, e.target.value)}
+                placeholder="http://s3.amazonaws.com/bucketname/"
+              />
+            )}
+            {type === SourceType.LOCAL && (
+              <div className="w-full">
+                <Input
+                  type="file"
+                  className="text-md w-full hover:cursor-pointer"
+                  onChange={(e) => {
+                    if (e.target.files) {
+                      setSourceValue(index, e.target.files);
+                    }
+                  }}
+                  multiple
+                />
+              </div>
+            )}
+            {type === SourceType.NSF && (
+              <TextField
+                className="text-md w-full"
+                onChange={(e) => setNSFSourceValue(index, e.target.value)}
+                placeholder="Enter NSF server file path"
+              />
+            )}
+            <Button variant="contained" color="error" onClick={() => deleteSource(index)}>
+              Delete
+            </Button>
+          </div>
+        </div>
+      ))}
+
+      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+        <Button onClick={() => addSource(SourceType.LOCAL)} variant="contained">
+          Add Local File
+        </Button>
+        <Button onClick={() => addSource(SourceType.S3)} variant="contained">
+          Add S3 File
+        </Button>
+      </div>
 
       <div className="flex justify-start">
         <Button

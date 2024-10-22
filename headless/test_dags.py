@@ -71,9 +71,9 @@ def test_dag(dag_executor, dag_file, dag_name):
     event_name = os.getenv("GITHUB_EVENT_NAME")
 
     # Skip UDT_DATAGEN if not a merge_group
-    # if dag_name == "UDT_DATAGEN" and event_name != "merge_group":
-    #     pytest.skip(
-    #         f"Skipping UDT_DATAGEN since the event is not merge_group, it's {event_name}"
-    #     )
+    if dag_name == "UDT_DATAGEN" and event_name != "merge_group":
+        pytest.skip(
+            f"Skipping UDT_DATAGEN since the event is not merge_group, it's {event_name}"
+        )
     dag_executor.load_dags_from_file(dag_file)
     assert dag_executor.execute_dag(dag_name)

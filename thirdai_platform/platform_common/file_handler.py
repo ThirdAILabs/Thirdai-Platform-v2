@@ -521,6 +521,12 @@ class AzureStorageHandler(CloudStorageHandler):
     ):
         from azure.storage.blob import BlobSasPermissions, generate_blob_sas
 
+        # Check if the blob is public
+        if (
+            self._blob_service_client.credential is None
+        ):  # Public access (no credentials)
+            return self.full_path(bucket_name, source_path)
+
         container_client = self.container_client(bucket_name=bucket_name)
         blob_client = container_client.get_blob_client(blob=source_path)
 
@@ -534,6 +540,25 @@ class AzureStorageHandler(CloudStorageHandler):
         )
 
         return f"{blob_client.url}?{sas_token}"
+
+    @handle_exceptions
+    def generate_url_from_source(self, source: str, expiry_mins: int = 15):
+        """
+        Parse the display path stored in the format '/{account_name}.blob.core.windows.net/{container_name}/{blob_name}'
+        to get the container name and blob name for downloading.
+        """
+        # Remove leading slash and split on '.blob.core.windows.net/'
+        if source.startswith("/"):
+            source = source[1:]
+        parts = source.split(".blob.core.windows.net/", 1)
+
+        if len(parts) != 2:
+            raise ValueError(f"Invalid Azure Blob display path: {source}")
+
+        container_name, blob_name = parts[1].split("/", 1)
+        return self.generate_signed_url(
+            bucket_name=container_name, source_path=blob_name, expiry_mins=expiry_mins
+        )
 
 
 class GCPStorageHandler(CloudStorageHandler):
@@ -647,6 +672,25 @@ class GCPStorageHandler(CloudStorageHandler):
             )
 
         return url
+
+    @handle_exceptions
+    def generate_url_from_source(self, source: str, expiry_mins: int = 15):
+        """
+        Parse the display path stored in the format '/storage.googleapis.com/{bucket_name}/{blob_name}'
+        to get the bucket name and blob name for downloading.
+        """
+        # Remove leading slash and split on 'storage.googleapis.com/'
+        if source.startswith("/"):
+            source = source[1:]
+        parts = source.split("storage.googleapis.com/", 1)
+
+        if len(parts) != 2:
+            raise ValueError(f"Invalid GCP display path: {source}")
+
+        bucket_name, blob_name = parts[1].split("/", 1)
+        return self.generate_signed_url(
+            bucket_name=bucket_name, source_path=blob_name, expiry_mins=expiry_mins
+        )
 
 
 def get_cloud_client(provider: str):

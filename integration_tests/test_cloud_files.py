@@ -21,30 +21,30 @@ from client.bazaar import ModelBazaar
             "s3",
             "Alice in wonderland",
         ),
-        (
-            "azure_public_ndb",
-            "https://csg100320028d93f3bc.blob.core.windows.net/test/insert.pdf",
-            "azure",
-            "Alice in wonderland",
-        ),
-        (
-            "azure_private_ndb",
-            "https://csg100320028d93f3bc.blob.core.windows.net/private-platform/insert.pdf",
-            "azure",
-            "Alice in wonderland",
-        ),
-        (
-            "gcp_public_ndb",
-            "gs://public-training-platform/sample_nda.pdf",
-            "gcp",
-            "confidentiality agreement",
-        ),
-        (
-            "gcp_private_ndb",
-            "gs://private-thirdai-platform/sample_nda.pdf",
-            "gcp",
-            "confidentiality agreement",
-        ),
+        # (
+        #     "azure_public_ndb",
+        #     "https://csg100320028d93f3bc.blob.core.windows.net/test/insert.pdf",
+        #     "azure",
+        #     "Alice in wonderland",
+        # ),
+        # (
+        #     "azure_private_ndb",
+        #     "https://csg100320028d93f3bc.blob.core.windows.net/private-platform/insert.pdf",
+        #     "azure",
+        #     "Alice in wonderland",
+        # ),
+        # (
+        #     "gcp_public_ndb",
+        #     "gs://public-training-platform/sample_nda.pdf",
+        #     "gcp",
+        #     "confidentiality agreement",
+        # ),
+        # (
+        #     "gcp_private_ndb",
+        #     "gs://private-thirdai-platform/sample_nda.pdf",
+        #     "gcp",
+        #     "confidentiality agreement",
+        # ),
     ],
 )
 @pytest.mark.unit

@@ -697,6 +697,7 @@ def get_cloud_client(provider: str):
         aws_access_key = os.getenv("AWS_ACCESS_KEY", None)
         aws_secret_access_key = os.getenv("AWS_ACCESS_SECRET", None)
         region_name = os.getenv("AWS_REGION_NAME", None)
+        print(aws_access_key, aws_secret_access_key, region_name, flush=True)
         return S3StorageHandler(
             aws_access_key=aws_access_key,
             aws_secret_access_key=aws_secret_access_key,

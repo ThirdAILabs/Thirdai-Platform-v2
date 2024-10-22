@@ -595,6 +595,10 @@ class GCPStorageHandler(CloudStorageHandler):
         return f"gs://{bucket_name}/{source_path}"
 
     @handle_exceptions
+    def full_web_path(self, bucket_name: str, source_path: str):
+        return f"https://storage.googleapis.com/{bucket_name}/{source_path}"
+
+    @handle_exceptions
     def upload_file(self, source_path: str, bucket_name: str, dest_path: str):
         bucket = self._client.bucket(bucket_name)
         blob = bucket.blob(dest_path)
@@ -656,8 +660,15 @@ class GCPStorageHandler(CloudStorageHandler):
     def generate_signed_url(
         self, bucket_name: str, source_path: str, expiry_mins: int = 15
     ):
+        from google.auth.credentials import AnonymousCredentials
+
         bucket = self._client.bucket(bucket_name)
         blob = bucket.blob(source_path)
+
+        # Check if the credentials are anonymous (public bucket)
+        if isinstance(self._client._credentials, AnonymousCredentials):
+            # Return the direct URL for public access
+            return self.full_web_path(bucket_name, source_path)
 
         try:
             url = blob.generate_signed_url(

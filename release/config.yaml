@@ -1,12 +1,5 @@
 azure:
   branches:
-    adds-keycloak:
-      pull_credentials:
-        password: X0ET1ZBLkumhTwJm1eJTATjHQ7P19zZcXQwxTW6nsV+ACRCi8q0d
-        username: thirdaiplatform-pull-adds-keycloak
-      push_credentials:
-        password: faLgsrDJsVNW+IOLdNH2SfEtQASk4onchmkbIHcvSX+ACRDh1/pW
-        username: thirdaiplatform-push-adds-keycloak
     daily-update:
       pull_credentials:
         password: xDHBncnAPPXcsodP6AqAo8kEDxNoOR5X8r5krtaZp++ACRAwcL6j

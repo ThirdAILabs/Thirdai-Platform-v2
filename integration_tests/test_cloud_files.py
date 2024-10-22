@@ -2,6 +2,7 @@ import os
 import uuid
 
 import pytest
+import requests
 
 from client.bazaar import ModelBazaar
 
@@ -81,8 +82,8 @@ def test_cloud_training(model_name_prefix, doc_url, provider, expected_query):
     assert signed_url is not None
 
     # Validate the signed URL using wget or another method
-    response = os.system(f"wget -q --spider {signed_url}")
-    assert response == 0, f"Failed to access {provider} signed URL: {signed_url}"
+    response = requests.head(signed_url)
+    assert response.status_code == 200, f"Failed to access {provider} signed URL: {signed_url}"
 
     # Undeploy the model after validation
     admin_client.undeploy(ndb_client)

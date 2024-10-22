@@ -178,12 +178,6 @@ class UDTData(BaseModel):
     class Config:
         protected_namespaces = ()
 
-    @model_validator(mode="after")
-    def check_nonempty(self):
-        if len(self.supervised_files) == 0:
-            raise ValueError("Supervised files must not be empty for UDT training.")
-        return self
-
 
 class UDTGeneratedData(BaseModel):
     model_data_type: Literal[ModelDataType.UDT_DATAGEN] = ModelDataType.UDT_DATAGEN

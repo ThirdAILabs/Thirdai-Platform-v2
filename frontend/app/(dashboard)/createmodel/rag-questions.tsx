@@ -22,17 +22,6 @@ enum LlmProvider {
   None = 'none',
 }
 
-enum IndexingType {
-  Basic = 'basic',
-  Better = 'better',
-  Advanced = 'advanced',
-}
-
-enum ParsingType {
-  Basic = 'basic',
-  Advanced = 'advanced',
-}
-
 const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) => {
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -50,7 +39,6 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
   // End state variables & func for source
 
   // Begin state variables & func for LLM guardrail
-
   const [ifUseLGR, setIfUseLGR] = useState('');
   const [ifUseExistingLGR, setIfUseExistingLGR] = useState<string | null>(null);
   const [existingNERModels, setExistingNERModels] = useState<Workflow[]>([]);
@@ -86,11 +74,6 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
 
   // End state variables & func for LLM
 
-
-  // New state variables for Advanced Configuration
-  const [indexingType, setIndexingType] = useState<IndexingType>(IndexingType.Basic);
-  const [parsingType, setParsingType] = useState<ParsingType>(ParsingType.Basic);
-
   const router = useRouter();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -108,8 +91,6 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
         nlp_classifier_id: nlpClassifierModelId || '',
         llm_provider: '',
         default_mode: isChatbot ? 'chat' : 'search',
-        // indexing_type: indexingType,
-        // parsing_type: parsingType,
       };
 
       // Set llm_provider based on llmType
@@ -242,12 +223,12 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
       ),
     },
     {
-      title: 'Retrieval App',
+      title: 'Knowledge base',
       content: (
         <div>
           {!createdSS && (
             <>
-              <CardDescription>Use an existing retrieval app?</CardDescription>
+              <CardDescription>Use an existing knowledge base?</CardDescription>
               <div
                 style={{
                   display: 'flex',
@@ -305,7 +286,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
                       setCreatedSS(true);
                     }}
                     stayOnPage={true}
-                    appName={`${modelName}-Retrieval`}
+                    appName={`${modelName}-KB`}
                   />
                 </div>
               )}
@@ -563,100 +544,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
           )}
         </div>
       ),
-    },
-    {
-      title: 'Advanced',
-      content: (
-        <div>
-          
-          {/* Indexing Configuration */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', marginTop: '20px' }}>
-              <span className="block text-lg font-semibold">Indexing</span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span style={{ marginLeft: '8px', cursor: 'pointer' }}>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="w-5 h-5"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="16" x2="12" y2="12" />
-                      <line x1="12" y1="8" x2="12.01" y2="8" />
-                    </svg>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="right" style={{ maxWidth: '300px' }}>
-                  <strong>Better:</strong> Up to 5K paragraphs. Includes document level and paragraph level keywords.<br/><br/>
-                  <strong>Advanced:</strong> Up to 1000 paragraphs. Generates questions for each chunk, upvotes right away, and caches the answers.
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <CardDescription>Choose an indexing option</CardDescription>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                gap: '10px',
-                marginTop: '10px',
-              }}
-            >
-              <Button
-                variant={indexingType === IndexingType.Basic ? 'contained' : 'outlined'}
-                onClick={() => setIndexingType(IndexingType.Basic)}
-                style={{ width: '140px' }}
-              >
-                Basic
-              </Button>
-              <Button
-                variant={indexingType === IndexingType.Advanced ? 'contained' : 'outlined'}
-                onClick={() => setIndexingType(IndexingType.Advanced)}
-                style={{ width: '140px' }}
-              >
-                Advanced
-              </Button>
-            </div>
-          </div>
-          
-          {/* Parsing Configuration */}
-          <div>
-            <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
-              Parsing
-            </span>
-            <CardDescription>Choose a parsing option</CardDescription>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'row',
-                gap: '10px',
-                marginTop: '10px',
-              }}
-            >
-              <Button
-                variant={parsingType === ParsingType.Basic ? 'contained' : 'outlined'}
-                onClick={() => setParsingType(ParsingType.Basic)}
-                style={{ width: '140px' }}
-              >
-                Basic
-              </Button>
-              <Button
-                variant={parsingType === ParsingType.Advanced ? 'contained' : 'outlined'}
-                onClick={() => setParsingType(ParsingType.Advanced)}
-                style={{ width: '140px' }}
-              >
-                Advanced
-              </Button>
-            </div>
-          </div>
-        </div>
-      ),
-    },
+    }
   ];
 
   // This is for displaying message in case user missed requirements
@@ -700,13 +588,16 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
             onClick={() => setCurrentStep(index)}
             style={{
               marginBottom: '10px',
-              width: '140px',
+              minWidth: '140px',
               height: '40px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               textTransform: 'none',
-              lineHeight: '1.2',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              padding: '0 16px',
             }}
           >
             {step.title}

@@ -1,14 +1,10 @@
-FROM golang:1.23 AS builder
+FROM golang:1.23
 WORKDIR /app
 
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 COPY . .
 RUN go build -v -o model_registry
-
-FROM debian:buster-slim 
-WORKDIR /app 
-COPY --from=builder /app/model_registry /app/model_registry
 
 ENV registry_db="data/registry.db"
 ENV registry_storage="data/storage"

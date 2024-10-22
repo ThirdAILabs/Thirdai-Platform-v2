@@ -7,9 +7,11 @@ import (
 	"model_registry/schema"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/httprate"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -37,7 +39,7 @@ func main() {
 
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("failed to connect database")
+		log.Fatalf("failed to connect database: %v", err)
 	}
 
 	err = db.AutoMigrate(&schema.Model{}, &schema.ApiKey{})
@@ -54,6 +56,7 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(httprate.LimitByIP(500, time.Minute))
 
 	r.Mount("/api/v1", registry.Routes())
 

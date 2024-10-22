@@ -20,7 +20,6 @@ import (
 type ModelRegistry struct {
 	db *gorm.DB
 
-	adminAuth  *jwtauth.JWTAuth
 	uploadAuth *jwtauth.JWTAuth
 
 	storage Storage
@@ -29,7 +28,6 @@ type ModelRegistry struct {
 func New(db *gorm.DB, storage Storage) *ModelRegistry {
 	return &ModelRegistry{
 		db:         db,
-		adminAuth:  jwtauth.New("HS256", getSecret(), nil),
 		uploadAuth: jwtauth.New("HS256", getSecret(), nil),
 		storage:    storage,
 	}
@@ -98,9 +96,7 @@ func (registry *ModelRegistry) NewApiKey(w http.ResponseWriter, r *http.Request)
 	}
 
 	res := generateApiKeyResponse{ApiKey: key}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
+	writeJsonResponse(w, res)
 }
 
 func (registry *ModelRegistry) DeleteModel(w http.ResponseWriter, r *http.Request) {
@@ -194,9 +190,7 @@ func (registry *ModelRegistry) ListModels(w http.ResponseWriter, r *http.Request
 	}
 
 	res := listModelsResponse{Models: modelInfos}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
+	writeJsonResponse(w, res)
 }
 
 type downloadRequest struct {
@@ -254,9 +248,7 @@ func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Reque
 	}
 
 	res := downloadResponse{DownloadLink: link}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
+	writeJsonResponse(w, res)
 }
 
 type uploadRequest struct {
@@ -284,7 +276,14 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if params.ModelName == "" || params.ModelType == "" || params.ModelSubtype == "" || params.Checksum == "" {
+	nameRe := regexp.MustCompile(`^[\w\-]+$`)
+
+	if !nameRe.MatchString(params.ModelName) {
+		http.Error(w, "Model name must be alphanumeric with _ or -.", http.StatusBadRequest)
+		return
+	}
+
+	if params.ModelType == "" || params.ModelSubtype == "" || params.Checksum == "" {
 		http.Error(w, "Params 'model_name', 'model_type', 'model_subtype', and 'checksum' must be specified as non empty strings.", http.StatusBadRequest)
 		return
 	}
@@ -354,9 +353,7 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 	}
 
 	res := uploadResponse{SessionToken: token}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
+	writeJsonResponse(w, res)
 }
 
 type contentRange struct {

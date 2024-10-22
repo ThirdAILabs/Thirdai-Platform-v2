@@ -1,19 +1,17 @@
-FROM golang:1.23
-
+FROM golang:1.23 AS builder
 WORKDIR /app
 
-# pre-copy/cache go.mod for pre-downloading dependencies and only redownloading them in subsequent builds if they change
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
-
 COPY . .
+RUN go build -v -o model_registry
 
-RUN go build -v
+FROM debian:buster-slim 
+WORKDIR /app 
+COPY --from=builder /app/model_registry /app/model_registry
 
 ENV registry_db="data/registry.db"
 ENV registry_storage="data/storage"
 ENV registry_port="8080"
-ENV admin_email=""
-ENV admin_password=""
 
 CMD ["./model_registry"]

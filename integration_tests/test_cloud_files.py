@@ -82,7 +82,10 @@ def test_cloud_training(model_name_prefix, doc_url, provider, expected_query):
     assert signed_url is not None
 
     # Validate the signed URL using wget or another method
-    response = requests.head(signed_url)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+    }
+    response = requests.get(signed_url, headers=headers)
     assert response.status_code == 200, f"Failed to access {provider} signed URL: {signed_url}"
 
     # Undeploy the model after validation

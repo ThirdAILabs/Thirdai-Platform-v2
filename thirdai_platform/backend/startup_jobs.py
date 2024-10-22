@@ -131,7 +131,7 @@ async def restart_thirdai_platform_frontend():
         model_bazaar_public_hostname=get_hostname_from_url(
             os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT")
         ),
-        use_ssl_in_login=os.getenv("USE_SSL_IN_LOGIN").lower(),
+        use_ssl_in_login=os.getenv("USE_SSL_IN_LOGIN", "False").lower(),
         share_dir=os.getenv("SHARE_DIR"),
         nextauth_secret=os.getenv("JWT_SECRET", "random secret"),
         # Model bazaar dockerfile does not include neuraldb_frontend code,

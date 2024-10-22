@@ -91,3 +91,5 @@ def test_cloud_training(model_name_prefix, doc_url, provider, expected_query):
 
     # Undeploy the model after validation
     admin_client.undeploy(ndb_client)
+
+    admin_client.delete(model.model_identifier)

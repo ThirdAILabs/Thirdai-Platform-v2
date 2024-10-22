@@ -490,11 +490,29 @@ export class ModelService {
 
   openSource(source: string): void {
     if (source.includes('amazonaws.com')) {
-      this.openAWSReference(source);
+      this.getSignedUrl(source, 's3').then((signedURL) => {
+        if (signedURL) {
+          this.openAWSReference(signedURL);
+        } else {
+          console.error('Failed to retrieve signed URL for S3 resource.');
+        }
+      });
     } else if (source.includes('blob.core.windows.net')) {
-      this.openAWSReference(source);
+      this.getSignedUrl(source, 'azure').then((signedURL) => {
+        if (signedURL) {
+          this.openAWSReference(signedURL);
+        } else {
+          console.error('Failed to retrieve signed URL for Azure resource.');
+        }
+      });
     } else if (source.includes('storage.googleapis.com')) {
-      this.openAWSReference(source);
+      this.getSignedUrl(source, 'gcp').then((signedURL) => {
+        if (signedURL) {
+          this.openAWSReference(signedURL);
+        } else {
+          console.error('Failed to retrieve signed URL for GCP resource.');
+        }
+      });
     } else if (source.toLowerCase().endsWith('.pdf')) {
       this.openPDF(source);
     } else if (source.toLowerCase().endsWith('.docx')) {
@@ -507,6 +525,36 @@ export class ModelService {
   openAWSReference(source: string): void {
     const highlightedSourceURL = 'https://' + source.replace(/^(https?:\/\/)?/, '');
     window.open(highlightedSourceURL);
+  }
+
+  getSignedUrl(source: string, provider: 's3' | 'azure' | 'gcp'): Promise<string | null> {
+    const url = new URL(this.url + '/get-signed-url');
+
+    // Append source and provider as query parameters
+    url.searchParams.append('source', source);
+    url.searchParams.append('provider', provider);
+
+    return fetch(url.toString(), {
+      method: 'GET', // Set method to GET since we're passing query params
+      headers: {
+        ...this.authHeader(),
+      },
+    })
+      .then(this.handleInvalidAuth())
+      .then((response) => {
+        if (response.ok) {
+          return response.json();
+        } else {
+          throw new Error('Failed to get signed URL');
+        }
+      })
+      .then(({ data }) => {
+        return data.signed_url;
+      })
+      .catch((e) => {
+        console.error('Error in getSignedUrl:', e);
+        return null;
+      });
   }
 
   async upvote(

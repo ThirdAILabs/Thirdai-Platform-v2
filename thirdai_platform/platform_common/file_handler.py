@@ -97,14 +97,7 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
         if file_info.location == FileLocation.local:
             expanded_files.append(file_info)
         elif file_info.location == FileLocation.s3:
-            aws_access_key = os.getenv("AWS_ACCESS_KEY", None)
-            aws_secret_access_key = os.getenv("AWS_ACCESS_SECRET", None)
-            aws_region_name = os.getenv("AWS_REGION_NAME", None)
-            s3_client = S3StorageHandler(
-                aws_access_key=aws_access_key,
-                aws_secret_access_key=aws_secret_access_key,
-                region_name=aws_region_name,
-            )
+            s3_client=get_cloud_client(provider="s3")
             bucket_name, source_path = file_info.parse_s3_url()
             s3_objects = s3_client.list_files(
                 bucket_name=bucket_name, source_path=source_path
@@ -113,11 +106,7 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
                 expand_file_info(paths=s3_objects, file_info=file_info)
             )
         elif file_info.location == FileLocation.azure:
-            account_name = os.getenv("AZURE_ACCOUNT_NAME", None)
-            account_key = os.getenv("AZURE_ACCOUNT_KEY", None)
-            azure_client = AzureStorageHandler(
-                account_name=account_name, account_key=account_key
-            )
+            azure_client = get_cloud_client(provider="azure")
             container_name, blob_path = file_info.parse_azure_url()
             azure_objects = azure_client.list_files(
                 bucket_name=container_name, source_path=blob_path
@@ -134,8 +123,7 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
                 )
             )
         elif file_info.location == FileLocation.gcp:
-            gcp_credentials_file = os.getenv("GCP_CREDENTIALS_FILE", None)
-            gcp_client = GCPStorageHandler(credentials_file_path=gcp_credentials_file)
+            gcp_client = get_cloud_client(provider="gcp")
             bucket_name, source_path = file_info.parse_gcp_url()
             gcp_objects = gcp_client.list_files(bucket_name, source_path)
             expanded_files.extend(

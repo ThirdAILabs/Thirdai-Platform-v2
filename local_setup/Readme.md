@@ -97,17 +97,17 @@ Without this process, it is cumbersome to test out platform changes. We would ha
     - After extraction, you should have a directory named `keycloak-26.0.0`.
     - Open a terminal and navigate to the `keycloak-26.0.0` directory:
      ```bash
-     cd path/to/keycloak-26.0.0/bin
+     cd keycloak-26.0.0/bin
      ```
     - Start the Keycloak server in development mode with the following command:
      ```bash
-     ./kc.sh start-dev --http-port=8180 --debug --bootstrap-admin-username kc_admin --bootstrap-admin-password password
+     ./kc.sh start-dev --http-port=8180 --debug --bootstrap-admin-username temp_admin --bootstrap-admin-password password
      ```
     - Wait for the server to start, and you should see a message indicating that the server is running. The server will be accessible at `http://localhost:8180`.
     - Once the server has started, you can access the Keycloak Admin Console by navigating to:
      [http://localhost:8180](http://localhost:8180).
     - Log in using the following credentials:
-     - **Username**: `kc_admin`
+     - **Username**: `temp_admin`
      - **Password**: `password`
     - To stop the server, press `Ctrl+C` in the terminal where the server is running.
     - For more detailed instructions and advanced setup options, visit the official Keycloak documentation:

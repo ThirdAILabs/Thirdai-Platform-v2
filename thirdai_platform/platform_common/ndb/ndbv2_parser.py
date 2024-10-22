@@ -5,13 +5,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import pdftitle
 from fastapi import Response
-from platform_common.file_handler import (
-    AzureStorageHandler,
-    FileInfo,
-    FileLocation,
-    GCPStorageHandler,
-    S3StorageHandler,
-)
+from platform_common.file_handler import FileInfo, FileLocation, get_cloud_client
 from thirdai import neural_db_v2 as ndbv2
 
 
@@ -107,10 +101,7 @@ def parse_doc(
     # S3 handling
     if doc.location == FileLocation.s3:
         try:
-            s3_client = S3StorageHandler(
-                aws_access_key=os.getenv("AWS_ACCESS_KEY"),
-                aws_secret_access_key=os.getenv("AWS_ACCESS_SECRET"),
-            )
+            s3_client = get_cloud_client(provider="s3")
             bucket_name, prefix = doc.parse_s3_url()
             local_file_path = os.path.join(tmp_dir, os.path.basename(prefix))
 
@@ -134,10 +125,7 @@ def parse_doc(
     elif doc.location == FileLocation.azure:
         try:
             account_name = os.getenv("AZURE_ACCOUNT_NAME")
-            azure_client = AzureStorageHandler(
-                account_name=account_name,
-                account_key=os.getenv("AZURE_ACCOUNT_KEY"),
-            )
+            azure_client = get_cloud_client(provider="azure")
             container_name, blob_name = doc.parse_azure_url()
             local_file_path = os.path.join(tmp_dir, os.path.basename(blob_name))
 
@@ -160,9 +148,7 @@ def parse_doc(
     # GCP handling
     elif doc.location == FileLocation.gcp:
         try:
-            gcp_client = GCPStorageHandler(
-                credentials_file_path=os.getenv("GCP_CREDENTIALS_FILE")
-            )
+            gcp_client = get_cloud_client(provider="gcp")
             bucket_name, blob_name = doc.parse_gcp_url()
             local_file_path = os.path.join(tmp_dir, os.path.basename(blob_name))
 

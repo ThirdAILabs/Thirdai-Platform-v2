@@ -1,6 +1,6 @@
-export { default } from 'next-auth/middleware';
+export { auth as middleware } from '@/lib/auth';
 
-// Don't invoke Middleware since we handle in backend
+// Don't invoke Middleware on some paths
 export const config = {
-  matcher: [],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };

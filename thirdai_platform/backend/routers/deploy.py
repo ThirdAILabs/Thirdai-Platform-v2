@@ -426,10 +426,11 @@ def get_feedback(
         "recent_feedbacks",
     )
 
-    if not os.path.exists(feedback_dir) or len(os.listdir(feedback_dir)) == 0:
+    if not os.path.exists(feedback_dir):
         return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_200_OK,
             message=f"No feedback found for the model.",
+            data=[],
         )
 
     accumlated_feedbacks = defaultdict(list)

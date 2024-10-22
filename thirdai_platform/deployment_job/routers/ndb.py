@@ -7,7 +7,6 @@ from typing import AsyncGenerator, List
 import fitz
 import jwt
 import thirdai
-from deployment_job.feedback_collector import FeedbackCollector
 from deployment_job.models.ndb_models import NDBModel, NDBV1Model, NDBV2Model
 from deployment_job.permissions import Permissions
 from deployment_job.pydantic_models.inputs import (
@@ -64,9 +63,6 @@ class NDBRouter:
         self.feedback_logger = UpdateLogger.get_feedback_logger(self.model.data_dir)
         self.insertion_logger = UpdateLogger.get_insertion_logger(self.model.data_dir)
         self.deletion_logger = UpdateLogger.get_deletion_logger(self.model.data_dir)
-        self.feedback_collector = FeedbackCollector(
-            self.model.data_dir / "recent_feedbacks"
-        )
 
         self.router = APIRouter()
         self.router.add_api_route("/search", self.search, methods=["POST"])
@@ -297,22 +293,22 @@ class NDBRouter:
         }
         ```
         """
-        self.feedback_collector.add(input)
         write_permission = Permissions.check_permission(
             token=token, permission_type="write"
         )
+        prod_mode = not write_permission or self.config.autoscaling_enabled
 
-        if not write_permission or self.config.autoscaling_enabled:
-            self.feedback_logger.log(
-                FeedbackLog(
-                    event=UpvoteLog(
-                        chunk_ids=[
-                            sample.reference_id for sample in input.text_id_pairs
-                        ],
-                        queries=[sample.query_text for sample in input.text_id_pairs],
-                    )
-                )
+        self.feedback_logger.log(
+            FeedbackLog(
+                event=UpvoteLog(
+                    chunk_ids=[sample.reference_id for sample in input.text_id_pairs],
+                    queries=[sample.query_text for sample in input.text_id_pairs],
+                ),
+                perfrom_rlhf=not prod_mode,
             )
+        )
+
+        if prod_mode:
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Upvote logged successfully.",
@@ -352,20 +348,22 @@ class NDBRouter:
         }
         ```
         """
-        self.feedback_collector.add(input)
         write_permission = Permissions.check_permission(
             token=token, permission_type="write"
         )
+        prod_mode = not write_permission or self.config.autoscaling_enabled
 
-        if not write_permission or self.config.autoscaling_enabled:
-            self.feedback_logger.log(
-                FeedbackLog(
-                    event=AssociateLog(
-                        sources=[sample.source for sample in input.text_pairs],
-                        targets=[sample.target for sample in input.text_pairs],
-                    )
-                )
+        self.feedback_logger.log(
+            FeedbackLog(
+                event=AssociateLog(
+                    sources=[sample.source for sample in input.text_pairs],
+                    targets=[sample.target for sample in input.text_pairs],
+                ),
+                perfrom_rlhf=not prod_mode,
             )
+        )
+
+        if prod_mode:
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Associate logged successfully.",
@@ -391,7 +389,8 @@ class NDBRouter:
                     chunk_id=feedback.reference_id,
                     query=feedback.query_text,
                     event_desc=feedback.event_desc,
-                )
+                ),
+                perfrom_rlhf=False,
             )
         )
 

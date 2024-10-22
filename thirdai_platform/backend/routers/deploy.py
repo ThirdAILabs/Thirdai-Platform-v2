@@ -31,14 +31,13 @@ from backend.utils import (
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
-
-pass
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     EnterpriseSearchOptions,
     NDBDeploymentOptions,
     UDTDeploymentOptions,
 )
+from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
 from platform_common.pydantic_models.training import ModelType
 from platform_common.utils import response
 from sqlalchemy.orm import Session
@@ -364,6 +363,7 @@ async def deploy_model(
 @deploy_router.get("/feedbacks", dependencies=[Depends(is_model_owner)])
 def get_feedback(
     model_identifier: str,
+    per_event_count: int = 5,
     session: Session = Depends(get_session),
 ):
     """
@@ -423,7 +423,7 @@ def get_feedback(
         str(model.id),
         "deployments",
         "data",
-        "recent_feedbacks",
+        "feedback",
     )
 
     if not os.path.exists(feedback_dir):
@@ -433,20 +433,58 @@ def get_feedback(
             data=[],
         )
 
+    all_feedbacks = []
     accumlated_feedbacks = defaultdict(list)
     for alloc_dirEntry in os.scandir(feedback_dir):
-        if alloc_dirEntry.is_file() and alloc_dirEntry.name.endswith(".json"):
-            with open(alloc_dirEntry.path, "r") as fp:
-                feedbacks = json.load(fp)
+        if alloc_dirEntry.is_file() and alloc_dirEntry.name.endswith(".jsonl"):
+            with open(alloc_dirEntry.path, "r") as file:
+                all_feedbacks.extend(
+                    FeedbackLog.model_validate_json(line) for line in file
+                )
 
-            for event, entries in feedbacks.items():
-                accumlated_feedbacks[event].extend(entries)
+    # filter feedback to only certain events
+    filtered_feedbacks = list(
+        filter(
+            lambda x: x.event.action in [ActionType.associate, ActionType.upvote],
+            all_feedbacks,
+        )
+    )
+
+    for feedback in filtered_feedbacks:
+        if feedback.event.action == ActionType.upvote:
+            accumlated_feedbacks[feedback.event.action].extend(
+                {
+                    "timestamp": feedback.timestamp,
+                    "query": query,
+                    "reference_id": chunk_id,
+                    "reference_text": ref_text,
+                }
+                for chunk_id, query, ref_text in zip(
+                    accumlated_feedbacks.event.chunk_ids,
+                    accumlated_feedbacks.event.queries,
+                    accumlated_feedbacks.event.reference_texts,
+                )
+            )
+        else:
+            accumlated_feedbacks[feedback.event.action].extend(
+                {
+                    "timestamp": feedback.timestamp,
+                    "source": source,
+                    "target": target,
+                }
+                for source, target in zip(
+                    accumlated_feedbacks.event.sources,
+                    accumlated_feedbacks.event.targets,
+                )
+            )
 
     # sort each event
     for key in accumlated_feedbacks:
         accumlated_feedbacks[key].sort(
-            key=lambda x: datetime.strptime(x["timestamp"], "%d %B %Y %H:%M:%S")
+            key=lambda x: datetime.strptime(x["timestamp"], "%d %B %Y %H:%M:%S"),
+            reverse=True,
         )
+        accumlated_feedbacks[key] = accumlated_feedbacks[key][:per_event_count]
 
     return response(
         status_code=status.HTTP_200_OK,

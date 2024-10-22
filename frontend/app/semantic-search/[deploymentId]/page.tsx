@@ -306,6 +306,10 @@ function App() {
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   async function submit(query: string, genaiPrompt: string, bypassCache = false) {
+    if (abortController) {
+      abortController.abort();
+    }
+  
     if (websocketRef.current) {
       websocketRef.current.close();
     }
@@ -317,27 +321,70 @@ function App() {
     setNumReferences(c.numReferencesFirstLoad);
 
     if (query.trim().length > 0) {
-      // Case 1: Guardrail is ON
       const results = await getResults(
         query,
         c.numReferencesFirstLoad + 1 * c.numReferencesLoadMore
       );
 
       if (results && ifGenerationOn) {
-        if (abortController) {
-          abortController.abort();
+        const modelId = modelService?.getModelID();
+  
+        // If we don't want to bypassCache AND cache generation is enabled
+        if (!bypassCache && cacheEnabled) {
+          try {
+            const cachedResult = await fetchCachedGeneration(modelId!, query);
+            console.log('cachedResult', cachedResult);
+  
+            if (cachedResult && cachedResult.llm_res) {
+              console.log('cached query is', cachedResult.query);
+              console.log('cached generation is', cachedResult.llm_res);
+  
+              // Set up an AbortController for cached generation
+              const cacheAbortController = new AbortController();
+              setAbortController(cacheAbortController);
+  
+              const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+              setQueryInfo(null);
+              // Initialize the stopping index
+              let currentStoppingIndex = 0;
+              const tokens = cachedResult.llm_res.split(' ');
+  
+              for (let i = 0; i < tokens.length; i++) {
+                if (cacheAbortController.signal.aborted) {
+                  console.log('Cached generation paused');
+                  // Set the answer up to the current stopping index
+                  setAnswer(tokens.slice(0, currentStoppingIndex).join(' '));
+                  break;
+                }
+  
+                currentStoppingIndex = i + 1; // Update stopping index to current position
+                setAnswer(tokens.slice(0, currentStoppingIndex).join(' '));
+                await sleep(20); // Mimic streaming response with a delay
+              }
+  
+              setAbortController(null);
+  
+              // Set the query information including whether they differ
+              setQueryInfo({
+                cachedQuery: cachedResult.query,
+                userQuery: query,
+                isDifferent: cachedResult.query !== query,
+              });
+  
+              return; // Stop further execution since the answer was found in cache
+            }
+          } catch (error) {
+            console.error('Failed to retrieve cached result:', error);
+            // Continue to generate a new answer if there's an error in fetching from the cache
+          }
         }
-
-        console.log('processedQuery:', results.query);
-        console.log('piiMap:', results.pii_entities);
-        console.log('processedReferences:');
-        results.references.forEach((reference) => {
-          console.log(reference.content);
-        });
-
+  
+        // No cache hit or cache not used, proceed with generation
+        setQueryInfo(null); // Indicates no cached data was used
+  
         const controller = new AbortController();
-        setAbortController(controller); // Store it in state
-
+        setAbortController(controller);
+  
         modelService!
           .generateAnswer(
             results.query,
@@ -345,19 +392,16 @@ function App() {
             results.references,
             (next) => {
               setAnswer((prev) => {
-                // Concatenate previous answer and the new part
                 const fullAnswer = prev + next;
-                // Return the final processed answer to update the state
                 return fullAnswer;
               });
             },
-            genAiProvider || undefined, // Convert null to undefined
+            genAiProvider || undefined,
             workflowId || undefined,
             undefined,
             controller.signal
           )
           .finally(() => {
-            // Cleanup after generation completes or is aborted
             setAbortController(null);
           });
       }

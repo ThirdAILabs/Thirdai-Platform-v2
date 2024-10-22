@@ -39,7 +39,13 @@ function install_ansible() {
     echo "Installing required Ansible Galaxy collections..."
     ansible-galaxy collection install community.general
     ansible-galaxy collection install ansible.posix
-    ansible-galaxy collection install community.docker
+    # From v4.0.0 commuinty docker support is not there for amazon linux 2
+    if [ -f /etc/system-release ] && grep -q "Amazon Linux release 2" /etc/system-release; then
+        ansible-galaxy collection install community.docker:==3.13.1 --force
+    else
+        ansible-galaxy collection install community.docker
+    fi
+    ansible-galaxy collection install community.postgresql
 
     echo "All required Ansible Galaxy collections are installed."
 }

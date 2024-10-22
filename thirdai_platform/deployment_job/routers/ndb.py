@@ -304,7 +304,7 @@ class NDBRouter:
                     chunk_ids=[sample.reference_id for sample in input.text_id_pairs],
                     queries=[sample.query_text for sample in input.text_id_pairs],
                 ),
-                perfrom_rlhf=not prod_mode,
+                perfrom_rlhf_later=prod_mode,
             )
         )
 
@@ -359,7 +359,7 @@ class NDBRouter:
                     sources=[sample.source for sample in input.text_pairs],
                     targets=[sample.target for sample in input.text_pairs],
                 ),
-                perfrom_rlhf=not prod_mode,
+                perfrom_rlhf_later=prod_mode,
             )
         )
 
@@ -390,7 +390,7 @@ class NDBRouter:
                     query=feedback.query_text,
                     event_desc=feedback.event_desc,
                 ),
-                perfrom_rlhf=False,
+                perfrom_rlhf_later=False,
             )
         )
 

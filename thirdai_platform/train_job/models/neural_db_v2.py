@@ -131,7 +131,7 @@ class NeuralDBV2(Model):
         with open(path, "r") as file:
             for line in file:
                 feedback = FeedbackLog.model_validate_json(line)
-                if feedback.perfrom_rlhf:
+                if not feedback.perfrom_rlhf_later:
                     continue
 
                 feedback_samples[feedback.event.action] += 1

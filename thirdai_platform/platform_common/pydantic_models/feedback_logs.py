@@ -42,7 +42,7 @@ class FeedbackLog(BaseModel):
     )
 
     timestamp: str = str(datetime.now().strftime("%d %B %Y %H:%M:%S"))
-    perfrom_rlhf: bool = False
+    perfrom_rlhf_later: bool = True
 
 
 class InsertLog(BaseModel):

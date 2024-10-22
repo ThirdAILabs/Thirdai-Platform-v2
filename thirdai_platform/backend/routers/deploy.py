@@ -442,15 +442,7 @@ def get_feedback(
                     FeedbackLog.model_validate_json(line) for line in file
                 )
 
-    # filter feedback to only certain events
-    filtered_feedbacks = list(
-        filter(
-            lambda x: x.event.action in [ActionType.associate, ActionType.upvote],
-            all_feedbacks,
-        )
-    )
-
-    for feedback in filtered_feedbacks:
+    for feedback in all_feedbacks:
         if feedback.event.action == ActionType.upvote:
             accumlated_feedbacks[feedback.event.action].extend(
                 {
@@ -460,12 +452,12 @@ def get_feedback(
                     "reference_text": ref_text,
                 }
                 for chunk_id, query, ref_text in zip(
-                    accumlated_feedbacks.event.chunk_ids,
-                    accumlated_feedbacks.event.queries,
-                    accumlated_feedbacks.event.reference_texts,
+                    feedback.event.chunk_ids,
+                    feedback.event.queries,
+                    feedback.event.reference_texts,
                 )
             )
-        else:
+        elif feedback.event.action == ActionType.associate:
             accumlated_feedbacks[feedback.event.action].extend(
                 {
                     "timestamp": feedback.timestamp,
@@ -473,8 +465,8 @@ def get_feedback(
                     "target": target,
                 }
                 for source, target in zip(
-                    accumlated_feedbacks.event.sources,
-                    accumlated_feedbacks.event.targets,
+                    feedback.event.sources,
+                    feedback.event.targets,
                 )
             )
 

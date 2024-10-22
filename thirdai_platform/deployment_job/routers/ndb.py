@@ -303,6 +303,9 @@ class NDBRouter:
                 event=UpvoteLog(
                     chunk_ids=[sample.reference_id for sample in input.text_id_pairs],
                     queries=[sample.query_text for sample in input.text_id_pairs],
+                    reference_texts=[
+                        sample.reference_text for sample in input.text_id_pairs
+                    ],
                 ),
                 perfrom_rlhf_later=prod_mode,
             )

@@ -41,7 +41,9 @@ class FeedbackLog(BaseModel):
         ..., discriminator="action"
     )
 
-    timestamp: str = str(datetime.now().strftime("%d %B %Y %H:%M:%S"))
+    timestamp: str = Field(
+        default_factory=lambda: datetime.now().strftime("%d %B %Y %H:%M:%S")
+    )
     perfrom_rlhf_later: bool = True
 
 

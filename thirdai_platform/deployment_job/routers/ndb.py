@@ -1,4 +1,6 @@
+import asyncio
 import io
+import logging
 import traceback
 import uuid
 from pathlib import Path
@@ -7,6 +9,8 @@ from typing import AsyncGenerator, List
 import fitz
 import jwt
 import thirdai
+from deployment_job.generate.generate_utils import insert_into_cache
+from deployment_job.generate.llms import LLMBase, default_keys, model_classes
 from deployment_job.models.ndb_models import NDBModel, NDBV1Model, NDBV2Model
 from deployment_job.permissions import Permissions
 from deployment_job.pydantic_models.inputs import (
@@ -16,6 +20,7 @@ from deployment_job.pydantic_models.inputs import (
     ChatSettings,
     DeleteInput,
     DocumentList,
+    GenerateArgs,
     ImplicitFeedbackInput,
     NDBSearchParams,
     SaveModel,
@@ -24,7 +29,15 @@ from deployment_job.pydantic_models.inputs import (
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
 from deployment_job.utils import propagate_error, validate_name
-from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    Form,
+    HTTPException,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from platform_common.file_handler import download_local_files
@@ -80,6 +93,7 @@ class NDBRouter:
             "/get-chat-history", self.get_chat_history, methods=["POST"]
         )
         self.router.add_api_route("/chat", self.chat, methods=["POST"])
+        self.router.add_api_route("/generate", self.generate, methods=["POST"])
         self.router.add_api_route("/sources", self.get_sources, methods=["GET"])
         self.router.add_api_route("/save", self.save, methods=["POST"])
         self.router.add_api_route(
@@ -474,6 +488,58 @@ class NDBRouter:
                 yield chunk
 
         return StreamingResponse(generate_response(), media_type="text/plain")
+
+    @propagate_error
+    def generate(
+        self,
+        generate_args: GenerateArgs,
+        token=Depends(Permissions.verify_permission("read")),
+    ):
+        key = generate_args.key or default_keys.get(generate_args.provider.lower())
+        if not key:
+            raise HTTPException(status_code=400, detail="No generative AI key provided")
+
+        llm_class = model_classes.get(generate_args.provider.lower())
+        if llm_class is None:
+            raise HTTPException(status_code=400, detail="Unsupported provider")
+
+        logging.info(
+            f"Received request from workflow: '{generate_args.workflow_id}'. "
+            f"Starting generation with provider '{generate_args.provider.lower()}':",
+        )
+
+        llm: LLMBase = llm_class()
+
+        async def generate_stream():
+            generated_response = ""
+            try:
+                async for next_word in llm.stream(
+                    key=key,
+                    query=generate_args.query,
+                    task_prompt=generate_args.task_prompt,
+                    references=generate_args.references,
+                    model=generate_args.model,
+                ):
+                    generated_response += next_word
+                    yield next_word
+                    await asyncio.sleep(0)
+                logging.info(
+                    f"\nCompleted generation for workflow '{generate_args.workflow_id}'.",
+                )
+            except Exception as e:
+                logging.error(f"Error during generation: {e}")
+                raise HTTPException(
+                    status_code=500, detail=f"Error while generating content: {e}"
+                )
+            else:
+                if generate_args.cache_access_token is not None:
+                    await insert_into_cache(
+                        generate_args.query,
+                        generated_response,
+                        generate_args.cache_access_token,
+                    )
+
+        return StreamingResponse(generate_stream(), media_type="text/plain")
 
     @propagate_error
     def get_sources(self, token=Depends(Permissions.verify_permission("read"))):

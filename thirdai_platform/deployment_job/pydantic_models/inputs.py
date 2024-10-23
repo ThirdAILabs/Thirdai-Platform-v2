@@ -206,3 +206,22 @@ class ChatSettings(BaseModel):
     query_reformulation_prompt: str = (
         "Given the above conversation, generate a search query that would help retrieve relevant sources for responding to the last message."
     )
+
+
+class Reference(BaseModel):
+    text: str
+    source: Optional[str] = None
+    metadata: Dict[str, Any] = {}
+
+
+class GenerateArgs(BaseModel):
+    query: str
+    task_prompt: Optional[str] = None
+    references: List[Reference] = []
+
+    key: Optional[str] = None
+    model: str = "gpt-4o-mini"
+    provider: str = "openai"
+    workflow_id: Optional[str] = None
+
+    cache_access_token: Optional[str] = None

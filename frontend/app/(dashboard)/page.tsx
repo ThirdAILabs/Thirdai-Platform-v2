@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ModelsTable } from './models-table';
 import CreateModelButton from '@/components/ui/create-model-button';
 import ImportModelButton from '@/components/ui/import-model-button';
+import TestErrorComponent from '@/components/TestErrorComponent';
 
 export default async function ModelsPage({
   searchParams,
@@ -21,6 +22,7 @@ export default async function ModelsPage({
       </div>
       <TabsContent value="all">
         <ModelsTable searchStr={search} offset={Number(offset) ?? 0} />
+        <TestErrorComponent />
       </TabsContent>
     </Tabs>
   );

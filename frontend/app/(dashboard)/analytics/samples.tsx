@@ -1,8 +1,8 @@
 'use client';
 import React, { useState, useEffect, useRef, MouseEvent as ReactMouseEvent } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useLabels, useRecentSamples } from '@/lib/backend';
-import { associations, reformulations, upvotes } from './mock_samples';
+import { useLabels, useRecentSamples, fetchFeedback } from '@/lib/backend';
+import { reformulations } from './mock_samples';
 import useRollingSamples from './rolling';
 import axios from 'axios';
 
@@ -142,8 +142,8 @@ function HighlightedSample({ tokens, tags, tagColors }: HighlightedSampleProps) 
             index < tokens.length - 1 ? { text: tokens[index + 1], tag: tags[index + 1] } : null
           }
           tagColors={tagColors}
-          onMouseOver={() => {}}
-          onMouseDown={() => {}}
+          onMouseOver={() => { }}
+          onMouseDown={() => { }}
           selecting={false}
           selected={false}
         />
@@ -178,8 +178,10 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
   const { recentLabels, error: labelError } = useLabels({ deploymentUrl });
   const { recentSamples, error: sampleError } = useRecentSamples({ deploymentUrl });
 
-  const recentUpvotes = useRollingSamples(upvotes, 5, 2, 0.2, 2);
-  const recentAssociations = useRollingSamples(associations, 5, 2, 0.1, 3);
+  // const recentUpvotes = useRollingSamples(upvotes, 5, 2, 0.2, 2);
+  // const recentAssociations = useRollingSamples(associations, 5, 2, 0.1, 3);
+  const [recentUpvotes, setRecentUpvotes] = useState([]);
+  const [recentAssociations, setRecentAssociations] = useState([]);
   const recentReformulations = useRollingSamples(reformulations, 3, 1, 0.4, 2);
 
   const predefinedColors: HighlightColor[] = [
@@ -224,6 +226,20 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
 
   // Create a set of unique labels and convert it back to an array
   const uniqueLabels = Array.from(new Set(recentLabels));
+  //Fetching the latest data for feedbacks that refershes after every 5 seconds.
+  useEffect(() => {
+    getFeedbackData();
+    const intervalId = setInterval(() => {
+      getFeedbackData();
+    }, 5000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const getFeedbackData = async () => {
+    const data = await fetchFeedback();
+    setRecentUpvotes(data?.upvote);
+    setRecentAssociations(data?.associate);
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -261,6 +277,57 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
               <HighlightedSample tokens={sample.tokens} tags={sample.tags} tagColors={tagColors} />
             </React.Fragment>
           ))}
+        </CardContent>
+      </Card>
+      <Card style={{ width: '32.5%', height: '45rem' }}>
+        <CardHeader>
+          <CardTitle>Recent Upvotes</CardTitle>
+          <CardDescription>The latest user-provided upvotes</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {recentUpvotes !== undefined ? (
+            recentUpvotes.map(({ timestamp, query, reference_text }, idx) => (
+              <TextPairs
+                key={idx}
+                timestamp={timestamp}
+                label1="Query"
+                label2="Upvote"
+                text1={query}
+                text2={reference_text}
+              />
+            ))
+          ) : (
+            <div className="flex flex-col justify-center items-center h-full mt-20">
+              <img src="/no-Data-Png.png" alt="No Data Available" className="mb-4" />
+              <span className="font-mono italic">Oops! No upvote data available.</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card style={{ width: '32.5%', height: '45rem' }}>
+        <CardHeader>
+          <CardTitle>Recent Associations</CardTitle>
+          <CardDescription>The latest user-provided associations</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {recentAssociations !== undefined ? (
+            recentAssociations.map(({ timestamp, source, target }, idx) => (
+              <TextPairs
+                key={idx}
+                timestamp={timestamp}
+                label1="Source"
+                label2="Target"
+                text1={source}
+                text2={target}
+              />
+            ))
+          ) : (
+            <div className="flex flex-col justify-center items-center h-full mt-20">
+              <img src="/no-Data-Png.png" alt="No Data Available" className="mb-4" />
+              <span className="font-mono italic">Oops! No associations data available.</span>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

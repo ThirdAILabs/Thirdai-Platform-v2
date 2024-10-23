@@ -106,7 +106,7 @@ def check_upvote_dev_mode(client: TestClient):
                 {
                     "query_text": random_query,
                     "reference_id": 78,
-                    "reference_text": "This is the corressponding reference text.",
+                    "reference_text": "This is the corresponding reference text.",
                 }
             ]
         },
@@ -215,7 +215,7 @@ def check_upvote_prod_mode(client: TestClient):
                 {
                     "query_text": random_query,
                     "reference_id": 78,
-                    "reference_text": "This is the corressponding reference text.",
+                    "reference_text": "This is the corresponding reference text.",
                 }
             ]
         },

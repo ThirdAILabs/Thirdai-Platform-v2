@@ -222,7 +222,8 @@ class NDBV1Model(NDBModel):
             for key in constraints.keys()
         }
 
-        with self.db_lock:
+        if self.config.autoscaling_enabled:
+            # No write operations with autoscaling, so no need for lock
             references = self.db.search(
                 query=query,
                 top_k=top_k,
@@ -231,6 +232,16 @@ class NDBV1Model(NDBModel):
                 top_k_rerank=2 * top_k,
                 top_k_threshold=top_k,
             )
+        else:
+            with self.db_lock:
+                references = self.db.search(
+                    query=query,
+                    top_k=top_k,
+                    constraints=ndb_constraints,
+                    rerank=rerank,
+                    top_k_rerank=2 * top_k,
+                    top_k_threshold=top_k,
+                )
 
         pydantic_references = [
             inputs.convert_reference_to_pydantic(ref, context_radius=context_radius)
@@ -399,10 +410,15 @@ class NDBV2Model(NDBModel):
             for key, constraint in constraints.items()
         }
 
-        with self.db_lock:
+        if self.config.autoscaling_enabled:
             results = self.db.search(
                 query=query, top_k=top_k, constraints=constraints, rerank=rerank
             )
+        else:
+            with self.db_lock:
+                results = self.db.search(
+                    query=query, top_k=top_k, constraints=constraints, rerank=rerank
+                )
 
         results = [self.chunk_to_pydantic_ref(chunk, score) for chunk, score in results]
 

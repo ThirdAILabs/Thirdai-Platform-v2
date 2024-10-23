@@ -14,7 +14,7 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { Workflow, start_workflow, stop_workflow, delete_workflow } from '@/lib/backend';
 import { Modal } from '@/components/ui/Modal';
 import { InformationCircleIcon } from '@heroicons/react/solid';
-import { Model, getModels } from '@/utils/apiRequests';
+import { getModels } from '@/utils/apiRequests';
 import { UserContext } from '../user_wrapper';
 
 enum DeployStatus {
@@ -289,16 +289,6 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                   </DropdownMenuItem>
                 </Link>
               )}
-
-            {workflow.type === 'udt' && (
-              <Link
-                href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
-              >
-                <DropdownMenuItem>
-                  <button type="button">NLP usage stats</button>
-                </DropdownMenuItem>
-              </Link>
-            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>

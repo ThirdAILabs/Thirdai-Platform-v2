@@ -333,7 +333,7 @@ class NDBRouter:
             if len(input.text_id_pairs) > 100:
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Number of deletions exceeds the maximum that can be processed synchronously in an active deployment.",
+                    message="Number of upvote samples exceeds the maximum that can be processed synchronously in an active deployment.",
                 )
             self.model.upvote(input.text_id_pairs)
 
@@ -390,7 +390,7 @@ class NDBRouter:
             if len(input.text_pairs) > 100:
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Number of deletions exceeds the maximum that can be processed synchronously in an active deployment.",
+                    message="Number of association samples exceeds the maximum that can be processed synchronously in an active deployment.",
                 )
             self.model.associate(input.text_pairs)
 

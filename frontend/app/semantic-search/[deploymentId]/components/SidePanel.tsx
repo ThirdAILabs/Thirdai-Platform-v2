@@ -89,12 +89,13 @@ const ButtonContainer = styled.div`
 `;
 
 interface SidePanelProps {
+  chatEnabled: boolean;
   cacheEnabled: boolean;
   setCacheEnabled: (enabled: boolean) => void;
   onSaveClick: () => void;
 }
 
-const SidePanel: React.FC<SidePanelProps> = ({ cacheEnabled, setCacheEnabled, onSaveClick }) => {
+const SidePanel: React.FC<SidePanelProps> = ({ chatEnabled, cacheEnabled, setCacheEnabled, onSaveClick }) => {
     const [isVisible, setIsVisible] = useState(false);
   
     return (
@@ -113,31 +114,33 @@ const SidePanel: React.FC<SidePanelProps> = ({ cacheEnabled, setCacheEnabled, on
         >
             <PanelTitle>Advanced Configuration</PanelTitle>
             
-            <SectionContainer>
-            <SectionTitle>Cache Control</SectionTitle>
-            <SectionContent>
-                <SectionText>Enable cache for faster responses</SectionText>
-                <div className="flex items-center">
-                <button
-                    onClick={() => setCacheEnabled(!cacheEnabled)}
-                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-300 focus:outline-none ${
-                    cacheEnabled ? 'bg-blue-500' : 'bg-gray-300'
-                    }`}
-                >
-                    <span
-                    className={`transform transition-transform duration-300 inline-block w-4 h-4 bg-white rounded-full ${
-                        cacheEnabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                    />
-                </button>
-                </div>
-            </SectionContent>
-            </SectionContainer>
+            {chatEnabled && (
+              <SectionContainer>
+                <SectionTitle>LLM Cache</SectionTitle>
+                <SectionContent>
+                  <SectionText>Enable cache for faster responses</SectionText>
+                  <div className="flex items-center">
+                    <button
+                      onClick={() => setCacheEnabled(!cacheEnabled)}
+                      className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-300 focus:outline-none ${
+                        cacheEnabled ? 'bg-blue-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`transform transition-transform duration-300 inline-block w-4 h-4 bg-white rounded-full ${
+                          cacheEnabled ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </SectionContent>
+              </SectionContainer>
+            )}
 
             <SectionContainer>
             <SectionTitle>Save Model</SectionTitle>
             <SectionContent>
-                <SectionText>Save current model configuration</SectionText>
+                <SectionText>Save as a new model</SectionText>
                 <ButtonContainer>
                 <SaveButton onClick={onSaveClick} />
                 </ButtonContainer>
@@ -145,9 +148,9 @@ const SidePanel: React.FC<SidePanelProps> = ({ cacheEnabled, setCacheEnabled, on
             </SectionContainer>
 
             <SectionContainer>
-            <SectionTitle>Teaching Mode</SectionTitle>
+            <SectionTitle>Teach</SectionTitle>
             <SectionContent>
-                <SectionText>Enter teaching mode to train the model</SectionText>
+                <SectionText>Associate phrases to teach the model</SectionText>
                 <ButtonContainer>
                 <Teach />
                 </ButtonContainer>

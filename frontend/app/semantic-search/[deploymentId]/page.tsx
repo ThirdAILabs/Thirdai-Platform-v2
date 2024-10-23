@@ -633,6 +633,7 @@ function App() {
               </>
             )}
             <SidePanel 
+              chatEnabled = {chatEnabled}
               cacheEnabled={cacheEnabled}
               setCacheEnabled={setCacheEnabled}
               onSaveClick={handleSaveClick}

@@ -275,7 +275,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
           {ifUseExistingSS === 'No' && (
             <>
               {createdSS ? (
-                <div>Semantic search model created.</div>
+                <div>Knowledge Base Created.</div>
               ) : (
                 <div>
                   <SemanticSearchQuestions
@@ -352,8 +352,8 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
             {!createdGR && (
               <>
                 <CardDescription>
-                  Would you like to reduce PII (Personally identifiable information) from your
-                  reference?
+                  Would you like to redact PII (Personally Identifiable Information) from your 
+                  references?
                 </CardDescription>
                 <div
                   style={{

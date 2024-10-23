@@ -365,7 +365,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       {/* Modal for selecting between Dev mode and Production mode */}
       {showDeploymentModal && (
         <Modal onClose={toggleDeploymentModal}>
-          <div className="p-2">
+          <div className="p-2 max-w-[200px] mx-auto">
             <h2 className="text-sm font-semibold mb-2">Choose Configuration</h2>
             <div>
               <RadioGroup
@@ -383,7 +383,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                   <span className="text-sm">Prod</span>
                 </div>
               </RadioGroup>
-              <div className="mt-2">
+              <div className="mt-2 flex justify-center">
                 <Button 
                   onClick={handleModeSelection} 
                   variant="contained" 

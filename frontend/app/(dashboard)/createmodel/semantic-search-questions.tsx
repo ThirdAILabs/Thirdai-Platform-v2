@@ -189,7 +189,7 @@ const SemanticSearchQuestions = ({
 
   return (
     <div>
-      <span className="block text-lg font-semibold mt-6">App Name</span>
+      <span className="block text-lg font-semibold mt-6">Knowledge Base Name</span>
       <TextField
         className="text-md w-full"
         value={modelName}
@@ -307,7 +307,7 @@ const SemanticSearchQuestions = ({
             {/* Indexing Configuration */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center' }}>
-                <span className="block text-lg font-semibold">Indexing</span>
+                <span className="block text-lg font-semibold">Training</span>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span style={{ marginLeft: '8px', cursor: 'pointer' }}>
@@ -328,8 +328,8 @@ const SemanticSearchQuestions = ({
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="right" style={{ maxWidth: '300px' }}>
-                    <strong>Better:</strong> Up to 5K paragraphs. Includes document level and paragraph level keywords.<br/><br/>
-                    <strong>Advanced:</strong> Up to 1000 paragraphs. Generates questions for each chunk, upvotes right away, and caches the answers.
+                    <strong>Basic:</strong> Very Fast , good accuracy <br/><br/>
+                    <strong>Advanced:</strong> Fast, better accuracy (recommended up-to 1000 pages of documents)
                   </TooltipContent>
                 </Tooltip>
               </div>

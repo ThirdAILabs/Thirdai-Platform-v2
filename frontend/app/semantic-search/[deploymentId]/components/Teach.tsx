@@ -1,44 +1,17 @@
 import React, { useCallback, useContext, useRef, useState } from 'react';
-import styled from 'styled-components';
-import { borderRadius, color, duration } from '../stylingConstants';
+import { Button } from '@/components/ui/button';
+import { ModelServiceContext } from '../Context';
+import { ModelService } from '../modelServices';
 import TeachSVG from '../assets/icons/teach.svg';
 import TeachPanel from './TeachPanel';
 import useClickOutside from './hooks/useClickOutside';
-import { ModelServiceContext } from '../Context';
-import { ModelService } from '../modelServices';
-import { Button } from '@/components/ui/button';
 
-const Container = styled.section`
-  width: 50px;
-  height: fit-content;
-  display: flex;
-  flex-direction: column;
-  overflow: visible;
-  padding-right: ${borderRadius.card};
-  align-items: flex-end;
-`;
-
-const TeachIcon = styled(TeachSVG)`
-  transition-duration: ${duration.transition};
-  width: 40px;
-  path {
-    stroke: 'white';
-  }
-`;
-
-const PanelContainer = styled.section`
-  position: relative;
-  right: -${borderRadius.card};
-  width: 300px;
-`;
-
-export default function Teach() {
+const Teach = () => {
   const [showPanel, setShowPanel] = useState(false);
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const modelService = useContext<ModelService | null>(ModelServiceContext);
-
-  const containerRef = useRef<HTMLElement | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleClickOutside = useCallback(() => {
     setShowPanel(false);
@@ -46,18 +19,25 @@ export default function Teach() {
 
   useClickOutside(containerRef, handleClickOutside);
 
-  function togglePanel() {
-    setShowPanel((prev) => !prev);
-  }
+  const togglePanel = () => {
+    setShowPanel(prev => !prev);
+  };
 
   return (
-    // <Container ref={containerRef}>
-    <>
-      <Button style={{ width: '60px', height: '50px' }} onClick={togglePanel}>
-        <TeachIcon $active={showPanel} />
+    <div className="relative" ref={containerRef}>
+      <Button 
+        className="w-[60px] h-[50px] flex items-center justify-center"
+        onClick={togglePanel}
+      >
+        <TeachSVG
+          className={`w-10 transition-transform duration-300 ${
+            showPanel ? 'text-primary' : ''
+          }`}
+        />
       </Button>
+      
       {showPanel && (
-        <PanelContainer>
+        <div className="absolute top-0 right-full mr-2 w-[300px]">
           <TeachPanel
             question={question}
             answer={answer}
@@ -67,9 +47,10 @@ export default function Teach() {
             onAddAnswer={(q, a) => modelService?.qna(q, a)}
             onAssociate={(q, a) => modelService?.associate(q, a)}
           />
-        </PanelContainer>
+        </div>
       )}
-    </>
-    // </Container>
+    </div>
   );
-}
+};
+
+export default Teach;

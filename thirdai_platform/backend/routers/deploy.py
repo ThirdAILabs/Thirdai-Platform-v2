@@ -3,8 +3,6 @@ import json
 import os
 import traceback
 from collections import defaultdict
-
-pass
 from pathlib import Path
 from typing import Optional, Union
 

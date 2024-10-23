@@ -182,6 +182,7 @@ class NDBV1Model(NDBModel):
         Initializes NDB model with paths and NeuralDB.
         """
         super().__init__(config=config)
+        self.db_lock = Lock()
         self.model_path: Path = self.model_dir / "model.ndb"
         self.db: ndb.NeuralDB = self.load(write_mode=write_mode)
         self.set_chat(provider=self.config.model_options.llm_provider)
@@ -193,12 +194,13 @@ class NDBV1Model(NDBModel):
         Upvotes entries in the NDB model.
         """
 
-        self.db.text_to_result_batch(
-            text_id_pairs=[
-                (text_id_pair.query_text, text_id_pair.reference_id)
-                for text_id_pair in text_id_pairs
-            ]
-        )
+        with self.db_lock:
+            self.db.text_to_result_batch(
+                text_id_pairs=[
+                    (text_id_pair.query_text, text_id_pair.reference_id)
+                    for text_id_pair in text_id_pairs
+                ]
+            )
 
     def predict(
         self,
@@ -219,14 +221,28 @@ class NDBV1Model(NDBModel):
             )
             for key in constraints.keys()
         }
-        references = self.db.search(
-            query=query,
-            top_k=top_k,
-            constraints=ndb_constraints,
-            rerank=rerank,
-            top_k_rerank=2 * top_k,
-            top_k_threshold=top_k,
-        )
+
+        if self.config.autoscaling_enabled:
+            # No write operations with autoscaling, so no need for lock
+            references = self.db.search(
+                query=query,
+                top_k=top_k,
+                constraints=ndb_constraints,
+                rerank=rerank,
+                top_k_rerank=2 * top_k,
+                top_k_threshold=top_k,
+            )
+        else:
+            with self.db_lock:
+                references = self.db.search(
+                    query=query,
+                    top_k=top_k,
+                    constraints=ndb_constraints,
+                    rerank=rerank,
+                    top_k_rerank=2 * top_k,
+                    top_k_threshold=top_k,
+                )
+
         pydantic_references = [
             inputs.convert_reference_to_pydantic(ref, context_radius=context_radius)
             for ref in references
@@ -243,23 +259,27 @@ class NDBV1Model(NDBModel):
         """
         Associates entries in the NDB model.
         """
-        self.db.associate_batch(
-            text_pairs=[
-                (text_pair.source, text_pair.target) for text_pair in text_pairs
-            ]
-        )
+        with self.db_lock:
+            self.db.associate_batch(
+                text_pairs=[
+                    (text_pair.source, text_pair.target) for text_pair in text_pairs
+                ]
+            )
 
     def sources(self) -> List[Dict[str, str]]:
         """
         Retrieves sources from the NDB model.
         """
+        with self.db_lock:
+            docs = self.db._savable_state.documents.registry.values()
+
         return sorted(
             [
                 {
                     "source": doc.source,
                     "source_id": doc.hash,
                 }
-                for doc, _ in self.db._savable_state.documents.registry.values()
+                for doc, _ in docs
             ],
             key=lambda source: source["source"],
         )
@@ -268,7 +288,8 @@ class NDBV1Model(NDBModel):
         """
         Deletes entries from the NDB model.
         """
-        self.db.delete(source_ids=source_ids)
+        with self.db_lock:
+            self.db.delete(source_ids=source_ids)
 
     def insert(self, documents: List[FileInfo], **kwargs: Any) -> List[Dict[str, str]]:
         """
@@ -279,7 +300,8 @@ class NDBV1Model(NDBModel):
             for doc in expand_cloud_buckets_and_directories(documents)
         ]
 
-        self.db.insert(ndb_docs)
+        with self.db_lock:
+            self.db.insert(ndb_docs)
 
         return [
             {
@@ -290,12 +312,14 @@ class NDBV1Model(NDBModel):
         ]
 
     def highlight_pdf(self, reference_id: int) -> Tuple[str, Optional[bytes]]:
-        reference = self.db._savable_state.documents.reference(reference_id)
+        with self.db_lock:
+            reference = self.db._savable_state.documents.reference(reference_id)
         return reference.source, highlighted_pdf_bytes(reference)
 
     def chunks(self, reference_id: int) -> Optional[Dict[str, Any]]:
-        reference = self.db.reference(reference_id)
-        chunks = new_pdf_chunks(self.db, reference)
+        with self.db_lock:
+            reference = self.db.reference(reference_id)
+            chunks = new_pdf_chunks(self.db, reference)
         if chunks:
             return chunks
         return old_pdf_chunks(self.db, reference)
@@ -347,6 +371,7 @@ class NDBV2Model(NDBModel):
     def __init__(self, config: DeploymentConfig, write_mode: bool = False):
         super().__init__(config=config)
 
+        self.db_lock = Lock()
         self.db = self.load(write_mode=write_mode)
         self.set_chat(provider=self.config.model_options.llm_provider)
 
@@ -385,9 +410,15 @@ class NDBV2Model(NDBModel):
             for key, constraint in constraints.items()
         }
 
-        results = self.db.search(
-            query=query, top_k=top_k, constraints=constraints, rerank=rerank
-        )
+        if self.config.autoscaling_enabled:
+            results = self.db.search(
+                query=query, top_k=top_k, constraints=constraints, rerank=rerank
+            )
+        else:
+            with self.db_lock:
+                results = self.db.search(
+                    query=query, top_k=top_k, constraints=constraints, rerank=rerank
+                )
 
         results = [self.chunk_to_pydantic_ref(chunk, score) for chunk, score in results]
 
@@ -403,7 +434,8 @@ class NDBV2Model(NDBModel):
             for doc in expand_cloud_buckets_and_directories(documents)
         ]
 
-        self.db.insert(ndb_docs)
+        with self.db_lock:
+            self.db.insert(ndb_docs)
 
         return [
             {
@@ -418,20 +450,25 @@ class NDBV2Model(NDBModel):
     ) -> None:
         queries = [t.query_text for t in text_id_pairs]
         chunk_ids = [t.reference_id for t in text_id_pairs]
-        self.db.upvote(queries=queries, chunk_ids=chunk_ids, **kwargs)
+        with self.db_lock:
+            self.db.upvote(queries=queries, chunk_ids=chunk_ids, **kwargs)
 
     def associate(
         self, text_pairs: List[inputs.AssociateInputSingle], **kwargs: Any
     ) -> None:
         sources = [t.source for t in text_pairs]
         targets = [t.target for t in text_pairs]
-        self.db.associate(sources=sources, targets=targets, **kwargs)
+        with self.db_lock:
+            self.db.associate(sources=sources, targets=targets, **kwargs)
 
     def delete(self, source_ids: List[str], **kwargs: Any) -> None:
-        for id in source_ids:
-            self.db.delete_doc(doc_id=id)
+        with self.db_lock:
+            for id in source_ids:
+                self.db.delete_doc(doc_id=id)
 
     def sources(self) -> List[Dict[str, str]]:
+        with self.db_lock:
+            docs = self.db.documents()
         return sorted(
             [
                 {
@@ -439,7 +476,7 @@ class NDBV2Model(NDBModel):
                     "source_id": doc["doc_id"],
                     "version": doc["doc_version"],
                 }
-                for doc in self.db.documents()
+                for doc in docs
             ],
             key=lambda x: x["source"],
         )
@@ -470,7 +507,8 @@ class NDBV2Model(NDBModel):
         return source, doc.tobytes()
 
     def highlight_pdf(self, chunk_id: int) -> Tuple[str, Optional[bytes]]:
-        chunk = self.db.chunk_store.get_chunks([chunk_id])
+        with self.db_lock:
+            chunk = self.db.chunk_store.get_chunks([chunk_id])
         if not chunk:
             raise ValueError(f"{chunk_id} is not a valid chunk_id")
         chunk = chunk[0]
@@ -483,15 +521,16 @@ class NDBV2Model(NDBModel):
             return self.full_source_path(chunk.document), None
 
     def chunks(self, chunk_id: int) -> Optional[Dict[str, Any]]:
-        chunk = self.db.chunk_store.get_chunks([chunk_id])
-        if not chunk:
-            raise ValueError(f"{chunk_id} is not a valid chunk_id")
-        chunk = chunk[0]
+        with self.db_lock:
+            chunk = self.db.chunk_store.get_chunks([chunk_id])
+            if not chunk:
+                raise ValueError(f"{chunk_id} is not a valid chunk_id")
+            chunk = chunk[0]
 
-        chunk_ids = self.db.chunk_store.get_doc_chunks(
-            doc_id=chunk.doc_id, before_version=chunk.doc_version + 1
-        )
-        chunks = self.db.chunk_store.get_chunks(chunk_ids)
+            chunk_ids = self.db.chunk_store.get_doc_chunks(
+                doc_id=chunk.doc_id, before_version=chunk.doc_version + 1
+            )
+            chunks = self.db.chunk_store.get_chunks(chunk_ids)
 
         chunks = list(filter(lambda c: c.doc_version == chunk.doc_version, chunks))
 

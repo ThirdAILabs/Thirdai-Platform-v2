@@ -213,6 +213,13 @@ class NDBRouter:
                 message="No documents supplied for insertion. Must supply at least one document.",
             )
 
+        total_filesize = sum(file.size or 0 for file in files)
+        if total_filesize > 10 * 1024 * 1024:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Size of uploaded files exceeds maximum of 10Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size.",
+            )
+
         documents = download_local_files(
             files=files,
             file_infos=documents,
@@ -267,6 +274,11 @@ class NDBRouter:
                 message="Delete logged successfully.",
             )
         else:
+            if len(input.source_ids) > 5:
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Number of deletions exceeds the maximum that can be processed synchronously in an active deployment.",
+                )
             self.model.delete(input.source_ids)
 
             return response(
@@ -321,6 +333,11 @@ class NDBRouter:
                 message="Upvote logged successfully.",
             )
         else:
+            if len(input.text_id_pairs) > 100:
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Number of upvote samples exceeds the maximum that can be processed synchronously in an active deployment.",
+                )
             self.model.upvote(input.text_id_pairs)
 
             return response(
@@ -373,6 +390,11 @@ class NDBRouter:
                 message="Associate logged successfully.",
             )
         else:
+            if len(input.text_pairs) > 100:
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Number of association samples exceeds the maximum that can be processed synchronously in an active deployment.",
+                )
             self.model.associate(input.text_pairs)
 
             return response(

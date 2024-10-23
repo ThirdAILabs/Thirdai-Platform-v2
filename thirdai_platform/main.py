@@ -18,7 +18,6 @@ from backend.routers.user import user_router as user
 from backend.routers.vault import vault_router as vault
 from backend.routers.workflow import workflow_router as workflow
 from backend.startup_jobs import (
-    restart_generate_job,
     restart_llm_cache_job,
     restart_telemetry_jobs,
     restart_thirdai_platform_frontend,
@@ -51,13 +50,6 @@ app.include_router(telemetry, prefix="/api/telemetry", tags=["telemetry"])
 
 @app.on_event("startup")
 async def startup_event():
-    try:
-        print("Starting Generation Job...")
-        await restart_generate_job()
-        print("Successfully started Generation Job!")
-    except Exception as error:
-        print(f"Failed to start the Generation Job : {error}", file=sys.stderr)
-
     try:
         print("Starting telemetry Job...")
         await restart_telemetry_jobs()

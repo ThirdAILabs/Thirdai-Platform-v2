@@ -20,40 +20,9 @@ from fastapi import status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from platform_common.utils import response
 
-GENERATE_JOB_ID = "llm-generation"
 THIRDAI_PLATFORM_FRONTEND_ID = "thirdai-platform-frontend"
 LLM_CACHE_JOB_ID = "llm-cache"
 TELEMETRY_ID = "telemetry"
-
-
-async def restart_generate_job():
-    """
-    Restart the LLM generation job.
-
-    Returns:
-    - Response: The response from the Nomad API.
-    """
-    nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
-    if nomad_job_exists(GENERATE_JOB_ID, nomad_endpoint):
-        delete_nomad_job(GENERATE_JOB_ID, nomad_endpoint)
-    cwd = Path(os.getcwd())
-    platform = get_platform()
-    return submit_nomad_job(
-        nomad_endpoint=nomad_endpoint,
-        filepath=str(cwd / "backend" / "nomad_jobs" / "llm_dispatch_job.hcl.j2"),
-        platform=platform,
-        tag=os.getenv("TAG"),
-        registry=os.getenv("DOCKER_REGISTRY"),
-        docker_username=os.getenv("DOCKER_USERNAME"),
-        docker_password=os.getenv("DOCKER_PASSWORD"),
-        image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
-        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
-        python_path=get_python_path(),
-        thirdai_platform_dir=thirdai_platform_dir(),
-        app_dir="llm_dispatch_job",
-    )
-
-
 ON_PREM_GENERATE_JOB_ID = "on-prem-llm-generation"
 
 

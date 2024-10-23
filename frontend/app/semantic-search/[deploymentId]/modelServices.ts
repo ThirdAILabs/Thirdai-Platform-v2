@@ -296,7 +296,7 @@ export class ModelService {
     const requestUrl = this.ragUrl || this.url;
     const url = new URL(requestUrl + '/search');
 
-    console.log('REQUST URL: ', url);
+    console.log('REQUEST URL: ', url);
 
     return fetch(url, {
       method: 'POST',
@@ -606,8 +606,9 @@ export class ModelService {
         cache_access_token: cache_access_token,
       };
 
-      const uri = deploymentBaseUrl + '/llm-dispatch/generate';
-      const response = await fetch(uri, {
+      const requestUrl = this.ragUrl || this.url;
+      const url = new URL(requestUrl + '/generate');
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -268,12 +268,10 @@ class NDBFunctions:
         logging.info("Ovveriding the model")
         deployment.save_model(override=True)
 
-        llm_client = deployment.llm_client()
-
         if generation:
             api_key = os.getenv("GENAI_KEY", None)
             if api_key:
-                generated_answer = llm_client.generate(
+                generated_answer = deployment.generate(
                     query=best_answer["text"],
                     api_key=api_key,
                     provider="openai",
@@ -305,7 +303,7 @@ class NDBFunctions:
                 )
                 # waiting for our on-prem to start and trafeik to discover the service
                 time.sleep(90)
-                generated_answer = llm_client.generate(
+                generated_answer = deployment.generate(
                     query=best_answer["text"],
                     api_key="no key",
                     provider="on-prem",

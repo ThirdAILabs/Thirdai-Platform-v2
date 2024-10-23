@@ -227,6 +227,8 @@ class S3StorageHandler(CloudStorageHandler):
     def create_s3_client(
         self, aws_access_key=None, aws_secret_access_key=None, region_name=None
     ):
+        # TODO(YASH): Customers will also have rotating aws session token so add that support.
+        # https://docs.aws.amazon.com/sdk-for-php/v3/developer-guide/guide_credentials_environment.html
         if not aws_access_key or not aws_secret_access_key:
             config = Config(
                 signature_version=UNSIGNED,
@@ -625,7 +627,8 @@ class GCPStorageHandler(CloudStorageHandler):
     def list_files(self, bucket_name: str, source_path: str):
         bucket = self._client.bucket(bucket_name)
         blobs = bucket.list_blobs(prefix=source_path)
-        blob_names = [blob.name for blob in blobs]
+        # Filter out any blobs that end with a `/`, which represents folders
+        blob_names = [blob.name for blob in blobs if not blob.name.endswith("/")]
         return blob_names
 
     @handle_exceptions
@@ -692,12 +695,12 @@ class GCPStorageHandler(CloudStorageHandler):
         )
 
 
+# TODO( YASH): Configure these variables through api endpoints, so that users can change through course of time.
 def get_cloud_client(provider: str):
     if provider == "s3":
         aws_access_key = os.getenv("AWS_ACCESS_KEY", None)
         aws_secret_access_key = os.getenv("AWS_ACCESS_SECRET", None)
         region_name = os.getenv("AWS_REGION_NAME", None)
-        print(aws_access_key, aws_secret_access_key, region_name, flush=True)
         return S3StorageHandler(
             aws_access_key=aws_access_key,
             aws_secret_access_key=aws_secret_access_key,

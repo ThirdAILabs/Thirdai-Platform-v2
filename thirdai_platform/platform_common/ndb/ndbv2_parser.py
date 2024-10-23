@@ -101,6 +101,7 @@ def parse_doc(
     # S3 handling
     if doc.location == FileLocation.s3:
         try:
+            # TODO (YASH): calling get_cloud_client for every document will be a problem, we have to come up with a way to reuse client.
             s3_client = get_cloud_client(provider="s3")
             bucket_name, prefix = doc.parse_s3_url()
             local_file_path = os.path.join(tmp_dir, os.path.basename(prefix))

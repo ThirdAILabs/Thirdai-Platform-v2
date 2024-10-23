@@ -27,7 +27,7 @@ from deployment_job.utils import propagate_error, validate_name
 from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
-from platform_common.file_handler import download_local_files
+from platform_common.file_handler import download_local_files, get_cloud_client
 from platform_common.pydantic_models.deployment import DeploymentConfig, NDBSubType
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
@@ -91,6 +91,9 @@ class NDBRouter:
         )
         self.router.add_api_route("/pdf-blob", self.pdf_blob, methods=["GET"])
         self.router.add_api_route("/pdf-chunks", self.pdf_chunks, methods=["GET"])
+        self.router.add_api_route(
+            "/get-signed-url", self.get_signed_url, methods=["GET"]
+        )
 
     @staticmethod
     def get_model(config: DeploymentConfig) -> NDBModel:
@@ -634,6 +637,23 @@ class NDBRouter:
         headers = {"Content-Disposition": f'inline; filename="{Path(source).name}"'}
         return Response(
             buffer.getvalue(), headers=headers, media_type="application/pdf"
+        )
+
+    @propagate_error
+    def get_signed_url(
+        self,
+        source: str,
+        provider: str,
+        token=Depends(Permissions.verify_permission("read")),
+    ):
+        cloud_client = get_cloud_client(provider=provider)
+
+        signed_url = cloud_client.generate_url_from_source(source=source)
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message=f"Successfully got the signed url",
+            data={"signed_url": signed_url},
         )
 
     @propagate_error

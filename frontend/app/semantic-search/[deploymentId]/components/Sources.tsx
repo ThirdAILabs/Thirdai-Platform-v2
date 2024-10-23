@@ -163,9 +163,12 @@ export default function Sources(props: SourcesProps) {
     modelService!.sources().then(props.setSources);
   }
 
-  const handleAddSources = async (selectedFiles: FileList | null, s3Urls: string[]) => {
+  const handleAddSources = async (
+    selectedFiles: FileList | null,
+    cloudUrls: { type: 's3' | 'azure' | 'gcp'; url: string }[]
+  ) => {
     const filesArray = selectedFiles ? Array.from(selectedFiles) : [];
-    await modelService!.addSources(filesArray, s3Urls);
+    await modelService!.addSources(filesArray, cloudUrls);
   };
 
   function canReadSource(source: string): boolean {

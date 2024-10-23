@@ -261,10 +261,10 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
 
           {ifUseExistingSS === 'Yes' && (
             <div className="mb-4 mt-2">
-              <CardDescription>Choose from existing semantic search model(s)</CardDescription>
+              <CardDescription>Choose from an existing Knowledge Base</CardDescription>
               <div className="mt-2">
                 <DropdownMenu
-                  title=" Please choose a model  "
+                  title="Choose a Knowledge Base  "
                   handleSelectedTeam={handleSSIdentifier}
                   teams={modelDropDownList}
                 />
@@ -305,7 +305,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
               LLM {!isChatbot && "(Optional)"}
             </span>
             <div>
-              <CardDescription>Choose an LLM option</CardDescription>
+              <CardDescription>Choose an LLM for generating answers</CardDescription>
               <div
                 style={{
                   display: 'flex',
@@ -517,27 +517,16 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
               {ifUseNLPClassifier === 'Yes' && (
                 <div style={{ marginTop: '20px' }}>
                   <CardDescription>Choose from existing sentiment analysis models</CardDescription>
-                  <select
-                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                    value={nlpClassifierIdentifier || ''}
-                    onChange={(e) => {
-                      const classifierID = e.target.value;
-                      setNlpClassifierIdentifier(classifierID);
-                      const classifierModel = existingNLPClassifierModels.find(
-                        (model) => `${model.username}/${model.model_name}` === classifierID
-                      );
-                      if (classifierModel) {
-                        setNlpClassifierModelId(classifierModel.model_id);
+                  <DropdownMenu
+                    title="Please choose a model"
+                    handleSelectedTeam={(selectedValue: string, modelId?: string) => {
+                      setNlpClassifierIdentifier(selectedValue);
+                      if (modelId) {
+                        setNlpClassifierModelId(modelId);
                       }
                     }}
-                  >
-                    <option value="">-- Please choose a model --</option>
-                    {existingNLPClassifierModels.map((model) => (
-                      <option key={model.model_id} value={`${model.username}/${model.model_name}`}>
-                        {`${model.username}/${model.model_name}`}
-                      </option>
-                    ))}
-                  </select>
+                    teams={existingNLPClassifierModels}
+                  />
                 </div>
               )}
             </div>

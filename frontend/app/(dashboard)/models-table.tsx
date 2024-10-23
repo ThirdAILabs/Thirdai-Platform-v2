@@ -62,13 +62,12 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
     return () => clearInterval(intervalId);
   }, []);
 
-  const totalWorkflows = workflows.length;
-
   const filteredWorkflows = workflows
   .filter((workflow) => 
     workflow.model_name.toLowerCase().includes(searchStr.toLowerCase()) && 
     workflow.type !== 'ndb'
   );
+  const totalWorkflows = filteredWorkflows.length;
   const displayedWorkflows = filteredWorkflows.slice(offset, offset + modelsPerPage);
 
   return (

@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@mui/material';
 import { ModelServiceContext } from '../Context';
 import { ModelService } from '../modelServices';
 import TeachSVG from '../assets/icons/teach.svg';
@@ -26,13 +26,22 @@ const Teach = () => {
   return (
     <div className="relative" ref={containerRef}>
       <Button 
-        className="w-[60px] h-[50px] flex items-center justify-center"
+        variant="contained"
+        color="primary"
+        style={{
+          width: '48px',
+          height: '48px',
+          minWidth: 'unset',
+          padding: '12px'
+        }}
         onClick={togglePanel}
       >
         <TeachSVG
-          className={`w-10 transition-transform duration-300 ${
-            showPanel ? 'text-primary' : ''
-          }`}
+          style={{ 
+            width: '24px',
+            height: '24px',
+            filter: 'brightness(0) invert(1)'
+          }}
         />
       </Button>
       

@@ -303,7 +303,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 </DropdownMenuItem>
               )}
 
-            {(modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
+            {workflow.type === 'enterprise-search' && (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
                 <Link
                   href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
                 >

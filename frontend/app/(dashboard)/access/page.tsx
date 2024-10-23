@@ -69,15 +69,14 @@ function AccessContent() {
               <TabsTrigger value="models" className="flex-1">
                 Models
               </TabsTrigger>
-              <TabsTrigger value="workflows" className="flex-1">
+              {/* <TabsTrigger value="workflows" className="flex-1">
                 Workflows
-              </TabsTrigger>
-              {user?.teams.length && (
+              </TabsTrigger> */}
+              {(user?.global_admin || (user?.teams && user.teams.length > 0)) && (
                 <TabsTrigger value="teams" className="flex-1">
                   Teams
                 </TabsTrigger>
               )}
-
               <TabsTrigger value="users" className="flex-1">
                 Users
               </TabsTrigger>
@@ -91,9 +90,9 @@ function AccessContent() {
               <TabsContent value="models" className="w-full">
                 <Models />
               </TabsContent>
-              <TabsContent value="workflows" className="w-full">
+              {/* <TabsContent value="workflows" className="w-full">
                 <Workflows />
-              </TabsContent>
+              </TabsContent> */}
               <TabsContent value="teams" className="w-full">
                 <Teams />
               </TabsContent>

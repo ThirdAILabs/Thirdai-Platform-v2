@@ -307,7 +307,7 @@ class NDBRouter:
                         sample.reference_text for sample in input.text_id_pairs
                     ],
                 ),
-                perfrom_rlhf_later=prod_mode,
+                perform_rlhf_later=prod_mode,
             )
         )
 
@@ -362,7 +362,7 @@ class NDBRouter:
                     sources=[sample.source for sample in input.text_pairs],
                     targets=[sample.target for sample in input.text_pairs],
                 ),
-                perfrom_rlhf_later=prod_mode,
+                perform_rlhf_later=prod_mode,
             )
         )
 
@@ -393,7 +393,7 @@ class NDBRouter:
                     query=feedback.query_text,
                     event_desc=feedback.event_desc,
                 ),
-                perfrom_rlhf_later=False,
+                perform_rlhf_later=True,
             )
         )
 

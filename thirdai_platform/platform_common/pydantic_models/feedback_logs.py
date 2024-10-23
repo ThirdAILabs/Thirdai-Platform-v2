@@ -44,7 +44,7 @@ class FeedbackLog(BaseModel):
     timestamp: str = Field(
         default_factory=lambda: datetime.now().strftime("%d %B %Y %H:%M:%S")
     )
-    perfrom_rlhf_later: bool = True
+    perform_rlhf_later: bool = True
 
 
 class InsertLog(BaseModel):

@@ -27,7 +27,19 @@ from backend.status_sync import sync_job_statuses
 from backend.utils import get_platform
 from fastapi.middleware.cors import CORSMiddleware
 
+import sentry_sdk
+from sentry_sdk.integrations.asgi import SentryAsgiMiddleware
+
+sentry_sdk.init(
+    dsn="https://4d70685f1aa1623c977555f6914f580b@o4508174027980800.ingest.us.sentry.io/4508174029553664",
+    traces_sample_rate=1.0,  # Adjust this in production based on your needs
+)
+
 app = fastapi.FastAPI()
+
+# Add Sentry middleware
+app.add_middleware(SentryAsgiMiddleware)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -48,6 +60,12 @@ app.include_router(recovery, prefix="/api/recovery", tags=["recovery"])
 app.include_router(data_router, prefix="/api/data", tags=["data"])
 app.include_router(telemetry, prefix="/api/telemetry", tags=["telemetry"])
 
+# main.py (continued)
+
+@app.get("/error")
+async def trigger_error():
+    # Deliberately raise an exception
+    raise ValueError("This is a test error for Sentry!")
 
 @app.on_event("startup")
 async def startup_event():

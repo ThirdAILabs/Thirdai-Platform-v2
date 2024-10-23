@@ -29,7 +29,7 @@ from client.bazaar import ModelBazaar
         ),
         (
             "azure_private_ndb",
-            "https://csg100320028d93f3bc.blob.core.windows.net/private-platform/insert.pdf",
+            "https://csg100320028d93f3bc.blob.core.windows.net/private-platform/test_folder/",
             "azure",
             "Alice in wonderland",
         ),
@@ -41,7 +41,7 @@ from client.bazaar import ModelBazaar
         ),
         (
             "gcp_private_ndb",
-            "gs://private-thirdai-platform/sample_nda.pdf",
+            "gs://private-thirdai-platform/test_folder/",
             "gcp",
             "confidentiality agreement",
         ),

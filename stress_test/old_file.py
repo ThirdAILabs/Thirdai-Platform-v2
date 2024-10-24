@@ -127,6 +127,8 @@ class ModelBazaarLoadTest(TaskSet):
             json=data,
             headers=headers,
         )
+    
+    
 
 
 class WebsiteUser(HttpUser):

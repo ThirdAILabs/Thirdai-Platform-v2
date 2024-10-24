@@ -60,29 +60,59 @@ export async function listDeployments(deployment_id: string): Promise<Deployment
   }
 }
 
-interface StatusResponse {
+interface BaseStatusResponse {
   data: {
     model_id: string;
+    messages: string[];
+  };
+}
+
+interface DeployStatusResponse extends BaseStatusResponse {
+  data: {
+    model_id: string;
+    messages: string[];
     deploy_status: string;
   };
 }
 
-export function getDeployStatus(values: {
-  deployment_identifier: string;
-  model_identifier: string;
-}): Promise<StatusResponse> {
-  // Retrieve the access token from local storage
-  const accessToken = getAccessToken();
+interface TrainStatusResponse extends BaseStatusResponse {
+  data: {
+    model_id: string;
+    messages: string[];
+    train_status: string;
+  };
+}
 
-  // Set the default authorization header for axios
+export function getDeployStatus(modelIdentifier: string): Promise<DeployStatusResponse> {
+  const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   return new Promise((resolve, reject) => {
     axios
       .get(
-        `${thirdaiPlatformBaseUrl}/api/deploy/status?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}&model_identifier=${encodeURIComponent(values.model_identifier)}`
+        `${thirdaiPlatformBaseUrl}/api/deploy/status?model_identifier=${encodeURIComponent(modelIdentifier)}`
       )
       .then((res) => {
+        // console.log('Deploy status response:', res.data?.data?.messages);
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export function getTrainingStatus(modelIdentifier: string): Promise<TrainStatusResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(
+        `${thirdaiPlatformBaseUrl}/api/train/status?model_identifier=${encodeURIComponent(modelIdentifier)}`
+      )
+      .then((res) => {
+        // console.log('Training status response:', res.data?.data?.messages);
         resolve(res.data);
       })
       .catch((err) => {

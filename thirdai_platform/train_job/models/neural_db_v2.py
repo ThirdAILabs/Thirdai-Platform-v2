@@ -82,6 +82,8 @@ class NeuralDBV2(Model):
         doc_save_dir = self.doc_save_path()
         tmp_dir = self.data_dir / "unsupervised"
 
+        os.makedirs(tmp_dir, exist_ok=True)
+
         docs_indexed = 0
 
         batches = [files[i : i + batch_size] for i in range(0, len(files), batch_size)]

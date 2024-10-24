@@ -217,6 +217,8 @@ class S3StorageHandler(CloudStorageHandler):
     def __init__(
         self, aws_access_key=None, aws_secret_access_key=None, region_name=None
     ):
+        if region_name == "":
+            region_name = None
         self.s3_client = self.create_s3_client(
             aws_access_key=aws_access_key,
             aws_secret_access_key=aws_secret_access_key,

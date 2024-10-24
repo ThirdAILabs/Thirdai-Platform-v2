@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AlertCircle } from 'lucide-react';
 import { useContext, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@mui/material';
@@ -28,6 +29,11 @@ enum DeployStatus {
   Starting = 'Starting',
   Active = 'Active',
   Failed = 'Failed',
+}
+
+interface ErrorState {
+  type: 'training' | 'deployment';
+  messages: string[];
 }
 
 export function WorkFlow({ workflow }: { workflow: Workflow }) {
@@ -177,34 +183,44 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
     return (parseInt(bytes) / (1024 * 1024)).toFixed(2) + ' MB';
   };
 
+  // Add new state for error handling
+  const [error, setError] = useState<ErrorState | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+
   useEffect(() => {
     const fetchStatuses = async () => {
       try {
         if (workflow.username && workflow.model_name) {
           const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
-  
-          // Fetch both statuses
           const [trainStatus, deployStatus] = await Promise.all([
             getTrainingStatus(modelIdentifier),
             getDeployStatus(modelIdentifier)
           ]);
-  
-          // First check training status
+
+          // Check training status first
           if (trainStatus.data.train_status === "failed" && trainStatus.data.messages?.length > 0) {
-            console.log('Training failed with errors:', trainStatus.data.messages);
+            setError({
+              type: 'training',
+              messages: trainStatus.data.messages
+            });
             return; // Exit early if training failed
           }
           
-          // Only check deployment status if training was successful
+          // Only check deployment if training was successful
           if (deployStatus.data.deploy_status === "failed" && deployStatus.data.messages?.length > 0) {
-            console.log('Deployment failed with errors:', deployStatus.data.messages);
+            setError({
+              type: 'deployment',
+              messages: deployStatus.data.messages
+            });
+          } else {
+            setError(null); // Clear error if everything is successful
           }
         }
       } catch (error) {
         console.error('Error fetching statuses:', error);
       }
     };
-  
+
     fetchStatuses();
   }, [workflow.username, workflow.model_name]);
 
@@ -336,6 +352,87 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
+
+      {/* Add error notification icon in the last cell */}
+      <TableCell className="text-right pr-4">
+        {error && (
+          <button
+            onClick={() => setShowErrorModal(true)}
+            className="inline-flex items-center justify-center rounded-full bg-red-100 p-2 hover:bg-red-200 transition-colors"
+          >
+            <AlertCircle className="h-5 w-5 text-red-600" />
+          </button>
+        )}
+      </TableCell>
+
+      {/* Error Modal */}
+      {showErrorModal && error && (
+        <Modal onClose={() => setShowErrorModal(false)}>
+          <div className="p-6 max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">
+                {error.type === 'training' ? 'Training Failed' : 'Deployment Failed'}
+              </h2>
+              <button
+                onClick={() => {
+                  // Copy all error messages to clipboard
+                  const errorText = error.messages.join('\n');
+                  navigator.clipboard.writeText(errorText).then(() => {
+                    // Show temporary notification
+                    const notification = document.createElement('div');
+                    notification.className = 'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg';
+                    notification.textContent = 'Error copied to clipboard';
+                    document.body.appendChild(notification);
+                    
+                    // Remove notification after 2 seconds
+                    setTimeout(() => {
+                      document.body.removeChild(notification);
+                    }, 2000);
+                  });
+                }}
+                className="inline-flex items-center px-3 py-1 space-x-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
+              >
+                <svg 
+                  className="w-4 h-4" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" 
+                  />
+                </svg>
+                <span>Copy Error</span>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <div className="space-y-2">
+                <h3 className="font-medium text-gray-700 sticky top-0 bg-white py-2">
+                  Error Details:
+                </h3>
+                <ul className="list-disc pl-5 space-y-2">
+                  {error.messages.map((message, index) => (
+                    <li key={index} className="text-gray-600">
+                      {message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end pt-4 border-t sticky bottom-0 bg-white">
+              <button
+                onClick={() => setShowErrorModal(false)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Modal for displaying model details */}
       {showModal && (

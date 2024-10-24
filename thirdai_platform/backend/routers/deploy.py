@@ -441,7 +441,7 @@ def update_deployment_status(
     model.deploy_status = new_status
     if message:
         session.add(
-            schema.JobEror(
+            schema.JobError(
                 model_id=model.id,
                 timestamp=datetime.utcnow().isoformat(),
                 job_type="deploy",

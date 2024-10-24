@@ -92,8 +92,10 @@ def list_all_dependencies(model: schema.Model) -> List[schema.Model]:
 def get_job_errors(
     session: Session, model_id: str, job_type: str, status: schema.Status
 ) -> List[str]:
-    errors = session.query(schema.JobEror).filter(
-        model_id=model_id, job_type=job_type, status=status
+    errors = session.query(schema.JobError).filter(
+        schema.JobError.model_id == model_id,
+        schema.JobError.job_type == job_type,
+        schema.JobError.status == status,
     )
     if not errors:
         return []

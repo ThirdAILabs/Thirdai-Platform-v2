@@ -387,7 +387,7 @@ class Catalog(SQLDeclarativeBase):
     target_labels = Column(ARRAY(String), nullable=False)
 
 
-class JobEror(SQLDeclarativeBase):
+class JobError(SQLDeclarativeBase):
     __tablename__ = "job_errors"
 
     id = Column(

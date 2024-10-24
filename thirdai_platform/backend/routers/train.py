@@ -1069,7 +1069,7 @@ def train_fail(
     trained_model.train_status = new_status
     if message:
         session.add(
-            schema.JobEror(
+            schema.JobError(
                 model_id=trained_model.id,
                 timestamp=datetime.utcnow().isoformat(),
                 job_type="train",

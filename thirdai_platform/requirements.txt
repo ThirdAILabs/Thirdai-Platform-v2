@@ -32,7 +32,7 @@ starlette
 httpx
 Authlib
 google-auth-oauthlib
-thirdai
+thirdai==0.9.16
 langchain_openai
 hvac
 nltk

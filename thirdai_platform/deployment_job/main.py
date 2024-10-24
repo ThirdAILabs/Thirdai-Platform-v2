@@ -145,7 +145,7 @@ async def startup_event() -> None:
     try:
         await asyncio.sleep(10)
         reporter.update_deploy_status(config.model_id, "complete")
-        asyncio.create_task(async_timer())
+        # asyncio.create_task(async_timer())
     except Exception as e:
         reporter.update_deploy_status(config.model_id, "failed")
         print(f"Failed to startup the application, {e}")

@@ -88,7 +88,14 @@ def preload_chunks(
         metadata=metadata,
         options=options,
     )
-    return ndbv2.documents.PrebatchedDoc(list(doc.chunks()), doc_id=doc.doc_id())
+    prebatched_doc = ndbv2.documents.PrebatchedDoc(list(doc.chunks()), doc_id=doc.doc_id())
+
+    # This is added because pdfs have page metadata type equal to str, so csvs need to cast page to str
+    for batch in prebatched_doc:
+        if 'page' in batch.metadata.columns:
+            batch.metadata['page'] = batch.metadata['page'].astype(str)
+            
+    return prebatched_doc
 
 
 def parse_doc(

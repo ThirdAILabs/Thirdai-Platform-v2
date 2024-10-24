@@ -52,16 +52,16 @@ export const authOptions: AuthOptions = {
         console.log('JWT token updated with account:', token);
         return token;
       }
-    
+
       if (Date.now() < token.expiresAt! * 1000 - 60 * 1000) {
         return token;
       } else {
         try {
           const response = await requestRefreshOfAccessToken(token);
           const tokens: TokenSet = await response.json();
-    
+
           if (!response.ok) throw tokens;
-    
+
           const updatedToken: JWT = {
             ...token,
             idToken: tokens.id_token,

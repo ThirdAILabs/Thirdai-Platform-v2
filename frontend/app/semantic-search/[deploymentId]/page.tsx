@@ -385,7 +385,33 @@ function App() {
 
   function openSource(ref: ReferenceInfo) {
     if (ref.sourceURL.includes('amazonaws.com')) {
-      modelService!.openAWSReference(ref);
+      modelService!.getSignedUrl(ref.sourceURL, 's3').then((signedURL) => {
+        if (signedURL) {
+          modelService!.openAWSReference(signedURL);
+        } else {
+          console.error('Failed to retrieve signed URL for S3 resource.');
+        }
+      });
+      return;
+    }
+    if (ref.sourceURL.includes('blob.core.windows.net')) {
+      modelService!.getSignedUrl(ref.sourceURL, 'azure').then((signedURL) => {
+        if (signedURL) {
+          modelService!.openAWSReference(signedURL);
+        } else {
+          console.error('Failed to retrieve signed URL for Azure resource.');
+        }
+      });
+      return;
+    }
+    if (ref.sourceURL.includes('storage.googleapis.com')) {
+      modelService!.getSignedUrl(ref.sourceURL, 'gcp').then((signedURL) => {
+        if (signedURL) {
+          modelService!.openAWSReference(signedURL);
+        } else {
+          console.error('Failed to retrieve signed URL for GCP resource.');
+        }
+      });
       return;
     }
     if (!ref.sourceName.toLowerCase().endsWith('.pdf')) {

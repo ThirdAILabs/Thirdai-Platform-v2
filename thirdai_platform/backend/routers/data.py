@@ -1,8 +1,9 @@
+import pathlib
 import traceback
 import uuid
 from typing import Dict, List
 
-from auth.jwt import AuthenticatedUser, verify_access_token
+from backend.auth_dependencies import get_current_user
 from backend.datagen import generate_text_data, generate_token_data
 from backend.utils import validate_license_info
 from database import schema
@@ -14,6 +15,21 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 data_router = APIRouter()
+
+root_folder = pathlib.Path(__file__).parent
+
+docs_file = root_folder.joinpath("../../docs/data_endpoints.txt")
+
+with open(docs_file) as f:
+    worklfow_docs = f.read()
+
+
+def get_section(header: str) -> str:
+    sections = worklfow_docs.split("---")
+    for section in sections:
+        if header in section:
+            return section.strip()
+    return "Documentation not found."
 
 
 # Utility function to validate and process generation jobs (for both text and token generation)
@@ -60,13 +76,17 @@ def validate_and_generate_data(
     )
 
 
-@data_router.post("/generate-text-data")
+@data_router.post(
+    "/generate-text-data",
+    dependencies=[Depends(get_current_user)],
+    summary="Generate Text Data",
+    description=get_section("Generate Text Data"),
+)
 def generate_text_data_endpoint(
     task_prompt: str,
     llm_provider: LLMProvider = LLMProvider.openai,
     datagen_form: str = Form(default="{}"),
     job_form: str = Form(default="{}"),
-    _: AuthenticatedUser = Depends(verify_access_token),
 ):
     return validate_and_generate_data(
         task_prompt=task_prompt,
@@ -77,13 +97,17 @@ def generate_text_data_endpoint(
     )
 
 
-@data_router.post("/generate-token-data")
+@data_router.post(
+    "/generate-token-data",
+    dependencies=[Depends(get_current_user)],
+    summary="Generate Token Data",
+    description=get_section("Generate Token Data"),
+)
 def generate_token_data_endpoint(
     task_prompt: str,
     llm_provider: LLMProvider = LLMProvider.openai,
     datagen_form: str = Form(default="{}"),
     job_form: str = Form(default="{}"),
-    _: AuthenticatedUser = Depends(verify_access_token),
 ):
     return validate_and_generate_data(
         task_prompt=task_prompt,
@@ -125,7 +149,12 @@ def find_dataset(
 
 
 # Dataset Finding Endpoint
-@data_router.post("/find-dataset")
+@data_router.post(
+    "/find-dataset",
+    dependencies=[Depends(get_current_user)],
+    summary="Find Datasets",
+    description=get_section("Find Datasets"),
+)
 def find_datasets(
     task: schema.UDT_Task,
     target_labels: List[str],

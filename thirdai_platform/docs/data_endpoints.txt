@@ -1,0 +1,127 @@
+# Generate Text Data
+
+**Description**: Submits a job to generate text data based on the provided prompt and options.
+
+**Dependencies**:
+- **verify_access_token**: Requires the user to be authenticated.
+
+**Request Parameters**:
+- `task_prompt`: A string representing the task prompt for the text generation.
+- `llm_provider`: The large language model provider to be used (default: `openai`).
+- `datagen_form`: JSON-formatted string containing data generation options.
+- `job_form`: JSON-formatted string containing job options.
+
+**datagen_form** Fields:
+- **sub_type**: Must be `"text"` for text classification data generation.
+- **samples_per_label**: Number of samples to generate for each label.
+- **target_labels**: A list of labels to classify, where each label is a dictionary containing:
+  - `name`: The name of the label (e.g., `"Positive"`, `"Negative"`).
+  - `examples`: A list of example phrases for that label.
+- **user_vocab** (optional): A list of custom vocabulary words to be used in the text generation process.
+- **user_prompts** (optional): A list of custom prompts to guide the generation of text.
+- **vocab_per_sentence**: The number of vocabulary words to include per sentence (default is `4`).
+
+**Request Body Example**:
+```json
+{
+  "task_prompt": "Describe the content of this text...",
+  "llm_provider": "openai",
+  "datagen_form": "{\"sub_type\": \"text\", \"samples_per_label\": 100, \"target_labels\": [{\"name\": \"Positive\", \"examples\": [\"Good\", \"Amazing\", \"Excellent\"]}, {\"name\": \"Negative\", \"examples\": [\"Bad\", \"Terrible\", \"Poor\"]}], \"user_vocab\": [\"custom\", \"vocabulary\"], \"user_prompts\": [\"Create examples using this prompt\"], \"vocab_per_sentence\": 4}",
+  "job_form": "{\"allocation_cores\": 2, \"allocation_memory\": 7000}"
+}
+```
+
+**Responses**:
+- `200 OK`: Successfully submitted the data-generation job.
+
+- `400 Bad Request`: Invalid option format in the request.
+
+- `500 Internal Server Error`: License validation or generation function issues.
+
+---
+
+# Generate Token Data
+
+**Description**: Submits a job to generate token data (e.g., classification tokens) based on the provided prompt and options.
+
+**Dependencies**:
+- **verify_access_token**: Requires the user to be authenticated.
+
+**Request Parameters**:
+- `task_prompt`: A string representing the task prompt for the token generation.
+- `llm_provider`: The large language model provider to be used (default: `openai`).
+- `datagen_form`: JSON-formatted string containing data generation options.
+- `job_form`: JSON-formatted string containing job options.
+
+**datagen_form** Fields:
+- **sub_type**: Must be `"token"` for token classification data generation.
+- **tags**: A list of classification tags to use for token generation, where each tag is a dictionary containing:
+  - `name`: The name of the tag (e.g., `"Person"`, `"Location"`).
+  - `examples`: A list of example tokens for that tag.
+- **num_sentences_to_generate**: The total number of sentences to generate for token classification.
+- **num_samples_per_tag** (optional): Number of samples to generate per tag.
+- **templates_per_sample** (optional): Number of templates to create per sample (default is `10`).
+
+**Request Body Example**:
+```json
+{
+  "task_prompt": "Classify this text for named entity recognition...",
+  "llm_provider": "openai",
+  "datagen_form": "{\"sub_type\": \"token\", \"tags\": [{\"name\": \"Person\", \"examples\": [\"John\", \"Sarah\"]}, {\"name\": \"Location\", \"examples\": [\"New York\", \"California\"]}], \"num_sentences_to_generate\": 10000, \"templates_per_sample\": 10}",
+  "job_form": "{\"allocation_cores\": 2, \"allocation_memory\": 8000}"
+}
+```
+
+**Responses**:
+- `200 OK`: Successfully submitted the data-generation job.
+
+- `400 Bad Request`: Invalid option format in the request.
+
+- `500 Internal Server Error`: License validation or generation function issues.
+
+---
+
+# Find Datasets
+
+**Description**: Finds the most suited dataset for a given task and a set of target labels.
+
+**Request Parameters**:
+- `task`: The task for which to find datasets (e.g., a UDT task). (`text` or `token`)
+- `target_labels`: A list of target labels to match against existing datasets.
+
+**Request Body**:
+{
+  "task": "text", 
+  "target_labels": ["Positive", "Negative", "Neutral"]
+}
+
+**Responses**:
+- `200 OK`: Successfully retrieved the preview of the dataset.
+```json
+{
+  "message": "Successfully retrieved the preview of the dataset.",
+  "data": {
+    "dataset_name": "sentiment_analysis_dataset",
+    "catalog_id": "catalog_id_123",
+    "find_status": true,
+    "num_samples": 1000
+  }
+}
+```
+
+- `200 OK`: No matching dataset found.
+```json
+{
+  "message": "Successfully retrieved the preview of the dataset.",
+  "data": {
+    "dataset_name": null,
+    "catalog_id": null,
+    "find_status": false,
+    "num_samples": 0
+  }
+}
+```
+
+- `500 Internal Server Error`: An error occurred while trying to find a suitable dataset.
+
+---

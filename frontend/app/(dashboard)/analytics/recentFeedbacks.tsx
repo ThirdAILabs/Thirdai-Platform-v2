@@ -1,11 +1,8 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { reformulations } from './mock_samples';
-import useRollingSamples from './rolling';
 import { fetchFeedback } from '@/lib/backend'
 import { useState, useEffect } from 'react';
-import { grey } from '@mui/material/colors';
 
 interface TextPairsProps {
     timestamp: string;
@@ -34,31 +31,6 @@ function TextPairs({ timestamp, label1, label2, text1, text2 }: TextPairsProps) 
     );
 }
 
-interface ReformulationProps {
-    timestamp: string;
-    original: string;
-    reformulations: string[];
-}
-
-function Reformulation({ timestamp, original, reformulations }: ReformulationProps) {
-    return (
-        <div
-            className="text-md"
-            style={{ display: 'flex', flexDirection: 'column', marginBottom: '10px' }}
-        >
-            <CardDescription>{timestamp}</CardDescription>
-            <span className="text-md" style={{ fontWeight: 'bold' }}>
-                {original}
-            </span>
-            {reformulations.map((r, i) => (
-                <span key={i} className="text-md" style={{ marginLeft: '10px' }}>
-                    {r}
-                </span>
-            ))}
-        </div>
-    );
-}
-
 export default function RecentFeedbacks() {
     const [recentUpvotes, setRecentUpvotes] = useState([]);
     const [recentAssociations, setRecentAssociations] = useState([]);
@@ -82,25 +54,17 @@ export default function RecentFeedbacks() {
         setRecentAssociations(data?.associate);
     };
 
-
-    const recentReformulations = useRollingSamples(
-    /* samples= */ reformulations,
-    /* numSamples= */ 3,
-    /* maxNewSamples= */ 1,
-    /* probabilityNewSamples= */ 0.4,
-    /* intervalSeconds= */ 2
-    );
-
     return (
         <div
             style={{
                 display: 'flex',
-                flexDirection: 'row',
                 justifyContent: 'space-between',
                 width: '100%',
+                padding: '0 2rem',
+                boxSizing: 'border-box',
             }}
         >
-            <Card style={{ width: '32.5%', minHeight: '45rem' }}>
+            <Card style={{ width: '48%', minHeight: '45rem' }} className='pb-2'>
                 <CardHeader className='bg-blue-900 text-white'>
                     <CardTitle>Recent Upvotes</CardTitle>
                     <CardDescription className='text-white'>The latest user-provided upvotes</CardDescription>
@@ -123,7 +87,7 @@ export default function RecentFeedbacks() {
                     )}
                 </CardContent>
             </Card>
-            <Card style={{ width: '32.5%', minHeight: '45rem' }}>
+            <Card style={{ width: '48%', minHeight: '45rem' }}>
                 <CardHeader className='bg-blue-900 text-white'>
                     <CardTitle>Recent Associations</CardTitle>
                     <CardDescription className='text-white'>The latest user-provided associations</CardDescription>
@@ -144,22 +108,6 @@ export default function RecentFeedbacks() {
                             <span className='font-mono italic'>Oops! No Associations data available.</span>
                         </div>
                     )}
-                </CardContent>
-            </Card>
-            <Card style={{ width: '32.5%', minHeight: '45rem' }}>
-                <CardHeader className='bg-blue-900 text-white'>
-                    <CardTitle>Recent Query Reformulations</CardTitle>
-                    <CardDescription className='text-white'>The latest queries that required reformulation</CardDescription>
-                </CardHeader>
-                <CardContent style={{ overflowY: 'auto', maxHeight: '45rem' }}>
-                    {recentReformulations.map(({ timestamp, original, reformulations }, idx) => (
-                        <Reformulation
-                            key={idx}
-                            timestamp={timestamp}
-                            original={original}
-                            reformulations={reformulations}
-                        />
-                    ))}
                 </CardContent>
             </Card>
         </div>

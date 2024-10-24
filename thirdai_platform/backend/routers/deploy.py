@@ -363,7 +363,7 @@ async def deploy_model(
     )
 
 
-@deploy_router.get("/status")
+@deploy_router.get("/status", dependencies=[Depends(verify_model_read_access)])
 def deployment_status(
     model_identifier: str,
     session: Session = Depends(get_session),

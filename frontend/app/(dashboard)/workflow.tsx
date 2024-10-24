@@ -12,10 +12,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
-import { Workflow, start_workflow, stop_workflow, delete_workflow,
-          getTrainingStatus, getDeployStatus,
-          getTrainingLogs, getDeploymentLogs
- } from '@/lib/backend';
+import {
+  Workflow,
+  start_workflow,
+  stop_workflow,
+  delete_workflow,
+  getTrainingStatus,
+  getDeployStatus,
+  getTrainingLogs,
+  getDeploymentLogs,
+} from '@/lib/backend';
 import { Modal } from '@/components/ui/Modal';
 import { InformationCircleIcon } from '@heroicons/react/solid';
 import { Model, getModels } from '@/utils/apiRequests';
@@ -194,23 +200,26 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
           const [trainStatus, deployStatus] = await Promise.all([
             getTrainingStatus(modelIdentifier),
-            getDeployStatus(modelIdentifier)
+            getDeployStatus(modelIdentifier),
           ]);
-  
+
           // Check training status first
-          if (trainStatus.data.train_status === "failed" && trainStatus.data.messages?.length > 0) {
+          if (trainStatus.data.train_status === 'failed' && trainStatus.data.messages?.length > 0) {
             setError({
               type: 'training',
-              messages: trainStatus.data.messages
+              messages: trainStatus.data.messages,
             });
             return; // Exit early if training failed
           }
-          
+
           // Only check deployment if training was successful
-          if (deployStatus.data.deploy_status === "failed" && deployStatus.data.messages?.length > 0) {
+          if (
+            deployStatus.data.deploy_status === 'failed' &&
+            deployStatus.data.messages?.length > 0
+          ) {
             setError({
               type: 'deployment',
-              messages: deployStatus.data.messages
+              messages: deployStatus.data.messages,
             });
           } else {
             setError(null); // Clear error if everything is successful
@@ -220,13 +229,13 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         console.error('Error fetching statuses:', error);
       }
     };
-  
+
     // Initial fetch
     fetchStatuses();
-  
+
     // Set up polling interval
     const intervalId = setInterval(fetchStatuses, 2000);
-  
+
     // Cleanup function to clear interval when component unmounts
     return () => clearInterval(intervalId);
   }, [workflow.username, workflow.model_name]); // Dependencies stay the same
@@ -386,7 +395,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                     const errorText = error.messages.join('\n');
                     navigator.clipboard.writeText(errorText).then(() => {
                       const notification = document.createElement('div');
-                      notification.className = 'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg';
+                      notification.className =
+                        'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg';
                       notification.textContent = 'Error copied to clipboard';
                       document.body.appendChild(notification);
                       setTimeout(() => {
@@ -396,17 +406,12 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                   }}
                   className="inline-flex items-center px-3 py-1 space-x-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
                 >
-                  <svg 
-                    className="w-4 h-4" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" 
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
                     />
                   </svg>
                   <span>Copy Error</span>
@@ -416,11 +421,11 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                   onClick={async () => {
                     try {
                       const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
-                      const logs = await (error.type === 'training' 
+                      const logs = await (error.type === 'training'
                         ? getTrainingLogs(modelIdentifier)
                         : getDeploymentLogs(modelIdentifier));
-                      
-                      console.log('logs',logs)
+
+                      console.log('logs', logs);
 
                       // Create base content with metadata
                       const contentParts = [
@@ -430,7 +435,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                         '',
                         'Error Messages:',
                         error.messages.join('\n'),
-                        ''
+                        '',
                       ];
 
                       // Add each log entry with index
@@ -443,7 +448,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                           '',
                           'Standard Error:',
                           log.stderr,
-                          '',  // Add empty line between log entries
+                          '' // Add empty line between log entries
                         );
                       });
 
@@ -460,7 +465,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                       document.body.removeChild(a);
 
                       const notification = document.createElement('div');
-                      notification.className = 'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg';
+                      notification.className =
+                        'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg';
                       notification.textContent = 'Logs downloaded successfully';
                       document.body.appendChild(notification);
                       setTimeout(() => {
@@ -469,7 +475,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                     } catch (err) {
                       console.error('Failed to download logs:', err);
                       const notification = document.createElement('div');
-                      notification.className = 'fixed bottom-4 right-4 bg-red-600 text-white px-4 py-2 rounded-md shadow-lg';
+                      notification.className =
+                        'fixed bottom-4 right-4 bg-red-600 text-white px-4 py-2 rounded-md shadow-lg';
                       notification.textContent = 'Failed to download logs';
                       document.body.appendChild(notification);
                       setTimeout(() => {
@@ -479,17 +486,12 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                   }}
                   className="inline-flex items-center px-3 py-1 space-x-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
                 >
-                  <svg 
-                    className="w-4 h-4" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round" 
-                      strokeWidth={2} 
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" 
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                     />
                   </svg>
                   <span>Download Logs</span>

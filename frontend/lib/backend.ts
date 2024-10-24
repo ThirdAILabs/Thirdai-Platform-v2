@@ -127,7 +127,7 @@ interface LogEntry {
 }
 
 interface LogResponse {
-  data: LogEntry[];  // Now it's an array of LogEntry objects
+  data: LogEntry[]; // Now it's an array of LogEntry objects
 }
 
 export function getTrainingLogs(modelIdentifier: string): Promise<LogResponse> {

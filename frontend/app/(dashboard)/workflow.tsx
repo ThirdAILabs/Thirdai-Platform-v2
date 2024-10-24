@@ -13,8 +13,8 @@ import {
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Workflow, start_workflow, stop_workflow, delete_workflow,
-          getTrainingStatus, getDeployStatus
-
+          getTrainingStatus, getDeployStatus,
+          getTrainingLogs, getDeploymentLogs
  } from '@/lib/backend';
 import { Modal } from '@/components/ui/Modal';
 import { InformationCircleIcon } from '@heroicons/react/solid';
@@ -196,7 +196,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
             getTrainingStatus(modelIdentifier),
             getDeployStatus(modelIdentifier)
           ]);
-
+  
           // Check training status first
           if (trainStatus.data.train_status === "failed" && trainStatus.data.messages?.length > 0) {
             setError({
@@ -220,9 +220,16 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         console.error('Error fetching statuses:', error);
       }
     };
-
+  
+    // Initial fetch
     fetchStatuses();
-  }, [workflow.username, workflow.model_name]);
+  
+    // Set up polling interval
+    const intervalId = setInterval(fetchStatuses, 2000);
+  
+    // Cleanup function to clear interval when component unmounts
+    return () => clearInterval(intervalId);
+  }, [workflow.username, workflow.model_name]); // Dependencies stay the same
 
   return (
     <TableRow>
@@ -373,40 +380,121 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               <h2 className="text-xl font-semibold">
                 {error.type === 'training' ? 'Training Failed' : 'Deployment Failed'}
               </h2>
-              <button
-                onClick={() => {
-                  // Copy all error messages to clipboard
-                  const errorText = error.messages.join('\n');
-                  navigator.clipboard.writeText(errorText).then(() => {
-                    // Show temporary notification
-                    const notification = document.createElement('div');
-                    notification.className = 'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg';
-                    notification.textContent = 'Error copied to clipboard';
-                    document.body.appendChild(notification);
-                    
-                    // Remove notification after 2 seconds
-                    setTimeout(() => {
-                      document.body.removeChild(notification);
-                    }, 2000);
-                  });
-                }}
-                className="inline-flex items-center px-3 py-1 space-x-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
-              >
-                <svg 
-                  className="w-4 h-4" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => {
+                    const errorText = error.messages.join('\n');
+                    navigator.clipboard.writeText(errorText).then(() => {
+                      const notification = document.createElement('div');
+                      notification.className = 'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg';
+                      notification.textContent = 'Error copied to clipboard';
+                      document.body.appendChild(notification);
+                      setTimeout(() => {
+                        document.body.removeChild(notification);
+                      }, 2000);
+                    });
+                  }}
+                  className="inline-flex items-center px-3 py-1 space-x-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
                 >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" 
-                  />
-                </svg>
-                <span>Copy Error</span>
-              </button>
+                  <svg 
+                    className="w-4 h-4" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" 
+                    />
+                  </svg>
+                  <span>Copy Error</span>
+                </button>
+
+                <button
+                  onClick={async () => {
+                    try {
+                      const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
+                      const logs = await (error.type === 'training' 
+                        ? getTrainingLogs(modelIdentifier)
+                        : getDeploymentLogs(modelIdentifier));
+                      
+                      console.log('logs',logs)
+
+                      // Create base content with metadata
+                      const contentParts = [
+                        `Error Type: ${error.type}`,
+                        `Time: ${new Date().toISOString()}`,
+                        `Model: ${modelIdentifier}`,
+                        '',
+                        'Error Messages:',
+                        error.messages.join('\n'),
+                        ''
+                      ];
+
+                      // Add each log entry with index
+                      logs.data.forEach((log, index) => {
+                        contentParts.push(
+                          `Log Entry ${index + 1}:`,
+                          '----------------',
+                          'Standard Output:',
+                          log.stdout,
+                          '',
+                          'Standard Error:',
+                          log.stderr,
+                          '',  // Add empty line between log entries
+                        );
+                      });
+
+                      const content = contentParts.join('\n').trim();
+
+                      const blob = new Blob([content], { type: 'text/plain' });
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `${error.type}_logs_${workflow.model_name}_${new Date().toISOString()}.txt`;
+                      document.body.appendChild(a);
+                      a.click();
+                      window.URL.revokeObjectURL(url);
+                      document.body.removeChild(a);
+
+                      const notification = document.createElement('div');
+                      notification.className = 'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg';
+                      notification.textContent = 'Logs downloaded successfully';
+                      document.body.appendChild(notification);
+                      setTimeout(() => {
+                        document.body.removeChild(notification);
+                      }, 2000);
+                    } catch (err) {
+                      console.error('Failed to download logs:', err);
+                      const notification = document.createElement('div');
+                      notification.className = 'fixed bottom-4 right-4 bg-red-600 text-white px-4 py-2 rounded-md shadow-lg';
+                      notification.textContent = 'Failed to download logs';
+                      document.body.appendChild(notification);
+                      setTimeout(() => {
+                        document.body.removeChild(notification);
+                      }, 2000);
+                    }
+                  }}
+                  className="inline-flex items-center px-3 py-1 space-x-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
+                >
+                  <svg 
+                    className="w-4 h-4" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" 
+                    />
+                  </svg>
+                  <span>Download Logs</span>
+                </button>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto min-h-0">
               <div className="space-y-2">

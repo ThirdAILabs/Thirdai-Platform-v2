@@ -121,6 +121,51 @@ export function getTrainingStatus(modelIdentifier: string): Promise<TrainStatusR
   });
 }
 
+interface LogEntry {
+  stderr: string;
+  stdout: string;
+}
+
+interface LogResponse {
+  data: LogEntry[];  // Now it's an array of LogEntry objects
+}
+
+export function getTrainingLogs(modelIdentifier: string): Promise<LogResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(
+        `${thirdaiPlatformBaseUrl}/api/train/logs?model_identifier=${encodeURIComponent(modelIdentifier)}`
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export function getDeploymentLogs(modelIdentifier: string): Promise<LogResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(
+        `${thirdaiPlatformBaseUrl}/api/deploy/logs?model_identifier=${encodeURIComponent(modelIdentifier)}`
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
 interface StopResponse {
   data: {
     deployment_id: string;

@@ -11,7 +11,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
-import { Workflow, start_workflow, stop_workflow, delete_workflow } from '@/lib/backend';
+import { Workflow, start_workflow, stop_workflow, delete_workflow,
+          getTrainingStatus, getDeployStatus
+
+ } from '@/lib/backend';
 import { Modal } from '@/components/ui/Modal';
 import { InformationCircleIcon } from '@heroicons/react/solid';
 import { Model, getModels } from '@/utils/apiRequests';
@@ -173,6 +176,37 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
   const formatBytesToMB = (bytes: string) => {
     return (parseInt(bytes) / (1024 * 1024)).toFixed(2) + ' MB';
   };
+
+  useEffect(() => {
+    const fetchStatuses = async () => {
+      try {
+        if (workflow.username && workflow.model_name) {
+          const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
+  
+          // Fetch both statuses
+          const [trainStatus, deployStatus] = await Promise.all([
+            getTrainingStatus(modelIdentifier),
+            getDeployStatus(modelIdentifier)
+          ]);
+  
+          // First check training status
+          if (trainStatus.data.train_status === "failed" && trainStatus.data.messages?.length > 0) {
+            console.log('Training failed with errors:', trainStatus.data.messages);
+            return; // Exit early if training failed
+          }
+          
+          // Only check deployment status if training was successful
+          if (deployStatus.data.deploy_status === "failed" && deployStatus.data.messages?.length > 0) {
+            console.log('Deployment failed with errors:', deployStatus.data.messages);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching statuses:', error);
+      }
+    };
+  
+    fetchStatuses();
+  }, [workflow.username, workflow.model_name]);
 
   return (
     <TableRow>

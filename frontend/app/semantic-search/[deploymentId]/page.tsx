@@ -252,13 +252,7 @@ function App() {
       }
     };
 
-    // Fetch immediately before setting up the interval
     fetchSources();
-
-    const intervalId = setInterval(fetchSources, 3000); // 3000ms = 3 seconds
-
-    // Cleanup function to clear the interval when the component unmounts or modelService changes
-    return () => clearInterval(intervalId);
   }, [modelService]);
 
   useEffect(() => {

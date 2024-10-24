@@ -19,6 +19,7 @@ from licensing.verify.verify_license import valid_job_allocation, verify_license
 from platform_common.pydantic_models.training import LabelEntity
 from platform_common.thirdai_storage import data_types, storage
 from sqlalchemy.orm import Session
+import sqlalchemy as sa
 
 logger = logging.getLogger("ThirdAI_Platform")
 
@@ -89,17 +90,24 @@ def list_all_dependencies(model: schema.Model) -> List[schema.Model]:
     return all_models
 
 
-def get_job_errors(
+def get_job_error(
     session: Session, model_id: str, job_type: str, status: schema.Status
-) -> List[str]:
-    errors = session.query(schema.JobError).filter(
-        schema.JobError.model_id == model_id,
-        schema.JobError.job_type == job_type,
-        schema.JobError.status == status,
+) -> Optional[str]:
+    # Return the first error since often later errors may be indirectly caused by
+    # the first.
+    error = (
+        session.query(schema.JobError)
+        .filter(
+            schema.JobError.model_id == model_id,
+            schema.JobError.job_type == job_type,
+            schema.JobError.status == status,
+        )
+        .order_by(sa.asc(schema.JobError.timestamp))
+        .first()
     )
-    if not errors:
-        return []
-    return [err.message for err in errors]
+    if not error:
+        return None
+    return error.message
 
 
 def get_detailed_reasons(
@@ -110,15 +118,15 @@ def get_detailed_reasons(
 ) -> List[str]:
     detailed = []
     for reason in reasons:
-        errors = get_job_errors(
+        error = get_job_error(
             session=session,
             model_id=reason["model_id"],
             job_type=job_type,
             status=status,
         )
         message = reason["message"]
-        if errors:
-            message += "The following errors are detected:\n" + "\n".join(errors)
+        if error:
+            message += " The following error was detected: " + error
 
         detailed.append(message)
     return detailed

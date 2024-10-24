@@ -25,20 +25,21 @@ from requests.auth import HTTPBasicAuth
 
 def parse_args():
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--host", type=str, default="http://98.82.179.129")
-    parser.add_argument("--deployment_id", type=str, default="8bec940c-2d80-4732-a3d2-89e75b7c5870")
+    # parser.add_argument("--host", type=str, default="http://98.82.179.129")
+    parser.add_argument("--host", type=str, default="http://localhost:80")
+    parser.add_argument("--deployment_id", type=str, default="7be21289-d3d0-4308-a99f-b14ee07afe90")
     parser.add_argument("--email", type=str, default="david@thirdai.com")
     parser.add_argument("--password", type=str, default="password")
     parser.add_argument(
         "--min_wait",
         type=int,
-        default=1,
+        default=10,
         help="Minimum wait time between tasks in seconds",
     )
     parser.add_argument(
         "--max_wait",
         type=int,
-        default=3,
+        default=20,
         help="Maximum wait time between tasks in seconds",
     )
 
@@ -82,9 +83,24 @@ auth_token = login_details.access_token
 
 
 class ModelBazaarLoadTest(TaskSet):
+    # @task(1)
+    # def test_predict(self):
+    #     query = "test query"
+    #     headers = {
+    #         "Authorization": f"Bearer {auth_token}",
+    #     }
+
+    #     response = self.client.post(
+    #         f"/{args.deployment_id}/search",
+    #         json={"query": query, "top_k": 5},
+    #         headers=headers,
+    #         timeout=60,
+    #     )
+
     @task(1)
-    def test_predict(self):
-        query = "test query"
+    def test_chat(self):
+        query = "who is eligible"
+        # query = "who is eligible, please be as verbose as possible"
         headers = {
             "Authorization": f"Bearer {auth_token}",
         }
@@ -96,18 +112,18 @@ class ModelBazaarLoadTest(TaskSet):
             timeout=60,
         )
 
-    # @task(1)
-    # def test_chat(self):
-    #     query = "who is eligible, please be as verbose as possible"
-    #     headers = {
-    #         "Authorization": f"Bearer {auth_token}",
-    #     }
+        references = [{"text": x["text"], "source": x["source"]} for x in response.json()["data"]["references"]]
 
-    #     response = self.client.post(
-    #         f"/{args.deployment_id}/chat",
-    #         json={"user_input": query},
-    #         headers=headers,
-    #     )
+        import time
+        start = time.time()
+        response = self.client.post(
+            f"/llm-dispatch/generate",
+            json={"query": query, "references": references, "key": "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"},
+            headers=headers,
+            timeout=60,
+        )
+        print(time.time() - start)
+
 
     # @task(1)
     # def test_insert(self):

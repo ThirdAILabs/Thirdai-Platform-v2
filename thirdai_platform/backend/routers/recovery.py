@@ -1,4 +1,5 @@
 import os
+import pathlib
 import traceback
 from pathlib import Path
 
@@ -21,8 +22,28 @@ recovery_router = APIRouter()
 
 RECOVERY_SNAPSHOT_ID = "recovery-snapshot"
 
+root_folder = pathlib.Path(__file__).parent
 
-@recovery_router.post("/backup", dependencies=[Depends(verify_access_token)])
+docs_file = root_folder.joinpath("../../docs/recovery_endpoints.txt")
+
+with open(docs_file) as f:
+    worklfow_docs = f.read()
+
+
+def get_section(header: str) -> str:
+    sections = worklfow_docs.split("---")
+    for section in sections:
+        if header in section:
+            return section.strip()
+    return "Documentation not found."
+
+
+@recovery_router.post(
+    "/backup",
+    dependencies=[Depends(verify_access_token)],
+    summary="Backup",
+    description=get_section("Backup"),
+)
 def backup(config: BackupConfig):
     local_dir = os.getenv("SHARE_DIR")
     if not local_dir:

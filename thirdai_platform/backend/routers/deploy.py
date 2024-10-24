@@ -1,8 +1,8 @@
+import heapq
 import json
 import os
 import traceback
 from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
 
@@ -360,7 +360,7 @@ async def deploy_model(
     )
 
 
-@deploy_router.get("/feedbacks", dependencies=[Depends(is_model_owner)])
+@deploy_router.get("/feedbacks")
 def get_feedback(
     model_identifier: str,
     per_event_count: int = 5,
@@ -433,50 +433,60 @@ def get_feedback(
             data=[],
         )
 
-    all_feedbacks = []
-    accumlated_feedbacks = defaultdict(list)
+    event_heap = {ActionType.upvote: [], ActionType.associate: []}
     for alloc_dirEntry in os.scandir(feedback_dir):
         if alloc_dirEntry.is_file() and alloc_dirEntry.name.endswith(".jsonl"):
             with open(alloc_dirEntry.path, "r") as file:
-                all_feedbacks.extend(
-                    FeedbackLog.model_validate_json(line) for line in file
+                file_feedbacks = list(
+                    map(lambda x: FeedbackLog.model_validate_json(x), file)
                 )
 
-    for feedback in all_feedbacks:
-        if feedback.event.action == ActionType.upvote:
-            accumlated_feedbacks[feedback.event.action].extend(
-                {
-                    "timestamp": feedback.timestamp,
-                    "query": query,
-                    "reference_id": chunk_id,
-                    "reference_text": ref_text,
-                }
-                for chunk_id, query, ref_text in zip(
-                    feedback.event.chunk_ids,
-                    feedback.event.queries,
-                    feedback.event.reference_texts,
-                )
-            )
-        elif feedback.event.action == ActionType.associate:
-            accumlated_feedbacks[feedback.event.action].extend(
-                {
-                    "timestamp": feedback.timestamp,
-                    "source": source,
-                    "target": target,
-                }
-                for source, target in zip(
-                    feedback.event.sources,
-                    feedback.event.targets,
-                )
-            )
+            events_processed = defaultdict(int)
+            for _feedback in file_feedbacks[::-1]:
+                if events_processed[_feedback.event.action] < per_event_count:
+                    heapq.heappush(event_heap[_feedback.event.action], _feedback)
 
-    # sort each event
-    for key in accumlated_feedbacks:
-        accumlated_feedbacks[key].sort(
-            key=lambda x: datetime.strptime(x["timestamp"], "%d %B %Y %H:%M:%S"),
-            reverse=True,
-        )
-        accumlated_feedbacks[key] = accumlated_feedbacks[key][:per_event_count]
+                events_processed[_feedback.event.action] += 1
+
+                # stop the processing if each required event of the file is processed for per_event_count times
+                if all(
+                    [
+                        events_processed[event_name] >= per_event_count
+                        for event_name in event_heap.keys()
+                    ]
+                ):
+                    break
+
+    accumlated_feedbacks = defaultdict(list)
+    for event_name, _heap in event_heap.items():
+        sorted_events = [heapq.heappop(_heap) for _ in range(len(_heap))]
+        for feedback in sorted_events:
+            if feedback.event.action == ActionType.upvote:
+                accumlated_feedbacks[feedback.event.action].extend(
+                    {
+                        "timestamp": feedback.timestamp,
+                        "query": query,
+                        "reference_id": chunk_id,
+                        "reference_text": ref_text,
+                    }
+                    for chunk_id, query, ref_text in zip(
+                        feedback.event.chunk_ids,
+                        feedback.event.queries,
+                        feedback.event.reference_texts,
+                    )
+                )
+            elif feedback.event.action == ActionType.associate:
+                accumlated_feedbacks[feedback.event.action].extend(
+                    {
+                        "timestamp": feedback.timestamp,
+                        "source": source,
+                        "target": target,
+                    }
+                    for source, target in zip(
+                        feedback.event.sources,
+                        feedback.event.targets,
+                    )
+                )
 
     return response(
         status_code=status.HTTP_200_OK,

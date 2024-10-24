@@ -53,7 +53,7 @@ def test_ndb_retraining_log_feedback_from_read_only_users():
             {
                 "query_text": "a query to upvote",
                 "reference_id": 0,
-                "reference_text": "This is the corressponding reference text",
+                "reference_text": "This is the corresponding reference text",
             }
         ]
     )
@@ -122,7 +122,7 @@ def test_ndb_retraining_autoscaling_mode():
             {
                 "query_text": "a query to upvote",
                 "reference_id": 0,
-                "reference_text": "This is the corressponding reference text",
+                "reference_text": "This is the corresponding reference text",
             }
         ]
     )

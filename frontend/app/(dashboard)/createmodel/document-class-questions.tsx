@@ -5,7 +5,11 @@ import { Button } from '@/components/ui/button';
 enum SourceType {
   LOCAL = 'local',
   S3 = 's3',
+  // TODO (anyone): Change this nsf to nfs. There are so many places in frontend which needs to be changed with this.
   NSF = 'nsf',
+  // TODO (anyone): Add the corresponding classes for azure and gcp like setAzureSourceValue.. when this use case is needed.
+  AZURE = 'azure',
+  GCP = 'gcp',
 }
 
 interface DocumentClassificationQuestionsProps {

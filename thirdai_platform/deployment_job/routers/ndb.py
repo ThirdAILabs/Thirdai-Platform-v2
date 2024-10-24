@@ -27,7 +27,7 @@ from deployment_job.utils import propagate_error, validate_name
 from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
-from platform_common.file_handler import download_local_files
+from platform_common.file_handler import download_local_files, get_cloud_client
 from platform_common.pydantic_models.deployment import DeploymentConfig, NDBSubType
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
@@ -91,6 +91,9 @@ class NDBRouter:
         )
         self.router.add_api_route("/pdf-blob", self.pdf_blob, methods=["GET"])
         self.router.add_api_route("/pdf-chunks", self.pdf_chunks, methods=["GET"])
+        self.router.add_api_route(
+            "/get-signed-url", self.get_signed_url, methods=["GET"]
+        )
 
     @staticmethod
     def get_model(config: DeploymentConfig) -> NDBModel:
@@ -210,6 +213,13 @@ class NDBRouter:
                 message="No documents supplied for insertion. Must supply at least one document.",
             )
 
+        total_filesize = sum(file.size or 0 for file in files)
+        if total_filesize > 10 * 1024 * 1024:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Size of uploaded files exceeds maximum of 10Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size.",
+            )
+
         documents = download_local_files(
             files=files,
             file_infos=documents,
@@ -264,6 +274,11 @@ class NDBRouter:
                 message="Delete logged successfully.",
             )
         else:
+            if len(input.source_ids) > 5:
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Number of deletions exceeds the maximum that can be processed synchronously in an active deployment.",
+                )
             self.model.delete(input.source_ids)
 
             return response(
@@ -318,6 +333,11 @@ class NDBRouter:
                 message="Upvote logged successfully.",
             )
         else:
+            if len(input.text_id_pairs) > 100:
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Number of upvote samples exceeds the maximum that can be processed synchronously in an active deployment.",
+                )
             self.model.upvote(input.text_id_pairs)
 
             return response(
@@ -370,6 +390,11 @@ class NDBRouter:
                 message="Associate logged successfully.",
             )
         else:
+            if len(input.text_pairs) > 100:
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="Number of association samples exceeds the maximum that can be processed synchronously in an active deployment.",
+                )
             self.model.associate(input.text_pairs)
 
             return response(
@@ -634,6 +659,23 @@ class NDBRouter:
         headers = {"Content-Disposition": f'inline; filename="{Path(source).name}"'}
         return Response(
             buffer.getvalue(), headers=headers, media_type="application/pdf"
+        )
+
+    @propagate_error
+    def get_signed_url(
+        self,
+        source: str,
+        provider: str,
+        token=Depends(Permissions.verify_permission("read")),
+    ):
+        cloud_client = get_cloud_client(provider=provider)
+
+        signed_url = cloud_client.generate_url_from_source(source=source)
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message=f"Successfully got the signed url",
+            data={"signed_url": signed_url},
         )
 
     @propagate_error

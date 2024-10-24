@@ -1,6 +1,7 @@
 import json
-from urllib.parse import urljoin
 from typing import Optional
+from urllib.parse import urljoin
+
 import requests
 
 
@@ -127,7 +128,9 @@ class Reporter:
 
         return content["data"]["model_present"]
 
-    def update_deploy_status(self, model_id: str, status: str, message: Optional[str] = None) -> None:
+    def update_deploy_status(
+        self, model_id: str, status: str, message: Optional[str] = None
+    ) -> None:
         """
         Updates the deployment status.
 

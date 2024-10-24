@@ -1,9 +1,10 @@
 import json
 import os
 import traceback
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
-from datetime import datetime
+
 from auth.jwt import (
     AuthenticatedUser,
     now_plus_minutes,
@@ -14,10 +15,10 @@ from backend.auth_dependencies import is_model_owner, verify_model_read_access
 from backend.startup_jobs import start_on_prem_generate_job
 from backend.utils import (
     delete_nomad_job,
-    get_model_from_identifier,
-    get_model_status,
     get_detailed_reasons,
     get_job_logs,
+    get_model_from_identifier,
+    get_model_status,
     get_platform,
     get_python_path,
     list_all_dependencies,

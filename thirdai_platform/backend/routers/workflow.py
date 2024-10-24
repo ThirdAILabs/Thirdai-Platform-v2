@@ -1,3 +1,4 @@
+import pathlib
 import uuid
 from typing import List, Optional
 
@@ -13,6 +14,21 @@ from sqlalchemy.orm import Session
 
 workflow_router = APIRouter()
 
+root_folder = pathlib.Path(__file__).parent
+
+docs_file = root_folder.joinpath("../../docs/workflow_endpoints.txt")
+
+with open(docs_file) as f:
+    worklfow_docs = f.read()
+
+
+def get_section(header: str) -> str:
+    sections = worklfow_docs.split("---")
+    for section in sections:
+        if header in section:
+            return section.strip()
+    return "Documentation not found."
+
 
 class EnterpriseSearchOptions(BaseModel):
     retrieval_id: str
@@ -26,7 +42,11 @@ class EnterpriseSearchOptions(BaseModel):
         return list(filter(lambda x: x is not None, deps))
 
 
-@workflow_router.post("/enterprise-search")
+@workflow_router.post(
+    "/enterprise-search",
+    summary="Create Enterprise Search Workflow",
+    description=get_section("Create Enterprise Search Workflow"),
+)
 def create_enterprise_search_workflow(
     workflow_name: str,
     options: EnterpriseSearchOptions,

@@ -12,6 +12,7 @@ from urllib.parse import urljoin
 
 import bcrypt
 import requests
+import sqlalchemy as sa
 from database import schema
 from fastapi import HTTPException, status
 from jinja2 import Template
@@ -19,7 +20,6 @@ from licensing.verify.verify_license import valid_job_allocation, verify_license
 from platform_common.pydantic_models.training import LabelEntity
 from platform_common.thirdai_storage import data_types, storage
 from sqlalchemy.orm import Session
-import sqlalchemy as sa
 
 logger = logging.getLogger("ThirdAI_Platform")
 

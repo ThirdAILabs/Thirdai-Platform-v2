@@ -73,7 +73,6 @@ def verify_access_token(
         )
 
         try:
-            print("Access Token: ", access_token)
             decoded_token = jwt.decode(
                 access_token,
                 key=KEYCLOAK_PUBLIC_KEY,

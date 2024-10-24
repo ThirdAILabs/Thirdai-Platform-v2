@@ -44,8 +44,6 @@ export const authOptions: AuthOptions = {
   },
   callbacks: {
     async jwt({ token, account }) {
-      console.log('JWT callback triggered:', { token, account });
-    
       if (account) {
         token.idToken = account.id_token;
         token.accessToken = account.access_token;
@@ -56,10 +54,8 @@ export const authOptions: AuthOptions = {
       }
     
       if (Date.now() < token.expiresAt! * 1000 - 60 * 1000) {
-        console.log('Access token is still valid:', token);
         return token;
       } else {
-        console.log('Access token expired, attempting refresh:', token);
         try {
           const response = await requestRefreshOfAccessToken(token);
           const tokens: TokenSet = await response.json();
@@ -83,7 +79,6 @@ export const authOptions: AuthOptions = {
     },
     async session({ session, token }) {
       session.accessToken = token.accessToken;
-      console.log("Session Acess Token: ", session.accessToken);
       session.error = token.error;
       session.expiresAt = token.expiresAt;
       return session;

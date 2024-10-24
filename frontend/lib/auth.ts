@@ -85,6 +85,7 @@ export const authOptions: AuthOptions = {
       session.accessToken = token.accessToken;
       console.log("Session Acess Token: ", session.accessToken);
       session.error = token.error;
+      session.expiresAt = token.expiresAt;
       return session;
     },
   },

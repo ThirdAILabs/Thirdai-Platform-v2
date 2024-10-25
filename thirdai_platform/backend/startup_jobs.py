@@ -59,7 +59,7 @@ ON_PREM_GENERATE_JOB_ID = "on-prem-llm-generation"
 
 
 async def start_on_prem_generate_job(
-    model_name: str = "Llama-3.2-3B-Instruct-f16.gguf",
+    model_name: str = "Llama-3.2-1B-Instruct-f16.gguf",
     restart_if_exists: bool = True,
     autoscaling_enabled: bool = True,
     cores_per_allocation: Optional[int] = None,

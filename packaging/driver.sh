@@ -53,12 +53,10 @@ function install_ansible() {
 install_ansible
 
 VERBOSE=0  # Default: No verbose mode
-PLATFORM_IMAGE_BRANCH="release-test-main"  # Default value if not provided
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -v|--verbose) VERBOSE=1 ;;   # Enable verbose mode if -v or --verbose is passed
-        -b|--branch) PLATFORM_IMAGE_BRANCH="$2"; shift ;;  # Capture platform_image_branch if provided
         *) CONFIG_PATH=$(realpath "$1") ;;  # Treat the first argument as the config path
     esac
     shift
@@ -66,7 +64,7 @@ done
 
 # Check if config file is provided
 if [ -z "$CONFIG_PATH" ]; then
-    echo "Usage: $0 [-v|--verbose] [-b|--branch <branch_name>] /path/to/your/config.yml"
+    echo "Usage: $0 [-v|--verbose] /path/to/your/config.yml"
     exit 1
 fi
 
@@ -101,14 +99,9 @@ fi
 # Change directory to platform directory
 cd "$(dirname "$0")/platform" || exit 1
 
-# Warn if platform_image_branch was not provided and use default
-if [ "$PLATFORM_IMAGE_BRANCH" == "release-test-main" ]; then
-    echo "WARNING: No platform_image_branch specified. Using default 'release-test-main'."
-fi
-
 if [ "$VERBOSE" -eq 1 ]; then
     echo "Running in verbose mode (-vvvv)"
-    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH" -vvvv
+    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH" -vvvv
 else
-    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH"
+    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH"
 fi

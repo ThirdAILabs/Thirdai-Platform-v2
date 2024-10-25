@@ -52,7 +52,7 @@ export default function Teach() {
 
   return (
     <Container ref={containerRef}>
-      <Button style={{ width: '60px', height: '50px' }} onClick={togglePanel} variant='contained'>
+      <Button style={{ width: '60px', height: '50px' }} onClick={togglePanel} variant="contained">
         <TeachIcon $active={showPanel} />
       </Button>
       {showPanel && (

@@ -11,7 +11,7 @@ const SaveIcon = styled(FaSave)`
 
 export default function SaveButton(props: { onClick: () => void }) {
   return (
-    <Button style={{ height: '100%' }} onClick={props.onClick} variant='contained'>
+    <Button style={{ height: '100%' }} onClick={props.onClick} variant="contained">
       <SaveIcon />
     </Button>
   );

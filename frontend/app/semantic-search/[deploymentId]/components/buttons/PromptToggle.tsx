@@ -13,7 +13,7 @@ const PromptIcon = styled(PromptSVG)`
 
 export default function PromptToggle(props: { onClick: () => void }) {
   return (
-    <Button style={{ height: '100%' }} onClick={props.onClick} variant='contained'>
+    <Button style={{ height: '100%' }} onClick={props.onClick} variant="contained">
       <PromptIcon />
     </Button>
   );

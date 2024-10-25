@@ -235,7 +235,7 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
                 value={category.description}
                 onChange={(e) => handleCategoryChange(index, 'description', e.target.value)}
               />
-              <Button variant="contained" color='error' onClick={() => handleRemoveCategory(index)}>
+              <Button variant="contained" color="error" onClick={() => handleRemoveCategory(index)}>
                 Remove
               </Button>
             </div>
@@ -243,13 +243,13 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
           <Button
             style={{ marginTop: '10px', width: 'fit-content' }}
             onClick={handleAddAndReviewCategory}
-            variant='contained'
+            variant="contained"
           >
             Add Category
           </Button>
           {categories.length > 0 && (
             <Button
-              variant='contained'
+              variant="contained"
               style={{ marginTop: '30px' }}
               onClick={generateData}
               color={isDataGenerating ? 'success' : 'primary'}
@@ -309,7 +309,7 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
             >
               Redefine Tokens
             </Button>
-            <Button style={{ width: '100%' }} onClick={handleCreateSCModel} variant='contained'>
+            <Button style={{ width: '100%' }} onClick={handleCreateSCModel} variant="contained">
               Create
             </Button>
           </div>

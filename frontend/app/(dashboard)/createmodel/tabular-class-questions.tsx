@@ -200,7 +200,7 @@ const TabularClassificationQuestions: React.FC<TabularClassificationQuestionsPro
           onClick={submit}
           style={{ marginTop: '30px', width: '100%' }}
           disabled={isLoading || !csvFile || !!warningMessage || !targetColumn}
-          variant='contained'
+          variant="contained"
         >
           {isLoading ? (
             <div className="flex items-center">

@@ -48,7 +48,7 @@ export default function RetrainButton({ modelName, username }: RetrainButtonProp
           onChange={(e) => setNewModelName(e.target.value)}
           className="w-64"
         />
-        <Button onClick={handleCreateNewModel} disabled={isRetraining} variant='contained'>
+        <Button onClick={handleCreateNewModel} disabled={isRetraining} variant="contained">
           Create new model with feedback
         </Button>
       </div>

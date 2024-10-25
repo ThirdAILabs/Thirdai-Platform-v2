@@ -12,7 +12,7 @@ import SaveButton from './buttons/SaveButton';
 import SearchTextInput from './SearchTextInput';
 import Modal from './Modal';
 import { Input } from '@/components/ui/input';
-import { TextField } from '@mui/material'
+import { TextField } from '@mui/material';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { fetchAutoCompleteQueries } from '@/lib/backend';
 import { debounce } from 'lodash';
@@ -104,7 +104,7 @@ function ModelDescription(props: ModelDescriptionProps) {
       <Spacer $width="7px" />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant='contained' className="h-8 gap-1" onClick={props.onClickViewDocuments}>
+          <Button variant="contained" className="h-8 gap-1" onClick={props.onClickViewDocuments}>
             View Documents
           </Button>
         </DropdownMenuTrigger>
@@ -343,8 +343,12 @@ export default function SearchBar({
             <>
               {error && <ErrorMessage>{error}</ErrorMessage>}
               <ButtonGroup>
-                <Button onClick={handleOverride} variant='contained'>Override</Button>
-                <Button onClick={handleShowModelNameInput} variant='contained'>Save as New</Button>
+                <Button onClick={handleOverride} variant="contained">
+                  Override
+                </Button>
+                <Button onClick={handleShowModelNameInput} variant="contained">
+                  Save as New
+                </Button>
               </ButtonGroup>
             </>
           ) : (
@@ -357,8 +361,12 @@ export default function SearchBar({
               />
               {error && <ErrorMessage>{error}</ErrorMessage>}
               <ButtonGroup>
-                <Button onClick={handleBack} variant='contained' color='error'>Back</Button>
-                <Button onClick={handleSaveAsNew} variant='contained'>Submit</Button>
+                <Button onClick={handleBack} variant="contained" color="error">
+                  Back
+                </Button>
+                <Button onClick={handleSaveAsNew} variant="contained">
+                  Submit
+                </Button>
               </ButtonGroup>
             </>
           )}

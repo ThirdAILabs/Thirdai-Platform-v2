@@ -149,8 +149,8 @@ const FeedbackDashboard: React.FC<FeedbackDashboardProps> = ({
           currentToken={token}
           nextToken={null}
           tagColors={tagColors}
-          onMouseOver={() => { }}
-          onMouseDown={() => { }}
+          onMouseOver={() => {}}
+          onMouseDown={() => {}}
           selecting={false}
           selected={false}
         />
@@ -169,8 +169,8 @@ const FeedbackDashboard: React.FC<FeedbackDashboardProps> = ({
           <div className="flex items-start">
             <div style={{ flex: 1, lineHeight: 2 }}>{renderFeedbackContent(tags)}</div>
             <Button
-              variant='contained'
-              color='error'
+              variant="contained"
+              color="error"
               onClick={() => deleteFeedbackExample(feedbackKey)}
               className="ml-2 px-2 h-6 text-xs"
             >
@@ -181,7 +181,7 @@ const FeedbackDashboard: React.FC<FeedbackDashboardProps> = ({
       ))}
       <Separator />
       <Button
-        variant='contained'
+        variant="contained"
         className="mt-4"
         onClick={submitFeedback}
         disabled={Object.keys(cachedTags).length === 0}

@@ -195,7 +195,7 @@ export default function Sources(props: SourcesProps) {
           onClick={() => {
             setOpen(true);
           }}
-          variant='contained'
+          variant="contained"
         >
           Add Documents
         </Button>
@@ -238,7 +238,7 @@ export default function Sources(props: SourcesProps) {
                     modelService!.deleteSources([source.source_id]);
                     props.setSources(props.sources.filter((x) => x.source_id !== source.source_id));
                   }}
-                  variant='contained'
+                  variant="contained"
                 >
                   ✕
                 </Button>

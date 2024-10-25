@@ -56,7 +56,7 @@ function AnalyticsContent() {
       </div>
     );
   else if (workflowtype == 'ndb') {
-    console.log("update button, ", modelName);
+    console.log('update button, ', modelName);
     return (
       <>
         <UsageStats />

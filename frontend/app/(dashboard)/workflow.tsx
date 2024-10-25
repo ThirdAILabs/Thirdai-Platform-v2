@@ -484,7 +484,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                     setTimeout(() => {
                       document.body.removeChild(notification);
                     }, 2000);
-                    
+
                     setShowErrorModal(false);
                   } catch (err) {
                     console.error('Failed to download logs:', err);

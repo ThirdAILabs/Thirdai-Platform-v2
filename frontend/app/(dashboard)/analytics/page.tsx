@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import RecentSamples from './samples';
 import RecentFeedbacks from './recentFeedbacks';
 import UpdateButton from './updateButton';
+import UpdateButtonNDB from './updateButtonNDB';
 import UsageStats from './usageStats';
 import { UsageDurationChart, UsageFrequencyChart, ReformulatedQueriesChart } from './charts';
 import { useEffect, useState, Suspense } from 'react';
@@ -61,7 +62,7 @@ function AnalyticsContent() {
       <>
         <UsageStats />
         <RecentFeedbacks />
-        {modelName && <UpdateButton modelName={modelName} />}
+        {modelName && <UpdateButtonNDB modelName={modelName} />}
       </>
     );
   }

@@ -19,6 +19,8 @@ enum SourceType {
   S3 = 's3',
   LOCAL = 'local',
   NSF = 'nsf',
+  AZURE = 'azure',
+  GCP = 'gcp',
 }
 
 enum IndexingType {
@@ -83,6 +85,28 @@ const SemanticSearchQuestions = ({
 
     const newFileCount = [...fileCount];
     newFileCount[index] = 1; // It's a single path
+    setFileCount(newFileCount);
+  };
+
+  const setAzureSourceValue = (index: number, url: string) => {
+    const newSources = [...sources];
+    const file = new File([], url); // Create a dummy File object with the Azure URL as the name
+    newSources[index].files = [file];
+    setSources(newSources);
+
+    const newFileCount = [...fileCount];
+    newFileCount[index] = 1; // Since it's a single Azure URL
+    setFileCount(newFileCount);
+  };
+
+  const setGCPSourceValue = (index: number, url: string) => {
+    const newSources = [...sources];
+    const file = new File([], url); // Create a dummy File object with the GCP URL as the name
+    newSources[index].files = [file];
+    setSources(newSources);
+
+    const newFileCount = [...fileCount];
+    newFileCount[index] = 1; // Since it's a single GCP URL
     setFileCount(newFileCount);
   };
 
@@ -263,12 +287,35 @@ const SemanticSearchQuestions = ({
                 placeholder="Enter NSF server file path"
               />
             )}
+            {type === SourceType.AZURE && (
+              <TextField
+                className="text-md w-full"
+                onChange={(e) => setAzureSourceValue(index, e.target.value)}
+                placeholder="Enter Azure Blob Storage URL"
+              />
+            )}
+            {type === SourceType.GCP && (
+              <TextField
+                className="text-md w-full"
+                onChange={(e) => setGCPSourceValue(index, e.target.value)}
+                placeholder="Enter Google Storage gs URL"
+              />
+            )}
             <Button variant="contained" color="error" onClick={() => deleteSource(index)}>
               Delete
             </Button>
           </div>
         </div>
       ))}
+
+      <div style={{ marginTop: '10px' }}>
+        <Button onClick={() => addSource(SourceType.AZURE)} variant="contained">
+          Add Azure File
+        </Button>
+        <Button onClick={() => addSource(SourceType.GCP)} variant="contained">
+          Add GCP File
+        </Button>
+      </div>
 
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
         <Button onClick={() => addSource(SourceType.LOCAL)} variant="contained">

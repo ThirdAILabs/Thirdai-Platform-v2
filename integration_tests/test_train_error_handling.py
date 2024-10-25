@@ -1,8 +1,7 @@
 import uuid
-
-import pytest
 from urllib.parse import urljoin
 
+import pytest
 
 from client.bazaar import ModelBazaar
 from client.utils import auth_header, http_get_with_error

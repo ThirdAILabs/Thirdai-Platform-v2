@@ -142,8 +142,8 @@ function HighlightedSample({ tokens, tags, tagColors }: HighlightedSampleProps) 
             index < tokens.length - 1 ? { text: tokens[index + 1], tag: tags[index + 1] } : null
           }
           tagColors={tagColors}
-          onMouseOver={() => { }}
-          onMouseDown={() => { }}
+          onMouseOver={() => {}}
+          onMouseDown={() => {}}
           selecting={false}
           selected={false}
         />

@@ -6,7 +6,7 @@ import TeachPanel from './TeachPanel';
 import useClickOutside from './hooks/useClickOutside';
 import { ModelServiceContext } from '../Context';
 import { ModelService } from '../modelServices';
-import { Button } from '@/components/ui/button';
+import { Button } from '@mui/material';
 
 const Container = styled.section`
   width: 50px;
@@ -52,7 +52,7 @@ export default function Teach() {
 
   return (
     <Container ref={containerRef}>
-      <Button style={{ width: '60px', height: '50px' }} onClick={togglePanel}>
+      <Button style={{ width: '60px', height: '50px' }} onClick={togglePanel} variant='contained'>
         <TeachIcon $active={showPanel} />
       </Button>
       {showPanel && (

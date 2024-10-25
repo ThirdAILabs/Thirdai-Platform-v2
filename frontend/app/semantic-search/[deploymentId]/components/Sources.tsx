@@ -9,7 +9,7 @@ import { ModelServiceContext } from '../Context';
 import FileUploadModal from './FileUploadModal';
 import { DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Button } from '@mui/material';
 
 interface SourcesProps {
   sources: Source[];
@@ -195,6 +195,7 @@ export default function Sources(props: SourcesProps) {
           onClick={() => {
             setOpen(true);
           }}
+          variant='contained'
         >
           Add Documents
         </Button>
@@ -237,6 +238,7 @@ export default function Sources(props: SourcesProps) {
                     modelService!.deleteSources([source.source_id]);
                     props.setSources(props.sources.filter((x) => x.source_id !== source.source_id));
                   }}
+                  variant='contained'
                 >
                   ✕
                 </Button>

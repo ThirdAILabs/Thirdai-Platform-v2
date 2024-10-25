@@ -32,12 +32,10 @@ function AnalyticsContent() {
 
           console.log('workflowDetails', workflowDetails);
           setWorkflowType(workflowDetails.data.type);
-          if (workflowDetails.data.type === 'udt') {
-            console.log(`here is: ${deploymentBaseUrl}/${workflowDetails.data.model_id}`);
-            setDeploymentUrl(`${deploymentBaseUrl}/${workflowDetails.data.model_id}`);
-            setModelName(workflowDetails.data.model_name);
-            setUsername(workflowDetails.data.username);
-          }
+          console.log(`here is: ${deploymentBaseUrl}/${workflowDetails.data.model_id}`);
+          setDeploymentUrl(`${deploymentBaseUrl}/${workflowDetails.data.model_id}`);
+          setModelName(workflowDetails.data.model_name);
+          setUsername(workflowDetails.data.username);
         } catch (err) {
           console.error('Error fetching workflow details:', err);
         }
@@ -58,11 +56,12 @@ function AnalyticsContent() {
       </div>
     );
   else if (workflowtype == 'ndb') {
+    console.log("update button, ", modelName);
     return (
       <>
         <UsageStats />
         <RecentFeedbacks />
-        {/* <UpdateButton /> */}
+        {modelName && <UpdateButton modelName={modelName} />}
       </>
     );
   }

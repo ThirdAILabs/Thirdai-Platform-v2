@@ -1647,11 +1647,9 @@ export async function fetchFeedback() {
       },
     });
 
-
     return response?.data?.data;
   } catch (error) {
     console.error('Error getting Feedback Response:', error);
     throw error;
   }
 }
-

@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { FaSave } from 'react-icons/fa';
-import { Button } from '@/components/ui/button';
+import { Button } from '@mui/material';
 
 const SaveIcon = styled(FaSave)`
   cursor: pointer;
@@ -11,7 +11,7 @@ const SaveIcon = styled(FaSave)`
 
 export default function SaveButton(props: { onClick: () => void }) {
   return (
-    <Button style={{ height: '100%' }} onClick={props.onClick}>
+    <Button style={{ height: '100%' }} onClick={props.onClick} variant='contained'>
       <SaveIcon />
     </Button>
   );

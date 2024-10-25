@@ -175,7 +175,7 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
 
   return (
     <DropdownMenuContent
-      className="w-[300px] max-h-[400px] overflow-hidden flex flex-col"
+      className="w-[400px] max-h-[400px] overflow-hidden flex flex-col"
       align="start"
       side="bottom"
     >
@@ -237,6 +237,15 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
               size="small"
               className="min-w-0 px-2 py-0 h-6 text-xs"
               disabled={currentPage === 0}
+              onClick={() => handlePageChange(0)}
+              variant="outlined"
+            >
+              First
+            </Button>
+            <Button
+              size="small"
+              className="min-w-0 px-2 py-0 h-6 text-xs"
+              disabled={currentPage === 0}
               onClick={() => handlePageChange(currentPage - 1)}
               variant="outlined"
             >
@@ -253,6 +262,15 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
               variant="outlined"
             >
               Next
+            </Button>
+            <Button
+              size="small"
+              className="min-w-0 px-2 py-0 h-6 text-xs"
+              disabled={currentPage >= totalPages - 1}
+              onClick={() => handlePageChange(totalPages - 1)}
+              variant="outlined"
+            >
+              Last
             </Button>
           </div>
         </div>

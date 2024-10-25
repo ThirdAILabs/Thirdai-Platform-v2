@@ -56,13 +56,14 @@ const Logo = styled.img`
 `;
 
 const SearchContainer = styled.section<{ $center: boolean }>`
-  position: relative; /* Changed from fixed to relative */
+  position: relative;
   width: 70%;
   left: 10%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  height: ${(props) => (props.$center ? '100%' : 'fit-content')};
+  justify-content: ${(props) => (props.$center ? 'flex-start' : 'flex-start')};
+  padding-top: ${(props) => (props.$center ? '35vh' : '100px')}; // Increased padding-top values
+  height: ${(props) => (props.$center ? 'fit-content' : 'fit-content')};
   z-index: 100;
 `;
 

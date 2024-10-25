@@ -246,7 +246,7 @@ const SemanticSearchQuestions = ({
       <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
         Sources
       </span>
-      <CardDescription>Select files to search over.</CardDescription>
+      <CardDescription>Select files from:</CardDescription>
 
       {sources.map(({ type }, index) => (
         <div key={index}>
@@ -308,21 +308,18 @@ const SemanticSearchQuestions = ({
         </div>
       ))}
 
-      <div style={{ marginTop: '10px' }}>
-        <Button onClick={() => addSource(SourceType.AZURE)} variant="contained">
-          Add Azure File
-        </Button>
-        <Button onClick={() => addSource(SourceType.GCP)} variant="contained">
-          Add GCP File
-        </Button>
-      </div>
-
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
         <Button onClick={() => addSource(SourceType.LOCAL)} variant="contained">
-          Add Local File
+          Local
         </Button>
         <Button onClick={() => addSource(SourceType.S3)} variant="contained">
-          Add S3 File
+          S3 Bucket
+        </Button>
+        <Button onClick={() => addSource(SourceType.AZURE)} variant="contained">
+          Azure Bucket
+        </Button>
+        <Button onClick={() => addSource(SourceType.GCP)} variant="contained">
+          GCP Bucket
         </Button>
       </div>
 

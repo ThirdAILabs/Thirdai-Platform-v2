@@ -26,7 +26,7 @@ const TriggerIcon = styled.button<{ $isVisible: boolean }>`
   right: 20px;
   transform: translateY(-50%);
   cursor: pointer;
-  background-color: #1a1a1a;
+  background-color: rgb(16, 33, 150); // Navy blue to match the button
   border: none;
   border-radius: 8px;
   width: 48px;
@@ -38,7 +38,7 @@ const TriggerIcon = styled.button<{ $isVisible: boolean }>`
   transition: all 0.3s ease;
 
   &:hover {
-    background-color: #333;
+    background-color: rgb(13, 27, 121); // Slightly darker navy blue for hover
   }
 
   svg {
@@ -123,7 +123,7 @@ const SidePanel: React.FC<SidePanelProps> = ({ chatEnabled, cacheEnabled, setCac
                     <button
                       onClick={() => setCacheEnabled(!cacheEnabled)}
                       className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors duration-300 focus:outline-none ${
-                        cacheEnabled ? 'bg-blue-500' : 'bg-gray-300'
+                        cacheEnabled ? 'bg-[rgb(16,33,150)]' : 'bg-gray-300'
                       }`}
                     >
                       <span

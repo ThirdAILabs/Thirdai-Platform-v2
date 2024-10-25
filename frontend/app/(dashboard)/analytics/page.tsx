@@ -33,10 +33,22 @@ function AnalyticsContent() {
 
           console.log('workflowDetails', workflowDetails);
           setWorkflowType(workflowDetails.data.type);
-          console.log(`here is: ${deploymentBaseUrl}/${workflowDetails.data.model_id}`);
-          setDeploymentUrl(`${deploymentBaseUrl}/${workflowDetails.data.model_id}`);
-          setModelName(workflowDetails.data.model_name);
-          setUsername(workflowDetails.data.username);
+          
+          if (workflowDetails.data.type === 'enterprise-search' && workflowDetails.data.dependencies?.length > 0) {
+            // For enterprise-search, use the first dependency's details
+            const firstDependency = workflowDetails.data.dependencies[0];
+            console.log('firstDependency', firstDependency)
+            console.log(`here is: ${deploymentBaseUrl}/${firstDependency.model_id}`);
+            setDeploymentUrl(`${deploymentBaseUrl}/${firstDependency.model_id}`);
+            setModelName(firstDependency.model_name);
+            setUsername(firstDependency.username);
+          } else {
+            // For other types, use the original logic
+            console.log(`here is: ${deploymentBaseUrl}/${workflowDetails.data.model_id}`);
+            setDeploymentUrl(`${deploymentBaseUrl}/${workflowDetails.data.model_id}`);
+            setModelName(workflowDetails.data.model_name);
+            setUsername(workflowDetails.data.username);
+          }
         } catch (err) {
           console.error('Error fetching workflow details:', err);
         }
@@ -56,12 +68,12 @@ function AnalyticsContent() {
         {modelName && <UpdateButton modelName={modelName} />}
       </div>
     );
-  else if (workflowtype == 'ndb') {
+  else if (workflowtype == 'ndb' || workflowtype == 'enterprise-search') {
     console.log('update button, ', modelName);
     return (
       <>
         <UsageStats />
-        <RecentFeedbacks />
+        <RecentFeedbacks username={username} modelName={modelName} />
         {modelName && <UpdateButtonNDB modelName={modelName} />}
       </>
     );

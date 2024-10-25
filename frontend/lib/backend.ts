@@ -1629,14 +1629,10 @@ export async function temporaryCacheToken(modelId: string) {
   }
 }
 
-export async function fetchFeedback() {
-  const url = new URL(window.location.href);
-  const params = new URLSearchParams(url.search);
-  const userName = params.get('username');
-  const modelName = params.get('model_name');
-  const modelIdentifier = `${userName}/${modelName}`;
+export async function fetchFeedback(username: string, modelName: string) {
+  const modelIdentifier = `${username}/${modelName}`;
   const accessToken = getAccessToken();
-  // console.log("modelIdentifier ", modelIdentifier);
+
   try {
     const response = await axios({
       method: 'get',

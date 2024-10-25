@@ -31,26 +31,36 @@ function TextPairs({ timestamp, label1, label2, text1, text2 }: TextPairsProps) 
   );
 }
 
-export default function RecentFeedbacks() {
+// RecentFeedbacks component updates:
+interface RecentFeedbacksProps {
+  username: string;
+  modelName: string;
+}
+
+export default function RecentFeedbacks({ username, modelName }: RecentFeedbacksProps) {
   const [recentUpvotes, setRecentUpvotes] = useState([]);
   const [recentAssociations, setRecentAssociations] = useState([]);
 
   //This will ensure the realtime fetching of feedbacks data from backend after every 5 seconds.
   useEffect(() => {
-    getFeedbackData();
-    // Set up the interval
-    const intervalId = setInterval(() => {
+    if (username && modelName) {
       getFeedbackData();
-    }, 5000);
-    // Clear the interval on component unmount
-    return () => clearInterval(intervalId);
-  }, []);
+      const intervalId = setInterval(() => {
+        getFeedbackData();
+      }, 5000);
+      return () => clearInterval(intervalId);
+    }
+  }, [username, modelName]);
 
   const getFeedbackData = async () => {
-    const data = await fetchFeedback();
-    console.log('recent feedback data -> ', data);
-    setRecentUpvotes(data?.upvote);
-    setRecentAssociations(data?.associate);
+    try {
+      const data = await fetchFeedback(username, modelName);
+      console.log('recent feedback data -> ', data);
+      setRecentUpvotes(data?.upvote);
+      setRecentAssociations(data?.associate);
+    } catch (error) {
+      console.error('Error fetching feedback:', error);
+    }
   };
 
   return (

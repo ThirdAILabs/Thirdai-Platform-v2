@@ -294,14 +294,14 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                             console.error('Error deleting workflow:', error);
                             alert('Error deleting workflow:' + error);
                           }
-                        }
-                      }}
-                    >
-                      Delete App
-                    </button>
-                  </form>
-                </DropdownMenuItem>
-              )}
+                      }
+                    }}
+                  >
+                    Delete App
+                  </button>
+                </form>
+              </DropdownMenuItem>
+            )}
 
             {workflow.type === 'enterprise-search' && (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
                 <Link

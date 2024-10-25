@@ -101,7 +101,15 @@ def check_upvote_dev_mode(client: TestClient):
 
     res = client.post(
         "/upvote",
-        json={"text_id_pairs": [{"query_text": random_query, "reference_id": 78}]},
+        json={
+            "text_id_pairs": [
+                {
+                    "query_text": random_query,
+                    "reference_id": 78,
+                    "reference_text": "This is the corresponding reference text.",
+                }
+            ]
+        },
     )
     assert res.status_code == 200
 
@@ -202,7 +210,15 @@ def check_upvote_prod_mode(client: TestClient):
     # Here 78 is just a random chunk that we are upvoting for this query
     res = client.post(
         "/upvote",
-        json={"text_id_pairs": [{"query_text": random_query, "reference_id": 78}]},
+        json={
+            "text_id_pairs": [
+                {
+                    "query_text": random_query,
+                    "reference_id": 78,
+                    "reference_text": "This is the corresponding reference text.",
+                }
+            ]
+        },
     )
     assert res.status_code == 202
 

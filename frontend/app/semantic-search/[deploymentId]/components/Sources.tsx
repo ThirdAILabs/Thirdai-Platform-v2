@@ -139,6 +139,7 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
     refreshSources();
   };
 
+  // Update the renderPageNumbers function to use smaller buttons
   const renderPageNumbers = (): React.ReactNode[] => {
     const maxVisiblePages = 5;
     let pageNumbers: number[] = [];
@@ -163,9 +164,9 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
       <Button 
         key={pageNum}
         size="small"
+        className="min-w-0 w-6 h-6 p-0 text-xs"
         variant={currentPage === pageNum ? "contained" : "outlined"}
         onClick={() => handlePageChange(pageNum)}
-        className="min-w-[32px]"
       >
         {pageNum + 1}
       </Button>
@@ -174,21 +175,22 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
 
   return (
     <DropdownMenuContent
-      className="w-[400px] max-h-[500px] overflow-hidden flex flex-col"
+      className="w-[300px] max-h-[400px] overflow-hidden flex flex-col"
       align="start"
       side="bottom"
     >
-      <div className="p-2 border-b">
+      <div className="p-1 border-b">
         <Input
           autoFocus
-          className="font-medium mb-2"
-          placeholder="Filter documents by name..."
+          className="text-sm h-8"
+          placeholder="Filter documents..."
           value={searchTerm}
           onChange={handleSearchBarChangeEvent}
           onKeyDown={(e: React.KeyboardEvent) => e.stopPropagation()}
         />
         <Button
-          className="w-full mt-2"
+          size="small"
+          className="w-full mt-1 h-8 text-sm"
           onClick={() => setOpen(true)}
           variant="contained"
         >
@@ -196,11 +198,11 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
         </Button>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-[200px]">
+      <div className="flex-1 overflow-y-auto min-h-[150px] max-h-[250px]">
         {currentDocs.map((source, i) => (
           <DropdownMenuItem
             key={`${source.source_id}-${i}`}
-            className="flex justify-between items-center p-2 hover:bg-gray-100 cursor-pointer"
+            className="flex justify-between items-center py-1 px-2 hover:bg-gray-100 cursor-pointer text-sm"
             onClick={() => {
               if (source.originalSource?.source) {
                 const fileExtension = source.originalSource.source.split('.').pop()?.toLowerCase();
@@ -211,11 +213,12 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
               }
             }}
           >
-            <span className="truncate flex-1">
+            <span className="truncate flex-1 text-sm">
               {source.source}
             </span>
             <Button
-              className="min-w-[40px] h-8 ml-2 bg-transparent hover:bg-red-500 text-red-500 hover:text-white border border-red-500"
+              size="small"
+              className="min-w-[30px] h-6 ml-1 bg-transparent hover:bg-red-500 text-red-500 hover:text-white border border-red-500 text-xs p-0"
               onClick={(e) => handleDeleteSource(e, source.source_id)}
             >
               ✕
@@ -225,24 +228,26 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
       </div>
 
       {totalPages > 1 && (
-        <div className="p-2 border-t flex items-center justify-between bg-white">
-          <div className="text-sm text-gray-500">
+        <div className="p-1 border-t flex items-center justify-between bg-white">
+          <div className="text-xs text-gray-500">
             {`${startIndex + 1}-${endIndex} of ${matches.length}`}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             <Button
               size="small"
+              className="min-w-0 px-2 py-0 h-6 text-xs"
               disabled={currentPage === 0}
               onClick={() => handlePageChange(currentPage - 1)}
               variant="outlined"
             >
-              Previous
+              Prev
             </Button>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-[2px]">
               {renderPageNumbers()}
             </div>
             <Button
               size="small"
+              className="min-w-0 px-2 py-0 h-6 text-xs"
               disabled={currentPage >= totalPages - 1}
               onClick={() => handlePageChange(currentPage + 1)}
               variant="outlined"

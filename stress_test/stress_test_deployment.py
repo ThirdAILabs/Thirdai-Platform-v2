@@ -27,7 +27,7 @@ def parse_args():
     parser = argparse.ArgumentParser(add_help=False)
     # parser.add_argument("--host", type=str, default="http://98.82.179.129")
     parser.add_argument("--host", type=str, default="http://localhost:80")
-    parser.add_argument("--deployment_id", type=str, default="7be21289-d3d0-4308-a99f-b14ee07afe90")
+    parser.add_argument("--deployment_id", type=str, default="97a09b79-865b-4889-b5c4-6380b585033f")
     parser.add_argument("--email", type=str, default="david@thirdai.com")
     parser.add_argument("--password", type=str, default="password")
     parser.add_argument(
@@ -83,9 +83,37 @@ auth_token = login_details.access_token
 
 
 class ModelBazaarLoadTest(TaskSet):
+    @task(15)
+    def test_predict(self):
+        query = "Give me the summary of one of the papers about cancer"
+        headers = {
+            "Authorization": f"Bearer {auth_token}",
+        }
+
+        response = self.client.post(
+            f"/{args.deployment_id}/search",
+            json={"query": query, "top_k": 5},
+            headers=headers,
+            timeout=60,
+        )
+    
     # @task(1)
-    # def test_predict(self):
-    #     query = "test query"
+    # def test_chat(self):
+    #     query = "who is eligible"
+    #     headers = {
+    #         "Authorization": f"Bearer {auth_token}",
+    #     }
+
+    #     response = self.client.post(
+    #         f"/{args.deployment_id}/chat",
+    #         json={"user_input": query},
+    #         headers=headers,
+    #         timeout=60,
+    #     )
+
+    # @task(1)
+    # def test_search_and_generate(self):
+    #     query = "who is eligible"
     #     headers = {
     #         "Authorization": f"Bearer {auth_token}",
     #     }
@@ -97,60 +125,84 @@ class ModelBazaarLoadTest(TaskSet):
     #         timeout=60,
     #     )
 
+    #     references = [{"text": x["text"], "source": x["source"]} for x in response.json()["data"]["references"]]
+
+    #     response = self.client.post(
+    #         f"/llm-dispatch/generate",
+    #         json={
+    #             "query": query, 
+    #             "references": references, 
+    #             "key": "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"
+    #         },
+    #         headers=headers,
+    #         timeout=60,
+    #     )
+
+
     @task(1)
-    def test_chat(self):
-        query = "who is eligible"
-        # query = "who is eligible, please be as verbose as possible"
-        headers = {
-            "Authorization": f"Bearer {auth_token}",
-        }
+    def test_insert(self):
+        def doc_dir():
+            return "/home/david/ThirdAI-Platform/thirdai_platform/train_job/sample_docs"
+            
+    
+        documents = [
+            {"path": "mutual_nda.pdf", "location": "local"},
+            {"path": "four_english_words.docx", "location": "local"},
+            {"path": "supervised.csv", "location": "local"},
+        ]
 
-        response = self.client.post(
-            f"/{args.deployment_id}/search",
-            json={"query": query, "top_k": 5},
-            headers=headers,
-            timeout=60,
+        files = [
+            *[
+                ("files", open(os.path.join(doc_dir(), doc["path"]), "rb"))
+                for doc in documents
+            ],
+            ("documents", (None, json.dumps({"documents": documents}), "application/json")),
+        ]
+
+        res = self.client.post(
+            # f"/{args.deployment_id}/insert",
+            f"http://localhost:80/97a09b79-865b-4889-b5c4-6380b585033f/insert",
+            files=files,
+            headers = {
+                "Authorization": f"Bearer {auth_token}",
+            }
         )
-
-        references = [{"text": x["text"], "source": x["source"]} for x in response.json()["data"]["references"]]
-
-        import time
-        start = time.time()
-        response = self.client.post(
-            f"/llm-dispatch/generate",
-            json={"query": query, "references": references, "key": "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"},
-            headers=headers,
-            timeout=60,
-        )
-        print(time.time() - start)
-
+    
+    # @task(1)
+    # def test_delete(self):
+    #     pass
+    
+    # @task(1)
+    # def test_upvote(self):
+    #     pass
 
     # @task(1)
-    # def test_insert(self):
-    #     def doc_dir():
-    #         return os.path.join(
-    #             os.path.dirname(os.path.dirname(__file__)),
-    #             "thirdai_platform/train_job/sample_docs",
-    #         )
-        
-    #     documents = [
-    #         {"path": "mutual_nda.pdf", "location": "local"},
-    #         {"path": "four_english_words.docx", "location": "local"},
-    #         {"path": "supervised.csv", "location": "local"},
-    #     ]
+    # def test_associate(self):
+    #     pass
 
-    #     files = [
-    #         *[
-    #             ("files", open(os.path.join(doc_dir(), doc["path"]), "rb"))
-    #             for doc in documents
-    #         ],
-    #         ("documents", (None, json.dumps({"documents": documents}), "application/json")),
-    #     ]
+    # @task(1)
+    # def test_implicit_feedback(self):
+    #     pass
 
+    # @task(1)
+    # def test_save(self):
+    #     import uuid
     #     res = self.client.post(
-    #         f"/{args.deployment_id}/insert",
-    #         files=files,
+    #         f"{args.deployment_id}/save",
+    #         json={"override": False, "model_name": uuid.uuid4()},
+    #         headers = {
+    #             "Authorization": f"Bearer {auth_token}",
+    #         }
     #     )
+
+    @task(1)
+    def test_sources(self):
+        res = self.client.get(
+            f"{args.deployment_id}/insert",
+            headers = {
+                "Authorization": f"Bearer {auth_token}",
+            }
+        )
 
 
 class WebsiteUser(HttpUser):

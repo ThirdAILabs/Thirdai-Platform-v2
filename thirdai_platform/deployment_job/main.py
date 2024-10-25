@@ -22,8 +22,9 @@ from thirdai import licensing
 
 def load_config():
     with open(os.getenv("CONFIG_PATH")) as file:
-        return DeploymentConfig.model_validate_json(file.read())
-
+        config = DeploymentConfig.model_validate_json(file.read())
+        print(config.autoscaling_enabled)
+        return config
 
 config: DeploymentConfig = load_config()
 reporter = Reporter(config.model_bazaar_endpoint)

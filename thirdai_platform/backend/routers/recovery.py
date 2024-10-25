@@ -15,7 +15,7 @@ from backend.utils import (
 )
 from fastapi import APIRouter, Depends, HTTPException, status
 from platform_common.pydantic_models.recovery_snapshot import BackupConfig
-from platform_common.utils import response
+from platform_common.utils import get_section, response
 
 recovery_router = APIRouter()
 
@@ -27,22 +27,14 @@ root_folder = pathlib.Path(__file__).parent
 docs_file = root_folder.joinpath("../../docs/recovery_endpoints.txt")
 
 with open(docs_file) as f:
-    worklfow_docs = f.read()
-
-
-def get_section(header: str) -> str:
-    sections = worklfow_docs.split("---")
-    for section in sections:
-        if header in section:
-            return section.strip()
-    return "Documentation not found."
+    docs = f.read()
 
 
 @recovery_router.post(
     "/backup",
     dependencies=[Depends(verify_access_token)],
     summary="Backup",
-    description=get_section("Backup"),
+    description=get_section(docs, "Backup"),
 )
 def backup(config: BackupConfig):
     local_dir = os.getenv("SHARE_DIR")

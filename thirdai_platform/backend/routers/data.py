@@ -10,7 +10,7 @@ from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, status
 from platform_common.pydantic_models.training import JobOptions, LLMProvider
-from platform_common.utils import response
+from platform_common.utils import get_section, response
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
@@ -21,15 +21,7 @@ root_folder = pathlib.Path(__file__).parent
 docs_file = root_folder.joinpath("../../docs/data_endpoints.txt")
 
 with open(docs_file) as f:
-    worklfow_docs = f.read()
-
-
-def get_section(header: str) -> str:
-    sections = worklfow_docs.split("---")
-    for section in sections:
-        if header in section:
-            return section.strip()
-    return "Documentation not found."
+    docs = f.read()
 
 
 # Utility function to validate and process generation jobs (for both text and token generation)
@@ -80,7 +72,7 @@ def validate_and_generate_data(
     "/generate-text-data",
     dependencies=[Depends(get_current_user)],
     summary="Generate Text Data",
-    description=get_section("Generate Text Data"),
+    description=get_section(docs, "Generate Text Data"),
 )
 def generate_text_data_endpoint(
     task_prompt: str,
@@ -101,7 +93,7 @@ def generate_text_data_endpoint(
     "/generate-token-data",
     dependencies=[Depends(get_current_user)],
     summary="Generate Token Data",
-    description=get_section("Generate Token Data"),
+    description=get_section(docs, "Generate Token Data"),
 )
 def generate_token_data_endpoint(
     task_prompt: str,
@@ -153,7 +145,7 @@ def find_dataset(
     "/find-dataset",
     dependencies=[Depends(get_current_user)],
     summary="Find Datasets",
-    description=get_section("Find Datasets"),
+    description=get_section(docs, "Find Datasets"),
 )
 def find_datasets(
     task: schema.UDT_Task,

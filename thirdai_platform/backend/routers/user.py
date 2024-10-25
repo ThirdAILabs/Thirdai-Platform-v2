@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
-from platform_common.utils import response
+from platform_common.utils import get_section, response
 from pydantic import BaseModel
 from sqlalchemy import exists
 from sqlalchemy.orm import Session, selectinload
@@ -31,15 +31,7 @@ templates = Jinja2Templates(directory=template_directory)
 docs_file = root_folder.joinpath("../../docs/user_endpoints.txt")
 
 with open(docs_file) as f:
-    user_docs = f.read()
-
-
-def get_section(header: str) -> str:
-    sections = user_docs.split("---")
-    for section in sections:
-        if header in section:
-            return section.strip()
-    return "Documentation not found."
+    docs = f.read()
 
 
 class AccessToken(BaseModel):
@@ -127,7 +119,7 @@ def send_reset_password_code(email: str, reset_password_code: int):
 @user_router.post(
     "/email-signup-basic",
     summary="Email SignUp",
-    description=get_section("Email Signup"),
+    description=get_section(docs, "Email Signup"),
 )
 def email_signup(
     body: AccountSignupBody,
@@ -194,7 +186,7 @@ def email_signup(
     "/add-global-admin",
     dependencies=[Depends(global_admin_only)],
     summary="Add Global Admin",
-    description=get_section("Add Global Admin"),
+    description=get_section(docs, "Add Global Admin"),
 )
 def add_global_admin(
     admin_request: AdminRequest,
@@ -225,7 +217,7 @@ def add_global_admin(
     "/delete-global-admin",
     dependencies=[Depends(global_admin_only)],
     summary="Demote Global Admin",
-    description=get_section("Demote Global Admin"),
+    description=get_section(docs, "Demote Global Admin"),
 )
 def demote_global_admin(
     admin_request: AdminRequest,
@@ -271,7 +263,7 @@ def demote_global_admin(
 
 
 @user_router.delete(
-    "/delete-user", summary="Delete User", description=get_section("Delete User")
+    "/delete-user", summary="Delete User", description=get_section(docs, "Delete User")
 )
 def delete_user(
     admin_request: AdminRequest,
@@ -345,7 +337,7 @@ def email_verify(verification_token: str, session: Session = Depends(get_session
 
 
 @user_router.get(
-    "/email-login", summary="Email Login", description=get_section("Email Login")
+    "/email-login", summary="Email Login", description=get_section(docs, "Email Login")
 )
 def email_login(
     credentials: HTTPBasicCredentials = Depends(basic_security),
@@ -391,7 +383,7 @@ def email_login(
 @user_router.post(
     "/email-login-with-keycloak",
     summary="Email Login with Keycloak",
-    description=get_section("Email Login with Keycloak"),
+    description=get_section(docs, "Email Login with Keycloak"),
 )
 def email_login_with_keycloak(
     access_token: AccessToken,
@@ -441,7 +433,7 @@ def email_login_with_keycloak(
 @user_router.get(
     "/reset-password",
     summary="Reset Password",
-    description=get_section("Reset Password"),
+    description=get_section(docs, "Reset Password"),
 )
 def reset_password(
     email: str,
@@ -500,7 +492,9 @@ class VerifyResetPassword(BaseModel):
 
 
 @user_router.post(
-    "/new-password", summary="New Password", description=get_section("New Password")
+    "/new-password",
+    summary="New Password",
+    description=get_section(docs, "New Password"),
 )
 def reset_password_verify(
     body: VerifyResetPassword,
@@ -561,7 +555,7 @@ def reset_password_verify(
 @user_router.get(
     "/list",
     summary="List Accessible Users",
-    description=get_section("List Accessible Users"),
+    description=get_section(docs, "List Accessible Users"),
 )
 def list_accessible_users(
     session: Session = Depends(get_session),
@@ -618,7 +612,7 @@ def list_accessible_users(
 
 
 @user_router.get(
-    "/info", summary="Get User Info", description=get_section("Get User Info")
+    "/info", summary="Get User Info", description=get_section(docs, "Get User Info")
 )
 def get_user_info(
     session: Session = Depends(get_session),

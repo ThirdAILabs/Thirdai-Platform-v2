@@ -8,7 +8,7 @@ from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, status
 from platform_common.pydantic_models.training import ModelType, UDTSubType
-from platform_common.utils import response
+from platform_common.utils import get_section, response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -19,15 +19,7 @@ root_folder = pathlib.Path(__file__).parent
 docs_file = root_folder.joinpath("../../docs/workflow_endpoints.txt")
 
 with open(docs_file) as f:
-    worklfow_docs = f.read()
-
-
-def get_section(header: str) -> str:
-    sections = worklfow_docs.split("---")
-    for section in sections:
-        if header in section:
-            return section.strip()
-    return "Documentation not found."
+    docs = f.read()
 
 
 class EnterpriseSearchOptions(BaseModel):
@@ -45,7 +37,7 @@ class EnterpriseSearchOptions(BaseModel):
 @workflow_router.post(
     "/enterprise-search",
     summary="Create Enterprise Search Workflow",
-    description=get_section("Create Enterprise Search Workflow"),
+    description=get_section(docs, "Create Enterprise Search Workflow"),
 )
 def create_enterprise_search_workflow(
     workflow_name: str,

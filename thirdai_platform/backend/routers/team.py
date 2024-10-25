@@ -12,7 +12,7 @@ from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.encoders import jsonable_encoder
-from platform_common.utils import response
+from platform_common.utils import get_section, response
 from sqlalchemy.orm import Session, selectinload
 
 team_router = APIRouter()
@@ -22,22 +22,14 @@ root_folder = pathlib.Path(__file__).parent
 docs_file = root_folder.joinpath("../../docs/team_endpoints.txt")
 
 with open(docs_file) as f:
-    worklfow_docs = f.read()
-
-
-def get_section(header: str) -> str:
-    sections = worklfow_docs.split("---")
-    for section in sections:
-        if header in section:
-            return section.strip()
-    return "Documentation not found."
+    docs = f.read()
 
 
 @team_router.post(
     "/create-team",
     dependencies=[Depends(global_admin_only)],
     summary="Create Team",
-    description=get_section("Create Team"),
+    description=get_section(docs, "Create Team"),
 )
 def add_team(name: str, session: Session = Depends(get_session)):
     # `exists()` for existence check
@@ -61,7 +53,7 @@ def add_team(name: str, session: Session = Depends(get_session)):
     "/add-user-to-team",
     dependencies=[Depends(team_admin_or_global_admin)],
     summary="Add User to Team",
-    description=get_section("Add User to Team"),
+    description=get_section(docs, "Add User to Team"),
 )
 def add_user_to_team(
     email: str,
@@ -109,7 +101,7 @@ def add_user_to_team(
     "/assign-team-admin",
     dependencies=[Depends(team_admin_or_global_admin)],
     summary="Add User to Team",
-    description=get_section("Add User to Team"),
+    description=get_section(docs, "Add User to Team"),
 )
 def assign_team_admin(
     email: str,
@@ -162,7 +154,7 @@ def assign_team_admin(
     "/delete-team",
     dependencies=[Depends(global_admin_only)],
     summary="Delete Team",
-    description=get_section("Delete Team"),
+    description=get_section(docs, "Delete Team"),
 )
 def delete_team(team_id: str, session: Session = Depends(get_session)):
     team: Optional[schema.Team] = (
@@ -200,7 +192,7 @@ def delete_team(team_id: str, session: Session = Depends(get_session)):
     "/add-model-to-team",
     dependencies=[Depends(is_model_owner)],
     summary="Add Model to Team",
-    description=get_section("Add Model to Team"),
+    description=get_section(docs, "Add Model to Team"),
 )
 def add_model_to_team(
     model_identifier: str,
@@ -240,7 +232,7 @@ def add_model_to_team(
     "/remove-model-from-team",
     dependencies=[Depends(is_model_owner)],
     summary="Remove Model from Team",
-    description=get_section("Remove Model from Team"),
+    description=get_section(docs, "Remove Model from Team"),
 )
 def remove_model_from_team(
     model_identifier: str,
@@ -268,7 +260,7 @@ def remove_model_from_team(
     "/remove-user-from-team",
     dependencies=[Depends(team_admin_or_global_admin)],
     summary="Remove User from Team",
-    description=get_section("Remove User from Team"),
+    description=get_section(docs, "Remove User from Team"),
 )
 def remove_user_from_team(
     email: str,
@@ -310,7 +302,7 @@ def remove_user_from_team(
     "/remove-team-admin",
     dependencies=[Depends(team_admin_or_global_admin)],
     summary="Remove Team Admin",
-    description=get_section("Remove Team Admin"),
+    description=get_section(docs, "Remove Team Admin"),
 )
 def remove_team_admin(
     email: str,
@@ -349,7 +341,7 @@ def remove_team_admin(
 @team_router.get(
     "/list",
     summary="List Accessible Teams",
-    description=get_section("List Accessible Teams"),
+    description=get_section(docs, "List Accessible Teams"),
 )
 def list_accessible_teams(
     session: Session = Depends(get_session),
@@ -384,7 +376,7 @@ def list_accessible_teams(
     "/team-users",
     dependencies=[Depends(team_admin_or_global_admin)],
     summary="List Team Users",
-    description=get_section("List Team Users"),
+    description=get_section(docs, "List Team Users"),
 )
 def list_team_users(
     team_id: str,

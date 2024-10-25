@@ -49,7 +49,6 @@ export const authOptions: AuthOptions = {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
         token.expiresAt = account.expires_at;
-        console.log('JWT token updated with account:', token);
         return token;
       }
 

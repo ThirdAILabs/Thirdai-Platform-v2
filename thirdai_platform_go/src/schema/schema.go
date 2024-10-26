@@ -25,8 +25,6 @@ type Model struct {
 	UserId string
 	User   *User
 
-	Permissions []ModelPermission
-
 	TeamId *string
 	Team   *Team
 }
@@ -43,12 +41,6 @@ type ModelDependency struct {
 
 	Model      *Model `gorm:"foreignKey:ModelId"`
 	Dependency *Model `gorm:"foreignKey:DependencyId"`
-}
-
-type ModelPermission struct {
-	UserId     string `gorm:"primaryKey;constraint:OnDelete:CASCADE;"`
-	ModelId    string `gorm:"primaryKey;constraint:OnDelete:CASCADE;"`
-	Permission string
 }
 
 type User struct {

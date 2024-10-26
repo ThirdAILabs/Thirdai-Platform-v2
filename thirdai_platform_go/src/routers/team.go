@@ -16,8 +16,6 @@ type TeamRouter struct {
 	userAuth *auth.JwtManager
 }
 
-// TODO(Nicholas): add checks for duplicates, missing entities, etc.
-
 func (t *TeamRouter) Routes() chi.Router {
 	r := chi.NewRouter()
 
@@ -115,6 +113,14 @@ func (t *TeamRouter) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 	team := schema.Team{Id: params.Get("team_id")}
 
 	err := t.db.Transaction(func(db *gorm.DB) error {
+		exists, err := schema.TeamExists(db, team.Id)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return fmt.Errorf("team %v does not exists", team.Id)
+		}
+
 		result := db.Delete(&team)
 		if result.Error != nil {
 			return fmt.Errorf("database error: %v", result.Error)
@@ -145,9 +151,34 @@ func (t *TeamRouter) AddUserToTeam(w http.ResponseWriter, r *http.Request) {
 	teamId, userId := params.Get("team_id"), params.Get("user_id")
 
 	userTeam := schema.UserTeam{UserId: userId, TeamId: teamId}
-	result := t.db.Create(&userTeam)
-	if result.Error != nil {
-		dbError(w, result.Error)
+
+	err := t.db.Transaction(func(db *gorm.DB) error {
+		teamExists, err := schema.TeamExists(db, teamId)
+		if err != nil {
+			return err
+		}
+		if !teamExists {
+			return fmt.Errorf("team %v does not exists", teamId)
+		}
+
+		userExists, err := schema.UserExists(db, userId)
+		if err != nil {
+			return err
+		}
+		if !userExists {
+			return fmt.Errorf("user %v does not exists", userId)
+		}
+
+		result := db.Create(&userTeam)
+		if result.Error != nil {
+			return fmt.Errorf("database error: %v", result.Error)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -163,6 +194,22 @@ func (t *TeamRouter) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request) 
 	teamId, userId := params.Get("team_id"), params.Get("user_id")
 
 	err := t.db.Transaction(func(db *gorm.DB) error {
+		teamExists, err := schema.TeamExists(db, teamId)
+		if err != nil {
+			return err
+		}
+		if !teamExists {
+			return fmt.Errorf("team %v does not exists", teamId)
+		}
+
+		userExists, err := schema.UserExists(db, userId)
+		if err != nil {
+			return err
+		}
+		if !userExists {
+			return fmt.Errorf("user %v does not exists", userId)
+		}
+
 		result := db.Delete(&schema.UserTeam{UserId: userId, TeamId: teamId})
 		if result.Error != nil {
 			return fmt.Errorf("database error: %v", result.Error)
@@ -193,6 +240,22 @@ func (t *TeamRouter) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
 	teamId, modelId := params.Get("team_id"), params.Get("model_id")
 
 	err := t.db.Transaction(func(db *gorm.DB) error {
+		teamExists, err := schema.TeamExists(db, teamId)
+		if err != nil {
+			return err
+		}
+		if !teamExists {
+			return fmt.Errorf("team %v does not exists", teamId)
+		}
+
+		modelExists, err := schema.ModelExists(db, modelId)
+		if err != nil {
+			return err
+		}
+		if !modelExists {
+			return fmt.Errorf("model %v does not exists", modelId)
+		}
+
 		model, err := schema.GetModel(modelId, db, false, false, false)
 		if err != nil {
 			return err
@@ -222,16 +285,39 @@ func (t *TeamRouter) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
 
 func (t *TeamRouter) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
-	if !params.Has("model_id") {
-		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
+	if !params.Has("team_id") || !params.Has("model_id") {
+		http.Error(w, "'team_id' and 'model_id' query parameters missing", http.StatusBadRequest)
 		return
 	}
-	modelId := params.Get("model_id")
+	teamId, modelId := params.Get("team_id"), params.Get("model_id")
 
-	result := t.db.Model(&schema.Model{}).Where("model_id = ?", modelId).Update("team_id", nil)
+	err := t.db.Transaction(func(db *gorm.DB) error {
+		teamExists, err := schema.TeamExists(db, teamId)
+		if err != nil {
+			return err
+		}
+		if !teamExists {
+			return fmt.Errorf("team %v does not exists", teamId)
+		}
 
-	if result.Error != nil {
-		dbError(w, result.Error)
+		modelExists, err := schema.ModelExists(db, modelId)
+		if err != nil {
+			return err
+		}
+		if !modelExists {
+			return fmt.Errorf("model %v does not exists", modelId)
+		}
+
+		result := db.Model(&schema.Model{}).Where("id = ? and team_id = ?", modelId, teamId).Update("team_id", nil)
+		if result.Error != nil {
+			return fmt.Errorf("database error: %v", result.Error)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -246,9 +332,33 @@ func (t *TeamRouter) AssignTeamAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 	teamId, userId := params.Get("team_id"), params.Get("user_id")
 
-	result := t.db.Save(&schema.UserTeam{TeamId: teamId, UserId: userId, IsTeamAdmin: true})
-	if result.Error != nil {
-		dbError(w, result.Error)
+	err := t.db.Transaction(func(db *gorm.DB) error {
+		teamExists, err := schema.TeamExists(db, teamId)
+		if err != nil {
+			return err
+		}
+		if !teamExists {
+			return fmt.Errorf("team %v does not exists", teamId)
+		}
+
+		userExists, err := schema.UserExists(db, userId)
+		if err != nil {
+			return err
+		}
+		if !userExists {
+			return fmt.Errorf("user %v does not exists", userId)
+		}
+
+		result := db.Save(&schema.UserTeam{TeamId: teamId, UserId: userId, IsTeamAdmin: true})
+		if result.Error != nil {
+			return fmt.Errorf("database error: %v", result.Error)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -263,9 +373,33 @@ func (t *TeamRouter) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 	teamId, userId := params.Get("team_id"), params.Get("user_id")
 
-	result := t.db.Save(&schema.UserTeam{TeamId: teamId, UserId: userId, IsTeamAdmin: false})
-	if result.Error != nil {
-		http.Error(w, fmt.Sprintf("database error: %v", result.Error), http.StatusBadGateway)
+	err := t.db.Transaction(func(db *gorm.DB) error {
+		teamExists, err := schema.TeamExists(db, teamId)
+		if err != nil {
+			return err
+		}
+		if !teamExists {
+			return fmt.Errorf("team %v does not exists", teamId)
+		}
+
+		userExists, err := schema.UserExists(db, userId)
+		if err != nil {
+			return err
+		}
+		if !userExists {
+			return fmt.Errorf("user %v does not exists", userId)
+		}
+
+		result := db.Save(&schema.UserTeam{TeamId: teamId, UserId: userId, IsTeamAdmin: false})
+		if result.Error != nil {
+			return fmt.Errorf("database error: %v", result.Error)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -328,6 +462,16 @@ func (t *TeamRouter) TeamUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	teamId := params.Get("team_id")
+
+	teamExists, err := schema.TeamExists(t.db, teamId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !teamExists {
+		http.Error(w, fmt.Sprintf("team %v does not exist", teamId), http.StatusBadRequest)
+		return
+	}
 
 	var users []schema.UserTeam
 	result := t.db.Preload("User").Where("team_id = ?", teamId).Find(&users)

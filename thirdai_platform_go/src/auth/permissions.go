@@ -152,15 +152,6 @@ func ExpectHasModelReadAccess(modelId, userId string, db *gorm.DB) error {
 		return nil
 	}
 
-	permission, err := schema.GetModelPermission(modelId, userId, db)
-	if err != nil {
-		return err
-	}
-
-	if permission != nil {
-		return nil
-	}
-
 	return fmt.Errorf("user does not have permissions to access the model")
 }
 

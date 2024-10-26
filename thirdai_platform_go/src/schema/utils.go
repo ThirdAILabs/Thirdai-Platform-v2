@@ -65,15 +65,29 @@ func GetUserTeam(teamId, userId string, db *gorm.DB) (*UserTeam, error) {
 	return &team, nil
 }
 
-func GetModelPermission(modelId, userId string, db *gorm.DB) (*ModelPermission, error) {
-	var permission ModelPermission
-	result := db.First(&permission, "model_id = ? and user_id = ?", modelId, userId)
+func ModelExists(db *gorm.DB, modelId string) (bool, error) {
+	var model Model
+	result := db.Find(&model, "id = ?", modelId)
 	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("database error: %v", result.Error)
+		return false, fmt.Errorf("database error: %v", result.Error)
 	}
+	return result.RowsAffected > 0, nil
+}
 
-	return &permission, nil
+func UserExists(db *gorm.DB, userId string) (bool, error) {
+	var user User
+	result := db.Find(&user, "id = ?", userId)
+	if result.Error != nil {
+		return false, fmt.Errorf("database error: %v", result.Error)
+	}
+	return result.RowsAffected > 0, nil
+}
+
+func TeamExists(db *gorm.DB, teamId string) (bool, error) {
+	var team Team
+	result := db.Find(&team, "id = ?", teamId)
+	if result.Error != nil {
+		return false, fmt.Errorf("database error: %v", result.Error)
+	}
+	return result.RowsAffected > 0, nil
 }

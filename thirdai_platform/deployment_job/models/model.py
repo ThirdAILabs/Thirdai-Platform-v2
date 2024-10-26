@@ -21,7 +21,13 @@ class Model(ABC):
 
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
-        logger_file_path = self.data_dir / "deployment.log"
+        self.log_dir: Path = (
+            Path(self.config.model_bazaar_dir) / "logs" / self.config.model_id
+        )
+
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        logger_file_path = self.log_dir / "deployment.log"
         self.logger = LoggerConfig(logger_file_path).get_logger("deployment-logger")
 
     def get_model_dir(self, model_id: str):

@@ -38,7 +38,13 @@ class Model(ABC):
         )
         self.model_dir.mkdir(parents=True, exist_ok=True)
 
-        logger_file_path = self.model_dir / "train.log"
+        self.log_dir: Path = (
+            Path(self.config.model_bazaar_dir) / "logs" / self.config.model_id
+        )
+
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        logger_file_path = self.log_dir / "train.log"
         self.__class__.logger = LoggerConfig(logger_file_path).get_logger(
             "train-logger"
         )

@@ -41,6 +41,7 @@ func (t *TeamRouter) Routes() chi.Router {
 		r.Post("/remove-team-admin", t.RemoveTeamAdmin)
 
 		r.Get("/team-users", t.TeamUsers)
+		r.Get("/team-models", t.TeamModels)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -488,6 +489,48 @@ func (t *TeamRouter) TeamUsers(w http.ResponseWriter, r *http.Request) {
 			Email:     user.User.Email,
 			TeamAdmin: user.IsTeamAdmin,
 		})
+	}
+
+	writeJsonResponse(w, infos)
+}
+
+func (t *TeamRouter) TeamModels(w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+	if !params.Has("team_id") {
+		http.Error(w, "'team_id' query parameter missing", http.StatusBadRequest)
+		return
+	}
+	teamId := params.Get("team_id")
+
+	teamExists, err := schema.TeamExists(t.db, teamId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !teamExists {
+		http.Error(w, fmt.Sprintf("team %v does not exist", teamId), http.StatusBadRequest)
+		return
+	}
+
+	var models []schema.Model
+	result := t.db.
+		Preload("Dependencies").Preload("Attributes").Preload("User").
+		Or("access = ? AND team_id = ?", schema.Protected, teamId).
+		Find(&models)
+
+	if result.Error != nil {
+		dbError(w, result.Error)
+		return
+	}
+
+	infos := make([]modelInfo, 0, len(models))
+	for _, model := range models {
+		info, err := convertToModelInfo(model, t.db)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		infos = append(infos, info)
 	}
 
 	writeJsonResponse(w, infos)

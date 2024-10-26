@@ -152,3 +152,39 @@ func (m *ModelRouter) List(w http.ResponseWriter, r *http.Request) {
 
 	writeJsonResponse(w, infos)
 }
+
+func (m *ModelRouter) Delete(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (m *ModelRouter) SaveDeployed(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (m *ModelRouter) UploadToken(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (m *ModelRouter) UploadChunk(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (m *ModelRouter) UploadCommit(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (m *ModelRouter) Download(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (m *ModelRouter) UpdateAccessLevel(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (m *ModelRouter) UpdateDefaultPermission(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (m *ModelRouter) Logs(w http.ResponseWriter, r *http.Request) {
+	// TODO: what is this for?
+}

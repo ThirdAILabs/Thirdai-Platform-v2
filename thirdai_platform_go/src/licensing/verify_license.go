@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -40,6 +41,9 @@ type LicenseVerifier struct {
 }
 
 func NewVerifier(licensePath string) *LicenseVerifier {
+	// public key is stored as a variable rather than in a .pem file to make it more
+	// difficult for someone to change the public key their own and then sign their
+	// own licenses.
 	block, _ := pem.Decode([]byte(publicKey))
 	if block == nil {
 		log.Fatalf("pem file is corrupted")
@@ -55,7 +59,13 @@ func NewVerifier(licensePath string) *LicenseVerifier {
 		log.Fatalf("licensing error: key must be valid rsa key")
 	}
 
-	return &LicenseVerifier{publicKey: rsaKey, licensePath: licensePath}
+	v := &LicenseVerifier{publicKey: rsaKey, licensePath: licensePath}
+
+	if _, err := v.Verify(0); err != nil {
+		log.Fatalf("must have valid license for initialization: %v", err)
+	}
+
+	return v
 }
 
 func (v *LicenseVerifier) loadLicense() (PlatformLicense, error) {
@@ -74,20 +84,21 @@ func (v *LicenseVerifier) loadLicense() (PlatformLicense, error) {
 	return license, nil
 }
 
-func (v *LicenseVerifier) Verify() error {
+func (v *LicenseVerifier) Verify(currCpuUsage int) (LicensePayload, error) {
+	// License is loaded each time so it can be swapped without restarting the service
 	license, err := v.loadLicense()
 	if err != nil {
-		return err
+		return LicensePayload{}, err
 	}
 
 	signature, err := base64.StdEncoding.DecodeString(license.Signature)
 	if err != nil {
-		return fmt.Errorf("unable to decode license signature: %v", err)
+		return LicensePayload{}, fmt.Errorf("unable to decode license signature: %v", err)
 	}
 
 	message, err := json.Marshal(license.License)
 	if err != nil {
-		return fmt.Errorf("error encoding message: %v", err)
+		return LicensePayload{}, fmt.Errorf("error encoding message: %v", err)
 	}
 
 	hash := sha256.New()
@@ -95,17 +106,27 @@ func (v *LicenseVerifier) Verify() error {
 
 	matchErr := rsa.VerifyPKCS1v15(v.publicKey, crypto.SHA256, hash.Sum(nil), signature)
 	if matchErr != nil {
-		return fmt.Errorf("license is invalid")
+		return LicensePayload{}, fmt.Errorf("license is invalid")
 	}
 
 	expiry, err := license.License.Expiry()
 	if err != nil {
-		return err
+		return LicensePayload{}, err
 	}
 
 	if expiry.Before(time.Now()) {
-		return fmt.Errorf("license is expired")
+		return LicensePayload{}, fmt.Errorf("license is expired")
 	}
 
-	return nil
+	// TODO(Anyone): why is this not just stored as an integer in the license?
+	cpuLimit, err := strconv.Atoi(license.License.CpuMhzLimit)
+	if err != nil {
+		return LicensePayload{}, fmt.Errorf("invalid cpu limit: %v", err)
+	}
+
+	if cpuLimit < currCpuUsage {
+		return LicensePayload{}, fmt.Errorf("maximum cpu usage for license exceeded")
+	}
+
+	return license.License, nil
 }

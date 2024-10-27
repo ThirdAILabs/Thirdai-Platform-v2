@@ -9,7 +9,7 @@ import (
 
 type DeployRouter struct {
 	db    *gorm.DB
-	nomad *nomad.Client
+	nomad nomad.NomadClient
 }
 
 func (d *DeployRouter) Routes() chi.Router {

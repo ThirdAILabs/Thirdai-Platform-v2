@@ -107,3 +107,19 @@ func getModelStatus(model schema.Model, db *gorm.DB, trainStatus bool) (string, 
 
 	return "", nil, fmt.Errorf("error finding statuses")
 }
+
+func countDownstreamModels(modelId string, db *gorm.DB, activeOnly bool) (int64, error) {
+
+	query := db.Model(&schema.ModelDependency{}).Where("dependency_id = ?", modelId)
+	if activeOnly {
+		query = query.Joins("Model").Where("deploy_status IN ?", []string{schema.Starting, schema.InProgress, schema.Complete})
+	}
+
+	var count int64
+	result := query.Count(&count)
+	if result.Error != nil {
+		return 0, fmt.Errorf("database error: %v", result.Error)
+	}
+
+	return count, nil
+}

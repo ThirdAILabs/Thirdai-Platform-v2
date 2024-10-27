@@ -1,15 +1,22 @@
 package routers
 
 import (
+	"fmt"
 	"net/http"
 	"thirdai_platform/src/auth"
+	"thirdai_platform/src/nomad"
 	"thirdai_platform/src/schema"
+	"thirdai_platform/src/storage"
 
 	"gorm.io/gorm"
 )
 
 type ModelRouter struct {
-	db          *gorm.DB
+	db *gorm.DB
+
+	nomad   nomad.NomadClient
+	storage storage.Storage
+
 	userAuth    *auth.JwtManager
 	sessionAuth *auth.JwtManager
 }
@@ -154,7 +161,66 @@ func (m *ModelRouter) List(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *ModelRouter) Delete(w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+	if !params.Has("model_id") {
+		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
+		return
+	}
+	modelId := params.Get("model_id")
 
+	err := m.db.Transaction(func(db *gorm.DB) error {
+		usedBy, err := countDownstreamModels(modelId, db, false)
+		if err != nil {
+			return err
+		}
+		if usedBy > 0 {
+			return fmt.Errorf("cannot delete model %v since it is used as a dependency by %d other models", modelId, usedBy)
+		}
+
+		model, err := schema.GetModel(modelId, db, false, false, false)
+		if err != nil {
+			return err
+		}
+
+		if model.TrainStatus == schema.Starting || model.TrainStatus == schema.InProgress {
+			err = m.nomad.StopJob(nomad.TrainJobName(model))
+			if err != nil {
+				return err
+			}
+		}
+
+		if model.DeployStatus == schema.Starting || model.DeployStatus == schema.InProgress || model.DeployStatus == schema.Complete {
+			err = m.nomad.StopJob(nomad.DeployJobName(model))
+			if err != nil {
+				return err
+			}
+		}
+
+		err = m.storage.Delete(storage.ModelPath(modelId))
+		if err != nil {
+			return fmt.Errorf("error deleting model date: %v", err)
+		}
+
+		err = m.storage.Delete(storage.DataPath(modelId))
+		if err != nil {
+			return fmt.Errorf("error deleting model date: %v", err)
+		}
+
+		// TODO(Nicholas): ensure all relations (deps, attrs, teams, etc) are cleaned up
+		result := db.Delete(&model)
+		if result.Error != nil {
+			return fmt.Errorf("database error: %v", result.Error)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (m *ModelRouter) SaveDeployed(w http.ResponseWriter, r *http.Request) {
@@ -177,14 +243,78 @@ func (m *ModelRouter) Download(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (m *ModelRouter) UpdateAccessLevel(w http.ResponseWriter, r *http.Request) {
+func (m *ModelRouter) UpdateAccess(w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+	if !params.Has("model_id") || !params.Has("new_access") {
+		http.Error(w, "'model_id' or 'new_access' query parameters missing", http.StatusBadRequest)
+		return
+	}
+	modelId, newAccess := params.Get("model_id"), params.Get("new_access")
 
+	if err := schema.CheckValidAccess(newAccess); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err := m.db.Transaction(func(db *gorm.DB) error {
+		// TODO(Nicholas) should this just be update? need to have error message if model not found
+		model, err := schema.GetModel(modelId, db, false, false, false)
+		if err != nil {
+			return err
+		}
+
+		model.Access = newAccess
+
+		result := db.Save(&model)
+		if result.Error != nil {
+			return fmt.Errorf("database error: %v", result.Error)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (m *ModelRouter) UpdateDefaultPermission(w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+	if !params.Has("model_id") || !params.Has("new_permission") {
+		http.Error(w, "'model_id' or 'new_permission' query parameters missing", http.StatusBadRequest)
+		return
+	}
+	modelId, newPermission := params.Get("model_id"), params.Get("new_permission")
 
-}
+	if err := schema.CheckValidPermission(newPermission); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-func (m *ModelRouter) Logs(w http.ResponseWriter, r *http.Request) {
-	// TODO: what is this for?
+	err := m.db.Transaction(func(db *gorm.DB) error {
+		// TODO(Nicholas) should this just be update? need to have error message if model not found
+		model, err := schema.GetModel(modelId, db, false, false, false)
+		if err != nil {
+			return err
+		}
+
+		model.DefaultPermission = newPermission
+
+		result := db.Save(&model)
+		if result.Error != nil {
+			return fmt.Errorf("database error: %v", result.Error)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

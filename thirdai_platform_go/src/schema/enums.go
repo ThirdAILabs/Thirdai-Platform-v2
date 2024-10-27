@@ -1,5 +1,7 @@
 package schema
 
+import "fmt"
+
 const (
 	NotStarted = "not_started"
 	Starting   = "starting"
@@ -15,10 +17,28 @@ const (
 	Public    = "public"
 )
 
+func CheckValidAccess(access string) error {
+	if access == Public || access == Private || access == Protected {
+		return nil
+	}
+	return fmt.Errorf("invalid access %v, must be 'public', 'private', or 'protected'", access)
+}
+
 const (
 	ReadPerm  = "read"
 	WritePerm = "write"
 )
+
+func IsValidPermission(permission string) bool {
+	return permission == ReadPerm || permission == WritePerm
+}
+
+func CheckValidPermission(permission string) error {
+	if permission == ReadPerm || permission == WritePerm {
+		return nil
+	}
+	return fmt.Errorf("invalid permission %v, must be 'read' or 'write'", permission)
+}
 
 const (
 	NlpType = "nlp"

@@ -8,6 +8,7 @@ import (
 	"thirdai_platform/src/schema"
 	"thirdai_platform/src/storage"
 
+	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 )
 
@@ -19,6 +20,49 @@ type ModelRouter struct {
 
 	userAuth    *auth.JwtManager
 	sessionAuth *auth.JwtManager
+}
+
+func (m *ModelRouter) Routers() chi.Router {
+	r := chi.NewRouter()
+
+	r.Group(func(r chi.Router) {
+		r.Use(m.userAuth.Verifier())
+		r.Use(m.userAuth.Authenticator())
+		r.Use(auth.ModelReadAccess(m.db))
+
+		r.Get("/details", m.Details)
+		r.Get("/download", m.Download)
+
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(m.userAuth.Verifier())
+		r.Use(m.userAuth.Authenticator())
+		r.Use(auth.ModelOwnerOnly(m.db))
+
+		r.Post("/delete", m.Delete)
+		r.Post("/update-access", m.UpdateAccess)
+		r.Post("/update-default-permission", m.UpdateDefaultPermission)
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(m.userAuth.Verifier())
+		r.Use(m.userAuth.Authenticator())
+
+		r.Get("/list", m.List)
+		r.Post("/save-deployed", m.SaveDeployed)
+		r.Post("/upload-token", m.UploadToken)
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(m.sessionAuth.Verifier())
+		r.Use(m.sessionAuth.Authenticator())
+
+		r.Post("/upload-chunk", m.UploadChunk)
+		r.Post("/upload-commit", m.UploadCommit)
+	})
+
+	return r
 }
 
 type modelDependency struct {

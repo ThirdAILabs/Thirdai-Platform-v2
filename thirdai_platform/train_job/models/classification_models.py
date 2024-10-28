@@ -4,6 +4,7 @@ import tempfile
 import time
 import typing
 from abc import abstractmethod
+from logging import Logger
 from pathlib import Path
 from typing import List
 
@@ -190,8 +191,8 @@ class TextClassificationModel(ClassificationModel):
 
 @apply_exception_handler
 class TokenClassificationModel(ClassificationModel):
-    def __init__(self, config: TrainConfig, reporter: Reporter):
-        super().__init__(config, reporter)
+    def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
+        super().__init__(config, reporter, logger)
         self.load_storage()
 
     @property

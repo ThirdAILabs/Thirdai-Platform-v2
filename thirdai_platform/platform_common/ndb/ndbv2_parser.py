@@ -196,6 +196,7 @@ def parse_and_save(
             local_file_path = os.path.join(tmp_dir, os.path.basename(prefix))
 
             s3_client.download_file(bucket_name, prefix, local_file_path)
+            s3_client.close()
         except Exception as error:
             print(f"Error downloading file '{doc.path}' from S3: {error}")
             raise ValueError(f"Error downloading file '{doc.path}' from S3: {error}")

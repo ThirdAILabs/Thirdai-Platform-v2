@@ -225,6 +225,9 @@ class S3StorageHandler(CloudStorageHandler):
             region_name=region_name,
         )
 
+    def close(self):
+        self.s3_client.close()
+
     @handle_exceptions
     def create_s3_client(
         self, aws_access_key=None, aws_secret_access_key=None, region_name=None

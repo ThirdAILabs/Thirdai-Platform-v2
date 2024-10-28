@@ -314,7 +314,7 @@ class DatagenOptions(BaseModel):
 
 class JobOptions(BaseModel):
     allocation_cores: int = Field(1, gt=0)
-    allocation_memory: int = Field(6800, gt=500)
+    allocation_memory: int = Field(2000, gt=500)
 
 
 class TrainConfig(BaseModel):

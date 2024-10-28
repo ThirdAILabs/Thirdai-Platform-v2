@@ -64,8 +64,8 @@ export default function ChooseProblem() {
 
   // Update the useCases array with new names
   let useCases = [{ name: ENTERPRISE_SEARCH }, { name: CHATBOT }];
-  if (process.env.NEXT_PUBLIC_AIRGAPPED !== "true") {
-    useCases.push({ name: NLP_TEXT_ANALYSIS })
+  if (process.env.NEXT_PUBLIC_AIRGAPPED !== 'true') {
+    useCases.push({ name: NLP_TEXT_ANALYSIS });
   }
   const handleSetModelType = (model: string) => {
     setModelType(model);

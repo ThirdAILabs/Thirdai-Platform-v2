@@ -20,7 +20,9 @@ import uuid
 
 def copy_file(x):
     infile, outdir = x
-    shutil.copy(infile, os.path.join(outdir, str(uuid.uuid4())))
+    outpath = os.path.join(outdir, str(uuid.uuid4()))
+    # shutil.copy(infile, os.path.join(outdir, str(uuid.uuid4())))
+    os.system(f"cp {infile} {outpath}")
 
 
 class NeuralDBV2(Model):

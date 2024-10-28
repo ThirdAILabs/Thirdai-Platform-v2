@@ -135,6 +135,9 @@ class NeuralDBV2(Model):
         with open(path, "r") as file:
             for line in file:
                 feedback = FeedbackLog.model_validate_json(line)
+                if not feedback.perform_rlhf_later:
+                    continue
+
                 feedback_samples[feedback.event.action] += 1
                 if feedback.event.action == ActionType.upvote:
                     weight = 2  # Extra weighting for explicit upvotes

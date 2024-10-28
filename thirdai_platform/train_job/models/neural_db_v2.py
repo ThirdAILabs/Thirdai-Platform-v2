@@ -16,6 +16,7 @@ from train_job.reporter import Reporter
 from train_job.utils import check_disk, get_directory_size
 import pickle
 import psutil
+import numpy as np
 
 
 def memory_usage(x):
@@ -23,6 +24,13 @@ def memory_usage(x):
     mem = psutil.Process().memory_info().rss
     time.sleep(5)
     return f"proc {pid}: mem: {mem / (1024 * 1024):.3f} MiB"
+
+
+def do_stuff_to_waste_memory(x):
+    x = np.arange(20 * 1024 * 1024)
+    y = x * x
+    y = y - x
+    return "haha python is dumb"
 
 
 class NeuralDBV2(Model):
@@ -120,6 +128,8 @@ class NeuralDBV2(Model):
                     self.logger.info(x)
 
                 self.logger.info("MAIN: " + memory_usage(None))
+
+                pool.map(do_stuff_to_waste_memory, list(range(n_jobs)))
 
         #         start = time.perf_counter()
         #         if i + 1 < len(batches):

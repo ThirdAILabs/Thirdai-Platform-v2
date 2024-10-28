@@ -91,7 +91,7 @@ class StreamToLogger:
     def write(self, message):
         if message.strip():  # Avoid logging empty messages
             # Log to logger
-            self.logger.log(self.level, message.strip())
+            self.logger.log(self.log_level, message.strip())
             # Also print to the original stream
             self.original_stream.write(message)
             self.original_stream.flush()

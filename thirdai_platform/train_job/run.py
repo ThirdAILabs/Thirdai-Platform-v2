@@ -104,7 +104,7 @@ def main():
             thirdai.licensing.activate(config.license_key)
             logger.info("License activated with key")
 
-        model = get_model(config, reporter)
+        model = get_model(config, reporter, logger)
 
         model.train()
     except Exception as error:

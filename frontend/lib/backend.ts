@@ -1626,3 +1626,30 @@ export async function temporaryCacheToken(modelId: string) {
     throw err; // Re-throwing the error to handle it in the component
   }
 }
+
+export async function fetchFeedback() {
+  const url = new URL(window.location.href);
+  const params = new URLSearchParams(url.search);
+  const userName = params.get('username');
+  const modelName = params.get('model_name');
+  const modelIdentifier = `${userName}/${modelName}`;
+  const accessToken = getAccessToken();
+  // console.log("modelIdentifier ", modelIdentifier);
+  try {
+    const response = await axios({
+      method: 'get',
+      url: `${deploymentBaseUrl}/api/deploy/feedbacks`,
+      params: {
+        model_identifier: modelIdentifier,
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    return response?.data?.data;
+  } catch (error) {
+    console.error('Error getting Feedback Response:', error);
+    throw error;
+  }
+}

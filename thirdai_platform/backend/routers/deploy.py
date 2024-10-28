@@ -1,8 +1,10 @@
+import heapq
 import json
 import os
 import traceback
+from collections import defaultdict
 from pathlib import Path
-from typing import Optional, Union
+from typing import Annotated, Optional, Union
 
 from auth.jwt import (
     AuthenticatedUser,
@@ -21,21 +23,22 @@ from backend.utils import (
     list_all_dependencies,
     logger,
     model_accessible,
+    model_bazaar_path,
+    read_file_from_back,
     submit_nomad_job,
     thirdai_platform_dir,
     validate_license_info,
 )
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, HTTPException, status
-
-pass
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     EnterpriseSearchOptions,
     NDBDeploymentOptions,
     UDTDeploymentOptions,
 )
+from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
 from platform_common.pydantic_models.training import ModelType
 from platform_common.utils import response
 from sqlalchemy.orm import Session
@@ -359,6 +362,147 @@ async def deploy_model(
             "model_identifier": model_identifier,
             "model_id": str(model.id),
         },
+    )
+
+
+@deploy_router.get("/feedbacks", dependencies=[Depends(is_model_owner)])
+def get_feedback(
+    model_identifier: str,
+    per_event_count: Annotated[int, Query(gt=0)] = 5,
+    session: Session = Depends(get_session),
+):
+    """
+    Get the recent feedback of the model
+
+    Parameters:
+    - model_identifier: The identifier of the model to deploy.
+    - session: The database session (dependency).
+
+    Example Usage:
+    ```json
+    {
+        "model_identifier": "user/model_123",
+    }
+    ```
+
+    response:
+    ```json
+    {
+        "upvote": [
+            {
+                "query": "This is the query",
+                "reference_text": "This is the result upvoted",
+                "reference_id": 15
+                "timestamp": "17 October 2024 17:54:11",
+            },
+            ..
+        ],
+        "associate": [
+            {
+                "source": "This is the source text",
+                "target": "This is the target text",
+                "timestamp": "18 October 2024 17:49:43",
+            },
+            ..
+        ]
+    }
+    ```
+    """
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    if model.type != ModelType.NDB:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Feedback is only recorded for ndb model",
+        )
+
+    feedback_dir = os.path.join(
+        model_bazaar_path(),
+        "models",
+        str(model.id),
+        "deployments",
+        "data",
+        "feedback",
+    )
+
+    if not os.path.exists(feedback_dir):
+        return response(
+            status_code=status.HTTP_200_OK,
+            message=f"No feedback found for the model.",
+            data=[],
+        )
+    event_heap = {ActionType.upvote: [], ActionType.associate: []}
+    for alloc_dirEntry in os.scandir(feedback_dir):
+        if alloc_dirEntry.is_file() and alloc_dirEntry.name.endswith(".jsonl"):
+            events_processed_for_this_file = defaultdict(int)
+            try:
+                line_generator = read_file_from_back(alloc_dirEntry.path)
+                for line in line_generator:
+                    feedback_obj = FeedbackLog(**json.loads(line.strip()))
+
+                    if (
+                        events_processed_for_this_file[feedback_obj.event.action]
+                        < per_event_count
+                    ):
+                        heapq.heappush(
+                            event_heap[feedback_obj.event.action], feedback_obj
+                        )
+
+                    # stop the processing if each required event of the file is processed for per_event_count times
+                    if all(
+                        [
+                            events_processed_for_this_file[event_name]
+                            >= per_event_count
+                            for event_name in event_heap.keys()
+                        ]
+                    ):
+                        break
+            finally:
+                line_generator.close()  # Ensures file is closed.
+
+    accumlated_feedbacks = defaultdict(list)
+    for event_name, _heap in event_heap.items():
+        sorted_events = [
+            heapq.heappop(_heap) for _ in range(min(len(_heap), per_event_count))
+        ]
+        for feedback in sorted_events:
+            if feedback.event.action == ActionType.upvote:
+                accumlated_feedbacks[feedback.event.action].extend(
+                    {
+                        "timestamp": feedback.timestamp,
+                        "query": query,
+                        "reference_id": chunk_id,
+                        "reference_text": ref_text,
+                    }
+                    for chunk_id, query, ref_text in zip(
+                        feedback.event.chunk_ids,
+                        feedback.event.queries,
+                        feedback.event.reference_texts,
+                    )
+                )
+            elif feedback.event.action == ActionType.associate:
+                accumlated_feedbacks[feedback.event.action].extend(
+                    {
+                        "timestamp": feedback.timestamp,
+                        "source": source,
+                        "target": target,
+                    }
+                    for source, target in zip(
+                        feedback.event.sources,
+                        feedback.event.targets,
+                    )
+                )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully retrieved the feedbacks",
+        data=accumlated_feedbacks,
     )
 
 

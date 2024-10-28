@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Button } from '@mui/material';
 
 enum SourceType {
   LOCAL = 'local',
@@ -182,7 +182,7 @@ export default function DocumentClassificationQuestions({
                 placeholder="Enter NSF server path"
               />
             )}
-            <Button variant="destructive" onClick={() => deleteSource(index)}>
+            <Button variant="contained" color="error" onClick={() => deleteSource(index)}>
               Delete
             </Button>
           </div>
@@ -190,9 +190,15 @@ export default function DocumentClassificationQuestions({
       </div>
 
       <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-        <Button onClick={() => addSource(SourceType.LOCAL)}>Add Local Folder</Button>
-        <Button onClick={() => addSource(SourceType.S3)}>Add S3 URL</Button>
-        <Button onClick={() => addSource(SourceType.NSF)}>Add NSF Path</Button>
+        <Button onClick={() => addSource(SourceType.LOCAL)} variant="contained">
+          Add Local Folder
+        </Button>
+        <Button onClick={() => addSource(SourceType.S3)} variant="contained">
+          Add S3 URL
+        </Button>
+        <Button onClick={() => addSource(SourceType.NSF)} variant="contained">
+          Add NSF Path
+        </Button>
       </div>
 
       {!folderStructureValid && (
@@ -203,6 +209,7 @@ export default function DocumentClassificationQuestions({
         <Button
           onClick={() => console.log('Submit Document Classification')}
           style={{ marginTop: '30px', width: '100%' }}
+          variant="contained"
         >
           Create
         </Button>

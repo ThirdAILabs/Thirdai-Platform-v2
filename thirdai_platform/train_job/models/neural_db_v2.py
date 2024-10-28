@@ -140,7 +140,7 @@ class NeuralDBV2(Model):
                 for file in os.listdir(f"./batch_{i}"):
                     with open(f"./batch_{i}/" + file, "rb") as f:
                         batch.append(pickle.load(f))
-                self.db.insert(batch)
+                #self.db.insert(batch)
                 shutil.rmtree(f"./batch_{i}")
                 index_end = time.perf_counter()
 

@@ -200,13 +200,14 @@ def parse_and_save(
             print(f"Error downloading file '{doc.path}' from S3: {error}")
             raise ValueError(f"Error downloading file '{doc.path}' from S3: {error}")
 
-        ndb_doc = preload_chunks(
-            resource_path=local_file_path,
-            display_path=f"/{bucket_name}.s3.amazonaws.com/{prefix}",
-            doc_id=doc.doc_id,
-            metadata=doc.metadata,
-            options=doc.options,
-        )
+        # ndb_doc = preload_chunks(
+        #     resource_path=local_file_path,
+        #     display_path=f"/{bucket_name}.s3.amazonaws.com/{prefix}",
+        #     doc_id=doc.doc_id,
+        #     metadata=doc.metadata,
+        #     options=doc.options,
+        # )
+        ndb_doc = {}
 
         os.remove(local_file_path)
 
@@ -217,13 +218,14 @@ def parse_and_save(
         os.makedirs(artifact_dir, exist_ok=True)
         shutil.copy(src=doc.path, dst=artifact_dir)
 
-        ndb_doc = preload_chunks(
-            resource_path=os.path.join(artifact_dir, os.path.basename(doc.path)),
-            display_path=os.path.join(save_artifact_uuid, os.path.basename(doc.path)),
-            doc_id=doc.doc_id,
-            metadata=doc.metadata,
-            options=doc.options,
-        )
+        ndb_doc = {}
+        # ndb_doc = preload_chunks(
+        #     resource_path=os.path.join(artifact_dir, os.path.basename(doc.path)),
+        #     display_path=os.path.join(save_artifact_uuid, os.path.basename(doc.path)),
+        #     doc_id=doc.doc_id,
+        #     metadata=doc.metadata,
+        #     options=doc.options,
+        # )
 
     with open(output_path, "wb") as file:
         pickle.dump(ndb_doc, file)

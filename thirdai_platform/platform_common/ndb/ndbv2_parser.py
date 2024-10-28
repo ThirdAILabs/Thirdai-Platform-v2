@@ -1,12 +1,13 @@
 import os
 import shutil
 import uuid
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, List
 
 import pdftitle
 from fastapi import Response
 from platform_common.file_handler import FileInfo, FileLocation, get_cloud_client
 from thirdai import neural_db_v2 as ndbv2
+import pickle
 
 
 def convert_to_ndb_doc(
@@ -182,3 +183,47 @@ def parse_doc(
         metadata=doc.metadata,
         options=doc.options,
     )
+
+
+def parse_and_save(
+    doc: FileInfo, doc_save_dir: str, tmp_dir: str, output_path: str
+) -> dict:
+    if doc.location == FileLocation.s3:
+        try:
+            # TODO (YASH): calling get_cloud_client for every document will be a problem, we have to come up with a way to reuse client.
+            s3_client = get_cloud_client(provider="s3")
+            bucket_name, prefix = doc.parse_s3_url()
+            local_file_path = os.path.join(tmp_dir, os.path.basename(prefix))
+
+            s3_client.download_file(bucket_name, prefix, local_file_path)
+        except Exception as error:
+            print(f"Error downloading file '{doc.path}' from S3: {error}")
+            raise ValueError(f"Error downloading file '{doc.path}' from S3: {error}")
+
+        ndb_doc = preload_chunks(
+            resource_path=local_file_path,
+            display_path=f"/{bucket_name}.s3.amazonaws.com/{prefix}",
+            doc_id=doc.doc_id,
+            metadata=doc.metadata,
+            options=doc.options,
+        )
+
+        os.remove(local_file_path)
+
+    else:
+
+        save_artifact_uuid = str(uuid.uuid4())
+        artifact_dir = os.path.join(doc_save_dir, save_artifact_uuid)
+        os.makedirs(artifact_dir, exist_ok=True)
+        shutil.copy(src=doc.path, dst=artifact_dir)
+
+        ndb_doc = preload_chunks(
+            resource_path=os.path.join(artifact_dir, os.path.basename(doc.path)),
+            display_path=os.path.join(save_artifact_uuid, os.path.basename(doc.path)),
+            doc_id=doc.doc_id,
+            metadata=doc.metadata,
+            options=doc.options,
+        )
+
+    with open(output_path, "wb") as file:
+        pickle.dump(ndb_doc, file)

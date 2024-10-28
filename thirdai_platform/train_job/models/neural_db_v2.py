@@ -7,13 +7,14 @@ from typing import List
 
 import thirdai
 from platform_common.file_handler import expand_cloud_buckets_and_directories
-from platform_common.ndb.ndbv2_parser import parse_doc
+from platform_common.ndb.ndbv2_parser import parse_doc, parse_and_save
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
 from platform_common.pydantic_models.training import FileInfo, NDBv2Options, TrainConfig
 from thirdai import neural_db_v2 as ndbv2
 from train_job.models.model import Model
 from train_job.reporter import Reporter
 from train_job.utils import check_disk, get_directory_size
+import pickle
 
 
 class NeuralDBV2(Model):
@@ -73,6 +74,79 @@ class NeuralDBV2(Model):
         return all_files
 
     def unsupervised_train(self, files: List[FileInfo], batch_size=500):
+        files = [file for file in files if not file.path.endswith("txt")]
+
+        self.logger.info("Starting unsupervised training.")
+
+        n_jobs = max(1, min(os.cpu_count() - 6, 40))
+
+        self.logger.info(f"Using {n_jobs} parsing jobs")
+
+        doc_save_dir = self.doc_save_path()
+        tmp_dir = self.data_dir / "unsupervised"
+
+        os.makedirs(tmp_dir, exist_ok=True)
+
+        docs_indexed = 0
+
+        batches = [files[i : i + batch_size] for i in range(0, len(files), batch_size)]
+        with mp.Pool(processes=n_jobs) as pool:
+            first_batch_start = time.perf_counter()
+            os.makedirs("./batch_0")
+            pool.starmap(
+                parse_and_save,
+                [
+                    (doc, doc_save_dir, tmp_dir, f"./batch_0/{i}.pkl")
+                    for i, doc in enumerate(batches[0])
+                ],
+                chunksize=10,
+            )
+            first_batch_end = time.perf_counter()
+            self.logger.info(
+                f"Parsed first batch time={first_batch_end - first_batch_start:.3f}s"
+            )
+
+            for i in range(len(batches)):
+                start = time.perf_counter()
+                if i + 1 < len(batches):
+                    os.makedirs(f"./batch_{i+1}")
+                    next_batch = pool.starmap_async(
+                        parse_and_save,
+                        [
+                            (doc, doc_save_dir, tmp_dir, f"./batch_{i+1}/{j}.pkl")
+                            for j, doc in enumerate(batches[i + 1])
+                        ],
+                        chunksize=10,
+                    )
+                else:
+                    next_batch = None
+
+                index_start = time.perf_counter()
+                batch = []
+                for file in os.listdir(f"./batch_{i}"):
+                    with open(f"./batch_{i}/" + file, "rb") as f:
+                        batch.append(pickle.load(f))
+                self.db.insert(batch)
+                shutil.rmtree(f"./batch_{i}")
+                index_end = time.perf_counter()
+
+                docs_indexed += len(batch)
+
+                if next_batch:
+                    next_batch.wait()
+                    next_batch.get()
+
+                end = time.perf_counter()
+                self.logger.info(
+                    f"Inserted batch time={end-start:.3f} insert_time={index_end-index_start:.3f} total_docs={docs_indexed}"
+                )
+
+        total_chunks = self.db.retriever.retriever.size()
+        self.logger.info(
+            f"Completed unsupervised training total_docs={docs_indexed} total_chunks={total_chunks}."
+        )
+
+    def unsupervised_train_old(self, files: List[FileInfo], batch_size=500):
         files = [file for file in files if not file.path.endswith("txt")]
 
         self.logger.info("Starting unsupervised training.")

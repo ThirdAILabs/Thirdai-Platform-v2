@@ -271,14 +271,17 @@ function App() {
 
   const websocketRef = useRef<WebSocket | null>(null);
 
+  const [reRankingEnabled, setReRankingEnabled] = useState(false);
+
   async function getResults(
     query: string,
     topK: number,
     queryId?: string
   ): Promise<SearchResult | null> {
+    console.log('reRankingEnabled', reRankingEnabled)
     setFailed(false);
     return modelService!
-      .predict(/* queryText= */ query, /* topK= */ topK, /* queryId= */ queryId)
+      .predict(/* queryText= */ query, /* topK= */ topK, /* queryId= */ queryId, /* rerank= */ reRankingEnabled)
       .then((searchResults) => {
         console.log('searchResults', searchResults);
         if (searchResults) {
@@ -660,9 +663,11 @@ function App() {
               </>
             )}
             <SidePanel 
-              chatEnabled = {chatEnabled}
+              chatEnabled={chatEnabled}
               cacheEnabled={cacheEnabled}
               setCacheEnabled={setCacheEnabled}
+              reRankingEnabled={reRankingEnabled}
+              setReRankingEnabled={setReRankingEnabled}
               onSaveClick={handleSaveClick}
             />
           </div>

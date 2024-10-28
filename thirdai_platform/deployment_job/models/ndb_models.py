@@ -124,7 +124,9 @@ class NDBModel(Model):
         with self.chat_instance_lock:
             if provider in self.chat_instances and self.chat_instances[provider]:
                 # Chat instance for this provider already exists, do not recreate
-                print(f"Chat instance for provider '{provider}' is already set.")
+                self.logger.info(
+                    f"Chat instance for provider '{provider}' is already set."
+                )
                 return
             try:
                 sqlite_db_path = os.path.join(
@@ -152,7 +154,11 @@ class NDBModel(Model):
                     base_url=self.config.model_bazaar_endpoint,
                     **kwargs,
                 )
+                self.logger.info(f"Chat instance set for provider '{provider}'")
             except Exception:
+                self.logger.error(
+                    f"Error setting chat instance for provider '{provider}': {traceback.format_exc()}"
+                )
                 traceback.print_exc()
                 self.chat_instances[provider] = None
 
@@ -186,6 +192,7 @@ class NDBV1Model(NDBModel):
         super().__init__(config=config, logger=logger)
         self.db_lock = Lock()
         self.model_path: Path = self.model_dir / "model.ndb"
+        self.logger.info(f"Loading NDBV1 model from {self.model_path}")
         self.db: ndb.NeuralDB = self.load(write_mode=write_mode)
         self.set_chat(provider=self.config.model_options.llm_provider)
 
@@ -346,7 +353,7 @@ class NDBV1Model(NDBModel):
                 if model_path.exists():
                     backup_id = str(uuid.uuid4())
                     backup_path = self.get_ndb_path(backup_id)
-                    print(f"Creating backup: {backup_id}")
+                    self.logger.info(f"Creating backup: {backup_id}")
                     shutil.copytree(model_path, backup_path)
 
                 if model_path.exists():
@@ -376,6 +383,7 @@ class NDBV2Model(NDBModel):
         super().__init__(config=config, logger=logger)
 
         self.db_lock = Lock()
+        self.logger.info(f"Loading NDBV2 model from {self.ndb_save_path()}")
         self.db = self.load(write_mode=write_mode)
         self.set_chat(provider=self.config.model_options.llm_provider)
 
@@ -580,7 +588,7 @@ class NDBV2Model(NDBModel):
                 if model_path.exists():
                     backup_id = str(uuid.uuid4())
                     backup_path = self.get_ndb_path(backup_id)
-                    print(f"Creating backup: {backup_id}")
+                    self.logger.info(f"Creating backup: {backup_id}")
                     shutil.copytree(model_path, backup_path)
 
                 if model_path.exists():
@@ -591,7 +599,7 @@ class NDBV2Model(NDBModel):
                     shutil.rmtree(backup_path.parent)
 
         except Exception as err:
-            logging.error(f"Failed while saving with error: {err}")
+            self.logger.error(f"Failed while saving with error: {err}")
             traceback.print_exc()
 
             if backup_path is not None and backup_path.exists():

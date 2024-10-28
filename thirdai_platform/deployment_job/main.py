@@ -18,6 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from platform_common.logging import LoggerConfig, StreamToLogger
+from platform_common.middlewares import create_log_request_response_middleware
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.training import ModelType
 from prometheus_client import make_asgi_app
@@ -60,6 +61,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(create_log_request_response_middleware(logger))
+
 # The following logic will start a timer at this Fast API application's start up.
 # after n minutes, this service will shut down, unless a function that is decorated
 # with @reset_timer is called, in which case the timer restarts.
@@ -88,18 +91,22 @@ async def async_timer() -> None:
         try:
             await asyncio.wait_for(reset_event.wait(), timeout=900)
             reset_event.clear()  # Clear the event if the endpoint was hit within the timeout period
+            logger.info(
+                "Shutdown timer expired; checking deployment status for shutdown."
+            )
         except asyncio.TimeoutError:
             # Timer expired, initiate shutdown
             if reporter.active_deployment_count(config.model_id) == 0:
+                logger.info("No active deployments; initiating shutdown.")
                 response, job_id = delete_deployment_job(
                     config.get_nomad_endpoint(),
                     config.model_id,
                     os.getenv("TASK_RUNNER_TOKEN"),
                 )
                 if response.status_code == 200:
-                    print(f"Job {job_id} stopped successfully")
+                    logger.info(f"Job {job_id} stopped successfully")
                 else:
-                    print(
+                    logger.error(
                         f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
                     )
                 reporter.update_deploy_status(config.model_id, "stopped")
@@ -113,7 +120,9 @@ elif config.model_options.model_type == ModelType.UDT:
 elif config.model_options.model_type == ModelType.ENTERPRISE_SEARCH:
     backend_router_factory = EnterpriseSearchRouter
 else:
-    raise ValueError(f"Unsupported ModelType '{config.model_options.model_type}'.")
+    error_message = f"Unsupported ModelType '{config.model_options.model_type}'."
+    logger.error(error_message)
+    raise ValueError(error_message)
 
 
 # We have a case where we copy the ndb model for base model training and
@@ -124,16 +133,23 @@ retry_delay = 5  # Delay in seconds before retrying
 for attempt in range(1, max_retries + 1):
     try:
         backend_router = backend_router_factory(config, reporter, logger)
+        logger.info(
+            f"Successfully initialized backend router: {backend_router_factory.__name__}"
+        )
         break  # Exit the loop if model loading is successful
     except Exception as err:
+        logger.error(f"Attempt {attempt} failed to initialize backend router: {err}")
         if attempt < max_retries:
             time.sleep(retry_delay)
+            logger.info("Retrying backend router initialization")
         else:
-            reporter.update_deploy_status(
-                config.model_id,
-                "failed",
-                message=f"Deployment failed with error: {err}",
+            error_message = (
+                f"Deployment failed after {attempt} attempts with error: {err}"
             )
+            reporter.update_deploy_status(
+                config.model_id, "failed", message=error_message
+            )
+            logger.critical(error_message)
             raise  # Optionally re-raise the exception if you want the application to stop
 
 
@@ -144,6 +160,7 @@ app.mount("/metrics", make_asgi_app())
 
 @app.exception_handler(404)
 async def custom_404_handler(request: Request, exc: Any) -> JSONResponse:
+    logger.warning(f"404 Not Found: {request.url.path}")
     return JSONResponse(
         status_code=404,
         content={"message": f"Request path '{request.url.path}' doesn't exist"},
@@ -167,10 +184,9 @@ async def startup_event() -> None:
         if not config.autoscaling_enabled:
             asyncio.create_task(async_timer())
     except Exception as e:
-        reporter.update_deploy_status(
-            config.model_id, "failed", message=f"Deployment failed with error: {e}"
-        )
-        print(f"Failed to startup the application, {e}")
+        error_message = f"Startup event failed with error: {e}"
+        reporter.update_deploy_status(config.model_id, "failed", message=error_message)
+        logger.critical(error_message)
         raise e  # Re-raise the exception to propagate it to the main block
 
 
@@ -178,7 +194,6 @@ if __name__ == "__main__":
     try:
         uvicorn.run(app, host="localhost", port=8000)
     except Exception as e:
-        print(f"Uvicorn failed to start: {str(e)}")
-        reporter.update_deploy_status(
-            config.model_id, "failed", message=f"Deployment failed with error: {e}"
-        )
+        error_message = f"Uvicorn failed to start: {e}"
+        logger.critical(error_message)
+        reporter.update_deploy_status(config.model_id, "failed", message=error_message)

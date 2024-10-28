@@ -15,6 +15,14 @@ from train_job.models.model import Model
 from train_job.reporter import Reporter
 from train_job.utils import check_disk, get_directory_size
 import pickle
+import psutil
+
+
+def memory_usage():
+    pid = os.getpid()
+    mem = psutil.Process().memory_info().rss
+    time.sleep(5)
+    return f"proc {pid}: mem: {mem / (1024 * 1024):.3f} MiB"
 
 
 class NeuralDBV2(Model):
@@ -107,6 +115,10 @@ class NeuralDBV2(Model):
             )
 
             for i in range(len(batches)):
+                info = pool.map(memory_usage, list(range(n_jobs)))
+                for x in info:
+                    self.logger.info(x)
+
                 start = time.perf_counter()
                 if i + 1 < len(batches):
                     os.makedirs(f"./batch_{i+1}")

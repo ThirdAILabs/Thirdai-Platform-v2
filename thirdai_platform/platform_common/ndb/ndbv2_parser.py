@@ -227,3 +227,5 @@ def parse_and_save(
 
     with open(output_path, "wb") as file:
         pickle.dump(ndb_doc, file)
+
+    del ndb_doc

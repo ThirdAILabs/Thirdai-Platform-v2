@@ -31,7 +31,6 @@ def load_config():
 
 
 config: DeploymentConfig = load_config()
-reporter = Reporter(config.model_bazaar_endpoint)
 
 log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
 
@@ -42,6 +41,8 @@ logger = LoggerConfig(logger_file_path).get_logger("deployment-logger")
 
 sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
 sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
+
+reporter = Reporter(config.model_bazaar_endpoint, logger)
 
 licensing.activate(config.license_key)
 

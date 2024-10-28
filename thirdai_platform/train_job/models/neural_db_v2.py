@@ -73,9 +73,11 @@ class NeuralDBV2(Model):
         return all_files
 
     def unsupervised_train(self, files: List[FileInfo], batch_size=500):
+        files = [file for file in files if not file.path.endswith("txt")]
+
         self.logger.info("Starting unsupervised training.")
 
-        n_jobs = max(1, min(os.cpu_count() - 6, 20))
+        n_jobs = max(1, min(os.cpu_count() - 6, 40))
 
         self.logger.info(f"Using {n_jobs} parsing jobs")
 

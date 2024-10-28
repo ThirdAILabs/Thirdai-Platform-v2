@@ -38,7 +38,7 @@ jobs:
       - name: Download and Extract the Package
         run: |
           mkdir -p unzip_thirdai_platform
-          aws s3 cp $PACKAGE_AWS_S3_PATH ./thirdai-platform-package.tar.gz
+          aws s3 cp "$PACKAGE_AWS_S3_PATH" ./thirdai-platform-package.tar.gz
 
           tar -xzvf thirdai-platform-package.tar.gz -C unzip_thirdai_platform
 

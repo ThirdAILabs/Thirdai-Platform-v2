@@ -99,7 +99,8 @@ class NeuralDBV2(Model):
                 f"Parsed first batch time={first_batch_end - first_batch_start:.3f}s"
             )
 
-            for i in range(len(batches)):
+        for i in range(len(batches)):
+            with mp.Pool(processes=n_jobs) as pool:
                 start = time.perf_counter()
                 if i + 1 < len(batches):
                     next_batch = pool.starmap_async(

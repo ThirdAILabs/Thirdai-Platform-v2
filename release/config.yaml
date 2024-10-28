@@ -63,6 +63,14 @@ azure:
         password: y/iKY+7IwCrcdd61Rp3vma3gTyYScI72TY7484cJ6c+ACRBkPJv/
         username: thirdaiplatform-push-release-test-main
       version: 0.0.57
+    sources:
+      pull_credentials:
+        password: ZbOmPsafYwlCGrCEOL3LGcVUt1DeSaZhOgjTMX6E08+ACRDq7EAS
+        username: thirdaiplatform-pull-sources
+      push_credentials:
+        password: eNyovojbI2mGMrDnWWZXkkngboKEUA6qouDfdoVB8e+ACRAdqxX/
+        username: thirdaiplatform-push-sources
+      version: 0.0.5
     test_1:
       pull_credentials:
         password: lfhxcL/qmrYP24rIH2vmRNSYV9ZlNCfxJyQI6E3kVi+ACRDjUz22

@@ -225,7 +225,7 @@ function App() {
 
         const newModelService = new ModelService(serviceUrl, ragUrl, chatSessionId);
         setModelService(newModelService);
-        newModelService.sources().then((fetchedSources) => setSources(fetchedSources));
+        // newModelService.sources().then((fetchedSources) => setSources(fetchedSources));
       } catch (error) {
         console.error('Failed to fetch model details:', error);
         // Optionally, handle the error (e.g., show a notification to the user)
@@ -242,17 +242,17 @@ function App() {
     // Only set up the interval if modelService is available
     if (!modelService) return;
 
-    const fetchSources = async () => {
-      try {
-        const fetchedSources = await modelService.sources();
-        setSources(fetchedSources);
-      } catch (error) {
-        console.error('Failed to fetch sources:', error);
-        // Optionally, handle the error (e.g., show a notification to the user)
-      }
-    };
+    // const fetchSources = async () => {
+    //   try {
+    //     const fetchedSources = await modelService.sources();
+    //     setSources(fetchedSources);
+    //   } catch (error) {
+    //     console.error('Failed to fetch sources:', error);
+    //     // Optionally, handle the error (e.g., show a notification to the user)
+    //   }
+    // };
 
-    fetchSources();
+    // fetchSources();
   }, [modelService]);
 
   useEffect(() => {

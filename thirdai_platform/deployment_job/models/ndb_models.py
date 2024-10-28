@@ -469,17 +469,14 @@ class NDBV2Model(NDBModel):
     def sources(self) -> List[Dict[str, str]]:
         with self.db_lock:
             docs = self.db.documents()
-        return sorted(
-            [
-                {
-                    "source": self.full_source_path(doc["document"]),
-                    "source_id": doc["doc_id"],
-                    "version": doc["doc_version"],
-                }
-                for doc in docs
-            ],
-            key=lambda x: x["source"],
-        )
+        return [
+            {
+                "source": self.full_source_path(doc["document"]),
+                "source_id": doc["doc_id"],
+                "version": doc["doc_version"],
+            }
+            for doc in docs
+        ]
 
     def highlight_v1(self, chunk: Chunk) -> Tuple[str, Optional[bytes]]:
         source = self.full_source_path(chunk.document)

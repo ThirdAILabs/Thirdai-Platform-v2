@@ -107,18 +107,16 @@ export class ModelService {
   url: string;
   ragUrl: string | undefined;
   sessionId: string;
-  authToken: string | null;
 
   constructor(url: string, ragUrl: string | undefined, sessionId: string) {
     this.url = url;
     this.ragUrl = ragUrl;
     this.sessionId = sessionId;
-    this.authToken = window.localStorage.getItem('accessToken');
   }
 
   authHeader(): Record<string, string> {
     return {
-      Authorization: `Bearer ${this.authToken}`,
+      Authorization: `Bearer ${window.localStorage.getItem('accessToken')}`,
       'Cache-Control': 'no-cache',
     };
   }
@@ -179,13 +177,12 @@ export class ModelService {
       },
     })
       .then(this.handleInvalidAuth())
-      .then((response) => {
+      .then(async (response) => {
         if (response.ok) {
           return response.json();
         }
-        return response.json().then((json) => {
-          throw new Error(json.message);
-        });
+        const json = await response.json();
+        throw new Error(json.message);
       })
       .then((data) => {
         console.log('Model saved successfully:', data);

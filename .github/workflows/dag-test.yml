@@ -67,7 +67,6 @@ jobs:
       run: |
         python -m venv ${{ github.workspace }}/venv
         source venv/bin/activate
-        pip install -r docs/requirements.txt
         pip install -r headless/requirements.txt
         sudo pip install -r thirdai_platform/requirements.txt
         pip install -r thirdai_platform/requirements.txt

@@ -18,7 +18,7 @@ import pickle
 import psutil
 
 
-def memory_usage():
+def memory_usage(x):
     pid = os.getpid()
     mem = psutil.Process().memory_info().rss
     time.sleep(5)

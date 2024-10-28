@@ -264,7 +264,7 @@ class TokenClassificationModel(ClassificationModel):
             for tag in new_tags:
                 tag.status = LabelStatus.untrained
                 tag_status[tag.name] = tag
-        except:
+        except Exception as e:
             self.logger.warning(f"Failed to load tags from config: {e}, using defaults")
             for label in target_labels:
                 tag_status[label] = LabelEntity(

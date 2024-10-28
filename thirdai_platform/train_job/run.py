@@ -1,3 +1,5 @@
+import logging
+import sys
 from logging import Logger
 from pathlib import Path
 
@@ -10,7 +12,7 @@ import argparse
 import os
 
 import thirdai
-from platform_common.logging import LoggerConfig
+from platform_common.logging import LoggerConfig, StreamToLogger
 from platform_common.pydantic_models.training import (
     ModelType,
     NDBSubType,
@@ -90,6 +92,9 @@ def main():
     logger_file_path = log_dir / "train.log"
 
     logger = LoggerConfig(logger_file_path).get_logger("train-logger")
+
+    sys.stdout = StreamToLogger(logger, logging.INFO)
+    sys.stderr = StreamToLogger(logger, logging.ERROR)
 
     reporter = HttpReporter(config.model_bazaar_endpoint, logger)
 

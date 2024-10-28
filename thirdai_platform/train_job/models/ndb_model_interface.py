@@ -48,12 +48,14 @@ class NDBModel(Model):
         all_files = expand_cloud_buckets_and_directories(
             self.config.data.supervised_files
         )
+        self.logger.info(f"Found {len(all_files)} supervised files.")
         check_csv_only(all_files)
         check_local_nfs_only(all_files)
         return all_files
 
     def test_files(self) -> List[FileInfo]:
         all_files = expand_cloud_buckets_and_directories(self.config.data.test_files)
+        self.logger.info(f"Found {len(all_files)} test files.")
         check_csv_only(all_files)
         check_local_nfs_only(all_files)
         return all_files
@@ -149,7 +151,7 @@ class NDBModel(Model):
         db.search("Checking for latency", top_k=5)
 
         latency = time.time() - start_time
-        self.logger.info(f"Latency measured: {latency} seconds.")
+        self.logger.info(f"Latency measured: {latency:.4f} seconds.")
         return latency
 
     def save(self, db: ndb.NeuralDB):

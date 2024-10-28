@@ -21,11 +21,13 @@ class NeuralDBV2(Model):
     def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
         super().__init__(config=config, reporter=reporter, logger=logger)
 
-        self.logger.info(f"THIRDAI VERSION {thirdai.__version__}")
-
         self.ndb_options: NDBv2Options = self.config.model_options.ndb_options
 
         splade = self.ndb_options.advanced_search
+
+        self.logger.info(
+            f"NDB options - advanced_search: {splade}, on_disk: {self.ndb_options.on_disk}"
+        )
 
         if self.config.base_model_id:
             base_model_path = os.path.join(
@@ -95,7 +97,7 @@ class NeuralDBV2(Model):
             )
             first_batch_end = time.perf_counter()
             self.logger.info(
-                f"Parsed first batch time={first_batch_end - first_batch_start:.3f}s"
+                f"First batch parsed in {first_batch_end - first_batch_start:.3f}s"
             )
 
             for i in range(len(batches)):
@@ -121,7 +123,8 @@ class NeuralDBV2(Model):
 
                 end = time.perf_counter()
                 self.logger.info(
-                    f"Inserted batch time={end-start:.3f} insert_time={index_end-index_start:.3f} total_docs={docs_indexed}"
+                    f"Batch {i+1} inserted in {end - start:.3f}s, insertion time: {index_end - index_start:.3f}s, "
+                    f"total documents indexed so far: {docs_indexed}"
                 )
 
         total_chunks = self.db.retriever.retriever.size()
@@ -131,6 +134,7 @@ class NeuralDBV2(Model):
 
     def rlhf_retraining(self, path: str):
         feedback_samples = defaultdict(int)
+        self.logger.info(f"Starting RLHF retraining using file: {path}")
         with open(path, "r") as file:
             for line in file:
                 feedback = FeedbackLog.model_validate_json(line)
@@ -201,12 +205,10 @@ class NeuralDBV2(Model):
         start_time = time.time()
 
         if unsupervised_files:
-            self.logger.info(f"Found {len(unsupervised_files)} unsupervised files.")
             check_disk(self.db, self.config.model_bazaar_dir, unsupervised_files)
             self.unsupervised_train(unsupervised_files)
 
         if supervised_files:
-            self.logger.info(f"Found {len(supervised_files)} supervised files.")
             check_disk(self.db, self.config.model_bazaar_dir, supervised_files)
             self.supervised_train(supervised_files)
 

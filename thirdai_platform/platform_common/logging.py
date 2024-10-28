@@ -76,3 +76,27 @@ def get_default_logger():
         logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
     return logger
+
+
+class StreamToLogger:
+    """
+    Redirects writes to stdout and stderr to a logger instance.
+    """
+
+    def __init__(self, logger: logging.Logger, log_level=logging.INFO):
+        self.logger = logger
+        self.log_level = log_level
+        self.linebuf = ""
+
+    def write(self, buf):
+        for line in buf.rstrip().splitlines():
+            self.logger.log(self.log_level, line)
+        self.flush()  # Ensure immediate output
+
+    def flush(self):
+        """
+        Mimics the flush behavior for compatibility with `print(..., flush=True)`.
+        This ensures that all log messages are flushed immediately.
+        """
+        for handler in self.logger.handlers:
+            handler.flush()  # Flushes each handler in the logger

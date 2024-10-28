@@ -50,5 +50,15 @@ job "{{ train_job_name }}" {
         memory_max = {{ allocation_memory_max }}
       }
     }
+
+    restart {
+      attempts = 0
+      mode = "fail"
+    }
+
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
   }
 }

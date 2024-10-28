@@ -373,14 +373,14 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       <TableCell className="text-right pr-4">
         {error && (
           <Button
-            variant="contained" 
-            color="error" 
+            variant="contained"
+            color="error"
             onClick={() => setShowErrorModal(true)}
             size="small"
-            sx={{ 
+            sx={{
               minWidth: 'unset', // To maintain the circular shape
               padding: '8px',
-              borderRadius: '50%'
+              borderRadius: '50%',
             }}
           >
             <AlertCircle className="h-5 w-5" />

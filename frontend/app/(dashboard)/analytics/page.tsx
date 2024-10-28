@@ -1,14 +1,9 @@
 'use client';
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import RecentSamples from './samples';
 import RecentFeedbacks from './recentFeedbacks';
 import UpdateButton from './updateButton';
 import UsageStats from './usageStats';
-import { UsageDurationChart, UsageFrequencyChart, ReformulatedQueriesChart } from './charts';
 import { useEffect, useState, Suspense } from 'react';
-import Link from 'next/link';
-import { Button } from '@mui/material';
 import { useSearchParams } from 'next/navigation';
 import { getWorkflowDetails, deploymentBaseUrl } from '@/lib/backend';
 import _ from 'lodash';

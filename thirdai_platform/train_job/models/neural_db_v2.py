@@ -92,6 +92,7 @@ class NeuralDBV2(Model):
         tmp_dir = self.data_dir / "unsupervised"
 
         os.makedirs(tmp_dir, exist_ok=True)
+        os.makedirs(doc_save_dir)
 
         docs_indexed = 0
 

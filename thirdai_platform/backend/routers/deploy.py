@@ -457,6 +457,7 @@ def get_feedback(
                             event_heap[feedback_obj.event.action], feedback_obj
                         )
 
+                    events_processed_for_this_file[feedback_obj.event.action] += 1
                     # stop the processing if each required event of the file is processed for per_event_count times
                     if all(
                         [

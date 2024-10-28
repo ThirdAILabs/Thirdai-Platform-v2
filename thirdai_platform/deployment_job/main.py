@@ -1,8 +1,6 @@
 import asyncio
 import os
 import time
-
-pass
 from typing import Any
 
 import uvicorn
@@ -11,8 +9,6 @@ from deployment_job.reporter import Reporter
 from deployment_job.routers.enterprise_search import EnterpriseSearchRouter
 from deployment_job.routers.ndb import NDBRouter
 from deployment_job.routers.udt import UDTRouter
-
-pass
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

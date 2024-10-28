@@ -2,8 +2,7 @@ import traceback
 from logging import Logger
 
 from fastapi import Request
-
-pass
+from fastapi.responses import StreamingResponse
 from starlette import status
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -34,15 +33,10 @@ def create_log_request_response_middleware(logger: Logger):
                 # Call the next middleware or endpoint
                 response = await call_next(request)
 
-                # Log response status and body
-                response_body = [section async for section in response.body_iterator]
-                response.body_iterator = iter(
-                    response_body
-                )  # Reset iterator for actual response
-                response_text = b"".join(response_body).decode("utf-8")
-                self.logger.info(
-                    f"{request_info} - Response Status: {response.status_code} - Response Body: {response_text}"
-                )
+                if not isinstance(response, StreamingResponse):
+                    self.logger.info(
+                        f"{request_info} - Response Status: {response.status_code} - Response Body: {response.body}"
+                    )
 
                 return response
 

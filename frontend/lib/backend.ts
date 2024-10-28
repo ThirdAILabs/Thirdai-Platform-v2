@@ -93,7 +93,6 @@ export function getDeployStatus(modelIdentifier: string): Promise<DeployStatusRe
         `${thirdaiPlatformBaseUrl}/api/deploy/status?model_identifier=${encodeURIComponent(modelIdentifier)}`
       )
       .then((res) => {
-        // console.log('Deploy status response:', res.data?.data?.messages);
         resolve(res.data);
       })
       .catch((err) => {
@@ -112,7 +111,6 @@ export function getTrainingStatus(modelIdentifier: string): Promise<TrainStatusR
         `${thirdaiPlatformBaseUrl}/api/train/status?model_identifier=${encodeURIComponent(modelIdentifier)}`
       )
       .then((res) => {
-        // console.log('Training status response:', res.data?.data?.messages);
         resolve(res.data);
       })
       .catch((err) => {

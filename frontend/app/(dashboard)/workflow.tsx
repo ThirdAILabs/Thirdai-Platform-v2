@@ -26,6 +26,7 @@ import { Modal } from '@/components/ui/Modal';
 import { InformationCircleIcon } from '@heroicons/react/solid';
 import { Model, getModels } from '@/utils/apiRequests';
 import { UserContext } from '../user_wrapper';
+import { ContentCopy, Download } from '@mui/icons-material'; // MUI icons instead of SVG paths
 
 enum DeployStatus {
   None = '',
@@ -371,12 +372,19 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       {/* Add error notification icon in the last cell */}
       <TableCell className="text-right pr-4">
         {error && (
-          <button
+          <Button
+            variant="contained" 
+            color="error" 
             onClick={() => setShowErrorModal(true)}
-            className="inline-flex items-center justify-center rounded-full bg-red-100 p-2 hover:bg-red-200 transition-colors"
+            size="small"
+            sx={{ 
+              minWidth: 'unset', // To maintain the circular shape
+              padding: '8px',
+              borderRadius: '50%'
+            }}
           >
-            <AlertCircle className="h-5 w-5 text-red-600" />
-          </button>
+            <AlertCircle className="h-5 w-5" />
+          </Button>
         )}
       </TableCell>
 
@@ -388,7 +396,10 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               <h2 className="text-xl font-semibold">
                 {error.type === 'training' ? 'Training Failed' : 'Deployment Failed'}
               </h2>
-              <button
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ContentCopy />}
                 onClick={() => {
                   const errorText = error.messages.join('\n');
                   navigator.clipboard.writeText(errorText).then(() => {
@@ -402,18 +413,9 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                     }, 2000);
                   });
                 }}
-                className="inline-flex items-center px-3 py-1 space-x-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
-                  />
-                </svg>
-                <span>Copy Error</span>
-              </button>
+                Copy Error
+              </Button>
             </div>
             <div className="flex-1 overflow-y-auto min-h-0">
               <div className="space-y-2">
@@ -430,7 +432,10 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               </div>
             </div>
             <div className="mt-6 flex justify-end pt-4 border-t sticky bottom-0 bg-white">
-              <button
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<Download />}
                 onClick={async () => {
                   try {
                     const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
@@ -499,16 +504,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 }}
                 className="inline-flex items-center px-6 py-3 space-x-2 text-sm bg-blue-600 hover:bg-blue-700 rounded-md text-white font-medium transition-colors"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                  />
-                </svg>
-                <span>Cannot figure out the bug? Download the bug report and send to us</span>
-              </button>
+                Cannot figure out the bug? Download the bug report and send to us
+              </Button>
             </div>
           </div>
         </Modal>

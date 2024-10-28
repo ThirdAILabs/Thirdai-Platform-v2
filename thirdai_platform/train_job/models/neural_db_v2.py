@@ -119,6 +119,8 @@ class NeuralDBV2(Model):
                 for x in info:
                     self.logger.info(x)
 
+                self.logger.info("MAIN: " + memory_usage(None))
+
                 start = time.perf_counter()
                 if i + 1 < len(batches):
                     os.makedirs(f"./batch_{i+1}")

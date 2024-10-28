@@ -27,6 +27,7 @@ from backend.utils import (
     submit_nomad_job,
     thirdai_platform_dir,
     validate_license_info,
+    read_file_from_back
 )
 from database import schema
 from database.session import get_session
@@ -440,26 +441,29 @@ def get_feedback(
     event_heap = {ActionType.upvote: [], ActionType.associate: []}
     for alloc_dirEntry in os.scandir(feedback_dir):
         if alloc_dirEntry.is_file() and alloc_dirEntry.name.endswith(".jsonl"):
-            with open(alloc_dirEntry.path, "r") as file:
-                file_feedbacks = list(
-                    map(lambda x: FeedbackLog.model_validate_json(x), file)
-                )
-
+            # Count of each events processed in this alloc file
             events_processed = defaultdict(int)
-            for _feedback in file_feedbacks[::-1]:
-                if events_processed[_feedback.event.action] < per_event_count:
-                    heapq.heappush(event_heap[_feedback.event.action], _feedback)
 
-                events_processed[_feedback.event.action] += 1
+            line_generator = read_file_from_back(alloc_dirEntry.path)
+            try:
+                for line in line_generator:
+                    feedback_obj = FeedbackLog.model_validate_strings(line)
 
-                # stop the processing if each required event of the file is processed for per_event_count times
-                if all(
-                    [
-                        events_processed[event_name] >= per_event_count
-                        for event_name in event_heap.keys()
-                    ]
-                ):
-                    break
+                    if events_processed[feedback_obj.event.action] < per_event_count:
+                        heapq.heappush(event_heap[feedback_obj.event.action], feedback_obj)
+                    
+                    events_processed[feedback_obj.event.action] += 1
+
+                    # stop the processing if each required event of the file is processed for per_event_count times
+                    if all(
+                        [
+                            events_processed[event_name] >= per_event_count
+                            for event_name in event_heap.keys()
+                        ]
+                    ):
+                        break
+            finally:
+                line_generator.close()  # Ensures file is closed.
 
     accumlated_feedbacks = defaultdict(list)
     for event_name, _heap in event_heap.items():

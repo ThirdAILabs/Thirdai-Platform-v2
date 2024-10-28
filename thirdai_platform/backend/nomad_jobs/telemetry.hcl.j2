@@ -190,18 +190,6 @@ EOF
         GF_SERVER_HTTP_PORT   = "${NOMAD_PORT_http}"
         GF_PATHS_PROVISIONING = "/local/grafana/provisioning"
         GF_PATHS_DATA = "{{ nomad_monitoring_dir }}/grafana"
-        GF_AUTH_GENERIC_OAUTH_ENABLED="true"
-        GF_AUTH_GENERIC_OAUTH_NAME="Keycloak"
-        GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP="false"
-        GF_AUTH_GENERIC_OAUTH_CLIENT_ID="grafana-oauth"
-        GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET="e9mgpNdwHTXclT9Kzwcw7SaalZc66zQS"
-        GF_AUTH_GENERIC_OAUTH_SCOPES="email profile offline_access openid"
-        GF_AUTH_GENERIC_OAUTH_AUTH_URL="http://192.168.115.186:8180/realms/ThirdAI-Platform/protocol/openid-connect/auth"
-        GF_AUTH_GENERIC_OAUTH_TOKEN_URL="http://192.168.115.186:8180/realms/ThirdAI-Platform/protocol/openid-connect/token"
-        GF_AUTH_GENERIC_OAUTH_API_URL="http://192.168.115.186:8180/realms/ThirdAI-Platform/protocol/openid-connect/userinfo"
-        GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH="contains(roles[*], 'admin') && 'Admin' || contains(roles[*], 'editor') && 'Editor' || 'Viewer'"
-        GF_AUTH_OAUTH_ALLOW_INSECURE_EMAIL_LOOKUP= "true"
-        GF_AUTH_GENERIC_OAUTH_SKIP_ORG_ROLE_SYNC="true"
       }
 
       config {

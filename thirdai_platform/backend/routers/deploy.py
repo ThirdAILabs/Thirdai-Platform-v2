@@ -534,7 +534,7 @@ def active_deployment_count(model_id: str, session: Session = Depends(get_sessio
 
 @deploy_router.post("/start-on-prem")
 async def start_on_prem_job(
-    model_name: str = "Llama-3.2-3B-Instruct-f16.gguf",
+    model_name: str = "Llama-3.2-1B-Instruct-f16.gguf",
     restart_if_exists: bool = True,
     autoscaling_enabled: bool = True,
     cores_per_allocation: Optional[int] = None,

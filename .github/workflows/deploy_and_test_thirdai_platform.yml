@@ -38,7 +38,7 @@ jobs:
       - name: Download and Extract the Package
         run: |
           mkdir -p unzip_thirdai_platform
-          wget PACKAGE_AWS_S3_PATH
+          wget $PACKAGE_AWS_S3_PATH
           mv thirdai-platform-package-release-test-main-v0.0.80.tar.gz ./thirdai-platform-package.tar.gz
 
           tar -xzvf thirdai-platform-package.tar.gz -C unzip_thirdai_platform

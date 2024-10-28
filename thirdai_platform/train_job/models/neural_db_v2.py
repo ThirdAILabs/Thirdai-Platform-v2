@@ -17,20 +17,11 @@ from train_job.utils import check_disk, get_directory_size
 import pickle
 import psutil
 import numpy as np
+import uuid
 
 
-def memory_usage(x):
-    pid = os.getpid()
-    mem = psutil.Process().memory_info().rss
-    time.sleep(5)
-    return f"proc {pid}: mem: {mem / (1024 * 1024):.3f} MiB"
-
-
-def do_stuff_to_waste_memory(x):
-    x = np.arange(20 * 1024 * 1024)
-    y = x * x
-    y = y - x
-    return "haha python is dumb"
+def copy_file(infile, outdir):
+    shutil.copy(infile, os.path.join(outdir, str(uuid.uuid4())))
 
 
 class NeuralDBV2(Model):
@@ -123,13 +114,11 @@ class NeuralDBV2(Model):
             # )
 
             for i in range(len(batches)):
-                info = pool.map(memory_usage, list(range(n_jobs)))
-                for x in info:
-                    self.logger.info(x)
+                s = time.perf_counter()
+                pool.map(copy_file, [(file.path, doc_save_dir) for file in batches[i]])
+                e = time.perf_counter()
 
-                self.logger.info("MAIN: " + memory_usage(None))
-
-                pool.map(do_stuff_to_waste_memory, list(range(n_jobs)))
+                self.logger.info(f"batch {i} {e-s:.3f}s")
 
         #         start = time.perf_counter()
         #         if i + 1 < len(batches):

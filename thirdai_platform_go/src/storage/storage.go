@@ -8,4 +8,6 @@ type Storage interface {
 	Write(path string, data io.Reader) error
 
 	Delete(path string) error
+
+	Location() string
 }

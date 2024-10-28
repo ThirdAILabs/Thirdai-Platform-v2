@@ -9,5 +9,5 @@ func ModelPath(modelId string) string {
 }
 
 func DataPath(modelId string) string {
-	return filepath.Join("models", modelId)
+	return filepath.Join("data", modelId)
 }

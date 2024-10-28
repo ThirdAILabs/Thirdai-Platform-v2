@@ -54,3 +54,7 @@ func (s *SharedDiskStorage) Delete(path string) error {
 	}
 	return nil
 }
+
+func (s *SharedDiskStorage) Location() string {
+	return s.basepath
+}

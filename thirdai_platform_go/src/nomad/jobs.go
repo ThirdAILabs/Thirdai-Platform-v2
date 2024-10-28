@@ -37,7 +37,7 @@ type TrainJob struct {
 	JobName string
 
 	TrainScript string
-	configPath  string
+	ConfigPath  string
 	PythonPath  string
 
 	PlatformType string

@@ -3,6 +3,7 @@ import os
 import shutil
 import time
 from collections import defaultdict
+from logging import Logger
 from typing import List
 
 import thirdai
@@ -17,8 +18,8 @@ from train_job.utils import check_disk, get_directory_size
 
 
 class NeuralDBV2(Model):
-    def __init__(self, config: TrainConfig, reporter: Reporter):
-        super().__init__(config=config, reporter=reporter)
+    def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
+        super().__init__(config=config, reporter=reporter, logger=logger)
 
         self.logger.info(f"THIRDAI VERSION {thirdai.__version__}")
 

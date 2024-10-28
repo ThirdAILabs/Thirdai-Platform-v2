@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from logging import Logger
 from pathlib import Path
 
-from platform_common.logging import LoggerConfig
 from platform_common.pydantic_models.training import TrainConfig
 from train_job.exceptional_handler import apply_exception_handler
 from train_job.reporter import Reporter
@@ -18,7 +17,7 @@ class Model(ABC):
     report_failure_method = "report_status"
     logger: Logger = None
 
-    def __init__(self, config: TrainConfig, reporter: Reporter):
+    def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
         """
         Initialize the model with general and training options, create necessary
         directories, and set up a reporter for status updates.
@@ -38,16 +37,7 @@ class Model(ABC):
         )
         self.model_dir.mkdir(parents=True, exist_ok=True)
 
-        self.log_dir: Path = (
-            Path(self.config.model_bazaar_dir) / "logs" / self.config.model_id
-        )
-
-        self.log_dir.mkdir(parents=True, exist_ok=True)
-
-        logger_file_path = self.log_dir / "train.log"
-        self.__class__.logger = LoggerConfig(logger_file_path).get_logger(
-            "train-logger"
-        )
+        self.__class__.logger = logger
 
         self.unsupervised_checkpoint_dir: Path = (
             self.model_dir / "checkpoints" / "unsupervised"

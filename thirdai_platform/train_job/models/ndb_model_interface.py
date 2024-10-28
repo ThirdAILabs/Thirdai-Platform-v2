@@ -1,4 +1,5 @@
 import time
+from logging import Logger
 from pathlib import Path
 from typing import List
 
@@ -21,11 +22,11 @@ from train_job.utils import (
 class NDBModel(Model):
     report_failure_method = "report_status"
 
-    def __init__(self, config: TrainConfig, reporter: Reporter):
+    def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
         """
         Initialize the NDBModel with general and NeuralDB-specific options.
         """
-        super().__init__(config=config, reporter=reporter)
+        super().__init__(config=config, reporter=reporter, logger=logger)
         self.ndb_options: NDBv1Options = self.config.model_options.ndb_options
         self.model_save_path: Path = self.model_dir / "model.ndb"
         self.logger.info("NDBModel initialized with NeuralDB options.")

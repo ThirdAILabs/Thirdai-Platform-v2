@@ -124,7 +124,11 @@ for attempt in range(1, max_retries + 1):
         if attempt < max_retries:
             time.sleep(retry_delay)
         else:
-            reporter.update_deploy_status(config.model_id, "failed")
+            reporter.update_deploy_status(
+                config.model_id,
+                "failed",
+                message=f"Deployment failed with error: {err}",
+            )
             raise  # Optionally re-raise the exception if you want the application to stop
 
 
@@ -158,7 +162,9 @@ async def startup_event() -> None:
         if not config.autoscaling_enabled:
             asyncio.create_task(async_timer())
     except Exception as e:
-        reporter.update_deploy_status(config.model_id, "failed")
+        reporter.update_deploy_status(
+            config.model_id, "failed", message=f"Deployment failed with error: {e}"
+        )
         print(f"Failed to startup the application, {e}")
         raise e  # Re-raise the exception to propagate it to the main block
 
@@ -168,4 +174,6 @@ if __name__ == "__main__":
         uvicorn.run(app, host="localhost", port=8000)
     except Exception as e:
         print(f"Uvicorn failed to start: {str(e)}")
-        reporter.update_deploy_status(config.model_id, "failed")
+        reporter.update_deploy_status(
+            config.model_id, "failed", message=f"Deployment failed with error: {e}"
+        )

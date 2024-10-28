@@ -12,7 +12,7 @@ class Reporter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def report_status(self, model_id: str, status: str, message: str = ""):
+    def report_status(self, model_id: str, status: str, message: Optional[str] = None):
         raise NotImplementedError
 
 

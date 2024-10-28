@@ -24,10 +24,10 @@ from backend.utils import (
     logger,
     model_accessible,
     model_bazaar_path,
+    read_file_from_back,
     submit_nomad_job,
     thirdai_platform_dir,
     validate_license_info,
-    read_file_from_back
 )
 from database import schema
 from database.session import get_session
@@ -450,8 +450,10 @@ def get_feedback(
                     feedback_obj = FeedbackLog.model_validate_strings(line)
 
                     if events_processed[feedback_obj.event.action] < per_event_count:
-                        heapq.heappush(event_heap[feedback_obj.event.action], feedback_obj)
-                    
+                        heapq.heappush(
+                            event_heap[feedback_obj.event.action], feedback_obj
+                        )
+
                     events_processed[feedback_obj.event.action] += 1
 
                     # stop the processing if each required event of the file is processed for per_event_count times

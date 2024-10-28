@@ -629,6 +629,7 @@ def retrieve_token_classification_samples_for_generation(
 
     return token_classification_samples
 
+
 def read_file_from_back(path: str):
     try:
         fp = open(path, "rb")
@@ -641,12 +642,12 @@ def read_file_from_back(path: str):
         while current_position > 0:
             fp.seek(current_position)
             char = fp.read(1)
-            if char == b'\n' and line:
+            if char == b"\n" and line:
                 yield line[::-1].decode()
                 line = b""
             else:
                 line += char
-        
+
         if line:
             yield line[::-1].decode()
 

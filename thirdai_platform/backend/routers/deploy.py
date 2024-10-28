@@ -4,7 +4,7 @@ import os
 import traceback
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional, Union
+from typing import Annotated, Optional, Union
 
 from auth.jwt import (
     AuthenticatedUser,
@@ -31,7 +31,7 @@ from backend.utils import (
 )
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     EnterpriseSearchOptions,
@@ -368,7 +368,7 @@ async def deploy_model(
 @deploy_router.get("/feedbacks")
 def get_feedback(
     model_identifier: str,
-    per_event_count: int = 5,
+    per_event_count: Annotated[int, Query(gt=0)] = 5,
     session: Session = Depends(get_session),
 ):
     """
@@ -437,29 +437,28 @@ def get_feedback(
             message=f"No feedback found for the model.",
             data=[],
         )
-
     event_heap = {ActionType.upvote: [], ActionType.associate: []}
     for alloc_dirEntry in os.scandir(feedback_dir):
         if alloc_dirEntry.is_file() and alloc_dirEntry.name.endswith(".jsonl"):
-            # Count of each events processed in this alloc file
-            events_processed = defaultdict(int)
-
-            line_generator = read_file_from_back(alloc_dirEntry.path)
+            events_processed_for_this_file = defaultdict(int)
             try:
+                line_generator = read_file_from_back(alloc_dirEntry.path)
                 for line in line_generator:
-                    feedback_obj = FeedbackLog.model_validate_strings(line)
+                    feedback_obj = FeedbackLog(**json.loads(line.strip()))
 
-                    if events_processed[feedback_obj.event.action] < per_event_count:
+                    if (
+                        events_processed_for_this_file[feedback_obj.event.action]
+                        < per_event_count
+                    ):
                         heapq.heappush(
                             event_heap[feedback_obj.event.action], feedback_obj
                         )
 
-                    events_processed[feedback_obj.event.action] += 1
-
                     # stop the processing if each required event of the file is processed for per_event_count times
                     if all(
                         [
-                            events_processed[event_name] >= per_event_count
+                            events_processed_for_this_file[event_name]
+                            >= per_event_count
                             for event_name in event_heap.keys()
                         ]
                     ):
@@ -469,7 +468,9 @@ def get_feedback(
 
     accumlated_feedbacks = defaultdict(list)
     for event_name, _heap in event_heap.items():
-        sorted_events = [heapq.heappop(_heap) for _ in range(len(_heap))]
+        sorted_events = [
+            heapq.heappop(_heap) for _ in range(min(len(_heap), per_event_count))
+        ]
         for feedback in sorted_events:
             if feedback.event.action == ActionType.upvote:
                 accumlated_feedbacks[feedback.event.action].extend(

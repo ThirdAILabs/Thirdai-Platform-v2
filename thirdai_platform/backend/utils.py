@@ -640,13 +640,16 @@ def read_file_from_back(path: str):
 
         line = b""
         while current_position > 0:
-            fp.seek(current_position)
+            fp.seek(current_position - 1)
             char = fp.read(1)
+
             if char == b"\n" and line:
                 yield line[::-1].decode()
                 line = b""
             else:
                 line += char
+
+            current_position -= 1
 
         if line:
             yield line[::-1].decode()

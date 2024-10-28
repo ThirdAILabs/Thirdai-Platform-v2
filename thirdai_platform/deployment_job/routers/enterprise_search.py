@@ -1,3 +1,4 @@
+from logging import Logger
 from urllib.parse import urljoin
 
 import requests
@@ -15,7 +16,7 @@ query_metric = Summary("enterprise_search_query", "Enterprise Search Queries")
 
 
 class EnterpriseSearchRouter:
-    def __init__(self, config: DeploymentConfig, reporter: Reporter):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
         self.config = config
 
         self.retrieval_endpoint = urljoin(

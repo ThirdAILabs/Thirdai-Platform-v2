@@ -3,8 +3,6 @@ import os
 import secrets
 import shutil
 import uuid
-
-pass
 from pathlib import Path
 from typing import Dict, List, Optional
 

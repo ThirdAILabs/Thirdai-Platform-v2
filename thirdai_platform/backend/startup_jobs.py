@@ -86,10 +86,10 @@ async def start_on_prem_generate_job(
     model_size = int(os.path.getsize(model_path) / 1e6)
     # TODO(david) support configuration for multiple models
     job_memory_mb = model_size * 2  # give some leeway
-    if os.cpu_count() < 16:
-        raise ValueError("Can't run LLM job on less than 16 cores")
+    if os.cpu_count() < 8:
+        raise ValueError("Can't run LLM job on less than 8 cores")
     if cores_per_allocation is None:
-        cores_per_allocation = min(16, os.cpu_count() - 8)
+        cores_per_allocation = 7
     return submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "on_prem_generation_job.hcl.j2"),

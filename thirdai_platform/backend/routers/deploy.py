@@ -365,7 +365,7 @@ async def deploy_model(
     )
 
 
-@deploy_router.get("/feedbacks")
+@deploy_router.get("/feedbacks", dependencies=[Depends(is_model_owner)])
 def get_feedback(
     model_identifier: str,
     per_event_count: Annotated[int, Query(gt=0)] = 5,

@@ -99,20 +99,20 @@ class NeuralDBV2(Model):
 
         batches = [files[i : i + batch_size] for i in range(0, len(files), batch_size)]
         with mp.Pool(processes=n_jobs) as pool:
-            first_batch_start = time.perf_counter()
-            os.makedirs("./batch_0")
-            pool.starmap(
-                parse_and_save,
-                [
-                    (doc, doc_save_dir, tmp_dir, f"./batch_0/{i}.pkl")
-                    for i, doc in enumerate(batches[0])
-                ],
-                chunksize=10,
-            )
-            first_batch_end = time.perf_counter()
-            self.logger.info(
-                f"Parsed first batch time={first_batch_end - first_batch_start:.3f}s"
-            )
+            # first_batch_start = time.perf_counter()
+            # os.makedirs("./batch_0")
+            # pool.starmap(
+            #     parse_and_save,
+            #     [
+            #         (doc, doc_save_dir, tmp_dir, f"./batch_0/{i}.pkl")
+            #         for i, doc in enumerate(batches[0])
+            #     ],
+            #     chunksize=10,
+            # )
+            # first_batch_end = time.perf_counter()
+            # self.logger.info(
+            #     f"Parsed first batch time={first_batch_end - first_batch_start:.3f}s"
+            # )
 
             for i in range(len(batches)):
                 info = pool.map(memory_usage, list(range(n_jobs)))
@@ -121,44 +121,44 @@ class NeuralDBV2(Model):
 
                 self.logger.info("MAIN: " + memory_usage(None))
 
-                start = time.perf_counter()
-                if i + 1 < len(batches):
-                    os.makedirs(f"./batch_{i+1}")
-                    next_batch = pool.starmap_async(
-                        parse_and_save,
-                        [
-                            (doc, doc_save_dir, tmp_dir, f"./batch_{i+1}/{j}.pkl")
-                            for j, doc in enumerate(batches[i + 1])
-                        ],
-                        chunksize=10,
-                    )
-                else:
-                    next_batch = None
+        #         start = time.perf_counter()
+        #         if i + 1 < len(batches):
+        #             os.makedirs(f"./batch_{i+1}")
+        #             next_batch = pool.starmap_async(
+        #                 parse_and_save,
+        #                 [
+        #                     (doc, doc_save_dir, tmp_dir, f"./batch_{i+1}/{j}.pkl")
+        #                     for j, doc in enumerate(batches[i + 1])
+        #                 ],
+        #                 chunksize=10,
+        #             )
+        #         else:
+        #             next_batch = None
 
-                index_start = time.perf_counter()
-                batch = []
-                for file in os.listdir(f"./batch_{i}"):
-                    with open(f"./batch_{i}/" + file, "rb") as f:
-                        batch.append(pickle.load(f))
-                #self.db.insert(batch)
-                shutil.rmtree(f"./batch_{i}")
-                index_end = time.perf_counter()
+        #         index_start = time.perf_counter()
+        #         batch = []
+        #         for file in os.listdir(f"./batch_{i}"):
+        #             with open(f"./batch_{i}/" + file, "rb") as f:
+        #                 batch.append(pickle.load(f))
+        #         #self.db.insert(batch)
+        #         shutil.rmtree(f"./batch_{i}")
+        #         index_end = time.perf_counter()
 
-                docs_indexed += len(batch)
+        #         docs_indexed += len(batch)
 
-                if next_batch:
-                    next_batch.wait()
-                    next_batch.get()
+        #         if next_batch:
+        #             next_batch.wait()
+        #             next_batch.get()
 
-                end = time.perf_counter()
-                self.logger.info(
-                    f"Inserted batch time={end-start:.3f} insert_time={index_end-index_start:.3f} total_docs={docs_indexed}"
-                )
+        #         end = time.perf_counter()
+        #         self.logger.info(
+        #             f"Inserted batch time={end-start:.3f} insert_time={index_end-index_start:.3f} total_docs={docs_indexed}"
+        #         )
 
-        total_chunks = self.db.retriever.retriever.size()
-        self.logger.info(
-            f"Completed unsupervised training total_docs={docs_indexed} total_chunks={total_chunks}."
-        )
+        # total_chunks = self.db.retriever.retriever.size()
+        # self.logger.info(
+        #     f"Completed unsupervised training total_docs={docs_indexed} total_chunks={total_chunks}."
+        # )
 
     def unsupervised_train_old(self, files: List[FileInfo], batch_size=500):
         files = [file for file in files if not file.path.endswith("txt")]

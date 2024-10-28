@@ -1,0 +1,53 @@
+name: Deploy ThirdAI on CI Machine
+
+on:
+  workflow_dispatch:
+    inputs:
+      machine_ip:
+        description: "Public IP of the CI machine"
+        required: true
+      package_aws_s3_path:
+        description: "AWS S3 path to the deployment package"
+        required: true
+      branch_name:
+        description: "Branch name for deployment"
+        required: true
+
+jobs:
+  deploy:
+    runs-on: self-hosted # Runs on the CI machine itself
+
+    steps:
+      - name: Set Environment Variables
+        run: |
+          echo "Setting up environment variables"
+          echo "MACHINE_IP=${{ github.event.inputs.machine_ip }}" >> $GITHUB_ENV
+          echo "PACKAGE_AWS_S3_PATH=${{ github.event.inputs.package_aws_s3_path }}" >> $GITHUB_ENV
+          echo "BRANCH_NAME=${{ github.event.inputs.branch_name }}" >> $GITHUB_ENV
+
+      - name: Download and Extract the Package
+        run: |
+          mkdir -p thirdai_platform
+          aws s3 cp $PACKAGE_AWS_S3_PATH ./thirdai-platform-package.tar.gz
+
+          tar -xzvf thirdai-platform-package.tar.gz -C thirdai_platform
+
+      - name: Update config.yml with Public IP
+        run: |
+          yq e ".nodes[0].public_ip = \"$MACHINE_IP\"" -i thirdai_platform/config.yml
+
+      - name: Make driver.sh Executable
+        run: chmod +x thirdai_platform/driver.sh
+
+      - name: Run Deployment Script
+        run: |
+          if [ -z "$BRANCH_NAME" ]; then
+            echo "No branch specified; using default 'release-test-main'."
+            thirdai_platform/driver.sh thirdai_platform/config.yml
+          else
+            thirdai_platform/driver.sh --branch "$BRANCH_NAME" thirdai_platform/config.yml
+          fi
+
+      - name: Verify Deployment
+        run: |
+          echo "Deployment completed for machine with IP: $MACHINE_IP"

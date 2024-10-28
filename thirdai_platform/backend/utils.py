@@ -7,11 +7,12 @@ import shutil
 from collections import defaultdict, deque
 from functools import wraps
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import bcrypt
 import requests
+import sqlalchemy as sa
 from database import schema
 from fastapi import HTTPException, status
 from jinja2 import Template
@@ -89,7 +90,51 @@ def list_all_dependencies(model: schema.Model) -> List[schema.Model]:
     return all_models
 
 
-def get_model_status(model: schema.Model, train_status: bool) -> schema.Status:
+def get_job_error(
+    session: Session, model_id: str, job_type: str, status: schema.Status
+) -> Optional[str]:
+    # Return the first error since often later errors may be indirectly caused by
+    # the first.
+    error = (
+        session.query(schema.JobError)
+        .filter(
+            schema.JobError.model_id == model_id,
+            schema.JobError.job_type == job_type,
+            schema.JobError.status == status,
+        )
+        .order_by(sa.asc(schema.JobError.timestamp))
+        .first()
+    )
+    if not error:
+        return None
+    return error.message
+
+
+def get_detailed_reasons(
+    session: Session,
+    job_type: str,
+    status: schema.Status,
+    reasons: List[Dict[str, str]],
+) -> List[str]:
+    detailed = []
+    for reason in reasons:
+        error = get_job_error(
+            session=session,
+            model_id=reason["model_id"],
+            job_type=job_type,
+            status=status,
+        )
+        message = reason["message"]
+        if error:
+            message += " The following error was detected: " + error
+
+        detailed.append(message)
+    return detailed
+
+
+def get_model_status(
+    model: schema.Model, train_status: bool
+) -> Tuple[schema.Status, List[Dict[str, str]]]:
     # If the model train/deployment hasn't yet been started, was stopped, or has
     # already failed, then the status of its dependencies is irrelevant.
     status = model.train_status if train_status else model.deploy_status
@@ -98,16 +143,30 @@ def get_model_status(model: schema.Model, train_status: bool) -> schema.Status:
         schema.Status.stopped,
         schema.Status.failed,
     ]:
-        return status, [f"Workflow {model.name} has status {status.value}."]
+        return status, [
+            {
+                "model_id": model.id,
+                "message": f"Workflow {model.name} has status {status.value}.",
+            }
+        ]
 
     statuses = defaultdict(list)
     for m in list_all_dependencies(model):
         status = m.train_status if train_status else m.deploy_status
         if m.id == model.id:
-            statuses[status].append(f"Workflow {model.name} has status {status.value}.")
+            statuses[status].append(
+                {
+                    "model_id": m.id,
+                    "message": f"Workflow {model.name} has status {status.value}.",
+                }
+            )
+
         else:
             statuses[status].append(
-                f"The workflow depends on workflow {model.name} which has status {status.value}."
+                {
+                    "model_id": m.id,
+                    "message": f"The workflow depends on workflow {model.name} which has status {status.value}.",
+                }
             )
 
     status_priority_order = [
@@ -414,6 +473,79 @@ def get_service_info(nomad_endpoint: str, service_name: str):
     return requests.get(
         urljoin(nomad_endpoint, f"v1/service/{service_name}"), headers=headers
     )
+
+
+def get_job_name(model: schema.Model, job_type: str) -> str:
+    if job_type == "train":
+        return model.get_train_job_name()
+    elif job_type == "deploy":
+        return model.get_deployment_name()
+    else:
+        raise ValueError(
+            f"Invalid job_type '{job_type}'. Must be either 'train', 'deploy'."
+        )
+
+
+def get_task(job_type: str) -> str:
+    if job_type == "train":
+        return "server"
+    elif job_type == "deploy":
+        return "backend"
+    else:
+        raise ValueError(
+            f"Invalid job_type '{job_type}'. Must be either 'train', 'deploy'."
+        )
+
+
+def get_logs(nomad_endpoint: str, alloc_id: str, task: str, log_type: str) -> str:
+    res = requests.get(
+        urljoin(nomad_endpoint, f"v1/client/fs/logs/{alloc_id}"),
+        headers={"X-Nomad-Token": TASK_RUNNER_TOKEN},
+        params={
+            "task": task,
+            "type": log_type,
+            "origin": "end",
+            "offset": 5000,
+            "plain": True,
+        },
+    )
+
+    if res.status_code != 200:
+        raise ValueError("Error getting logs for job: " + str(res.content))
+
+    _, full_logs = res.content.decode().split("\n", 1)
+    return full_logs
+
+
+def get_job_logs(
+    nomad_endpoint: str, model: schema.Model, job_type: str
+) -> List[Dict[str, str]]:
+    allocations = requests.get(
+        urljoin(nomad_endpoint, f"v1/job/{get_job_name(model, job_type)}/allocations"),
+        headers={"X-Nomad-Token": TASK_RUNNER_TOKEN},
+    )
+    if allocations.status_code != 200:
+        raise ValueError("Error getting job allocations: " + str(allocations.content))
+
+    logs = []
+    for alloc in allocations.json():
+        alloc_id = alloc["ID"]
+
+        stdout_log = get_logs(
+            nomad_endpoint=nomad_endpoint,
+            alloc_id=alloc_id,
+            task=get_task(job_type),
+            log_type="stdout",
+        )
+        stderr_log = get_logs(
+            nomad_endpoint=nomad_endpoint,
+            alloc_id=alloc_id,
+            task=get_task(job_type),
+            log_type="stderr",
+        )
+        logs.append({"stdout": stdout_log, "stderr": stderr_log})
+
+    return logs
 
 
 def get_platform():

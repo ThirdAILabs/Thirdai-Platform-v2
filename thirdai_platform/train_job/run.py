@@ -93,8 +93,8 @@ def main():
 
     logger = LoggerConfig(logger_file_path).get_logger("train-logger")
 
-    sys.stdout = StreamToLogger(logger, logging.INFO)
-    sys.stderr = StreamToLogger(logger, logging.ERROR)
+    sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
+    sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
 
     reporter = HttpReporter(config.model_bazaar_endpoint, logger)
 

@@ -83,15 +83,18 @@ class StreamToLogger:
     Redirects writes to stdout and stderr to a logger instance.
     """
 
-    def __init__(self, logger: logging.Logger, log_level=logging.INFO):
+    def __init__(self, logger: logging.Logger, log_level, original_stream):
         self.logger = logger
         self.log_level = log_level
-        self.linebuf = ""
+        self.original_stream = original_stream
 
-    def write(self, buf):
-        for line in buf.rstrip().splitlines():
-            self.logger.log(self.log_level, line)
-        self.flush()  # Ensure immediate output
+    def write(self, message):
+        if message.strip():  # Avoid logging empty messages
+            # Log to logger
+            self.logger.log(self.level, message.strip())
+            # Also print to the original stream
+            self.original_stream.write(message)
+            self.original_stream.flush()
 
     def flush(self):
         """
@@ -100,3 +103,5 @@ class StreamToLogger:
         """
         for handler in self.logger.handlers:
             handler.flush()  # Flushes each handler in the logger
+
+        self.original_stream.flush()

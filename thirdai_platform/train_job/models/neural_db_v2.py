@@ -15,12 +15,11 @@ from train_job.models.model import Model
 from train_job.reporter import Reporter
 from train_job.utils import check_disk, get_directory_size
 import pickle
-import psutil
-import numpy as np
 import uuid
 
 
-def copy_file(infile, outdir):
+def copy_file(x):
+    infile, outdir = x
     shutil.copy(infile, os.path.join(outdir, str(uuid.uuid4())))
 
 
@@ -115,7 +114,10 @@ class NeuralDBV2(Model):
 
             for i in range(len(batches)):
                 s = time.perf_counter()
-                pool.map(copy_file, [(file.path, doc_save_dir) for file in batches[i]])
+                pool.map(
+                    copy_file,
+                    [(file.path, doc_save_dir) for file in batches[i]],
+                )
                 e = time.perf_counter()
 
                 self.logger.info(f"batch {i} {e-s:.3f}s")

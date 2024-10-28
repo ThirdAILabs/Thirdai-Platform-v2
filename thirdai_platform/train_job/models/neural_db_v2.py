@@ -94,34 +94,43 @@ class NeuralDBV2(Model):
         os.makedirs(tmp_dir, exist_ok=True)
         os.makedirs(doc_save_dir)
 
+        batches = [files[i : i + batch_size] for i in range(0, len(files), batch_size)]
+        for i in range(len(batches)):
+            s = time.perf_counter()
+            tmp = list(
+                map(copy_file, [(file.path, doc_save_dir) for file in batches[i]])
+            )
+            e = time.perf_counter()
+
+            self.logger.info(f"batch {i} {e-s:.3f}s")
+
         docs_indexed = 0
 
-        batches = [files[i : i + batch_size] for i in range(0, len(files), batch_size)]
-        with mp.Pool(processes=n_jobs) as pool:
-            # first_batch_start = time.perf_counter()
-            # os.makedirs("./batch_0")
-            # pool.starmap(
-            #     parse_and_save,
-            #     [
-            #         (doc, doc_save_dir, tmp_dir, f"./batch_0/{i}.pkl")
-            #         for i, doc in enumerate(batches[0])
-            #     ],
-            #     chunksize=10,
-            # )
-            # first_batch_end = time.perf_counter()
-            # self.logger.info(
-            #     f"Parsed first batch time={first_batch_end - first_batch_start:.3f}s"
-            # )
+        # with mp.Pool(processes=n_jobs) as pool:
+        # first_batch_start = time.perf_counter()
+        # os.makedirs("./batch_0")
+        # pool.starmap(
+        #     parse_and_save,
+        #     [
+        #         (doc, doc_save_dir, tmp_dir, f"./batch_0/{i}.pkl")
+        #         for i, doc in enumerate(batches[0])
+        #     ],
+        #     chunksize=10,
+        # )
+        # first_batch_end = time.perf_counter()
+        # self.logger.info(
+        #     f"Parsed first batch time={first_batch_end - first_batch_start:.3f}s"
+        # )
 
-            for i in range(len(batches)):
-                s = time.perf_counter()
-                pool.map(
-                    copy_file,
-                    [(file.path, doc_save_dir) for file in batches[i]],
-                )
-                e = time.perf_counter()
+        # for i in range(len(batches)):
+        #     s = time.perf_counter()
+        #     pool.map(
+        #         copy_file,
+        #         [(file.path, doc_save_dir) for file in batches[i]],
+        #     )
+        #     e = time.perf_counter()
 
-                self.logger.info(f"batch {i} {e-s:.3f}s")
+        #     self.logger.info(f"batch {i} {e-s:.3f}s")
 
         #         start = time.perf_counter()
         #         if i + 1 < len(batches):

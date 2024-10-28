@@ -63,7 +63,10 @@ export default function ChooseProblem() {
   // const TABULAR_CLASSIFICATION = "Tabular Classification";
 
   // Update the useCases array with new names
-  const useCases = [{ name: ENTERPRISE_SEARCH }, { name: CHATBOT }, { name: NLP_TEXT_ANALYSIS }];
+  let useCases = [{ name: ENTERPRISE_SEARCH }, { name: CHATBOT }];
+  if (process.env.NEXT_PUBLIC_AIRGAPPED !== "true") {
+    useCases.push({ name: NLP_TEXT_ANALYSIS })
+  }
   const handleSetModelType = (model: string) => {
     setModelType(model);
   };

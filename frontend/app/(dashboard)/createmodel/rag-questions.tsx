@@ -317,6 +317,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
                 <Button
                   variant={llmType === LlmProvider.OpenAI ? 'contained' : 'outlined'}
                   onClick={() => setLlmType(LlmProvider.OpenAI)}
+                  disabled={process.env.NEXT_PUBLIC_AIRGAPPED === "true"}
                 >
                   OpenAI
                 </Button>
@@ -405,6 +406,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
                             setIfUseExistingLGR('No');
                             setCreatedGR(false);
                           }}
+                          disabled={process.env.NEXT_PUBLIC_AIRGAPPED === "true"}
                         >
                           No
                         </Button>

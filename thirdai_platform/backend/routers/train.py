@@ -1071,7 +1071,6 @@ def train_fail(
         session.add(
             schema.JobError(
                 model_id=trained_model.id,
-                timestamp=datetime.utcnow().isoformat(),
                 job_type="train",
                 status=new_status,
                 message=message,

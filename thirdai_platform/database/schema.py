@@ -397,7 +397,9 @@ class JobError(SQLDeclarativeBase):
     model_id = Column(
         UUID(as_uuid=True), ForeignKey("models.id", ondelete="CASCADE"), index=True
     )
-    timestamp = Column(DateTime, nullable=False)
+    timestamp = Column(
+        DateTime, nullable=False, default=lambda: datetime.utcnow().isoformat()
+    )
     job_type = Column(String(100), nullable=False)
     status = Column(ENUM(Status), nullable=False)
     message = Column(String)

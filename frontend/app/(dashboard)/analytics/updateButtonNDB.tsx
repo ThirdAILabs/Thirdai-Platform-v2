@@ -72,21 +72,17 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
 
   return (
     <div className="flex flex-col items-center space-y-4 my-8">
-      <Button 
-        onClick={handleUpdate} 
+      <Button
+        onClick={handleUpdate}
         disabled={loading}
         className="w-64"
-        variant={success ? "secondary" : "default"}
+        variant={success ? 'secondary' : 'default'}
       >
         {loading ? 'Updating...' : success ? 'Update Successful!' : 'Update model with feedback'}
       </Button>
-      
-      {error && (
-        <p className="text-red-500 text-center mt-2">
-          {error}
-        </p>
-      )}
-      
+
+      {error && <p className="text-red-500 text-center mt-2">{error}</p>}
+
       {success && (
         <p className="text-green-500 text-center mt-2">
           Model update process initiated successfully. This may take some time to complete.

@@ -42,6 +42,10 @@ RUN mkdir -p /app/.cache
 COPY download_model.py /app/
 RUN python3 download_model.py
 
+ENV SCARF_NO_ANALYTICS=true
+
+RUN python3 -m nltk.downloader -d /usr/share/nltk_data stopwords punkt_tab
+
 RUN chmod +x ./entrypoint.sh
 
 CMD ["./entrypoint.sh"]

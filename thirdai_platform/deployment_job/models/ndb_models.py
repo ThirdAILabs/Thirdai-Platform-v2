@@ -34,8 +34,8 @@ class NDBModel(Model):
     Base class for NeuralDB (NDB) models.
     """
 
-    def __init__(self, config: DeploymentConfig):
-        super().__init__(config=config)
+    def __init__(self, config: DeploymentConfig, logger: logging.Logger):
+        super().__init__(config=config, logger=logger)
         self.chat_instances = {}
         self.chat_instance_lock = Lock()
 
@@ -177,11 +177,13 @@ class NDBV1Model(NDBModel):
     Base class for NeuralDBV1 (NDB) models.
     """
 
-    def __init__(self, config: DeploymentConfig, write_mode: bool = False) -> None:
+    def __init__(
+        self, config: DeploymentConfig, logger: logging.Logger, write_mode: bool = False
+    ) -> None:
         """
         Initializes NDB model with paths and NeuralDB.
         """
-        super().__init__(config=config)
+        super().__init__(config=config, logger=logger)
         self.db_lock = Lock()
         self.model_path: Path = self.model_dir / "model.ndb"
         self.db: ndb.NeuralDB = self.load(write_mode=write_mode)
@@ -368,8 +370,10 @@ class NDBV1Model(NDBModel):
 
 
 class NDBV2Model(NDBModel):
-    def __init__(self, config: DeploymentConfig, write_mode: bool = False):
-        super().__init__(config=config)
+    def __init__(
+        self, config: DeploymentConfig, logger: logging.Logger, write_mode: bool = False
+    ):
+        super().__init__(config=config, logger=logger)
 
         self.db_lock = Lock()
         self.db = self.load(write_mode=write_mode)

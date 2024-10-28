@@ -1,5 +1,6 @@
 import os
 import time
+from logging import Logger
 
 from deployment_job.models.classification_models import (
     ClassificationModel,
@@ -33,8 +34,8 @@ udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
 
 class UDTRouter:
-    def __init__(self, config: DeploymentConfig, reporter: Reporter):
-        self.model: ClassificationModel = UDTRouter.get_model(config)
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
+        self.model: ClassificationModel = UDTRouter.get_model(config, logger)
 
         # TODO(Nicholas): move these metrics to prometheus
         self.start_time = time.time()
@@ -60,12 +61,12 @@ class UDTRouter:
             )
 
     @staticmethod
-    def get_model(config: DeploymentConfig) -> ClassificationModel:
+    def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
         subtype = config.model_options.udt_sub_type
         if subtype == UDTSubType.text:
-            return TextClassificationModel(config=config)
+            return TextClassificationModel(config=config, logger=logger)
         elif subtype == UDTSubType.token:
-            return TokenClassificationModel(config=config)
+            return TokenClassificationModel(config=config, logger=logger)
         else:
             raise ValueError(f"Unsupported UDT subtype '{subtype}'.")
 

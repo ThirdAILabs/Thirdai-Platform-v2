@@ -1,6 +1,7 @@
 import io
 import traceback
 import uuid
+from logging import Logger
 from pathlib import Path
 from typing import AsyncGenerator, List
 
@@ -58,11 +59,11 @@ ndb_top_k_selections = [
 
 
 class NDBRouter:
-    def __init__(self, config: DeploymentConfig, reporter: Reporter):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
         self.config = config
         self.reporter = reporter
 
-        self.model: NDBModel = NDBRouter.get_model(config)
+        self.model: NDBModel = NDBRouter.get_model(config, logger)
 
         self.feedback_logger = UpdateLogger.get_feedback_logger(self.model.data_dir)
         self.insertion_logger = UpdateLogger.get_insertion_logger(self.model.data_dir)
@@ -96,12 +97,16 @@ class NDBRouter:
         )
 
     @staticmethod
-    def get_model(config: DeploymentConfig) -> NDBModel:
+    def get_model(config: DeploymentConfig, logger: Logger) -> NDBModel:
         subtype = config.model_options.ndb_sub_type
         if subtype == NDBSubType.v1:
-            return NDBV1Model(config=config, write_mode=not config.autoscaling_enabled)
+            return NDBV1Model(
+                config=config, logger=logger, write_mode=not config.autoscaling_enabled
+            )
         elif subtype == NDBSubType.v2:
-            return NDBV2Model(config=config, write_mode=not config.autoscaling_enabled)
+            return NDBV2Model(
+                config=config, logger=logger, write_mode=not config.autoscaling_enabled
+            )
         else:
             raise ValueError(f"Unsupported NDB subtype '{subtype}'.")
 

@@ -2,6 +2,7 @@ import asyncio
 import os
 import time
 from functools import wraps
+from pathlib import Path
 from typing import Any
 
 import uvicorn
@@ -14,6 +15,7 @@ from deployment_job.utils import delete_deployment_job
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from platform_common.logging import LoggerConfig
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.training import ModelType
 from prometheus_client import make_asgi_app
@@ -27,6 +29,13 @@ def load_config():
 
 config: DeploymentConfig = load_config()
 reporter = Reporter(config.model_bazaar_endpoint)
+
+log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
+
+log_dir.mkdir(parents=True, exist_ok=True)
+
+logger_file_path = log_dir / "deployment.log"
+logger = LoggerConfig(logger_file_path).get_logger("deployment-logger")
 
 licensing.activate(config.license_key)
 
@@ -109,7 +118,7 @@ retry_delay = 5  # Delay in seconds before retrying
 
 for attempt in range(1, max_retries + 1):
     try:
-        backend_router = backend_router_factory(config, reporter)
+        backend_router = backend_router_factory(config, reporter, logger)
         break  # Exit the loop if model loading is successful
     except Exception as err:
         if attempt < max_retries:

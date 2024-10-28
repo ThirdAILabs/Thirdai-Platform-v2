@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from logging import Logger
 from pathlib import Path
 from typing import List, Optional
 
@@ -24,8 +25,8 @@ from thirdai import bolt
 
 
 class ClassificationModel(Model):
-    def __init__(self, config: DeploymentConfig):
-        super().__init__(config=config)
+    def __init__(self, config: DeploymentConfig, logger: Logger):
+        super().__init__(config=config, logger=logger)
         self.model: bolt.UniversalDeepTransformer = self.load()
 
     def get_udt_path(self, model_id: Optional[str] = None) -> str:
@@ -46,8 +47,8 @@ class ClassificationModel(Model):
 
 
 class TextClassificationModel(ClassificationModel):
-    def __init__(self, config: DeploymentConfig):
-        super().__init__(config=config)
+    def __init__(self, config: DeploymentConfig, logger: Logger):
+        super().__init__(config=config, logger=logger)
         self.num_classes = self.model.predict({"text": "test"}).shape[-1]
 
     def predict(self, text: str, top_k: int, **kwargs):
@@ -65,8 +66,8 @@ class TextClassificationModel(ClassificationModel):
 
 
 class TokenClassificationModel(ClassificationModel):
-    def __init__(self, config: DeploymentConfig):
-        super().__init__(config=config)
+    def __init__(self, config: DeploymentConfig, logger: Logger):
+        super().__init__(config=config, logger=logger)
         self.load_storage()
 
     def predict(self, text: str, **kwargs):

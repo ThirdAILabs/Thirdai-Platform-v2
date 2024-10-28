@@ -74,7 +74,7 @@ export default function RecentFeedbacks({ username, modelName }: RecentFeedbacks
       }}
     >
       <Card style={{ width: '48%', minHeight: '45rem' }} className="pb-2">
-        <CardHeader className="bg-blue-900 text-white">
+        <CardHeader className="bg-blue-900 text-white mb-3">
           <CardTitle>Recent Upvotes</CardTitle>
           <CardDescription className="text-white">The latest user-provided upvotes</CardDescription>
         </CardHeader>
@@ -99,7 +99,7 @@ export default function RecentFeedbacks({ username, modelName }: RecentFeedbacks
         </CardContent>
       </Card>
       <Card style={{ width: '48%', minHeight: '45rem' }}>
-        <CardHeader className="bg-blue-900 text-white">
+        <CardHeader className="bg-blue-900 text-white mb-3">
           <CardTitle>Recent Associations</CardTitle>
           <CardDescription className="text-white">
             The latest user-provided associations

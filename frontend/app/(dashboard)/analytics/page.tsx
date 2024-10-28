@@ -1,6 +1,4 @@
 'use client';
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import RecentSamples from './samples';
 import RecentFeedbacks from './recentFeedbacks';
 import UpdateButton from './updateButton';
@@ -8,8 +6,6 @@ import UpdateButtonNDB from './updateButtonNDB';
 import UsageStats from './usageStats';
 import { UsageDurationChart, UsageFrequencyChart, ReformulatedQueriesChart } from './charts';
 import { useEffect, useState, Suspense } from 'react';
-import Link from 'next/link';
-import { Button } from '@mui/material';
 import { useSearchParams } from 'next/navigation';
 import { getWorkflowDetails, deploymentBaseUrl } from '@/lib/backend';
 import _ from 'lodash';
@@ -33,7 +29,6 @@ function AnalyticsContent() {
 
           console.log('workflowDetails', workflowDetails);
           setWorkflowType(workflowDetails.data.type);
-          
           if (workflowDetails.data.type === 'enterprise-search' && workflowDetails.data.dependencies?.length > 0) {
             // For enterprise-search, use the first dependency's details
             const firstDependency = workflowDetails.data.dependencies[0];

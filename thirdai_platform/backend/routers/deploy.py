@@ -4,7 +4,7 @@ import os
 import traceback
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional, Union
+from typing import Annotated, Optional, Union
 
 from auth.jwt import (
     AuthenticatedUser,
@@ -12,10 +12,12 @@ from auth.jwt import (
     verify_access_token,
     verify_access_token_no_throw,
 )
-from backend.auth_dependencies import is_model_owner
+from backend.auth_dependencies import is_model_owner, verify_model_read_access
 from backend.startup_jobs import start_on_prem_generate_job
 from backend.utils import (
     delete_nomad_job,
+    get_detailed_reasons,
+    get_job_logs,
     get_model_from_identifier,
     get_model_status,
     get_platform,
@@ -24,13 +26,14 @@ from backend.utils import (
     logger,
     model_accessible,
     model_bazaar_path,
+    read_file_from_back,
     submit_nomad_job,
     thirdai_platform_dir,
     validate_license_info,
 )
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     EnterpriseSearchOptions,
@@ -364,10 +367,10 @@ async def deploy_model(
     )
 
 
-@deploy_router.get("/feedbacks")
+@deploy_router.get("/feedbacks", dependencies=[Depends(is_model_owner)])
 def get_feedback(
     model_identifier: str,
-    per_event_count: int = 5,
+    per_event_count: Annotated[int, Query(gt=0)] = 5,
     session: Session = Depends(get_session),
 ):
     """
@@ -440,30 +443,37 @@ def get_feedback(
     event_heap = {ActionType.upvote: [], ActionType.associate: []}
     for alloc_dirEntry in os.scandir(feedback_dir):
         if alloc_dirEntry.is_file() and alloc_dirEntry.name.endswith(".jsonl"):
-            with open(alloc_dirEntry.path, "r") as file:
-                file_feedbacks = list(
-                    map(lambda x: FeedbackLog.model_validate_json(x), file)
-                )
+            events_processed_for_this_file = defaultdict(int)
+            try:
+                line_generator = read_file_from_back(alloc_dirEntry.path)
+                for line in line_generator:
+                    feedback_obj = FeedbackLog(**json.loads(line.strip()))
 
-            events_processed = defaultdict(int)
-            for _feedback in file_feedbacks[::-1]:
-                if events_processed[_feedback.event.action] < per_event_count:
-                    heapq.heappush(event_heap[_feedback.event.action], _feedback)
+                    if (
+                        events_processed_for_this_file[feedback_obj.event.action]
+                        < per_event_count
+                    ):
+                        heapq.heappush(
+                            event_heap[feedback_obj.event.action], feedback_obj
+                        )
 
-                events_processed[_feedback.event.action] += 1
-
-                # stop the processing if each required event of the file is processed for per_event_count times
-                if all(
-                    [
-                        events_processed[event_name] >= per_event_count
-                        for event_name in event_heap.keys()
-                    ]
-                ):
-                    break
+                    # stop the processing if each required event of the file is processed for per_event_count times
+                    if all(
+                        [
+                            events_processed_for_this_file[event_name]
+                            >= per_event_count
+                            for event_name in event_heap.keys()
+                        ]
+                    ):
+                        break
+            finally:
+                line_generator.close()  # Ensures file is closed.
 
     accumlated_feedbacks = defaultdict(list)
     for event_name, _heap in event_heap.items():
-        sorted_events = [heapq.heappop(_heap) for _ in range(len(_heap))]
+        sorted_events = [
+            heapq.heappop(_heap) for _ in range(min(len(_heap), per_event_count))
+        ]
         for feedback in sorted_events:
             if feedback.event.action == ActionType.upvote:
                 accumlated_feedbacks[feedback.event.action].extend(
@@ -499,7 +509,7 @@ def get_feedback(
     )
 
 
-@deploy_router.get("/status")
+@deploy_router.get("/status", dependencies=[Depends(verify_model_read_access)])
 def deployment_status(
     model_identifier: str,
     session: Session = Depends(get_session),
@@ -527,12 +537,15 @@ def deployment_status(
         )
 
     deploy_status, reasons = get_model_status(model, train_status=False)
+    reasons = get_detailed_reasons(
+        session=session, job_type="deploy", status=deploy_status, reasons=reasons
+    )
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the deployment status",
         data={
             "deploy_status": deploy_status,
-            "message": " ".join(reasons),
+            "messages": reasons,
             "model_id": str(model.id),
         },
     )
@@ -542,6 +555,7 @@ def deployment_status(
 def update_deployment_status(
     model_id: str,
     new_status: schema.Status,
+    message: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     """
@@ -571,6 +585,15 @@ def update_deployment_status(
         )
 
     model.deploy_status = new_status
+    if message:
+        session.add(
+            schema.JobError(
+                model_id=model.id,
+                job_type="deploy",
+                status=status,
+                message=message,
+            )
+        )
 
     session.commit()
 
@@ -692,4 +715,28 @@ async def start_on_prem_job(
 
     return response(
         status_code=status.HTTP_200_OK, message="On-prem job started successfully"
+    )
+
+
+@deploy_router.get("/logs", dependencies=[Depends(verify_model_read_access)])
+def train_logs(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    logs = get_job_logs(
+        nomad_endpoint=os.getenv("NOMAD_ENDPOINT"), model=model, job_type="deploy"
+    )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the train logs.",
+        data=logs,
     )

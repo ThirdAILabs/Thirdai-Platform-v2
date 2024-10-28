@@ -12,6 +12,7 @@ from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLo
 from platform_common.pydantic_models.training import FileInfo, NDBv2Options, TrainConfig
 from thirdai import neural_db_v2 as ndbv2
 from train_job.models.model import Model
+from platform_common.file_handler import get_cloud_client
 from train_job.reporter import Reporter
 from train_job.utils import check_disk, get_directory_size
 import pickle
@@ -21,8 +22,14 @@ import uuid
 def copy_file(x):
     infile, outdir = x
     outpath = os.path.join(outdir, str(uuid.uuid4()))
-    # shutil.copy(infile, os.path.join(outdir, str(uuid.uuid4())))
-    os.system(f"cp {infile} {outpath}")
+    if infile.location == "s3":
+        s3_client = get_cloud_client(provider="s3")
+        bucket_name, prefix = infile.parse_s3_url()
+        s3_client.download_file(bucket_name, prefix, outpath)
+        s3_client.close()
+    else:
+        # shutil.copy(infile, os.path.join(outdir, str(uuid.uuid4())))
+        os.system(f"cp {infile.path} {outpath}")
 
 
 class NeuralDBV2(Model):
@@ -99,9 +106,7 @@ class NeuralDBV2(Model):
         batches = [files[i : i + batch_size] for i in range(0, len(files), batch_size)]
         for i in range(len(batches)):
             s = time.perf_counter()
-            tmp = list(
-                map(copy_file, [(file.path, doc_save_dir) for file in batches[i]])
-            )
+            tmp = list(map(copy_file, [(file, doc_save_dir) for file in batches[i]]))
             e = time.perf_counter()
 
             self.logger.info(f"batch {i} {e-s:.3f}s")

@@ -151,7 +151,6 @@ class NDBRouter:
         }
         ```
         """
-
         results = self.model.predict(**params.model_dump())
 
         return response(
@@ -316,18 +315,22 @@ class NDBRouter:
         write_permission = Permissions.check_permission(
             token=token, permission_type="write"
         )
+        prod_mode = not write_permission or self.config.autoscaling_enabled
 
-        if not write_permission or self.config.autoscaling_enabled:
-            self.feedback_logger.log(
-                FeedbackLog(
-                    event=UpvoteLog(
-                        chunk_ids=[
-                            sample.reference_id for sample in input.text_id_pairs
-                        ],
-                        queries=[sample.query_text for sample in input.text_id_pairs],
-                    )
-                )
+        self.feedback_logger.log(
+            FeedbackLog(
+                event=UpvoteLog(
+                    chunk_ids=[sample.reference_id for sample in input.text_id_pairs],
+                    queries=[sample.query_text for sample in input.text_id_pairs],
+                    reference_texts=[
+                        sample.reference_text for sample in input.text_id_pairs
+                    ],
+                ),
+                perform_rlhf_later=prod_mode,
             )
+        )
+
+        if prod_mode:
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Upvote logged successfully.",
@@ -375,16 +378,19 @@ class NDBRouter:
         write_permission = Permissions.check_permission(
             token=token, permission_type="write"
         )
+        prod_mode = not write_permission or self.config.autoscaling_enabled
 
-        if not write_permission or self.config.autoscaling_enabled:
-            self.feedback_logger.log(
-                FeedbackLog(
-                    event=AssociateLog(
-                        sources=[sample.source for sample in input.text_pairs],
-                        targets=[sample.target for sample in input.text_pairs],
-                    )
-                )
+        self.feedback_logger.log(
+            FeedbackLog(
+                event=AssociateLog(
+                    sources=[sample.source for sample in input.text_pairs],
+                    targets=[sample.target for sample in input.text_pairs],
+                ),
+                perform_rlhf_later=prod_mode,
             )
+        )
+
+        if prod_mode:
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Associate logged successfully.",
@@ -415,7 +421,8 @@ class NDBRouter:
                     chunk_id=feedback.reference_id,
                     query=feedback.query_text,
                     event_desc=feedback.event_desc,
-                )
+                ),
+                perform_rlhf_later=True,
             )
         )
 

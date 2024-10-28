@@ -318,32 +318,31 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               </DropdownMenuItem>
             )}
 
-            {workflow.type === 'ndb' &&
-              (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
-                <DropdownMenuItem>
-                  <form>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (window.confirm('Are you sure you want to delete this workflow?')) {
-                          try {
-                            const response = await delete_workflow(
-                              workflow.username,
-                              workflow.model_name
-                            );
-                            console.log('Workflow deleted successfully:', response);
-                          } catch (error) {
-                            console.error('Error deleting workflow:', error);
-                            alert('Error deleting workflow:' + error);
-                          }
+            {(modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
+              <DropdownMenuItem>
+                <form>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to delete this workflow?')) {
+                        try {
+                          const response = await delete_workflow(
+                            workflow.username,
+                            workflow.model_name
+                          );
+                          console.log('Workflow deleted successfully:', response);
+                        } catch (error) {
+                          console.error('Error deleting workflow:', error);
+                          alert('Error deleting workflow:' + error);
                         }
-                      }}
-                    >
-                      Delete App
-                    </button>
-                  </form>
-                </DropdownMenuItem>
-              )}
+                      }
+                    }}
+                  >
+                    Delete App
+                  </button>
+                </form>
+              </DropdownMenuItem>
+            )}
 
             {workflow.type === 'ndb' &&
               (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (

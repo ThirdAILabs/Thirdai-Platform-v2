@@ -760,3 +760,31 @@ def retrieve_token_classification_samples_for_generation(
     ]
 
     return token_classification_samples
+
+
+def read_file_from_back(path: str):
+    try:
+        fp = open(path, "rb")
+
+        # move the cursor to the end of the file
+        fp.seek(0, 2)
+        current_position = fp.tell()
+
+        line = b""
+        while current_position > 0:
+            fp.seek(current_position - 1)
+            char = fp.read(1)
+
+            if char == b"\n" and line:
+                yield line[::-1].decode()
+                line = b""
+            else:
+                line += char
+
+            current_position -= 1
+
+        if line:
+            yield line[::-1].decode()
+
+    finally:
+        fp.close()

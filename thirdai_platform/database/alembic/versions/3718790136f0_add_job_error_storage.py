@@ -39,6 +39,7 @@ def upgrade() -> None:
                 "complete",
                 "failed",
                 name="status",
+                create_type=False,
             ),
             nullable=False,
         ),

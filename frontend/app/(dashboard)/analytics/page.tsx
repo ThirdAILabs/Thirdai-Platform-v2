@@ -2,6 +2,7 @@
 import RecentSamples from './samples';
 import RecentFeedbacks from './recentFeedbacks';
 import UpdateButton from './updateButton';
+import UpdateButtonNDB from './updateButtonNDB';
 import UsageStats from './usageStats';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -56,7 +57,7 @@ function AnalyticsContent() {
       <>
         <UsageStats />
         <RecentFeedbacks />
-        {modelName && <UpdateButton modelName={modelName} />}
+        {modelName && <UpdateButtonNDB modelName={modelName} />}
       </>
     );
   }

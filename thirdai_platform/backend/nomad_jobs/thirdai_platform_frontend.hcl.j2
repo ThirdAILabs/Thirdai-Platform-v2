@@ -49,6 +49,8 @@ job "thirdai-platform-frontend" {
         {% if use_ssl_in_login == "true" %}
         NODE_EXTRA_CA_CERTS = "/certs/traefik.crt"
         {% endif %}
+
+        NEXT_PUBLIC_AIRGAPPED = "{{ airgapped }}"
       }
 
       config {

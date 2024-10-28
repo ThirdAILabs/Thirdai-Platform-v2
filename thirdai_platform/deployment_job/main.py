@@ -3,6 +3,7 @@ import os
 import time
 from typing import Any
 
+import thirdai
 import uvicorn
 from deployment_job.permissions import Permissions
 from deployment_job.reporter import Reporter
@@ -15,7 +16,6 @@ from fastapi.responses import JSONResponse
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.training import ModelType
 from prometheus_client import make_asgi_app
-from thirdai import licensing
 
 
 def load_config():
@@ -26,7 +26,12 @@ def load_config():
 config: DeploymentConfig = load_config()
 reporter = Reporter(config.model_bazaar_endpoint)
 
-licensing.activate(config.license_key)
+if config.license_key == "file_license":
+    thirdai.licensing.set_path(
+        os.path.join(config.model_bazaar_dir, "license/license.serialized")
+    )
+else:
+    thirdai.licensing.activate(config.license_key)
 
 Permissions.init(
     model_bazaar_endpoint=config.model_bazaar_endpoint, model_id=config.model_id

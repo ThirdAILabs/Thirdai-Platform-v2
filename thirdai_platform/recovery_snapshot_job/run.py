@@ -2,7 +2,9 @@ import datetime
 import logging
 import os
 import subprocess
+import sys
 import zipfile
+from pathlib import Path
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -12,6 +14,7 @@ from platform_common.file_handler import (
     GCPStorageHandler,
     S3StorageHandler,
 )
+from platform_common.logging import LoggerConfig, StreamToLogger
 from platform_common.pydantic_models.recovery_snapshot import (
     AzureConfig,
     BackupConfig,
@@ -19,12 +22,20 @@ from platform_common.pydantic_models.recovery_snapshot import (
     S3Config,
 )
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
 # Global scheduler instance
 scheduler = BlockingScheduler()
+
+model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
+
+log_dir: Path = Path(model_bazaar_dir) / "logs"
+
+log_dir.mkdir(parents=True, exist_ok=True)
+
+logger_file_path = log_dir / "recovery_snapshot.log"
+logger = LoggerConfig(logger_file_path).get_logger("recovery-snapshot-logger")
+
+sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
+sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
 
 
 def get_cloud_storage_handler(config: BackupConfig):
@@ -32,18 +43,22 @@ def get_cloud_storage_handler(config: BackupConfig):
     provider_config = config.provider
 
     if isinstance(provider_config, S3Config):
+        logger.info("Using S3 storage handler for backup.")
         return S3StorageHandler(
             aws_access_key=provider_config.aws_access_key,
             aws_secret_access_key=provider_config.aws_secret_access_key,
         )
     elif isinstance(provider_config, AzureConfig):
+        logger.info("Using Azure storage handler for backup.")
         return AzureStorageHandler(
             account_name=provider_config.azure_account_name,
             account_key=provider_config.azure_account_key,
         )
     elif isinstance(provider_config, GCPConfig):
+        logger.info("Using GCP storage handler for backup.")
         return GCPStorageHandler(provider_config.gcp_credentials_file_path)
     else:
+        logger.info("No cloud storage handler configured; using local storage.")
         return None  # Local backup, no cloud handler
 
 
@@ -61,6 +76,7 @@ def extract_timestamp(backup_name: str) -> datetime:
         return datetime.datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
     except (IndexError, ValueError):
         # If the timestamp format is invalid, return a minimum date to avoid deletion
+        logger.warning(f"Invalid timestamp format in backup name: {backup_name}")
         return datetime.datetime.min
 
 
@@ -68,11 +84,11 @@ def delete_local_backup(zip_file_path: str, dump_file_path: str):
     """Delete local backup files after successful backup."""
     try:
         os.remove(f"{zip_file_path}")
-        logging.info(f"Deleted local zip file: {zip_file_path}")
+        logger.info(f"Deleted local zip file: {zip_file_path}")
         os.remove(dump_file_path)
-        logging.info(f"Deleted local DB dump file: {dump_file_path}")
+        logger.info(f"Deleted local DB dump file: {dump_file_path}")
     except Exception as e:
-        logging.error(f"Error while deleting local files: {str(e)}")
+        logger.error(f"Error while deleting local files: {str(e)}")
 
 
 def create_backup_files(
@@ -80,26 +96,30 @@ def create_backup_files(
 ):
     # Create database dump file
     dump_file_path = os.path.join(model_bazaar_dir, f"db_backup.sql")
-    # TODO(YASH): Only backup completed models.
-    subprocess.run(["pg_dump", db_uri, "-f", dump_file_path], check=True)
-
-    # Path for the zip file in the backups folder
     zip_file_path = os.path.join(backup_dir, f"backup_{timestamp}.zip")
 
-    # Create a zip file excluding the 'backups' folder
-    with zipfile.ZipFile(zip_file_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        for root, _, files in os.walk(model_bazaar_dir):
-            # Skip the 'backups' directory
-            if "backups" in root:
-                continue
+    try:
+        logger.info(f"Creating database dump at {dump_file_path}")
+        # TODO(YASH): Only backup completed models.
+        subprocess.run(["pg_dump", db_uri, "-f", dump_file_path], check=True)
 
-            # Add files to the zip archive
-            for file in files:
-                file_path = os.path.join(root, file)
-                relative_path = os.path.relpath(file_path, model_bazaar_dir)
-                zipf.write(file_path, relative_path)
+        with zipfile.ZipFile(zip_file_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+            for root, _, files in os.walk(model_bazaar_dir):
+                if "backups" in root:
+                    continue
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    relative_path = os.path.relpath(file_path, model_bazaar_dir)
+                    zipf.write(file_path, relative_path)
+        logger.info(f"Backup zip file created at {zip_file_path}")
+        return zip_file_path, dump_file_path
 
-    return zip_file_path, dump_file_path
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error creating database dump: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"Error creating backup zip file: {e}")
+        raise
 
 
 def manage_backup_limit_local(backup_dir: str, backup_limit: int):
@@ -110,7 +130,7 @@ def manage_backup_limit_local(backup_dir: str, backup_limit: int):
         for backup in sorted_backups[backup_limit:]:
             backup_path = os.path.join(backup_dir, backup)
             os.remove(backup_path)
-            logging.info(f"Deleted old local backup: {backup_path}")
+            logger.info(f"Deleted old local backup: {backup_path}")
 
 
 def manage_backup_limit(
@@ -122,14 +142,13 @@ def manage_backup_limit(
     if len(sorted_backups) > backup_limit:
         for backup in sorted_backups[backup_limit:]:
             cloud_handler.delete_path(bucket_name, backup)
-            logging.info(f"Deleted old cloud backup: {backup}")
+            logger.info(f"Deleted old cloud backup: {backup}")
 
 
 def perform_backup(config_file):
     """Perform the backup operation based on the provided config."""
     config = BackupConfig.parse_file(config_file)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
 
     try:
         backup_dir = os.path.join(model_bazaar_dir, "backups")
@@ -159,10 +178,10 @@ def perform_backup(config_file):
             # No cloud provider, manage local backups
             manage_backup_limit_local(backup_dir, backup_limit)
             os.remove(dump_file_path)
-            logging.info(f"Deleted local DB dump file: {dump_file_path}")
+            logger.info(f"Deleted local DB dump file: {dump_file_path}")
 
     except Exception as e:
-        logging.error(f"Backup failed: {e}")
+        logger.error(f"Backup failed: {e}")
 
 
 def schedule_backup(config_file):
@@ -179,27 +198,28 @@ def schedule_backup(config_file):
             id="backup_job",
             replace_existing=True,
         )
-        logging.info(f"Scheduled periodic backup every {interval_minutes} minutes.")
+        logger.info(f"Scheduled periodic backup every {interval_minutes} minutes.")
 
         # Start the scheduler for periodic backups
         try:
             scheduler.start()
         except Exception as e:
-            logging.error(f"Scheduler encountered an error: {e}")
+            logger.error(f"Scheduler encountered an error: {e}")
             scheduler.shutdown()
     else:
         # Run one-time backup directly, no scheduler needed
-        logging.info("Starting one-time backup.")
+        logger.info("Starting one-time backup.")
         perform_backup(config_file)
 
 
 if __name__ == "__main__":
     config_file = os.getenv("CONFIG_PATH")
     if not config_file or not os.path.exists(config_file):
+        logger.error("Config file not found.")
         raise ValueError("Config file not found.")
 
     try:
         schedule_backup(config_file)
     except Exception as err:
         # TODO(YASH): Figure out a way to propagate this error messages to user.
-        logging.error(f"Error during backup: {err}")
+        logger.error(f"Error during backup: {err}")

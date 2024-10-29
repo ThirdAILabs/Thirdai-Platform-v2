@@ -1,12 +1,30 @@
 import json
+import logging
+import sys
+from pathlib import Path
 from urllib.parse import urljoin
 
 import requests
 from data_generation_job.variables import DataCategory, GeneralVariables
+from platform_common.logging import LoggerConfig, StreamToLogger
 from platform_common.utils import load_dict
 
 # Load general variables from environment
 general_variables: GeneralVariables = GeneralVariables.load_from_env()
+
+log_dir: Path = (
+    Path(general_variables.storage_dir).parent.parent
+    / "logs"
+    / general_variables.data_id
+)
+
+log_dir.mkdir(parents=True, exist_ok=True)
+
+logger_file_path = log_dir / "data_generation.log"
+logger = LoggerConfig(logger_file_path).get_logger("data-generation-logger")
+
+sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
+sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
 
 
 def launch_train_job(dataset_config: dict, udt_options: dict):
@@ -31,11 +49,12 @@ def launch_train_job(dataset_config: dict, udt_options: dict):
                 {"model_type": "udt", "udt_options": udt_options}
             ),
         }
+        logger.info("Launching training job", url=url, data=data)
         response = requests.request("post", url, headers=headers, data=data)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as exception:
-        print(exception)
+        logger.error("Failed to launch training job", error=str(exception))
         raise exception
 
 
@@ -52,17 +71,23 @@ def main():
         from data_generation_job.text_data_factory import TextDataFactory
         from data_generation_job.variables import TextGenerationVariables
 
-        factory = TextDataFactory()
+        factory = TextDataFactory(logger=logger)
         args = TextGenerationVariables.model_validate(load_dict(generation_arg_fp))
+        logger.info("Text data generation initialized", args=args.to_dict())
 
     else:
         from data_generation_job.token_data_factory import TokenDataFactory
         from data_generation_job.variables import TokenGenerationVariables
 
-        factory = TokenDataFactory()
+        factory = TokenDataFactory(logger=logger)
         args = TokenGenerationVariables.model_validate(load_dict(generation_arg_fp))
         common_patterns = args.find_common_patterns()
         args.remove_common_patterns()
+        logger.info(
+            "Token data generation initialized",
+            args=args.to_dict(),
+            common_patterns=common_patterns,
+        )
 
     dataset_config = factory.generate_data(
         general_variables.task_prompt, **args.to_dict()
@@ -82,9 +107,12 @@ def main():
             "target_column": dataset_config["target_feature"],
             "target_labels": dataset_config["target_labels"] + common_patterns,
         }
+    logger.info("Prepared UDT options for training job", udt_options=udt_options)
 
     if general_variables.secret_token:
         launch_train_job(dataset_config, udt_options)
+    else:
+        logger.warning("Secret token not provided, training job not launched")
 
 
 if __name__ == "__main__":

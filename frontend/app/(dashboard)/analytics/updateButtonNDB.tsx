@@ -76,7 +76,7 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
         onClick={handleUpdate}
         disabled={loading}
         className="w-64"
-        variant='contained'
+        variant="contained"
         color={success ? 'success' : 'primary'}
       >
         {loading ? 'Updating...' : success ? 'Update Successful!' : 'Update model with feedback'}

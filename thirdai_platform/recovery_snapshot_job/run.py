@@ -96,30 +96,28 @@ def create_backup_files(
 ):
     # Create database dump file
     dump_file_path = os.path.join(model_bazaar_dir, f"db_backup.sql")
+    logger.info(f"Creating database dump at {dump_file_path}")
+    # TODO(YASH): Only backup completed models.
+    subprocess.run(["pg_dump", db_uri, "-f", dump_file_path], check=True)
+
+    # Path for the zip file in the backups folder
     zip_file_path = os.path.join(backup_dir, f"backup_{timestamp}.zip")
 
-    try:
-        logger.info(f"Creating database dump at {dump_file_path}")
-        # TODO(YASH): Only backup completed models.
-        subprocess.run(["pg_dump", db_uri, "-f", dump_file_path], check=True)
+    # Create a zip file excluding the 'backups' folder
+    with zipfile.ZipFile(zip_file_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for root, _, files in os.walk(model_bazaar_dir):
+            # Skip the 'backups' directory
+            if "backups" in root:
+                continue
 
-        with zipfile.ZipFile(zip_file_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-            for root, _, files in os.walk(model_bazaar_dir):
-                if "backups" in root:
-                    continue
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    relative_path = os.path.relpath(file_path, model_bazaar_dir)
-                    zipf.write(file_path, relative_path)
-        logger.info(f"Backup zip file created at {zip_file_path}")
-        return zip_file_path, dump_file_path
+            # Add files to the zip archive
+            for file in files:
+                file_path = os.path.join(root, file)
+                relative_path = os.path.relpath(file_path, model_bazaar_dir)
+                zipf.write(file_path, relative_path)
 
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Error creating database dump: {e}")
-        raise
-    except Exception as e:
-        logger.error(f"Error creating backup zip file: {e}")
-        raise
+    logger.info(f"Backup zip file created at {zip_file_path}")
+    return zip_file_path, dump_file_path
 
 
 def manage_backup_limit_local(backup_dir: str, backup_limit: int):

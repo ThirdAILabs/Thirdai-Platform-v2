@@ -33,8 +33,6 @@ from urllib.parse import urljoin
 
 import requests
 from locust import HttpUser, TaskSet, between, task
-
-pass
 from requests.auth import HTTPBasicAuth
 
 
@@ -83,6 +81,8 @@ def parse_args():
 args = parse_args()
 
 
+# Note: this code is copied here to make running locust with distributed easier.
+# Locust has builtin logic to copy this file over to the child node every run
 @dataclass
 class Login:
     base_url: str
@@ -107,6 +107,10 @@ def random_query():
     return "what is the meaning of these paragraphs darpa cancer intuit"
 
 
+def route(name):
+    return f"/{args.deployment_id}/{name}"
+
+
 login_details = Login.with_email(
     base_url=urljoin(args.host, "/api/"),
     email=args.email,
@@ -126,7 +130,7 @@ class NeuralDBLoadTest(TaskSet):
         query = random_query()
 
         response = self.client.post(
-            f"/{args.deployment_id}/search",
+            route("search"),
             json={"query": query, "top_k": 5},
             headers=auth_header,
             timeout=60,
@@ -155,21 +159,21 @@ class NeuralDBLoadTest(TaskSet):
         ]
 
         res = self.client.post(
-            f"/{args.deployment_id}/insert",
+            route("insert"),
             files=files,
             headers=auth_header,
         )
 
     @task(args.delete_weight)
     def test_delete(self):
-        response = self.client.get(f"{args.deployment_id}/sources", headers=auth_header)
+        response = self.client.get(route("sources"), headers=auth_header)
 
         # always delete the most recently added source so we reduce the chance
         # of deleting the original data and returning no results with queries
         source_id = response.json()["data"][-1]["source_id"]
 
         self.client.post(
-            f"/{args.deployment_id}/delete",
+            route("delete"),
             json={"source_ids": [source_id]},
             headers=auth_header,
         )
@@ -179,17 +183,17 @@ class NeuralDBLoadTest(TaskSet):
         query = random_query()
 
         response = self.client.post(
-            f"/{args.deployment_id}/search",
+            route("search"),
             json={"query": query, "top_k": 5},
             headers=auth_header,
             timeout=60,
         )
 
         ref_id = response.json()["data"]["references"][-1]["id"]
-        text_id_pairs = [{query: ref_id}]
+        text_id_pairs = [{"query_text": query, "reference_id": ref_id}]
 
         self.client.post(
-            f"/{args.deployment_id}/upvote",
+            route("upvote"),
             json={"text_id_pairs": text_id_pairs},
             headers=auth_header,
         )
@@ -198,22 +202,22 @@ class NeuralDBLoadTest(TaskSet):
     def test_associate(self):
         query1 = random_query()
         query2 = random_query()
-        text_pairs = [{query1: query2}]
+        text_pairs = [{"source": query1, "target": query2}]
         self.client.post(
-            f"/{args.deployment_id}/associate",
+            route("associate"),
             json={"text_pairs": text_pairs},
             headers=auth_header,
         )
 
     @task(args.sources_weight)
     def test_sources(self):
-        res = self.client.get(f"{args.deployment_id}/sources", headers=auth_header)
+        res = self.client.get(route("sources"), headers=auth_header)
 
     @task(args.save_weight)
     def test_save(self):
         res = self.client.post(
-            f"{args.deployment_id}/save",
-            json={"override": False, "model_name": uuid.uuid4()},
+            route("save"),
+            json={"override": False, "model_name": str(uuid.uuid4())},
             headers=auth_header,
         )
 
@@ -224,7 +228,7 @@ class GenerationLoadTest(TaskSet):
         query = random_query()
 
         response = self.client.post(
-            f"/{args.deployment_id}/chat",
+            route("chat"),
             json={"user_input": query},
             headers=auth_header,
             timeout=60,
@@ -235,7 +239,7 @@ class GenerationLoadTest(TaskSet):
         query = random_query()
 
         response = self.client.post(
-            f"/{args.deployment_id}/search",
+            route("search"),
             json={"query": query, "top_k": 5},
             headers=auth_header,
             timeout=60,

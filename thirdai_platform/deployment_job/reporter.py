@@ -175,18 +175,3 @@ class Reporter:
             headers=self.auth_header(access_token=access_token),
         )
         print(content)
-
-    def active_deployment_count(
-        self,
-        model_id: str,
-    ):
-        content = self._request(
-            "get",
-            "api/deploy/active-deployment-count",
-            params={
-                "model_id": model_id,
-            },
-        )
-        print(content)
-
-        return content["data"]["deployment_count"]

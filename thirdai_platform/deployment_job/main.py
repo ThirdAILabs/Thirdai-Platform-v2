@@ -22,9 +22,7 @@ from thirdai import licensing
 
 def load_config():
     with open(os.getenv("CONFIG_PATH")) as file:
-        config = DeploymentConfig.model_validate_json(file.read())
-        print(config.autoscaling_enabled)
-        return config
+        return DeploymentConfig.model_validate_json(file.read())
 
 
 config: DeploymentConfig = load_config()

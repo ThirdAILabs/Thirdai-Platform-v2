@@ -475,8 +475,8 @@ class NDBRouter:
             data=chat_history,
         )
 
-    # @propagate_error
-    async def chat(
+    @propagate_error
+    def chat(
         self,
         input: ChatInput,
         token=Depends(Permissions.verify_permission("read")),

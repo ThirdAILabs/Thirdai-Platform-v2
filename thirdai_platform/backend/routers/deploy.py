@@ -293,7 +293,7 @@ async def deploy_single_model(
 async def deploy_model(
     model_identifier: str,
     memory: Optional[int] = None,
-    autoscaling_enabled: bool = True,
+    autoscaling_enabled: bool = False,
     autoscaler_max_count: int = 1,
     genai_key: Optional[str] = None,
     session: Session = Depends(get_session),

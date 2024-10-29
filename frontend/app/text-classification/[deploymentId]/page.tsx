@@ -35,7 +35,7 @@ export default function Page() {
     
     if (file) {
       if (file.size > MAX_FILE_SIZE) {
-        setFileError("File size exceeds 1MB limit. Please use the API for larger files.");
+        setFileError("File size exceeds 1MB. Please use the API for larger files.");
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }

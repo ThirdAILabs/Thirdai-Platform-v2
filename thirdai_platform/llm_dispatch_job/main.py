@@ -1,4 +1,8 @@
+import sys
+from pathlib import Path
+
 from dotenv import load_dotenv
+from platform_common.logging import LoggerConfig, StreamToLogger
 
 load_dotenv()
 
@@ -24,9 +28,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
+log_dir: Path = Path(model_bazaar_dir) / "logs"
+
+log_dir.mkdir(parents=True, exist_ok=True)
+
+logger_file_path = log_dir / "llm_generation.log"
+logger = LoggerConfig(logger_file_path).get_logger("llm-generation-logger")
+
+sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
+sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
 
 
 @app.post("/llm-dispatch/generate")
@@ -80,13 +91,15 @@ async def generate(generate_args: GenerateArgs):
 
     key = generate_args.key or default_keys.get(generate_args.provider.lower())
     if not key:
+        logger.error("No generative AI key provided")
         raise HTTPException(status_code=400, detail="No generative AI key provided")
 
     llm_class = model_classes.get(generate_args.provider.lower())
     if llm_class is None:
+        logger.error(f"Unsupported provider '{generate_args.provider.lower()}'")
         raise HTTPException(status_code=400, detail="Unsupported provider")
 
-    logging.info(
+    logger.info(
         f"Received request from workflow: '{generate_args.workflow_id}'. "
         f"Starting generation with provider '{generate_args.provider.lower()}':",
     )
@@ -106,11 +119,11 @@ async def generate(generate_args: GenerateArgs):
                 generated_response += next_word
                 yield next_word
                 await asyncio.sleep(0)
-            logging.info(
+            logger.info(
                 f"\nCompleted generation for workflow '{generate_args.workflow_id}'.",
             )
         except Exception as e:
-            logging.error(f"Error during generation: {e}")
+            logger.error(f"Error during generation: {e}")
             raise HTTPException(
                 status_code=500, detail=f"Error while generating content: {e}"
             )
@@ -140,9 +153,11 @@ async def insert_into_cache(
             },
         )
         if res.status_code != 200:
-            logging.error(f"LLM Cache Insertion failed: {res}")
+            logger.error(
+                f"LLM Cache Insertion failed with status {res.status_code}: {res.text}"
+            )
     except Exception as e:
-        logging.error("LLM Cache Insert Error", e)
+        logger.error("LLM Cache Insert Error", e)
 
 
 @app.get("/llm-dispatch/health")
@@ -156,4 +171,5 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
+    logger.info("Starting LLM generation service...")
     uvicorn.run(app, host="localhost", port=8000)

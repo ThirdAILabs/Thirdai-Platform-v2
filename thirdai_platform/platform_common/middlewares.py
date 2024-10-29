@@ -2,7 +2,7 @@ import traceback
 from logging import Logger
 
 from fastapi import Request
-from fastapi.responses import StreamingResponse
+from platform_common.utils import response
 from starlette import status
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -23,22 +23,20 @@ def create_log_request_response_middleware(logger: Logger):
             request_info = f"Request {request.method} {request.url}"
 
             try:
-                # Extract and log request body (if any)
-                body = await request.json()
-                self.logger.info(f"{request_info} - Body: {body}")
-            except Exception:
-                self.logger.info(f"{request_info} - No JSON body")
-
-            try:
                 # Call the next middleware or endpoint
-                response = await call_next(request)
+                res = await call_next(request)
 
-                if not isinstance(response, StreamingResponse):
-                    self.logger.info(
-                        f"{request_info} - Response Status: {response.status_code} - Response Body: {response.body}"
-                    )
+                res_body = b"".join([chunk async for chunk in res.body_iterator])
+                self.logger.info(
+                    f"{request_info} - Response Status: {res.status_code} - Response Body: {res_body.decode('utf-8')}"
+                )
 
-                return response
+                # Reset the response body iterator for further processing
+                async def body_iterator():
+                    yield res_body
+
+                res.body_iterator = body_iterator()
+                return res
 
             except Exception as e:
                 # Log errors with traceback and return custom error response

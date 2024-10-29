@@ -1,4 +1,5 @@
 import argparse
+import os
 import subprocess
 from typing import List
 
@@ -21,6 +22,8 @@ def parse_args():
     parser.add_argument("--host", type=str, default="http://localhost:80")
     parser.add_argument("--email", type=str, default="david@thirdai.com")
     parser.add_argument("--password", type=str, default="password")
+    parser.add_argument("--users", type=int, default=100)
+    parser.add_argument("--spawn_rate", type=int, default=10)
     args = parser.parse_args()
 
     return args
@@ -28,8 +31,10 @@ def parse_args():
 
 def run_stress_test(args, deployment_id):
     print("Running Stress Test\n")
+    folder = os.path.dirname(__file__)
+    script_path = os.path.join(folder, "stress_test_deployment.py")
     result = subprocess.run(
-        f"python3 stress_test_deployment.py --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password}",
+        f"locust -f {script_path} --headless --users {args.users} --spawn-rate {args.spawn_rate} --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password}",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,

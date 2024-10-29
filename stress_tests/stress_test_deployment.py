@@ -1,3 +1,28 @@
+"""
+To run this file do:
+    `locust -f stress_test_deployment.py`
+which will spin up the web UI to configure tests. 
+You can also use the --headless flag to skip the UI. 
+
+To run locust distributed on blade you can run this script with the --master flag
+    `locust -f stress_test_deployment.py --master`
+Which starts the master process.
+
+Then on any node you want you can do something like:
+    ```
+    for i in {1..48}; do
+    locust -f - --worker --master-host=192.168.1.6 &
+    done
+    ```
+to spin up 48 workers in the background. The master host is node 6 in this case.
+
+Please note, each node must have a separate environment with the same version of
+locust installed. It also didn't work in python 3.8 for me for some reason.
+
+Running `pip3 install locust --upgrade --no-cache-dir --force-reinstall` on each
+node should do the trick.
+"""
+
 import argparse
 import json
 import os
@@ -8,7 +33,8 @@ from urllib.parse import urljoin
 
 import requests
 from locust import HttpUser, TaskSet, between, task
-from locust.main import main as locust_main
+
+pass
 from requests.auth import HTTPBasicAuth
 
 
@@ -16,7 +42,7 @@ def parse_args():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--host", type=str, default="http://localhost:80")
     parser.add_argument(
-        "--deployment_id", type=str, default="97a09b79-865b-4889-b5c4-6380b585033f"
+        "--deployment_id", type=str, default="ffd4e156-da8a-401e-a4db-944138e54ad8"
     )
     parser.add_argument("--email", type=str, default="david@thirdai.com")
     parser.add_argument("--password", type=str, default="password")
@@ -238,18 +264,3 @@ class WebsiteUser(HttpUser):
         tasks.append(GenerationLoadTest)
     wait_time = between(args.min_wait, args.max_wait)
     host = args.host
-
-
-if __name__ == "__main__":
-    locust_main()
-
-
-# python version cant be 3.8
-
-# pip3 install locust --upgrade --no-cache-dir --force-reinstall
-
-# locust -f stress_test_deployment.py --master
-
-# for i in {1..45}; do
-#   locust -f - --worker --master-host=192.168.1.6 &
-# done

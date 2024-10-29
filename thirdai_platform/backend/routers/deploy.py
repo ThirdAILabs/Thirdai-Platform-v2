@@ -12,10 +12,12 @@ from auth.jwt import (
     verify_access_token,
     verify_access_token_no_throw,
 )
-from backend.auth_dependencies import is_model_owner
+from backend.auth_dependencies import is_model_owner, verify_model_read_access
 from backend.startup_jobs import start_on_prem_generate_job
 from backend.utils import (
     delete_nomad_job,
+    get_detailed_reasons,
+    get_job_logs,
     get_model_from_identifier,
     get_model_status,
     get_platform,
@@ -454,6 +456,7 @@ def get_feedback(
                             event_heap[feedback_obj.event.action], feedback_obj
                         )
 
+                    events_processed_for_this_file[feedback_obj.event.action] += 1
                     # stop the processing if each required event of the file is processed for per_event_count times
                     if all(
                         [
@@ -506,7 +509,7 @@ def get_feedback(
     )
 
 
-@deploy_router.get("/status")
+@deploy_router.get("/status", dependencies=[Depends(verify_model_read_access)])
 def deployment_status(
     model_identifier: str,
     session: Session = Depends(get_session),
@@ -534,12 +537,15 @@ def deployment_status(
         )
 
     deploy_status, reasons = get_model_status(model, train_status=False)
+    reasons = get_detailed_reasons(
+        session=session, job_type="deploy", status=deploy_status, reasons=reasons
+    )
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the deployment status",
         data={
             "deploy_status": deploy_status,
-            "message": " ".join(reasons),
+            "messages": reasons,
             "model_id": str(model.id),
         },
     )
@@ -549,6 +555,7 @@ def deployment_status(
 def update_deployment_status(
     model_id: str,
     new_status: schema.Status,
+    message: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     """
@@ -578,6 +585,15 @@ def update_deployment_status(
         )
 
     model.deploy_status = new_status
+    if message:
+        session.add(
+            schema.JobError(
+                model_id=model.id,
+                job_type="deploy",
+                status=status,
+                message=message,
+            )
+        )
 
     session.commit()
 
@@ -699,4 +715,28 @@ async def start_on_prem_job(
 
     return response(
         status_code=status.HTTP_200_OK, message="On-prem job started successfully"
+    )
+
+
+@deploy_router.get("/logs", dependencies=[Depends(verify_model_read_access)])
+def train_logs(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    logs = get_job_logs(
+        nomad_endpoint=os.getenv("NOMAD_ENDPOINT"), model=model, job_type="deploy"
+    )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the train logs.",
+        data=logs,
     )

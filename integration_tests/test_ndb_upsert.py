@@ -1,16 +1,10 @@
 import os
 import uuid
 
-pass
-
 import pytest
-
-pass
 from utils import doc_dir
 
 from client.bazaar import ModelBazaar
-
-pass
 
 
 def create_and_deploy_ndb(admin_client, base_model_name, autoscaling):

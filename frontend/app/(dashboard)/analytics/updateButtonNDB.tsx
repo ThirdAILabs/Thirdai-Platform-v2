@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@mui/material';
 import { retrain_ndb, stop_workflow } from '@/lib/backend';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -76,7 +76,8 @@ export default function UpdateButton({ modelName }: UpdateButtonProps) {
         onClick={handleUpdate}
         disabled={loading}
         className="w-64"
-        variant={success ? 'secondary' : 'default'}
+        variant='contained'
+        color={success ? 'success' : 'primary'}
       >
         {loading ? 'Updating...' : success ? 'Update Successful!' : 'Update model with feedback'}
       </Button>

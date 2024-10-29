@@ -29,7 +29,7 @@ import {
   parseTXT,
   convertCSVToPDFFormat,
   ParsedData,
-} from './fileParsingUtils';
+} from '@/utils/fileParsingUtils';
 
 interface Token {
   text: string;

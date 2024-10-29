@@ -1,6 +1,7 @@
 import heapq
 import json
 import os
+import sys
 import traceback
 from collections import defaultdict
 from pathlib import Path
@@ -23,7 +24,6 @@ from backend.utils import (
     get_platform,
     get_python_path,
     list_all_dependencies,
-    logger,
     model_accessible,
     model_bazaar_path,
     read_file_from_back,
@@ -277,7 +277,7 @@ async def deploy_single_model(
     except Exception as err:
         model.deploy_status = schema.Status.failed
         session.commit()
-        logger.info(traceback.format_exc())
+        print(traceback.format_exc(), file=sys.stderr)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(err),
@@ -663,7 +663,7 @@ def undeploy_model(
         session.commit()
 
     except Exception as err:
-        logger.info(str(err))
+        print(str(err), file=sys.stderr)
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),

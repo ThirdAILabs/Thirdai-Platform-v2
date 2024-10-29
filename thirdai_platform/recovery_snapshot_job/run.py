@@ -147,6 +147,7 @@ def perform_backup(config_file):
     """Perform the backup operation based on the provided config."""
     config = BackupConfig.parse_file(config_file)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
 
     try:
         backup_dir = os.path.join(model_bazaar_dir, "backups")

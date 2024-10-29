@@ -312,6 +312,9 @@ async def deploy_model(
 
     Parameters:
     - model_identifier: The identifier of the model to deploy.
+    - deployment_name: Optional name to use as a prefix for the deployment. If specified
+      the deployment endpoints will be accessible via /{deployment_name}/{endpoint} in
+      addition to the default deployment url.
     - memory: Optional memory allocation for the deployment.
     - autoscaling_enabled: Whether autoscaling is enabled.
     - autoscaler_max_count: The maximum count for the autoscaler.

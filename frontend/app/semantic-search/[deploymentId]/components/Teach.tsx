@@ -46,7 +46,7 @@ const Teach = () => {
       </Button>
       
       {showPanel && (
-        <div className="absolute top-0 right-full mr-2 w-[300px]">
+        <div className="absolute top-[-160px] right-full mr-2 w-[300px]">
           <TeachPanel
             question={question}
             answer={answer}

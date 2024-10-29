@@ -1,7 +1,11 @@
+import logging
 import sys
 import traceback
+from pathlib import Path
 
 from dotenv import load_dotenv
+from platform_common.logging import LoggerConfig, StreamToLogger
+from platform_common.middlewares import create_log_request_response_middleware
 
 load_dotenv()
 
@@ -24,7 +28,7 @@ from backend.startup_jobs import (
     restart_thirdai_platform_frontend,
 )
 from backend.status_sync import sync_job_statuses
-from backend.utils import get_platform
+from backend.utils import get_platform, model_bazaar_path
 from fastapi.middleware.cors import CORSMiddleware
 
 app = fastapi.FastAPI()
@@ -37,6 +41,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+log_dir: Path = Path(model_bazaar_path()) / "logs"
+
+log_dir.mkdir(parents=True, exist_ok=True)
+
+logger_file_path = log_dir / "platform_backend.log"
+logger = LoggerConfig(logger_file_path).get_logger("platform-backend-logger")
+
+sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
+sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
+
 app.include_router(user, prefix="/api/user", tags=["user"])
 app.include_router(train, prefix="/api/train", tags=["train"])
 app.include_router(model, prefix="/api/model", tags=["model"])
@@ -48,39 +62,44 @@ app.include_router(recovery, prefix="/api/recovery", tags=["recovery"])
 app.include_router(data_router, prefix="/api/data", tags=["data"])
 app.include_router(telemetry, prefix="/api/telemetry", tags=["telemetry"])
 
+app.add_middleware(create_log_request_response_middleware(logger))
+
 
 @app.on_event("startup")
 async def startup_event():
     try:
-        print("Starting Generation Job...")
+        logger.info("Starting Generation Job...")
         await restart_generate_job()
-        print("Successfully started Generation Job!")
+        logger.info("Successfully started Generation Job!")
     except Exception as error:
-        print(f"Failed to start the Generation Job : {error}", file=sys.stderr)
+        logger.error(f"Failed to start the Generation Job: {error}")
+        logger.debug(traceback.format_exc())
 
     try:
-        print("Starting telemetry Job...")
+        logger.info("Starting telemetry Job...")
         await restart_telemetry_jobs()
-        print("Successfully started telemetry Job!")
+        logger.info("Successfully started telemetry Job!")
     except Exception as error:
-        traceback.print_exc()
-        print(f"Failed to start the telemetry Job : {error}", file=sys.stderr)
+        logger.error(f"Failed to start the telemetry Job: {error}")
+        logger.debug(traceback.format_exc())
 
     platform = get_platform()
     if platform == "docker":
         try:
-            print("Launching frontend...")
+            logger.info("Launching frontend...")
             await restart_thirdai_platform_frontend()
-            print("Successfully launched the frontend!")
+            logger.info("Successfully launched the frontend!")
         except Exception as error:
-            print(f"Failed to start the frontend : {error}", file=sys.stderr)
+            logger.error(f"Failed to start the frontend: {error}")
+            logger.debug(traceback.format_exc())
 
     try:
-        print("Starting LLM Cache Job...")
+        logger.info("Starting LLM Cache Job...")
         await restart_llm_cache_job()
-        print("Successfully started LLM Cache Job!")
+        logger.info("Successfully started LLM Cache Job!")
     except Exception as error:
-        print(f"Failed to start the LLM Cache Job : {error}", file=sys.stderr)
+        logger.error(f"Failed to start the LLM Cache Job: {error}")
+        logger.debug(traceback.format_exc())
 
     await sync_job_statuses()
 

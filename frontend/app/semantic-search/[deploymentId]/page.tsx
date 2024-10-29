@@ -45,10 +45,9 @@ const Frame = styled.section<{ $opacity: string }>`
 `;
 
 const Logo = styled.img`
-  position: fixed;
   object-fit: fill;
   height: 50px;
-  padding: 10px;
+  margin-right: 12px;
 
   &:hover {
     cursor: pointer;
@@ -101,6 +100,20 @@ const UpvoteModalWrapper = styled.section`
   height: fit-content;
   padding: ${padding.card};
   box-sizing: border-box;
+`;
+
+const LogoContainer = styled.div`
+  position: fixed;
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  z-index: 100;
+`;
+
+const WorkflowName = styled.div`
+  font-size: 18px;
+  font-weight: 500;
+  color: #333;
 `;
 
 const defaultPrompt =
@@ -159,6 +172,8 @@ function App() {
     setChatMode(isChatMode);
   }, []);
 
+  const [workflowName, setWorkflowName] = useState<string>('');
+
   useEffect(() => {
     const receievedWorkflowId = searchParams.get('workflowId');
     const generationOn = searchParams.get('ifGenerationOn') === 'true';
@@ -176,6 +191,9 @@ function App() {
       try {
         const details = await getWorkflowDetails(receievedWorkflowId as string);
         console.log('details', details);
+
+        // Set the workflow name
+        setWorkflowName(details.data.model_name);
 
         const data = details.data;
 
@@ -565,7 +583,10 @@ function App() {
               </UpvoteModalWrapper>
             )}
             <a href="/">
-              <Logo src={LogoImg.src} alt="Logo" />
+              <LogoContainer>
+                <Logo src={LogoImg.src} alt="Logo" />
+                {workflowName && <WorkflowName>{workflowName}</WorkflowName>}
+              </LogoContainer>
             </a>
             <TopRightCorner>
               {chatEnabled && (

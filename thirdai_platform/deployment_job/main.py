@@ -26,6 +26,7 @@ def load_config():
         print(config.autoscaling_enabled)
         return config
 
+
 config: DeploymentConfig = load_config()
 reporter = Reporter(config.model_bazaar_endpoint)
 

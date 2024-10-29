@@ -1,0 +1,240 @@
+import argparse
+import json
+import uuid
+
+pass
+import sys
+from dataclasses import dataclass
+from urllib.parse import urljoin
+
+pass
+import os
+
+import requests
+from locust import HttpUser, TaskSet, between, task
+from locust.main import main as locust_main
+from requests.auth import HTTPBasicAuth
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--host", type=str, default="http://localhost:80")
+    parser.add_argument(
+        "--deployment_id", type=str, default="97a09b79-865b-4889-b5c4-6380b585033f"
+    )
+    parser.add_argument("--email", type=str, default="david@thirdai.com")
+    parser.add_argument("--password", type=str, default="password")
+    parser.add_argument(
+        "--min_wait",
+        type=int,
+        default=10,
+        help="Minimum wait time between tasks in seconds",
+    )
+    parser.add_argument(
+        "--max_wait",
+        type=int,
+        default=20,
+        help="Maximum wait time between tasks in seconds",
+    )
+    parser.add_argument("--predict_weight", type=int, default=1)
+    parser.add_argument("--insert_weight", type=int, default=1)
+    parser.add_argument("--delete_weight", type=int, default=1)
+    parser.add_argument("--upvote_weight", type=int, default=1)
+    parser.add_argument("--associate_weight", type=int, default=1)
+    parser.add_argument("--sources_weight", type=int, default=1)
+    parser.add_argument("--save_weight", type=int, default=1)
+    parser.add_argument("--implicit_feedback_weight", type=int, default=1)
+
+    # Generation is a separate test
+    parser.add_argument("--generation", type=bool, default=False)
+    parser.add_argument("--chat_weight", type=int, default=1)
+    parser.add_argument("--generate_weight", type=int, default=1)
+
+    args, unknown = parser.parse_known_args()
+
+    # Remove our custom args from sys.argv
+    sys.argv = [sys.argv[0]] + unknown
+
+    return args
+
+
+args = parse_args()
+
+@dataclass
+class Login:
+    base_url: str
+    username: str
+    access_token: str
+
+    @staticmethod
+    def with_email(base_url: str, email: str, password: str):
+        response = requests.get(
+            urljoin(base_url, "user/email-login"),
+            auth=HTTPBasicAuth(email, password),
+        )
+        if response.status_code < 200 or response.status_code >= 300:
+            raise Exception(f"Login failed: {response.status_code}, {response.text}")
+        content = json.loads(response.content)
+        username = content["data"]["user"]["username"]
+        access_token = content["data"]["access_token"]
+        return Login(base_url, username, access_token)
+
+
+def random_query():
+    return "what is the meaning of these paragraphs darpa cancer intuit"
+
+
+def random_paragraph():
+    pass
+
+
+login_details = Login.with_email(
+    base_url=urljoin(args.host, "/api/"),
+    email=args.email,
+    password=args.password,
+)
+
+auth_header = {"Authorization": f"Bearer {login_details.access_token}"}
+
+# TODO
+# each test should have a folder with queries, original documents, and documents to add
+
+
+class NeuralDBLoadTest(TaskSet):
+    @task(args.predict_weight)
+    def test_predict(self):
+        query = "Give me the summary of one of the papers about cancer"
+
+        response = self.client.post(
+            f"/{args.deployment_id}/search",
+            json={"query": query, "top_k": 5},
+            headers=auth_header,
+            timeout=60,
+        )
+
+    @task(args.insert_weight)
+    def test_insert(self):
+        def doc_dir():
+            return "/home/david/ThirdAI-Platform/thirdai_platform/train_job/sample_docs"
+
+        documents = [
+            {"path": "mutual_nda.pdf", "location": "local"},
+            {"path": "four_english_words.docx", "location": "local"},
+            {"path": "supervised.csv", "location": "local"},
+        ]
+
+        files = [
+            *[
+                ("files", open(os.path.join(doc_dir(), doc["path"]), "rb"))
+                for doc in documents
+            ],
+            (
+                "documents",
+                (None, json.dumps({"documents": documents}), "application/json"),
+            ),
+        ]
+
+        res = self.client.post(
+            f"/{args.deployment_id}/insert",
+            files=files,
+            headers=auth_header,
+        )
+
+    @task(args.delete_weight)
+    def test_delete(self):
+        pass
+
+    @task(args.upvote_weight)
+    def test_upvote(self):
+        text_id_pairs: List[Dict[str, Union[str, int]]]
+        self.client.post(
+            f"/{args.deployment_id}/upvote",
+            json={"text_id_pairs": text_id_pairs},
+            headers=auth_header,
+        )
+
+    @task(args.associate_weight)
+    def test_associate(self):
+        query1 = random_query()
+        query2 = random_query()
+        text_pairs = [{query1: query2}]
+        self.client.post(
+            f"/{args.deployment_id}/upvote",
+            json={"text_pairs": text_pairs},
+            headers=auth_header,
+        )
+
+    @task(args.sources_weight)
+    def test_sources(self):
+        res = self.client.get(f"{args.deployment_id}/sources", headers=auth_header)
+
+    @task(args.save_weight)
+    def test_save(self):
+        res = self.client.post(
+            f"{args.deployment_id}/save",
+            json={"override": False, "model_name": uuid.uuid4()},
+            headers=auth_header,
+        )
+
+
+class GenerationLoadTest(TaskSet):
+    @task(args.chat_weight)
+    def test_chat(self):
+        query = random_query()
+
+        response = self.client.post(
+            f"/{args.deployment_id}/chat",
+            json={"user_input": query},
+            headers=auth_header,
+            timeout=60,
+        )
+
+    @task(args.generate_weight)
+    def test_search_and_generate(self):
+        query = random_query()
+
+        response = self.client.post(
+            f"/{args.deployment_id}/search",
+            json={"query": query, "top_k": 5},
+            headers=auth_header,
+            timeout=60,
+        )
+
+        references = [
+            {"text": x["text"], "source": x["source"]}
+            for x in response.json()["data"]["references"]
+        ]
+
+        response = self.client.post(
+            f"/llm-dispatch/generate",
+            json={
+                "query": query,
+                "references": references,
+                "key": os.getenv("GENAI_KEY"),
+            },
+            headers=auth_header,
+            timeout=60,
+        )
+
+
+class WebsiteUser(HttpUser):
+    tasks = [NeuralDBLoadTest]
+    if args.generation:
+        tasks.append(GenerationLoadTest)
+    wait_time = between(args.min_wait, args.max_wait)
+    host = args.host
+
+
+if __name__ == "__main__":
+    locust_main()
+
+
+# python version cant be 3.8
+
+# pip3 install locust --upgrade --no-cache-dir --force-reinstall
+
+# locust -f stress_test_deployment.py --master
+
+# for i in {1..45}; do
+#   locust -f - --worker --master-host=192.168.1.6 &
+# done

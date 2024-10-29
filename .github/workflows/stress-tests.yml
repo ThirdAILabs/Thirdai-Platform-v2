@@ -1,0 +1,49 @@
+name: Stress Test
+
+on:
+  schedule:
+    # Run every Tuesday and Friday at 1:00 PM UTC
+    - cron: '0 13 * * 2,5'
+
+jobs:
+  stress-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip3 install -r stress_tests/requirements.txt
+
+    - name: Run Stress Tests
+      env:
+        GENAI_KEY: ${{ secrets.GENAI_KEY }}
+      run: |
+        python3 stress_tests/run_all_stress_tests.py
+    
+    - name: Notify slack success  # Ref: https://github.com/marketplace/actions/slack-notify-build
+      if: success()
+      env:
+        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      uses: voxmedia/github-action-slack-notify-build@v1
+      with:
+        channel_id: platform_stress_testing
+        status: SUCCESS
+        color: good
+
+    - name: Notify slack fail
+      if: failure()
+      env:
+        SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      uses: voxmedia/github-action-slack-notify-build@v1
+      with:
+        channel_id: platform_stress_testing
+        status: FAILED
+        color: danger   

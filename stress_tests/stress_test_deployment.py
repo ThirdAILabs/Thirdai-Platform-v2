@@ -1,14 +1,10 @@
 import argparse
 import json
-import uuid
-
-pass
+import os
 import sys
+import uuid
 from dataclasses import dataclass
 from urllib.parse import urljoin
-
-pass
-import os
 
 import requests
 from locust import HttpUser, TaskSet, between, task
@@ -60,6 +56,7 @@ def parse_args():
 
 args = parse_args()
 
+
 @dataclass
 class Login:
     base_url: str
@@ -84,10 +81,6 @@ def random_query():
     return "what is the meaning of these paragraphs darpa cancer intuit"
 
 
-def random_paragraph():
-    pass
-
-
 login_details = Login.with_email(
     base_url=urljoin(args.host, "/api/"),
     email=args.email,
@@ -98,12 +91,13 @@ auth_header = {"Authorization": f"Bearer {login_details.access_token}"}
 
 # TODO
 # each test should have a folder with queries, original documents, and documents to add
+# error handling
 
 
 class NeuralDBLoadTest(TaskSet):
     @task(args.predict_weight)
     def test_predict(self):
-        query = "Give me the summary of one of the papers about cancer"
+        query = random_query()
 
         response = self.client.post(
             f"/{args.deployment_id}/search",
@@ -142,11 +136,32 @@ class NeuralDBLoadTest(TaskSet):
 
     @task(args.delete_weight)
     def test_delete(self):
-        pass
+        response = self.client.get(f"{args.deployment_id}/sources", headers=auth_header)
+
+        # always delete the most recently added source so we reduce the chance
+        # of deleting the original data and returning no results with queries
+        source_id = response.json()["data"][-1]["source_id"]
+
+        self.client.post(
+            f"/{args.deployment_id}/delete",
+            json={"source_ids": [source_id]},
+            headers=auth_header,
+        )
 
     @task(args.upvote_weight)
     def test_upvote(self):
-        text_id_pairs: List[Dict[str, Union[str, int]]]
+        query = random_query()
+
+        response = self.client.post(
+            f"/{args.deployment_id}/search",
+            json={"query": query, "top_k": 5},
+            headers=auth_header,
+            timeout=60,
+        )
+
+        ref_id = response.json()["data"]["references"][-1]["id"]
+        text_id_pairs = [{query: ref_id}]
+
         self.client.post(
             f"/{args.deployment_id}/upvote",
             json={"text_id_pairs": text_id_pairs},
@@ -159,7 +174,7 @@ class NeuralDBLoadTest(TaskSet):
         query2 = random_query()
         text_pairs = [{query1: query2}]
         self.client.post(
-            f"/{args.deployment_id}/upvote",
+            f"/{args.deployment_id}/associate",
             json={"text_pairs": text_pairs},
             headers=auth_header,
         )

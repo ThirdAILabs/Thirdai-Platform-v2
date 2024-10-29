@@ -87,7 +87,6 @@ jobs:
         run: |
           mkdir -p $HOME/nfs/dir
           echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
-          echo "TEST_ENVIRONMENT=True" >> $GITHUB_ENV
 
       - name: Restart Model Bazaar
         run: |

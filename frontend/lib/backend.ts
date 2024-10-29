@@ -871,7 +871,6 @@ function useAccessToken() {
 
 interface UseLabelsOptions {
   deploymentUrl: string;
-  pollingInterval?: number;
   maxRecentLabels?: number;
 }
 
@@ -879,18 +878,21 @@ interface UseLabelsResult {
   allLabels: Set<string>;
   recentLabels: string[];
   error: Error | null;
+  isLoading: boolean;
+  refresh: () => Promise<void>;
 }
 
 export function useLabels({
   deploymentUrl,
-  pollingInterval = 5000,
   maxRecentLabels = 5,
 }: UseLabelsOptions): UseLabelsResult {
   const [allLabels, setAllLabels] = useState<Set<string>>(new Set());
   const [recentLabels, setRecentLabels] = useState<string[]>([]);
   const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const fetchLabels = useCallback(async () => {
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
     try {
       const accessToken = getAccessToken();
       axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
@@ -913,18 +915,12 @@ export function useLabels({
     } catch (err) {
       console.error('Error fetching labels:', err);
       setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+    } finally {
+      setIsLoading(false);
     }
   }, [deploymentUrl, maxRecentLabels]);
 
-  useEffect(() => {
-    fetchLabels(); // Fetch labels immediately on mount
-
-    const intervalId = setInterval(fetchLabels, pollingInterval);
-
-    return () => clearInterval(intervalId); // Clean up on unmount
-  }, [fetchLabels, pollingInterval]);
-
-  return { allLabels, recentLabels, error };
+  return { allLabels, recentLabels, error, isLoading, refresh };
 }
 
 interface Sample {
@@ -934,24 +930,26 @@ interface Sample {
 
 interface UseRecentSamplesOptions {
   deploymentUrl: string;
-  pollingInterval?: number;
   maxRecentSamples?: number;
 }
 
 interface UseRecentSamplesResult {
   recentSamples: Sample[];
   error: Error | null;
+  isLoading: boolean;
+  refresh: () => Promise<void>;
 }
 
 export function useRecentSamples({
   deploymentUrl,
-  pollingInterval = 5000,
   maxRecentSamples = 5,
 }: UseRecentSamplesOptions): UseRecentSamplesResult {
   const [recentSamples, setRecentSamples] = useState<Sample[]>([]);
   const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const fetchRecentSamples = useCallback(async () => {
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
     try {
       const accessToken = getAccessToken();
       axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
@@ -962,16 +960,12 @@ export function useRecentSamples({
     } catch (err) {
       console.error('Error fetching recent samples:', err);
       setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+    } finally {
+      setIsLoading(false);
     }
   }, [deploymentUrl, maxRecentSamples]);
 
-  useEffect(() => {
-    fetchRecentSamples();
-    const intervalId = setInterval(fetchRecentSamples, pollingInterval);
-    return () => clearInterval(intervalId);
-  }, [fetchRecentSamples, pollingInterval]);
-
-  return { recentSamples, error };
+  return { recentSamples, error, isLoading, refresh };
 }
 
 export interface TokenClassificationResult {

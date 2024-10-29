@@ -7,6 +7,7 @@ import {
   Typography,
   Switch,
   FormControlLabel,
+  Alert,
 } from '@mui/material';
 import { Button } from '@/components/ui/button';
 import React, { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
@@ -274,9 +275,23 @@ export default function Interact() {
     setAnnotations([]);
   };
 
+  const [fileError, setFileError] = useState<string | null>(null);
+
+  const MAX_FILE_SIZE = 1024 * 1024; // 1MB in bytes
+
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    setFileError(null); // Reset error on new file selection
+    
     if (file) {
+      if (file.size > MAX_FILE_SIZE) {
+        setFileError("File size exceeds 1MB limit. Please use the API for larger files.");
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        return;
+      }
+
       // Reset relevant state
       setAnnotations([]);
       setCachedTags({});
@@ -286,38 +301,43 @@ export default function Interact() {
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
       setIsLoading(true);
 
-      let parsed: ParsedData;
-      if (fileExtension === 'csv') {
-        parsed = await parseCSV(file);
-      } else if (fileExtension === 'pdf') {
-        try {
-          const content = await getTextFromFile(file);
-          console.log('content', content);
+      try {
+        let parsed: ParsedData;
+        if (fileExtension === 'csv') {
+          parsed = await parseCSV(file);
+        } else if (fileExtension === 'pdf') {
+          try {
+            const content = await getTextFromFile(file);
+            parsed = {
+              type: 'pdf',
+              content: content.join('\n'),
+              pdfParagraphs: content,
+            };
+          } catch (error) {
+            console.error('Error parsing file:', error);
+            setIsLoading(false);
+            return;
+          }
+        } else if (['xls', 'xlsx'].includes(fileExtension ?? '')) {
+          const excelRows = await parseExcel(file);
           parsed = {
-            type: 'pdf',
-            content: content.join('\n'),
-            pdfParagraphs: content,
+            type: 'csv',
+            content: excelRows.map((row) => row.content).join('\n\n'),
+            rows: excelRows,
           };
-        } catch (error) {
-          console.error('Error parsing file:', error);
-          setIsLoading(false);
-          return;
+        } else {
+          parsed = { type: 'other', content: await parseTXT(file) };
         }
-      } else if (['xls', 'xlsx'].includes(fileExtension ?? '')) {
-        const excelRows = await parseExcel(file);
-        parsed = {
-          type: 'csv',
-          content: excelRows.map((row) => row.content).join('\n\n'),
-          rows: excelRows,
-        };
-      } else {
-        parsed = { type: 'other', content: await parseTXT(file) };
-      }
 
-      setInputText(parsed.content);
-      setParsedData(parsed);
-      handleRun(parsed.content, true);
-      setIsLoading(false);
+        setInputText(parsed.content);
+        setParsedData(parsed);
+        handleRun(parsed.content, true);
+      } catch (error) {
+        console.error('Error processing file:', error);
+        setFileError("Error processing file. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
     }
 
     if (fileInputRef.current) {
@@ -833,10 +853,11 @@ export default function Interact() {
         width: '90%',
         maxWidth: '1200px',
         marginTop: '20vh',
-        paddingBottom: '100vh', // Add extra space at the bottom
+        paddingBottom: '100vh',
       }}
     >
       <div style={{ flex: 2, marginRight: '20px' }}>
+      <Box display="flex" flexDirection="column" width="100%">
         <Box display="flex" justifyContent="center" alignItems="center" width="100%">
           <label htmlFor="file-upload" style={{ marginRight: '10px' }}>
             <Button size="sm" asChild>
@@ -873,10 +894,20 @@ export default function Interact() {
             Run
           </Button>
         </Box>
+        
+        {fileError && (
+          <Alert 
+            severity="error" 
+            style={{ marginTop: '8px' }}
+          >
+            {fileError}
+          </Alert>
+        )}
 
         <Typography variant="caption" display="block" mt={1}>
-          Supported file types: .txt, .pdf, .docx, .csv, .xls, .xlsx
+          Supported file types: .txt, .pdf, .docx, .csv, .xls, .xlsx (Max size: 1MB)
         </Typography>
+      </Box>
 
         {annotations.length > 0 && (
           <Box mt={4} mb={2} display="flex" alignItems="center" justifyContent="flex-end">

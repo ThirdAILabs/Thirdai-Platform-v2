@@ -1,6 +1,4 @@
-import logging
 import os
-import sys
 from pathlib import Path
 
 import thirdai
@@ -10,8 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from llm_cache_job.cache import Cache, NDBSemanticCache
 from llm_cache_job.permissions import Permissions
-from platform_common.logging import LoggerConfig, StreamToLogger
 from platform_common.middlewares import create_log_request_response_middleware
+from platform_common.utils import setup_logger
 
 app = FastAPI()
 router = APIRouter()
@@ -35,13 +33,7 @@ else:
 
 log_dir: Path = Path(model_bazaar_dir) / "logs"
 
-log_dir.mkdir(parents=True, exist_ok=True)
-
-logger_file_path = log_dir / "llm_cache.log"
-logger = LoggerConfig(logger_file_path).get_logger("llm-cache-logger")
-
-sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
-sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
+logger = setup_logger(log_dir=log_dir, log_prefix="llm-cache")
 
 permissions = Permissions()
 

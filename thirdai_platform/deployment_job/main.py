@@ -1,7 +1,5 @@
 import asyncio
-import logging
 import os
-import sys
 import time
 from functools import wraps
 from pathlib import Path
@@ -17,10 +15,10 @@ from deployment_job.utils import delete_deployment_job
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from platform_common.logging import LoggerConfig, StreamToLogger
 from platform_common.middlewares import create_log_request_response_middleware
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.training import ModelType
+from platform_common.utils import setup_logger
 from prometheus_client import make_asgi_app
 from thirdai import licensing
 
@@ -34,13 +32,7 @@ config: DeploymentConfig = load_config()
 
 log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
 
-log_dir.mkdir(parents=True, exist_ok=True)
-
-logger_file_path = log_dir / "deployment.log"
-logger = LoggerConfig(logger_file_path).get_logger("deployment-logger")
-
-sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
-sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
+logger = setup_logger(log_dir=log_dir, log_prefix="deployment")
 
 reporter = Reporter(config.model_bazaar_endpoint, logger)
 

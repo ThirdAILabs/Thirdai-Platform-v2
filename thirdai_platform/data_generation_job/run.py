@@ -1,13 +1,10 @@
 import json
-import logging
-import sys
 from pathlib import Path
 from urllib.parse import urljoin
 
 import requests
 from data_generation_job.variables import DataCategory, GeneralVariables
-from platform_common.logging import LoggerConfig, StreamToLogger
-from platform_common.utils import load_dict
+from platform_common.utils import load_dict, setup_logger
 
 # Load general variables from environment
 general_variables: GeneralVariables = GeneralVariables.load_from_env()
@@ -18,13 +15,7 @@ log_dir: Path = (
     / general_variables.data_id
 )
 
-log_dir.mkdir(parents=True, exist_ok=True)
-
-logger_file_path = log_dir / "data_generation.log"
-logger = LoggerConfig(logger_file_path).get_logger("data-generation-logger")
-
-sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
-sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
+logger = setup_logger(log_dir=log_dir, log_prefix="data_generation")
 
 
 def launch_train_job(dataset_config: dict, udt_options: dict):

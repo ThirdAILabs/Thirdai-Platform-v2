@@ -1,13 +1,11 @@
-import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-from platform_common.logging import LoggerConfig, StreamToLogger
+from platform_common.utils import setup_logger
 
 load_dotenv()
 
 import asyncio
-import logging
 import os
 from urllib.parse import urljoin
 
@@ -31,13 +29,7 @@ app.add_middleware(
 model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
 log_dir: Path = Path(model_bazaar_dir) / "logs"
 
-log_dir.mkdir(parents=True, exist_ok=True)
-
-logger_file_path = log_dir / "llm_generation.log"
-logger = LoggerConfig(logger_file_path).get_logger("llm-generation-logger")
-
-sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
-sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
+logger = setup_logger(log_dir=log_dir, log_prefix="llm_generation")
 
 
 @app.post("/llm-dispatch/generate")

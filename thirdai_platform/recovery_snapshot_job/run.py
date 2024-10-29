@@ -1,8 +1,6 @@
 import datetime
-import logging
 import os
 import subprocess
-import sys
 import zipfile
 from pathlib import Path
 
@@ -14,13 +12,13 @@ from platform_common.file_handler import (
     GCPStorageHandler,
     S3StorageHandler,
 )
-from platform_common.logging import LoggerConfig, StreamToLogger
 from platform_common.pydantic_models.recovery_snapshot import (
     AzureConfig,
     BackupConfig,
     GCPConfig,
     S3Config,
 )
+from platform_common.utils import setup_logger
 
 # Global scheduler instance
 scheduler = BlockingScheduler()
@@ -29,13 +27,7 @@ model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
 
 log_dir: Path = Path(model_bazaar_dir) / "logs"
 
-log_dir.mkdir(parents=True, exist_ok=True)
-
-logger_file_path = log_dir / "recovery_snapshot.log"
-logger = LoggerConfig(logger_file_path).get_logger("recovery-snapshot-logger")
-
-sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
-sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
+logger = setup_logger(log_dir=log_dir, log_prefix="recovery_snapshot")
 
 
 def get_cloud_storage_handler(config: BackupConfig):

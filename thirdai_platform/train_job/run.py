@@ -1,9 +1,8 @@
-import logging
-import sys
 from logging import Logger
 from pathlib import Path
 
 import nltk
+from platform_common.utils import setup_logger
 
 nltk.download("punkt_tab")
 print("Downloading punkttab")
@@ -12,7 +11,6 @@ import argparse
 import os
 
 import thirdai
-from platform_common.logging import LoggerConfig, StreamToLogger
 from platform_common.pydantic_models.training import (
     ModelType,
     NDBSubType,
@@ -87,14 +85,7 @@ def main():
 
     log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
 
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    logger_file_path = log_dir / "train.log"
-
-    logger = LoggerConfig(logger_file_path).get_logger("train-logger")
-
-    sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
-    sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
+    logger = setup_logger(log_dir=log_dir, log_prefix="train")
 
     reporter = HttpReporter(config.model_bazaar_endpoint, logger)
 

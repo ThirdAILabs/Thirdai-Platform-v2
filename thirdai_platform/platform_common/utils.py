@@ -1,8 +1,12 @@
 import json
+import logging
+import sys
+from pathlib import Path
 from typing import Dict
 
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
+from platform_common.logging import LoggerConfig, StreamToLogger
 
 
 def response(
@@ -38,3 +42,16 @@ def save_dict(write_to: str, **kwargs):
 def load_dict(path: str):
     with open(path, "r") as fp:
         return json.load(fp)
+
+
+def setup_logger(log_dir: Path, log_prefix: str):
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    logger_file_path = log_dir / f"{log_prefix}.log"
+
+    logger = LoggerConfig(logger_file_path).get_logger(f"{log_prefix}-logger")
+
+    sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
+    sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
+
+    return logger

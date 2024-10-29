@@ -26,16 +26,8 @@ def create_log_request_response_middleware(logger: Logger):
                 # Call the next middleware or endpoint
                 res = await call_next(request)
 
-                res_body = b"".join([chunk async for chunk in res.body_iterator])
-                self.logger.info(
-                    f"{request_info} - Response Status: {res.status_code} - Response Body: {res_body.decode('utf-8')}"
-                )
+                self.logger.info(f"{request_info} - Response Status: {res.status_code}")
 
-                # Reset the response body iterator for further processing
-                async def body_iterator():
-                    yield res_body
-
-                res.body_iterator = body_iterator()
                 return res
 
             except Exception as e:

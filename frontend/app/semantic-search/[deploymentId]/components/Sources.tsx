@@ -139,7 +139,6 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
     refreshSources();
   };
 
-  // Update the renderPageNumbers function to use smaller buttons
   const renderPageNumbers = (): React.ReactNode[] => {
     const maxVisiblePages = 5;
     let pageNumbers: number[] = [];
@@ -179,7 +178,7 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
       align="start"
       side="bottom"
     >
-      <div className="p-1 border-b">
+      <div className="p-1 border-b space-y-3 pb-4">
         <Input
           autoFocus
           className="text-sm h-8"
@@ -188,17 +187,19 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
           onChange={handleSearchBarChangeEvent}
           onKeyDown={(e: React.KeyboardEvent) => e.stopPropagation()}
         />
-        <Button
-          size="small"
-          className="w-full mt-1 h-8 text-sm"
-          onClick={() => setOpen(true)}
-          variant="contained"
-        >
-          Add Documents
-        </Button>
+        <div className="flex justify-center">
+          <Button
+            size="small"
+            className="w-1/2 h-8 text-sm"
+            onClick={() => setOpen(true)}
+            variant="contained"
+          >
+            Add Documents
+          </Button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-[150px] max-h-[250px]">
+      <div className="flex-1 overflow-y-auto min-h-[150px] max-h-[250px] pt-2">
         {currentDocs.map((source, i) => (
           <DropdownMenuItem
             key={`${source.source_id}-${i}`}

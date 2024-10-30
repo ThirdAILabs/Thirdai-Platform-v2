@@ -22,11 +22,10 @@ def main(args):
 
     for config in config_names:
         result = subprocess.run(
-            [
-                f"python3 {script_path} --config {config} --host {args.host} --email {args.email} --password {args.password}"
-            ],
+            f"python3 {script_path} --config {config} --host {args.host} --email {args.email} --password {args.password}",
             capture_output=True,
             text=True,
+            shell=True,
         )
 
         if result.returncode == 0:

@@ -23,6 +23,7 @@ Running `pip3 install locust --upgrade --no-cache-dir --force-reinstall` on each
 node should do the trick.
 """
 
+pass
 import argparse
 import json
 import os
@@ -56,14 +57,14 @@ def parse_args():
         default=20,
         help="Maximum wait time between tasks in seconds",
     )
-    parser.add_argument("--predict_weight", type=int, default=1)
-    parser.add_argument("--insert_weight", type=int, default=1)
+    parser.add_argument("--predict_weight", type=int, default=20)
+    parser.add_argument("--insert_weight", type=int, default=2)
     parser.add_argument("--delete_weight", type=int, default=1)
-    parser.add_argument("--upvote_weight", type=int, default=1)
-    parser.add_argument("--associate_weight", type=int, default=1)
-    parser.add_argument("--sources_weight", type=int, default=1)
+    parser.add_argument("--upvote_weight", type=int, default=2)
+    parser.add_argument("--associate_weight", type=int, default=2)
+    parser.add_argument("--sources_weight", type=int, default=5)
     parser.add_argument("--save_weight", type=int, default=1)
-    parser.add_argument("--implicit_feedback_weight", type=int, default=1)
+    parser.add_argument("--implicit_feedback_weight", type=int, default=10)
 
     # Generation is a separate test
     parser.add_argument("--generation", type=bool, default=False)
@@ -213,11 +214,40 @@ class NeuralDBLoadTest(TaskSet):
     def test_sources(self):
         res = self.client.get(route("sources"), headers=auth_header)
 
+    @task(args.implicit_feedback_weight)
+    def test_implicit_feedback(self):
+        query = random_query()
+
+        response = self.client.post(
+            route("search"),
+            json={"query": query, "top_k": 5},
+            headers=auth_header,
+            timeout=60,
+        )
+
+        ref_id = response.json()["data"]["references"][-1]["id"]
+        feedback = {
+            "query_text": query,
+            "reference_id": ref_id,
+            "event_desc": "reference click",
+        }
+
+        res = self.client.post(
+            route("implicit-feedback"), json=feedback, headers=auth_header
+        )
+
     @task(args.save_weight)
     def test_save(self):
+        model_name = str(uuid.uuid4())
         res = self.client.post(
             route("save"),
-            json={"override": False, "model_name": str(uuid.uuid4())},
+            json={"override": False, "model_name": model_name},
+            headers=auth_header,
+        )
+
+        self.client.post(
+            "/api/model/delete",
+            params={"model_identifier": f"{args.username}/{model_name}"},
             headers=auth_header,
         )
 

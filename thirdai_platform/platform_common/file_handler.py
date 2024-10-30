@@ -704,7 +704,7 @@ def get_cloud_client(provider: str):
         return S3StorageHandler(
             aws_access_key=aws_access_key,
             aws_secret_access_key=aws_secret_access_key,
-            region_name=region_name,
+            region_name=region_name if len(region_name) > 0 else None,
         )
     elif provider == "azure":
         account_name = os.getenv("AZURE_ACCOUNT_NAME", None)

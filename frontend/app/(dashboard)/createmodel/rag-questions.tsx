@@ -275,7 +275,34 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
           {ifUseExistingSS === 'No' && (
             <>
               {createdSS ? (
-                <div>Knowledge Base Created.</div>
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-center space-x-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-600"></div>
+                    <span className="text-lg font-medium text-blue-800">
+                      Files have been uploaded, creating Knowledge Base...
+                    </span>
+                  </div>
+                  <div className="mt-2 text-sm text-blue-600 text-center">
+                    This may take a few minutes depending on the size of your files
+                  </div>
+                  <div className="mt-3 text-sm text-green-600 font-medium text-center flex items-center justify-center">
+                    <svg 
+                      className="w-4 h-4 mr-1" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth="2" 
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                    You may continue to the next step while this processes
+                  </div>
+                </div>
               ) : (
                 <div>
                   <SemanticSearchQuestions

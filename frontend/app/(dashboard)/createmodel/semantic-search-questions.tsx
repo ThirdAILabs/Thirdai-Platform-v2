@@ -33,6 +33,9 @@ enum ParsingType {
   Advanced = 'advanced',
 }
 
+const ALLOWED_FILE_TYPES = '.csv,.pdf,.docx';
+const ALLOWED_FILE_TYPES_ARRAY = ['csv', 'pdf', 'docx'];
+
 const SemanticSearchQuestions = ({
   workflowNames,
   models,
@@ -46,9 +49,22 @@ const SemanticSearchQuestions = ({
   const [indexingType, setIndexingType] = useState<IndexingType>(IndexingType.Basic);
   const [parsingType, setParsingType] = useState<ParsingType>(ParsingType.Basic);
   const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
+  const [fileError, setFileError] = useState<string>('');
 
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+
+  const validateFileTypes = (files: FileList): boolean => {
+    for (let i = 0; i < files.length; i++) {
+      const extension = files[i].name.split('.').pop()?.toLowerCase();
+      if (!extension || !ALLOWED_FILE_TYPES_ARRAY.includes(extension)) {
+        setFileError(`Invalid file type: ${files[i].name}. Only CSV, PDF, and DOCX files are allowed.`);
+        return false;
+      }
+    }
+    setFileError('');
+    return true;
+  };
 
   const addSource = (type: SourceType) => {
     setSources((prev) => [...prev, { type, files: [] }]);
@@ -56,6 +72,10 @@ const SemanticSearchQuestions = ({
   };
 
   const setSourceValue = (index: number, files: FileList) => {
+    if (!validateFileTypes(files)) {
+      return;
+    }
+
     const newSources = [...sources];
     const fileArray = Array.from(files);
     newSources[index].files = fileArray;
@@ -248,6 +268,10 @@ const SemanticSearchQuestions = ({
       </span>
       <CardDescription>Select files from:</CardDescription>
 
+      {fileError && (
+        <div className="text-red-500 mt-2 mb-2">{fileError}</div>
+      )}
+
       {sources.map(({ type }, index) => (
         <div key={index}>
           <div
@@ -276,6 +300,7 @@ const SemanticSearchQuestions = ({
                       setSourceValue(index, e.target.files);
                     }
                   }}
+                  accept={ALLOWED_FILE_TYPES}
                   multiple
                 />
               </div>

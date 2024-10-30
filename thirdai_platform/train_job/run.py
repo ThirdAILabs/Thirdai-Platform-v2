@@ -1,8 +1,9 @@
+import logging
 from logging import Logger
 from pathlib import Path
 
 import nltk
-from platform_common.utils import setup_logger
+from platform_common.logging import setup_logger
 
 nltk.download("punkt_tab")
 print("Downloading punkttab")
@@ -85,7 +86,9 @@ def main():
 
     log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
 
-    logger = setup_logger(log_dir=log_dir, log_prefix="train")
+    setup_logger(log_dir=log_dir, log_prefix="train")
+
+    logger = logging.getLogger("train")
 
     reporter = HttpReporter(config.model_bazaar_endpoint, logger)
 

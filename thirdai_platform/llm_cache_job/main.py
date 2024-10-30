@@ -1,15 +1,16 @@
+import logging
 import os
+import traceback
 from pathlib import Path
 
 import thirdai
-from fastapi import APIRouter, Depends, FastAPI, status
+from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from llm_cache_job.cache import Cache, NDBSemanticCache
 from llm_cache_job.permissions import Permissions
-from platform_common.middlewares import create_log_request_response_middleware
-from platform_common.utils import setup_logger
+from platform_common.logging import setup_logger
 
 app = FastAPI()
 router = APIRouter()
@@ -33,13 +34,37 @@ else:
 
 log_dir: Path = Path(model_bazaar_dir) / "logs"
 
-logger = setup_logger(log_dir=log_dir, log_prefix="llm-cache")
+setup_logger(log_dir=log_dir, log_prefix="llm-cache")
+
+logger = logging.getLogger("llm-cache")
 
 permissions = Permissions()
 
 cache: Cache = NDBSemanticCache(logger=logger)
 
-app.add_middleware(create_log_request_response_middleware(logger))
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    response = await call_next(request)
+
+    logger.info(
+        f"Request: {request.method}; URl: {request.url} - {response.status_code}"
+    )
+
+    return response
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # Log the traceback
+    error_trace = traceback.format_exc()
+    logger.error(f"Exception occurred: {error_trace}")
+
+    # Return the exact exception message in the response
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+    )
 
 
 @router.get("/suggestions", dependencies=[Depends(permissions.verify_read_permission)])

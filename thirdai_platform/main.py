@@ -1,11 +1,10 @@
 import logging
-import sys
 import traceback
 from pathlib import Path
 
 from dotenv import load_dotenv
-from platform_common.logging import LoggerConfig, StreamToLogger
-from platform_common.middlewares import create_log_request_response_middleware
+from fastapi.responses import JSONResponse
+from platform_common.logging import setup_logger
 
 load_dotenv()
 
@@ -43,13 +42,9 @@ app.add_middleware(
 
 log_dir: Path = Path(model_bazaar_path()) / "logs"
 
-log_dir.mkdir(parents=True, exist_ok=True)
+setup_logger(log_dir=log_dir, log_prefix="platform_backend")
 
-logger_file_path = log_dir / "platform_backend.log"
-logger = LoggerConfig(logger_file_path).get_logger("platform-backend-logger")
-
-sys.stdout = StreamToLogger(logger, logging.INFO, sys.stdout)
-sys.stderr = StreamToLogger(logger, logging.ERROR, sys.stderr)
+logger = logging.getLogger("platform-backend")
 
 app.include_router(user, prefix="/api/user", tags=["user"])
 app.include_router(train, prefix="/api/train", tags=["train"])
@@ -62,7 +57,29 @@ app.include_router(recovery, prefix="/api/recovery", tags=["recovery"])
 app.include_router(data_router, prefix="/api/data", tags=["data"])
 app.include_router(telemetry, prefix="/api/telemetry", tags=["telemetry"])
 
-app.add_middleware(create_log_request_response_middleware(logger))
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: fastapi.Request, exc: Exception):
+    # Log the traceback
+    error_trace = traceback.format_exc()
+    logger.error(f"Exception occurred: {error_trace}")
+
+    # Return the exact exception message in the response
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+    )
+
+
+@app.middleware("http")
+async def log_requests(request: fastapi.Request, call_next):
+    response = await call_next(request)
+
+    logger.info(
+        f"Request: {request.method}; URl: {request.url} - {response.status_code}"
+    )
+
+    return response
 
 
 @app.on_event("startup")
@@ -105,4 +122,4 @@ async def startup_event():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run(app, host="localhost", port=8000, log_level="info")

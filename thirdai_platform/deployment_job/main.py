@@ -1,6 +1,8 @@
 import asyncio
+import logging
 import os
 import time
+import traceback
 from functools import wraps
 from pathlib import Path
 from typing import Any
@@ -15,10 +17,9 @@ from deployment_job.utils import delete_deployment_job
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from platform_common.middlewares import create_log_request_response_middleware
+from platform_common.logging import setup_logger
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.training import ModelType
-from platform_common.utils import setup_logger
 from prometheus_client import make_asgi_app
 from thirdai import licensing
 
@@ -32,7 +33,9 @@ config: DeploymentConfig = load_config()
 
 log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
 
-logger = setup_logger(log_dir=log_dir, log_prefix="deployment")
+setup_logger(log_dir=log_dir, log_prefix="deployment")
+
+logger = logging.getLogger("deployment")
 
 reporter = Reporter(config.model_bazaar_endpoint, logger)
 
@@ -52,7 +55,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(create_log_request_response_middleware(logger))
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    response = await call_next(request)
+
+    logger.info(
+        f"Request: {request.method}; URl: {request.url} - {response.status_code}"
+    )
+
+    return response
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # Log the traceback
+    error_trace = traceback.format_exc()
+    logger.error(f"Exception occurred: {error_trace}")
+
+    # Return the exact exception message in the response
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+    )
+
 
 # The following logic will start a timer at this Fast API application's start up.
 # after n minutes, this service will shut down, unless a function that is decorated

@@ -1,7 +1,9 @@
+import logging
+import traceback
 from pathlib import Path
 
 from dotenv import load_dotenv
-from platform_common.utils import setup_logger
+from platform_common.logging import setup_logger
 
 load_dotenv()
 
@@ -10,9 +12,9 @@ import os
 from urllib.parse import urljoin
 
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from llm_dispatch_job.llms import LLMBase, default_keys, model_classes
 from llm_dispatch_job.utils import GenerateArgs
 
@@ -29,7 +31,32 @@ app.add_middleware(
 model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
 log_dir: Path = Path(model_bazaar_dir) / "logs"
 
-logger = setup_logger(log_dir=log_dir, log_prefix="llm_generation")
+setup_logger(log_dir=log_dir, log_prefix="llm_generation")
+logger = logging.getLogger("llm_generation")
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    response = await call_next(request)
+
+    logger.info(
+        f"Request: {request.method}; URl: {request.url} - {response.status_code}"
+    )
+
+    return response
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # Log the traceback
+    error_trace = traceback.format_exc()
+    logger.error(f"Exception occurred: {error_trace}")
+
+    # Return the exact exception message in the response
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+    )
 
 
 @app.post("/llm-dispatch/generate")

@@ -455,6 +455,10 @@ def get_feedback(
                 for line in line_generator:
                     feedback_obj = FeedbackLog(**json.loads(line.strip()))
 
+                    # only process events that are relevant
+                    if feedback_obj.event.action not in event_heap:
+                        continue
+
                     if (
                         events_processed_for_this_file[feedback_obj.event.action]
                         < per_event_count

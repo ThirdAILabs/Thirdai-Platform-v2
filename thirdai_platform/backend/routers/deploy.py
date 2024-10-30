@@ -1,6 +1,7 @@
 import heapq
 import json
 import os
+import pathlib
 import traceback
 from collections import defaultdict
 from pathlib import Path
@@ -42,10 +43,17 @@ from platform_common.pydantic_models.deployment import (
 )
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
 from platform_common.pydantic_models.training import ModelType
-from platform_common.utils import response
+from platform_common.utils import get_section, response
 from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()
+
+root_folder = pathlib.Path(__file__).parent
+
+docs_file = root_folder.joinpath("../../docs/deploy_endpoints.txt")
+
+with open(docs_file) as f:
+    docs = f.read()
 
 
 def model_read_write_permissions(
@@ -107,7 +115,11 @@ def model_owner_permissions(
     return model.get_owner_permission(authenticated_user.user)
 
 
-@deploy_router.get("/permissions/{model_id}")
+@deploy_router.get(
+    "/permissions/{model_id}",
+    summary="Get Model Permissions",
+    description=get_section(docs, "Get Model Permissions"),
+)
 def get_model_permissions(
     model_id: str,
     session: Session = Depends(get_session),
@@ -296,7 +308,12 @@ async def deploy_single_model(
         )
 
 
-@deploy_router.post("/run", dependencies=[Depends(is_model_owner)])
+@deploy_router.post(
+    "/run",
+    dependencies=[Depends(is_model_owner)],
+    summary="Deploy Model",
+    description=get_section(docs, "Deploy Model"),
+)
 async def deploy_model(
     model_identifier: str,
     deployment_name: Optional[str] = None,
@@ -374,7 +391,12 @@ async def deploy_model(
     )
 
 
-@deploy_router.get("/feedbacks", dependencies=[Depends(is_model_owner)])
+@deploy_router.get(
+    "/feedbacks",
+    dependencies=[Depends(is_model_owner)],
+    summary="Get Feedbacks",
+    description=get_section(docs, "Get Feedbacks"),
+)
 def get_feedback(
     model_identifier: str,
     per_event_count: Annotated[int, Query(gt=0)] = 5,
@@ -516,7 +538,12 @@ def get_feedback(
     )
 
 
-@deploy_router.get("/status", dependencies=[Depends(verify_model_read_access)])
+@deploy_router.get(
+    "/status",
+    dependencies=[Depends(verify_model_read_access)],
+    summary="Deployment Status",
+    description=get_section(docs, "Deployment Status"),
+)
 def deployment_status(
     model_identifier: str,
     session: Session = Depends(get_session),
@@ -558,7 +585,11 @@ def deployment_status(
     )
 
 
-@deploy_router.post("/update-status")
+@deploy_router.post(
+    "/update-status",
+    summary="Update Deployment Status",
+    description=get_section(docs, "Update Deployment Status"),
+)
 def update_deployment_status(
     model_id: str,
     new_status: schema.Status,
@@ -628,7 +659,12 @@ def active_deployments_using_model(model_id: str, session: Session):
     )
 
 
-@deploy_router.post("/stop", dependencies=[Depends(is_model_owner)])
+@deploy_router.post(
+    "/stop",
+    dependencies=[Depends(is_model_owner)],
+    summary="Stop Deployment",
+    description=get_section(docs, "Stop Deployment"),
+)
 def undeploy_model(
     model_identifier: str,
     session: Session = Depends(get_session),
@@ -686,7 +722,11 @@ def undeploy_model(
     )
 
 
-@deploy_router.get("/active-deployment-count")
+@deploy_router.get(
+    "/active-deployment-count",
+    summary="Active Deployment Count",
+    description=get_section(docs, "Active Deployment Count"),
+)
 def active_deployment_count(model_id: str, session: Session = Depends(get_session)):
     return response(
         status_code=status.HTTP_200_OK,
@@ -699,7 +739,7 @@ def active_deployment_count(model_id: str, session: Session = Depends(get_sessio
     )
 
 
-@deploy_router.post("/start-on-prem")
+@deploy_router.post("/start-on-prem", include_in_schema=False)
 async def start_on_prem_job(
     model_name: str = "Llama-3.2-3B-Instruct-f16.gguf",
     restart_if_exists: bool = True,
@@ -725,7 +765,12 @@ async def start_on_prem_job(
     )
 
 
-@deploy_router.get("/logs", dependencies=[Depends(verify_model_read_access)])
+@deploy_router.get(
+    "/logs",
+    dependencies=[Depends(verify_model_read_access)],
+    summary="Get Logs",
+    description=get_section(docs, "Get Logs"),
+)
 def train_logs(
     model_identifier: str,
     session: Session = Depends(get_session),

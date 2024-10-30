@@ -6,11 +6,12 @@
 - **verify_access_token_no_throw**: Validates user authentication without raising exceptions if token verification fails.
 
 **Sample Request**:
-GET /permissions/model_123
+/permissions/model_123
 
 **Sample Responses**:
 
 - `200 OK`: Successfully fetched model permissions.
+```json
 {
     "status_code": 200,
     "message": "Successfully fetched user permissions for model with ID model_123",
@@ -21,18 +22,19 @@ GET /permissions/model_123
         "override": true
     }
 }
+```
 
 ---
 
-## Run Deployment
+## Deploy Model
 
-**Description**: Deploy a specified model, starting the deployment process.
+**Description**: Deploy a specified model to interact with the model.
 
 **Dependencies**:
-- **is_model_owner**: Ensures the user owns the model before allowing deployment.
+- **is_model_owner**: Only users with owner access can directly deploy the model.
 
 **Sample Request**:
-POST /run
+```json
 {
     "model_identifier": "user/model_123",
     "memory": 2048,
@@ -40,10 +42,12 @@ POST /run
     "autoscaler_max_count": 5,
     "genai_key": "your_genai_key"
 }
+```
 
 **Sample Responses**:
 
 - `202 Accepted`: Deployment is in progress.
+```json
 {
     "status_code": 202,
     "message": "Deployment is in-progress",
@@ -53,6 +57,7 @@ POST /run
         "model_id": "model_id_123"
     }
 }
+```
 
 ---
 
@@ -69,6 +74,7 @@ GET /feedbacks?model_identifier=user/model_123&per_event_count=5
 **Sample Responses**:
 
 - `200 OK`: Successfully retrieved feedbacks.
+```json
 {
     "status_code": 200,
     "message": "Successfully retrieved the feedbacks",
@@ -90,6 +96,7 @@ GET /feedbacks?model_identifier=user/model_123&per_event_count=5
         ]
     }
 }
+```
 
 ---
 
@@ -106,6 +113,7 @@ GET /status?model_identifier=user/model_123
 **Sample Responses**:
 
 - `200 OK`: Successfully retrieved deployment status.
+```json
 {
     "status_code": 200,
     "message": "Successfully got the deployment status",
@@ -115,6 +123,32 @@ GET /status?model_identifier=user/model_123
         "model_id": "model_id_123"
     }
 }
+```
+
+---
+
+## Update Deployment Status
+
+**Description**: Update the deployment status for a model.
+
+**Sample Request**:
+POST /update-status
+```json
+{
+    "model_id": "model_id_123",
+    "new_status": "in_progress",
+    "message": "Deployment started"
+}
+```
+
+**Sample Responses**:
+
+- `200 OK`: Status updated successfully.
+```json
+{
+    "message": "successfully updated"
+}
+```
 
 ---
 
@@ -127,13 +161,16 @@ GET /status?model_identifier=user/model_123
 
 **Sample Request**:
 POST /stop
+```json
 {
     "model_identifier": "user/model_123"
 }
+```
 
 **Sample Responses**:
 
 - `202 Accepted`: Service is shutting down.
+```json
 {
     "status_code": 202,
     "message": "Service is shutting down",
@@ -142,18 +179,43 @@ POST /stop
         "model_id": "model_id_123"
     }
 }
+```
 
 - `400 Bad Request`: Model is used by other active workflows.
+```json
 {
     "status_code": 400,
     "message": "Unable to stop deployment for model user/model_123 since it is used by other active workflows."
 }
+```
 
 ---
 
-## Get Deployment Logs
+## Active Deployment Count
 
-**Description**: Retrieve logs for a model deployment.
+**Description**: Retrieve the count of active deployments using a specific model.
+
+**Sample Request**:
+GET /active-deployment-count?model_id=model_id_123
+
+**Sample Responses**:
+
+- `200 OK`: Successfully retrieved deployment count.
+```json
+{
+    "status_code": 200,
+    "message": "Successfully retrieved number of deployments using model.",
+    "data": {
+        "deployment_count": 3
+    }
+}
+```
+
+---
+
+## Get Logs
+
+**Description**: Retrieve logs for a model.
 
 **Dependencies**:
 - **verify_model_read_access**: Ensures the user has access to view the model's logs.
@@ -164,8 +226,10 @@ GET /logs?model_identifier=user/model_123
 **Sample Responses**:
 
 - `200 OK`: Successfully retrieved logs.
+```json
 {
     "status_code": 200,
-    "message": "Successfully got the deployment logs.",
-    "data": ["Log entry 1", "Log entry 2"]
+    "message": "Successfully got the train logs.",
+    "data": [{"stdout":"stdout_log","stderr":"stderr_log"}]
 }
+```

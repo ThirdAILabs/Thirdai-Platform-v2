@@ -1,8 +1,8 @@
 import json
+import logging
 import os
 import secrets
 import shutil
-import sys
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -220,7 +220,7 @@ def train_ndb(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        print(str(err), file=sys.stderr)
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -390,7 +390,7 @@ def retrain_ndb(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        print(str(err), file=sys.stderr)
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -524,7 +524,7 @@ def nlp_datagen(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        print(str(err), file=sys.stderr)
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -645,7 +645,7 @@ def datagen_callback(
             model.train_status = schema.Status.failed
         session.commit()
 
-        print(str(err), file=sys.stderr)
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -792,7 +792,7 @@ def retrain_udt(
     except Exception as err:
         model.train_status = schema.Status.failed
         session.commit()
-        print(str(err), file=sys.stderr)
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -953,7 +953,7 @@ def train_udt(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        print(str(err), file=sys.stderr)
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),

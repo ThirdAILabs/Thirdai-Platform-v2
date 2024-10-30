@@ -1,5 +1,5 @@
+import logging
 import os
-import sys
 
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
@@ -23,7 +23,8 @@ def mailer(to, subject, body, cc_emails=None):
         sg = SendGridAPIClient(sendgrid_key)
         response = sg.send(message)
         if response.status_code != 200:
-            print(response.body, file=sys.stderr)
+            logging.error(f"Failed to send the mail: {response.body}")
 
     except Exception as e:
+        logging.error(e)
         raise e

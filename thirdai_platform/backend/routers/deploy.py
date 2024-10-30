@@ -1,7 +1,7 @@
 import heapq
 import json
+import logging
 import os
-import sys
 import traceback
 from collections import defaultdict
 from pathlib import Path
@@ -279,7 +279,7 @@ async def deploy_single_model(
     except Exception as err:
         model.deploy_status = schema.Status.failed
         session.commit()
-        print(traceback.format_exc(), file=sys.stderr)
+        logging.error(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(err),
@@ -674,7 +674,7 @@ def undeploy_model(
         session.commit()
 
     except Exception as err:
-        print(str(err), file=sys.stderr)
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),

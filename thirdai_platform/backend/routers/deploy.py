@@ -127,21 +127,6 @@ def get_model_permissions(
         verify_access_token_no_throw
     ),
 ):
-    """
-    Get the permissions for a model.
-
-    Parameters:
-    - model_id: The ID of the model.
-    - session: The database session (dependency).
-    - authenticated_user: The authenticated user (dependency).
-
-    Example Usage:
-    ```json
-    {
-       "model_id" : "model_id",
-    }
-    ```
-    """
     read, write = model_read_write_permissions(model_id, session, authenticated_user)
     override = model_owner_permissions(model_id, session, authenticated_user)
     exp = (
@@ -324,33 +309,6 @@ async def deploy_model(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    """
-    Deploy a model.
-
-    Parameters:
-    - model_identifier: The identifier of the model to deploy.
-    - deployment_name: Optional name to use as a prefix for the deployment. If specified
-      the deployment endpoints will be accessible via /{deployment_name}/{endpoint} in
-      addition to the default deployment url.
-    - memory: Optional memory allocation for the deployment.
-    - autoscaling_enabled: Whether autoscaling is enabled.
-    - autoscaler_max_count: The maximum count for the autoscaler.
-    - genai_key: Optional GenAI key.
-    - session: The database session (dependency).
-    - authenticated_user: The authenticated user (dependency).
-
-    Example Usage:
-    ```json
-    {
-        "deployment_name": "my_deployment",
-        "model_identifier": "model_123",
-        "memory": 2048,
-        "autoscaling_enabled": true,
-        "autoscaler_max_count": 5,
-        "genai_key": "your_genai_key"
-    }
-    ```
-    """
     user = authenticated_user.user
 
     try:
@@ -402,43 +360,6 @@ def get_feedback(
     per_event_count: Annotated[int, Query(gt=0)] = 5,
     session: Session = Depends(get_session),
 ):
-    """
-    Get the recent feedback of the model
-
-    Parameters:
-    - model_identifier: The identifier of the model to deploy.
-    - session: The database session (dependency).
-
-    Example Usage:
-    ```json
-    {
-        "model_identifier": "user/model_123",
-    }
-    ```
-
-    response:
-    ```json
-    {
-        "upvote": [
-            {
-                "query": "This is the query",
-                "reference_text": "This is the result upvoted",
-                "reference_id": 15
-                "timestamp": "17 October 2024 17:54:11",
-            },
-            ..
-        ],
-        "associate": [
-            {
-                "source": "This is the source text",
-                "target": "This is the target text",
-                "timestamp": "18 October 2024 17:49:43",
-            },
-            ..
-        ]
-    }
-    ```
-    """
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
     except Exception as error:
@@ -548,20 +469,6 @@ def deployment_status(
     model_identifier: str,
     session: Session = Depends(get_session),
 ):
-    """
-    Get the status of a deployment.
-
-    Parameters:
-    - model_identifier: The identifier of the model.
-    - session: The database session (dependency).
-
-    Example Usage:
-    ```json
-    {
-        "model_identifier": "user123/model_name"
-    }
-    ```
-    """
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
     except Exception as error:
@@ -596,22 +503,6 @@ def update_deployment_status(
     message: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
-    """
-    Update the status of a deployment.
-
-    Parameters:
-    - model_id: The ID of the model.
-    - status: The new status for the deployment.
-    - session: The database session (dependency).
-
-    Example Usage:
-    ```json
-    {
-        "model_id": "model_id",
-        "status": "in_progress"
-    }
-    ```
-    """
     model: schema.Model = (
         session.query(schema.Model).filter(schema.Model.id == model_id).first()
     )
@@ -669,20 +560,6 @@ def undeploy_model(
     model_identifier: str,
     session: Session = Depends(get_session),
 ):
-    """
-    Stop a running deployment.
-
-    Parameters:
-    - model_identifier: The identifier of the model to stop.
-    - session: The database session (dependency).
-
-    Example Usage:
-    ```json
-    {
-        "model_identifier": "user123/model123"
-    }
-    ```
-    """
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
     except Exception as error:

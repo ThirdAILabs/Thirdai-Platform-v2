@@ -70,7 +70,7 @@ azure:
       push_credentials:
         password: eNyovojbI2mGMrDnWWZXkkngboKEUA6qouDfdoVB8e+ACRAdqxX/
         username: thirdaiplatform-push-sources
-      version: 0.0.5
+      version: 0.0.6
     test_1:
       pull_credentials:
         password: lfhxcL/qmrYP24rIH2vmRNSYV9ZlNCfxJyQI6E3kVi+ACRDjUz22

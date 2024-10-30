@@ -148,6 +148,7 @@ def get_model_permissions(
 # TODO(Any): move args like llm_provider to model attributes.
 async def deploy_single_model(
     model_id: str,
+    deployment_name: Optional[str],
     memory: Optional[int],
     autoscaling_enabled: bool,
     autoscaler_max_count: int,
@@ -256,6 +257,7 @@ async def deploy_single_model(
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
             model_id=str(model.id),
+            deployment_name=deployment_name,
             share_dir=os.getenv("SHARE_DIR", None),
             config_path=config.save_deployment_config(),
             autoscaling_enabled=("true" if autoscaling_enabled else "false"),
@@ -297,6 +299,7 @@ async def deploy_single_model(
 @deploy_router.post("/run", dependencies=[Depends(is_model_owner)])
 async def deploy_model(
     model_identifier: str,
+    deployment_name: Optional[str] = None,
     memory: Optional[int] = None,
     autoscaling_enabled: bool = False,
     autoscaler_max_count: int = 1,
@@ -309,6 +312,9 @@ async def deploy_model(
 
     Parameters:
     - model_identifier: The identifier of the model to deploy.
+    - deployment_name: Optional name to use as a prefix for the deployment. If specified
+      the deployment endpoints will be accessible via /{deployment_name}/{endpoint} in
+      addition to the default deployment url.
     - memory: Optional memory allocation for the deployment.
     - autoscaling_enabled: Whether autoscaling is enabled.
     - autoscaler_max_count: The maximum count for the autoscaler.
@@ -342,6 +348,7 @@ async def deploy_model(
         try:
             await deploy_single_model(
                 model_id=dependency.id,
+                deployment_name=deployment_name if dependency.id == model.id else None,
                 memory=memory,
                 autoscaling_enabled=autoscaling_enabled,
                 autoscaler_max_count=autoscaler_max_count,
@@ -447,6 +454,10 @@ def get_feedback(
                 line_generator = read_file_from_back(alloc_dirEntry.path)
                 for line in line_generator:
                     feedback_obj = FeedbackLog(**json.loads(line.strip()))
+
+                    # only process events that are relevant
+                    if feedback_obj.event.action not in event_heap:
+                        continue
 
                     if (
                         events_processed_for_this_file[feedback_obj.event.action]

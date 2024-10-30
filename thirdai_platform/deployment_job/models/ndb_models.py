@@ -449,6 +449,14 @@ class NDBV2Model(NDBModel):
         with self.db_lock:
             self.db.insert(ndb_docs)
 
+            upsert_doc_ids = [
+                doc.doc_id
+                for doc in documents
+                if doc.doc_id and doc.options.get("upsert", False)
+            ]
+            for doc_id in upsert_doc_ids:
+                self.db.delete_doc(doc_id, keep_latest_version=True)
+
         return [
             {
                 "source": self.full_source_path(doc.chunks()[0].document.iloc[0]),

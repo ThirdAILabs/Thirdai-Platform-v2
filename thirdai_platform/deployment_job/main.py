@@ -42,9 +42,7 @@ Permissions.init(
     model_bazaar_endpoint=config.model_bazaar_endpoint, model_id=config.model_id
 )
 
-app = FastAPI(
-    docs_url=f"/{config.model_id}/docs", openapi_url=f"/{config.model_id}/openapi.json"
-)
+app = FastAPI(docs_url=f"/docs", openapi_url=f"/openapi.json")
 
 app.add_middleware(
     CORSMiddleware,
@@ -146,7 +144,7 @@ for attempt in range(1, max_retries + 1):
             raise  # Optionally re-raise the exception if you want the application to stop
 
 
-app.include_router(backend_router.router, prefix=f"/{config.model_id}")
+app.include_router(backend_router.router)
 
 app.mount("/metrics", make_asgi_app())
 

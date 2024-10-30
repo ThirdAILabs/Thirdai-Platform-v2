@@ -43,8 +43,8 @@ def parse_args():
     parser.add_argument(
         "--deployment_id", type=str, default="ffd4e156-da8a-401e-a4db-944138e54ad8"
     )
-    parser.add_argument("--email", type=str, default="david@thirdai.com")
-    parser.add_argument("--password", type=str, default="password")
+    parser.add_argument("--email", type=str)
+    parser.add_argument("--password", type=str)
     parser.add_argument(
         "--min_wait",
         type=int,
@@ -118,6 +118,7 @@ login_details = Login.with_email(
     password=args.password,
 )
 
+username = login_details.username
 auth_header = {"Authorization": f"Bearer {login_details.access_token}"}
 
 # TODO
@@ -247,7 +248,7 @@ class NeuralDBLoadTest(TaskSet):
 
         self.client.post(
             "/api/model/delete",
-            params={"model_identifier": f"{args.username}/{model_name}"},
+            params={"model_identifier": f"{username}/{model_name}"},
             headers=auth_header,
         )
 

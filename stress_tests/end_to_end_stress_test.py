@@ -38,9 +38,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str)
     parser.add_argument("--host", type=str, default="http://localhost:80")
-    parser.add_argument("--email", type=str, default="david@thirdai.com")
-    parser.add_argument("--username", type=str, default="david")
-    parser.add_argument("--password", type=str, default="password")
+    parser.add_argument("--email", type=str)
+    parser.add_argument("--password", type=str)
     parser.add_argument("--autoscaling_enabled", type=bool, default=False)
     parser.add_argument("--users", type=int, default=100)
     parser.add_argument("--spawn_rate", type=int, default=10)
@@ -96,7 +95,7 @@ def main(args):
     client.log_in(args.email, args.password)
 
     model_name = f"stress_test_{config.name}"
-    model_identifier = f"{args.username}/{model_name}"
+    model_identifier = f"{client._username}/{model_name}"
 
     errors = []
     ndb_client = None

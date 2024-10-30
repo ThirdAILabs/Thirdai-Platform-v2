@@ -7,8 +7,8 @@ import sys
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="http://localhost:80")
-    parser.add_argument("--email", type=str, default="david@thirdai.com")
-    parser.add_argument("--password", type=str, default="password")
+    parser.add_argument("--email", type=str)
+    parser.add_argument("--password", type=str)
     args = parser.parse_args()
     return args
 

@@ -8,6 +8,8 @@ on:
 jobs:
   stress-test:
     runs-on: ubuntu-latest
+    environment:
+      name: stress_tests
 
     steps:
     - name: Checkout code
@@ -26,7 +28,7 @@ jobs:
       env:
         GENAI_KEY: ${{ secrets.GENAI_KEY }}
       run: |
-        python3 stress_tests/run_all_stress_tests.py
+        python3 stress_tests/run_all_stress_tests.py --host ${{ secrets.DAILY_PLATFORM_UPDATE_IP }} --email ${{ secrets.STRESS_TEST_EMAIL }} --password ${{ secrets.STRESS_TEST_PASSWORD }}
     
     - name: Notify slack success  # Ref: https://github.com/marketplace/actions/slack-notify-build
       if: success()

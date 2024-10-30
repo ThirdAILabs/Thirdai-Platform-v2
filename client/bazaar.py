@@ -609,6 +609,7 @@ class ModelBazaar:
     def deploy(
         self,
         model_identifier: str,
+        deployment_name: Optional[str] = None,
         memory: Optional[int] = None,
         is_async=False,
         autoscaling_enabled=False,
@@ -627,6 +628,7 @@ class ModelBazaar:
         url = urljoin(self._base_url, f"deploy/run")
         params = {
             "model_identifier": model_identifier,
+            "deployment_name": deployment_name,
             "memory": memory,
             "autoscaling_enabled": autoscaling_enabled,
         }

@@ -47,11 +47,11 @@ class TokenDataFactory(DataFactory):
             filter(lambda method: tag.lower() == method.lower(), self.faked_methods)
         )
         self.logger.debug(
-            "Fetching tag values from Faker", tag=tag, matched_attrs=matched_attrs
+            f"Fetching tag values from Faker tag={tag}, matched_attrs={matched_attrs}"
         )
 
         if not matched_attrs:
-            self.logger.warning("No Faker attributes match the tag", tag=tag)
+            self.logger.warning(f"No Faker attributes match the tag={tag}")
             return []
 
         values = [
@@ -59,10 +59,7 @@ class TokenDataFactory(DataFactory):
             for _ in range(num_samples)
         ]
         self.logger.info(
-            "Generated tag values from Faker",
-            tag=tag,
-            values=values[:5],
-            total_generated=len(values),
+            f"Generated tag values from Faker tag={tag}, values={values[:5]},total_generated={len(values)}"
         )
         return values
 
@@ -75,9 +72,7 @@ class TokenDataFactory(DataFactory):
         generate_at_a_time: int = 100,
     ):
         self.logger.info(
-            "Generating tag values from LLM",
-            tag=tag.name,
-            values_to_generate=values_to_generate,
+            f"Generating tag values from LLM tag={tag.name},values_to_generate={values_to_generate}"
         )
         sampled_tag_values = random.sample(tag.examples, k=min(3, len(tag.examples)))
 
@@ -119,9 +114,7 @@ class TokenDataFactory(DataFactory):
         complete_tag_values[tag.name].extend(generated_tag_values)
         save_dict(write_to=self.save_dir / "tags_value.json", **complete_tag_values)
         self.logger.info(
-            "Completed LLM tag value generation",
-            tag=tag.name,
-            generated_count=len(generated_tag_values),
+            f"Completed LLM tag value generation tag={tag.name},generated_count={len(generated_tag_values)}"
         )
 
     # Function to generate the tag_values by using faker library or LLM calls.
@@ -135,7 +128,7 @@ class TokenDataFactory(DataFactory):
         complete_tag_values = defaultdict(list)
 
         for tag in tqdm(tags, desc="Generating values for tags: ", leave=False):
-            self.logger.debug("Processing tag", tag=tag.name)
+            self.logger.debug(f"Processing tag={tag.name}")
             complete_tag_values[tag.name].extend(tag.examples)
 
             # Trying to generate more examples from faker
@@ -177,7 +170,7 @@ class TokenDataFactory(DataFactory):
         shuffle: bool = True,
         save: bool = True,
     ):
-        self.logger.info("Splitting tag values into train/test", test_size=test_size)
+        self.logger.info(f"Splitting tag values into train/test test_size={test_size}")
         if shuffle:
             for tag_name, values in tag_values.items():
                 random.shuffle(values)
@@ -199,9 +192,7 @@ class TokenDataFactory(DataFactory):
             save_dict(self.save_dir / "test" / "tag_values.json", **test_tags)
 
         self.logger.info(
-            "Completed train/test split for tags",
-            train_tag_count=len(train_tags),
-            test_tag_count=len(test_tags),
+            f"Completed train/test split for tags train_tag_count={len(train_tags)},test_tag_count={len(test_tags)}"
         )
         return train_tags, test_tags
 
@@ -548,7 +539,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
                 # word is a tag
                 word_tag = match.group(1).upper()
                 if word_tag not in tag_values:
-                    self.logger.error("Tag not found in tag values", tag=word_tag)
+                    self.logger.error(f"Tag not found in tag values tag={word_tag}")
                     self.write_on_errorfile(
                         text=f"Tag {word_tag} not present in the allowed tags {', '.join(tag_values.keys())}\n"
                         + f"template: {template}\n"

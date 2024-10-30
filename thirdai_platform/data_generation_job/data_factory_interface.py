@@ -48,8 +48,7 @@ class DataFactory(ABC):
         if self.train_file_location.exists():
             self.train_sentences_generated = count_csv_lines(self.train_file_location)
             self.logger.info(
-                "Train sentences previously generated",
-                count=self.train_sentences_generated,
+                f"Train sentences previously generated count={self.train_sentences_generated}"
             )
         else:
             self.train_sentences_generated = 0
@@ -57,8 +56,7 @@ class DataFactory(ABC):
         if self.test_file_location.exists():
             self.test_sentences_generated = count_csv_lines(self.test_file_location)
             self.logger.info(
-                "Test sentences previously generated",
-                count=self.test_sentences_generated,
+                f"Test sentences previously generated count={self.test_sentences_generated}"
             )
         else:
             self.test_sentences_generated = 0
@@ -77,7 +75,7 @@ class DataFactory(ABC):
     ## Function to get random vocab and prompt to improve variability and randomness in the dataset
     def get_random_vocab(self, k: int = 1):
         vocab_sample = random.sample(population=vocab, k=k)
-        self.logger.debug("Random vocab sample", sample=vocab_sample)
+        self.logger.debug(f"Random vocab sample={vocab_sample}")
         return vocab_sample
 
     def get_random_prompts(self, k: int = 1):
@@ -85,7 +83,7 @@ class DataFactory(ABC):
             ". ".join(random.sample(prompts, k=k))
             for prompts in random_prompts.values()
         ]
-        self.logger.debug("Random prompts sample", sample=prompts_sample)
+        self.logger.debug(f"Random prompts sample={prompts_sample}")
         return prompts_sample
 
     # ------------------------------------------------
@@ -108,7 +106,7 @@ class DataFactory(ABC):
                 kwargs: It is being used to store additional info about the prompt. It is not passed to LLM and returned as it is. (visit text_data_factory to see how it is being used)
         """
         self.logger.info(
-            "Running tasks", parallelize=parallelize, total_tasks=len(tasks_prompt)
+            f"Running tasks parallelize={parallelize}, total_tasks={len(tasks_prompt)}"
         )
         data_points = []
         if parallelize:
@@ -141,7 +139,7 @@ class DataFactory(ABC):
                     except Exception as e:
                         error_message = f"Error during parallel task execution: {e}"
                         self.logger.error(
-                            "Parallel task execution error", error=error_message
+                            f"Parallel task execution error={error_message}"
                         )
                         self.write_on_errorfile(error_message)
         else:
@@ -157,9 +155,7 @@ class DataFactory(ABC):
                     )
                 except Exception as e:
                     error_message = f"Error during serial task execution: {e}"
-                    self.logger.error(
-                        "Serial task execution error", error=error_message
-                    )
+                    self.logger.error(f"Serial task execution error={error_message}")
                     self.write_on_errorfile(error_message)
 
         return data_points

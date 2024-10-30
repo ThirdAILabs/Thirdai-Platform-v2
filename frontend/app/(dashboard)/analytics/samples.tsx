@@ -177,9 +177,19 @@ interface RecentSamplesProps {
 }
 
 export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
-  const { recentLabels, error: labelError, isLoading: isLoadingLabels, refresh: refreshLabels } = useLabels({ deploymentUrl });
-  const { recentSamples, error: sampleError, isLoading: isLoadingSamples, refresh: refreshSamples } = useRecentSamples({ deploymentUrl });
-  
+  const {
+    recentLabels,
+    error: labelError,
+    isLoading: isLoadingLabels,
+    refresh: refreshLabels,
+  } = useLabels({ deploymentUrl });
+  const {
+    recentSamples,
+    error: sampleError,
+    isLoading: isLoadingSamples,
+    refresh: refreshSamples,
+  } = useRecentSamples({ deploymentUrl });
+
   const handleRefresh = async () => {
     await Promise.all([refreshLabels(), refreshSamples()]);
   };
@@ -239,8 +249,8 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
   return (
     <div className="flex flex-col w-full px-8 box-border">
       <div className="flex justify-end mb-4">
-        <IconButton 
-          onClick={handleRefresh} 
+        <IconButton
+          onClick={handleRefresh}
           disabled={isLoadingLabels || isLoadingSamples}
           color="primary"
           size="large"
@@ -270,7 +280,7 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
             ))}
           </CardContent>
         </Card>
-        
+
         <Card className="h-[calc(100vh-16rem)] overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="text-xl font-semibold">Recent Samples</CardTitle>
@@ -283,7 +293,11 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
             {recentSamples.map((sample, idx) => (
               <React.Fragment key={idx}>
                 {idx > 0 && <Separator />}
-                <HighlightedSample tokens={sample.tokens} tags={sample.tags} tagColors={tagColors} />
+                <HighlightedSample
+                  tokens={sample.tokens}
+                  tags={sample.tags}
+                  tagColors={tagColors}
+                />
               </React.Fragment>
             ))}
           </CardContent>

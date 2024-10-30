@@ -20,31 +20,31 @@ const Teach = () => {
   useClickOutside(containerRef, handleClickOutside);
 
   const togglePanel = () => {
-    setShowPanel(prev => !prev);
+    setShowPanel((prev) => !prev);
   };
 
   return (
     <div className="relative" ref={containerRef}>
-      <Button 
+      <Button
         variant="contained"
         color="primary"
         style={{
           width: '48px',
           height: '48px',
           minWidth: 'unset',
-          padding: '12px'
+          padding: '12px',
         }}
         onClick={togglePanel}
       >
         <TeachSVG
-          style={{ 
+          style={{
             width: '24px',
             height: '24px',
-            filter: 'brightness(0) invert(1)'
+            filter: 'brightness(0) invert(1)',
           }}
         />
       </Button>
-      
+
       {showPanel && (
         <div className="absolute top-[-160px] right-full mr-2 w-[300px]">
           <TeachPanel

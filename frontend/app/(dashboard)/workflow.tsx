@@ -38,7 +38,6 @@ enum DeployStatus {
   Failed = 'Failed',
 }
 
-
 enum DeployMode {
   Dev = 'Dev',
   Production = 'Production',
@@ -131,7 +130,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
   const handleStartWorkflow = () => {
     if (deployStatus === DeployStatus.Active) {
       goToEndpoint();
-    } else if (workflow.type === 'ndb' || workflow.type  === 'enterprise-search') {
+    } else if (workflow.type === 'ndb' || workflow.type === 'enterprise-search') {
       setShowDeploymentModal(true);
     } else {
       handleDeploy(null); // For 'udt' type, start directly without mode selection
@@ -322,46 +321,40 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             {deployStatus === DeployStatus.Active && (
-              <DropdownMenuItem onClick={async () => {
-                try {
-                  const response = await stop_workflow(
-                    workflow.username,
-                    workflow.model_name
-                  );
-                  console.log('Workflow undeployed successfully:', response);
-                  // Optionally, update the UI state to reflect the undeployment
-                  setDeployStatus(DeployStatus.Inactive);
-                } catch (error) {
-                  console.error('Error undeploying workflow:', error);
-                  alert('Error undeploying workflow:' + error);
-                }
-              }}>
-                <button
-                    type="button"
-                    
-                  >
-                    Stop App
-                  </button>
+              <DropdownMenuItem
+                onClick={async () => {
+                  try {
+                    const response = await stop_workflow(workflow.username, workflow.model_name);
+                    console.log('Workflow undeployed successfully:', response);
+                    // Optionally, update the UI state to reflect the undeployment
+                    setDeployStatus(DeployStatus.Inactive);
+                  } catch (error) {
+                    console.error('Error undeploying workflow:', error);
+                    alert('Error undeploying workflow:' + error);
+                  }
+                }}
+              >
+                <button type="button">Stop App</button>
               </DropdownMenuItem>
             )}
 
             {(modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
-                <DropdownMenuItem>
-                  <form>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (window.confirm('Are you sure you want to delete this workflow?')) {
-                          try {
-                            const response = await delete_workflow(
-                              workflow.username,
-                              workflow.model_name
-                            );
-                            console.log('Workflow deleted successfully:', response);
-                          } catch (error) {
-                            console.error('Error deleting workflow:', error);
-                            alert('Error deleting workflow:' + error);
-                          }
+              <DropdownMenuItem>
+                <form>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to delete this workflow?')) {
+                        try {
+                          const response = await delete_workflow(
+                            workflow.username,
+                            workflow.model_name
+                          );
+                          console.log('Workflow deleted successfully:', response);
+                        } catch (error) {
+                          console.error('Error deleting workflow:', error);
+                          alert('Error deleting workflow:' + error);
+                        }
                       }
                     }}
                   >
@@ -371,7 +364,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               </DropdownMenuItem>
             )}
 
-            {workflow.type === 'enterprise-search' && (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
+            {workflow.type === 'enterprise-search' &&
+              (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
                 <Link
                   href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
                 >
@@ -594,9 +588,9 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 </div>
               </RadioGroup>
               <div className="mt-2 flex justify-center">
-                <Button 
-                  onClick={handleModeSelection} 
-                  variant="contained" 
+                <Button
+                  onClick={handleModeSelection}
+                  variant="contained"
                   size="small"
                   className="text-sm py-1 px-3"
                 >

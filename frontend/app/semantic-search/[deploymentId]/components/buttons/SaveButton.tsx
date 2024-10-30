@@ -4,14 +4,14 @@ import { Button } from '@mui/material';
 
 export default function SaveButton(props: { onClick: () => void }) {
   return (
-    <Button 
+    <Button
       variant="contained"
       color="primary"
-      style={{ 
+      style={{
         width: '48px',
         height: '48px',
         minWidth: 'unset',
-        padding: '12px'
+        padding: '12px',
       }}
       onClick={props.onClick}
     >

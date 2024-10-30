@@ -33,7 +33,7 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
   const [currentPage, setCurrentPage] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [lastSourcesLength, setLastSourcesLength] = useState<number>(sources.length);
-  
+
   const modelService = useContext<ModelService | null>(ModelServiceContext);
 
   const totalPages = Math.ceil(matches.length / PAGE_SIZE);
@@ -59,21 +59,21 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
   // Update matches when sources change
   useEffect(() => {
     const currentLength = sources.length;
-    
+
     if (currentLength !== lastSourcesLength) {
       const fuseData = sources.map((source) => ({
         source: formatSource(source.source),
         source_id: source.source_id,
-        originalSource: source
+        originalSource: source,
       }));
-      
+
       setFuse(
         new Fuse(fuseData, {
           keys: ['source'],
           threshold: 0.3,
         })
       );
-      
+
       setMatches(fuseData);
       setLastSourcesLength(currentLength);
     }
@@ -82,11 +82,11 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
   // Update matches when visibility changes
   useEffect(() => {
     if (!visible) return;
-    
+
     const fuseData = sources.map((source) => ({
       source: formatSource(source.source),
       source_id: source.source_id,
-      originalSource: source
+      originalSource: source,
     }));
     setMatches(fuseData);
   }, [visible]);
@@ -100,12 +100,12 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
       const fuseData = sources.map((source) => ({
         source: formatSource(source.source),
         source_id: source.source_id,
-        originalSource: source
+        originalSource: source,
       }));
       setMatches(fuseData);
       return;
     }
-    
+
     const searchResults = fuse.search(value).map((res) => res.item);
     setMatches(searchResults);
   };
@@ -114,7 +114,7 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
     e.stopPropagation();
     if (modelService) {
       modelService.deleteSources([sourceId]);
-      setSources(sources.filter(x => x.source_id !== sourceId));
+      setSources(sources.filter((x) => x.source_id !== sourceId));
     }
   };
 
@@ -133,7 +133,7 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
     cloudUrls: CloudUrl[]
   ): Promise<void> => {
     if (!modelService) return;
-    
+
     const filesArray = selectedFiles ? Array.from(selectedFiles) : [];
     await modelService.addSources(filesArray, cloudUrls);
     refreshSources();
@@ -160,11 +160,11 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
     }
 
     return pageNumbers.map((pageNum) => (
-      <Button 
+      <Button
         key={pageNum}
         size="small"
         className="min-w-0 w-6 h-6 p-0 text-xs"
-        variant={currentPage === pageNum ? "contained" : "outlined"}
+        variant={currentPage === pageNum ? 'contained' : 'outlined'}
         onClick={() => handlePageChange(pageNum)}
       >
         {pageNum + 1}
@@ -214,9 +214,7 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
               }
             }}
           >
-            <span className="truncate flex-1 text-sm">
-              {source.source}
-            </span>
+            <span className="truncate flex-1 text-sm">{source.source}</span>
             <Button
               size="small"
               className="min-w-[30px] h-6 ml-1 bg-transparent hover:bg-red-500 text-red-500 hover:text-white border border-red-500 text-xs p-0"
@@ -252,9 +250,7 @@ const Sources: React.FC<SourcesProps> = ({ sources, visible, setSources }) => {
             >
               Prev
             </Button>
-            <div className="flex items-center gap-[2px]">
-              {renderPageNumbers()}
-            </div>
+            <div className="flex items-center gap-[2px]">{renderPageNumbers()}</div>
             <Button
               size="small"
               className="min-w-0 px-2 py-0 h-6 text-xs"

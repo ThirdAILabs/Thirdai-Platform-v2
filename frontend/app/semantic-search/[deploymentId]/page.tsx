@@ -296,10 +296,15 @@ function App() {
     topK: number,
     queryId?: string
   ): Promise<SearchResult | null> {
-    console.log('reRankingEnabled', reRankingEnabled)
+    console.log('reRankingEnabled', reRankingEnabled);
     setFailed(false);
     return modelService!
-      .predict(/* queryText= */ query, /* topK= */ topK, /* queryId= */ queryId, /* rerank= */ reRankingEnabled)
+      .predict(
+        /* queryText= */ query,
+        /* topK= */ topK,
+        /* queryId= */ queryId,
+        /* rerank= */ reRankingEnabled
+      )
       .then((searchResults) => {
         console.log('searchResults', searchResults);
         if (searchResults) {
@@ -331,7 +336,7 @@ function App() {
     if (abortController) {
       abortController.abort();
     }
-  
+
     if (websocketRef.current) {
       websocketRef.current.close();
     }
@@ -350,27 +355,27 @@ function App() {
 
       if (results && ifGenerationOn) {
         const modelId = modelService?.getModelID();
-  
+
         // If we don't want to bypassCache AND cache generation is enabled
         if (!bypassCache && cacheEnabled) {
           try {
             const cachedResult = await fetchCachedGeneration(modelId!, query);
             console.log('cachedResult', cachedResult);
-  
+
             if (cachedResult && cachedResult.llm_res) {
               console.log('cached query is', cachedResult.query);
               console.log('cached generation is', cachedResult.llm_res);
-  
+
               // Set up an AbortController for cached generation
               const cacheAbortController = new AbortController();
               setAbortController(cacheAbortController);
-  
+
               const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
               setQueryInfo(null);
               // Initialize the stopping index
               let currentStoppingIndex = 0;
               const tokens = cachedResult.llm_res.split(' ');
-  
+
               for (let i = 0; i < tokens.length; i++) {
                 if (cacheAbortController.signal.aborted) {
                   console.log('Cached generation paused');
@@ -378,21 +383,21 @@ function App() {
                   setAnswer(tokens.slice(0, currentStoppingIndex).join(' '));
                   break;
                 }
-  
+
                 currentStoppingIndex = i + 1; // Update stopping index to current position
                 setAnswer(tokens.slice(0, currentStoppingIndex).join(' '));
                 await sleep(20); // Mimic streaming response with a delay
               }
-  
+
               setAbortController(null);
-  
+
               // Set the query information including whether they differ
               setQueryInfo({
                 cachedQuery: cachedResult.query,
                 userQuery: query,
                 isDifferent: cachedResult.query !== query,
               });
-  
+
               return; // Stop further execution since the answer was found in cache
             }
           } catch (error) {
@@ -400,13 +405,13 @@ function App() {
             // Continue to generate a new answer if there's an error in fetching from the cache
           }
         }
-  
+
         // No cache hit or cache not used, proceed with generation
         setQueryInfo(null); // Indicates no cached data was used
-  
+
         const controller = new AbortController();
         setAbortController(controller);
-  
+
         modelService!
           .generateAnswer(
             results.query,
@@ -624,7 +629,6 @@ function App() {
                     abortController={abortController}
                     setAbortController={setAbortController}
                     setAnswer={setAnswer}
-
                     modalOpen={modalOpen}
                     setModalOpen={setModalOpen}
                     showModelNameInput={showModelNameInput}
@@ -683,7 +687,7 @@ function App() {
                 )}
               </>
             )}
-            <SidePanel 
+            <SidePanel
               chatEnabled={chatEnabled}
               cacheEnabled={cacheEnabled}
               setCacheEnabled={setCacheEnabled}

@@ -32,10 +32,10 @@ export default function Page() {
     const file = event.target.files?.[0];
     setFileError(null);
     setPredictions([]);
-    
+
     if (file) {
       if (file.size > MAX_FILE_SIZE) {
-        setFileError("File size exceeds 1MB. Please use the API for larger files.");
+        setFileError('File size exceeds 1MB. Please use the API for larger files.');
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
@@ -60,7 +60,7 @@ export default function Page() {
           const excelRows = await parseExcel(file);
           parsed = {
             type: 'csv',
-            content: excelRows.map(row => row.content).join('\n\n'),
+            content: excelRows.map((row) => row.content).join('\n\n'),
             rows: excelRows,
           };
         } else {
@@ -72,7 +72,7 @@ export default function Page() {
         handleRun(parsed.content);
       } catch (error) {
         console.error('Error processing file:', error);
-        setFileError("Error processing file. Please try again.");
+        setFileError('Error processing file. Please try again.');
       } finally {
         setIsLoading(false);
       }
@@ -207,10 +207,7 @@ export default function Page() {
             </Box>
 
             {fileError && (
-              <Alert 
-                severity="error" 
-                style={{ marginTop: '8px' }}
-              >
+              <Alert severity="error" style={{ marginTop: '8px' }}>
                 {fileError}
               </Alert>
             )}

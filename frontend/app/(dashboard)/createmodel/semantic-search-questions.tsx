@@ -58,7 +58,9 @@ const SemanticSearchQuestions = ({
     for (let i = 0; i < files.length; i++) {
       const extension = files[i].name.split('.').pop()?.toLowerCase();
       if (!extension || !ALLOWED_FILE_TYPES_ARRAY.includes(extension)) {
-        setFileError(`Invalid file type: ${files[i].name}. Only CSV, PDF, and DOCX files are allowed.`);
+        setFileError(
+          `Invalid file type: ${files[i].name}. Only CSV, PDF, and DOCX files are allowed.`
+        );
         return false;
       }
     }
@@ -157,10 +159,10 @@ const SemanticSearchQuestions = ({
     const modelOptionsForm = {
       ndb_options: {
         ndb_sub_type: 'v2',
-        ...(indexingType === IndexingType.Advanced && { advanced_search: true })
-      }
+        ...(indexingType === IndexingType.Advanced && { advanced_search: true }),
+      },
     };
-    
+
     formData.append('model_options', JSON.stringify(modelOptionsForm));
     formData.append('file_info', JSON.stringify({ unsupervised_files: unsupervisedFiles }));
 
@@ -245,11 +247,14 @@ const SemanticSearchQuestions = ({
           if (name.includes(' ')) {
             warningMessage = 'The app name cannot contain spaces. Please remove the spaces.';
           } else if (name.includes('.')) {
-            warningMessage = "The app name cannot contain periods ('.'). Please remove the periods.";
+            warningMessage =
+              "The app name cannot contain periods ('.'). Please remove the periods.";
           } else if (!regexPattern.test(name)) {
-            warningMessage = 'The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.';
+            warningMessage =
+              'The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.';
           } else if (workflowNames.includes(name)) {
-            warningMessage = 'An app with the same name already exists. Please choose a different name.';
+            warningMessage =
+              'An app with the same name already exists. Please choose a different name.';
           }
 
           setWarningMessage(warningMessage);
@@ -268,9 +273,7 @@ const SemanticSearchQuestions = ({
       </span>
       <CardDescription>Select files from:</CardDescription>
 
-      {fileError && (
-        <div className="text-red-500 mt-2 mb-2">{fileError}</div>
-      )}
+      {fileError && <div className="text-red-500 mt-2 mb-2">{fileError}</div>}
 
       {sources.map(({ type }, index) => (
         <div key={index}>
@@ -350,8 +353,8 @@ const SemanticSearchQuestions = ({
 
       {/* Advanced Configuration Dropdown */}
       <div className="mt-6">
-        <div 
-          className="flex items-center gap-2 cursor-pointer" 
+        <div
+          className="flex items-center gap-2 cursor-pointer"
           onClick={() => setShowAdvancedConfig(!showAdvancedConfig)}
         >
           <span className="block text-lg font-semibold">Advanced Options</span>
@@ -397,8 +400,10 @@ const SemanticSearchQuestions = ({
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="right" style={{ maxWidth: '300px' }}>
-                    <strong>Basic:</strong> Very Fast , good accuracy <br/><br/>
-                    <strong>Advanced:</strong> Fast, better accuracy (recommended up-to 1000 pages of documents)
+                    <strong>Basic:</strong> Very Fast , good accuracy <br />
+                    <br />
+                    <strong>Advanced:</strong> Fast, better accuracy (recommended up-to 1000 pages
+                    of documents)
                   </TooltipContent>
                 </Tooltip>
               </div>

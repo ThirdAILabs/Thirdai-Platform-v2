@@ -105,7 +105,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
           options.llm_provider = 'self-host';
           break;
         case LlmProvider.None:
-          // LLM is not added
+        // LLM is not added
         default:
           if (isChatbot) {
             console.error('Invalid LLM type selected');
@@ -286,17 +286,17 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
                     This may take a few minutes depending on the size of your files
                   </div>
                   <div className="mt-3 text-sm text-green-600 font-medium text-center flex items-center justify-center">
-                    <svg 
-                      className="w-4 h-4 mr-1" 
-                      fill="none" 
-                      stroke="currentColor" 
+                    <svg
+                      className="w-4 h-4 mr-1"
+                      fill="none"
+                      stroke="currentColor"
                       viewBox="0 0 24 24"
                       xmlns="http://www.w3.org/2000/svg"
                     >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth="2" 
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
                         d="M9 5l7 7-7 7"
                       />
                     </svg>
@@ -329,7 +329,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
           {/* LLM selection */}
           <div>
             <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
-              LLM {!isChatbot && "(Optional)"}
+              LLM {!isChatbot && '(Optional)'}
             </span>
             <div>
               <CardDescription>Choose an LLM for generating answers</CardDescription>
@@ -379,7 +379,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
             {!createdGR && (
               <>
                 <CardDescription>
-                  Would you like to redact PII (Personally Identifiable Information) from your 
+                  Would you like to redact PII (Personally Identifiable Information) from your
                   references?
                 </CardDescription>
                 <div
@@ -560,7 +560,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
           )}
         </div>
       ),
-    }
+    },
   ];
 
   // This is for displaying message in case user missed requirements

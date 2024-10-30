@@ -51,7 +51,7 @@ export default function RecentFeedbacks({ username, modelName }: RecentFeedbacks
 
   const getFeedbackData = async () => {
     if (!username || !modelName) return;
-    
+
     setIsLoading(true);
     try {
       const data = await fetchFeedback(username, modelName);
@@ -76,8 +76,8 @@ export default function RecentFeedbacks({ username, modelName }: RecentFeedbacks
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-        <IconButton 
-          onClick={getFeedbackData} 
+        <IconButton
+          onClick={getFeedbackData}
           disabled={isLoading}
           color="primary"
           size="large"
@@ -87,15 +87,19 @@ export default function RecentFeedbacks({ username, modelName }: RecentFeedbacks
         </IconButton>
       </div>
 
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        width: '100%',
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          width: '100%',
+        }}
+      >
         <Card style={{ width: '48%', minHeight: '45rem' }} className="pb-2">
           <CardHeader className="bg-blue-900 text-white mb-3">
             <CardTitle>Recent Upvotes</CardTitle>
-            <CardDescription className="text-white">The latest user-provided upvotes</CardDescription>
+            <CardDescription className="text-white">
+              The latest user-provided upvotes
+            </CardDescription>
           </CardHeader>
           <CardContent style={{ overflowY: 'auto', maxHeight: '45rem' }}>
             {recentUpvotes ? (

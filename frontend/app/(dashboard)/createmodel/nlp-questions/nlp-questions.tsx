@@ -14,16 +14,18 @@ const CUSTOMER_SENTIMENT = 'Customer Review Sentiment';
 const DOCUMENT_ENTITIES = 'Document Entity Extractor';
 
 const predefinedModels = [
-  { 
+  {
     name: CUSTOMER_SENTIMENT,
     type: 'Sentence classification',
-    description: 'Automatically analyze customer reviews and feedback to determine sentiment and key themes'
+    description:
+      'Automatically analyze customer reviews and feedback to determine sentiment and key themes',
   },
   {
     name: DOCUMENT_ENTITIES,
     type: 'Token classification',
-    description: 'Extract important entities like people, organizations, dates, and locations from documents'
-  }
+    description:
+      'Extract important entities like people, organizations, dates, and locations from documents',
+  },
 ];
 
 interface NLPQuestionsProps {
@@ -64,7 +66,7 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
       setAnswer('');
       setQuestion('');
     } else {
-      const modelData = predefinedModels.find(m => m.name === model);
+      const modelData = predefinedModels.find((m) => m.name === model);
       if (modelData) {
         setAnswer(modelData.type);
         setQuestion(modelData.description);
@@ -108,10 +110,7 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
   };
 
   // Create options array for dropdown
-  const modelOptions = [
-    ...(hasOpenAIKey ? [{ name: CUSTOM_MODEL }] : []),
-    ...predefinedModels
-  ];
+  const modelOptions = [...(hasOpenAIKey ? [{ name: CUSTOM_MODEL }] : []), ...predefinedModels];
 
   return (
     <div style={{ width: '100%' }}>
@@ -180,7 +179,7 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
           )}
         </>
       )}
-      
+
       {!confirmedAnswer && answer && (
         <div style={{ marginTop: '20px' }}>
           <span className="block text-lg font-semibold" style={{ marginBottom: '10px' }}>
@@ -197,10 +196,14 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
               gap: '10px',
             }}
           >
-            <Button style={{ width: '100%' }} variant="outlined" onClick={() => {
-              setAnswer('');
-              setSelectedModel('');
-            }}>
+            <Button
+              style={{ width: '100%' }}
+              variant="outlined"
+              onClick={() => {
+                setAnswer('');
+                setSelectedModel('');
+              }}
+            >
               Retry
             </Button>
             <Button style={{ width: '100%' }} onClick={() => setConfirmedAnswer(true)}>

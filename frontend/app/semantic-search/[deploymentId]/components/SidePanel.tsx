@@ -6,12 +6,12 @@ import { HiChevronLeft } from 'react-icons/hi';
 
 const PanelContainer = styled.div<{ $isVisible: boolean }>`
   position: fixed;
-  right: ${props => props.$isVisible ? '0' : '-300px'};
+  right: ${(props) => (props.$isVisible ? '0' : '-300px')};
   top: 0;
   width: 300px;
   height: 100%;
   background-color: white;
-  box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
   transition: right 0.3s ease-in-out;
   padding: 20px;
   z-index: 1000;
@@ -34,7 +34,7 @@ const TriggerIcon = styled.button<{ $isVisible: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
 
   &:hover {
@@ -43,7 +43,7 @@ const TriggerIcon = styled.button<{ $isVisible: boolean }>`
 
   svg {
     transition: transform 0.3s ease;
-    transform: ${props => props.$isVisible ? 'rotate(180deg)' : 'rotate(0)'};
+    transform: ${(props) => (props.$isVisible ? 'rotate(180deg)' : 'rotate(0)')};
   }
 `;
 
@@ -96,32 +96,32 @@ interface SidePanelProps {
   onSaveClick: () => void;
 }
 
-const SidePanel: React.FC<SidePanelProps> = ({ 
-  chatEnabled, 
-  cacheEnabled, 
+const SidePanel: React.FC<SidePanelProps> = ({
+  chatEnabled,
+  cacheEnabled,
   setCacheEnabled,
   reRankingEnabled,
   setReRankingEnabled,
-  onSaveClick 
+  onSaveClick,
 }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
     <>
-      <TriggerIcon 
+      <TriggerIcon
         $isVisible={isVisible}
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
       >
         <HiChevronLeft size={28} color="white" />
       </TriggerIcon>
-      <PanelContainer 
+      <PanelContainer
         $isVisible={isVisible}
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
       >
         <PanelTitle>Advanced Configuration</PanelTitle>
-        
+
         {chatEnabled && (
           <SectionContainer>
             <SectionTitle>LLM Cache</SectionTitle>

@@ -107,10 +107,7 @@ export default function GeneratedAnswer({
       <Header>
         Generated Answer
         <Spacer $width="10px" />
-        <MoreInfo
-          info={`${disclaimer}`}
-          width="240px"
-        />
+        <MoreInfo info={`${disclaimer}`} width="240px" />
       </Header>
 
       {queryInfo && queryInfo.isDifferent && (

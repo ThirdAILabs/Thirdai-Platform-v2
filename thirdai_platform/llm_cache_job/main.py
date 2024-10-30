@@ -141,4 +141,4 @@ app.include_router(router, prefix="/cache")
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run(app, host="localhost", port=8000, log_level="info")

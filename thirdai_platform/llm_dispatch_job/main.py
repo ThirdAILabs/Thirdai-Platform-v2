@@ -191,4 +191,4 @@ if __name__ == "__main__":
     import uvicorn
 
     logger.info("Starting LLM generation service...")
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run(app, host="localhost", port=8000, log_level="info")

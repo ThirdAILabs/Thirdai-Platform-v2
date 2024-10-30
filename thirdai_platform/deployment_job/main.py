@@ -209,7 +209,7 @@ async def startup_event() -> None:
 
 if __name__ == "__main__":
     try:
-        uvicorn.run(app, host="localhost", port=8000)
+        uvicorn.run(app, host="localhost", port=8000, log_level="info")
     except Exception as e:
         error_message = f"Uvicorn failed to start: {e}"
         logger.critical(error_message)

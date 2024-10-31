@@ -1,32 +1,37 @@
-import logging
-from logging import Logger
-from pathlib import Path
+try:
+    import logging
+    import sys
+    from logging import Logger
+    from pathlib import Path
 
-import nltk
-from platform_common.logging import setup_logger
+    import nltk
+    from platform_common.logging import setup_logger
 
-nltk.download("punkt_tab")
-print("Downloading punkttab")
+    nltk.download("punkt_tab")
+    print("Downloading punkttab")
 
-import argparse
-import os
+    import argparse
+    import os
 
-import thirdai
-from platform_common.pydantic_models.training import (
-    ModelType,
-    NDBSubType,
-    RetrieverType,
-    TrainConfig,
-    UDTSubType,
-)
-from train_job.models.classification_models import (
-    TextClassificationModel,
-    TokenClassificationModel,
-)
-from train_job.models.finetunable_retriever import FinetunableRetriever
-from train_job.models.neural_db_v2 import NeuralDBV2
-from train_job.models.single_mach import SingleMach
-from train_job.reporter import HttpReporter, Reporter
+    import thirdai
+    from platform_common.pydantic_models.training import (
+        ModelType,
+        NDBSubType,
+        RetrieverType,
+        TrainConfig,
+        UDTSubType,
+    )
+    from train_job.models.classification_models import (
+        TextClassificationModel,
+        TokenClassificationModel,
+    )
+    from train_job.models.finetunable_retriever import FinetunableRetriever
+    from train_job.models.neural_db_v2 import NeuralDBV2
+    from train_job.models.single_mach import SingleMach
+    from train_job.reporter import HttpReporter, Reporter
+except ImportError as e:
+    logging.error(f"Failed to import module: {e}")
+    sys.exit(f"ImportError: {e}")
 
 
 def get_model(config: TrainConfig, reporter: Reporter, logger: Logger):

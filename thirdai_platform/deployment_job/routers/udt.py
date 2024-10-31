@@ -13,7 +13,6 @@ from deployment_job.pydantic_models.inputs import (
     TextAnalysisPredictParams,
 )
 from deployment_job.reporter import Reporter
-from deployment_job.utils import propagate_error
 from fastapi import APIRouter, Depends, Query, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
@@ -28,7 +27,7 @@ from prometheus_client import Summary
 from reporter import Reporter
 from thirdai import neural_db as ndb
 from throughput import Throughput
-from utils import propagate_error, response
+from utils import response
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
@@ -74,7 +73,6 @@ class UDTRouter:
             logger.error(error_message)
             raise ValueError(error_message)
 
-    @propagate_error
     def get_text(
         self,
         file: UploadFile,
@@ -118,7 +116,6 @@ class UDTRouter:
             data=jsonable_encoder(display_list),
         )
 
-    @propagate_error
     @udt_predict_metric.time()
     def predict(
         self,
@@ -165,7 +162,6 @@ class UDTRouter:
             data=jsonable_encoder(results),
         )
 
-    @propagate_error
     def stats(self, token=Depends(Permissions.verify_permission("read"))):
         """
         Returns statistics about the deployment such as the number of tokens identified, number of
@@ -209,7 +205,6 @@ class UDTRouter:
             },
         )
 
-    @propagate_error
     def add_labels(
         self,
         labels: LabelCollection,
@@ -245,7 +240,6 @@ class UDTRouter:
         self.model.add_labels(labels)
         return response(status_code=status.HTTP_200_OK, message="Successful")
 
-    @propagate_error
     def insert_sample(
         self,
         sample: TokenClassificationData,
@@ -270,7 +264,6 @@ class UDTRouter:
         self.model.insert_sample(sample)
         return response(status_code=status.HTTP_200_OK, message="Successful")
 
-    @propagate_error
     def get_labels(self, token=Depends(Permissions.verify_permission("read"))):
         """
         Retrieves the labels from the model.
@@ -286,7 +279,6 @@ class UDTRouter:
             data=jsonable_encoder(labels),
         )
 
-    @propagate_error
     def get_recent_samples(
         self,
         num_samples: int = Query(

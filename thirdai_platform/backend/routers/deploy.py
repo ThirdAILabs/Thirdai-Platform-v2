@@ -446,6 +446,7 @@ def get_feedback(
             message=f"No feedback found for the model.",
             data=[],
         )
+
     event_heap = {ActionType.upvote: [], ActionType.associate: []}
     for alloc_dirEntry in os.scandir(feedback_dir):
         if alloc_dirEntry.is_file() and alloc_dirEntry.name.endswith(".jsonl"):

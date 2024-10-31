@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { AlertCircle } from 'lucide-react';
 import { useContext, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@mui/material';
+import { Button, RadioGroup, Radio } from '@mui/material';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +38,11 @@ enum DeployStatus {
   Failed = 'Failed',
 }
 
+enum DeployMode {
+  Dev = 'Dev',
+  Production = 'Production',
+}
+
 interface ErrorState {
   type: 'training' | 'deployment';
   messages: string[];
@@ -48,6 +53,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
   const [deployStatus, setDeployStatus] = useState<DeployStatus>(DeployStatus.None);
   const [deployType, setDeployType] = useState<string>('');
   const [modelOwner, setModelOwner] = useState<{ [key: string]: string }>({});
+  const [selectedMode, setSelectedMode] = useState<DeployMode>(DeployMode.Dev);
+  const [showDeploymentModal, setShowDeploymentModal] = useState(false);
 
   useEffect(() => {
     getModelsData();
@@ -120,15 +127,35 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
     }
   }
 
-  const handleDeploy = async () => {
+  const handleStartWorkflow = () => {
+    if (deployStatus === DeployStatus.Active) {
+      goToEndpoint();
+    } else if (workflow.type === 'ndb' || workflow.type === 'enterprise-search') {
+      setShowDeploymentModal(true);
+    } else {
+      handleDeploy(null); // For 'udt' type, start directly without mode selection
+    }
+  };
+
+  const handleDeploy = async (mode: DeployMode | null = null) => {
     if (deployStatus == DeployStatus.Inactive) {
       setDeployStatus(DeployStatus.Starting);
       try {
-        await start_workflow(workflow.username, workflow.model_name);
+        const autoscalingEnabled = mode === DeployMode.Production;
+        await start_workflow(workflow.username, workflow.model_name, autoscalingEnabled);
       } catch (e) {
         console.error('Failed to start workflow.', e);
       }
     }
+  };
+
+  const toggleDeploymentModal = () => {
+    setShowDeploymentModal(!showDeploymentModal);
+  };
+
+  const handleModeSelection = async () => {
+    toggleDeploymentModal();
+    await handleDeploy();
   };
 
   useEffect(() => {
@@ -259,10 +286,10 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       </TableCell>
       <TableCell className="hidden md:table-cell text-center font-medium">
         <Button
-          onClick={deployStatus === 'Active' ? goToEndpoint : handleDeploy}
+          onClick={handleStartWorkflow}
           variant="contained"
           style={{ width: '100px' }}
-          disabled={deployStatus != DeployStatus.Active && deployStatus != DeployStatus.Inactive}
+          disabled={deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive}
         >
           {getButtonValue(deployStatus)}
         </Button>
@@ -294,28 +321,20 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             {deployStatus === DeployStatus.Active && (
-              <DropdownMenuItem>
-                <form>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        const response = await stop_workflow(
-                          workflow.username,
-                          workflow.model_name
-                        );
-                        console.log('Workflow undeployed successfully:', response);
-                        // Optionally, update the UI state to reflect the undeployment
-                        setDeployStatus(DeployStatus.Inactive);
-                      } catch (error) {
-                        console.error('Error undeploying workflow:', error);
-                        alert('Error undeploying workflow:' + error);
-                      }
-                    }}
-                  >
-                    Stop App
-                  </button>
-                </form>
+              <DropdownMenuItem
+                onClick={async () => {
+                  try {
+                    const response = await stop_workflow(workflow.username, workflow.model_name);
+                    console.log('Workflow undeployed successfully:', response);
+                    // Optionally, update the UI state to reflect the undeployment
+                    setDeployStatus(DeployStatus.Inactive);
+                  } catch (error) {
+                    console.error('Error undeploying workflow:', error);
+                    alert('Error undeploying workflow:' + error);
+                  }
+                }}
+              >
+                <button type="button">Stop App</button>
               </DropdownMenuItem>
             )}
 
@@ -345,7 +364,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               </DropdownMenuItem>
             )}
 
-            {workflow.type === 'ndb' &&
+            {workflow.type === 'enterprise-search' &&
               (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
                 <Link
                   href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
@@ -542,6 +561,42 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                   {/* ))} */}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal for selecting between Dev mode and Production mode */}
+      {showDeploymentModal && (
+        <Modal onClose={toggleDeploymentModal}>
+          <div className="p-2 max-w-[200px] mx-auto">
+            <h2 className="text-sm font-semibold mb-2">Choose Configuration</h2>
+            <div>
+              <RadioGroup
+                aria-label="mode-selection"
+                value={selectedMode}
+                onChange={(e) => setSelectedMode(e.target.value as DeployMode)}
+                className="space-y-1"
+              >
+                <div className="flex items-center space-x-1">
+                  <Radio value={DeployMode.Dev} size="small" />
+                  <span className="text-sm">Dev</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Radio value={DeployMode.Production} size="small" />
+                  <span className="text-sm">Prod</span>
+                </div>
+              </RadioGroup>
+              <div className="mt-2 flex justify-center">
+                <Button
+                  onClick={handleModeSelection}
+                  variant="contained"
+                  size="small"
+                  className="text-sm py-1 px-3"
+                >
+                  Confirm
+                </Button>
+              </div>
             </div>
           </div>
         </Modal>

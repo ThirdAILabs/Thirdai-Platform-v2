@@ -302,11 +302,16 @@ export class ModelService {
       });
   }
 
-  async predict(queryText: string, topK: number, queryId?: string): Promise<SearchResult | null> {
+  async predict(
+    queryText: string,
+    topK: number,
+    queryId?: string,
+    rerank: boolean = false
+  ): Promise<SearchResult | null> {
     const requestUrl = this.ragUrl || this.url;
     const url = new URL(requestUrl + '/search');
 
-    console.log('REQUST URL: ', url);
+    console.log('REQUEST URL: ', url);
 
     return fetch(url, {
       method: 'POST',
@@ -314,7 +319,12 @@ export class ModelService {
         ...this.authHeader(),
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ query: queryText, top_k: topK, constraints: {} }),
+      body: JSON.stringify({
+        query: queryText,
+        top_k: topK,
+        constraints: {},
+        rerank: rerank,
+      }),
     })
       .then(this.handleInvalidAuth())
       .then((response) => {

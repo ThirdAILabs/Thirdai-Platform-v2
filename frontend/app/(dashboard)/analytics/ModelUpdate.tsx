@@ -3,6 +3,7 @@ import { Button, Alert } from '@mui/material';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload } from 'lucide-react';
 import { retrainTokenClassifier, trainUDTWithCSV } from '@/lib/backend';
+import RecentSamples from './samples';
 
 interface ModelUpdateProps {
   username: string;
@@ -35,7 +36,6 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
     }
   };
 
-  // In your ModelUpdate component
   const handleUploadUpdate = async () => {
     if (!selectedFile) {
       setUploadError('Please select a CSV file first');
@@ -48,10 +48,9 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
   
     try {
       const response = await trainUDTWithCSV({ 
-        // model_name: modelName,
         model_name: `${modelName}-temp`,
         file: selectedFile,
-        base_model_identifier: `${username}/${modelName}`,  // Using the current model name as the base model identifier
+        base_model_identifier: `${username}/${modelName}`,
         test_split: 0.1
       });
   
@@ -98,8 +97,53 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
   };
 
   return (
-    <div className="space-y-6 w-full max-w-4xl mx-auto p-6">
-      {/* CSV Upload Method */}
+    <div className="space-y-6 w-full px-8">
+      {/* Polled Data Section with Recent Samples */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Update Model with Recent Data</CardTitle>
+          <CardDescription>View and use recent labeled samples to update the model</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Recent Samples Component */}
+          <div className="mb-6">
+            <RecentSamples deploymentUrl={deploymentUrl} />
+          </div>
+
+          {/* Update Button Section */}
+          <div className="space-y-4">
+            {pollingError && (
+              <Alert 
+                severity="error" 
+                sx={{ mb: 2 }}
+              >
+                {pollingError}
+              </Alert>
+            )}
+
+            {pollingSuccess && (
+              <Alert 
+                severity="success" 
+                sx={{ mb: 2 }}
+              >
+                Update process initiated successfully with polled data.
+              </Alert>
+            )}
+
+            <Button
+              onClick={handlePollingUpdate}
+              disabled={isPollingUpdating}
+              variant="contained"
+              color={pollingSuccess ? 'success' : 'primary'}
+              fullWidth
+            >
+              {isPollingUpdating ? 'Initiating Update...' : pollingSuccess ? 'Update Initiated!' : 'Update Model with Polled Data'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* CSV Upload Section */}
       <Card>
         <CardHeader>
           <CardTitle>Update Model via CSV Upload</CardTitle>
@@ -152,45 +196,6 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
               fullWidth
             >
               {isUploadUpdating ? 'Initiating Update...' : uploadSuccess ? 'Update Initiated!' : 'Update Model with CSV'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Polling Method */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Update Model via Polled Data</CardTitle>
-          <CardDescription>Update the model using the latest polled feedback data</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {pollingError && (
-              <Alert 
-                severity="error" 
-                sx={{ mb: 2 }}
-              >
-                {pollingError}
-              </Alert>
-            )}
-
-            {pollingSuccess && (
-              <Alert 
-                severity="success" 
-                sx={{ mb: 2 }}
-              >
-                Update process initiated successfully with polled data.
-              </Alert>
-            )}
-
-            <Button
-              onClick={handlePollingUpdate}
-              disabled={isPollingUpdating}
-              variant="contained"
-              color={pollingSuccess ? 'success' : 'primary'}
-              fullWidth
-            >
-              {isPollingUpdating ? 'Initiating Update...' : pollingSuccess ? 'Update Initiated!' : 'Update Model with Polled Data'}
             </Button>
           </div>
         </CardContent>

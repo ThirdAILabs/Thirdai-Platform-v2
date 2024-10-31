@@ -63,9 +63,13 @@ function AnalyticsContent() {
   if (workflowtype == 'udt')
     return (
       <div className="container mx-auto px-4 py-8">
-        {deploymentUrl && <RecentSamples deploymentUrl={deploymentUrl} />}
-        {/* {modelName && <UpdateButton modelName={modelName} />} */}
-        {modelName && deploymentUrl && <ModelUpdate username={username} modelName={modelName} deploymentUrl={deploymentUrl} />}
+        {modelName && deploymentUrl && (
+          <ModelUpdate 
+            username={username} 
+            modelName={modelName} 
+            deploymentUrl={deploymentUrl} 
+          />
+        )}
       </div>
     );
   else if (workflowtype == 'ndb' || workflowtype == 'enterprise-search') {

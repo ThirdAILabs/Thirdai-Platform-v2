@@ -1,18 +1,21 @@
+import json
 import os
 import shutil
 import tempfile
 import time
 import typing
 from abc import abstractmethod
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import List
+from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 import thirdai
 from platform_common.file_handler import expand_cloud_buckets_and_directories
 from platform_common.pii.udt_common_patterns import find_common_pattern
 from platform_common.pydantic_models.training import (
-    FileInfo,
     TextClassificationOptions,
     TokenClassificationOptions,
     TrainConfig,
@@ -35,6 +38,11 @@ from train_job.reporter import Reporter
 from train_job.utils import check_csv_only, check_local_nfs_only
 
 
+def get_split_filename(original_name: str, split: str) -> str:
+    path, ext = os.path.splitext(original_name)
+    return f"{path}_{split}{ext}"
+
+
 @apply_exception_handler
 class ClassificationModel(Model):
     report_failure_method = "report_status"
@@ -47,19 +55,39 @@ class ClassificationModel(Model):
     def train_options(self) -> UDTTrainOptions:
         return self.config.model_options.train_options
 
-    def supervised_files(self) -> List[FileInfo]:
-        all_files = expand_cloud_buckets_and_directories(
+    def train_test_files(self) -> Tuple[List[str], List[str]]:
+        train_files = expand_cloud_buckets_and_directories(
             self.config.data.supervised_files
         )
-        check_csv_only(all_files)
-        check_local_nfs_only(all_files)
-        return all_files
+        check_csv_only(train_files)
+        check_local_nfs_only(train_files)
+        train_files = [file.path for file in train_files]
 
-    def test_files(self) -> List[FileInfo]:
-        all_files = expand_cloud_buckets_and_directories(self.config.data.test_files)
-        check_csv_only(all_files)
-        check_local_nfs_only(all_files)
-        return all_files
+        test_files = expand_cloud_buckets_and_directories(self.config.data.test_files)
+        check_csv_only(test_files)
+        check_local_nfs_only(test_files)
+        test_files = [file.path for file in test_files]
+
+        test_split = self.config.model_options.train_options.test_split
+        if len(test_files) == 0 and test_split and test_split > 0:
+            new_train_files = []
+            new_test_files = []
+            for file in train_files:
+                df = pd.read_csv(file)
+                test = df.sample(frac=test_split)
+                train = df.drop(test.index)
+
+                train_split_path = get_split_filename(file, "train")
+                test_split_path = get_split_filename(file, "test")
+                train.to_csv(train_split_path, index=False)
+                test.to_csv(test_split_path, index=False)
+
+                new_train_files.append(train_split_path)
+                new_test_files.append(test_split_path)
+
+            return new_train_files, new_test_files
+
+        return train_files, test_files
 
     @abstractmethod
     def initialize_model(self):
@@ -111,11 +139,9 @@ class ClassificationModel(Model):
         # initialize the model from scratch if the model does not exist or if there is not base model
         return self.initialize_model()
 
-    def evaluate(self, model, test_files: List[FileInfo]):
+    def evaluate(self, model, test_files: List[str]):
         for test_file in test_files:
-            model.evaluate(
-                test_file.path, metrics=self.train_options.validation_metrics
-            )
+            model.evaluate(test_file, metrics=self.train_options.validation_metrics)
 
     @abstractmethod
     def train(self, **kwargs):
@@ -145,10 +171,12 @@ class TextClassificationModel(ClassificationModel):
 
         model = self.get_model()
 
+        train_files, test_files = self.train_test_files()
+
         start_time = time.time()
-        for train_file in self.supervised_files():
+        for train_file in train_files:
             model.train(
-                train_file.path,
+                train_file,
                 epochs=self.train_options.supervised_epochs,
                 learning_rate=self.train_options.learning_rate,
                 batch_size=self.train_options.batch_size,
@@ -158,7 +186,7 @@ class TextClassificationModel(ClassificationModel):
 
         self.save_model(model)
 
-        self.evaluate(model, self.test_files())
+        self.evaluate(model, test_files)
 
         num_params = self.get_num_params(model)
         model_size = self.get_size()
@@ -186,6 +214,15 @@ class TextClassificationModel(ClassificationModel):
 
         self.logger.info(f"Latency measured: {latency} seconds.")
         return latency
+
+
+@dataclass
+class PerTagMetrics:
+    metrics: Dict[str, Dict[str, float]]
+
+    true_positives: List[Dict[str, Any]]
+    false_positives: List[Dict[str, Any]]
+    false_negatives: List[Dict[str, Any]]
 
 
 @apply_exception_handler
@@ -303,11 +340,17 @@ class TokenClassificationModel(ClassificationModel):
 
         model = self.get_model()
 
+        train_files, test_files = self.train_test_files()
+
+        if len(test_files):
+            before_train_metrics = self.per_tag_metrics(
+                model=model, test_files=test_files, samples_to_collect=0
+            )
+
         start_time = time.time()
 
-        supervised_files = self.supervised_files()
         # insert samples into data storage for later use
-        self.insert_samples_in_storage(supervised_files)
+        self.insert_samples_in_storage(train_files)
 
         tags = self.tag_metadata
 
@@ -337,9 +380,9 @@ class TokenClassificationModel(ClassificationModel):
                         f"Failed to add new label {new_label} to the model with error {e}."
                     )
 
-        for train_file in self.supervised_files():
+        for train_file in train_files:
             model.train(
-                train_file.path,
+                train_file,
                 epochs=self.train_options.supervised_epochs,
                 learning_rate=self.train_options.learning_rate,
                 batch_size=self.train_options.batch_size,
@@ -361,7 +404,15 @@ class TokenClassificationModel(ClassificationModel):
 
         self.data_storage.update_sample_status("ner", SampleStatus.trained)
 
-        self.evaluate(model, self.test_files())
+        if len(test_files):
+            after_train_metrics = self.per_tag_metrics(
+                model=model, test_files=test_files, samples_to_collect=5
+            )
+
+            self.save_train_report(
+                before_train_metrics=before_train_metrics,
+                after_train_metrics=after_train_metrics,
+            )
 
         num_params = self.get_num_params(model)
         model_size = self.get_size()
@@ -380,15 +431,109 @@ class TokenClassificationModel(ClassificationModel):
             },
         )
 
+    def per_tag_metrics(self, model, test_files: List[str], samples_to_collect: int):
+        true_positives = defaultdict(int)
+        false_positives = defaultdict(int)
+        false_negatives = defaultdict(int)
+
+        true_positive_samples = defaultdict(list)
+        false_positive_samples = defaultdict(list)
+        false_negative_samples = defaultdict(list)
+
+        source_col = self.config.model_options.udt_options.source_column
+        target_col = self.config.model_options.udt_options.target_column
+
+        for file in test_files:
+            df = pd.read_csv(file)
+            for row in df.itertuples():
+                source = getattr(row, source_col)
+                target = getattr(row, target_col)
+
+                preds = model.predict({source_col: source}, top_k=1)
+                labels = target.split()
+                for i, (pred, label) in enumerate(zip(preds, labels)):
+                    tag = pred[0][0]
+                    if tag == label:
+                        true_positives[label] += 1
+                        if len(true_positive_samples[label]) < samples_to_collect:
+                            true_positive_samples[label].append(
+                                {"source": source, "target": target, "index": i}
+                            )
+                    else:
+                        false_positives[tag] += 1
+                        if len(false_positive_samples[tag]) < samples_to_collect:
+                            false_positive_samples[tag].append(
+                                {"source": source, "target": target, "index": i}
+                            )
+                        false_negatives[label] += 1
+                        if len(false_negative_samples[label]) < samples_to_collect:
+                            false_negative_samples[label].append(
+                                {"source": source, "target": target, "index": i}
+                            )
+
+        metric_summary = {}
+        for tag in model.list_ner_tags():
+            if tag == "O":
+                continue
+
+            tp = true_positives[tag]
+
+            if tp + false_positives[tag] == 0:
+                precision = float("nan")
+            else:
+                precision = tp / (tp + false_positives[tag])
+
+            if tp + false_negatives[tag] == 0:
+                recall = float("nan")
+            else:
+                recall = tp / (tp + false_negatives[tag])
+
+            fmeasure = 2 * precision * recall / (precision + recall)
+
+            metric_summary[tag] = {
+                "precision": precision,
+                "recall": recall,
+                "fmeasure": fmeasure,
+            }
+
+        def remove_null_tag(samples: Dict[str, Any]) -> Dict[str, Any]:
+            return {k: v for k, v in samples.items() if k != "O"}
+
+        return PerTagMetrics(
+            metrics=metric_summary,
+            true_positives=remove_null_tag(true_positive_samples),
+            false_positives=remove_null_tag(false_positive_samples),
+            false_negatives=remove_null_tag(false_negative_samples),
+        )
+
+    def save_train_report(
+        self, before_train_metrics: PerTagMetrics, after_train_metrics: PerTagMetrics
+    ):
+        train_report = {
+            "before_train_metrics": before_train_metrics.metrics,
+            "after_train_metrics": after_train_metrics.metrics,
+            "after_train_examples": {
+                "true_positives": after_train_metrics.true_positives,
+                "false_positives": after_train_metrics.false_positives,
+                "false_negatives": after_train_metrics.false_negatives,
+            },
+        }
+
+        timestamp = int(datetime.now(timezone.utc).timestamp())
+        report_path = self.model_dir / "train_reports" / f"{timestamp}.json"
+        os.makedirs(os.path.dirname(report_path), exist_ok=True)
+        with open(report_path, "w") as file:
+            json.dump(train_report, file, indent=4)
+
     def insert_samples_in_storage(
-        self, supervised_files: typing.List[FileInfo], buffer_size=50_000
+        self, supervised_files: typing.List[str], buffer_size=50_000
     ):
         # these samples will be used as balancing samples for the training of the model
         # this sampling is not uniform but we assume that there won't be many samples
         # TODO(Shubh) : make this sampling uniform using reservoir sampling
         df = pd.DataFrame()
         for supervised_file in supervised_files:
-            new_df = pd.read_csv(supervised_file.path)
+            new_df = pd.read_csv(supervised_file)
             new_df = new_df[
                 [self.tkn_cls_vars.source_column, self.tkn_cls_vars.target_column]
             ]

@@ -217,7 +217,7 @@ class NDBRouter:
         if self.config.autoscaling_enabled:
             max_filesize = 200 * 1024 * 1024
         else:
-            max_filesize = 10 * 1024 * 1024
+            max_filesize = 50 * 1024 * 1024
 
         if total_filesize > max_filesize:
             return response(

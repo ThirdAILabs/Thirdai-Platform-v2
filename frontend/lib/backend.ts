@@ -370,6 +370,91 @@ export function retrainTokenClassifier({
   });
 }
 
+interface TrainUDTWithCSVParams {
+  model_name: string;
+  file: File;
+  base_model_identifier: string;
+  test_split?: number;
+}
+
+export function trainUDTWithCSV({
+  model_name,
+  file,
+  base_model_identifier,
+  test_split = 0.1,
+}: TrainUDTWithCSVParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  // Create FormData instance to handle file upload
+  const formData = new FormData();
+  formData.append('files', file);
+  
+  // Add file info with correct location type
+  const fileInfo = {
+    supervised_files: [{
+      filename: file.name,
+      content_type: file.type,
+      path: file.name,
+      location: "local"  // Changed to use valid enum value
+    }],
+    test_files: []
+  };
+  formData.append('file_info', JSON.stringify(fileInfo));
+
+  // Add model options with text-specific UDT options
+  const modelOptions = {
+    udt_options: {
+      udt_sub_type: "text",
+      text_column: "text",
+      label_column: "label",
+      n_target_classes: 2,
+      source_column: "",
+      target_column: "",
+      target_labels: []
+    },
+    train_options: {
+      test_split: test_split
+    }
+  };
+  formData.append('model_options', JSON.stringify(modelOptions));
+
+  // Add default job options
+  const jobOptions = {
+    allocation_cores: 4,
+    allocation_memory: 16000
+  };
+  formData.append('job_options', JSON.stringify(jobOptions));
+
+  // Create URL with query parameters
+  const params = new URLSearchParams({
+    model_name,
+    base_model_identifier,
+  });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`, formData)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error((axiosError.response.data as any).detail || 'Failed to train UDT model with CSV')
+            );
+          } else {
+            reject(new Error('Failed to train UDT model with CSV'));
+          }
+        } else {
+          reject(new Error('Failed to train UDT model with CSV'));
+        }
+      });
+  });
+}
+
 export interface EnterpriseSearchOptions {
   retrieval_id: string;
   guardrail_id?: string;

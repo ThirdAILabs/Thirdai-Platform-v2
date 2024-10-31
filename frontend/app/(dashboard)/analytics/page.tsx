@@ -2,6 +2,7 @@
 import RecentSamples from './samples';
 import RecentFeedbacks from './recentFeedbacks';
 import UpdateButton from './updateButton';
+import ModelUpdate from './ModelUpdate'
 import UpdateButtonNDB from './updateButtonNDB';
 import UsageStats from './usageStats';
 import { UsageDurationChart, UsageFrequencyChart, ReformulatedQueriesChart } from './charts';
@@ -63,7 +64,8 @@ function AnalyticsContent() {
     return (
       <div className="container mx-auto px-4 py-8">
         {deploymentUrl && <RecentSamples deploymentUrl={deploymentUrl} />}
-        {modelName && <UpdateButton modelName={modelName} />}
+        {/* {modelName && <UpdateButton modelName={modelName} />} */}
+        {modelName && deploymentUrl && <ModelUpdate username={username} modelName={modelName} deploymentUrl={deploymentUrl} />}
       </div>
     );
   else if (workflowtype == 'ndb' || workflowtype == 'enterprise-search') {

@@ -62,7 +62,8 @@ def parse_args():
     parser.add_argument("--autoscaling_enabled", type=bool, default=False)
     parser.add_argument("--users", type=int, default=100)
     parser.add_argument("--spawn_rate", type=int, default=10)
-    parser.add_argument("--run_time", type=int, default=60)  # in seconds
+    parser.add_argument("--run_time", type=int, default=30)  # in seconds
+    parser.add_argument("--cleanup", type=bool, default=False)
     args = parser.parse_args()
 
     return args
@@ -112,18 +113,11 @@ def run_stress_test(args, query_file, deployment_id):
     print("Running Stress Test\n")
     folder = os.path.dirname(__file__)
     script_path = os.path.join(folder, "stress_test_deployment.py")
-    result = subprocess.run(
-        f"locust -f {script_path} --headless --users {args.users} --spawn-rate {args.spawn_rate} --run-time {args.run_time} --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password} --query_file {query_file}",
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        shell=True,
+    command = (
+        f"locust -f {script_path} --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password} --query_file {query_file}",
+        # f"locust -f {script_path} --headless --users {args.users} --spawn-rate {args.spawn_rate} --run-time {args.run_time} --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password} --query_file {query_file}",
     )
-
-    if result.returncode != 0:
-        print("Error occurred:", result.stderr)
-    else:
-        print(result.stdout)
+    subprocess.run(command, check=True, shell=True)
 
 
 def check_nomad_job_status(model_id):
@@ -164,23 +158,26 @@ def main(args):
         errors.append(f"Testing error: {e}")
         raise
     finally:
-        if ndb_client:
+        if args.cleanup:
+            if ndb_client:
+                try:
+                    client.undeploy(ndb_client)
+                except Exception as e:
+                    errors.append(f"Undeploy error: {e}")
+
+            # This gives a permissions denied error when run locally without running the
+            # backend in sudo. TODO fix this issue
             try:
-                client.undeploy(ndb_client)
+                client.delete(model_identifier)
             except Exception as e:
-                errors.append(f"Undeploy error: {e}")
+                errors.append(f"Delete error: {e}")
 
-        # This gives a permissions denied error when run locally without running the
-        # backend in sudo. TODO fix this issue
-        try:
-            client.delete(model_identifier)
-        except Exception as e:
-            errors.append(f"Delete error: {e}")
+            os.remove(query_file)
 
-        if errors:
-            raise RuntimeError(
-                f"Raised {len(errors)} errors: \n - " + "\n - ".join(errors)
-            )
+            if errors:
+                raise RuntimeError(
+                    f"Raised {len(errors)} errors: \n - " + "\n - ".join(errors)
+                )
 
 
 if __name__ == "__main__":

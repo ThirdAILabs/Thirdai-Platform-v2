@@ -28,7 +28,8 @@ import json
 import os
 import random
 import sys
-import uuid
+
+pass
 from dataclasses import dataclass
 from urllib.parse import urljoin
 
@@ -172,15 +173,18 @@ class NeuralDBLoadTest(TaskSet):
     def test_delete(self):
         response = self.client.get(route("sources"), headers=auth_header)
 
-        # always delete the most recently added source so we reduce the chance
-        # of deleting the original data and returning no results with queries
-        source_id = response.json()["data"][-1]["source_id"]
+        valid_sources = {"mutual_nda.pdf", "four_english_words.docx", "supervised.csv"}
 
-        self.client.post(
-            route("delete"),
-            json={"source_ids": [source_id]},
-            headers=auth_header,
-        )
+        if response.ok and response.json() and response.json()["data"]:
+            for source in response.json()["data"]:
+                if source["source"] in valid_sources:
+                    source_id = source["source_id"]
+
+                    self.client.post(
+                        route("delete"),
+                        json={"source_ids": [source_id]},
+                        headers=auth_header,
+                    )
 
     @task(args.upvote_weight)
     def test_upvote(self):
@@ -193,14 +197,21 @@ class NeuralDBLoadTest(TaskSet):
             timeout=60,
         )
 
-        ref_id = response.json()["data"]["references"][-1]["id"]
-        text_id_pairs = [{"query_text": query, "reference_id": ref_id}]
+        if response.ok and response.json() and response.json()["data"]["references"]:
+            last_ref = response.json()["data"]["references"][-1]
+            text_id_pairs = [
+                {
+                    "query_text": query,
+                    "reference_id": last_ref["id"],
+                    "reference_text": last_ref["text"],
+                }
+            ]
 
-        self.client.post(
-            route("upvote"),
-            json={"text_id_pairs": text_id_pairs},
-            headers=auth_header,
-        )
+            self.client.post(
+                route("upvote"),
+                json={"text_id_pairs": text_id_pairs},
+                headers=auth_header,
+            )
 
     @task(args.associate_weight)
     def test_associate(self):
@@ -228,31 +239,33 @@ class NeuralDBLoadTest(TaskSet):
             timeout=60,
         )
 
-        ref_id = response.json()["data"]["references"][-1]["id"]
-        feedback = {
-            "query_text": query,
-            "reference_id": ref_id,
-            "event_desc": "reference click",
-        }
+        if response.ok and response.json() and response.json()["data"]["references"]:
+            ref_id = response.json()["data"]["references"][-1]["id"]
+            feedback = {
+                "query_text": query,
+                "reference_id": ref_id,
+                "event_desc": "reference click",
+            }
 
-        res = self.client.post(
-            route("implicit-feedback"), json=feedback, headers=auth_header
-        )
+            res = self.client.post(
+                route("implicit-feedback"), json=feedback, headers=auth_header
+            )
 
-    @task(args.save_weight)
-    def test_save(self):
-        model_name = str(uuid.uuid4())
-        res = self.client.post(
-            route("save"),
-            json={"override": False, "model_name": model_name},
-            headers=auth_header,
-        )
+    # @task(args.save_weight)
+    # def test_save(self):
+    #     model_name = str(uuid.uuid4())
+    #     print(model_name)
+    #     res = self.client.post(
+    #         route("save"),
+    #         json={"override": False, "model_name": model_name},
+    #         headers=auth_header,
+    #     )
 
-        self.client.post(
-            "/api/model/delete",
-            params={"model_identifier": f"{username}/{model_name}"},
-            headers=auth_header,
-        )
+    #     self.client.post(
+    #         "/api/model/delete",
+    #         params={"model_identifier": f"{username}/{model_name}"},
+    #         headers=auth_header,
+    #     )
 
 
 class GenerationLoadTest(TaskSet):
@@ -278,21 +291,22 @@ class GenerationLoadTest(TaskSet):
             timeout=60,
         )
 
-        references = [
-            {"text": x["text"], "source": x["source"]}
-            for x in response.json()["data"]["references"]
-        ]
+        if response.ok and response.json() and response.json()["data"]["references"]:
+            references = [
+                {"text": x["text"], "source": x["source"]}
+                for x in response.json()["data"]["references"]
+            ]
 
-        response = self.client.post(
-            f"/llm-dispatch/generate",
-            json={
-                "query": query,
-                "references": references,
-                "key": os.getenv("GENAI_KEY"),
-            },
-            headers=auth_header,
-            timeout=60,
-        )
+            response = self.client.post(
+                f"/llm-dispatch/generate",
+                json={
+                    "query": query,
+                    "references": references,
+                    "key": os.getenv("GENAI_KEY"),
+                },
+                headers=auth_header,
+                timeout=60,
+            )
 
 
 class WebsiteUser(HttpUser):

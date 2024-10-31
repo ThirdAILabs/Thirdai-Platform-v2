@@ -20,10 +20,10 @@ from platform_common.pydantic_models.training import (
     TextClassificationOptions,
     TokenClassificationDatagenOptions,
     TokenClassificationOptions,
-    UDTTrainOptions,
     TrainConfig,
     UDTData,
     UDTOptions,
+    UDTTrainOptions,
 )
 from thirdai import bolt, licensing
 from thirdai import neural_db as ndb

@@ -105,7 +105,7 @@ def main():
     if general_variables.secret_token:
         launch_train_job(dataset_config, udt_options)
     else:
-        logger.warning("Secret token not provided, training job not launched")
+        logger.critical("Secret token not provided, training job not launched")
 
 
 if __name__ == "__main__":

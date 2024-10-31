@@ -396,19 +396,16 @@ export function trainUDTWithCSV({
       filename: file.name,
       content_type: file.type,
       path: file.name,
-      location: "local"  // Changed to use valid enum value
+      location: "local"
     }],
     test_files: []
   };
   formData.append('file_info', JSON.stringify(fileInfo));
 
-  // Add model options with text-specific UDT options
+  // Simplified model options for token classification
   const modelOptions = {
     udt_options: {
-      udt_sub_type: "text",
-      text_column: "text",
-      label_column: "label",
-      n_target_classes: 2,
+      udt_sub_type: "token",
       source_column: "",
       target_column: "",
       target_labels: []

@@ -245,6 +245,7 @@ function App() {
 
         const newModelService = new ModelService(serviceUrl, ragUrl, chatSessionId);
         setModelService(newModelService);
+        newModelService.sources().then((fetchedSources) => setSources(fetchedSources));
       } catch (error) {
         console.error('Failed to fetch model details:', error);
         // Optionally, handle the error (e.g., show a notification to the user)
@@ -255,24 +256,6 @@ function App() {
       fetchWorkflowDetails();
     }
   }, []);
-
-  // Effect to periodically fetch sources every 3 seconds
-  useEffect(() => {
-    // Only set up the interval if modelService is available
-    if (!modelService) return;
-
-    const fetchSources = async () => {
-      try {
-        const fetchedSources = await modelService.sources();
-        setSources(fetchedSources);
-      } catch (error) {
-        console.error('Failed to fetch sources:', error);
-        // Optionally, handle the error (e.g., show a notification to the user)
-      }
-    };
-
-    fetchSources();
-  }, [modelService]);
 
   useEffect(() => {
     if (modelService) {

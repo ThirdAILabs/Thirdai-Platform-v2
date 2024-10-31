@@ -12,6 +12,8 @@ from backend.datagen import generate_data_for_train_job
 from backend.utils import (
     copy_data_storage,
     delete_nomad_job,
+    get_detailed_reasons,
+    get_job_logs,
     get_model,
     get_model_from_identifier,
     get_model_status,
@@ -1030,7 +1032,7 @@ def train_complete(
 def train_fail(
     model_id: str,
     new_status: schema.Status,
-    message: str,
+    message: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     """
@@ -1064,6 +1066,15 @@ def train_fail(
         )
 
     trained_model.train_status = new_status
+    if message:
+        session.add(
+            schema.JobError(
+                model_id=trained_model.id,
+                job_type="train",
+                status=new_status,
+                message=message,
+            )
+        )
     session.commit()
 
     return {"message": f"successfully updated with following {message}"}
@@ -1094,12 +1105,39 @@ def train_status(
         )
 
     train_status, reasons = get_model_status(model, train_status=True)
+    reasons = get_detailed_reasons(
+        session=session, job_type="train", status=train_status, reasons=reasons
+    )
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the train status.",
         data={
             "model_identifier": model_identifier,
             "train_status": train_status,
-            "message": " ".join(reasons),
+            "messages": reasons,
         },
+    )
+
+
+@train_router.get("/logs", dependencies=[Depends(verify_model_read_access)])
+def train_logs(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    logs = get_job_logs(
+        nomad_endpoint=os.getenv("NOMAD_ENDPOINT"), model=model, job_type="train"
+    )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the train logs.",
+        data=logs,
     )

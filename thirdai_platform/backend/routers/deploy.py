@@ -1,8 +1,10 @@
+import heapq
 import json
 import os
 import traceback
+from collections import defaultdict
 from pathlib import Path
-from typing import Optional, Union
+from typing import Annotated, Optional, Union
 
 from auth.jwt import (
     AuthenticatedUser,
@@ -10,10 +12,12 @@ from auth.jwt import (
     verify_access_token,
     verify_access_token_no_throw,
 )
-from backend.auth_dependencies import is_model_owner
+from backend.auth_dependencies import is_model_owner, verify_model_read_access
 from backend.startup_jobs import start_on_prem_generate_job
 from backend.utils import (
     delete_nomad_job,
+    get_detailed_reasons,
+    get_job_logs,
     get_model_from_identifier,
     get_model_status,
     get_platform,
@@ -21,21 +25,22 @@ from backend.utils import (
     list_all_dependencies,
     logger,
     model_accessible,
+    model_bazaar_path,
+    read_file_from_back,
     submit_nomad_job,
     thirdai_platform_dir,
     validate_license_info,
 )
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, HTTPException, status
-
-pass
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     EnterpriseSearchOptions,
     NDBDeploymentOptions,
     UDTDeploymentOptions,
 )
+from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
 from platform_common.pydantic_models.training import ModelType
 from platform_common.utils import response
 from sqlalchemy.orm import Session
@@ -143,6 +148,7 @@ def get_model_permissions(
 # TODO(Any): move args like llm_provider to model attributes.
 async def deploy_single_model(
     model_id: str,
+    deployment_name: Optional[str],
     memory: Optional[int],
     autoscaling_enabled: bool,
     autoscaler_max_count: int,
@@ -251,6 +257,7 @@ async def deploy_single_model(
             docker_password=os.getenv("DOCKER_PASSWORD"),
             image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
             model_id=str(model.id),
+            deployment_name=deployment_name,
             share_dir=os.getenv("SHARE_DIR", None),
             config_path=config.save_deployment_config(),
             autoscaling_enabled=("true" if autoscaling_enabled else "false"),
@@ -292,6 +299,7 @@ async def deploy_single_model(
 @deploy_router.post("/run", dependencies=[Depends(is_model_owner)])
 async def deploy_model(
     model_identifier: str,
+    deployment_name: Optional[str] = None,
     memory: Optional[int] = None,
     autoscaling_enabled: bool = False,
     autoscaler_max_count: int = 1,
@@ -304,6 +312,9 @@ async def deploy_model(
 
     Parameters:
     - model_identifier: The identifier of the model to deploy.
+    - deployment_name: Optional name to use as a prefix for the deployment. If specified
+      the deployment endpoints will be accessible via /{deployment_name}/{endpoint} in
+      addition to the default deployment url.
     - memory: Optional memory allocation for the deployment.
     - autoscaling_enabled: Whether autoscaling is enabled.
     - autoscaler_max_count: The maximum count for the autoscaler.
@@ -337,6 +348,7 @@ async def deploy_model(
         try:
             await deploy_single_model(
                 model_id=dependency.id,
+                deployment_name=deployment_name if dependency.id == model.id else None,
                 memory=memory,
                 autoscaling_enabled=autoscaling_enabled,
                 autoscaler_max_count=autoscaler_max_count,
@@ -362,7 +374,153 @@ async def deploy_model(
     )
 
 
-@deploy_router.get("/status")
+@deploy_router.get("/feedbacks", dependencies=[Depends(is_model_owner)])
+def get_feedback(
+    model_identifier: str,
+    per_event_count: Annotated[int, Query(gt=0)] = 5,
+    session: Session = Depends(get_session),
+):
+    """
+    Get the recent feedback of the model
+
+    Parameters:
+    - model_identifier: The identifier of the model to deploy.
+    - session: The database session (dependency).
+
+    Example Usage:
+    ```json
+    {
+        "model_identifier": "user/model_123",
+    }
+    ```
+
+    response:
+    ```json
+    {
+        "upvote": [
+            {
+                "query": "This is the query",
+                "reference_text": "This is the result upvoted",
+                "reference_id": 15
+                "timestamp": "17 October 2024 17:54:11",
+            },
+            ..
+        ],
+        "associate": [
+            {
+                "source": "This is the source text",
+                "target": "This is the target text",
+                "timestamp": "18 October 2024 17:49:43",
+            },
+            ..
+        ]
+    }
+    ```
+    """
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    if model.type != ModelType.NDB:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Feedback is only recorded for ndb model",
+        )
+
+    feedback_dir = os.path.join(
+        model_bazaar_path(),
+        "models",
+        str(model.id),
+        "deployments",
+        "data",
+        "feedback",
+    )
+
+    if not os.path.exists(feedback_dir):
+        return response(
+            status_code=status.HTTP_200_OK,
+            message=f"No feedback found for the model.",
+            data=[],
+        )
+    event_heap = {ActionType.upvote: [], ActionType.associate: []}
+    for alloc_dirEntry in os.scandir(feedback_dir):
+        if alloc_dirEntry.is_file() and alloc_dirEntry.name.endswith(".jsonl"):
+            events_processed_for_this_file = defaultdict(int)
+            try:
+                line_generator = read_file_from_back(alloc_dirEntry.path)
+                for line in line_generator:
+                    feedback_obj = FeedbackLog(**json.loads(line.strip()))
+
+                    # only process events that are relevant
+                    if feedback_obj.event.action not in event_heap:
+                        continue
+
+                    if (
+                        events_processed_for_this_file[feedback_obj.event.action]
+                        < per_event_count
+                    ):
+                        heapq.heappush(
+                            event_heap[feedback_obj.event.action], feedback_obj
+                        )
+
+                    events_processed_for_this_file[feedback_obj.event.action] += 1
+                    # stop the processing if each required event of the file is processed for per_event_count times
+                    if all(
+                        [
+                            events_processed_for_this_file[event_name]
+                            >= per_event_count
+                            for event_name in event_heap.keys()
+                        ]
+                    ):
+                        break
+            finally:
+                line_generator.close()  # Ensures file is closed.
+
+    accumlated_feedbacks = defaultdict(list)
+    for event_name, _heap in event_heap.items():
+        sorted_events = [
+            heapq.heappop(_heap) for _ in range(min(len(_heap), per_event_count))
+        ]
+        for feedback in sorted_events:
+            if feedback.event.action == ActionType.upvote:
+                accumlated_feedbacks[feedback.event.action].extend(
+                    {
+                        "timestamp": feedback.timestamp,
+                        "query": query,
+                        "reference_id": chunk_id,
+                        "reference_text": ref_text,
+                    }
+                    for chunk_id, query, ref_text in zip(
+                        feedback.event.chunk_ids,
+                        feedback.event.queries,
+                        feedback.event.reference_texts,
+                    )
+                )
+            elif feedback.event.action == ActionType.associate:
+                accumlated_feedbacks[feedback.event.action].extend(
+                    {
+                        "timestamp": feedback.timestamp,
+                        "source": source,
+                        "target": target,
+                    }
+                    for source, target in zip(
+                        feedback.event.sources,
+                        feedback.event.targets,
+                    )
+                )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully retrieved the feedbacks",
+        data=accumlated_feedbacks,
+    )
+
+
+@deploy_router.get("/status", dependencies=[Depends(verify_model_read_access)])
 def deployment_status(
     model_identifier: str,
     session: Session = Depends(get_session),
@@ -390,12 +548,15 @@ def deployment_status(
         )
 
     deploy_status, reasons = get_model_status(model, train_status=False)
+    reasons = get_detailed_reasons(
+        session=session, job_type="deploy", status=deploy_status, reasons=reasons
+    )
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the deployment status",
         data={
             "deploy_status": deploy_status,
-            "message": " ".join(reasons),
+            "messages": reasons,
             "model_id": str(model.id),
         },
     )
@@ -405,6 +566,7 @@ def deployment_status(
 def update_deployment_status(
     model_id: str,
     new_status: schema.Status,
+    message: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     """
@@ -434,6 +596,15 @@ def update_deployment_status(
         )
 
     model.deploy_status = new_status
+    if message:
+        session.add(
+            schema.JobError(
+                model_id=model.id,
+                job_type="deploy",
+                status=status,
+                message=message,
+            )
+        )
 
     session.commit()
 
@@ -542,4 +713,28 @@ async def start_on_prem_job(
 
     return response(
         status_code=status.HTTP_200_OK, message="On-prem job started successfully"
+    )
+
+
+@deploy_router.get("/logs", dependencies=[Depends(verify_model_read_access)])
+def train_logs(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    logs = get_job_logs(
+        nomad_endpoint=os.getenv("NOMAD_ENDPOINT"), model=model, job_type="deploy"
+    )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the train logs.",
+        data=logs,
     )

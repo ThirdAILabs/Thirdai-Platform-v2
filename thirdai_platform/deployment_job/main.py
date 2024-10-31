@@ -37,9 +37,7 @@ Permissions.init(
     model_bazaar_endpoint=config.model_bazaar_endpoint, model_id=config.model_id
 )
 
-app = FastAPI(
-    docs_url=f"/{config.model_id}/docs", openapi_url=f"/{config.model_id}/openapi.json"
-)
+app = FastAPI(docs_url=f"/docs", openapi_url=f"/openapi.json")
 
 app.add_middleware(
     CORSMiddleware,
@@ -73,11 +71,15 @@ for attempt in range(1, max_retries + 1):
         if attempt < max_retries:
             time.sleep(retry_delay)
         else:
-            reporter.update_deploy_status(config.model_id, "failed")
+            reporter.update_deploy_status(
+                config.model_id,
+                "failed",
+                message=f"Deployment failed with error: {err}",
+            )
             raise  # Optionally re-raise the exception if you want the application to stop
 
 
-app.include_router(backend_router.router, prefix=f"/{config.model_id}")
+app.include_router(backend_router.router)
 
 app.mount("/metrics", make_asgi_app())
 
@@ -104,7 +106,9 @@ async def startup_event() -> None:
         await asyncio.sleep(10)
         reporter.update_deploy_status(config.model_id, "complete")
     except Exception as e:
-        reporter.update_deploy_status(config.model_id, "failed")
+        reporter.update_deploy_status(
+            config.model_id, "failed", message=f"Deployment failed with error: {e}"
+        )
         print(f"Failed to startup the application, {e}")
         raise e  # Re-raise the exception to propagate it to the main block
 
@@ -114,4 +118,6 @@ if __name__ == "__main__":
         uvicorn.run(app, host="localhost", port=8000)
     except Exception as e:
         print(f"Uvicorn failed to start: {str(e)}")
-        reporter.update_deploy_status(config.model_id, "failed")
+        reporter.update_deploy_status(
+            config.model_id, "failed", message=f"Deployment failed with error: {e}"
+        )

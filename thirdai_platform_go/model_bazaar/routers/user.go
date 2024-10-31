@@ -59,13 +59,13 @@ type signupResponse struct {
 	UserId string `json:"user_id"`
 }
 
-func (u *UserRouter) CreateUser(username, email, password string) (schema.User, error) {
+func (u *UserRouter) CreateUser(username, email, password string, admin bool) (schema.User, error) {
 	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {
 		return schema.User{}, fmt.Errorf("error encrypting password")
 	}
 
-	newUser := schema.User{Id: uuid.New().String(), Username: username, Email: email, Password: hashedPwd}
+	newUser := schema.User{Id: uuid.New().String(), Username: username, Email: email, Password: hashedPwd, IsAdmin: admin}
 
 	err = u.db.Transaction(func(db *gorm.DB) error {
 		var existingUser schema.User
@@ -102,7 +102,7 @@ func (u *UserRouter) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newUser, err := u.CreateUser(params.Username, params.Email, params.Password)
+	newUser, err := u.CreateUser(params.Username, params.Email, params.Password, false)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -164,17 +164,24 @@ func (u *UserRouter) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := schema.GetUser(params.UserId, u.db, false)
+	err := u.db.Transaction(func(db *gorm.DB) error {
+		user, err := schema.GetUser(params.UserId, db, false)
+		if err != nil {
+			return err
+		}
+
+		user.IsAdmin = true
+
+		result := db.Save(&user)
+		if result.Error != nil {
+			return fmt.Errorf("database error: %w", result.Error)
+		}
+
+		return nil
+	})
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	user.IsAdmin = true
-
-	result := u.db.Save(&user)
-	if result.Error != nil {
-		dbError(w, err)
 		return
 	}
 
@@ -187,17 +194,16 @@ func (u *UserRouter) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := schema.GetUser(params.UserId, u.db, false)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	err := u.db.Transaction(func(db *gorm.DB) error {
+		user, err := schema.GetUser(params.UserId, db, false)
+		if err != nil {
+			return err
+		}
 
-	err = u.db.Transaction(func(db *gorm.DB) error {
 		var count int64
 		result := db.Model(&schema.User{}).Where("is_admin = ?", true).Count(&count)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", err)
+			return fmt.Errorf("database error: %v", result.Error)
 		}
 
 		if count < 2 {
@@ -206,9 +212,9 @@ func (u *UserRouter) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 
 		user.IsAdmin = false
 
-		result = u.db.Save(&user)
+		result = db.Save(&user)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", err)
+			return fmt.Errorf("database error: %v", result.Error)
 		}
 
 		return nil

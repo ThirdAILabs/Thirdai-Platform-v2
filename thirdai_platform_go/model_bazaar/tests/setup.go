@@ -3,6 +3,7 @@ package tests
 import (
 	"testing"
 	"thirdai_platform/model_bazaar/routers"
+	"thirdai_platform/model_bazaar/schema"
 
 	"github.com/go-chi/chi/v5"
 	"gorm.io/driver/sqlite"
@@ -25,8 +26,16 @@ func setupTestEnv(t *testing.T) testEnv {
 		t.Fatal(err)
 	}
 
+	err = db.AutoMigrate(
+		&schema.Model{}, &schema.ModelAttribute{}, &schema.ModelDependency{},
+		&schema.User{}, &schema.Team{}, &schema.UserTeam{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	userRouter := routers.NewUserRouter(db)
-	_, err = userRouter.CreateUser(adminUsername, adminEmail, adminPassword)
+	_, err = userRouter.CreateUser(adminUsername, adminEmail, adminPassword, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,8 +50,23 @@ func (t *testEnv) newClient() client {
 	return client{api: t.api}
 }
 
+func (t *testEnv) newUser(username string) (client, error) {
+	c := t.newClient()
+	login, err := c.signup(username, username+"@mail.com", username+"_password")
+	if err != nil {
+		return client{}, err
+	}
+
+	err = c.login(login)
+	if err != nil {
+		return client{}, err
+	}
+
+	return c, nil
+}
+
 func (t *testEnv) adminClient() (client, error) {
 	c := t.newClient()
-	err := c.login(login{Email: adminEmail, Password: adminPassword})
+	err := c.login(loginInfo{Email: adminEmail, Password: adminPassword})
 	return c, err
 }

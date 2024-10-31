@@ -59,11 +59,11 @@ def parse_args():
     parser.add_argument("--host", type=str, default="http://localhost:80")
     parser.add_argument("--email", type=str)
     parser.add_argument("--password", type=str)
-    parser.add_argument("--autoscaling_enabled", type=bool, default=False)
+    parser.add_argument("--autoscaling_enabled", action="store_true")
     parser.add_argument("--users", type=int, default=100)
     parser.add_argument("--spawn_rate", type=int, default=10)
     parser.add_argument("--run_time", type=int, default=30)  # in seconds
-    parser.add_argument("--cleanup", type=bool, default=False)
+    parser.add_argument("--no_cleanup", action="store_true")
     args = parser.parse_args()
 
     return args
@@ -158,7 +158,7 @@ def main(args):
         errors.append(f"Testing error: {e}")
         raise
     finally:
-        if args.cleanup:
+        if not args.no_cleanup:
             if ndb_client:
                 try:
                     client.undeploy(ndb_client)

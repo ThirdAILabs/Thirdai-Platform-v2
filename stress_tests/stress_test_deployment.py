@@ -129,6 +129,20 @@ auth_header = {"Authorization": f"Bearer {login_details.access_token}"}
 # error handling
 
 
+file_contents = {}
+doc_dir = "/home/david/ThirdAI-Platform/thirdai_platform/train_job/sample_docs"
+
+documents = [
+    {"path": os.path.join(doc_dir, "mutual_nda.pdf"), "location": "local"},
+    {"path": os.path.join(doc_dir, "four_english_words.docx"), "location": "local"},
+    {"path": os.path.join(doc_dir, "supervised.csv"), "location": "local"},
+]
+
+for doc in documents:
+    with open(doc["path"], "rb") as f:
+        file_contents[doc["path"]] = f.read()
+
+
 class NeuralDBLoadTest(TaskSet):
     @task(args.predict_weight)
     def test_predict(self):
@@ -141,50 +155,55 @@ class NeuralDBLoadTest(TaskSet):
             timeout=60,
         )
 
+        if response.status_code == 500:
+            print(f"Response content: {response.text}")
+
     @task(args.insert_weight)
     def test_insert(self):
-        def doc_dir():
-            return "/home/david/ThirdAI-Platform/thirdai_platform/train_job/sample_docs"
+        files_list = []
+        file_objects = []
+        try:
+            for doc in documents:
+                f = open(doc["path"], "rb")
+                files_list.append(("files", f))
+                file_objects.append(f)
+            files_list.append(
+                (
+                    "documents",
+                    (None, json.dumps({"documents": documents}), "application/json"),
+                )
+            )
+            response = self.client.post(
+                route("insert"),
+                files=files_list,
+                headers=auth_header,
+            )
+        finally:
+            for f in file_objects:
+                f.close()
 
-        documents = [
-            {"path": "mutual_nda.pdf", "location": "local"},
-            {"path": "four_english_words.docx", "location": "local"},
-            {"path": "supervised.csv", "location": "local"},
-        ]
-
-        files = [
-            *[
-                ("files", open(os.path.join(doc_dir(), doc["path"]), "rb"))
-                for doc in documents
-            ],
-            (
-                "documents",
-                (None, json.dumps({"documents": documents}), "application/json"),
-            ),
-        ]
-
-        res = self.client.post(
-            route("insert"),
-            files=files,
-            headers=auth_header,
-        )
+        if response.status_code == 500:
+            print(f"Response content: {response.text}")
 
     @task(args.delete_weight)
     def test_delete(self):
         response = self.client.get(route("sources"), headers=auth_header)
 
-        valid_sources = {"mutual_nda.pdf", "four_english_words.docx", "supervised.csv"}
+        valid_sources = set(doc["path"] for doc in documents)
 
         if response.ok and response.json() and response.json()["data"]:
             for source in response.json()["data"]:
                 if source["source"] in valid_sources:
                     source_id = source["source_id"]
 
-                    self.client.post(
+                    response = self.client.post(
                         route("delete"),
                         json={"source_ids": [source_id]},
                         headers=auth_header,
                     )
+
+                    if response.status_code == 500:
+                        print(f"Response content: {response.text}")
 
     @task(args.upvote_weight)
     def test_upvote(self):
@@ -197,6 +216,9 @@ class NeuralDBLoadTest(TaskSet):
             timeout=60,
         )
 
+        if response.status_code == 500:
+            print(f"Response content: {response.text}")
+
         if response.ok and response.json() and response.json()["data"]["references"]:
             last_ref = response.json()["data"]["references"][-1]
             text_id_pairs = [
@@ -207,26 +229,34 @@ class NeuralDBLoadTest(TaskSet):
                 }
             ]
 
-            self.client.post(
+            response = self.client.post(
                 route("upvote"),
                 json={"text_id_pairs": text_id_pairs},
                 headers=auth_header,
             )
+
+            if response.status_code == 500:
+                print(f"Response content: {response.text}")
 
     @task(args.associate_weight)
     def test_associate(self):
         query1 = random_query()
         query2 = random_query()
         text_pairs = [{"source": query1, "target": query2}]
-        self.client.post(
+        response = self.client.post(
             route("associate"),
             json={"text_pairs": text_pairs},
             headers=auth_header,
         )
 
+        if response.status_code == 500:
+            print(f"Response content: {response.text}")
+
     @task(args.sources_weight)
     def test_sources(self):
-        res = self.client.get(route("sources"), headers=auth_header)
+        response = self.client.get(route("sources"), headers=auth_header)
+        if response.status_code == 500:
+            print(f"Response content: {response.text}")
 
     @task(args.implicit_feedback_weight)
     def test_implicit_feedback(self):
@@ -239,6 +269,9 @@ class NeuralDBLoadTest(TaskSet):
             timeout=60,
         )
 
+        if response.status_code == 500:
+            print(f"Response content: {response.text}")
+
         if response.ok and response.json() and response.json()["data"]["references"]:
             ref_id = response.json()["data"]["references"][-1]["id"]
             feedback = {
@@ -247,9 +280,11 @@ class NeuralDBLoadTest(TaskSet):
                 "event_desc": "reference click",
             }
 
-            res = self.client.post(
+            response = self.client.post(
                 route("implicit-feedback"), json=feedback, headers=auth_header
             )
+            if response.status_code == 500:
+                print(f"Response content: {response.text}")
 
     # @task(args.save_weight)
     # def test_save(self):

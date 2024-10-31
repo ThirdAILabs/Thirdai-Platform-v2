@@ -222,7 +222,7 @@ class NDBRouter:
         if total_filesize > max_filesize:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Size of uploaded files exceeds maximum of {max_filesize / (1024 * 1024)}Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size.",
+                message=f"Size of uploaded files exceeds maximum of {max_filesize // (1024 * 1024)}Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size.",
             )
 
         documents = download_local_files(

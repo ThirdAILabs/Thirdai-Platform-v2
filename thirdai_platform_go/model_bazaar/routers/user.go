@@ -3,8 +3,8 @@ package routers
 import (
 	"fmt"
 	"net/http"
-	"thirdai_platform/src/auth"
-	"thirdai_platform/src/schema"
+	"thirdai_platform/model_bazaar/auth"
+	"thirdai_platform/model_bazaar/schema"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"

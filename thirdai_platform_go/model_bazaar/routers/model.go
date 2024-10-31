@@ -3,10 +3,10 @@ package routers
 import (
 	"fmt"
 	"net/http"
-	"thirdai_platform/src/auth"
-	"thirdai_platform/src/nomad"
-	"thirdai_platform/src/schema"
-	"thirdai_platform/src/storage"
+	"thirdai_platform/model_bazaar/auth"
+	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/schema"
+	"thirdai_platform/model_bazaar/storage"
 
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"

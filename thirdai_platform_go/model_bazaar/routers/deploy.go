@@ -1,7 +1,7 @@
 package routers
 
 import (
-	"thirdai_platform/src/nomad"
+	"thirdai_platform/model_bazaar/nomad"
 
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"

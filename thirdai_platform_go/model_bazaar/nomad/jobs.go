@@ -2,7 +2,7 @@ package nomad
 
 import (
 	"fmt"
-	"thirdai_platform/src/schema"
+	"thirdai_platform/model_bazaar/schema"
 )
 
 func TrainJobName(model schema.Model) string {

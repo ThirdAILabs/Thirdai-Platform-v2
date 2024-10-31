@@ -9,12 +9,12 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
-	"thirdai_platform/src/auth"
-	"thirdai_platform/src/config"
-	"thirdai_platform/src/licensing"
-	"thirdai_platform/src/nomad"
-	"thirdai_platform/src/schema"
-	"thirdai_platform/src/storage"
+	"thirdai_platform/model_bazaar/auth"
+	"thirdai_platform/model_bazaar/config"
+	"thirdai_platform/model_bazaar/licensing"
+	"thirdai_platform/model_bazaar/nomad"
+	"thirdai_platform/model_bazaar/schema"
+	"thirdai_platform/model_bazaar/storage"
 	"time"
 
 	"github.com/google/uuid"
@@ -87,7 +87,7 @@ func updatePaths(files []config.FileInfo, requestFiles map[string]string) ([]con
 		if file.Location == config.FileLocLocal {
 			newPath, ok := requestFiles[file.Path]
 			if !ok {
-				return nil, fmt.Errorf("file %v is not found in request files")
+				return nil, fmt.Errorf("file %v is not found in request files", file.Path)
 			}
 			output = append(output, config.FileInfo{
 				Path:     newPath,

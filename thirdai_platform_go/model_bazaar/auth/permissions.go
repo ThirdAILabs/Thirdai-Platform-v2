@@ -3,7 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/http"
-	"thirdai_platform/src/schema"
+	"thirdai_platform/model_bazaar/schema"
 
 	"gorm.io/gorm"
 )

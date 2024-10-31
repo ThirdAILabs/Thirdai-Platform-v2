@@ -52,6 +52,7 @@ async def restart_generate_job():
         python_path=get_python_path(),
         thirdai_platform_dir=thirdai_platform_dir(),
         app_dir="llm_dispatch_job",
+        share_dir=os.getenv("SHARE_DIR"),
     )
 
 

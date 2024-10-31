@@ -128,11 +128,29 @@ class NeuralDBV2(Model):
             f"Completed unsupervised training total_docs={docs_indexed} total_chunks={total_chunks}."
         )
 
+        upsert_doc_ids = [
+            file.doc_id
+            for file in files
+            if file.doc_id and file.options.get("upsert", False)
+        ]
+
+        self.logger.info(
+            f"Found {len(upsert_doc_ids)} docs to upsert, removing old versions"
+        )
+        for doc_id in upsert_doc_ids:
+            self.db.delete_doc(doc_id=doc_id, keep_latest_version=True)
+
+        total_chunks = self.db.retriever.retriever.size()
+        self.logger.info(f"After removing old doc versions total_chunks={total_chunks}")
+
     def rlhf_retraining(self, path: str):
         feedback_samples = defaultdict(int)
         with open(path, "r") as file:
             for line in file:
                 feedback = FeedbackLog.model_validate_json(line)
+                if not feedback.perform_rlhf_later:
+                    continue
+
                 feedback_samples[feedback.event.action] += 1
                 if feedback.event.action == ActionType.upvote:
                     weight = 2  # Extra weighting for explicit upvotes

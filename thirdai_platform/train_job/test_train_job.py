@@ -134,7 +134,11 @@ def test_ndbv1_train(ndb_options):
 @pytest.fixture()
 def feedback_train_file():
     logs = [
-        UpvoteLog(chunk_ids=[10], queries=["some random query to upvote"]),
+        UpvoteLog(
+            chunk_ids=[10],
+            queries=["some random query to upvote"],
+            reference_texts=["Corresponding reference text"],
+        ),
         AssociateLog(
             sources=["premier league teams"], targets=["arsenal and manchester united"]
         ),

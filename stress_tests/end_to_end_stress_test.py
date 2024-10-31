@@ -1,31 +1,50 @@
 import argparse
 import os
 import subprocess
+from typing import List
 from urllib.parse import urljoin
+
+import boto3
+from botocore.client import Config
 
 from client.bazaar import ModelBazaar
 
 
 class StressTestConfig:
     name: str
-    s3_url: str
+    docs_s3_uris: List[str]
+    queries_s3_uri: str
 
 
 class SinglePDFConfig(StressTestConfig):
-    name: str = "single-pdf"
-    s3_url: str = (
-        "/home/david/ThirdAI-Platform/thirdai_platform/train_job/sample_docs/mutual_nda.pdf"
+    name: str = "small-pdf"
+    docs_s3_uris: List[str] = [
+        "s3://thirdai-datasets/ThirdAI-Platform-Stress-Testing/small-pdf/DARPA-SN-24-118.pdf"
+    ]
+    queries_s3_uri: str = (
+        "s3://thirdai-datasets/ThirdAI-Platform-Stress-Testing/small-pdf/queries.csv"
     )
 
 
 class LargeCSVConfig(StressTestConfig):
     name: str = "large-csv"
-    s3_url: str = ""
+    docs_s3_uris: List[str] = [
+        "s3://thirdai-datasets/ThirdAI-Platform-Stress-Testing/large-csv/pubmed_1M.csv"
+    ]
+    queries_s3_uri: str = (
+        "s3://thirdai-datasets/ThirdAI-Platform-Stress-Testing/large-csv/queries.csv"
+    )
 
 
 class ManyFilesConfig(StressTestConfig):
     name: str = "many-files"
-    s3_url: str = ""
+    docs_s3_uris: List[str] = [
+        "s3://thirdai-datasets/ThirdAI-Platform-Stress-Testing/many-files/docs",
+        "s3://novatris-demo/all_icml_files",
+    ]
+    queries_s3_uri: str = (
+        "s3://thirdai-datasets/ThirdAI-Platform-Stress-Testing/many-files/queries.csv"
+    )
 
 
 configs = {
@@ -49,14 +68,38 @@ def parse_args():
     return args
 
 
+def download_query_file(queries_s3_uri):
+    aws_access_key = os.getenv("AWS_ACCESS_KEY", None)
+    aws_secret_access_key = os.getenv("AWS_ACCESS_SECRET", None)
+    region_name = os.getenv("AWS_REGION_NAME", None)
+    s3_client = boto3.client(
+        "s3",
+        aws_access_key_id=aws_access_key,
+        aws_secret_access_key=aws_secret_access_key,
+        config=Config(
+            retries={"max_attempts": 10, "mode": "standard"},
+            connect_timeout=5,
+            read_timeout=60,
+            signature_version="s3v4",
+        ),
+        region_name=region_name,
+    )
+    folder = os.path.dirname(__file__)
+    query_file_dest_path = os.path.join(folder, "queries.csv")
+    bucket_name = queries_s3_uri.strip("s3://").split("/")[0]
+    source_path = "/".join(queries_s3_uri.strip("s3://").split("/")[1:])
+    s3_client.download_file(bucket_name, source_path, query_file_dest_path)
+    return query_file_dest_path
+
+
 def create_deployment(client, config, autoscaling_enabled):
     client.log_in(args.email, args.password)
     model_object = client.train(
         f"stress_test_{config.name}",
-        unsupervised_docs=[config.s3_url],
+        unsupervised_docs=config.docs_s3_uris,
         model_options={"ndb_options": {"ndb_sub_type": "v2"}},
         supervised_docs=[],
-        doc_type="local",
+        doc_type="s3",
     )
     model_identifier = model_object.model_identifier
     ndb_client = client.deploy(
@@ -65,12 +108,12 @@ def create_deployment(client, config, autoscaling_enabled):
     return model_identifier, ndb_client
 
 
-def run_stress_test(args, deployment_id):
+def run_stress_test(args, query_file, deployment_id):
     print("Running Stress Test\n")
     folder = os.path.dirname(__file__)
     script_path = os.path.join(folder, "stress_test_deployment.py")
     result = subprocess.run(
-        f"locust -f {script_path} --headless --users {args.users} --spawn-rate {args.spawn_rate} --run-time {args.run_time} --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password}",
+        f"locust -f {script_path} --headless --users {args.users} --spawn-rate {args.spawn_rate} --run-time {args.run_time} --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password} --query_file {query_file}",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -97,22 +140,24 @@ def main(args):
     model_name = f"stress_test_{config.name}"
     model_identifier = f"{client._username}/{model_name}"
 
+    query_file = download_query_file(config.queries_s3_uri)
+
     errors = []
     ndb_client = None
     try:
         model_object = client.train(
             model_name,
-            unsupervised_docs=[config.s3_url],
+            unsupervised_docs=config.docs_s3_uris,
             model_options={"ndb_options": {"ndb_sub_type": "v2"}},
             supervised_docs=[],
-            doc_type="local",
+            doc_type="s3",
         )
 
         ndb_client = client.deploy(
             model_identifier, autoscaling_enabled=args.autoscaling_enabled
         )
 
-        run_stress_test(args, ndb_client.model_id)
+        run_stress_test(args, query_file, ndb_client.model_id)
 
         check_nomad_job_status(model_object.model_id)
     except Exception as e:

@@ -23,15 +23,16 @@ Running `pip3 install locust --upgrade --no-cache-dir --force-reinstall` on each
 node should do the trick.
 """
 
-pass
 import argparse
 import json
 import os
+import random
 import sys
 import uuid
 from dataclasses import dataclass
 from urllib.parse import urljoin
 
+import pandas as pd
 import requests
 from locust import HttpUser, TaskSet, between, task
 from requests.auth import HTTPBasicAuth
@@ -40,11 +41,10 @@ from requests.auth import HTTPBasicAuth
 def parse_args():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--host", type=str, default="http://localhost:80")
-    parser.add_argument(
-        "--deployment_id", type=str, default="ffd4e156-da8a-401e-a4db-944138e54ad8"
-    )
+    parser.add_argument("--deployment_id", type=str)
     parser.add_argument("--email", type=str)
     parser.add_argument("--password", type=str)
+    parser.add_argument("--query_file", type=str)
     parser.add_argument(
         "--min_wait",
         type=int,
@@ -81,6 +81,8 @@ def parse_args():
 
 args = parse_args()
 
+queries = list(pd.read_csv(args.query_file)["query"])
+
 
 # Note: this code is copied here to make running locust with distributed easier.
 # Locust has builtin logic to copy this file over to the child node every run
@@ -105,7 +107,7 @@ class Login:
 
 
 def random_query():
-    return "what is the meaning of these paragraphs darpa cancer intuit"
+    return random.choice(queries)
 
 
 def route(name):

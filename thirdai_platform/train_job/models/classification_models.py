@@ -361,6 +361,16 @@ class TokenClassificationModel(ClassificationModel):
             if label.status == LabelStatus.uninserted:
                 new_labels.append(name)
 
+        existing_labels = set(model.list_ner_tags())
+        for train_file in train_files:
+            df = pd.read_csv(train_file)
+            labels = df[self.config.model_options.udt_options.target_column].str.split()
+            for row in labels:
+                for label in row:
+                    if label not in existing_labels:
+                        new_labels.append(label)
+                        existing_labels.append(labels)
+
         if new_labels:
             for new_label in new_labels:
                 common_pattern = find_common_pattern(new_label)

@@ -17,6 +17,10 @@ type UserRouter struct {
 	userAuth *auth.JwtManager
 }
 
+func NewUserRouter(db *gorm.DB) UserRouter {
+	return UserRouter{db: db, userAuth: auth.NewJwtManager()}
+}
+
 func (u *UserRouter) Routes() chi.Router {
 	r := chi.NewRouter()
 
@@ -55,31 +59,25 @@ type signupResponse struct {
 	UserId string `json:"user_id"`
 }
 
-func (u *UserRouter) Signup(w http.ResponseWriter, r *http.Request) {
-	var params signupRequest
-	if !parseRequestBody(w, r, &params) {
-		return
-	}
-
-	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(params.Password), 10)
+func (u *UserRouter) CreateUser(username, email, password string) (schema.User, error) {
+	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {
-		http.Error(w, "error encrypting password", http.StatusInternalServerError)
-		return
+		return schema.User{}, fmt.Errorf("error encrypting password")
 	}
 
-	newUser := schema.User{Id: uuid.New().String(), Username: params.Username, Email: params.Email, Password: hashedPwd}
+	newUser := schema.User{Id: uuid.New().String(), Username: username, Email: email, Password: hashedPwd}
 
 	err = u.db.Transaction(func(db *gorm.DB) error {
 		var existingUser schema.User
-		result := db.Find(&existingUser, "username = ? or email = ?", params.Username, params.Email)
+		result := db.Find(&existingUser, "username = ? or email = ?", username, email)
 		if result.Error != nil {
 			return fmt.Errorf("database error: %v", result.Error)
 		}
 		if result.RowsAffected != 0 {
-			if existingUser.Username == params.Username {
-				return fmt.Errorf("username %v is already in use", params.Username)
+			if existingUser.Username == username {
+				return fmt.Errorf("username %v is already in use", username)
 			} else {
-				return fmt.Errorf("email %v is already in use", params.Email)
+				return fmt.Errorf("email %v is already in use", email)
 			}
 		}
 
@@ -91,6 +89,20 @@ func (u *UserRouter) Signup(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
+	if err != nil {
+		return schema.User{}, err
+	}
+
+	return newUser, nil
+}
+
+func (u *UserRouter) Signup(w http.ResponseWriter, r *http.Request) {
+	var params signupRequest
+	if !parseRequestBody(w, r, &params) {
+		return
+	}
+
+	newUser, err := u.CreateUser(params.Username, params.Email, params.Password)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -106,6 +118,7 @@ type loginRequest struct {
 }
 
 type loginResponse struct {
+	UserId      string `json:"user_id"`
 	AccessToken string `json:"access_token"`
 }
 
@@ -137,7 +150,7 @@ func (u *UserRouter) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("error generating access token: %v", err), http.StatusInternalServerError)
 		return
 	}
-	res := loginResponse{AccessToken: token}
+	res := loginResponse{UserId: user.Id, AccessToken: token}
 	writeJsonResponse(w, res)
 }
 
@@ -209,31 +222,31 @@ func (u *UserRouter) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-type userTeamInfo struct {
+type UserTeamInfo struct {
 	TeamId    string `json:"team_id"`
 	TeamName  string `json:"team_name"`
 	TeamAdmin bool   `json:"team_admin"`
 }
 
-type userInfo struct {
+type UserInfo struct {
 	Id       string         `json:"id"`
 	Username string         `json:"username"`
 	Email    string         `json:"email"`
 	Admin    bool           `json:"admin"`
-	Teams    []userTeamInfo `json:"teams"`
+	Teams    []UserTeamInfo `json:"teams"`
 }
 
-func convertToUserInfo(user *schema.User) userInfo {
-	teams := make([]userTeamInfo, 0, len(user.Teams))
+func convertToUserInfo(user *schema.User) UserInfo {
+	teams := make([]UserTeamInfo, 0, len(user.Teams))
 	for _, team := range user.Teams {
-		teams = append(teams, userTeamInfo{
+		teams = append(teams, UserTeamInfo{
 			TeamId:    team.TeamId,
 			TeamName:  team.Team.Name,
 			TeamAdmin: team.IsTeamAdmin,
 		})
 	}
 
-	return userInfo{
+	return UserInfo{
 		Id:       user.Id,
 		Username: user.Username,
 		Email:    user.Email,
@@ -273,7 +286,7 @@ func (u *UserRouter) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	infos := make([]userInfo, 0, len(users))
+	infos := make([]UserInfo, 0, len(users))
 	for _, u := range users {
 		infos = append(infos, convertToUserInfo(&u))
 	}

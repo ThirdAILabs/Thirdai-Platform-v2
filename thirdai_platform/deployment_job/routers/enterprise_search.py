@@ -10,7 +10,7 @@ from platform_common.pydantic_models.deployment import DeploymentConfig
 from prometheus_client import Summary
 from pydantic_models import inputs
 from reporter import Reporter
-from utils import propagate_error, response
+from utils import response
 
 query_metric = Summary("enterprise_search_query", "Enterprise Search Queries")
 
@@ -43,7 +43,6 @@ class EnterpriseSearchRouter:
         self.router.add_api_route("/unredact", self.unredact, methods=["POST"])
 
     @query_metric.time()
-    @propagate_error
     def search(
         self,
         params: inputs.NDBSearchParams,
@@ -91,7 +90,6 @@ class EnterpriseSearchRouter:
             data=jsonable_encoder(results),
         )
 
-    @propagate_error
     def unredact(
         self,
         args: inputs.UnredactArgs,

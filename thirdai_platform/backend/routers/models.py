@@ -56,7 +56,7 @@ with open(docs_file) as f:
 @model_router.get(
     "/details",
     summary="Get Model Details",
-    description=get_section("Get Model Details"),
+    description=get_section(docs, "Get Model Details"),
 )
 def get_model_details(
     model_id: str,
@@ -71,7 +71,7 @@ def get_model_details(
 
 
 @model_router.get(
-    "/list", summary="List Models", description=get_section("List Models")
+    "/list", summary="List Models", description=get_section(docs, "List Models")
 )
 def list_models(
     name: Optional[str] = None,
@@ -157,7 +157,7 @@ def list_models(
 @model_router.get(
     "/name-check",
     summary="Check Model Name",
-    description=get_section("Check Model Name"),
+    description=get_section(docs, "Check Model Name"),
 )
 def check_model(
     name: str,
@@ -191,7 +191,7 @@ class SaveNDBDeployedModel(BaseModel):
 @model_router.post(
     "/save-deployed",
     summary="Save Deployed Model",
-    description=get_section("Save Deployed Model"),
+    description=get_section(docs, "Save Deployed Model"),
 )
 def save_deployed_model(
     body: SaveNDBDeployedModel,
@@ -253,7 +253,7 @@ class ModelInfo(BaseModel):
 @model_router.get(
     "/upload-token",
     summary="Generate Upload Token",
-    description=get_section("Generate Upload Token"),
+    description=get_section(docs, "Generate Upload Token"),
 )
 def upload_token(
     model_name: str,
@@ -297,7 +297,7 @@ def upload_token(
 @model_router.post(
     "/upload-chunk",
     summary="Upload Model Chunk",
-    description=get_section("Upload Model Chunk"),
+    description=get_section(docs, "Upload Model Chunk"),
 )
 def upload_chunk(
     chunk: UploadFile,
@@ -361,7 +361,9 @@ def upload_chunk(
 
 
 @model_router.post(
-    "/upload-commit", summary="Commit Upload", description=get_section("Commit Upload")
+    "/upload-commit",
+    summary="Commit Upload",
+    description=get_section(docs, "Commit Upload"),
 )
 def upload_commit(
     total_chunks: int,
@@ -473,7 +475,7 @@ def upload_commit(
 @model_router.get(
     "/public-download",
     summary="Download Public Model",
-    description=get_section("Download Public Model"),
+    description=get_section(docs, "Download Public Model"),
 )
 def download_public_model(
     model_identifier: str,
@@ -523,7 +525,7 @@ def download_public_model(
     "/download",
     dependencies=[Depends(verify_model_read_access)],
     summary="Download Model",
-    description=get_section("Download Model"),
+    description=get_section(docs, "Download Model"),
 )
 def download_model(
     model_identifier: str,
@@ -567,7 +569,7 @@ def download_model(
     "/team-models",
     dependencies=[Depends(team_admin_or_global_admin)],
     summary="List Team Models",
-    description=get_section("List Team Models"),
+    description=get_section(docs, "List Team Models"),
 )
 def list_team_models(
     team_id: str,
@@ -614,7 +616,7 @@ def list_team_models(
     "/update-model-permission",
     dependencies=[Depends(is_model_owner)],
     summary="Update Model Permission",
-    description=get_section("Update Model Permission"),
+    description=get_section(docs, "Update Model Permission"),
 )
 def update_model_permission(
     model_identifier: str,
@@ -668,7 +670,7 @@ def update_model_permission(
     "/all-models",
     dependencies=[Depends(global_admin_only)],
     summary="List All Models",
-    description=get_section("List All Models"),
+    description=get_section(docs, "List All Models"),
 )
 def list_all_models(
     session: Session = Depends(get_session),
@@ -695,7 +697,7 @@ def deduplicate_permissions(permissions_list: list[dict]) -> list[dict]:
     "/permissions",
     dependencies=[Depends(is_model_owner)],
     summary="Get Model Permissions",
-    description=get_section("Get Model Permissions"),
+    description=get_section(docs, "Get Model Permissions"),
 )
 def get_model_permissions(
     model_identifier: str,
@@ -792,7 +794,7 @@ def get_model_permissions(
     "/update-access-level",
     dependencies=[Depends(is_model_owner)],
     summary="Update Access Level",
-    description=get_section("Update Access Level"),
+    description=get_section(docs, "Update Access Level"),
 )
 def update_access_level(
     model_identifier: str,
@@ -839,7 +841,7 @@ def update_access_level(
     "/update-default-permission",
     dependencies=[Depends(is_model_owner)],
     summary="Update Default Permission",
-    description=get_section("Update Default Permission"),
+    description=get_section(docs, "Update Default Permission"),
 )
 def update_default_permission(
     model_identifier: str,
@@ -871,7 +873,7 @@ def update_default_permission(
     "/delete",
     dependencies=[Depends(is_model_owner)],
     summary="Delete Model",
-    description=get_section("Delete Model"),
+    description=get_section(docs, "Delete Model"),
 )
 def delete_model(
     model_identifier: str,
@@ -929,7 +931,7 @@ def delete_model(
     "/logs",
     dependencies=[Depends(is_model_owner)],
     summary="Get Model Logs",
-    description=get_section("Get Model Logs"),
+    description=get_section(docs, "Get Model Logs"),
 )
 def get_model_logs(
     model_identifier: str,

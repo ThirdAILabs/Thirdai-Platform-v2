@@ -1,5 +1,6 @@
 import json
 import os
+import pathlib
 import secrets
 import shutil
 import uuid
@@ -57,11 +58,18 @@ from platform_common.pydantic_models.training import (
     UDTSubType,
 )
 from platform_common.thirdai_storage import storage
-from platform_common.utils import response
+from platform_common.utils import get_section, response
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 train_router = APIRouter()
+
+root_folder = pathlib.Path(__file__).parent
+
+docs_file = root_folder.joinpath("../../docs/train_endpoints.txt")
+
+with open(docs_file) as f:
+    docs = f.read()
 
 
 def get_base_model(base_model_identifier: str, user: schema.User, session: Session):
@@ -77,7 +85,9 @@ def get_base_model(base_model_identifier: str, user: schema.User, session: Sessi
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 
 
-@train_router.post("/ndb")
+@train_router.post(
+    "/ndb", summary="Train NDB Model", description=get_section(docs, "Train NDB Model")
+)
 def train_ndb(
     model_name: str,
     files: List[UploadFile],
@@ -256,7 +266,11 @@ def list_deletions(deployment_dir: str) -> List[str]:
     return deletions
 
 
-@train_router.post("/ndb-retrain")
+@train_router.post(
+    "/ndb-retrain",
+    summary="Retrain NDB Model",
+    description=get_section(docs, "Retrain NDB Model"),
+)
 def retrain_ndb(
     model_name: str,
     base_model_identifier: str,
@@ -406,7 +420,11 @@ def retrain_ndb(
     )
 
 
-@train_router.post("/nlp-datagen")
+@train_router.post(
+    "/nlp-datagen",
+    summary="NLP Data Generation",
+    description=get_section(docs, "NLP Data Generation"),
+)
 def nlp_datagen(
     model_name: str,
     base_model_identifier: Optional[str] = None,
@@ -540,7 +558,7 @@ def nlp_datagen(
     )
 
 
-@train_router.post("/datagen-callback")
+@train_router.post("/datagen-callback", include_in_schema=False)
 def datagen_callback(
     data_id: str,
     secret_token: str,
@@ -661,7 +679,11 @@ def datagen_callback(
     )
 
 
-@train_router.post("/retrain-udt")
+@train_router.post(
+    "/retrain-udt",
+    summary="Retrain UDT Model",
+    description=get_section(docs, "Retrain UDT Model"),
+)
 def retrain_udt(
     model_name: str,
     llm_provider: LLMProvider,
@@ -808,7 +830,9 @@ def retrain_udt(
     )
 
 
-@train_router.post("/udt")
+@train_router.post(
+    "/udt", summary="Train UDT Model", description=get_section(docs, "Train UDT Model")
+)
 def train_udt(
     model_name: str,
     files: List[UploadFile] = [],
@@ -977,31 +1001,11 @@ class TrainComplete(BaseModel):
         protected_namespaces = ()
 
 
-@train_router.post("/complete")
+@train_router.post("/complete", include_in_schema=False)
 def train_complete(
     body: TrainComplete,
     session: Session = Depends(get_session),
 ):
-    """
-    Mark the training of a model as complete.
-
-    Parameters:
-    - body: The body of the request containing model_id and metadata.
-        - Example:
-        ```json
-        {
-            "model_id": "123e4567-e89b-12d3-a456-426614174000",
-            "metadata": {
-                "accuracy": "0.95",
-                "f1_score": "0.92"
-            }
-        }
-        ```
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the update status.
-    """
     trained_model: schema.Model = (
         session.query(schema.Model).filter(schema.Model.id == body.model_id).first()
     )
@@ -1028,33 +1032,13 @@ def train_complete(
     return {"message": "Successfully updated"}
 
 
-@train_router.post("/update-status")
+@train_router.post("/update-status", include_in_schema=False)
 def train_fail(
     model_id: str,
     new_status: schema.Status,
     message: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
-    """
-    Update the training status of a model.
-
-    Parameters:
-    - model_id: The ID of the model.
-    - status: The new status for the model (e.g., "failed", "in_progress").
-    - message: A message describing the update.
-        - Example:
-        ```json
-        {
-            "model_id": "123e4567-e89b-12d3-a456-426614174000",
-            "status": "failed",
-            "message": "Training failed due to insufficient data."
-        }
-        ```
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the update status.
-    """
     trained_model: schema.Model = (
         session.query(schema.Model).filter(schema.Model.id == model_id).first()
     )
@@ -1080,22 +1064,16 @@ def train_fail(
     return {"message": f"successfully updated with following {message}"}
 
 
-@train_router.get("/status", dependencies=[Depends(verify_model_read_access)])
+@train_router.get(
+    "/status",
+    dependencies=[Depends(verify_model_read_access)],
+    summary="Get Training Status",
+    description=get_section(docs, "Get Training Status"),
+)
 def train_status(
     model_identifier: str,
     session: Session = Depends(get_session),
 ):
-    """
-    Get the status of a NeuralDB.
-
-    Parameters:
-    - model_identifier: The identifier of the model to retrieve info about.
-    - session: The database session (dependency).
-    - authenticated_user: The authenticated user (dependency).
-
-    Returns:
-    - A JSON response with the model status.
-    """
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
     except Exception as error:
@@ -1119,7 +1097,12 @@ def train_status(
     )
 
 
-@train_router.get("/logs", dependencies=[Depends(verify_model_read_access)])
+@train_router.get(
+    "/logs",
+    dependencies=[Depends(verify_model_read_access)],
+    summary="Get Training Logs",
+    description=get_section(docs, "Get Training Logs"),
+)
 def train_logs(
     model_identifier: str,
     session: Session = Depends(get_session),

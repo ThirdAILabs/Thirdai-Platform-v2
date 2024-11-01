@@ -131,13 +131,15 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
           </CardContent>
         </Card>
       ) : reportError ? (
-        <Card>
-          <CardContent>
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {reportError}
-            </Alert>
-          </CardContent>
-        </Card>
+        <>
+        </>
+        // <Card>
+        //   <CardContent>
+        //     <Alert severity="error" sx={{ mb: 2 }}>
+        //       {reportError}
+        //     </Alert>
+        //   </CardContent>
+        // </Card>
       ) : trainReport && (
         <TrainingResults report={trainReport} />
       )}

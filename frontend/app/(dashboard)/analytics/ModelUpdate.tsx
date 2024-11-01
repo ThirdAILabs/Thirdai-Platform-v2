@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Alert } from '@mui/material';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload } from 'lucide-react';
-import { retrainTokenClassifier, trainUDTWithCSV } from '@/lib/backend';
+import { retrainTokenClassifier, trainUDTWithCSV, getTrainReport } from '@/lib/backend';
 import RecentSamples from './samples';
+import { TrainingResults } from './MetricsChart';
+import type { TrainReportResponse } from '@/lib/backend';
 
 interface ModelUpdateProps {
   username: string;
@@ -22,6 +24,29 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
   const [isPollingUpdating, setIsPollingUpdating] = useState(false);
   const [pollingError, setPollingError] = useState('');
   const [pollingSuccess, setPollingSuccess] = useState(false);
+
+  // States for training report
+  const [trainReport, setTrainReport] = useState<TrainReportResponse | null>(null);
+  const [isLoadingReport, setIsLoadingReport] = useState(true);
+  const [reportError, setReportError] = useState('');
+
+  // Fetch initial training report
+  useEffect(() => {
+    const fetchInitialReport = async () => {
+      try {
+        setIsLoadingReport(true);
+        setReportError('');
+        const report = await getTrainReport(`${username}/${modelName}`);
+        setTrainReport(report);
+      } catch (error) {
+        setReportError(error instanceof Error ? error.message : 'Failed to fetch training report');
+      } finally {
+        setIsLoadingReport(false);
+      }
+    };
+
+    fetchInitialReport();
+  }, [username, modelName]);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -98,6 +123,25 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
 
   return (
     <div className="space-y-6 w-full px-8">
+      {/* Training Report Section */}
+            {isLoadingReport ? (
+        <Card>
+          <CardContent>
+            <div className="text-center py-8">Loading training report...</div>
+          </CardContent>
+        </Card>
+      ) : reportError ? (
+        <Card>
+          <CardContent>
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {reportError}
+            </Alert>
+          </CardContent>
+        </Card>
+      ) : trainReport && (
+        <TrainingResults report={trainReport} />
+      )}
+
       {/* Polled Data Section with Recent Samples */}
       <Card>
         <CardHeader>

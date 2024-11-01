@@ -452,6 +452,58 @@ export function trainUDTWithCSV({
   });
 }
 
+// types.ts
+export interface MetricValues {
+  precision: number;
+  recall: number;
+  fmeasure: number;
+}
+
+export interface LabelMetrics {
+  [labelName: string]: MetricValues;
+}
+
+export interface TrainingExample {
+  source: string;
+  target: string;
+  index: number;
+}
+
+export interface LabelExamples {
+  [labelName: string]: TrainingExample[];
+}
+
+export interface ExampleCategories {
+  true_positives: LabelExamples;
+  false_positives: LabelExamples;
+  false_negatives: LabelExamples;
+}
+
+export interface TrainReportResponse {
+  before_train_metrics: LabelMetrics;
+  after_train_metrics: LabelMetrics;
+  after_train_examples: ExampleCategories;
+}
+
+// api.ts
+export function getTrainReport(modelIdentifier: string): Promise<TrainReportResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(
+        `${thirdaiPlatformBaseUrl}/api/train/train-report?model_identifier=${encodeURIComponent(modelIdentifier)}`
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
 export interface EnterpriseSearchOptions {
   retrieval_id: string;
   guardrail_id?: string;

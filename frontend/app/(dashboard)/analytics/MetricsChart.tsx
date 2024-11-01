@@ -33,30 +33,30 @@ const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics
     return [
       {
         name: 'Precision',
-        'Before Training': Number.isFinite(beforeMetrics[label]?.precision) 
-          ? beforeMetrics[label].precision * 100 
-          : 0,
+        'Before Training': Number.isFinite(beforeMetrics[label]?.precision)
+          ? beforeMetrics[label].precision * 100
+          : null,
         'After Training': Number.isFinite(afterMetrics[label]?.precision)
           ? afterMetrics[label].precision * 100
-          : 0,
+          : null,
       },
       {
         name: 'Recall',
         'Before Training': Number.isFinite(beforeMetrics[label]?.recall)
           ? beforeMetrics[label].recall * 100
-          : 0,
+          : null,
         'After Training': Number.isFinite(afterMetrics[label]?.recall)
           ? afterMetrics[label].recall * 100
-          : 0,
+          : null,
       },
       {
         name: 'F1',
         'Before Training': Number.isFinite(beforeMetrics[label]?.fmeasure)
           ? beforeMetrics[label].fmeasure * 100
-          : 0,
+          : null,
         'After Training': Number.isFinite(afterMetrics[label]?.fmeasure)
           ? afterMetrics[label].fmeasure * 100
-          : 0,
+          : null,
       },
     ];
   };
@@ -184,30 +184,6 @@ const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics
     </div>
   );
 };
-
-interface ExampleSectionProps {
-  title: string;
-  examples: TrainingExample[];
-  bgColor?: string;
-}
-
-const ExampleSection: React.FC<ExampleSectionProps> = ({ title, examples, bgColor = 'bg-gray-50' }) => (
-  <div className="space-y-2">
-    <h4 className="font-medium">{title}</h4>
-    <div className="space-y-1">
-      {examples.slice(0, 2).map((example, idx) => (
-        <div key={idx} className={`text-sm p-3 ${bgColor} rounded-lg`}>
-          <div className="text-gray-700">
-            <span className="font-medium">Input:</span> {example.source}
-          </div>
-          <div className="text-gray-700">
-            <span className="font-medium">Prediction:</span> {example.target}
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>
-);
 
 interface TrainingResultsProps {
   report: TrainReportData;

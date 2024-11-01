@@ -257,30 +257,6 @@ function App() {
     }
   }, []);
 
-  // Effect to periodically fetch sources every 3 seconds
-  useEffect(() => {
-    // Only set up the interval if modelService is available
-    if (!modelService) return;
-
-    const fetchSources = async () => {
-      try {
-        const fetchedSources = await modelService.sources();
-        setSources(fetchedSources);
-      } catch (error) {
-        console.error('Failed to fetch sources:', error);
-        // Optionally, handle the error (e.g., show a notification to the user)
-      }
-    };
-
-    // Fetch immediately before setting up the interval
-    fetchSources();
-
-    const intervalId = setInterval(fetchSources, 3000); // 3000ms = 3 seconds
-
-    // Cleanup function to clear the interval when the component unmounts or modelService changes
-    return () => clearInterval(intervalId);
-  }, [modelService]);
-
   useEffect(() => {
     if (modelService) {
       setOpacity('100%');

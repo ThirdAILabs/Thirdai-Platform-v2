@@ -339,27 +339,24 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
             )}
 
             {(modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={async () => {
+                  if (window.confirm('Are you sure you want to delete this workflow?')) {
+                    try {
+                      const response = await delete_workflow(
+                        workflow.username,
+                        workflow.model_name
+                      );
+                      console.log('Workflow deleted successfully:', response);
+                    } catch (error) {
+                      console.error('Error deleting workflow:', error);
+                      alert('Error deleting workflow:' + error);
+                    }
+                  }
+                }}
+              >
                 <form>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (window.confirm('Are you sure you want to delete this workflow?')) {
-                        try {
-                          const response = await delete_workflow(
-                            workflow.username,
-                            workflow.model_name
-                          );
-                          console.log('Workflow deleted successfully:', response);
-                        } catch (error) {
-                          console.error('Error deleting workflow:', error);
-                          alert('Error deleting workflow:' + error);
-                        }
-                      }
-                    }}
-                  >
-                    Delete App
-                  </button>
+                  <button type="button">Delete App</button>
                 </form>
               </DropdownMenuItem>
             )}
@@ -370,7 +367,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                   href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
                 >
                   <DropdownMenuItem>
-                    <button type="button">Search usage stats</button>
+                    <button type="button">Usage Dashboard</button>
                   </DropdownMenuItem>
                 </Link>
               )}
@@ -380,7 +377,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
               >
                 <DropdownMenuItem>
-                  <button type="button">NLP usage stats</button>
+                  <button type="button">Usage Dashboard</button>
                 </DropdownMenuItem>
               </Link>
             )}

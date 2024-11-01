@@ -263,8 +263,8 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="h-[calc(100vh-16rem)] overflow-hidden">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xl font-semibold">Recent Labels</CardTitle>
-            <CardDescription>The latest added labels</CardDescription>
+            <CardTitle className="text-xl font-semibold">Recent TAGs</CardTitle>
+            <CardDescription>List of active TAGs</CardDescription>
           </CardHeader>
           <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">
             {labelError && (
@@ -283,7 +283,7 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
 
         <Card className="h-[calc(100vh-16rem)] overflow-hidden">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xl font-semibold">Recent Samples</CardTitle>
+            <CardTitle className="text-xl font-semibold">Recent Samples from Users</CardTitle>
             <CardDescription>The latest inserted samples</CardDescription>
           </CardHeader>
           <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">

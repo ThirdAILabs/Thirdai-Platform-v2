@@ -193,10 +193,7 @@ export const TrainingResults: React.FC<TrainingResultsProps> = ({ report }) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Training Results Comparison</CardTitle>
-        <CardDescription>
-          Model performance metrics and example predictions before and after training
-        </CardDescription>
+        <CardTitle>Fine-tuning Metrics Comparison</CardTitle>
       </CardHeader>
       <CardContent className="space-y-8">
         <PerformanceSummary 

@@ -147,7 +147,7 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
       {/* Polled Data Section with Recent Samples */}
       <Card>
         <CardHeader>
-          <CardTitle>Update Model with Recent Data</CardTitle>
+          <CardTitle>Update Model with Recent User Feedback</CardTitle>
           <CardDescription>View and use recent labeled samples to update the model</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -183,7 +183,7 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
               color={pollingSuccess ? 'success' : 'primary'}
               fullWidth
             >
-              {isPollingUpdating ? 'Initiating Update...' : pollingSuccess ? 'Update Initiated!' : 'Update Model with Polled Data'}
+              {isPollingUpdating ? 'Initiating Update...' : pollingSuccess ? 'Update Initiated!' : 'Update Model with User Feedback'}
             </Button>
           </div>
         </CardContent>
@@ -191,11 +191,23 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
 
       {/* CSV Upload Section */}
       <Card>
-        <CardHeader>
-          <CardTitle>Update Model via CSV Upload</CardTitle>
-          <CardDescription>Upload a CSV file containing new feedback data to update the model</CardDescription>
-        </CardHeader>
-        <CardContent>
+          <CardHeader>
+            <CardTitle>Update Model with your own data</CardTitle>
+            <CardDescription>
+                Upload a CSV file with token-level annotations. Your CSV file should follow these requirements:<br/><br/>
+                • Two columns: 'source' and 'target'<br/>
+                • Source column: Contains full text<br/>
+                • Target column: Space-separated labels matching each word/token from source<br/>
+                • IMPORTANT: Number of tokens in source (split by space) MUST match number of labels in target<br/><br/>
+                Example (6 tokens each):<br/>
+                Source: "The borrower name is John Smith"<br/>
+                Target: "O O O O NAME NAME"<br/><br/>
+                Let's count tokens:<br/>
+                Source: The(1) borrower(2) name(3) is(4) John(5) Smith(6)<br/>
+                Target: O(1) O(2) O(3) O(4) NAME(5) NAME(6)<br/><br/>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
           <div className="space-y-4">
             <div 
               className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors"

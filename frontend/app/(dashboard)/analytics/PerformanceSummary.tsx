@@ -62,9 +62,9 @@ export const PerformanceSummary: React.FC<PerformanceSummaryProps> = ({ beforeMe
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[200px]">Label</TableHead>
-              <TableHead className="text-right">Before F1</TableHead>
-              <TableHead className="text-right">After F1</TableHead>
+              <TableHead className="w-[200px]">TAG</TableHead>
+              <TableHead className="text-right">F1 before fine-tuning</TableHead>
+              <TableHead className="text-right">F1 after fine-tuning</TableHead>
               <TableHead className="text-right">Change</TableHead>
             </TableRow>
           </TableHeader>

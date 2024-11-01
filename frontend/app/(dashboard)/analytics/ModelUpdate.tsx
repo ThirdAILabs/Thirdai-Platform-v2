@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Alert } from '@mui/material';
+import { 
+  TextField,
+  Typography,
+  Box,
+  Tooltip,
+  Button, 
+  Alert
+} from '@mui/material';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload } from 'lucide-react';
+import { Upload, HelpCircle } from 'lucide-react';
 import { retrainTokenClassifier, trainUDTWithCSV, getTrainReport } from '@/lib/backend';
 import RecentSamples from './samples';
 import { TrainingResults } from './MetricsChart';
@@ -19,6 +26,7 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
   const [isUploadUpdating, setIsUploadUpdating] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [newModelName, setNewModelName] = useState(``);
 
   // States for polling method
   const [isPollingUpdating, setIsPollingUpdating] = useState(false);
@@ -61,9 +69,20 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
     }
   };
 
+  const validateModelName = (name: string) => {
+    // Add naming validation rules here
+    const isValid = /^[a-zA-Z0-9-_]+$/.test(name);
+    const isNotEmpty = name.trim().length > 0;
+    return isValid && isNotEmpty;
+  };
+
   const handleUploadUpdate = async () => {
     if (!selectedFile) {
       setUploadError('Please select a CSV file first');
+      return;
+    }
+    if (!validateModelName(newModelName)) {
+      setUploadError('Please enter a valid model name (alphanumeric characters, hyphens, and underscores only)');
       return;
     }
   
@@ -73,7 +92,7 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
   
     try {
       const response = await trainUDTWithCSV({ 
-        model_name: `${modelName}-temp`,
+        model_name: newModelName,
         file: selectedFile,
         base_model_identifier: `${username}/${modelName}`,
         test_split: 0.1
@@ -209,6 +228,28 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
           </CardHeader>
           <CardContent>
           <div className="space-y-4">
+            <Box sx={{ mb: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <Typography variant="h6" component="h3" sx={{ mr: 1 }}>
+                  Name Your Updated Model
+                </Typography>
+                <Tooltip title="Use alphanumeric characters, hyphens, and underscores only. This will be the identifier for your updated model.">
+                  <HelpCircle size={20} />
+                </Tooltip>
+              </Box>
+              <TextField
+                fullWidth
+                id="model-name"
+                label="New Model Name"
+                variant="outlined"
+                value={newModelName}
+                onChange={(e) => setNewModelName(e.target.value)}
+                placeholder="Enter new model name"
+                helperText="Example: my-model-v2 or updated_model_123"
+                error={!!uploadError && uploadError.includes('model name')}
+                sx={{ mt: 1 }}
+              />
+            </Box>
             <div 
               className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors"
               onClick={() => document.getElementById('file-input')?.click()}

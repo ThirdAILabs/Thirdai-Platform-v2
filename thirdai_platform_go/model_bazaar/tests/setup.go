@@ -34,16 +34,11 @@ func setupTestEnv(t *testing.T) testEnv {
 		t.Fatal(err)
 	}
 
-	userRouter := routers.NewUserRouter(db)
-	_, err = userRouter.CreateUser(adminUsername, adminEmail, adminPassword, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	modelBazaar := routers.NewModelBazaar(db)
 
-	r := chi.NewRouter()
-	r.Mount("/user", userRouter.Routes())
+	modelBazaar.InitAdmin(adminUsername, adminEmail, adminPassword)
 
-	return testEnv{api: r}
+	return testEnv{api: modelBazaar.Routes()}
 }
 
 func (t *testEnv) newClient() client {

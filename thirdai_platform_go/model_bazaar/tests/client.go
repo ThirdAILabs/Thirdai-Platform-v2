@@ -27,6 +27,56 @@ func jsonError(err error) error {
 	return fmt.Errorf("json encode/decode error: %w", err)
 }
 
+func get[T any](c *client, endpoint string) (T, error) {
+	req := httptest.NewRequest("GET", endpoint, nil)
+	c.addAuthHeader(req)
+	w := httptest.NewRecorder()
+	c.api.ServeHTTP(w, req)
+
+	var data T
+
+	res := w.Result()
+	if res.StatusCode != http.StatusOK {
+		if res.StatusCode == http.StatusUnauthorized {
+			return data, ErrUnauthorized
+		}
+		return data, fmt.Errorf("get %v failed with status %d and res %v", endpoint, res.StatusCode, w.Body.String())
+	}
+
+	err := json.NewDecoder(res.Body).Decode(&data)
+	if err != nil {
+		return data, err
+	}
+
+	return data, nil
+}
+
+func post[T any](c *client, endpoint string, body []byte, parseRes bool) (T, error) {
+	req := httptest.NewRequest("POST", endpoint, bytes.NewReader(body))
+	c.addAuthHeader(req)
+	w := httptest.NewRecorder()
+	c.api.ServeHTTP(w, req)
+
+	var data T
+
+	res := w.Result()
+	if res.StatusCode != http.StatusOK {
+		if res.StatusCode == http.StatusUnauthorized {
+			return data, ErrUnauthorized
+		}
+		return data, fmt.Errorf("post %v failed with status %d and res %v", endpoint, res.StatusCode, w.Body.String())
+	}
+
+	if parseRes {
+		err := json.NewDecoder(res.Body).Decode(&data)
+		if err != nil {
+			return data, err
+		}
+	}
+
+	return data, nil
+}
+
 func (c *client) addAuthHeader(r *http.Request) {
 	r.Header.Add("Authorization", fmt.Sprintf("Bearer %v", c.token))
 }
@@ -41,19 +91,9 @@ func (c *client) signup(username, email, password string) (loginInfo, error) {
 		return loginInfo{}, jsonError(err)
 	}
 
-	req := httptest.NewRequest("POST", "/user/signup", bytes.NewReader(body))
-	w := httptest.NewRecorder()
-	c.api.ServeHTTP(w, req)
-
-	res := w.Result()
-	if res.StatusCode != http.StatusOK {
-		return loginInfo{}, fmt.Errorf("singup failed")
-	}
-
-	var data map[string]string
-	err = json.NewDecoder(res.Body).Decode(&data)
+	_, err = post[map[string]string](c, "/user/signup", body, true)
 	if err != nil {
-		return loginInfo{}, jsonError(err)
+		return loginInfo{}, err
 	}
 
 	return loginInfo{Email: email, Password: password}, nil
@@ -65,19 +105,9 @@ func (c *client) login(login loginInfo) error {
 		return jsonError(err)
 	}
 
-	req := httptest.NewRequest("POST", "/user/login", bytes.NewReader(body))
-	w := httptest.NewRecorder()
-	c.api.ServeHTTP(w, req)
-
-	res := w.Result()
-	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("login failed")
-	}
-
-	var data map[string]string
-	err = json.NewDecoder(res.Body).Decode(&data)
+	data, err := post[map[string]string](c, "/user/login", body, true)
 	if err != nil {
-		return jsonError(err)
+		return err
 	}
 
 	c.token = data["access_token"]
@@ -88,82 +118,23 @@ func (c *client) login(login loginInfo) error {
 
 func (c *client) promoteAdmin(userId string) error {
 	body := []byte(fmt.Sprintf(`{"user_id": "%v"}`, userId))
-	req := httptest.NewRequest("POST", "/user/promote-admin", bytes.NewReader(body))
-	c.addAuthHeader(req)
-	w := httptest.NewRecorder()
-	c.api.ServeHTTP(w, req)
 
-	res := w.Result()
-	if res.StatusCode != http.StatusOK {
-		if res.StatusCode == http.StatusUnauthorized {
-			return ErrUnauthorized
-		}
-		return fmt.Errorf("promote admin failed")
-	}
-
-	return nil
+	_, err := post[int](c, "/user/promote-admin", body, false)
+	return err
 }
 
 func (c *client) demoteAdmin(userId string) error {
 	body := []byte(fmt.Sprintf(`{"user_id": "%v"}`, userId))
-	req := httptest.NewRequest("POST", "/user/demote-admin", bytes.NewReader(body))
-	c.addAuthHeader(req)
-	w := httptest.NewRecorder()
-	c.api.ServeHTTP(w, req)
 
-	res := w.Result()
-	if res.StatusCode != http.StatusOK {
-		if res.StatusCode == http.StatusUnauthorized {
-			return ErrUnauthorized
-		}
-		return fmt.Errorf("demote admin failed: %v", w.Body.String())
-	}
-
-	return nil
+	_, err := post[int](c, "/user/demote-admin", body, false)
+	return err
 }
 
 func (c *client) listUsers() ([]routers.UserInfo, error) {
-	req := httptest.NewRequest("GET", "/user/list", nil)
-	c.addAuthHeader(req)
-	w := httptest.NewRecorder()
-	c.api.ServeHTTP(w, req)
-
-	res := w.Result()
-	if res.StatusCode != http.StatusOK {
-		if res.StatusCode == http.StatusUnauthorized {
-			return nil, ErrUnauthorized
-		}
-		return nil, fmt.Errorf("list users failed")
-	}
-
-	var data []routers.UserInfo
-	err := json.NewDecoder(res.Body).Decode(&data)
-	if err != nil {
-		return nil, jsonError(err)
-	}
-
-	return data, nil
+	return get[[]routers.UserInfo](c, "/user/list")
 }
 
 func (c *client) userInfo() (routers.UserInfo, error) {
-	req := httptest.NewRequest("GET", "/user/info", nil)
-	c.addAuthHeader(req)
-	w := httptest.NewRecorder()
-	c.api.ServeHTTP(w, req)
+	return get[routers.UserInfo](c, "/user/info")
 
-	res := w.Result()
-	if res.StatusCode != http.StatusOK {
-		if res.StatusCode == http.StatusUnauthorized {
-			return routers.UserInfo{}, ErrUnauthorized
-		}
-		return routers.UserInfo{}, fmt.Errorf("get user info failed %v", w.Body.String())
-	}
-
-	var data routers.UserInfo
-	err := json.NewDecoder(res.Body).Decode(&data)
-	if err != nil {
-		return routers.UserInfo{}, jsonError(err)
-	}
-
-	return data, nil
 }

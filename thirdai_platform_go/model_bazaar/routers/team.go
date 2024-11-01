@@ -63,10 +63,6 @@ func (t *TeamRouter) Routes() chi.Router {
 	return r
 }
 
-type createTeamResponse struct {
-	TeamId string `json:"team_id"`
-}
-
 func (t *TeamRouter) CreateTeam(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 	if !params.Has("name") {
@@ -100,8 +96,7 @@ func (t *TeamRouter) CreateTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res := createTeamResponse{TeamId: newTeam.Id}
-	writeJsonResponse(w, res)
+	writeJsonResponse(w, map[string]string{"team_id": newTeam.Id})
 }
 
 func (t *TeamRouter) DeleteTeam(w http.ResponseWriter, r *http.Request) {

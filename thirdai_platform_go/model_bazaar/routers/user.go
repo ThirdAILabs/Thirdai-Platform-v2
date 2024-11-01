@@ -17,10 +17,6 @@ type UserRouter struct {
 	userAuth *auth.JwtManager
 }
 
-func NewUserRouter(db *gorm.DB) UserRouter {
-	return UserRouter{db: db, userAuth: auth.NewJwtManager()}
-}
-
 func (u *UserRouter) Routes() chi.Router {
 	r := chi.NewRouter()
 

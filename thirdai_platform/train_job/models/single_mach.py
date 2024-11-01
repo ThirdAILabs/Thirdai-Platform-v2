@@ -30,7 +30,6 @@ class SingleMach(NDBModel):
         unsupervised_docs = [
             parse_doc(file, self.data_dir / "unsupervised") for file in files
         ]
-        unsupervised_docs = [doc for doc in unsupervised_docs if doc is not None]
         self.logger.info(f"Processed {len(unsupervised_docs)} unsupervised documents.")
 
         db.insert(

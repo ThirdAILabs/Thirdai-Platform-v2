@@ -1,5 +1,6 @@
 import logging
 import os
+import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from functools import wraps
@@ -10,7 +11,6 @@ from botocore import UNSIGNED
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from fastapi import HTTPException, UploadFile, status
-import uuid
 
 from .pydantic_models.training import FileInfo, FileLocation
 

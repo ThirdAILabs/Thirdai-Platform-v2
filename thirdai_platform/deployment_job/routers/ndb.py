@@ -1,4 +1,5 @@
 import io
+import threading
 import traceback
 import uuid
 from logging import Logger
@@ -24,7 +25,7 @@ from deployment_job.pydantic_models.inputs import (
 )
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
-from deployment_job.utils import propagate_error, validate_name
+from deployment_job.utils import now, propagate_error, validate_name
 from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
@@ -96,6 +97,12 @@ class NDBRouter:
         self.router.add_api_route(
             "/get-signed-url", self.get_signed_url, methods=["GET"]
         )
+
+        self.task_queue = Queue()
+        self.tasks = {}
+        self.task_lock = threading.Lock()
+
+        threading.Thread(target=self.process_tasks, daemon=True).start()
 
     @staticmethod
     def get_model(config: DeploymentConfig, logger: Logger) -> NDBModel:
@@ -174,6 +181,7 @@ class NDBRouter:
         self,
         documents: str = Form(...),
         files: List[UploadFile] = [],
+        sync: bool = False,
         token: str = Depends(Permissions.verify_permission("write")),
     ):
         """
@@ -247,6 +255,24 @@ class NDBRouter:
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Insert logged successfully.",
             )
+        elif not sync:
+            task_id = str(uuid.uuid4())
+            with self.task_lock:
+                self.task_queue.put(task_id)
+                self.tasks[task_id] = {
+                    "status": "not_started",
+                    "action": "insert",
+                    "last_modified": now(),
+                    "data": {"documents": documents},
+                    "message": "",
+                }
+
+            self.logger.info("Document insertion queued")
+            return response(
+                status_code=status.HTTP_202_ACCEPTED,
+                message=f"Files received, insertion will start soon.",
+                data={"task_id": task_id},
+            )
         else:
             self.model.insert(documents=documents)
             self.logger.info("Document insertion applied successfully")
@@ -260,6 +286,7 @@ class NDBRouter:
     def delete(
         self,
         input: DeleteInput,
+        sync: bool = False,
         token: str = Depends(Permissions.verify_permission("write")),
     ):
         """
@@ -287,6 +314,23 @@ class NDBRouter:
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Delete logged successfully.",
             )
+        elif not sync:
+            task_id = str(uuid.uuid4())
+            with self.task_lock:
+                self.task_queue.put(task_id)
+                self.tasks[task_id] = {
+                    "status": "not_started",
+                    "action": "delete",
+                    "last_modified": now(),
+                    "data": {"doc_ids": input.source_ids},
+                    "message": "",
+                }
+            self.logger.info("Deletion queued")
+            return response(
+                status_code=status.HTTP_202_ACCEPTED,
+                message=f"Source ids received, deletion will start soon.",
+                data={"task_id": task_id},
+            )
         else:
             if len(input.source_ids) > 5:
                 return response(
@@ -294,7 +338,7 @@ class NDBRouter:
                     message=f"Number of deletions exceeds the maximum {input.source_ids} that can be processed synchronously in an active deployment.",
                 )
             self.model.delete(input.source_ids)
-
+            self.logger.info("Deletion applied successfully")
             return response(
                 status_code=status.HTTP_200_OK,
                 message="Delete applied successfully.",
@@ -729,3 +773,38 @@ class NDBRouter:
             message=f"Reference with id ${reference_id} is not a PDF.",
             data={},
         )
+
+    def process_tasks(self):
+        while True:
+            task_id = self.task_queue.get()
+            try:
+                with self.task_lock:
+                    action = self.tasks[task_id]["action"]
+                    data = self.tasks[task_id]["data"]
+                    self.tasks[task_id]["status"] = "in_progress"
+                    self.tasks[task_id]["last_modified"] = now()
+                if action == "insert":
+                    documents = data["documents"]
+                    self.model.insert(documents=documents)
+                    with self.task_lock:
+                        self.tasks[task_id]["status"] = "complete"
+                        self.tasks[task_id]["last_modified"] = now()
+                elif action == "delete":
+                    doc_ids = data["doc_ids"]
+                    self.model.delete(doc_ids)
+                    with self.task_lock:
+                        self.tasks[task_id]["status"] = "complete"
+                        self.tasks[task_id]["last_modified"] = now()
+
+            except Exception as e:
+                with self.task_lock:
+                    self.tasks[task_id]["status"] = "failed"
+                    self.tasks[task_id]["message"] = str(traceback.format_exc())
+                    self.tasks[task_id]["last_modified"] = now()
+                    logging.error(
+                        f"Task {task_id} with data {self.tasks[task_id]} failed: {str(traceback.format_exc())}"
+                    )
+
+            finally:
+                with self.task_lock:
+                    self.task_queue.task_done()

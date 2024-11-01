@@ -68,7 +68,7 @@ class ClassificationModel(Model):
         check_local_nfs_only(test_files)
         test_files = [file.path for file in test_files]
 
-        test_split = self.config.model_options.train_options.test_split
+        test_split = self.train_options.test_split
         if len(test_files) == 0 and test_split and test_split > 0:
             new_train_files = []
             new_test_files = []
@@ -440,8 +440,7 @@ class TokenClassificationModel(ClassificationModel):
         false_positive_samples = defaultdict(list)
         false_negative_samples = defaultdict(list)
 
-        source_col = self.config.model_options.udt_options.source_column
-        target_col = self.config.model_options.udt_options.target_column
+        source_col, target_col = model.source_target_columns()
 
         for file in test_files:
             df = pd.read_csv(file)

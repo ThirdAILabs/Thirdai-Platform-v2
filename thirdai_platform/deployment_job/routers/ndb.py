@@ -222,10 +222,16 @@ class NDBRouter:
             )
 
         total_filesize = sum(file.size or 0 for file in files)
-        if total_filesize > 10 * 1024 * 1024:
+
+        if self.config.autoscaling_enabled:
+            max_filesize_mb = 200
+        else:
+            max_filesize_mb = 50
+
+        if total_filesize > (max_filesize_mb * 1024 * 1024):
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Size of uploaded files exceeds maximum of 10Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size.",
+                message=f"Size of uploaded files exceeds maximum of {max_filesize_mb}Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size.",
             )
 
         documents = download_local_files(

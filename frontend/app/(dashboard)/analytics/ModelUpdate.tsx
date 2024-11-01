@@ -5,6 +5,7 @@ import { Upload } from 'lucide-react';
 import { retrainTokenClassifier, trainUDTWithCSV, getTrainReport } from '@/lib/backend';
 import RecentSamples from './samples';
 import { TrainingResults } from './MetricsChart';
+import { mockTrainReport } from './mockTrainingData';  // Import mock data
 import type { TrainReportResponse } from '@/lib/backend';
 
 interface ModelUpdateProps {
@@ -30,14 +31,19 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
   const [isLoadingReport, setIsLoadingReport] = useState(true);
   const [reportError, setReportError] = useState('');
 
-  // Fetch initial training report
+  // Fetch initial training report - Using mock data for now
   useEffect(() => {
     const fetchInitialReport = async () => {
       try {
         setIsLoadingReport(true);
         setReportError('');
-        const report = await getTrainReport(`${username}/${modelName}`);
-        setTrainReport(report);
+        
+        // For development/testing, use mock data
+        setTrainReport(mockTrainReport);
+        
+        // When ready to use real API, uncomment this:
+        // const report = await getTrainReport(`${username}/${modelName}`);
+        // setTrainReport(report);
       } catch (error) {
         setReportError(error instanceof Error ? error.message : 'Failed to fetch training report');
       } finally {

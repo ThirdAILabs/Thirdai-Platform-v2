@@ -7,10 +7,11 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
+  TooltipFormatter
 } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { LabelMetrics, TrainReportResponse } from '@/lib/backend';
+import type { LabelMetrics, TrainReportResponse, TrainingExample } from '@/lib/backend';
 
 interface MetricsChartProps {
   beforeMetrics: LabelMetrics;
@@ -24,15 +25,32 @@ const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics
       ...Object.keys(afterMetrics)
     ]);
 
-    return Array.from(allLabels).map(label => ({
-      label,
-      'Before P': beforeMetrics[label]?.precision * 100 || 0,
-      'After P': afterMetrics[label]?.precision * 100 || 0,
-      'Before R': beforeMetrics[label]?.recall * 100 || 0,
-      'After R': afterMetrics[label]?.recall * 100 || 0,
-      'Before F1': beforeMetrics[label]?.fmeasure * 100 || 0,
-      'After F1': afterMetrics[label]?.fmeasure * 100 || 0,
-    }));
+    return Array.from(allLabels).map(label => {
+      // Handle potential NaN or undefined values
+      const beforeP = beforeMetrics[label]?.precision || 0;
+      const afterP = afterMetrics[label]?.precision || 0;
+      const beforeR = beforeMetrics[label]?.recall || 0;
+      const afterR = afterMetrics[label]?.recall || 0;
+      const beforeF1 = beforeMetrics[label]?.fmeasure || 0;
+      const afterF1 = afterMetrics[label]?.fmeasure || 0;
+
+      return {
+        label,
+        'Before Precision': Number.isFinite(beforeP) ? beforeP * 100 : 0,
+        'After Precision': Number.isFinite(afterP) ? afterP * 100 : 0,
+        'Before Recall': Number.isFinite(beforeR) ? beforeR * 100 : 0,
+        'After Recall': Number.isFinite(afterR) ? afterR * 100 : 0,
+        'Before F1': Number.isFinite(beforeF1) ? beforeF1 * 100 : 0,
+        'After F1': Number.isFinite(afterF1) ? afterF1 * 100 : 0,
+      };
+    });
+  };
+
+  const formatTooltip: TooltipFormatter = (value: string | number | Array<string | number>, name: string) => {
+    if (typeof value === 'number') {
+      return [`${value.toFixed(1)}%`, name];
+    }
+    return [value, name];
   };
 
   return (
@@ -43,19 +61,46 @@ const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics
       >
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="label" />
-        <YAxis label={{ value: 'Score (%)', angle: -90, position: 'insideLeft' }} />
-        <Tooltip />
+        <YAxis
+          label={{ value: 'Score (%)', angle: -90, position: 'insideLeft' }}
+          domain={[0, 100]}
+        />
+        <Tooltip formatter={formatTooltip} />
         <Legend />
-        <Bar dataKey="Before P" fill="#8884d8" name="Precision (Before)" />
-        <Bar dataKey="After P" fill="#82ca9d" name="Precision (After)" />
-        <Bar dataKey="Before R" fill="#ffc658" name="Recall (Before)" />
-        <Bar dataKey="After R" fill="#ff7300" name="Recall (After)" />
-        <Bar dataKey="Before F1" fill="#a4de6c" name="F1 (Before)" />
-        <Bar dataKey="After F1" fill="#de6ca4" name="F1 (After)" />
+        <Bar dataKey="Before Precision" fill="#8884d8" />
+        <Bar dataKey="After Precision" fill="#82ca9d" />
+        <Bar dataKey="Before Recall" fill="#ffc658" />
+        <Bar dataKey="After Recall" fill="#ff7300" />
+        <Bar dataKey="Before F1" fill="#a4de6c" />
+        <Bar dataKey="After F1" fill="#de6ca4" />
       </BarChart>
     </ResponsiveContainer>
   );
 };
+
+interface ExampleSectionProps {
+  title: string;
+  examples: TrainingExample[];
+  bgColor?: string;
+}
+
+const ExampleSection: React.FC<ExampleSectionProps> = ({ title, examples, bgColor = 'bg-gray-50' }) => (
+  <div className="space-y-2">
+    <h4 className="font-medium">{title}</h4>
+    <div className="space-y-1">
+      {examples.slice(0, 2).map((example, idx) => (
+        <div key={idx} className={`text-sm p-3 ${bgColor} rounded-lg`}>
+          <div className="text-gray-700">
+            <span className="font-medium">Input:</span> {example.source}
+          </div>
+          <div className="text-gray-700">
+            <span className="font-medium">Prediction:</span> {example.target}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 interface TrainingResultsProps {
   report: TrainReportResponse;
@@ -67,7 +112,7 @@ export const TrainingResults: React.FC<TrainingResultsProps> = ({ report }) => {
       <CardHeader>
         <CardTitle>Training Results Comparison</CardTitle>
         <CardDescription>
-          Compare model performance metrics before and after training
+          Model performance metrics and example predictions before and after training
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -76,22 +121,30 @@ export const TrainingResults: React.FC<TrainingResultsProps> = ({ report }) => {
           afterMetrics={report.after_train_metrics}
         />
         
-        {/* Examples Section */}
-        <div className="mt-6 space-y-4">
-          <h3 className="text-lg font-semibold">Example Predictions</h3>
+        <div className="mt-8 space-y-6">
+          <h3 className="text-xl font-semibold">Example Predictions</h3>
           
           {Object.entries(report.after_train_examples.true_positives).map(([label, examples]) => (
-            <div key={label} className="space-y-2">
-              <h4 className="font-medium">{label} - True Positives</h4>
-              <div className="space-y-1">
-                {examples.slice(0, 3).map((example, idx) => (
-                  <div key={idx} className="text-sm p-2 bg-gray-50 rounded">
-                    <div className="text-gray-700">Input: {example.source}</div>
-                    <div className="text-gray-700">Prediction: {example.target}</div>
-                  </div>
-                ))}
+            <Card key={label} className="p-4">
+              <h3 className="text-lg font-semibold mb-4">{label}</h3>
+              <div className="space-y-4">
+                <ExampleSection
+                  title="True Positives"
+                  examples={examples}
+                  bgColor="bg-green-50"
+                />
+                <ExampleSection
+                  title="False Positives"
+                  examples={report.after_train_examples.false_positives[label] || []}
+                  bgColor="bg-red-50"
+                />
+                <ExampleSection
+                  title="False Negatives"
+                  examples={report.after_train_examples.false_negatives[label] || []}
+                  bgColor="bg-yellow-50"
+                />
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       </CardContent>

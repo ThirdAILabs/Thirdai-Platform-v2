@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import uuid
@@ -71,7 +72,10 @@ def convert_to_ndb_doc(
             doc_id=doc_id,
         )
     else:
-        raise TypeError(f"{ext} Document type isn't supported yet.")
+        logging.warning(
+            f"{ext} Document type isn't supported yet. Skipping file {resource_path}."
+        )
+        return None
 
 
 def preload_chunks(
@@ -88,6 +92,8 @@ def preload_chunks(
         metadata=metadata,
         options=options,
     )
+    if doc is None:
+        return None
     return ndbv2.documents.PrebatchedDoc(list(doc.chunks()), doc_id=doc.doc_id())
 
 

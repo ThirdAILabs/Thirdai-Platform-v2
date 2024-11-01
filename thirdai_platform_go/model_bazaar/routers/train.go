@@ -28,82 +28,6 @@ type TrainRouter struct {
 	license licensing.LicenseVerifier
 }
 
-func parseMultipartRequest(r *http.Request, saveDir string, storage storage.Storage) (map[string][]byte, map[string]string, error) {
-	contentType := r.Header.Get("Content-Type")
-	if contentType == "" {
-		return nil, nil, fmt.Errorf("missing 'Content-Type' header")
-	}
-	mediaType, params, err := mime.ParseMediaType(contentType)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error parsing media type in request: %v", err)
-	}
-	if mediaType != "multipart/form-data" {
-		return nil, nil, fmt.Errorf("expected media type to be 'multipart/form-data'")
-	}
-
-	boundary, ok := params["boundary"]
-	if !ok {
-		return nil, nil, fmt.Errorf("missing 'boundary' parameter in 'Content-Type' header")
-	}
-
-	reader := multipart.NewReader(r.Body, boundary)
-
-	forms := make(map[string][]byte)
-	files := make(map[string]string)
-
-	for {
-		part, err := reader.NextPart()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, nil, fmt.Errorf("error parsing multipart request: %v", err)
-		}
-		defer part.Close()
-
-		if part.FormName() == "files" {
-			newFilepath := filepath.Join(saveDir, part.FileName())
-			err := storage.Write(newFilepath, part)
-			if err != nil {
-				return nil, nil, fmt.Errorf("error saving file '%v': %v", part.FileName(), err)
-			}
-			files[part.FileName()] = newFilepath
-		} else {
-			data, err := io.ReadAll(part)
-			if err != nil {
-				return nil, nil, fmt.Errorf("error reading part '%v': %v", part.FormName(), err)
-			}
-			forms[part.FormName()] = data
-		}
-	}
-
-	return forms, files, nil
-}
-
-func updatePaths(files []config.FileInfo, requestFiles map[string]string) ([]config.FileInfo, error) {
-	output := make([]config.FileInfo, 0, len(files))
-
-	for _, file := range files {
-		if file.Location == config.FileLocLocal {
-			newPath, ok := requestFiles[file.Path]
-			if !ok {
-				return nil, fmt.Errorf("file %v is not found in request files", file.Path)
-			}
-			output = append(output, config.FileInfo{
-				Path:     newPath,
-				Location: file.Location,
-				DocId:    file.DocId,
-				Options:  file.Options,
-				Metadata: file.Metadata,
-			})
-		} else {
-			output = append(output, file)
-		}
-	}
-
-	return output, nil
-}
-
 type ndbTrainOptions struct {
 	ModelName    string             `json:"model_name"`
 	BaseModelId  *string            `json:"base_model_id"`
@@ -119,28 +43,12 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	modelId := uuid.New().String()
-
-	formData, files, err := parseMultipartRequest(
-		r, filepath.Join(storage.DataPath(modelId), "train"), t.storage,
-	)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	optionsData, ok := formData["options"]
-	if !ok {
-		http.Error(w, fmt.Sprintf("missing options in train request"), http.StatusBadRequest)
-		return
-	}
-
 	var options ndbTrainOptions
-	err = json.Unmarshal(optionsData, &options)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error parsing train options: %v", err), http.StatusBadRequest)
+	if !parseRequestBody(w, r, &options) {
 		return
 	}
+
+	modelId := uuid.New().String()
 
 	if options.ModelOptions == nil {
 		// TODO(Nicholas): set default options
@@ -153,29 +61,8 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 
 	options.JobOptions.EnsureValid()
 
-	unsup, err := updatePaths(options.Data.UnsupervisedFiles, files)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	options.Data.UnsupervisedFiles = unsup
-
-	sup, err := updatePaths(options.Data.SupervisedFiles, files)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	options.Data.SupervisedFiles = sup
-
-	test, err := updatePaths(options.Data.TestFiles, files)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	options.Data.TestFiles = test
-
 	// TODO(Nicholas): Get total cpu usage
-	license, err := t.license.Verify(0)
+	license, err := t.verifyLicenseForTraining(options.JobOptions.CpuUsageMhz())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -183,7 +70,7 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 
 	trainConfig := config.TrainConfig{
 		ModelBazaarDir:      t.storage.Location(),
-		LicenseKey:          license.BoltLicenseKey,
+		LicenseKey:          license,
 		ModelBazaarEndpoint: "TODO(Nicholas)",
 		ModelId:             modelId,
 		BaseModelId:         options.BaseModelId,
@@ -193,53 +80,84 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 		IsRetraining:        false,
 	}
 
+	subtype, err := options.ModelOptions.SubType()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = t.createModelAndStartTraining(options.ModelName, schema.NdbType, subtype, userId, trainConfig)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	writeJsonResponse(w, map[string]string{"model_id": modelId})
+}
+
+func (t *TrainRouter) verifyLicenseForTraining(jobCpuUsage int) (string, error) {
+	currentCpuUsage, err := t.nomad.TotalCpuUsage()
+	if err != nil {
+		return "", err
+	}
+
+	license, err := t.license.Verify(currentCpuUsage + jobCpuUsage)
+	if err != nil {
+		return "", err
+	}
+
+	return license.BoltLicenseKey, nil
+}
+
+func (t *TrainRouter) createModelAndStartTraining(
+	modelName, modelType, modelSubtype, userId string, trainConfig config.TrainConfig,
+) error {
 	trainConfigData, err := json.Marshal(trainConfig)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error saving train config: %v", err), http.StatusBadRequest)
-		return
+		return fmt.Errorf("error encoding train config: %w", err)
 	}
 
-	configPath := filepath.Join(storage.ModelPath(modelId), "train_config.json")
+	configPath := filepath.Join(storage.ModelPath(trainConfig.ModelId), "train_config.json")
 	err = t.storage.Write(configPath, bytes.NewReader(trainConfigData))
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error saving train config: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	subtype, ok := options.ModelOptions.NdbOptions["ndb_subtype"]
-	if !ok {
-		http.Error(w, fmt.Sprintf("invalid/missing ndb subtype"), http.StatusBadRequest)
-		return
+		return fmt.Errorf("error saving train config: %w", err)
 	}
 
 	model := schema.Model{
-		Id:                modelId,
-		Name:              options.ModelName,
-		Type:              schema.NdbType,
-		Subtype:           subtype.(string), // TODO(Nicholas) : check cast
+		Id:                trainConfig.ModelId,
+		Name:              modelName,
+		Type:              modelType,
+		Subtype:           modelSubtype,
 		PublishedDate:     time.Now(),
 		TrainStatus:       schema.NotStarted,
 		DeployStatus:      schema.NotStarted,
 		Access:            schema.Private,
 		DefaultPermission: schema.ReadPerm,
-		ParentId:          options.BaseModelId,
+		BaseModelId:       trainConfig.BaseModelId,
 		UserId:            userId,
 	}
 
 	err = t.db.Transaction(func(db *gorm.DB) error {
-		if options.BaseModelId != nil {
-			exists, err := schema.ModelExists(db, *options.BaseModelId)
+		if model.BaseModelId != nil {
+			exists, err := schema.ModelExists(db, *model.BaseModelId)
 			if err != nil {
 				return err
 			}
 			if !exists {
-				return fmt.Errorf("base model %v does not exist", *options.BaseModelId)
+				return fmt.Errorf("base model %v does not exist", *model.BaseModelId)
 			}
 		}
 
-		//TODO(Nicholas): check for duplicate model name for user
+		var duplicateModel schema.Model
+		result := db.Find(&duplicateModel, "user_id = ? AND name = ?", userId, model.Name)
+		if result.Error != nil {
+			return fmt.Errorf("database error: %w", result.Error)
+		}
+		if result.RowsAffected != 0 {
+			return fmt.Errorf("a model with name %v already exists", model.Name)
+		}
 
-		result := db.Create(&model)
+		result = db.Create(&model)
 		if result.Error != nil {
 			return fmt.Errorf("database error: %v", result.Error)
 		}
@@ -248,8 +166,7 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return fmt.Errorf("error creating entry for new model: %w", err)
 	}
 
 	err = t.nomad.StartJob(
@@ -262,25 +179,83 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 			PlatformType: "TODO(Nicholas)",
 			Platform:     nomad.DockerPlatform{}, // TODO(Nicholas)
 			Resources: nomad.Resource{
-				AllocationMhz:       options.JobOptions.CpuUsageMhz(),
-				AllocationMemory:    options.JobOptions.AllocationMemory,
+				AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
+				AllocationMemory:    trainConfig.JobOptions.AllocationMemory,
 				AllocationMemoryMax: 60000,
 			},
 		},
 	)
-
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to start training job: %v", err), http.StatusBadRequest)
-		return
+		return fmt.Errorf("failed to start training job: %w", err)
 	}
 
 	model.TrainStatus = schema.Starting
 
+	// TODO(Nicholas): prevent users from deleting base model until training is complete
 	result := t.db.Save(&model)
 	if result.Error != nil {
-		dbError(w, result.Error)
+		return fmt.Errorf("database error: %w", result.Error)
+	}
+
+	return nil
+}
+
+func getMultipartBoundary(r *http.Request) (string, error) {
+	contentType := r.Header.Get("Content-Type")
+	if contentType == "" {
+		return "", fmt.Errorf("missing 'Content-Type' header")
+	}
+	mediaType, params, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return "", fmt.Errorf("error parsing media type in request: %w", err)
+	}
+	if mediaType != "multipart/form-data" {
+		return "", fmt.Errorf("expected media type to be 'multipart/form-data'")
+	}
+
+	boundary, ok := params["boundary"]
+	if !ok {
+		return "", fmt.Errorf("missing 'boundary' parameter in 'Content-Type' header")
+	}
+
+	return boundary, nil
+}
+
+func (t *TrainRouter) UploadFiles(w http.ResponseWriter, r *http.Request) {
+	boundary, err := getMultipartBoundary(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	writeJsonResponse(w, map[string]string{"model_id": modelId})
+	reader := multipart.NewReader(r.Body, boundary)
+
+	artifactDir := storage.DataPath(uuid.New().String())
+
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			http.Error(w, fmt.Sprintf("error parsing multipart request: %v", err), http.StatusBadRequest)
+			return
+		}
+		defer part.Close()
+
+		if part.FormName() == "files" {
+			if part.FileName() == "" {
+				http.Error(w, fmt.Sprintf("invalid filename detected in upload files"), http.StatusBadRequest)
+				return
+			}
+			newFilepath := filepath.Join(artifactDir, part.FileName())
+			err := t.storage.Write(newFilepath, part)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("error saving file '%v': %v", part.FileName(), err), http.StatusBadRequest)
+				return
+			}
+		}
+	}
+
+	writeJsonResponse(w, map[string]string{"artifact_path": artifactDir})
 }

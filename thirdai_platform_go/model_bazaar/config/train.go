@@ -1,5 +1,10 @@
 package config
 
+import (
+	"fmt"
+	"thirdai_platform/model_bazaar/schema"
+)
+
 const (
 	ModelTypeNdb              = "ndb"
 	ModelTypeUdt              = "udt"
@@ -14,7 +19,6 @@ const (
 
 const (
 	FileLocLocal = "local"
-	FileLocNfs   = "nfs"
 	FileLocS3    = "s3"
 )
 
@@ -29,6 +33,21 @@ type FileInfo struct {
 type NdbOptions struct {
 	ModelType  string                 `json:"model_type"`
 	NdbOptions map[string]interface{} `json:"ndb_options"`
+}
+
+func (o *NdbOptions) SubType() (string, error) {
+	subtype, ok := o.NdbOptions["ndb_subtype"]
+	if !ok {
+		return schema.NdbV2Subtype, nil
+	}
+	subtypeStr, ok := subtype.(string)
+	if !ok {
+		return "", fmt.Errorf("field 'ndb_subtype' must be a string")
+	}
+	if subtypeStr != schema.NdbV1Subtype && subtypeStr != schema.NdbV2Subtype {
+		return "", fmt.Errorf("invalid 'ndb_subtype' %v, must be 'v1' or 'v2'", subtypeStr)
+	}
+	return subtypeStr, nil
 }
 
 type NDBData struct {

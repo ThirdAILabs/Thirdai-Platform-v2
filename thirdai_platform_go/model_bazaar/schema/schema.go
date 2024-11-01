@@ -19,8 +19,8 @@ type Model struct {
 	Attributes   []ModelAttribute  `gorm:"constraint:OnDelete:CASCADE;"`
 	Dependencies []ModelDependency `gorm:"foreignKey:ModelId;constraint:OnDelete:CASCADE;"`
 
-	ParentId *string
-	Parent   *Model `gorm:"constraint:OnDelete:SET NULL;"`
+	BaseModelId *string
+	BaseModel   *Model `gorm:"constraint:OnDelete:SET NULL;"`
 
 	UserId string
 	User   *User

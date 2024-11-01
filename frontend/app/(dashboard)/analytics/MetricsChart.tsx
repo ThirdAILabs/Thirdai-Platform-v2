@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { LabelMetrics, TrainReportData, TrainingExample } from '@/lib/backend';
 import { ExamplesVisualizer } from './ExamplesVisualizer'
+import {PerformanceSummary} from './PerformanceSummary'
 
 interface MetricsChartProps {
   beforeMetrics: LabelMetrics;
@@ -221,7 +222,12 @@ export const TrainingResults: React.FC<TrainingResultsProps> = ({ report }) => {
           Model performance metrics and example predictions before and after training
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-8">
+        <PerformanceSummary 
+          beforeMetrics={report.before_train_metrics}
+          afterMetrics={report.after_train_metrics}
+        />
+
         <MetricsChart
           beforeMetrics={report.before_train_metrics}
           afterMetrics={report.after_train_metrics}

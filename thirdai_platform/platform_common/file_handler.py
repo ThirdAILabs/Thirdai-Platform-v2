@@ -10,17 +10,19 @@ from botocore import UNSIGNED
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from fastapi import HTTPException, UploadFile, status
+import uuid
 
 from .pydantic_models.training import FileInfo, FileLocation
 
 
 def download_local_file(file_info: FileInfo, upload_file: UploadFile, dest_dir: str):
     assert os.path.basename(file_info.path) == upload_file.filename
-    destination_path = os.path.join(dest_dir, upload_file.filename)
+    destination_path = os.path.join(dest_dir, str(uuid.uuid4()), upload_file.filename)
     os.makedirs(os.path.dirname(destination_path), exist_ok=True)
-    with open(destination_path, "wb") as f:
-        f.write(upload_file.file.read())
+    content = upload_file.file.read()
     upload_file.file.close()
+    with open(destination_path, "wb") as f:
+        f.write(content)
     return destination_path
 
 

@@ -917,6 +917,10 @@ def train_udt(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
         )
+    
+    if base_model:
+        copy_data_storage(base_model, new_model)
+        remove_unused_samples(base_model)
 
     work_dir = os.getcwd()
 

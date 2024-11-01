@@ -8,6 +8,7 @@ from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import math
 from logging import Logger
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -537,9 +538,9 @@ class TokenClassificationModel(ClassificationModel):
             fmeasure = 2 * precision * recall / (precision + recall)
 
             metric_summary[tag] = {
-                "precision": precision,
-                "recall": recall,
-                "fmeasure": fmeasure,
+                "precision": "NaN" if math.isnan(precision) else round(precision, 3),
+                "recall": "NaN" if math.isnan(recall) else round(recall, 3),
+                "fmeasure": "NaN" if math.isnan(fmeasure) else round(fmeasure, 3),
             }
 
         def remove_null_tag(samples: Dict[str, Any]) -> Dict[str, Any]:

@@ -8,6 +8,7 @@ from abc import abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from logging import Logger
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -63,16 +64,24 @@ class ClassificationModel(Model):
         check_local_nfs_only(train_files)
         train_files = [file.path for file in train_files]
 
+        self.logger.info(f"Found {len(train_files)} train files")
+
         test_files = expand_cloud_buckets_and_directories(self.config.data.test_files)
         check_csv_only(test_files)
         check_local_nfs_only(test_files)
         test_files = [file.path for file in test_files]
 
-        test_split = self.config.model_options.train_options.test_split
+        self.logger.info(f"Found {len(train_files)} test files")
+
+        test_split = self.train_options.test_split
         if len(test_files) == 0 and test_split and test_split > 0:
+            self.logger.info(
+                f"Test split {test_split} specified, splitting train files into train and test"
+            )
             new_train_files = []
             new_test_files = []
             for file in train_files:
+                self.logger.info(f"Splitting {file} into train/test")
                 df = pd.read_csv(file)
                 test = df.sample(frac=test_split)
                 train = df.drop(test.index)
@@ -81,6 +90,10 @@ class ClassificationModel(Model):
                 test_split_path = get_split_filename(file, "test")
                 train.to_csv(train_split_path, index=False)
                 test.to_csv(test_split_path, index=False)
+
+                self.logger.info(
+                    f"Created {train_split_path} with {len(train)} rows and {test_split_path} with {len(test)} rows"
+                )
 
                 new_train_files.append(train_split_path)
                 new_test_files.append(test_split_path)
@@ -97,7 +110,9 @@ class ClassificationModel(Model):
         """
         Calculate the size of the model in bytes
         """
-        return self.model_save_path.stat().st_size
+        model_size = self.model_save_path.stat().st_size
+        self.logger.info(f"Model size on disk: {model_size} bytes.")
+        return model_size
 
     def get_num_params(self, model: bolt.UniversalDeepTransformer) -> int:
         """
@@ -119,29 +134,44 @@ class ClassificationModel(Model):
         pass
 
     def get_udt_path(self, model_id):
-        return Path(self.config.model_bazaar_dir) / "models" / model_id / "model.udt"
+        udt_path = (
+            Path(self.config.model_bazaar_dir) / "models" / model_id / "model.udt"
+        )
+        self.logger.info(f"UDT path for model {model_id}: {udt_path}")
+        return udt_path
 
     def load_model(self, model_id):
         return bolt.UniversalDeepTransformer.load(str(self.get_udt_path(model_id)))
 
     def save_model(self, model):
+        self.logger.info(f"Saving model to {self.model_save_path}")
         model.save(str(self.model_save_path))
 
     def get_model(self):
         # if a model with the same id has already been initialized, return the model
         if os.path.exists(self.model_save_path):
+            self.logger.info(
+                f"Loading existing udt model from save path : {self.model_save_path}"
+            )
             return bolt.UniversalDeepTransformer.load(str(self.model_save_path))
 
         # if model with the id not found but has a base model, return the base model
         if self.config.base_model_id:
+            self.logger.info(
+                f"Loading base model with model_id: {self.config.base_model_id}"
+            )
             return self.load_model(self.config.base_model_id)
 
         # initialize the model from scratch if the model does not exist or if there is not base model
+        self.logger.info("Initializing a new model from scratch.")
         return self.initialize_model()
 
     def evaluate(self, model, test_files: List[str]):
+        self.logger.info("Starting evaluation on test files.")
         for test_file in test_files:
+            self.logger.info(f"Evaluating on test file: {test_file}")
             model.evaluate(test_file, metrics=self.train_options.validation_metrics)
+        self.logger.info("Evaluation completed.")
 
     @abstractmethod
     def train(self, **kwargs):
@@ -155,6 +185,7 @@ class TextClassificationModel(ClassificationModel):
         return self.config.model_options.udt_options
 
     def initialize_model(self):
+        self.logger.info("Initializing a new Text Classification model.")
         return bolt.UniversalDeepTransformer(
             data_types={
                 self.txt_cls_vars.text_column: bolt.types.text(),
@@ -175,6 +206,7 @@ class TextClassificationModel(ClassificationModel):
 
         start_time = time.time()
         for train_file in train_files:
+            self.logger.info(f"Training on supervised file: {train_file}")
             model.train(
                 train_file,
                 epochs=self.train_options.supervised_epochs,
@@ -183,6 +215,7 @@ class TextClassificationModel(ClassificationModel):
                 metrics=self.train_options.metrics,
             )
         training_time = time.time() - start_time
+        self.logger.info(f"Training completed in {training_time:.2f} seconds.")
 
         self.save_model(model)
 
@@ -227,8 +260,8 @@ class PerTagMetrics:
 
 @apply_exception_handler
 class TokenClassificationModel(ClassificationModel):
-    def __init__(self, config: TrainConfig, reporter: Reporter):
-        super().__init__(config, reporter)
+    def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
+        super().__init__(config, reporter, logger)
         self.load_storage()
 
     @property
@@ -261,8 +294,10 @@ class TokenClassificationModel(ClassificationModel):
             raise e
 
     def initialize_model(self):
+        self.logger.info("Initializing a new Token Classification model.")
         # remove duplicates from target_labels
         target_labels = list(set(self.tkn_cls_vars.target_labels))
+        self.logger.info(f"Target labels: {target_labels}")
 
         # insert the tags into the storage to keep track of their training status
         tag_status = {
@@ -276,7 +311,8 @@ class TokenClassificationModel(ClassificationModel):
             for tag in new_tags:
                 tag.status = LabelStatus.untrained
                 tag_status[tag.name] = tag
-        except:
+        except Exception as e:
+            self.logger.warning(f"Failed to load tags from config: {e}, using defaults")
             for label in target_labels:
                 tag_status[label] = LabelEntity(
                     name=label,
@@ -299,6 +335,9 @@ class TokenClassificationModel(ClassificationModel):
             else:
                 bolt_tags.append(tag)
 
+        self.logger.info(f"Rule-based tags: {rule_based_tags}")
+        self.logger.info(f"Bolt-based tags: {bolt_tags}")
+
         model = bolt.UniversalDeepTransformer(
             data_types={
                 self.tkn_cls_vars.source_column: bolt.types.text(),
@@ -313,6 +352,7 @@ class TokenClassificationModel(ClassificationModel):
         for tag in rule_based_tags:
             try:
                 model.add_ner_rule(tag)
+                self.logger.info(f"Added rule-based tag: {tag}")
             except Exception as e:
                 self.logger.error(f"Failed to add rule based tag {tag} with error {e}")
 
@@ -320,6 +360,7 @@ class TokenClassificationModel(ClassificationModel):
 
     def load_storage(self):
         data_storage_path = self.data_dir / "data_storage.db"
+        self.logger.info(f"Loading data storage from {data_storage_path}.")
         # connector will instantiate an sqlite db at the specified path if it doesn't exist
         self.data_storage = DataStorage(
             connector=SQLiteConnector(db_path=data_storage_path)
@@ -355,42 +396,33 @@ class TokenClassificationModel(ClassificationModel):
         tags = self.tag_metadata
 
         # new labels to add to the model
-        new_labels = []
-        for name in tags.tag_status.keys():
-            label = tags.tag_status[name]
-            if label.status == LabelStatus.uninserted:
-                new_labels.append(name)
+        new_labels = [
+            name
+            for name, label in tags.tag_status.items()
+            if label.status == LabelStatus.uninserted
+        ]
+        self.logger.info(f"New labels to add: {new_labels}")
 
-        existing_labels = set(model.list_ner_tags())
-        for train_file in train_files:
-            df = pd.read_csv(train_file)
-            labels = df[self.config.model_options.udt_options.target_column].str.split()
-            for row in labels:
-                for label in row:
-                    if label not in existing_labels:
-                        new_labels.append(label)
-                        existing_labels.append(labels)
-
-        if new_labels:
-            for new_label in new_labels:
-                common_pattern = find_common_pattern(new_label)
-                try:
-                    if common_pattern:
-                        self.logger.debug(
-                            f"Adding rule based tag {common_pattern} to the model."
-                        )
-                        model.add_ner_rule(common_pattern)
-                    else:
-                        self.logger.debug(
-                            f"Adding bolt based tag {new_label} to the model."
-                        )
-                        model.add_ner_entities([new_label])
-                except Exception as e:
-                    self.logger.error(
-                        f"Failed to add new label {new_label} to the model with error {e}."
+        for new_label in new_labels:
+            common_pattern = find_common_pattern(new_label)
+            try:
+                if common_pattern:
+                    self.logger.debug(
+                        f"Adding rule based tag {common_pattern} to the model."
                     )
+                    model.add_ner_rule(common_pattern)
+                else:
+                    self.logger.debug(
+                        f"Adding bolt based tag {new_label} to the model."
+                    )
+                    model.add_ner_entities([new_label])
+            except Exception as e:
+                self.logger.error(
+                    f"Failed to add new label {new_label} to the model with error {e}."
+                )
 
         for train_file in train_files:
+            self.logger.info(f"Training on file: {train_file}")
             model.train(
                 train_file,
                 epochs=self.train_options.supervised_epochs,
@@ -400,6 +432,7 @@ class TokenClassificationModel(ClassificationModel):
             )
 
         training_time = time.time() - start_time
+        self.logger.info(f"Training completed in {training_time:.2f} seconds.")
 
         # converts the status of all tags to trained and update in the storage
         for tag in tags.tag_status:
@@ -450,8 +483,7 @@ class TokenClassificationModel(ClassificationModel):
         false_positive_samples = defaultdict(list)
         false_negative_samples = defaultdict(list)
 
-        source_col = self.config.model_options.udt_options.source_column
-        target_col = self.config.model_options.udt_options.target_column
+        source_col, target_col = model.source_target_columns()
 
         for file in test_files:
             df = pd.read_csv(file)
@@ -541,8 +573,10 @@ class TokenClassificationModel(ClassificationModel):
         # these samples will be used as balancing samples for the training of the model
         # this sampling is not uniform but we assume that there won't be many samples
         # TODO(Shubh) : make this sampling uniform using reservoir sampling
+        self.logger.info("Inserting samples into data storage for training.")
         df = pd.DataFrame()
         for supervised_file in supervised_files:
+            self.logger.info(f"Loading data from {supervised_file}")
             new_df = pd.read_csv(supervised_file)
             new_df = new_df[
                 [self.tkn_cls_vars.source_column, self.tkn_cls_vars.target_column]
@@ -566,10 +600,11 @@ class TokenClassificationModel(ClassificationModel):
             )
             samples.append(sample)
 
+        self.logger.info(f"Inserting {len(samples)} samples into storage.")
         self.data_storage.insert_samples(samples=samples)
 
     def get_latency(self, model) -> float:
-        self.logger.info("Measuring latency of the UDT instance.")
+        self.logger.info("Measuring latency of the Token Classification model.")
 
         start_time = time.time()
         model.predict(

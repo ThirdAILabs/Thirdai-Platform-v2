@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import secrets
 import shutil
@@ -19,7 +20,6 @@ from backend.utils import (
     get_model_status,
     get_platform,
     get_python_path,
-    logger,
     model_bazaar_path,
     nomad_job_exists,
     remove_unused_samples,
@@ -220,7 +220,7 @@ def train_ndb(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -390,7 +390,7 @@ def retrain_ndb(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -524,7 +524,7 @@ def nlp_datagen(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -645,7 +645,7 @@ def datagen_callback(
             model.train_status = schema.Status.failed
         session.commit()
 
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -792,7 +792,7 @@ def retrain_udt(
     except Exception as err:
         model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -953,7 +953,7 @@ def train_udt(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),

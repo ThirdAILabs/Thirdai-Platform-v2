@@ -1,6 +1,7 @@
 import io
 import traceback
 import uuid
+from logging import Logger
 from pathlib import Path
 from typing import AsyncGenerator, List
 
@@ -58,11 +59,12 @@ ndb_top_k_selections = [
 
 
 class NDBRouter:
-    def __init__(self, config: DeploymentConfig, reporter: Reporter):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
         self.config = config
         self.reporter = reporter
+        self.logger = logger
 
-        self.model: NDBModel = NDBRouter.get_model(config)
+        self.model: NDBModel = NDBRouter.get_model(config, logger)
 
         self.feedback_logger = UpdateLogger.get_feedback_logger(self.model.data_dir)
         self.insertion_logger = UpdateLogger.get_insertion_logger(self.model.data_dir)
@@ -96,14 +98,21 @@ class NDBRouter:
         )
 
     @staticmethod
-    def get_model(config: DeploymentConfig) -> NDBModel:
+    def get_model(config: DeploymentConfig, logger: Logger) -> NDBModel:
         subtype = config.model_options.ndb_sub_type
+        logger.info(f"Initializing model subtype: {subtype}")
         if subtype == NDBSubType.v1:
-            return NDBV1Model(config=config, write_mode=not config.autoscaling_enabled)
+            return NDBV1Model(
+                config=config, logger=logger, write_mode=not config.autoscaling_enabled
+            )
         elif subtype == NDBSubType.v2:
-            return NDBV2Model(config=config, write_mode=not config.autoscaling_enabled)
+            return NDBV2Model(
+                config=config, logger=logger, write_mode=not config.autoscaling_enabled
+            )
         else:
-            raise ValueError(f"Unsupported NDB subtype '{subtype}'.")
+            error_message = f"Unsupported NDB subtype '{subtype}'."
+            logger.error(error_message)
+            raise ValueError(error_message)
 
     @ndb_query_metric.time()
     @propagate_error
@@ -213,10 +222,16 @@ class NDBRouter:
             )
 
         total_filesize = sum(file.size or 0 for file in files)
-        if total_filesize > 10 * 1024 * 1024:
+
+        if self.config.autoscaling_enabled:
+            max_filesize_mb = 200
+        else:
+            max_filesize_mb = 50
+
+        if total_filesize > (max_filesize_mb * 1024 * 1024):
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Size of uploaded files exceeds maximum of 10Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size.",
+                message=f"Size of uploaded files exceeds maximum of {max_filesize_mb}Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size.",
             )
 
         documents = download_local_files(
@@ -227,14 +242,14 @@ class NDBRouter:
 
         if self.config.autoscaling_enabled:
             self.insertion_logger.log(InsertLog(documents=documents))
-
+            self.logger.info("Document insertion logged for autoscaling deployment")
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Insert logged successfully.",
             )
         else:
             self.model.insert(documents=documents)
-
+            self.logger.info("Document insertion applied successfully")
             return response(
                 status_code=status.HTTP_200_OK,
                 message="Insert applied successfully.",
@@ -267,7 +282,7 @@ class NDBRouter:
 
         if self.config.autoscaling_enabled:
             self.deletion_logger.log(DeleteLog(doc_ids=input.source_ids))
-
+            self.logger.info("Deletion logged for autoscaling deployment")
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Delete logged successfully.",
@@ -276,7 +291,7 @@ class NDBRouter:
             if len(input.source_ids) > 5:
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Number of deletions exceeds the maximum that can be processed synchronously in an active deployment.",
+                    message=f"Number of deletions exceeds the maximum {input.source_ids} that can be processed synchronously in an active deployment.",
                 )
             self.model.delete(input.source_ids)
 
@@ -339,7 +354,7 @@ class NDBRouter:
             if len(input.text_id_pairs) > 100:
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Number of upvote samples exceeds the maximum that can be processed synchronously in an active deployment.",
+                    message=f"Number of upvote samples exceeds the maximum {input.text_id_pairs} that can be processed synchronously in an active deployment.",
                 )
             self.model.upvote(input.text_id_pairs)
 
@@ -399,7 +414,7 @@ class NDBRouter:
             if len(input.text_pairs) > 100:
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Number of association samples exceeds the maximum that can be processed synchronously in an active deployment.",
+                    message=f"Number of association samples exceeds the maximum {input.text_pairs} that can be processed synchronously in an active deployment.",
                 )
             self.model.associate(input.text_pairs)
 

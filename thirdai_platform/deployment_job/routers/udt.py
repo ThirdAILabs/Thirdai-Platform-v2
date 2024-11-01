@@ -1,5 +1,6 @@
 import os
 import time
+from logging import Logger
 
 from deployment_job.models.classification_models import (
     ClassificationModel,
@@ -33,8 +34,9 @@ udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
 
 class UDTRouter:
-    def __init__(self, config: DeploymentConfig, reporter: Reporter):
-        self.model: ClassificationModel = UDTRouter.get_model(config)
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
+        self.model: ClassificationModel = UDTRouter.get_model(config, logger)
+        self.logger = logger
 
         # TODO(Nicholas): move these metrics to prometheus
         self.start_time = time.time()
@@ -60,14 +62,17 @@ class UDTRouter:
             )
 
     @staticmethod
-    def get_model(config: DeploymentConfig) -> ClassificationModel:
+    def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
         subtype = config.model_options.udt_sub_type
+        logger.info(f"Initializing model of subtype: {subtype}")
         if subtype == UDTSubType.text:
-            return TextClassificationModel(config=config)
+            return TextClassificationModel(config=config, logger=logger)
         elif subtype == UDTSubType.token:
-            return TokenClassificationModel(config=config)
+            return TokenClassificationModel(config=config, logger=logger)
         else:
-            raise ValueError(f"Unsupported UDT subtype '{subtype}'.")
+            error_message = f"Unsupported UDT subtype '{subtype}'."
+            logger.error(error_message)
+            raise ValueError(error_message)
 
     @propagate_error
     def get_text(
@@ -85,6 +90,7 @@ class UDTRouter:
         Returns:
             A JSON response containing the extracted text content.
         """
+        self.logger.info(f"Processing text extraction for file: {file.filename}")
         # Define the path where the uploaded file will be temporarily saved
         destination_path = self.model.data_dir / file.filename
 
@@ -142,11 +148,16 @@ class UDTRouter:
 
         # TODO(pratik/geordie/yash): Add logging for search results text classification
         if isinstance(results, SearchResultsTokenClassification):
-            self.tokens_identified.log(
-                len([tags[0] for tags in results.predicted_tags if tags[0] != "O"])
+            identified_count = len(
+                [tags[0] for tags in results.predicted_tags if tags[0] != "O"]
             )
+            self.tokens_identified.log(identified_count)
             self.queries_ingested.log(1)
             self.queries_ingested_bytes.log(len(params.text))
+            self.logger.info(
+                f"Prediction complete with {identified_count} tokens identified",
+                extra={"text_length": len(params.text)},
+            )
 
         return response(
             status_code=status.HTTP_200_OK,

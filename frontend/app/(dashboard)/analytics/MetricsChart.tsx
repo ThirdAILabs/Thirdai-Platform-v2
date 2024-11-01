@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { LabelMetrics, TrainReportData, TrainingExample } from '@/lib/backend';
+import { ExamplesVisualizer } from './ExamplesVisualizer'
 
 interface MetricsChartProps {
   beforeMetrics: LabelMetrics;
@@ -225,33 +226,7 @@ export const TrainingResults: React.FC<TrainingResultsProps> = ({ report }) => {
           beforeMetrics={report.before_train_metrics}
           afterMetrics={report.after_train_metrics}
         />
-        
-        <div className="mt-8 space-y-6">
-          <h3 className="text-xl font-semibold">Example Predictions</h3>
-          
-          {Object.entries(report.after_train_examples.true_positives).map(([label, examples]) => (
-            <Card key={label} className="p-4">
-              <h3 className="text-lg font-semibold mb-4">{label}</h3>
-              <div className="space-y-4">
-                <ExampleSection
-                  title="True Positives"
-                  examples={examples}
-                  bgColor="bg-green-50"
-                />
-                <ExampleSection
-                  title="False Positives"
-                  examples={report.after_train_examples.false_positives[label] || []}
-                  bgColor="bg-red-50"
-                />
-                <ExampleSection
-                  title="False Negatives"
-                  examples={report.after_train_examples.false_negatives[label] || []}
-                  bgColor="bg-yellow-50"
-                />
-              </div>
-            </Card>
-          ))}
-        </div>
+        <ExamplesVisualizer report={report} />
       </CardContent>
     </Card>
   );

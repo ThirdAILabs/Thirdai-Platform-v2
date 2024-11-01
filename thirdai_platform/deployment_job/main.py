@@ -1,6 +1,8 @@
 import asyncio
+import logging
 import os
 import time
+from pathlib import Path
 from typing import Any
 
 import thirdai
@@ -13,6 +15,7 @@ from deployment_job.routers.udt import UDTRouter
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from platform_common.logging import setup_logger
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.training import ModelType
 from prometheus_client import make_asgi_app
@@ -24,7 +27,14 @@ def load_config():
 
 
 config: DeploymentConfig = load_config()
-reporter = Reporter(config.model_bazaar_endpoint)
+
+log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
+
+setup_logger(log_dir=log_dir, log_prefix="deployment")
+
+logger = logging.getLogger("deployment")
+
+reporter = Reporter(config.model_bazaar_endpoint, logger)
 
 if config.license_key == "file_license":
     thirdai.licensing.set_path(
@@ -55,7 +65,9 @@ elif config.model_options.model_type == ModelType.UDT:
 elif config.model_options.model_type == ModelType.ENTERPRISE_SEARCH:
     backend_router_factory = EnterpriseSearchRouter
 else:
-    raise ValueError(f"Unsupported ModelType '{config.model_options.model_type}'.")
+    error_message = f"Unsupported ModelType '{config.model_options.model_type}'."
+    logger.error(error_message)
+    raise ValueError(error_message)
 
 
 # We have a case where we copy the ndb model for base model training and
@@ -65,17 +77,24 @@ retry_delay = 5  # Delay in seconds before retrying
 
 for attempt in range(1, max_retries + 1):
     try:
-        backend_router = backend_router_factory(config, reporter)
+        backend_router = backend_router_factory(config, reporter, logger)
+        logger.info(
+            f"Successfully initialized backend router: {backend_router_factory.__name__}"
+        )
         break  # Exit the loop if model loading is successful
     except Exception as err:
+        logger.error(f"Attempt {attempt} failed to initialize backend router: {err}")
         if attempt < max_retries:
             time.sleep(retry_delay)
+            logger.info("Retrying backend router initialization")
         else:
-            reporter.update_deploy_status(
-                config.model_id,
-                "failed",
-                message=f"Deployment failed with error: {err}",
+            error_message = (
+                f"Deployment failed after {attempt} attempts with error: {err}"
             )
+            reporter.update_deploy_status(
+                config.model_id, "failed", message=error_message
+            )
+            logger.critical(error_message)
             raise  # Optionally re-raise the exception if you want the application to stop
 
 
@@ -86,6 +105,7 @@ app.mount("/metrics", make_asgi_app())
 
 @app.exception_handler(404)
 async def custom_404_handler(request: Request, exc: Any) -> JSONResponse:
+    logger.warning(f"404 Not Found: {request.url.path}")
     return JSONResponse(
         status_code=404,
         content={"message": f"Request path '{request.url.path}' doesn't exist"},
@@ -106,18 +126,16 @@ async def startup_event() -> None:
         await asyncio.sleep(10)
         reporter.update_deploy_status(config.model_id, "complete")
     except Exception as e:
-        reporter.update_deploy_status(
-            config.model_id, "failed", message=f"Deployment failed with error: {e}"
-        )
-        print(f"Failed to startup the application, {e}")
+        error_message = f"Startup event failed with error: {e}"
+        reporter.update_deploy_status(config.model_id, "failed", message=error_message)
+        logger.critical(error_message)
         raise e  # Re-raise the exception to propagate it to the main block
 
 
 if __name__ == "__main__":
     try:
-        uvicorn.run(app, host="localhost", port=8000)
+        uvicorn.run(app, host="localhost", port=8000, log_level="info")
     except Exception as e:
-        print(f"Uvicorn failed to start: {str(e)}")
-        reporter.update_deploy_status(
-            config.model_id, "failed", message=f"Deployment failed with error: {e}"
-        )
+        error_message = f"Uvicorn failed to start: {e}"
+        logger.critical(error_message)
+        reporter.update_deploy_status(config.model_id, "failed", message=error_message)

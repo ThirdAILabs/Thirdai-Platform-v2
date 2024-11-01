@@ -11,7 +11,7 @@ import {
   TooltipFormatter
 } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { LabelMetrics, TrainReportResponse, TrainingExample } from '@/lib/backend';
+import type { LabelMetrics, TrainReportData, TrainingExample } from '@/lib/backend';
 
 interface MetricsChartProps {
   beforeMetrics: LabelMetrics;
@@ -103,7 +103,7 @@ const ExampleSection: React.FC<ExampleSectionProps> = ({ title, examples, bgColo
 );
 
 interface TrainingResultsProps {
-  report: TrainReportResponse;
+  report: TrainReportData;
 }
 
 export const TrainingResults: React.FC<TrainingResultsProps> = ({ report }) => {

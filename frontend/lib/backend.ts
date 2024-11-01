@@ -479,10 +479,16 @@ export interface ExampleCategories {
   false_negatives: LabelExamples;
 }
 
-export interface TrainReportResponse {
+export interface TrainReportData {
   before_train_metrics: LabelMetrics;
   after_train_metrics: LabelMetrics;
   after_train_examples: ExampleCategories;
+}
+
+export interface TrainReportResponse {
+  status: string;
+  message: string;
+  data: TrainReportData;
 }
 
 // api.ts

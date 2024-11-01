@@ -535,7 +535,10 @@ class TokenClassificationModel(ClassificationModel):
             else:
                 recall = tp / (tp + false_negatives[tag])
 
-            fmeasure = 2 * precision * recall / (precision + recall)
+            if precision + recall == 0:
+                fmeasure = float("nan")
+            else:
+                fmeasure = 2 * precision * recall / (precision + recall)
 
             metric_summary[tag] = {
                 "precision": "NaN" if math.isnan(precision) else round(precision, 3),

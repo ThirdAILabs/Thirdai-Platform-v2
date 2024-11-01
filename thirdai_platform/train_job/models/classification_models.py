@@ -390,8 +390,12 @@ class TokenClassificationModel(ClassificationModel):
 
         start_time = time.time()
 
+        source_column, target_column = model.source_target_columns()
+
         # insert samples into data storage for later use
-        self.insert_samples_in_storage(train_files)
+        self.insert_samples_in_storage(
+            train_files, source_column=source_column, target_column=target_column
+        )
 
         tags = self.tag_metadata
 
@@ -568,7 +572,11 @@ class TokenClassificationModel(ClassificationModel):
             json.dump(train_report, file, indent=4)
 
     def insert_samples_in_storage(
-        self, supervised_files: typing.List[str], buffer_size=50_000
+        self,
+        supervised_files: typing.List[str],
+        source_column: str,
+        target_column: str,
+        buffer_size=50_000,
     ):
         # these samples will be used as balancing samples for the training of the model
         # this sampling is not uniform but we assume that there won't be many samples
@@ -578,9 +586,7 @@ class TokenClassificationModel(ClassificationModel):
         for supervised_file in supervised_files:
             self.logger.info(f"Loading data from {supervised_file}")
             new_df = pd.read_csv(supervised_file)
-            new_df = new_df[
-                [self.tkn_cls_vars.source_column, self.tkn_cls_vars.target_column]
-            ]
+            new_df = new_df[[source_column, target_column]]
 
             df = pd.concat([df, new_df])
             df = df.sample(n=min(len(df), buffer_size))
@@ -589,8 +595,8 @@ class TokenClassificationModel(ClassificationModel):
 
         for index in df.index:
             row = df.loc[index]
-            tokens = row[self.tkn_cls_vars.source_column].split()
-            tags = row[self.tkn_cls_vars.target_column].split()
+            tokens = row[source_column].split()
+            tags = row[target_column].split()
             assert len(tokens) == len(tags)
 
             sample = DataSample(
@@ -608,7 +614,7 @@ class TokenClassificationModel(ClassificationModel):
 
         start_time = time.time()
         model.predict(
-            {self.tkn_cls_vars.source_column: "Checking for latency"}, top_k=1
+            {model.source_target_columns()[0]: "Checking for latency"}, top_k=1
         )
         latency = time.time() - start_time
 

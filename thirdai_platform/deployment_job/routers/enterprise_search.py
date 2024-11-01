@@ -7,10 +7,10 @@ from fastapi import APIRouter, Depends, status
 from fastapi.encoders import jsonable_encoder
 from guardrail import Guardrail, LabelMap
 from platform_common.pydantic_models.deployment import DeploymentConfig
+from platform_common.utils import response
 from prometheus_client import Summary
 from pydantic_models import inputs
 from reporter import Reporter
-from utils import response
 
 query_metric = Summary("enterprise_search_query", "Enterprise Search Queries")
 

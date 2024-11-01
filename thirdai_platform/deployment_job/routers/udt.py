@@ -27,7 +27,6 @@ from prometheus_client import Summary
 from reporter import Reporter
 from thirdai import neural_db as ndb
 from throughput import Throughput
-from utils import response
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 

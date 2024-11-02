@@ -613,7 +613,7 @@ class NDBRouter:
                     metadata={"thirdai_version": str(thirdai.__version__)},
                 )
         except Exception as err:
-            traceback.print_exc()
+            self.logger.error(traceback.print_exc())
             return response(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
             )

@@ -212,7 +212,7 @@ def get_high_level_model_info(result: schema.Model):
                 try:
                     metadata.train = json.loads(metadata.train)
                 except json.JSONDecodeError as e:
-                    print(f"Error decoding JSON for train: {e}")
+                    logging.error(f"Error decoding JSON for train: {e}")
                     metadata.train = {}
             info.update(metadata.train)
         if metadata.general:
@@ -221,7 +221,7 @@ def get_high_level_model_info(result: schema.Model):
                 try:
                     metadata.general = json.loads(metadata.general)
                 except json.JSONDecodeError as e:
-                    print(f"Error decoding JSON for general: {e}")
+                    logging.error(f"Error decoding JSON for general: {e}")
                     metadata.general = {}
             info.update(metadata.general)
 
@@ -426,9 +426,9 @@ def delete_nomad_job(job_id, nomad_endpoint):
     response = requests.delete(job_url, headers=headers)
 
     if response.status_code == 200:
-        print(f"Job {job_id} stopped successfully")
+        logging.info(f"Job {job_id} stopped successfully")
     else:
-        print(
+        logging.error(
             f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
         )
 
@@ -534,7 +534,7 @@ def get_platform():
     platform = os.getenv("PLATFORM", "docker")
     options = ["docker", "local"]
     if platform not in options:
-        print(
+        logging.warning(
             f"Invalid platform identifier '{platform}'. Options: {options}. Defaulting to docker."
         )
     return platform

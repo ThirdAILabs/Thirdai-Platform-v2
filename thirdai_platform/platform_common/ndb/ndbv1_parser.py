@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -60,7 +61,7 @@ def download_file(doc: FileInfo, tmp_dir: str):
         try:
             s3_client.download_file(bucket_name, prefix, local_file_path)
         except Exception as error:
-            print(
+            logging.error(
                 f"There was an error downloading the file from S3: {error}. {doc.path}"
             )
             return None
@@ -73,7 +74,7 @@ def download_file(doc: FileInfo, tmp_dir: str):
         try:
             azure_client.download_file(container_name, blob_name, local_file_path)
         except Exception as error:
-            print(
+            logging.error(
                 f"There was an error downloading the file from Azure: {error}. {doc.path}"
             )
             return None
@@ -86,7 +87,7 @@ def download_file(doc: FileInfo, tmp_dir: str):
         try:
             gcp_client.download_file(bucket_name, blob_name, local_file_path)
         except Exception as error:
-            print(
+            logging.error(
                 f"There was an error downloading the file from GCP: {error}. {doc.path}"
             )
             return None

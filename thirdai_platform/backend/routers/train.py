@@ -96,7 +96,7 @@ def train_ndb(
         data = NDBData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
         cloud_credentials = CloudCredentials.model_validate_json(cloud_credentials)
-        print(f"Extra options for training: {model_options}")
+        logging.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -424,7 +424,7 @@ def nlp_datagen(
         datagen_options = DatagenOptions.model_validate_json(datagen_options)
         datagen_job_options = JobOptions.model_validate_json(datagen_job_options)
         train_job_options = JobOptions.model_validate_json(train_job_options)
-        print(f"Datagen options: {datagen_options}")
+        logging.info(f"Datagen options: {datagen_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -555,7 +555,7 @@ def datagen_callback(
     try:
         model_options = UDTOptions.model_validate_json(model_options)
         data = UDTData.model_validate_json(file_info)
-        print(f"Extra options for training: {model_options}")
+        logging.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -827,7 +827,7 @@ def train_udt(
         model_options = UDTOptions.model_validate_json(model_options)
         data = UDTData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
-        print(f"Extra options for training: {model_options}")
+        logging.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,

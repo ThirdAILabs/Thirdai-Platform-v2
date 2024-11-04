@@ -270,7 +270,7 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
           </CardHeader>
           <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">
             {labelError && (
-              labelError.message === "Error fetching labels: Request failed with status code 404" ? (
+              labelError.message === "Request failed with status code 404" ? (
                 <Alert 
                   severity="info"
                   icon={<Play className="h-4 w-4" />}
@@ -308,7 +308,7 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
           </CardHeader>
           <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">
             {sampleError && (
-              sampleError.message === "Error fetching labels: Request failed with status code 404" ? (
+              sampleError.message === "Request failed with status code 404" ? (
                 <Alert 
                   severity="info"
                   icon={<Play className="h-4 w-4" />}

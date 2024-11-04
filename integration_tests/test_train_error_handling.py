@@ -1,8 +1,10 @@
+import os
+import shutil
 import uuid
 from urllib.parse import urljoin
-import shutil
+
 import pytest
-import os
+
 from client.bazaar import ModelBazaar
 from client.utils import auth_header, http_get_with_error
 
@@ -47,6 +49,6 @@ def test_train_error_handling(malformed_file):
     assert warning in status_info["warnings"][0]
     assert warning in logs
 
-    error = "Error tokenizing data. C error: Expected 1 fields in line 7" 
+    error = "Error tokenizing data. C error: Expected 1 fields in line 7"
     assert error in status_info["errors"][0]
     assert error in logs

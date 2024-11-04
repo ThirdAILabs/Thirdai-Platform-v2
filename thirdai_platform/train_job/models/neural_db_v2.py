@@ -111,8 +111,17 @@ class NeuralDBV2(Model):
                 else:
                     next_batch = None
 
+                docs = []
+                for doc_idx, doc in curr_batch:
+                    if not doc:
+                        self.reporter.report_warning(
+                            model_id=self.config.model_id,
+                            message=f"Unable to parse {batches[i][doc_idx].path}. Unsupported filetype.",
+                        )
+                    docs.append(doc)
+
                 index_start = time.perf_counter()
-                self.db.insert(curr_batch)
+                self.db.insert(docs)
                 index_end = time.perf_counter()
 
                 docs_indexed += len(curr_batch)

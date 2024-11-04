@@ -224,8 +224,8 @@ class TextClassificationOptions(BaseModel):
 
 
 class UDTTrainOptions(BaseModel):
-    supervised_epochs: int = 3
-    learning_rate: float = 0.005
+    supervised_epochs: int = 1
+    learning_rate: float = 0.0001
     batch_size: int = 2048
     max_in_memory_batches: Optional[int] = None
     test_split: Optional[float] = None

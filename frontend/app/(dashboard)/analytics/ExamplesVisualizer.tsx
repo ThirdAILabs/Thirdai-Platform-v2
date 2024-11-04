@@ -142,7 +142,7 @@ export const ExamplesVisualizer: React.FC<ExamplesVisualizerProps> = ({ report }
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Prediction Examples</CardTitle>
+        <CardTitle>Sample Predictions</CardTitle>
         <CardDescription>
           Analyze model predictions with token-level details
         </CardDescription>

@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import uuid
@@ -31,7 +32,9 @@ def convert_to_ndb_doc(
                     (pdf_title + " " + filename_as_keywords + " ") * keyword_weight,
                 )
             except Exception as e:
-                print(f"Could not parse pdftitle for pdf: {resource_path}. Error: {e}")
+                logging.error(
+                    f"Could not parse pdftitle for pdf: {resource_path}. Error: {e}"
+                )
 
         return ndbv2.PDF(
             resource_path,
@@ -108,7 +111,7 @@ def parse_doc(
 
             s3_client.download_file(bucket_name, prefix, local_file_path)
         except Exception as error:
-            print(f"Error downloading file '{doc.path}' from S3: {error}")
+            logging.error(f"Error downloading file '{doc.path}' from S3: {error}")
             raise ValueError(f"Error downloading file '{doc.path}' from S3: {error}")
 
         ndb_doc = preload_chunks(
@@ -132,7 +135,7 @@ def parse_doc(
 
             azure_client.download_file(container_name, blob_name, local_file_path)
         except Exception as error:
-            print(f"Error downloading file '{doc.path}' from Azure: {error}")
+            logging.error(f"Error downloading file '{doc.path}' from Azure: {error}")
             raise ValueError(f"Error downloading file '{doc.path}' from Azure: {error}")
 
         ndb_doc = preload_chunks(
@@ -155,7 +158,7 @@ def parse_doc(
 
             gcp_client.download_file(bucket_name, blob_name, local_file_path)
         except Exception as error:
-            print(f"Error downloading file '{doc.path}' from GCP: {error}")
+            logging.error(f"Error downloading file '{doc.path}' from GCP: {error}")
             raise ValueError(f"Error downloading file '{doc.path}' from GCP: {error}")
 
         ndb_doc = preload_chunks(

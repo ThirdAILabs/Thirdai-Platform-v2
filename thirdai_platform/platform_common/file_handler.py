@@ -257,7 +257,7 @@ class S3StorageHandler(CloudStorageHandler):
     def create_bucket_if_not_exists(self, bucket_name: str):
         try:
             self.s3_client.head_bucket(Bucket=bucket_name)
-            print(f"Bucket {bucket_name} already exists.")
+            logging.warning(f"Bucket {bucket_name} already exists.")
         except ClientError as e:
             error_code = int(e.response["Error"]["Code"])
             if error_code == 404:
@@ -265,10 +265,12 @@ class S3StorageHandler(CloudStorageHandler):
                     self.s3_client.create_bucket(
                         Bucket=bucket_name,
                     )
-                    print(f"Bucket {bucket_name} created successfully.")
+                    logging.info(f"Bucket {bucket_name} created successfully.")
                 except ClientError as e:
                     if e.response["Error"]["Code"] == "BucketAlreadyExists":
-                        print(f"Bucket {bucket_name} already exists globally.")
+                        logging.warning(
+                            f"Bucket {bucket_name} already exists globally."
+                        )
                     elif e.response["Error"]["Code"] == "AccessDenied":
                         raise HTTPException(
                             status_code=status.HTTP_403_FORBIDDEN,
@@ -435,9 +437,9 @@ class AzureStorageHandler(CloudStorageHandler):
         container_client = self.container_client(bucket_name=bucket_name)
         if not container_client.exists():
             container_client.create_container()
-            print(f"Container {bucket_name} created successfully.")
+            logging.info(f"Container {bucket_name} created successfully.")
         else:
-            print(f"Container {bucket_name} already exists.")
+            logging.warning(f"Container {bucket_name} already exists.")
 
     @handle_exceptions
     def upload_file(self, source_path: str, bucket_name: str, dest_path: str):
@@ -575,10 +577,10 @@ class GCPStorageHandler(CloudStorageHandler):
     def create_bucket_if_not_exists(self, bucket_name: str):
         bucket = self._client.lookup_bucket(bucket_name)
         if bucket:
-            print(f"Bucket {bucket_name} already exists.")
+            logging.info(f"Bucket {bucket_name} already exists.")
         else:
             self._client.create_bucket(bucket_name)
-            print(f"Bucket {bucket_name} created successfully.")
+            logging.warning(f"Bucket {bucket_name} created successfully.")
 
     @handle_exceptions
     def full_path(self, bucket_name: str, source_path: str):

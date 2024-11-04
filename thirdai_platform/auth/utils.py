@@ -1,3 +1,4 @@
+import logging
 import os
 from urllib.parse import urlparse
 
@@ -36,9 +37,9 @@ def create_realm(keycloak_admin, realm_name: str):
             response = keycloak_admin.create_realm(
                 payload
             )  # Create the realm if it doesn't exist.
-            print(f"Realm '{realm_name}' created successfully: {response}")
+            logging.info(f"Realm '{realm_name}' created successfully: {response}")
         except Exception as e:
-            print(f"Error creating realm '{realm_name}': {str(e)}")
+            logging.error(f"Error creating realm '{realm_name}': {str(e)}")
             return None
 
     return realm_name
@@ -91,9 +92,9 @@ def create_client(
         }
 
         keycloak_admin.create_client(new_client)  # Create the new client in the realm.
-        print(f"Client '{client_name}' created successfully.")
+        logging.info(f"Client '{client_name}' created successfully.")
     else:
-        print(f"Client '{client_name}' already exists.")
+        logging.warning(f"Client '{client_name}' already exists.")
 
 
 identity_provider = os.getenv("IDENTITY_PROVIDER", "postgres")

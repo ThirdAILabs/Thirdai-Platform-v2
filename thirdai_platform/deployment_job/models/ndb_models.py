@@ -12,7 +12,6 @@ import uuid
 from abc import abstractmethod
 from pathlib import Path
 from threading import Lock
-from fastapi import HTTPException, status
 from typing import Any, Dict, List, Optional, Tuple
 
 import fitz
@@ -23,6 +22,7 @@ from deployment_job.chat import llm_providers
 from deployment_job.models.model import Model
 from deployment_job.pydantic_models import inputs
 from deployment_job.utils import highlighted_pdf_bytes, new_pdf_chunks, old_pdf_chunks
+from fastapi import HTTPException, status
 from platform_common.file_handler import FileInfo, expand_cloud_buckets_and_directories
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from thirdai import neural_db as ndb

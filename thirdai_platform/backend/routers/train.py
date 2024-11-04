@@ -13,13 +13,13 @@ from backend.datagen import generate_data_for_train_job
 from backend.utils import (
     copy_data_storage,
     delete_nomad_job,
-    get_warnings_and_errors,
     get_job_logs,
     get_model,
     get_model_from_identifier,
     get_model_status,
     get_platform,
     get_python_path,
+    get_warnings_and_errors,
     model_bazaar_path,
     nomad_job_exists,
     remove_unused_samples,
@@ -1102,7 +1102,6 @@ def train_warning(model_id: str, message: str, session: Session = Depends(get_se
     )
 
     return {"message": "successfully logged the message"}
-
 
 
 @train_router.get("/status", dependencies=[Depends(verify_model_read_access)])

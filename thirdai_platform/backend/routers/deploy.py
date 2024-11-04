@@ -18,11 +18,11 @@ from backend.startup_jobs import start_on_prem_generate_job
 from backend.utils import (
     delete_nomad_job,
     get_job_logs,
-    get_warnings_and_errors,
     get_model_from_identifier,
     get_model_status,
     get_platform,
     get_python_path,
+    get_warnings_and_errors,
     list_all_dependencies,
     model_accessible,
     model_bazaar_path,

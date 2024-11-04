@@ -64,6 +64,7 @@ def parse_args():
     parser.add_argument("--spawn_rate", type=int, default=10)
     parser.add_argument("--run_time", type=int, default=30)  # in seconds
     parser.add_argument("--no_cleanup", action="store_true")
+    parser.add_argument("--headless", action="store_true")
     args = parser.parse_args()
 
     return args
@@ -113,9 +114,9 @@ def run_stress_test(args, query_file, deployment_id):
     print("Running Stress Test\n")
     folder = os.path.dirname(__file__)
     script_path = os.path.join(folder, "stress_test_deployment.py")
+    headless = "--headless" if args.headless else ""
     command = (
-        f"locust -f {script_path} --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password} --query_file {query_file}",
-        # f"locust -f {script_path} --headless --users {args.users} --spawn-rate {args.spawn_rate} --run-time {args.run_time} --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password} --query_file {query_file}",
+        f"locust -f {script_path} {headless} --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password} --query_file {query_file}",
     )
     subprocess.run(command, check=True, shell=True)
 

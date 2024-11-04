@@ -917,10 +917,28 @@ def train_udt(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
         )
-    
+
     if base_model:
-        copy_data_storage(base_model, new_model)
-        remove_unused_samples(base_model)
+        try:
+            copy_data_storage(base_model, new_model)
+            remove_unused_samples(base_model)
+        except Exception as err:
+            new_model.train_status = schema.Status.failed
+            msg = "Unable to start training job. Encountered error loading data from specified base model."
+            logging.error(f"error copying storage from ner base model: {err}")
+            session.add(
+                schema.JobError(
+                    model_id=new_model.id,
+                    job_type="train",
+                    status=schema.Status.failed,
+                    message=msg,
+                )
+            )
+            session.commit()
+
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=msg
+            )
 
     work_dir = os.getcwd()
 
@@ -956,6 +974,14 @@ def train_udt(
         session.commit()
     except Exception as err:
         new_model.train_status = schema.Status.failed
+        session.add(
+            schema.JobError(
+                model_id=new_model.id,
+                job_type="train",
+                status=schema.Status.failed,
+                message=f"Failed to start the training job on nomad. Received error: {err}",
+            )
+        )
         session.commit()
         logging.error(str(err))
         return response(

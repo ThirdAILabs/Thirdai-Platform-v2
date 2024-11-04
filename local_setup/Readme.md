@@ -24,6 +24,7 @@ Without this process, it is cumbersome to test out platform changes. We would ha
        ```
    - Open a terminal session and run:
      ```
+     sudo mkdir -p /opt/nomad/data
      sudo chown -R <YOUR_USERNAME> /opt/nomad/data
      sudo chmod -R u+rwx /opt/nomad/data
      nomad agent -dev -config="local_setup/agent.hcl"

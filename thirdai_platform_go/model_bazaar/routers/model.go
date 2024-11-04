@@ -65,7 +65,7 @@ func (m *ModelRouter) Routers() chi.Router {
 	return r
 }
 
-type modelDependency struct {
+type ModelDependency struct {
 	ModelId   string `json:"model_id"`
 	ModelName string `json:"model_name"`
 	Type      string `json:"type"`
@@ -73,7 +73,7 @@ type modelDependency struct {
 	Username  string `json:"username"`
 }
 
-type modelInfo struct {
+type ModelInfo struct {
 	ModelId      string  `json:"model_id"`
 	ModelName    string  `json:"model_name"`
 	Type         string  `json:"type"`
@@ -88,17 +88,17 @@ type modelInfo struct {
 
 	Attributes map[string]string `json:"attributes"`
 
-	Dependencies []modelDependency `json:"dependencies"`
+	Dependencies []ModelDependency `json:"dependencies"`
 }
 
-func convertToModelInfo(model schema.Model, db *gorm.DB) (modelInfo, error) {
+func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 	trainStatus, _, err := getModelStatus(model, db, true)
 	if err != nil {
-		return modelInfo{}, err
+		return ModelInfo{}, err
 	}
 	deployStatus, _, err := getModelStatus(model, db, false)
 	if err != nil {
-		return modelInfo{}, err
+		return ModelInfo{}, err
 	}
 
 	attributes := make(map[string]string, len(model.Attributes))
@@ -106,9 +106,9 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (modelInfo, error) {
 		attributes[attr.Key] = attr.Value
 	}
 
-	deps := make([]modelDependency, 0, len(model.Dependencies))
+	deps := make([]ModelDependency, 0, len(model.Dependencies))
 	for _, dep := range model.Dependencies {
-		deps = append(deps, modelDependency{
+		deps = append(deps, ModelDependency{
 			ModelId:   dep.ModelId,
 			ModelName: dep.Model.Name,
 			Type:      dep.Model.Type,
@@ -117,7 +117,7 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (modelInfo, error) {
 		})
 	}
 
-	return modelInfo{
+	return ModelInfo{
 		ModelId:      model.Id,
 		ModelName:    model.Name,
 		Type:         model.Type,
@@ -191,7 +191,7 @@ func (m *ModelRouter) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	infos := make([]modelInfo, 0, len(models))
+	infos := make([]ModelInfo, 0, len(models))
 	for _, model := range models {
 		info, err := convertToModelInfo(model, m.db)
 		if err != nil {

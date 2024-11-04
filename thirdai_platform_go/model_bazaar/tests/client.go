@@ -136,5 +136,59 @@ func (c *client) listUsers() ([]routers.UserInfo, error) {
 
 func (c *client) userInfo() (routers.UserInfo, error) {
 	return get[routers.UserInfo](c, "/user/info")
+}
 
+func (c *client) createTeam(name string) (string, error) {
+	data, err := post[map[string]string](c, fmt.Sprintf("/team/create?name=%v", name), nil, true)
+	if err != nil {
+		return "", err
+	}
+	return data["team_id"], nil
+}
+
+func (c *client) deleteTeam(teamId string) error {
+	_, err := post[int](c, fmt.Sprintf("/team/delete?team_id=%v", teamId), nil, false)
+	return err
+}
+
+func (c *client) addUserToTeam(teamId, userId string) error {
+	_, err := post[int](c, fmt.Sprintf("/team/add-user?team_id=%v&user_id=%v", teamId, userId), nil, false)
+	return err
+}
+
+func (c *client) removeUserFromTeam(teamId, userId string) error {
+	_, err := post[int](c, fmt.Sprintf("/team/remove-user?team_id=%v&user_id=%v", teamId, userId), nil, false)
+	return err
+}
+
+func (c *client) addModelToTeam(teamId, modelId string) error {
+	_, err := post[int](c, fmt.Sprintf("/team/add-model?team_id=%v&model_id=%v", teamId, modelId), nil, false)
+	return err
+}
+
+func (c *client) removeModelFromTeam(teamId, modelId string) error {
+	_, err := post[int](c, fmt.Sprintf("/team/remove-model?team_id=%v&model_id=%v", teamId, modelId), nil, false)
+	return err
+}
+
+func (c *client) addTeamAdmin(teamId, userId string) error {
+	_, err := post[int](c, fmt.Sprintf("/team/add-admin?team_id=%v&user_id=%v", teamId, userId), nil, false)
+	return err
+}
+
+func (c *client) removeTeamAdmin(teamId, userId string) error {
+	_, err := post[int](c, fmt.Sprintf("/team/remove-admin?team_id=%v&user_id=%v", teamId, userId), nil, false)
+	return err
+}
+
+func (c *client) listTeams() ([]routers.TeamInfo, error) {
+	return get[[]routers.TeamInfo](c, "/team/list")
+}
+
+func (c *client) listTeamModels(teamId string) ([]routers.ModelInfo, error) {
+	return get[[]routers.ModelInfo](c, fmt.Sprintf("/team/models?team_id=%v", teamId))
+}
+
+func (c *client) listTeamUsers(teamId string) ([]routers.TeamUserInfo, error) {
+	return get[[]routers.TeamUserInfo](c, fmt.Sprintf("/team/users?team_id=%v", teamId))
 }

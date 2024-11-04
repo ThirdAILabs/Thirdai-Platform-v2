@@ -54,12 +54,12 @@ func GetModel(modelId string, db *gorm.DB, loadDeps, loadAttrs, loadUser bool) (
 
 func GetUserTeam(teamId, userId string, db *gorm.DB) (*UserTeam, error) {
 	var team UserTeam
-	result := db.First(&team, "team_id = ? and user_id = ?", teamId, userId)
+	result := db.Find(&team, "team_id = ? and user_id = ?", teamId, userId)
 	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("database error: %v", result.Error)
+	}
+	if result.RowsAffected != 1 {
+		return nil, nil
 	}
 
 	return &team, nil

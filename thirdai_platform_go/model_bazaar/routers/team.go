@@ -24,8 +24,8 @@ func (t *TeamRouter) Routes() chi.Router {
 		r.Use(t.userAuth.Authenticator())
 		r.Use(auth.AdminOnly(t.db))
 
-		r.Post("/create-team", t.CreateTeam)
-		r.Post("/delete-team", t.DeleteTeam)
+		r.Post("/create", t.CreateTeam)
+		r.Post("/delete", t.DeleteTeam)
 
 	})
 
@@ -34,14 +34,14 @@ func (t *TeamRouter) Routes() chi.Router {
 		r.Use(t.userAuth.Authenticator())
 		r.Use(auth.AdminOrTeamAdminOnly(t.db))
 
-		r.Post("/add-user-to-team", t.AddUserToTeam)
-		r.Post("/remove-user-from-team", t.RemoveUserFromTeam)
+		r.Post("/add-user", t.AddUserToTeam)
+		r.Post("/remove-user", t.RemoveUserFromTeam)
 
-		r.Post("/assign-team-admin", t.AssignTeamAdmin)
-		r.Post("/remove-team-admin", t.RemoveTeamAdmin)
+		r.Post("/add-admin", t.AddTeamAdmin)
+		r.Post("/remove-admin", t.RemoveTeamAdmin)
 
-		r.Get("/team-users", t.TeamUsers)
-		r.Get("/team-models", t.TeamModels)
+		r.Get("/users", t.TeamUsers)
+		r.Get("/models", t.TeamModels)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -49,8 +49,8 @@ func (t *TeamRouter) Routes() chi.Router {
 		r.Use(t.userAuth.Authenticator())
 		r.Use(auth.ModelOwnerOnly(t.db))
 
-		r.Post("/add-model-to-team", t.AddModelToTeam)
-		r.Post("/remove-model-from-team", t.RemoveModelFromTeam)
+		r.Post("/add-model", t.AddModelToTeam)
+		r.Post("/remove-model", t.RemoveModelFromTeam)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -320,7 +320,7 @@ func (t *TeamRouter) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 }
 
-func (t *TeamRouter) AssignTeamAdmin(w http.ResponseWriter, r *http.Request) {
+func (t *TeamRouter) AddTeamAdmin(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 	if !params.Has("team_id") || !params.Has("user_id") {
 		http.Error(w, "'team_id' and 'user_id' query parameters missing", http.StatusBadRequest)
@@ -402,7 +402,7 @@ func (t *TeamRouter) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-type teamInfo struct {
+type TeamInfo struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`
 }
@@ -428,7 +428,7 @@ func (t *TeamRouter) List(w http.ResponseWriter, r *http.Request) {
 		for _, t := range user.Teams {
 			userTeams = append(userTeams, t.TeamId)
 		}
-		result = t.db.Where("team_id IN ?", userTeams).Find(&teams)
+		result = t.db.Where("id IN ?", userTeams).Find(&teams)
 	}
 
 	if result.Error != nil {
@@ -436,15 +436,15 @@ func (t *TeamRouter) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	infos := make([]teamInfo, 0, len(teams))
+	infos := make([]TeamInfo, 0, len(teams))
 	for _, team := range teams {
-		infos = append(infos, teamInfo{Id: team.Id, Name: team.Name})
+		infos = append(infos, TeamInfo{Id: team.Id, Name: team.Name})
 	}
 
 	writeJsonResponse(w, infos)
 }
 
-type teamUserInfo struct {
+type TeamUserInfo struct {
 	UserId    string `json:"user_id"`
 	Username  string `json:"username"`
 	Email     string `json:"email"`
@@ -476,9 +476,9 @@ func (t *TeamRouter) TeamUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	infos := make([]teamUserInfo, 0, len(users))
+	infos := make([]TeamUserInfo, 0, len(users))
 	for _, user := range users {
-		infos = append(infos, teamUserInfo{
+		infos = append(infos, TeamUserInfo{
 			UserId:    user.UserId,
 			Username:  user.User.Username,
 			Email:     user.User.Email,
@@ -518,7 +518,7 @@ func (t *TeamRouter) TeamModels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	infos := make([]modelInfo, 0, len(models))
+	infos := make([]ModelInfo, 0, len(models))
 	for _, model := range models {
 		info, err := convertToModelInfo(model, t.db)
 		if err != nil {

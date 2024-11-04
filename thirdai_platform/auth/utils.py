@@ -24,6 +24,7 @@ def create_realm(keycloak_admin, realm_name: str):
         "defaultRoles": ["user"],  # Default roles for users in this realm.
         "registrationAllowed": True,  # Allow user self-registration.
         "resetPasswordAllowed": True,  # Allow users to reset their password.
+        "accessTokenLifespan": 3000,  # Access token lifespan for this realm, It is recommended for this value to be shorter than the SSO session idle timeout: 30 minutes
     }
 
     current_realms = [

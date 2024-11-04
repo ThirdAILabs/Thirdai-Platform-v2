@@ -632,6 +632,7 @@ def train_warning(model_id: str, message: str, session: Session = Depends(get_se
             message=message,
         )
     )
+    session.commit()
 
     return {"message": "successfully logged the message"}
 

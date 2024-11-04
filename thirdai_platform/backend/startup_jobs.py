@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 from pathlib import Path
@@ -236,7 +237,7 @@ def create_promfile(promfile_path: str):
     with open(promfile_path, "w") as file:
         yaml.dump(prometheus_config, file, sort_keys=False)
 
-    print(f"Prometheus configuration has been written to {promfile_path}")
+    logging.info(f"Prometheus configuration has been written to {promfile_path}")
     return targets
 
 

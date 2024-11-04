@@ -26,7 +26,7 @@ from deployment_job.pydantic_models.inputs import (
 )
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
-from deployment_job.utils import now, propagate_error, validate_name
+from deployment_job.utils import now, validate_name
 from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
@@ -124,7 +124,6 @@ class NDBRouter:
             raise ValueError(error_message)
 
     @ndb_query_metric.time()
-    @propagate_error
     def search(
         self,
         params: NDBSearchParams,
@@ -177,7 +176,6 @@ class NDBRouter:
             data=jsonable_encoder(results),
         )
 
-    @propagate_error
     @ndb_insert_metric.time()
     def insert(
         self,
@@ -283,7 +281,6 @@ class NDBRouter:
                 message="Insert applied successfully.",
             )
 
-    @propagate_error
     @ndb_delete_metric.time()
     def delete(
         self,
@@ -346,7 +343,6 @@ class NDBRouter:
                 message="Delete applied successfully.",
             )
 
-    @propagate_error
     def tasks(
         self,
         token: str = Depends(Permissions.verify_permission("write")),
@@ -358,7 +354,6 @@ class NDBRouter:
                 data={"tasks": self.tasks},
             )
 
-    @propagate_error
     @ndb_upvote_metric.time()
     def upvote(
         self,
@@ -421,7 +416,6 @@ class NDBRouter:
                 message="Upvote applied successfully.",
             )
 
-    @propagate_error
     @ndb_associate_metric.time()
     def associate(
         self,
@@ -481,7 +475,6 @@ class NDBRouter:
                 message="Associate applied successfully.",
             )
 
-    @propagate_error
     @ndb_implicit_feedback_metric.time()
     def implicit_feedback(
         self,
@@ -509,7 +502,6 @@ class NDBRouter:
             message="Implicit feedback logged successfully.",
         )
 
-    @propagate_error
     def update_chat_settings(
         self,
         settings: ChatSettings,
@@ -522,7 +514,6 @@ class NDBRouter:
             message="Successfully updated chat settings",
         )
 
-    @propagate_error
     def get_chat_history(
         self,
         input: ChatHistoryInput,
@@ -555,7 +546,6 @@ class NDBRouter:
             data=chat_history,
         )
 
-    @propagate_error
     def chat(
         self,
         input: ChatInput,
@@ -586,7 +576,6 @@ class NDBRouter:
 
         return StreamingResponse(generate_response(), media_type="text/plain")
 
-    @propagate_error
     def get_sources(self, token=Depends(Permissions.verify_permission("read"))):
         """
         Get the sources used in the model.
@@ -681,7 +670,7 @@ class NDBRouter:
                     metadata={"thirdai_version": str(thirdai.__version__)},
                 )
         except Exception as err:
-            traceback.print_exc()
+            self.logger.error(traceback.print_exc())
             return response(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
             )
@@ -692,7 +681,6 @@ class NDBRouter:
             data={"new_model_id": model_id if not input.override else None},
         )
 
-    @propagate_error
     def highlighted_pdf(
         self, reference_id: int, token=Depends(Permissions.verify_permission("read"))
     ):
@@ -717,7 +705,6 @@ class NDBRouter:
             buffer.getvalue(), headers=headers, media_type="application/pdf"
         )
 
-    @propagate_error
     def pdf_blob(
         self, source: str, token=Depends(Permissions.verify_permission("read"))
     ):
@@ -741,7 +728,6 @@ class NDBRouter:
             buffer.getvalue(), headers=headers, media_type="application/pdf"
         )
 
-    @propagate_error
     def get_signed_url(
         self,
         source: str,
@@ -758,7 +744,6 @@ class NDBRouter:
             data={"signed_url": signed_url},
         )
 
-    @propagate_error
     def pdf_chunks(
         self, reference_id: int, token=Depends(Permissions.verify_permission("read"))
     ):

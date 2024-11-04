@@ -1,24 +1,34 @@
-import asyncio
-import logging
-import os
-import time
-from pathlib import Path
-from typing import Any
+try:
+    import asyncio
+    import logging
+    import os
+    import sys
+    import time
 
-import thirdai
-import uvicorn
-from deployment_job.permissions import Permissions
-from deployment_job.reporter import Reporter
-from deployment_job.routers.enterprise_search import EnterpriseSearchRouter
-from deployment_job.routers.ndb import NDBRouter
-from deployment_job.routers.udt import UDTRouter
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from platform_common.logging import setup_logger
-from platform_common.pydantic_models.deployment import DeploymentConfig
-from platform_common.pydantic_models.training import ModelType
-from prometheus_client import make_asgi_app
+    pass
+    pass
+    from pathlib import Path
+    from typing import Any
+
+    import uvicorn
+    from deployment_job.permissions import Permissions
+    from deployment_job.reporter import Reporter
+    from deployment_job.routers.enterprise_search import EnterpriseSearchRouter
+    from deployment_job.routers.ndb import NDBRouter
+    from deployment_job.routers.udt import UDTRouter
+
+    pass
+    import thirdai
+    from fastapi import FastAPI, Request
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import JSONResponse
+    from platform_common.logging import setup_logger
+    from platform_common.pydantic_models.deployment import DeploymentConfig
+    from platform_common.pydantic_models.training import ModelType
+    from prometheus_client import make_asgi_app
+except ImportError as e:
+    logging.error(f"Failed to import module: {e}")
+    sys.exit(f"ImportError: {e}")
 
 
 def load_config():

@@ -466,6 +466,7 @@ export interface LabelMetrics {
 export interface TrainingExample {
   source: string;
   target: string;
+  predictions: string;
   index: number;
 }
 

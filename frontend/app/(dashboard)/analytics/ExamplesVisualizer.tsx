@@ -45,6 +45,7 @@ interface ExamplePairProps {
 const ExamplePair: React.FC<ExamplePairProps> = ({ example, type }) => {
   const sourceTokens = example.source.split(' ');
   const targetTokens = example.target.split(' ');
+  const predictionTokens = example.predictions.split(' ');
 
   const getTypeLabel = () => {
     switch (type) {
@@ -93,7 +94,7 @@ const ExamplePair: React.FC<ExamplePairProps> = ({ example, type }) => {
         </div>
         
         <div className="space-y-1">
-          <div className="text-sm font-medium text-gray-500">Prediction</div>
+          <div className="text-sm font-medium text-gray-500">Ground Truth</div>
           <div className="p-2 bg-gray-50 rounded">
             {targetTokens.map((token, idx) => (
               <React.Fragment key={idx}>
@@ -104,6 +105,23 @@ const ExamplePair: React.FC<ExamplePairProps> = ({ example, type }) => {
                   type={type}
                 />
                 {idx < targetTokens.length - 1 && ' '}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-gray-500">Prediction</div>
+          <div className="p-2 bg-gray-50 rounded">
+            {predictionTokens.map((token, idx) => (
+              <React.Fragment key={idx}>
+                <TokenHighlight
+                  text={token}
+                  index={idx}
+                  highlightIndex={example.index}
+                  type={type}
+                />
+                {idx < predictionTokens.length - 1 && ' '}
               </React.Fragment>
             ))}
           </div>

@@ -52,7 +52,7 @@ export const authOptions: AuthOptions = {
         return token;
       }
 
-      if (Date.now() < token.expiresAt! * 1000 - 60 * 1000) {
+      if (Date.now() < token.expiresAt! * 1000 - 10 * 60 * 1000) {
         return token;
       } else {
         try {

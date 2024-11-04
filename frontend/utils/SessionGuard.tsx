@@ -10,7 +10,7 @@ export default function SessionGuard() {
     const accessToken = session?.accessToken;
     const expiresAt = session?.expiresAt || 0;
 
-    if (accessToken && Date.now() >= expiresAt * 1000 - 60 * 1000) {
+    if (accessToken && Date.now() >= expiresAt * 1000 - 10 * 60 * 1000) {
       await signIn('keycloak'); // Trigger refresh using NextAuth's built-in refresh mechanism
     }
   };
@@ -20,10 +20,11 @@ export default function SessionGuard() {
       signIn('keycloak');
     }
 
+
     if (session?.accessToken) {
       localStorage.setItem('accessToken', session.accessToken);
       if (!tokenCheckInterval) {
-        const interval = setInterval(checkAndRefreshToken, 60 * 1000);
+        const interval = setInterval(checkAndRefreshToken, 10 * 60 * 1000); // refresh after every 10 minutes
         setTokenCheckInterval(interval);
       }
     }

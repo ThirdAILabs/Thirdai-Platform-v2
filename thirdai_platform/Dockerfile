@@ -42,8 +42,8 @@ ENV EXPORT_IMAGE_NAMES_COMMAND $export_image_names_command
 ENV HF_HOME=/app/.cache
 ENV HF_HUB_DISABLE_TELEMETRY=1
 RUN mkdir -p /app/.cache
-COPY download_model.py /app/
-RUN python3 download_model.py
+COPY download_pretrained_transformers.py /app/
+RUN python3 download_pretrained_transformers.py
 
 ENV SCARF_NO_ANALYTICS=true
 

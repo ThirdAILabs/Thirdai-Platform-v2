@@ -175,11 +175,13 @@ class NDBRouter:
             message="Successful",
             data=jsonable_encoder(results),
         )
+
     path: str
     location: FileLocation
     source_id: Optional[str] = None
     options: Dict[str, Any] = {}
     metadata: Optional[Dict[str, Any]] = None
+
     @ndb_insert_metric.time()
     def insert(
         self,
@@ -286,7 +288,7 @@ class NDBRouter:
             return response(
                 status_code=status.HTTP_200_OK,
                 message="Insert applied successfully.",
-                data=inserted_docs
+                data=inserted_docs,
             )
 
     @ndb_delete_metric.time()

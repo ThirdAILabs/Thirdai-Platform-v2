@@ -13,7 +13,11 @@ func DeployJobName(model schema.Model) string {
 	return fmt.Sprintf("deploy-%v-%v-%v", model.Id, model.Type, model.Subtype)
 }
 
-type DockerPlatform struct {
+type Driver interface {
+	Type() string
+}
+
+type DockerDriver struct {
 	Registry       string
 	ImageName      string
 	Tag            string
@@ -22,9 +26,17 @@ type DockerPlatform struct {
 	ShareDir       string
 }
 
-type LocalPlatform struct {
+func (p DockerDriver) Type() string {
+	return "docker"
+}
+
+type LocalDriver struct {
 	PlatformDir string
 	PythonPath  string
+}
+
+func (p LocalDriver) Type() string {
+	return "local"
 }
 
 type Resource struct {
@@ -33,15 +45,21 @@ type Resource struct {
 	AllocationMemoryMax int
 }
 
+type Job interface {
+	TemplateName() string
+}
+
 type TrainJob struct {
 	JobName string
 
-	TrainScript string
-	ConfigPath  string
-	PythonPath  string
+	ConfigPath string
 
-	PlatformType string
-	Platform     interface{} // Either DockerPlatform or LocalPlatform
+	DriverType string
+	Driver     Driver // Either DockerPlatform or LocalPlatform
 
 	Resources Resource
+}
+
+func (j TrainJob) TemplateName() string {
+	return "train_job.hcl"
 }

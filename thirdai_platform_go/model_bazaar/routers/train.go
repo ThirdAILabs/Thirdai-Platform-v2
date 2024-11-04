@@ -17,6 +17,7 @@ import (
 	"thirdai_platform/model_bazaar/storage"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -25,7 +26,41 @@ type TrainRouter struct {
 	db      *gorm.DB
 	nomad   nomad.NomadClient
 	storage storage.Storage
-	license licensing.LicenseVerifier
+
+	userAuth *auth.JwtManager
+	jobAuth  *auth.JwtManager
+
+	license   licensing.LicenseVerifier
+	variables *Variables
+}
+
+func (t *TrainRouter) Routes() chi.Router {
+	r := chi.NewRouter()
+
+	r.Group(func(r chi.Router) {
+		r.Use(t.userAuth.Verifier())
+		r.Use(t.userAuth.Authenticator())
+
+		r.Post("/ndb", t.TrainNdb)
+		r.Post("/upload", t.UploadFiles)
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(t.jobAuth.Verifier())
+		r.Use(t.jobAuth.Authenticator())
+
+		r.Post("/update-status", t.UpdateStatus)
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(t.jobAuth.Verifier())
+		r.Use(t.jobAuth.Authenticator())
+		r.Use(auth.ModelReadAccess(t.db))
+
+		r.Post("/status", t.GetStatus)
+	})
+
+	return r
 }
 
 type ndbTrainOptions struct {
@@ -61,17 +96,23 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 
 	options.JobOptions.EnsureValid()
 
-	// TODO(Nicholas): Get total cpu usage
 	license, err := t.verifyLicenseForTraining(options.JobOptions.CpuUsageMhz())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	token, err := t.jobAuth.CreateToken("model_id", modelId, time.Hour*10*24)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	trainConfig := config.TrainConfig{
 		ModelBazaarDir:      t.storage.Location(),
 		LicenseKey:          license,
-		ModelBazaarEndpoint: "TODO(Nicholas)",
+		ModelBazaarEndpoint: t.variables.ModelBazaarEndpoint,
+		UpdateToken:         token,
 		ModelId:             modelId,
 		BaseModelId:         options.BaseModelId,
 		ModelOptions:        options.ModelOptions,
@@ -170,14 +211,11 @@ func (t *TrainRouter) createModelAndStartTraining(
 	}
 
 	err = t.nomad.StartJob(
-		"train_job.hcl", // TODO(Nicholas): template dir path?
 		nomad.TrainJob{
-			JobName:      nomad.TrainJobName(model),
-			TrainScript:  "TODO(Nicholas).py",
-			ConfigPath:   configPath,
-			PythonPath:   "TODO(Nicholas)",
-			PlatformType: "TODO(Nicholas)",
-			Platform:     nomad.DockerPlatform{}, // TODO(Nicholas)
+			JobName:    nomad.TrainJobName(model),
+			ConfigPath: configPath,
+			DriverType: t.variables.Driver.Type(),
+			Driver:     t.variables.Driver,
 			Resources: nomad.Resource{
 				AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
 				AllocationMemory:    trainConfig.JobOptions.AllocationMemory,
@@ -258,4 +296,82 @@ func (t *TrainRouter) UploadFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJsonResponse(w, map[string]string{"artifact_path": artifactDir})
+}
+
+type updateStatusRequest struct {
+	Status   string                 `json:"status"`
+	Metadata map[string]interface{} `json:"metadata"`
+}
+
+func (t *TrainRouter) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	modelId, err := auth.ValueFromContext(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var params updateStatusRequest
+	if !parseRequestBody(w, r, &params) {
+		return
+	}
+
+	result := t.db.Model(&schema.Model{Id: modelId}).Update("train_status", params.Status)
+	if result.Error != nil {
+		dbError(w, result.Error)
+		return
+	}
+
+	if len(params.Metadata) > 0 {
+		metadataJson, err := json.Marshal(params.Metadata)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("serializing metadata failed: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		result := t.db.Save(&schema.ModelAttribute{ModelId: modelId, Key: "metadata", Value: string(metadataJson)})
+		if result.Error != nil {
+			dbError(w, result.Error)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+type trainStatusResponse struct {
+	Status   string   `json:"status"`
+	Messages []string `json:"messages"`
+}
+
+func (t *TrainRouter) GetStatus(w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+	if !params.Has("model_id") {
+		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
+		return
+	}
+	modelId := params.Get("model_id")
+
+	var res trainStatusResponse
+
+	err := t.db.Transaction(func(db *gorm.DB) error {
+		model, err := schema.GetModel(modelId, db, false, false, false)
+		if err != nil {
+			return err
+		}
+
+		status, messages, err := getModelStatus(model, db, true)
+		if err != nil {
+			return err
+		}
+		res.Status = status
+		res.Messages = messages
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	writeJsonResponse(w, res)
 }

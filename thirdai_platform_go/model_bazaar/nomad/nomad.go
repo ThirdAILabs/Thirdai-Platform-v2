@@ -11,7 +11,7 @@ import (
 )
 
 type NomadClient interface {
-	StartJob(jobTemplate string, args interface{}) error
+	StartJob(job Job) error
 
 	StopJob(jobName string) error
 
@@ -107,13 +107,13 @@ func (c *NomadHttpClient) submitJob(jobDef interface{}) error {
 	return nil
 }
 
-func (c *NomadHttpClient) StartJob(jobTemplate string, args interface{}) error {
-	job, err := c.parseJob(jobTemplate, args)
+func (c *NomadHttpClient) StartJob(job Job) error {
+	jobDef, err := c.parseJob(job.TemplateName(), job)
 	if err != nil {
 		return err
 	}
 
-	return c.submitJob(job)
+	return c.submitJob(jobDef)
 }
 
 func (c *NomadHttpClient) StopJob(jobName string) error {

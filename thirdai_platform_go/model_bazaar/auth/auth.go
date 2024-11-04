@@ -43,23 +43,27 @@ func (m *JwtManager) CreateUserJwt(userId string) (string, error) {
 	return m.CreateToken(userIdKey, userId, 15*time.Minute)
 }
 
-func UserIdFromContext(r *http.Request) (string, error) {
+func ValueFromContext(r *http.Request, key string) (string, error) {
 	_, claims, err := jwtauth.FromContext(r.Context())
 	if err != nil {
 		return "", fmt.Errorf("error retrieving auth claims: %v", err)
 	}
 
-	userIdUncasted, ok := claims[userIdKey]
+	valueUncasted, ok := claims[key]
 	if !ok {
-		return "", fmt.Errorf("invalid token: unable to locate user_id")
+		return "", fmt.Errorf("invalid token: unable to locate %v", key)
 	}
 
-	userId, ok := userIdUncasted.(string)
+	value, ok := valueUncasted.(string)
 	if !ok {
-		return "", fmt.Errorf("invalid token: user_id is invalid type")
+		return "", fmt.Errorf("invalid token: %v is invalid type", key)
 	}
 
-	return userId, nil
+	return value, nil
+}
+
+func UserIdFromContext(r *http.Request) (string, error) {
+	return ValueFromContext(r, userIdKey)
 }
 
 func getSecret() []byte {

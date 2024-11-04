@@ -64,6 +64,7 @@ type TrainConfig struct {
 	ModelBazaarDir      string  `json:"model_bazaar_dir"`
 	LicenseKey          string  `json:"license_key"`
 	ModelBazaarEndpoint string  `json:"model_bazaar_endpoint"`
+	UpdateToken         string  `json:"update_token"`
 	ModelId             string  `json:"model_id"`
 	BaseModelId         *string `json:"base_model_id"`
 

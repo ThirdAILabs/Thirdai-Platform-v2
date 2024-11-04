@@ -35,6 +35,7 @@ from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from platform_common.file_handler import download_local_files
+from platform_common.pydantic_models.cloud_credentials import CloudCredentials
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
 from platform_common.pydantic_models.training import (
     DatagenOptions,
@@ -85,6 +86,7 @@ def train_ndb(
     base_model_identifier: Optional[str] = None,
     model_options: str = Form(default="{}"),
     job_options: str = Form(default="{}"),
+    cloud_credentials: str = Form(default="{}"),
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
@@ -93,6 +95,7 @@ def train_ndb(
         model_options = NDBOptions.model_validate_json(model_options)
         data = NDBData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
+        cloud_credentials = CloudCredentials.model_validate_json(cloud_credentials)
         print(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(

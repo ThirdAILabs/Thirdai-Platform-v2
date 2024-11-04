@@ -4,6 +4,7 @@ import traceback
 import uuid
 from logging import Logger
 from pathlib import Path
+from queue import Queue
 from typing import AsyncGenerator, List
 
 import fitz
@@ -75,6 +76,7 @@ class NDBRouter:
         self.router.add_api_route("/search", self.search, methods=["POST"])
         self.router.add_api_route("/insert", self.insert, methods=["POST"])
         self.router.add_api_route("/delete", self.delete, methods=["POST"])
+        self.router.add_api_route("/tasks", self.tasks, methods=["GET"])
         self.router.add_api_route("/upvote", self.upvote, methods=["POST"])
         self.router.add_api_route("/associate", self.associate, methods=["POST"])
         self.router.add_api_route(
@@ -181,7 +183,7 @@ class NDBRouter:
         self,
         documents: str = Form(...),
         files: List[UploadFile] = [],
-        sync: bool = False,
+        sync: bool = True,
         token: str = Depends(Permissions.verify_permission("write")),
     ):
         """
@@ -286,7 +288,7 @@ class NDBRouter:
     def delete(
         self,
         input: DeleteInput,
-        sync: bool = False,
+        sync: bool = True,
         token: str = Depends(Permissions.verify_permission("write")),
     ):
         """
@@ -342,6 +344,18 @@ class NDBRouter:
             return response(
                 status_code=status.HTTP_200_OK,
                 message="Delete applied successfully.",
+            )
+
+    @propagate_error
+    def tasks(
+        self,
+        token: str = Depends(Permissions.verify_permission("write")),
+    ):
+        with self.task_lock:
+            return response(
+                status_code=status.HTTP_200_OK,
+                message=f"Returned all tasks.",
+                data={"tasks": self.tasks},
             )
 
     @propagate_error

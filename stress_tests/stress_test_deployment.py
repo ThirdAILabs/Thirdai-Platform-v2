@@ -138,6 +138,25 @@ documents = [
     {"path": os.path.join(doc_dir, "supervised.csv"), "location": "local"},
 ]
 
+doc_dir = "/home/david/ThirdAI-Platform/intuit_csvs"
+
+filenames = [
+    "2023_FDI_PER_3.csv",
+    "2023_FDI_PER.csv",
+    "2023_KYI_PER.csv",
+    "2023_MNI_PER.csv",
+    "2024_FDI_PER_3.csv",
+    "2024_FDI_PER.csv",
+    "2024_KYI_PER_3.csv",
+    "2024_KYI_PER.csv",
+    "2024_MNI_PER_3.csv",
+    "2024_MNI_PER.csv"
+]
+
+documents = [
+    {"path": os.path.join(doc_dir, filename), "location": "local"} for filename in filenames
+]
+
 for doc in documents:
     with open(doc["path"], "rb") as f:
         file_contents[doc["path"]] = f.read()
@@ -182,7 +201,7 @@ class NeuralDBLoadTest(TaskSet):
             for f in file_objects:
                 f.close()
 
-        if response.status_code == 500:
+        if response.status_code != 500:
             print(f"Response content: {response.text}")
 
     @task(args.delete_weight)

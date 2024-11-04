@@ -212,12 +212,12 @@ class NDBRouter:
                 message="No documents supplied for insertion. Must supply at least one document.",
             )
 
-        total_filesize = sum(file.size or 0 for file in files)
-        if total_filesize > 10 * 1024 * 1024:
-            return response(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Size of uploaded files exceeds maximum of 10Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size.",
-            )
+        # total_filesize = sum(file.size or 0 for file in files)
+        # if total_filesize > 10 * 1024 * 1024:
+        #     return response(
+        #         status_code=status.HTTP_400_BAD_REQUEST,
+        #         message=f"Size of uploaded files exceeds maximum of 10Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size.",
+        #     )
 
         documents = download_local_files(
             files=files,

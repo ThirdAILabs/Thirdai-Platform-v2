@@ -175,7 +175,11 @@ class NDBRouter:
             message="Successful",
             data=jsonable_encoder(results),
         )
-
+    path: str
+    location: FileLocation
+    source_id: Optional[str] = None
+    options: Dict[str, Any] = {}
+    metadata: Optional[Dict[str, Any]] = None
     @ndb_insert_metric.time()
     def insert(
         self,
@@ -189,26 +193,29 @@ class NDBRouter:
 
         Parameters:
         - documents: str - The documents to be inserted in JSON format.
-        - files: List[UploadFile] - Optional list of files to be uploaded.
+            - path: str - Path of the file.
+            - location: str - Where the file is stored. If uploading a file, this will be "local". Other options include "nfs", "s3", "gcp", "azure".
+            - source_id: Optional[str] - A user specified source id for the uploaded document. If not provided, a random source_id will be created.
+            - options: Dict[str, Any] - Custom options for this inserted doc. (default: {})
+                - {"upsert": True} can only be used if source_id is specified. The newly uploaded document will replace the document that currently has source_id.
+            - metadata: Optional[Dict[str, Any]] - Metadata to assign to this doc. Can be used to filter documents.
+        - files: List[UploadFile] - List of files to be uploaded.
+        - sync: Optional[bool] - Whether to upload files synchronously or queue them (default: True).
         - token: str - Authorization token.
 
         Returns:
         - JSONResponse: Insertion success message.
 
-        Example Request Body (Sync Mode):
+        Example Documents Param Request Body:
         ```
         {
             "documents": [
                 {
                     "location": "local",
-                    "document_type": "PDF",
                     "path": "/path/to/file.pdf",
                     "metadata": {"author": "John Doe"},
-                    "chunk_size": 100,
-                    "stride": 40,
-                    "emphasize_first_words": 0,
-                    "ignore_header_footer": true,
-                    "ignore_nonstandard_orientation": true
+                    "options": {"upsert": True},
+                    "source_id": "1234",
                 }
             ],
         }
@@ -321,7 +328,7 @@ class NDBRouter:
                     "status": "not_started",
                     "action": "delete",
                     "last_modified": now(),
-                    "data": {"doc_ids": input.source_ids},
+                    "data": {"source_ids": input.source_ids},
                     "message": "",
                 }
             self.logger.info("Deletion queued")
@@ -789,7 +796,7 @@ class NDBRouter:
                         self.tasks[task_id]["status"] = "complete"
                         self.tasks[task_id]["last_modified"] = now()
                 elif action == "delete":
-                    doc_ids = data["doc_ids"]
+                    doc_ids = data["source_ids"]
                     self.model.delete(doc_ids)
                     with self.task_lock:
                         self.tasks[task_id]["status"] = "complete"

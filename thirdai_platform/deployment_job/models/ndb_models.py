@@ -437,7 +437,6 @@ class NDBV2Model(NDBModel):
         return inputs.SearchResultsNDB(query_text=query, references=results)
 
     def insert(self, documents: List[FileInfo], **kwargs: Any) -> List[Dict[str, str]]:
-        # TODO(V2 Support): add flag for upsert
 
         ndb_docs = [
             ndbv2_parser.parse_doc(
@@ -450,9 +449,9 @@ class NDBV2Model(NDBModel):
             self.db.insert(ndb_docs)
 
             upsert_doc_ids = [
-                doc.doc_id
+                doc.source_id
                 for doc in documents
-                if doc.doc_id and doc.options.get("upsert", False)
+                if doc.source_id and doc.options.get("upsert", False)
             ]
             for doc_id in upsert_doc_ids:
                 self.db.delete_doc(doc_id, keep_latest_version=True)

@@ -100,7 +100,7 @@ def run_ndb_train_job(ndb_options, extra_supervised_files=[]):
                 FileInfo(
                     path=os.path.join(file_dir(), "supervised.csv"),
                     location="local",
-                    doc_id=source_id,
+                    source_id=source_id,
                     options={"csv_query_column": "query", "csv_id_column": "id"},
                 ),
                 *extra_supervised_files,

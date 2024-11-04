@@ -32,7 +32,7 @@ class FileLocation(str, Enum):
 class FileInfo(BaseModel):
     path: str
     location: FileLocation
-    doc_id: Optional[str] = None
+    source_id: Optional[str] = None
     options: Dict[str, Any] = {}
     metadata: Optional[Dict[str, Any]] = None
 

@@ -118,7 +118,7 @@ def parse_doc(
         ndb_doc = preload_chunks(
             resource_path=local_file_path,
             display_path=f"/{bucket_name}.s3.amazonaws.com/{prefix}",
-            doc_id=doc.doc_id,
+            doc_id=doc.source_id,
             metadata=doc.metadata,
             options=doc.options,
         )
@@ -142,7 +142,7 @@ def parse_doc(
         ndb_doc = preload_chunks(
             resource_path=local_file_path,
             display_path=f"/{account_name}.blob.core.windows.net/{container_name}/{blob_name}",
-            doc_id=doc.doc_id,
+            doc_id=doc.source_id,
             metadata=doc.metadata,
             options=doc.options,
         )
@@ -165,7 +165,7 @@ def parse_doc(
         ndb_doc = preload_chunks(
             resource_path=local_file_path,
             display_path=f"/storage.googleapis.com/{bucket_name}/{blob_name}",
-            doc_id=doc.doc_id,
+            doc_id=doc.source_id,
             metadata=doc.metadata,
             options=doc.options,
         )
@@ -182,7 +182,7 @@ def parse_doc(
     return preload_chunks(
         resource_path=os.path.join(artifact_dir, os.path.basename(doc.path)),
         display_path=os.path.join(save_artifact_uuid, os.path.basename(doc.path)),
-        doc_id=doc.doc_id,
+        doc_id=doc.source_id,
         metadata=doc.metadata,
         options=doc.options,
     )

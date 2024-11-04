@@ -103,7 +103,7 @@ def convert_supervised_to_ndb_file(file: FileInfo) -> ndb.Sup:
             query_column=file.options.get("csv_query_column", None),
             id_delimiter=file.options.get("csv_id_delimiter", None),
             id_column=file.options.get("csv_id_column", None),
-            source_id=file.doc_id,
+            source_id=file.source_id,
         )
     else:
         raise TypeError(

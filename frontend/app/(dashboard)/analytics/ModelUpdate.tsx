@@ -38,6 +38,54 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
   const [isLoadingReport, setIsLoadingReport] = useState(true);
   const [reportError, setReportError] = useState('');
 
+  // New states for button cooldown
+  const [uploadButtonDisabled, setUploadButtonDisabled] = useState(false);
+  const [pollingButtonDisabled, setPollingButtonDisabled] = useState(false);  
+
+  // Timer effect for upload button cooldown
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (uploadButtonDisabled) {
+      timer = setTimeout(() => {
+        setUploadButtonDisabled(false);
+      }, 3000);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [uploadButtonDisabled]);
+
+  // Timer effect for polling button cooldown
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (pollingButtonDisabled) {
+      timer = setTimeout(() => {
+        setPollingButtonDisabled(false);
+      }, 3000);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [pollingButtonDisabled]);
+
+  // Fetch initial training report
+  useEffect(() => {
+    const fetchInitialReport = async () => {
+      try {
+        setIsLoadingReport(true);
+        setReportError('');
+        const response = await getTrainReport(`${username}/${modelName}`);
+        setTrainReport(response.data);
+      } catch (error) {
+        setReportError(error instanceof Error ? error.message : 'Failed to fetch training report');
+      } finally {
+        setIsLoadingReport(false);
+      }
+    };
+
+    fetchInitialReport();
+  }, [username, modelName]);
+
   // Fetch initial training report - Using mock data for now
   useEffect(() => {
     const fetchInitialReport = async () => {
@@ -70,7 +118,6 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
   };
 
   const validateModelName = (name: string) => {
-    // Add naming validation rules here
     const isValid = /^[a-zA-Z0-9-_]+$/.test(name);
     const isNotEmpty = name.trim().length > 0;
     return isValid && isNotEmpty;
@@ -89,6 +136,7 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
     setIsUploadUpdating(true);
     setUploadError('');
     setUploadSuccess(false);
+    setUploadButtonDisabled(true);
   
     try {
       const response = await trainUDTWithCSV({ 
@@ -118,6 +166,7 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
     setIsPollingUpdating(true);
     setPollingError('');
     setPollingSuccess(false);
+    setPollingButtonDisabled(true);
 
     try {
       const response = await retrainTokenClassifier({ 
@@ -143,22 +192,14 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
   return (
     <div className="space-y-6 w-full px-8">
       {/* Training Report Section */}
-            {isLoadingReport ? (
+      {isLoadingReport ? (
         <Card>
           <CardContent>
             <div className="text-center py-8">Loading training report...</div>
           </CardContent>
         </Card>
       ) : reportError ? (
-        <>
-        </>
-        // <Card>
-        //   <CardContent>
-        //     <Alert severity="error" sx={{ mb: 2 }}>
-        //       {reportError}
-        //     </Alert>
-        //   </CardContent>
-        // </Card>
+        <></>
       ) : trainReport && (
         <TrainingResults report={trainReport} />
       )}
@@ -170,34 +211,26 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
           <CardDescription>View and use recent labeled samples to update the model</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Recent Samples Component */}
           <div className="mb-6">
             <RecentSamples deploymentUrl={deploymentUrl} />
           </div>
 
-          {/* Update Button Section */}
           <div className="space-y-4">
             {pollingError && (
-              <Alert 
-                severity="error" 
-                sx={{ mb: 2 }}
-              >
+              <Alert severity="error" sx={{ mb: 2 }}>
                 {pollingError}
               </Alert>
             )}
 
             {pollingSuccess && (
-              <Alert 
-                severity="success" 
-                sx={{ mb: 2 }}
-              >
+              <Alert severity="success" sx={{ mb: 2 }}>
                 Update process initiated successfully with polled data.
               </Alert>
             )}
 
             <Button
               onClick={handlePollingUpdate}
-              disabled={isPollingUpdating}
+              disabled={isPollingUpdating || pollingButtonDisabled}
               variant="contained"
               color={pollingSuccess ? 'success' : 'primary'}
               fullWidth
@@ -221,9 +254,6 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
                 {`Example (6 tokens each):`}<br/>
                 {`Source: "The borrower name is John Smith"`}<br/>
                 {`Target: "O O O O NAME NAME"`}<br/><br/>
-                {`Let's count tokens:`}<br/>
-                {`Source: The(1) borrower(2) name(3) is(4) John(5) Smith(6)`}<br/>
-                {`Target: O(1) O(2) O(3) O(4) NAME(5) NAME(6)`}<br/><br/>
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -289,7 +319,7 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
 
             <Button
               onClick={handleUploadUpdate}
-              disabled={isUploadUpdating || !selectedFile}
+              disabled={isUploadUpdating || !selectedFile || uploadButtonDisabled}
               variant="contained"
               color={uploadSuccess ? 'success' : 'primary'}
               fullWidth

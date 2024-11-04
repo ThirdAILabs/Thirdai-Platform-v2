@@ -497,6 +497,7 @@ class TokenClassificationModel(ClassificationModel):
                 target = getattr(row, target_col)
 
                 preds = model.predict({source_col: source}, top_k=1)
+                predictions = " ".join(p[0][0] for p in preds)
                 labels = target.split()
                 for i, (pred, label) in enumerate(zip(preds, labels)):
                     tag = pred[0][0]
@@ -504,18 +505,33 @@ class TokenClassificationModel(ClassificationModel):
                         true_positives[label] += 1
                         if len(true_positive_samples[label]) < samples_to_collect:
                             true_positive_samples[label].append(
-                                {"source": source, "target": target, "index": i}
+                                {
+                                    "source": source,
+                                    "target": target,
+                                    "predictions": predictions,
+                                    "index": i,
+                                }
                             )
                     else:
                         false_positives[tag] += 1
                         if len(false_positive_samples[tag]) < samples_to_collect:
                             false_positive_samples[tag].append(
-                                {"source": source, "target": target, "index": i}
+                                {
+                                    "source": source,
+                                    "target": target,
+                                    "predictions": predictions,
+                                    "index": i,
+                                }
                             )
                         false_negatives[label] += 1
                         if len(false_negative_samples[label]) < samples_to_collect:
                             false_negative_samples[label].append(
-                                {"source": source, "target": target, "index": i}
+                                {
+                                    "source": source,
+                                    "target": target,
+                                    "predictions": predictions,
+                                    "index": i,
+                                }
                             )
 
         metric_summary = {}

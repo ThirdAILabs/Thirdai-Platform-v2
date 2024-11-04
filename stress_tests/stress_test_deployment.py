@@ -28,8 +28,7 @@ import json
 import os
 import random
 import sys
-
-pass
+import uuid
 from dataclasses import dataclass
 from urllib.parse import urljoin
 
@@ -64,7 +63,7 @@ def parse_args():
     parser.add_argument("--upvote_weight", type=int, default=2)
     parser.add_argument("--associate_weight", type=int, default=2)
     parser.add_argument("--sources_weight", type=int, default=5)
-    parser.add_argument("--save_weight", type=int, default=1)
+    parser.add_argument("--save_weight", type=int, default=0)
     parser.add_argument("--implicit_feedback_weight", type=int, default=10)
 
     # Generation is a separate test
@@ -124,42 +123,17 @@ login_details = Login.with_email(
 username = login_details.username
 auth_header = {"Authorization": f"Bearer {login_details.access_token}"}
 
-# TODO
-# each test should have a folder with queries, original documents, and documents to add
-# error handling
-
-
-file_contents = {}
-doc_dir = "/home/david/ThirdAI-Platform/thirdai_platform/train_job/sample_docs"
+# TODO: option to add different docs
+doc_dir = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "../thirdai_platform/train_job/sample_docs/",
+)
 
 documents = [
     {"path": os.path.join(doc_dir, "mutual_nda.pdf"), "location": "local"},
     {"path": os.path.join(doc_dir, "four_english_words.docx"), "location": "local"},
     {"path": os.path.join(doc_dir, "supervised.csv"), "location": "local"},
 ]
-
-doc_dir = "/home/david/ThirdAI-Platform/intuit_csvs"
-
-filenames = [
-    "2023_FDI_PER_3.csv",
-    "2023_FDI_PER.csv",
-    "2023_KYI_PER.csv",
-    "2023_MNI_PER.csv",
-    "2024_FDI_PER_3.csv",
-    "2024_FDI_PER.csv",
-    "2024_KYI_PER_3.csv",
-    "2024_KYI_PER.csv",
-    "2024_MNI_PER_3.csv",
-    "2024_MNI_PER.csv"
-]
-
-documents = [
-    {"path": os.path.join(doc_dir, filename), "location": "local"} for filename in filenames
-]
-
-for doc in documents:
-    with open(doc["path"], "rb") as f:
-        file_contents[doc["path"]] = f.read()
 
 
 class NeuralDBLoadTest(TaskSet):
@@ -305,21 +279,21 @@ class NeuralDBLoadTest(TaskSet):
             if response.status_code == 500:
                 print(f"Response content: {response.text}")
 
-    # @task(args.save_weight)
-    # def test_save(self):
-    #     model_name = str(uuid.uuid4())
-    #     print(model_name)
-    #     res = self.client.post(
-    #         route("save"),
-    #         json={"override": False, "model_name": model_name},
-    #         headers=auth_header,
-    #     )
+    @task(args.save_weight)
+    def test_save(self):
+        model_name = str(uuid.uuid4())
+        print(model_name)
+        res = self.client.post(
+            route("save"),
+            json={"override": False, "model_name": model_name},
+            headers=auth_header,
+        )
 
-    #     self.client.post(
-    #         "/api/model/delete",
-    #         params={"model_identifier": f"{username}/{model_name}"},
-    #         headers=auth_header,
-    #     )
+        self.client.post(
+            "/api/model/delete",
+            params={"model_identifier": f"{username}/{model_name}"},
+            headers=auth_header,
+        )
 
 
 class GenerationLoadTest(TaskSet):

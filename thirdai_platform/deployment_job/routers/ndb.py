@@ -281,11 +281,12 @@ class NDBRouter:
                 data={"task_id": task_id},
             )
         else:
-            self.model.insert(documents=documents)
+            inserted_docs = self.model.insert(documents=documents)
             self.logger.info("Document insertion applied successfully")
             return response(
                 status_code=status.HTTP_200_OK,
                 message="Insert applied successfully.",
+                data=inserted_docs
             )
 
     @ndb_delete_metric.time()
@@ -791,10 +792,11 @@ class NDBRouter:
                     self.tasks[task_id]["last_modified"] = now()
                 if action == "insert":
                     documents = data["documents"]
-                    self.model.insert(documents=documents)
+                    inserted_docs = self.model.insert(documents=documents)
                     with self.task_lock:
                         self.tasks[task_id]["status"] = "complete"
                         self.tasks[task_id]["last_modified"] = now()
+                        self.tasks[task_id]["data"]["sources"] = inserted_docs
                 elif action == "delete":
                     doc_ids = data["source_ids"]
                     self.model.delete(doc_ids)

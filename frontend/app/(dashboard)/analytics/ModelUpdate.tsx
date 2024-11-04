@@ -204,43 +204,6 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
         <TrainingResults report={trainReport} />
       )}
 
-      {/* Polled Data Section with Recent Samples */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Update Model with Recent User Feedback</CardTitle>
-          <CardDescription>View and use recent labeled samples to update the model</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="mb-6">
-            <RecentSamples deploymentUrl={deploymentUrl} />
-          </div>
-
-          <div className="space-y-4">
-            {pollingError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {pollingError}
-              </Alert>
-            )}
-
-            {pollingSuccess && (
-              <Alert severity="success" sx={{ mb: 2 }}>
-                Update process initiated successfully with polled data.
-              </Alert>
-            )}
-
-            <Button
-              onClick={handlePollingUpdate}
-              disabled={isPollingUpdating || pollingButtonDisabled}
-              variant="contained"
-              color={pollingSuccess ? 'success' : 'primary'}
-              fullWidth
-            >
-              {isPollingUpdating ? 'Initiating Update...' : pollingSuccess ? 'Update Initiated!' : 'Update Model with User Feedback'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* CSV Upload Section */}
       <Card>
           <CardHeader>
@@ -325,6 +288,43 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
               fullWidth
             >
               {isUploadUpdating ? 'Initiating Update...' : uploadSuccess ? 'Update Initiated!' : 'Update Model with CSV'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Polled Data Section with Recent Samples */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Update Model with Recent User Feedback</CardTitle>
+          <CardDescription>View and use recent labeled samples to update the model</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="mb-6">
+            <RecentSamples deploymentUrl={deploymentUrl} />
+          </div>
+
+          <div className="space-y-4">
+            {pollingError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {pollingError}
+              </Alert>
+            )}
+
+            {pollingSuccess && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Update process initiated successfully with polled data.
+              </Alert>
+            )}
+
+            <Button
+              onClick={handlePollingUpdate}
+              disabled={isPollingUpdating || pollingButtonDisabled}
+              variant="contained"
+              color={pollingSuccess ? 'success' : 'primary'}
+              fullWidth
+            >
+              {isPollingUpdating ? 'Initiating Update...' : pollingSuccess ? 'Update Initiated!' : 'Update Model with User Feedback'}
             </Button>
           </div>
         </CardContent>

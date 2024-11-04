@@ -7,6 +7,8 @@ import useRollingSamples from './rolling';
 import axios from 'axios';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { IconButton } from '@mui/material';
+import { Alert, AlertTitle } from '@mui/material';
+import { Play } from 'lucide-react';
 
 const Separator: React.FC = () => <hr className="my-3 border-t border-gray-200" />;
 
@@ -268,7 +270,25 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
           </CardHeader>
           <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">
             {labelError && (
-              <div className="text-red-500">Error fetching labels: {labelError.message}</div>
+              labelError.message === "Error fetching labels: Request failed with status code 404" ? (
+                <Alert 
+                  severity="info"
+                  icon={<Play className="h-4 w-4" />}
+                  sx={{
+                    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                    '& .MuiAlert-message': {
+                      width: '100%'
+                    }
+                  }}
+                >
+                  <AlertTitle>Model Not Running</AlertTitle>
+                  Please start the model to see the live user feedback
+                </Alert>
+              ) : (
+                <Alert severity="error">
+                  Error fetching labels: {labelError.message}
+                </Alert>
+              )
             )}
             {uniqueLabels.map((label, idx) => (
               <React.Fragment key={idx}>
@@ -288,7 +308,25 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
           </CardHeader>
           <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">
             {sampleError && (
-              <div className="text-red-500">Error fetching samples: {sampleError.message}</div>
+              sampleError.message === "Error fetching labels: Request failed with status code 404" ? (
+                <Alert 
+                  severity="info"
+                  icon={<Play className="h-4 w-4" />}
+                  sx={{
+                    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                    '& .MuiAlert-message': {
+                      width: '100%'
+                    }
+                  }}
+                >
+                  <AlertTitle>Model Not Running</AlertTitle>
+                  Please start the model to see the live user feedback
+                </Alert>
+              ) : (
+                <Alert severity="error">
+                  Error fetching samples: {sampleError.message}
+                </Alert>
+              )
             )}
             {recentSamples.map((sample, idx) => (
               <React.Fragment key={idx}>

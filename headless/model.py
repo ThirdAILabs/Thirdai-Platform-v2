@@ -86,7 +86,7 @@ class Flow:
                 source_id = get_csv_source_id(
                     (
                         unsup_file
-                        if not nfs_base_path
+                        if not doc_type == "nfs"
                         else os.path.join(nfs_base_path, unsup_file[1:])
                     ),
                     doc_options.get(unsup_file, {}).get("csv_id_column"),

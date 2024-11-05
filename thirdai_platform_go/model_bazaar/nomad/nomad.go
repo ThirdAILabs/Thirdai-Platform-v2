@@ -2,13 +2,21 @@ package nomad
 
 import (
 	"bytes"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
 )
+
+// This will load the given templates into the embed FS so that they are bunddled
+// into the compiled binary.
+
+//go:embed jobs/*
+var jobTemplates embed.FS
 
 type NomadClient interface {
 	StartJob(job Job) error
@@ -19,22 +27,23 @@ type NomadClient interface {
 }
 
 type NomadHttpClient struct {
-	addr  string
-	token string
+	addr      string
+	token     string
+	templates *template.Template
 }
 
 func NewHttpClient() NomadClient {
-	return &NomadHttpClient{}
-}
-
-func (c *NomadHttpClient) parseJob(jobTemplate string, args interface{}) (interface{}, error) {
-	tmpl, err := template.New("").ParseFiles(jobTemplate)
+	tmpl, err := template.ParseFS(jobTemplates, "jobs/*")
 	if err != nil {
-		return nil, fmt.Errorf("error parsing job template: %v", err)
+		log.Panicf("error parsing job templates: %v", err)
 	}
 
+	return &NomadHttpClient{templates: tmpl}
+}
+
+func (c *NomadHttpClient) parseJob(job Job) (interface{}, error) {
 	content := strings.Builder{}
-	err = tmpl.Execute(&content, args)
+	err := c.templates.ExecuteTemplate(&content, job.TemplateName(), job)
 	if err != nil {
 		return nil, fmt.Errorf("error rendering template: %v", err)
 	}
@@ -68,13 +77,13 @@ func (c *NomadHttpClient) parseJob(jobTemplate string, args interface{}) (interf
 	}
 
 	defer res.Body.Close()
-	var job interface{}
+	var jobDef interface{}
 	err = json.NewDecoder(res.Body).Decode(&job)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing nomad response from parse request: %v", err)
 	}
 
-	return job, nil
+	return jobDef, nil
 }
 
 func (c *NomadHttpClient) submitJob(jobDef interface{}) error {
@@ -108,7 +117,7 @@ func (c *NomadHttpClient) submitJob(jobDef interface{}) error {
 }
 
 func (c *NomadHttpClient) StartJob(job Job) error {
-	jobDef, err := c.parseJob(job.TemplateName(), job)
+	jobDef, err := c.parseJob(job)
 	if err != nil {
 		return err
 	}

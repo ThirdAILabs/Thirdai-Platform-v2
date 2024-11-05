@@ -214,7 +214,7 @@ func (t *TrainRouter) createModelAndStartTraining(
 		nomad.TrainJob{
 			JobName:    nomad.TrainJobName(model),
 			ConfigPath: configPath,
-			DriverType: t.variables.Driver.Type(),
+			DriverType: t.variables.Driver.DriverType(),
 			Driver:     t.variables.Driver,
 			Resources: nomad.Resource{
 				AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),

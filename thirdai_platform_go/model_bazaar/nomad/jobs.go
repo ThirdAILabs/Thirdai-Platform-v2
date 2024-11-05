@@ -14,7 +14,7 @@ func DeployJobName(model schema.Model) string {
 }
 
 type Driver interface {
-	Type() string
+	DriverType() string
 }
 
 type DockerDriver struct {
@@ -26,7 +26,7 @@ type DockerDriver struct {
 	ShareDir       string
 }
 
-func (p DockerDriver) Type() string {
+func (p DockerDriver) DriverType() string {
 	return "docker"
 }
 
@@ -35,7 +35,7 @@ type LocalDriver struct {
 	PythonPath  string
 }
 
-func (p LocalDriver) Type() string {
+func (p LocalDriver) DriverType() string {
 	return "local"
 }
 
@@ -61,5 +61,5 @@ type TrainJob struct {
 }
 
 func (j TrainJob) TemplateName() string {
-	return "train_job.hcl"
+	return "train_job.hcl.tmpl"
 }

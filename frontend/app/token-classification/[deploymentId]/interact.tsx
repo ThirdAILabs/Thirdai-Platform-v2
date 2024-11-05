@@ -196,7 +196,8 @@ function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSel
           className="font-medium"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          style={{ marginBottom: '5px' }}
+          placeholder="find existing label or create a new one"
+          style={{ marginBottom: '5px', width: '300px' }}
           onKeyDown={(e) => {
             e.stopPropagation();
           }}

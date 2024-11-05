@@ -13,13 +13,13 @@ from backend.datagen import generate_data_for_train_job
 from backend.utils import (
     copy_data_storage,
     delete_nomad_job,
-    get_detailed_reasons,
     get_job_logs,
     get_model,
     get_model_from_identifier,
     get_model_status,
     get_platform,
     get_python_path,
+    get_warnings_and_errors,
     model_bazaar_path,
     nomad_job_exists,
     remove_unused_samples,
@@ -93,7 +93,7 @@ def train_ndb(
         model_options = NDBOptions.model_validate_json(model_options)
         data = NDBData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
-        print(f"Extra options for training: {model_options}")
+        logging.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -421,7 +421,7 @@ def nlp_datagen(
         datagen_options = DatagenOptions.model_validate_json(datagen_options)
         datagen_job_options = JobOptions.model_validate_json(datagen_job_options)
         train_job_options = JobOptions.model_validate_json(train_job_options)
-        print(f"Datagen options: {datagen_options}")
+        logging.info(f"Datagen options: {datagen_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -552,7 +552,7 @@ def datagen_callback(
     try:
         model_options = UDTOptions.model_validate_json(model_options)
         data = UDTData.model_validate_json(file_info)
-        print(f"Extra options for training: {model_options}")
+        logging.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -824,7 +824,7 @@ def train_udt(
         model_options = UDTOptions.model_validate_json(model_options)
         data = UDTData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
-        print(f"Extra options for training: {model_options}")
+        logging.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -917,10 +917,28 @@ def train_udt(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
         )
-    
+
     if base_model:
-        copy_data_storage(base_model, new_model)
-        remove_unused_samples(base_model)
+        try:
+            copy_data_storage(base_model, new_model)
+            remove_unused_samples(base_model)
+        except Exception as err:
+            new_model.train_status = schema.Status.failed
+            msg = "Unable to start training job. Encountered error loading data from specified base model."
+            logging.error(f"error copying storage from ner base model: {err}")
+            session.add(
+                schema.JobError(
+                    model_id=new_model.id,
+                    job_type="train",
+                    status=schema.Status.failed,
+                    message=msg,
+                )
+            )
+            session.commit()
+
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=msg
+            )
 
     work_dir = os.getcwd()
 
@@ -956,6 +974,14 @@ def train_udt(
         session.commit()
     except Exception as err:
         new_model.train_status = schema.Status.failed
+        session.add(
+            schema.JobError(
+                model_id=new_model.id,
+                job_type="train",
+                status=schema.Status.failed,
+                message=f"Failed to start the training job on nomad. Received error: {err}",
+            )
+        )
         session.commit()
         logging.error(str(err))
         return response(
@@ -1110,18 +1136,43 @@ def train_fail(
         )
 
     trained_model.train_status = new_status
-    if message:
+    if new_status == schema.Status.failed and message:
         session.add(
-            schema.JobError(
+            schema.JobMessage(
                 model_id=trained_model.id,
                 job_type="train",
-                status=new_status,
+                level=schema.Level.error,
                 message=message,
             )
         )
     session.commit()
 
     return {"message": f"successfully updated with following {message}"}
+
+
+@train_router.post("/warning")
+def train_warning(model_id: str, message: str, session: Session = Depends(get_session)):
+    trained_model: schema.Model = (
+        session.query(schema.Model).filter(schema.Model.id == model_id).first()
+    )
+
+    if not trained_model:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"No model with id {model_id}.",
+        )
+
+    session.add(
+        schema.JobMessage(
+            model_id=trained_model.id,
+            job_type="train",
+            level=schema.Level.warning,
+            message=message,
+        )
+    )
+    session.commit()
+
+    return {"message": "successfully logged the message"}
 
 
 @train_router.get("/status", dependencies=[Depends(verify_model_read_access)])
@@ -1149,9 +1200,7 @@ def train_status(
         )
 
     train_status, reasons = get_model_status(model, train_status=True)
-    reasons = get_detailed_reasons(
-        session=session, job_type="train", status=train_status, reasons=reasons
-    )
+    warnings, errors = get_warnings_and_errors(session, model, job_type="train")
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the train status.",
@@ -1159,6 +1208,8 @@ def train_status(
             "model_identifier": model_identifier,
             "train_status": train_status,
             "messages": reasons,
+            "warnings": warnings,
+            "errors": errors,
         },
     )
 

@@ -8,7 +8,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  TooltipFormatter
 } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { LabelMetrics, TrainReportData, TrainingExample } from '@/lib/backend';
@@ -61,7 +60,7 @@ const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics
     ];
   };
 
-  const formatTooltip: TooltipFormatter = (value: string | number | Array<string | number>) => {
+  const formatTooltip = (value: string | number | Array<string | number>) => {
     if (typeof value === 'number') {
       return `${value.toFixed(1)}%`;
     }
@@ -96,7 +95,7 @@ const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics
       {/* Metrics Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Metrics for "{selectedLabel}"</CardTitle>
+          <CardTitle className="text-lg">Metrics for &quot;{selectedLabel}&quot;</CardTitle>
           <CardDescription>Comparing performance before and after training</CardDescription>
         </CardHeader>
         <CardContent>

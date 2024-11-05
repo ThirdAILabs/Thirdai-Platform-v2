@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import uuid
@@ -15,7 +16,7 @@ def convert_to_ndb_doc(
     doc_id: Optional[str],
     metadata: Optional[Dict[str, Any]],
     options: Dict[str, Any],
-) -> ndbv2.Document:
+) -> Optional[ndbv2.Document]:
     filename, ext = os.path.splitext(resource_path)
 
     if ext == ".pdf":
@@ -31,7 +32,9 @@ def convert_to_ndb_doc(
                     (pdf_title + " " + filename_as_keywords + " ") * keyword_weight,
                 )
             except Exception as e:
-                print(f"Could not parse pdftitle for pdf: {resource_path}. Error: {e}")
+                logging.error(
+                    f"Could not parse pdftitle for pdf: {resource_path}. Error: {e}"
+                )
 
         return ndbv2.PDF(
             resource_path,
@@ -71,7 +74,8 @@ def convert_to_ndb_doc(
             doc_id=doc_id,
         )
     else:
-        raise TypeError(f"{ext} Document type isn't supported yet.")
+        logging.warning("{ext} Document type isn't supported yet.")
+        return None
 
 
 def preload_chunks(
@@ -80,7 +84,7 @@ def preload_chunks(
     doc_id: Optional[str],
     metadata: Optional[Dict[str, Any]],
     options: Dict[str, Any],
-) -> Tuple[ndbv2.Document, str]:
+) -> Optional[Tuple[ndbv2.Document, str]]:
     doc = convert_to_ndb_doc(
         resource_path=resource_path,
         display_path=display_path,
@@ -88,12 +92,14 @@ def preload_chunks(
         metadata=metadata,
         options=options,
     )
+    if not doc:
+        return None
     return ndbv2.documents.PrebatchedDoc(list(doc.chunks()), doc_id=doc.doc_id())
 
 
 def parse_doc(
     doc: FileInfo, doc_save_dir: str, tmp_dir: str
-) -> Tuple[ndbv2.Document, str]:
+) -> Optional[Tuple[ndbv2.Document, str]]:
     """
     Process a file, downloading it from S3, Azure, or GCP if necessary,
     and convert it to an NDB file.
@@ -108,7 +114,7 @@ def parse_doc(
 
             s3_client.download_file(bucket_name, prefix, local_file_path)
         except Exception as error:
-            print(f"Error downloading file '{doc.path}' from S3: {error}")
+            logging.error(f"Error downloading file '{doc.path}' from S3: {error}")
             raise ValueError(f"Error downloading file '{doc.path}' from S3: {error}")
 
         ndb_doc = preload_chunks(
@@ -132,7 +138,7 @@ def parse_doc(
 
             azure_client.download_file(container_name, blob_name, local_file_path)
         except Exception as error:
-            print(f"Error downloading file '{doc.path}' from Azure: {error}")
+            logging.error(f"Error downloading file '{doc.path}' from Azure: {error}")
             raise ValueError(f"Error downloading file '{doc.path}' from Azure: {error}")
 
         ndb_doc = preload_chunks(
@@ -155,7 +161,7 @@ def parse_doc(
 
             gcp_client.download_file(bucket_name, blob_name, local_file_path)
         except Exception as error:
-            print(f"Error downloading file '{doc.path}' from GCP: {error}")
+            logging.error(f"Error downloading file '{doc.path}' from GCP: {error}")
             raise ValueError(f"Error downloading file '{doc.path}' from GCP: {error}")
 
         ndb_doc = preload_chunks(

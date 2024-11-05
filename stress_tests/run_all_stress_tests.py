@@ -14,18 +14,18 @@ def parse_args():
 
 
 def main(args):
-    folder = os.path.dirname(__file__)
-    script_path = os.path.join(folder, "end_to_end_stress_test.py")
+    cwd = os.path.dirname(os.path.dirname(__file__))
+    script = "stress_tests.end_to_end_stress_test"
     config_names = ["small-pdf", "large-csv", "many-files"]
 
     successes, failures = [], []
 
     for config in config_names:
+        print(f"Starting test for config: {config}:\n\n")
         result = subprocess.run(
-            f"python3 {script_path} --config {config} --host {args.host} --email {args.email} --password {args.password}",
-            capture_output=True,
-            text=True,
+            f"python3 -m {script} --config {config} --host {args.host} --email {args.email} --password {args.password}",
             shell=True,
+            cwd=cwd,
         )
 
         if result.returncode == 0:
@@ -33,6 +33,8 @@ def main(args):
         else:
             failures.append(config)
             print(f"Error in {config}: {result.stderr}")
+        
+        print(f"\n\nFinished test for config {config}\n\n\n")
 
     print("\nThe following tests have passed:")
     print("\n".join(f"\t- {config}" for config in successes))

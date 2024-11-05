@@ -5,11 +5,9 @@ from typing import List
 from urllib.parse import urljoin
 
 import boto3
-
-pass
+import zipfile
 import requests
-
-pass
+import json
 from botocore.client import Config
 
 from client.bazaar import ModelBazaar
@@ -142,11 +140,11 @@ def check_nomad_job_status(deployment_id):
     data = get_nomad_job("traefik", os.getenv("NOMAD_ENDPOINT"))
     if data is not None and data["Status"] == "dead":
         raise ValueError(f"traefik job has died.")
-
+    
     data = get_nomad_job("model_bazaar", os.getenv("NOMAD_ENDPOINT"))
     if data is not None and data["Status"] == "dead":
         raise ValueError(f"model_bazaar job has died.")
-
+    
     data = get_nomad_job(f"deployment-{deployment_id}", os.getenv("NOMAD_ENDPOINT"))
     if data is None:
         raise ValueError(f"deployment job not found.")
@@ -184,8 +182,15 @@ def main(args):
         stress_test_status = run_stress_test(args, query_file, ndb_client.model_id)
         print(f"\nStress test status: {stress_test_status}\n\n\n")
 
-        check_nomad_job_status(ndb_client.model_id)
+        print("Printing Deployment Logs")
+        log_file_path = client.logs(model_object)
+        with zipfile.ZipFile(log_file_path, 'r') as z:
+            with z.open("logs/deployments/data/deployments.log") as f:
+                content = f.read().decode('utf-8')
+                print(content)
 
+        check_nomad_job_status(ndb_client.model_id)
+        
     except Exception as e:
         errors.append(f"Testing error: {e}")
         raise

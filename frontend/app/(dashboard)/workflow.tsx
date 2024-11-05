@@ -242,7 +242,6 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
             trainStatus.data.train_status === 'failed' &&
             (trainStatus.data.errors?.length > 0 || trainStatus.data.messages?.length > 0)
           ) {
-            console.log('Anand-1 ');
             setError({
               type: 'training',
               messages: [...(trainStatus.data.errors || []), ...(trainStatus.data.messages || [])],
@@ -253,7 +252,6 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
 
           // Check warnings separately
           if (trainStatus.data.warnings?.length > 0) {
-            console.log('Anand-2 ');
             setWarning({
               type: 'training',
               messages: trainStatus.data.warnings,
@@ -267,7 +265,6 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
             deployStatus.data.deploy_status === 'failed' &&
             deployStatus.data.messages?.length > 0
           ) {
-            console.log('Anand-3 ');
             setError({
               type: 'deployment',
               messages: deployStatus.data.messages,
@@ -443,23 +440,6 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               <AlertCircle className="h-5 w-5" />
             </Button>
           )}
-
-          {/* Error icon */}
-          {/* {error && (
-            <Button
-              variant="contained"
-              color="error"
-              onClick={() => setShowErrorModal(true)}
-              size="small"
-              sx={{
-                minWidth: 'unset',
-                padding: '8px',
-                borderRadius: '50%',
-              }}
-            >
-              <AlertCircle className="h-5 w-5" />
-            </Button>
-          )} */}
         </div>
       </TableCell>
 

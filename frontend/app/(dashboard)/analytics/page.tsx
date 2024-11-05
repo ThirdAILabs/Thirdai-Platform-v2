@@ -2,7 +2,7 @@
 import RecentSamples from './samples';
 import RecentFeedbacks from './recentFeedbacks';
 import UpdateButton from './updateButton';
-import ModelUpdate from './ModelUpdate'
+import ModelUpdate from './ModelUpdate';
 import UpdateButtonNDB from './updateButtonNDB';
 import UsageStats from './usageStats';
 import { UsageDurationChart, UsageFrequencyChart, ReformulatedQueriesChart } from './charts';

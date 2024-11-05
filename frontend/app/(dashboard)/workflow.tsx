@@ -238,11 +238,13 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           ]);
 
           // Check training status
-          if (trainStatus.data.train_status === 'failed' && 
-              (trainStatus.data.errors?.length > 0 || trainStatus.data.messages?.length > 0)) {
+          if (
+            trainStatus.data.train_status === 'failed' &&
+            (trainStatus.data.errors?.length > 0 || trainStatus.data.messages?.length > 0)
+          ) {
             setError({
               type: 'training',
-              messages: [...(trainStatus.data.errors || []), ...(trainStatus.data.messages || [])]
+              messages: [...(trainStatus.data.errors || []), ...(trainStatus.data.messages || [])],
             });
           } else {
             setError(null);
@@ -252,17 +254,20 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           if (trainStatus.data.warnings?.length > 0) {
             setWarning({
               type: 'training',
-              messages: trainStatus.data.warnings
+              messages: trainStatus.data.warnings,
             });
           } else {
             setWarning(null);
           }
 
           // Check deployment
-          if (deployStatus.data.deploy_status === 'failed' && deployStatus.data.messages?.length > 0) {
+          if (
+            deployStatus.data.deploy_status === 'failed' &&
+            deployStatus.data.messages?.length > 0
+          ) {
             setError({
               type: 'deployment',
-              messages: deployStatus.data.messages
+              messages: deployStatus.data.messages,
             });
           }
         }
@@ -428,25 +433,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 borderRadius: '50%',
                 backgroundColor: '#f59e0b', // Amber/yellow color
                 '&:hover': {
-                  backgroundColor: '#d97706'
-                }
-              }}
-            >
-              <AlertCircle className="h-5 w-5" />
-            </Button>
-          )}
-
-          {/* Error icon */}
-          {error && (
-            <Button
-              variant="contained"
-              color="error"
-              onClick={() => setShowErrorModal(true)}
-              size="small"
-              sx={{
-                minWidth: 'unset',
-                padding: '8px',
-                borderRadius: '50%',
+                  backgroundColor: '#d97706',
+                },
               }}
             >
               <AlertCircle className="h-5 w-5" />
@@ -461,8 +449,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           <div className="p-6 max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">
-                {error?.type === 'training' || warning?.type === 'training' 
-                  ? 'Training Status' 
+                {error?.type === 'training' || warning?.type === 'training'
+                  ? 'Training Status'
                   : 'Deployment Status'}
               </h2>
               <Button
@@ -470,10 +458,9 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 size="small"
                 startIcon={<ContentCopy />}
                 onClick={() => {
-                  const content = [
-                    ...(error?.messages || []),
-                    ...(warning?.messages || [])
-                  ].join('\n');
+                  const content = [...(error?.messages || []), ...(warning?.messages || [])].join(
+                    '\n'
+                  );
                   navigator.clipboard.writeText(content);
                   // Show notification
                   const notification = document.createElement('div');
@@ -493,9 +480,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               {/* Show errors if any */}
               {error && error.messages.length > 0 && (
                 <div className="space-y-2 mb-4">
-                  <h3 className="font-medium text-red-600 sticky top-0 bg-white py-2">
-                    Errors:
-                  </h3>
+                  <h3 className="font-medium text-red-600 sticky top-0 bg-white py-2">Errors:</h3>
                   <ul className="list-disc pl-5 space-y-2">
                     {error.messages.map((message, index) => (
                       <li key={index} className="text-gray-600">

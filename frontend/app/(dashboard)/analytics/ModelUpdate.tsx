@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  TextField,
-  Typography,
-  Box,
-  Tooltip,
-  Button, 
-  Alert
-} from '@mui/material';
+import { TextField, Typography, Box, Tooltip, Button, Alert } from '@mui/material';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, HelpCircle } from 'lucide-react';
 import { retrainTokenClassifier, trainUDTWithCSV, getTrainReport } from '@/lib/backend';
@@ -42,7 +35,7 @@ export default function ModelUpdate({ username, modelName, deploymentUrl, workfl
 
   // New states for button cooldown
   const [uploadButtonDisabled, setUploadButtonDisabled] = useState(false);
-  const [pollingButtonDisabled, setPollingButtonDisabled] = useState(false);  
+  const [pollingButtonDisabled, setPollingButtonDisabled] = useState(false);
 
   // Effect to validate model name on each change
   useEffect(() => {
@@ -160,23 +153,25 @@ export default function ModelUpdate({ username, modelName, deploymentUrl, workfl
       return;
     }
     if (!validateModelName(newModelName)) {
-      setUploadError('Please enter a valid model name (alphanumeric characters, hyphens, and underscores only)');
+      setUploadError(
+        'Please enter a valid model name (alphanumeric characters, hyphens, and underscores only)'
+      );
       return;
     }
-  
+
     setIsUploadUpdating(true);
     setUploadError('');
     setUploadSuccess(false);
     setUploadButtonDisabled(true);
-  
+
     try {
-      const response = await trainUDTWithCSV({ 
+      const response = await trainUDTWithCSV({
         model_name: newModelName,
         file: selectedFile,
         base_model_identifier: `${username}/${modelName}`,
-        test_split: 0.1
+        test_split: 0.1,
       });
-  
+
       if (response.status === 'success') {
         setUploadSuccess(true);
       } else {
@@ -200,8 +195,8 @@ export default function ModelUpdate({ username, modelName, deploymentUrl, workfl
     setPollingButtonDisabled(true);
 
     try {
-      const response = await retrainTokenClassifier({ 
-        model_name: modelName
+      const response = await retrainTokenClassifier({
+        model_name: modelName,
       });
 
       if (response.status === 'success') {
@@ -231,26 +226,37 @@ export default function ModelUpdate({ username, modelName, deploymentUrl, workfl
         </Card>
       ) : reportError ? (
         <></>
-      ) : trainReport && (
-        <TrainingResults report={trainReport} />
+      ) : (
+        trainReport && <TrainingResults report={trainReport} />
       )}
 
       {/* CSV Upload Section */}
       <Card>
-          <CardHeader>
-            <CardTitle>Update Model with your own data</CardTitle>
-            <CardDescription>
-                {`Upload a CSV file with token-level annotations. Your CSV file should follow these requirements:`}<br/><br/>
-                {`• Two columns: 'source' and 'target'`}<br/>
-                {`• Source column: Contains full text`}<br/>
-                {`• Target column: Space-separated labels matching each word/token from source`}<br/>
-                {`• IMPORTANT: Number of tokens in source (split by space) MUST match number of labels in target`}<br/><br/>
-                {`Example (6 tokens each):`}<br/>
-                {`Source: "The borrower name is John Smith"`}<br/>
-                {`Target: "O O O O NAME NAME"`}<br/><br/>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <CardHeader>
+          <CardTitle>Update Model with your own data</CardTitle>
+          <CardDescription>
+            {`Upload a CSV file with token-level annotations. Your CSV file should follow these requirements:`}
+            <br />
+            <br />
+            {`• Two columns: 'source' and 'target'`}
+            <br />
+            {`• Source column: Contains full text`}
+            <br />
+            {`• Target column: Space-separated labels matching each word/token from source`}
+            <br />
+            {`• IMPORTANT: Number of tokens in source (split by space) MUST match number of labels in target`}
+            <br />
+            <br />
+            {`Example (6 tokens each):`}
+            <br />
+            {`Source: "The borrower name is John Smith"`}
+            <br />
+            {`Target: "O O O O NAME NAME"`}
+            <br />
+            <br />
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <div className="space-y-4">
             <Box sx={{ mb: 4 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -274,7 +280,7 @@ export default function ModelUpdate({ username, modelName, deploymentUrl, workfl
                 sx={{ mt: 1 }}
               />
             </Box>
-            <div 
+            <div
               className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 transition-colors"
               onClick={() => document.getElementById('file-input')?.click()}
             >
@@ -294,19 +300,13 @@ export default function ModelUpdate({ username, modelName, deploymentUrl, workfl
             </div>
 
             {uploadError && (
-              <Alert 
-                severity="error" 
-                sx={{ mb: 2 }}
-              >
+              <Alert severity="error" sx={{ mb: 2 }}>
                 {uploadError}
               </Alert>
             )}
 
             {uploadSuccess && (
-              <Alert 
-                severity="success" 
-                sx={{ mb: 2 }}
-              >
+              <Alert severity="success" sx={{ mb: 2 }}>
                 Update process initiated successfully with uploaded CSV.
               </Alert>
             )}
@@ -318,7 +318,11 @@ export default function ModelUpdate({ username, modelName, deploymentUrl, workfl
               color={uploadSuccess ? 'success' : 'primary'}
               fullWidth
             >
-              {isUploadUpdating ? 'Initiating Update...' : uploadSuccess ? 'Update Initiated!' : 'Update Model with CSV'}
+              {isUploadUpdating
+                ? 'Initiating Update...'
+                : uploadSuccess
+                  ? 'Update Initiated!'
+                  : 'Update Model with CSV'}
             </Button>
           </div>
         </CardContent>
@@ -355,7 +359,11 @@ export default function ModelUpdate({ username, modelName, deploymentUrl, workfl
               color={pollingSuccess ? 'success' : 'primary'}
               fullWidth
             >
-              {isPollingUpdating ? 'Initiating Update...' : pollingSuccess ? 'Update Initiated!' : 'Update Model with User Feedback'}
+              {isPollingUpdating
+                ? 'Initiating Update...'
+                : pollingSuccess
+                  ? 'Update Initiated!'
+                  : 'Update Model with User Feedback'}
             </Button>
           </div>
         </CardContent>

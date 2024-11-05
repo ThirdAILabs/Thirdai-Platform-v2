@@ -36,6 +36,7 @@ class Flow:
         unsupervised_docs: Optional[List[str]] = None,
         supervised_docs: Optional[List[Tuple[str, str]]] = None,
         test_doc: Optional[str] = None,
+        doc_type: str = "local",
         model_options: Optional[Dict[str, str]] = {},
         base_model_identifier: Optional[str] = None,
         is_async: bool = True,
@@ -52,6 +53,7 @@ class Flow:
         unsupervised_docs (list[str], optional): List of paths to unsupervised documents.
         supervised_docs (list[tuple[str, str]], optional): List of tuples containing paths to supervised and unsupervised documents.
         test_doc (str, optional): Path to the test document.
+        doc_type (str, optional): Type of documents (e.g., local, nfs).
         model_options (dict, optional): Model configuration options.
         base_model_identifier (str, optional): Identifier for the base model.
         is_async (bool, optional): Whether the training should be asynchronous.
@@ -67,7 +69,7 @@ class Flow:
         unsupervised_file_infos = [
             {
                 "path": doc,
-                "location": "local",
+                "location": doc_type,
                 "options": doc_options.get(doc, {}),
                 "metadata": metadata[i] if metadata else None,
             }
@@ -97,7 +99,7 @@ class Flow:
                     {
                         "path": sup_file,
                         "doc_id": source_id,
-                        "location": "local",
+                        "location": doc_type,
                         "options": doc_options.get(sup_file, {}),
                     }
                 )
@@ -106,7 +108,7 @@ class Flow:
         test_file_info = (
             {
                 "path": test_doc,
-                "location": "local",
+                "location": doc_type,
                 "options": doc_options.get(test_doc, {}),
             }
             if test_doc

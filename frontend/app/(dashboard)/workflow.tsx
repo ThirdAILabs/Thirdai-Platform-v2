@@ -238,8 +238,9 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           ]);
 
           // Check training status
-          if (trainStatus.data.train_status === 'failed' && 
-              (trainStatus.data.errors?.length > 0 || trainStatus.data.messages?.length > 0)) {
+          if (trainStatus.data.train_status === 'failed' &&
+            (trainStatus.data.errors?.length > 0 || trainStatus.data.messages?.length > 0)) {
+            console.log("Anand-1 ")
             setError({
               type: 'training',
               messages: [...(trainStatus.data.errors || []), ...(trainStatus.data.messages || [])]
@@ -250,6 +251,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
 
           // Check warnings separately
           if (trainStatus.data.warnings?.length > 0) {
+            console.log("Anand-2 ")
             setWarning({
               type: 'training',
               messages: trainStatus.data.warnings
@@ -260,6 +262,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
 
           // Check deployment
           if (deployStatus.data.deploy_status === 'failed' && deployStatus.data.messages?.length > 0) {
+            console.log("Anand-3 ")
             setError({
               type: 'deployment',
               messages: deployStatus.data.messages
@@ -437,7 +440,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           )}
 
           {/* Error icon */}
-          {error && (
+          {/* {error && (
             <Button
               variant="contained"
               color="error"
@@ -451,7 +454,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
             >
               <AlertCircle className="h-5 w-5" />
             </Button>
-          )}
+          )} */}
         </div>
       </TableCell>
 
@@ -461,8 +464,8 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
           <div className="p-6 max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">
-                {error?.type === 'training' || warning?.type === 'training' 
-                  ? 'Training Status' 
+                {error?.type === 'training' || warning?.type === 'training'
+                  ? 'Training Status'
                   : 'Deployment Status'}
               </h2>
               <Button

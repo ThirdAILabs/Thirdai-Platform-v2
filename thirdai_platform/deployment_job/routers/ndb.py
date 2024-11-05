@@ -176,12 +176,6 @@ class NDBRouter:
             data=jsonable_encoder(results),
         )
 
-    path: str
-    location: FileLocation
-    source_id: Optional[str] = None
-    options: Dict[str, Any] = {}
-    metadata: Optional[Dict[str, Any]] = None
-
     @ndb_insert_metric.time()
     def insert(
         self,
@@ -357,6 +351,22 @@ class NDBRouter:
         self,
         token: str = Depends(Permissions.verify_permission("write")),
     ):
+        """
+        Returns list of queued insert or delete tasks
+
+        Parameters:
+        - token: str - Authorization token.
+
+        Returns:
+        - JSONResponse: Dict of tasks.
+
+        Example Request Body:
+        ```
+        {
+            "tasks": {task_id: task_data}
+        }
+        ```
+        """
         with self.task_lock:
             return response(
                 status_code=status.HTTP_200_OK,

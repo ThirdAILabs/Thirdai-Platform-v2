@@ -440,23 +440,6 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               <AlertCircle className="h-5 w-5" />
             </Button>
           )}
-
-          {/* Error icon */}
-          {error && (
-            <Button
-              variant="contained"
-              color="error"
-              onClick={() => setShowErrorModal(true)}
-              size="small"
-              sx={{
-                minWidth: 'unset',
-                padding: '8px',
-                borderRadius: '50%',
-              }}
-            >
-              <AlertCircle className="h-5 w-5" />
-            </Button>
-          )}
         </div>
       </TableCell>
 

@@ -5,6 +5,11 @@ from typing import List
 from urllib.parse import urljoin
 
 import boto3
+
+pass
+import requests
+
+pass
 from botocore.client import Config
 
 from client.bazaar import ModelBazaar
@@ -60,14 +65,23 @@ def parse_args():
     parser.add_argument("--email", type=str)
     parser.add_argument("--password", type=str)
     parser.add_argument("--autoscaling_enabled", action="store_true")
-    parser.add_argument("--users", type=int, default=100)
-    parser.add_argument("--spawn_rate", type=int, default=10)
-    parser.add_argument("--run_time", type=int, default=30)  # in seconds
+    parser.add_argument("--users", type=int, default=1000)
+    parser.add_argument("--spawn_rate", type=int, default=30)
+    parser.add_argument("--run_time", type=int, default=60)  # in seconds
     parser.add_argument("--no_cleanup", action="store_true")
-    parser.add_argument("--headless", action="store_true")
     args = parser.parse_args()
 
     return args
+
+
+def get_nomad_job(job_id, nomad_endpoint):
+    headers = {"X-Nomad-Token": os.getenv("TASK_RUNNER_TOKEN")}
+    response = requests.get(
+        urljoin(nomad_endpoint, f"v1/job/{job_id}"), headers=headers
+    )
+    if response.status_code == 200:
+        return response.json()
+    return None
 
 
 def download_query_file(queries_s3_uri):
@@ -111,19 +125,33 @@ def create_deployment(client, config, autoscaling_enabled):
 
 
 def run_stress_test(args, query_file, deployment_id):
-    print("Running Stress Test\n")
     folder = os.path.dirname(__file__)
     script_path = os.path.join(folder, "stress_test_deployment.py")
-    headless = "--headless" if args.headless else ""
     command = (
-        f"locust -f {script_path} {headless} --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password} --query_file {query_file}",
+        f"locust -f {script_path} --headless --users {args.users} --spawn-rate {args.spawn_rate} --run-time {args.run_time} --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password} --query_file {query_file}",
     )
-    subprocess.run(command, check=True, shell=True)
+    result = subprocess.run(command, shell=True)
+    status = "success" if result.returncode == 0 else "failed"
+    return status
 
 
-def check_nomad_job_status(model_id):
-    # check traefik, model bazaar, and deployment jobs and see if they are down
-    pass
+# check traefik, model bazaar, and deployment jobs and see if they are down
+def check_nomad_job_status(deployment_id):
+    os.environ["NOMAD_ENDPOINT"] = "http://localhost:4646/"
+
+    data = get_nomad_job("traefik", os.getenv("NOMAD_ENDPOINT"))
+    if data is not None and data["Status"] == "dead":
+        raise ValueError(f"traefik job has died.")
+
+    data = get_nomad_job("model_bazaar", os.getenv("NOMAD_ENDPOINT"))
+    if data is not None and data["Status"] == "dead":
+        raise ValueError(f"model_bazaar job has died.")
+
+    data = get_nomad_job(f"deployment-{deployment_id}", os.getenv("NOMAD_ENDPOINT"))
+    if data is None:
+        raise ValueError(f"deployment job not found.")
+    if data["Status"] == "dead":
+        raise ValueError(f"deployment job has died.")
 
 
 def main(args):
@@ -152,9 +180,12 @@ def main(args):
             model_identifier, autoscaling_enabled=args.autoscaling_enabled
         )
 
-        run_stress_test(args, query_file, ndb_client.model_id)
+        print("Running Stress Test\n\n\n")
+        stress_test_status = run_stress_test(args, query_file, ndb_client.model_id)
+        print(f"\nStress test status: {stress_test_status}\n\n\n")
 
-        check_nomad_job_status(model_object.model_id)
+        check_nomad_job_status(ndb_client.model_id)
+
     except Exception as e:
         errors.append(f"Testing error: {e}")
         raise

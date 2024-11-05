@@ -125,7 +125,7 @@ auth_header = {"Authorization": f"Bearer {login_details.access_token}"}
 
 # TODO: option to add different docs
 doc_dir = os.path.join(
-    os.path.dirname(os.path.dirname(__file__)),
+    os.path.dirname(os.path.abspath(__file__)),
     "../thirdai_platform/train_job/sample_docs/",
 )
 
@@ -175,7 +175,7 @@ class NeuralDBLoadTest(TaskSet):
             for f in file_objects:
                 f.close()
 
-        if response.status_code != 500:
+        if response.status_code == 500:
             print(f"Response content: {response.text}")
 
     @task(args.delete_weight)

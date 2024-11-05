@@ -35,7 +35,6 @@ from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from platform_common.file_handler import download_local_files
-from platform_common.pydantic_models.cloud_credentials import CloudCredentials
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
 from platform_common.pydantic_models.training import (
     DatagenOptions,
@@ -86,7 +85,6 @@ def train_ndb(
     base_model_identifier: Optional[str] = None,
     model_options: str = Form(default="{}"),
     job_options: str = Form(default="{}"),
-    cloud_credentials: str = Form(default="{}"),
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
@@ -95,7 +93,6 @@ def train_ndb(
         model_options = NDBOptions.model_validate_json(model_options)
         data = NDBData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
-        cloud_credentials = CloudCredentials.model_validate_json(cloud_credentials)
         logging.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
@@ -203,12 +200,6 @@ def train_ndb(
             model_id=str(model_id),
             share_dir=os.getenv("SHARE_DIR", None),
             python_path=get_python_path(),
-            aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
-            aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
-            aws_region_name=(os.getenv("AWS_REGION_NAME", "")),
-            azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
-            azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
-            gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
             train_job_name=new_model.get_train_job_name(),
             config_path=config.save_train_config(),
             allocation_cores=job_options.allocation_cores,

@@ -21,34 +21,6 @@ from platform_common.pydantic_models.training import LabelEntity
 from platform_common.thirdai_storage import data_types, storage
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger("ThirdAI_Platform")
-
-
-def setup_logger(
-    level=logging.DEBUG, format="%(asctime)s | [%(name)s] [%(levelname)s] %(message)s"
-):
-    """
-    Set up the logger with the specified logging level and format.
-
-    Parameters:
-    - level: Logging level (e.g., logging.DEBUG).
-    - format: Logging format string.
-    """
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(level)
-
-    formatter = logging.Formatter(format)
-    console_handler.setFormatter(formatter)
-
-    # add ch to logger
-    logger.addHandler(console_handler)
-
-    logger.setLevel(level)
-    logger.info("Initialized console logging.")
-
-
-setup_logger()
-
 
 def model_bazaar_path():
     return "/model_bazaar" if os.path.exists("/.dockerenv") else os.getenv("SHARE_DIR")
@@ -240,7 +212,7 @@ def get_high_level_model_info(result: schema.Model):
                 try:
                     metadata.train = json.loads(metadata.train)
                 except json.JSONDecodeError as e:
-                    print(f"Error decoding JSON for train: {e}")
+                    logging.error(f"Error decoding JSON for train: {e}")
                     metadata.train = {}
             info.update(metadata.train)
         if metadata.general:
@@ -249,7 +221,7 @@ def get_high_level_model_info(result: schema.Model):
                 try:
                     metadata.general = json.loads(metadata.general)
                 except json.JSONDecodeError as e:
-                    print(f"Error decoding JSON for general: {e}")
+                    logging.error(f"Error decoding JSON for general: {e}")
                     metadata.general = {}
             info.update(metadata.general)
 
@@ -454,9 +426,9 @@ def delete_nomad_job(job_id, nomad_endpoint):
     response = requests.delete(job_url, headers=headers)
 
     if response.status_code == 200:
-        print(f"Job {job_id} stopped successfully")
+        logging.info(f"Job {job_id} stopped successfully")
     else:
-        print(
+        logging.error(
             f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
         )
 
@@ -562,7 +534,7 @@ def get_platform():
     platform = os.getenv("PLATFORM", "docker")
     options = ["docker", "local"]
     if platform not in options:
-        print(
+        logging.warning(
             f"Invalid platform identifier '{platform}'. Options: {options}. Defaulting to docker."
         )
     return platform

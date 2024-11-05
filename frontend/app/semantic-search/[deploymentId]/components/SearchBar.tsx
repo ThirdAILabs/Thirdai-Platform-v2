@@ -140,6 +140,13 @@ interface SearchBarProps {
   abortController: AbortController | null;
   setAbortController: (controller: AbortController | null) => void;
   setAnswer: (answer: string) => void;
+
+  modalOpen: boolean;
+  setModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  showModelNameInput: boolean;
+  setShowModelNameInput: React.Dispatch<React.SetStateAction<boolean>>;
+  error: string;
+  setError: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export default function SearchBar({
@@ -156,14 +163,18 @@ export default function SearchBar({
   abortController,
   setAbortController,
   setAnswer,
+
+  modalOpen,
+  setModalOpen,
+  showModelNameInput,
+  setShowModelNameInput,
+  error,
+  setError,
 }: SearchBarProps) {
   const modelService = useContext<ModelService | null>(ModelServiceContext);
   const [showSources, setShowSources] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
   const [modelName, setModelName] = useState('');
-  const [showModelNameInput, setShowModelNameInput] = useState(false);
-  const [error, setError] = useState('');
 
   const sourcesRef = useRef<HTMLElement>(null);
   const handleClickOutside = useCallback(() => {
@@ -287,7 +298,6 @@ export default function SearchBar({
           <Spacer $width="15px" />
           {/* <PromptToggle onClick={() => setDialogOpen((dialogOpen) => !dialogOpen)} /> */}
           <Spacer $width="7px" />
-          <SaveButton onClick={handleSaveClick} />
         </SearchArea>
         <div className="w-full mt-2" style={{ backgroundColor: 'white' }}>
           {cacheEnabled &&

@@ -4,11 +4,9 @@ from pathlib import Path
 
 import thirdai
 from platform_common.pydantic_models.training import TrainConfig
-from train_job.exceptional_handler import apply_exception_handler
 from train_job.reporter import Reporter
 
 
-@apply_exception_handler
 class Model(ABC):
     """
     Abstract base class for a model.

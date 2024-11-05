@@ -94,11 +94,11 @@ type ModelInfo struct {
 func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 	trainStatus, _, err := getModelStatus(model, db, true)
 	if err != nil {
-		return ModelInfo{}, err
+		return ModelInfo{}, fmt.Errorf("error retrieving model status: %w", err)
 	}
 	deployStatus, _, err := getModelStatus(model, db, false)
 	if err != nil {
-		return ModelInfo{}, err
+		return ModelInfo{}, fmt.Errorf("error retrieving model status: %w", err)
 	}
 
 	attributes := make(map[string]string, len(model.Attributes))
@@ -187,7 +187,8 @@ func (m *ModelRouter) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if result.Error != nil {
-		dbError(w, result.Error)
+		err := schema.NewDbError("listing models", result.Error)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -253,14 +254,14 @@ func (m *ModelRouter) Delete(w http.ResponseWriter, r *http.Request) {
 		// TODO(Nicholas): ensure all relations (deps, attrs, teams, etc) are cleaned up
 		result := db.Delete(&model)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("deleting model", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error deleting model: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -311,14 +312,14 @@ func (m *ModelRouter) UpdateAccess(w http.ResponseWriter, r *http.Request) {
 
 		result := db.Save(&model)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("updating model access", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error updating model access: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -349,14 +350,14 @@ func (m *ModelRouter) UpdateDefaultPermission(w http.ResponseWriter, r *http.Req
 
 		result := db.Save(&model)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("updating model default permission", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error updating model default permission: %v", err), http.StatusBadRequest)
 		return
 	}
 

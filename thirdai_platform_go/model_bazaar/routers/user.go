@@ -58,7 +58,7 @@ type signupResponse struct {
 func (u *UserRouter) CreateUser(username, email, password string, admin bool) (schema.User, error) {
 	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {
-		return schema.User{}, fmt.Errorf("error encrypting password")
+		return schema.User{}, fmt.Errorf("error encrypting password: %w", err)
 	}
 
 	newUser := schema.User{Id: uuid.New().String(), Username: username, Email: email, Password: hashedPwd, IsAdmin: admin}
@@ -67,7 +67,7 @@ func (u *UserRouter) CreateUser(username, email, password string, admin bool) (s
 		var existingUser schema.User
 		result := db.Find(&existingUser, "username = ? or email = ?", username, email)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("checking for existing username/email", result.Error)
 		}
 		if result.RowsAffected != 0 {
 			if existingUser.Username == username {
@@ -79,14 +79,14 @@ func (u *UserRouter) CreateUser(username, email, password string, admin bool) (s
 
 		result = db.Create(&newUser)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("creating new user entry", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		return schema.User{}, err
+		return schema.User{}, fmt.Errorf("error creating new user: %w", err)
 	}
 
 	return newUser, nil
@@ -127,7 +127,8 @@ func (u *UserRouter) Login(w http.ResponseWriter, r *http.Request) {
 	var user schema.User
 	result := u.db.Find(&user, "email = ?", params.Email)
 	if result.Error != nil {
-		dbError(w, result.Error)
+		err := schema.NewDbError("locating user for email", result.Error)
+		http.Error(w, fmt.Sprintf("login failed: %v", err), http.StatusBadRequest)
 		return
 	}
 	if result.RowsAffected != 1 {
@@ -143,7 +144,7 @@ func (u *UserRouter) Login(w http.ResponseWriter, r *http.Request) {
 
 	token, err := u.userAuth.CreateUserJwt(user.Id)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error generating access token: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("login failed: %v", err), http.StatusInternalServerError)
 		return
 	}
 	res := loginResponse{UserId: user.Id, AccessToken: token}
@@ -170,14 +171,14 @@ func (u *UserRouter) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
 
 		result := db.Save(&user)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %w", result.Error)
+			return schema.NewDbError("updating user role to admin", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error promoting admin: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -199,7 +200,7 @@ func (u *UserRouter) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 		var count int64
 		result := db.Model(&schema.User{}).Where("is_admin = ?", true).Count(&count)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("counting existing admins", result.Error)
 		}
 
 		if count < 2 {
@@ -210,14 +211,14 @@ func (u *UserRouter) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 
 		result = db.Save(&user)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("update user role to user", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error demoting admin: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -260,7 +261,7 @@ func convertToUserInfo(user *schema.User) UserInfo {
 func (u *UserRouter) List(w http.ResponseWriter, r *http.Request) {
 	userId, err := auth.UserIdFromContext(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
@@ -284,7 +285,8 @@ func (u *UserRouter) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if result != nil && result.Error != nil {
-		dbError(w, result.Error)
+		err := schema.NewDbError("retrieving list of users", result.Error)
+		http.Error(w, fmt.Sprintf("error listing users: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -304,7 +306,7 @@ func (u *UserRouter) Info(w http.ResponseWriter, r *http.Request) {
 
 	user, err := schema.GetUser(userId, u.db, true)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error retrieving user info: %v", err), http.StatusBadRequest)
 	}
 
 	info := convertToUserInfo(&user)

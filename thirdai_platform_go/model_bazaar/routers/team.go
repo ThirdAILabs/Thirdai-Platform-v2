@@ -77,7 +77,7 @@ func (t *TeamRouter) CreateTeam(w http.ResponseWriter, r *http.Request) {
 		var existingTeam schema.Team
 		result := db.Find(&existingTeam, "name = ?", name)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("checking for existing team with name", result.Error)
 		}
 		if result.RowsAffected != 0 {
 			return fmt.Errorf("team with name %v already exists", name)
@@ -85,14 +85,14 @@ func (t *TeamRouter) CreateTeam(w http.ResponseWriter, r *http.Request) {
 
 		result = db.Create(&newTeam)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("creating new team entry", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error creating team: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -119,19 +119,19 @@ func (t *TeamRouter) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 
 		result := db.Delete(&team)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("deleting team", result.Error)
 		}
 
 		result = db.Model(&schema.Model{}).Where("team_id = ?", team.Id).Update("team_id", nil).Update("access", schema.Private)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("updating access for models after deleting team", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error deleting team: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -167,14 +167,14 @@ func (t *TeamRouter) AddUserToTeam(w http.ResponseWriter, r *http.Request) {
 
 		result := db.Create(&userTeam)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("creating new user_team entry", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error adding user to team: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -208,19 +208,19 @@ func (t *TeamRouter) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request) 
 
 		result := db.Delete(&schema.UserTeam{UserId: userId, TeamId: teamId})
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("deleting user_team entry", result.Error)
 		}
 
 		result = db.Model(&schema.Model{}).Where("team_id = ? and user_id = ?", teamId, userId).Update("team_id", nil).Update("access", schema.Private)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("updating model permissions after removing user from team", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error removing user from team: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -265,14 +265,14 @@ func (t *TeamRouter) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
 
 		result := db.Save(&model)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("updating model team permission", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error adding model to team: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -306,14 +306,14 @@ func (t *TeamRouter) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request)
 
 		result := db.Model(&schema.Model{}).Where("id = ? and team_id = ?", modelId, teamId).Update("team_id", nil)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("updating model team permission", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error removing model from team: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -347,14 +347,14 @@ func (t *TeamRouter) AddTeamAdmin(w http.ResponseWriter, r *http.Request) {
 
 		result := db.Save(&schema.UserTeam{TeamId: teamId, UserId: userId, IsTeamAdmin: true})
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("updating user team admin permission", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error adding team admin: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -388,14 +388,14 @@ func (t *TeamRouter) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
 
 		result := db.Save(&schema.UserTeam{TeamId: teamId, UserId: userId, IsTeamAdmin: false})
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("updating user team admin permission", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error removing team admin: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -432,7 +432,8 @@ func (t *TeamRouter) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if result.Error != nil {
-		dbError(w, result.Error)
+		err := schema.NewDbError("retrieving accessible teams", result.Error)
+		http.Error(w, fmt.Sprintf("error listing teams: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -472,7 +473,8 @@ func (t *TeamRouter) TeamUsers(w http.ResponseWriter, r *http.Request) {
 	var users []schema.UserTeam
 	result := t.db.Preload("User").Where("team_id = ?", teamId).Find(&users)
 	if result.Error != nil {
-		dbError(w, result.Error)
+		err := schema.NewDbError("retrieving team users", result.Error)
+		http.Error(w, fmt.Sprintf("error listing team users: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -514,7 +516,8 @@ func (t *TeamRouter) TeamModels(w http.ResponseWriter, r *http.Request) {
 		Find(&models)
 
 	if result.Error != nil {
-		dbError(w, result.Error)
+		err := schema.NewDbError("retrieving team models", result.Error)
+		http.Error(w, fmt.Sprintf("error listing team models: %v", err), http.StatusBadRequest)
 		return
 	}
 

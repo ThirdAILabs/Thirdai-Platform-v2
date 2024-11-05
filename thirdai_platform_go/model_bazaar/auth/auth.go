@@ -34,7 +34,7 @@ func (m *JwtManager) CreateToken(key, value string, exp time.Duration) (string, 
 	}
 	_, token, err := m.auth.Encode(claims)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate access token: %v", err)
+		return "", fmt.Errorf("error generating access token: %w", err)
 	}
 	return token, nil
 }
@@ -46,17 +46,17 @@ func (m *JwtManager) CreateUserJwt(userId string) (string, error) {
 func ValueFromContext(r *http.Request, key string) (string, error) {
 	_, claims, err := jwtauth.FromContext(r.Context())
 	if err != nil {
-		return "", fmt.Errorf("error retrieving auth claims: %v", err)
+		return "", fmt.Errorf("error retrieving auth claims: %w", err)
 	}
 
 	valueUncasted, ok := claims[key]
 	if !ok {
-		return "", fmt.Errorf("invalid token: unable to locate %v", key)
+		return "", fmt.Errorf("invalid token: unable to locate key %v in claims", key)
 	}
 
 	value, ok := valueUncasted.(string)
 	if !ok {
-		return "", fmt.Errorf("invalid token: %v is invalid type", key)
+		return "", fmt.Errorf("invalid token: value for key %v has invalid type", key)
 	}
 
 	return value, nil

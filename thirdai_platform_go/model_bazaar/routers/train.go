@@ -129,7 +129,7 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 
 	err = t.createModelAndStartTraining(options.ModelName, schema.NdbType, subtype, userId, trainConfig)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error starting ndb training: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -192,7 +192,7 @@ func (t *TrainRouter) createModelAndStartTraining(
 		var duplicateModel schema.Model
 		result := db.Find(&duplicateModel, "user_id = ? AND name = ?", userId, model.Name)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %w", result.Error)
+			return schema.NewDbError("checking for duplicate model", result.Error)
 		}
 		if result.RowsAffected != 0 {
 			return fmt.Errorf("a model with name %v already exists", model.Name)
@@ -200,14 +200,14 @@ func (t *TrainRouter) createModelAndStartTraining(
 
 		result = db.Create(&model)
 		if result.Error != nil {
-			return fmt.Errorf("database error: %v", result.Error)
+			return schema.NewDbError("creating model entry", result.Error)
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		return fmt.Errorf("error creating entry for new model: %w", err)
+		return err
 	}
 
 	err = t.nomad.StartJob(
@@ -232,7 +232,7 @@ func (t *TrainRouter) createModelAndStartTraining(
 	// TODO(Nicholas): prevent users from deleting base model until training is complete
 	result := t.db.Save(&model)
 	if result.Error != nil {
-		return fmt.Errorf("database error: %w", result.Error)
+		return schema.NewDbError("updating model train status to starting", result.Error)
 	}
 
 	return nil
@@ -317,7 +317,8 @@ func (t *TrainRouter) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 	result := t.db.Model(&schema.Model{Id: modelId}).Update("train_status", params.Status)
 	if result.Error != nil {
-		dbError(w, result.Error)
+		err := schema.NewDbError("updating model train status", result.Error)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -330,7 +331,8 @@ func (t *TrainRouter) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 		result := t.db.Save(&schema.ModelAttribute{ModelId: modelId, Key: "metadata", Value: string(metadataJson)})
 		if result.Error != nil {
-			dbError(w, result.Error)
+			err := schema.NewDbError("adding model metadata attribute", result.Error)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 	}
@@ -369,7 +371,7 @@ func (t *TrainRouter) GetStatus(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("retrieving model status"), http.StatusBadRequest)
 		return
 	}
 

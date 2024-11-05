@@ -53,17 +53,17 @@ func (c *NomadHttpClient) parseJob(job Job) (interface{}, error) {
 	body := &bytes.Buffer{}
 	err = json.NewEncoder(body).Encode(payload)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error encoding job payload: %w", err)
 	}
 
 	url, err := url.JoinPath(c.addr, "v1/jobs/parse")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error formatting job parse url: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating new request: %w", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("X-Nomad-Token", c.token)
@@ -95,12 +95,12 @@ func (c *NomadHttpClient) submitJob(jobDef interface{}) error {
 
 	url, err := url.JoinPath(c.addr, "v1/jobs")
 	if err != nil {
-		return err
+		return fmt.Errorf("error formatting job submit url: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating new request: %w", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("X-Nomad-Token", c.token)
@@ -119,21 +119,26 @@ func (c *NomadHttpClient) submitJob(jobDef interface{}) error {
 func (c *NomadHttpClient) StartJob(job Job) error {
 	jobDef, err := c.parseJob(job)
 	if err != nil {
-		return err
+		return fmt.Errorf("error starting nomad job: %w", err)
 	}
 
-	return c.submitJob(jobDef)
+	err = c.submitJob(jobDef)
+	if err != nil {
+		return fmt.Errorf("error starting nomad job: %w", err)
+	}
+
+	return nil
 }
 
 func (c *NomadHttpClient) StopJob(jobName string) error {
 	url, err := url.JoinPath(c.addr, fmt.Sprintf("v1/job/%v", jobName))
 	if err != nil {
-		return err
+		return fmt.Errorf("error formatting stop job url: %v", err)
 	}
 
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating new request: %w", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("X-Nomad-Token", c.token)
@@ -164,12 +169,12 @@ type nomadAllocation struct {
 func (c *NomadHttpClient) TotalCpuUsage() (int, error) {
 	url, err := url.JoinPath(c.addr, "v1/allocations")
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("error formatting allocations url: %w", err)
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("error creating new request: %w", err)
 	}
 	req.Header.Add("X-Nomad-Token", c.token)
 

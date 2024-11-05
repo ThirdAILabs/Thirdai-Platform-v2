@@ -5,6 +5,7 @@ import (
 	"thirdai_platform/model_bazaar/auth"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"gorm.io/gorm"
 )
 
@@ -24,6 +25,9 @@ func NewModelBazaar(db *gorm.DB) ModelBazaar {
 
 func (m *ModelBazaar) Routes() chi.Router {
 	r := chi.NewRouter()
+
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.Logger)
 
 	r.Mount("/user", m.user.Routes())
 	r.Mount("/team", m.team.Routes())

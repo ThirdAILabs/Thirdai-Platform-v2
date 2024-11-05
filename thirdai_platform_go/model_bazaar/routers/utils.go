@@ -19,10 +19,6 @@ func parseRequestBody(w http.ResponseWriter, r *http.Request, dest interface{}) 
 	return true
 }
 
-func dbError(w http.ResponseWriter, err error) {
-	http.Error(w, fmt.Sprintf("database error: %v", err), http.StatusInternalServerError)
-}
-
 func writeJsonResponse(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -49,7 +45,7 @@ func listModelDependencies(modelId string, db *gorm.DB) ([]schema.Model, error) 
 
 		model, err := schema.GetModel(id, db, true, false, false)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error while listing model dependencies: %w", err)
 		}
 
 		models = append(models, model)
@@ -87,7 +83,7 @@ func getModelStatus(model schema.Model, db *gorm.DB, trainStatus bool) (string, 
 
 	deps, err := listModelDependencies(model.Id, db)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("error while getting model status: %w", err)
 	}
 
 	for _, dep := range deps {
@@ -109,7 +105,6 @@ func getModelStatus(model schema.Model, db *gorm.DB, trainStatus bool) (string, 
 }
 
 func countDownstreamModels(modelId string, db *gorm.DB, activeOnly bool) (int64, error) {
-
 	query := db.Model(&schema.ModelDependency{}).Where("dependency_id = ?", modelId)
 	if activeOnly {
 		query = query.Joins("Model").Where("deploy_status IN ?", []string{schema.Starting, schema.InProgress, schema.Complete})
@@ -118,7 +113,7 @@ func countDownstreamModels(modelId string, db *gorm.DB, activeOnly bool) (int64,
 	var count int64
 	result := query.Count(&count)
 	if result.Error != nil {
-		return 0, fmt.Errorf("database error: %v", result.Error)
+		return 0, schema.NewDbError("counting downstream models", result.Error)
 	}
 
 	return count, nil

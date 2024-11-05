@@ -7,6 +7,23 @@ import (
 	"gorm.io/gorm"
 )
 
+type DbError struct {
+	action string
+	err    error
+}
+
+func NewDbError(action string, err error) error {
+	return DbError{action: action, err: err}
+}
+
+func (e DbError) Error() string {
+	return fmt.Sprintf("sql error while %v: %v", e.action, e.err)
+}
+
+func (e DbError) Unwrap() error {
+	return e.err
+}
+
 func GetUser(userId string, db *gorm.DB, loadTeams bool) (User, error) {
 	var user User
 
@@ -21,7 +38,7 @@ func GetUser(userId string, db *gorm.DB, loadTeams bool) (User, error) {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return user, fmt.Errorf("no user with id %v", userId)
 		}
-		return user, fmt.Errorf("error locating user with id %v: %v", userId, result.Error)
+		return user, NewDbError("retrieving user by id", result.Error)
 	}
 
 	return user, nil
@@ -46,7 +63,7 @@ func GetModel(modelId string, db *gorm.DB, loadDeps, loadAttrs, loadUser bool) (
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return model, fmt.Errorf("no model with id %v", modelId)
 		}
-		return model, fmt.Errorf("error locating model with id %v: %v", modelId, result.Error)
+		return model, NewDbError("retrieving model by id", result.Error)
 	}
 
 	return model, nil
@@ -56,7 +73,7 @@ func GetUserTeam(teamId, userId string, db *gorm.DB) (*UserTeam, error) {
 	var team UserTeam
 	result := db.Find(&team, "team_id = ? and user_id = ?", teamId, userId)
 	if result.Error != nil {
-		return nil, fmt.Errorf("database error: %v", result.Error)
+		return nil, NewDbError("retrieving user_team entry", result.Error)
 	}
 	if result.RowsAffected != 1 {
 		return nil, nil
@@ -69,7 +86,7 @@ func ModelExists(db *gorm.DB, modelId string) (bool, error) {
 	var model Model
 	result := db.Find(&model, "id = ?", modelId)
 	if result.Error != nil {
-		return false, fmt.Errorf("database error: %v", result.Error)
+		return false, NewDbError("checking if model exists", result.Error)
 	}
 	return result.RowsAffected > 0, nil
 }
@@ -78,7 +95,7 @@ func UserExists(db *gorm.DB, userId string) (bool, error) {
 	var user User
 	result := db.Find(&user, "id = ?", userId)
 	if result.Error != nil {
-		return false, fmt.Errorf("database error: %v", result.Error)
+		return false, NewDbError("checking if user exists", result.Error)
 	}
 	return result.RowsAffected > 0, nil
 }
@@ -87,7 +104,7 @@ func TeamExists(db *gorm.DB, teamId string) (bool, error) {
 	var team Team
 	result := db.Find(&team, "id = ?", teamId)
 	if result.Error != nil {
-		return false, fmt.Errorf("database error: %v", result.Error)
+		return false, NewDbError("checking if team exists", result.Error)
 	}
 	return result.RowsAffected > 0, nil
 }

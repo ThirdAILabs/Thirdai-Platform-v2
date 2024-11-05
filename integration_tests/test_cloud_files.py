@@ -56,13 +56,22 @@ def test_cloud_training(model_name_prefix, doc_url, provider, expected_query):
     # Dynamically generate the model name based on the prefix and uuid
     model_name = f"{model_name_prefix}_{uuid.uuid4()}"
 
+    # Prepare FileInfo structure for the document based on the URL and provider
+    unsupervised_docs = [
+        {
+            "path": doc_url,
+            "location": provider,
+            "options": {},  # Add specific options if needed
+            "metadata": None,  # Optional metadata
+        }
+    ]
+
     # Train the model with the corresponding file URL and provider
     model = admin_client.train(
         model_name,
-        unsupervised_docs=[doc_url],
+        unsupervised_docs=unsupervised_docs,
         model_options={"ndb_options": {"ndb_sub_type": "v2"}},
-        supervised_docs=[],
-        doc_type=provider,
+        supervised_docs=[],  # Empty for this test case
     )
     admin_client.await_train(model)
 
@@ -80,7 +89,7 @@ def test_cloud_training(model_name_prefix, doc_url, provider, expected_query):
     )
     assert signed_url is not None
 
-    # Validate the signed URL using wget or another method
+    # Validate the signed URL using a request
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
     }
@@ -92,4 +101,5 @@ def test_cloud_training(model_name_prefix, doc_url, provider, expected_query):
     # Undeploy the model after validation
     admin_client.undeploy(ndb_client)
 
+    # Delete the model
     admin_client.delete(model.model_identifier)

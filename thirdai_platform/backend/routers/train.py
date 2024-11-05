@@ -366,12 +366,6 @@ def retrain_ndb(
             model_id=str(model_id),
             share_dir=os.getenv("SHARE_DIR", None),
             python_path=get_python_path(),
-            aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
-            aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
-            aws_region_name=(os.getenv("AWS_REGION_NAME", "")),
-            azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
-            azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
-            gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
             train_job_name=new_model.get_train_job_name(),
             config_path=config.save_train_config(),
             allocation_cores=job_options.allocation_cores,
@@ -553,7 +547,7 @@ def datagen_callback(
             message="Invalid options format: " + str(e),
         )
 
-    license_info = validate_license_info()
+    validate_license_info()
 
     # We know this mapping is true because we set this in the nlp-datagen endpoint.
     model_id = data_id
@@ -615,12 +609,6 @@ def datagen_callback(
             model_id=str(model_id),
             share_dir=os.getenv("SHARE_DIR", None),
             python_path=get_python_path(),
-            aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
-            aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
-            aws_region_name=(os.getenv("AWS_REGION_NAME", "")),
-            azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
-            azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
-            gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
             train_job_name=model.get_train_job_name(),
             config_path=config_path,
             allocation_cores=config.job_options.allocation_cores,
@@ -929,12 +917,6 @@ def train_udt(
             model_id=str(model_id),
             share_dir=os.getenv("SHARE_DIR", None),
             python_path=get_python_path(),
-            aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
-            aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
-            aws_region_name=(os.getenv("AWS_REGION_NAME", "")),
-            azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
-            azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
-            gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
             train_job_name=new_model.get_train_job_name(),
             config_path=config_path,
             allocation_cores=job_options.allocation_cores,

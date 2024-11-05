@@ -31,10 +31,13 @@ class Model(ABC):
 
         credentials_registry_path = self.model_dir / "credentials.json"
 
-        with open(credentials_registry_path) as file:
-            self.credentials_registry = CredentialRegistry.model_validate_json(
-                file.read()
-            )
+        if credentials_registry_path.exists():
+            with open(credentials_registry_path) as file:
+                self.credentials_registry = CredentialRegistry.model_validate_json(
+                    file.read()
+                )
+        else:
+            self.credentials_registry = CredentialRegistry()
 
     def get_model_dir(self, model_id: str):
         return Path(self.config.model_bazaar_dir) / "models" / model_id

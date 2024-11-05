@@ -233,6 +233,9 @@ class NDBData(BaseModel):
             )
         return self
 
+    def get_files(self):
+        return self.unsupervised_files + self.supervised_files + self.test_files
+
 
 class UDTSubType(str, Enum):
     text = "text"
@@ -289,6 +292,9 @@ class UDTData(BaseModel):
     class Config:
         protected_namespaces = ()
 
+    def get_files(self):
+        return self.supervised_files + self.test_files
+
 
 class UDTGeneratedData(BaseModel):
     model_data_type: Literal[ModelDataType.UDT_DATAGEN] = ModelDataType.UDT_DATAGEN
@@ -296,6 +302,9 @@ class UDTGeneratedData(BaseModel):
 
     class Config:
         protected_namespaces = ()
+
+    def get_files(self):
+        return []
 
 
 class LLMProvider(str, Enum):
@@ -402,11 +411,7 @@ class TrainConfig(BaseModel):
         """
         registry = CredentialRegistry()
 
-        all_files = (
-            self.data.unsupervised_files
-            + self.data.supervised_files
-            + self.data.test_files
-        )
+        all_files = self.data.get_files()
 
         for file_info in all_files:
             bucket_name = file_info.extract_bucket_name()

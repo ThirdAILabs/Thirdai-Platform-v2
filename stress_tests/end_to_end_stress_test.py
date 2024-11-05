@@ -1,13 +1,15 @@
 import argparse
 import os
+import shutil
 import subprocess
+import zipfile
 from typing import List
 from urllib.parse import urljoin
 
 import boto3
-import zipfile
 import requests
-import json
+
+pass
 from botocore.client import Config
 
 from client.bazaar import ModelBazaar
@@ -140,11 +142,11 @@ def check_nomad_job_status(deployment_id):
     data = get_nomad_job("traefik", os.getenv("NOMAD_ENDPOINT"))
     if data is not None and data["Status"] == "dead":
         raise ValueError(f"traefik job has died.")
-    
+
     data = get_nomad_job("model_bazaar", os.getenv("NOMAD_ENDPOINT"))
     if data is not None and data["Status"] == "dead":
         raise ValueError(f"model_bazaar job has died.")
-    
+
     data = get_nomad_job(f"deployment-{deployment_id}", os.getenv("NOMAD_ENDPOINT"))
     if data is None:
         raise ValueError(f"deployment job not found.")
@@ -182,15 +184,16 @@ def main(args):
         stress_test_status = run_stress_test(args, query_file, ndb_client.model_id)
         print(f"\nStress test status: {stress_test_status}\n\n\n")
 
-        print("Printing Deployment Logs")
+        print("Printing Deployment Logs:\n\n")
         log_file_path = client.logs(model_object)
-        with zipfile.ZipFile(log_file_path, 'r') as z:
-            with z.open("logs/deployments/data/deployments.log") as f:
-                content = f.read().decode('utf-8')
-                print(content)
+        with zipfile.ZipFile(log_file_path, "r") as z:
+            z.extractall("logs")
+        with open("logs/deployment.log") as f:
+            content = f.read()
+            print(content)
 
         check_nomad_job_status(ndb_client.model_id)
-        
+
     except Exception as e:
         errors.append(f"Testing error: {e}")
         raise
@@ -210,6 +213,8 @@ def main(args):
                 errors.append(f"Delete error: {e}")
 
             os.remove(query_file)
+            shutil.rmtree("logs")
+            shutil.rmtree("bazaar_cache")
 
             if errors:
                 raise RuntimeError(

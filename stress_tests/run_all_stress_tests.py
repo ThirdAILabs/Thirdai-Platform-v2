@@ -33,7 +33,7 @@ def main(args):
         else:
             failures.append(config)
             print(f"Error in {config}: {result.stderr}")
-        
+
         print(f"\n\nFinished test for config {config}\n\n\n")
 
     print("\nThe following tests have passed:")

@@ -182,15 +182,18 @@ class ModelBazaar:
         url = urljoin(self._base_url, f"train/ndb")
 
         # Collect local file paths for upload if necessary
-        all_file_paths = [
-            file["path"]
+        files = [
+            (
+                "files",
+                (
+                    open(file["path"], "rb")
+                    if file["location"] == "local"
+                    else (file["path"], "don't care")
+                ),
+            )
             for file_list in file_info.values()
             for file in file_list
-            if file["location"] == "local"
         ]
-
-        # Prepare files for local upload
-        files = [("files", open(file_path, "rb")) for file_path in all_file_paths]
 
         if model_options:
             files.append(

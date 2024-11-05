@@ -1,10 +1,10 @@
 // /lib/backend.js
 
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { access } from 'fs';
 import _ from 'lodash';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 export const thirdaiPlatformBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -60,27 +60,100 @@ export async function listDeployments(deployment_id: string): Promise<Deployment
   }
 }
 
-interface StatusResponse {
+interface BaseStatusResponse {
   data: {
     model_id: string;
+    messages: string[];
+  };
+}
+
+interface DeployStatusResponse extends BaseStatusResponse {
+  data: {
+    model_id: string;
+    messages: string[];
     deploy_status: string;
   };
 }
 
-export function getDeployStatus(values: {
-  deployment_identifier: string;
-  model_identifier: string;
-}): Promise<StatusResponse> {
-  // Retrieve the access token from local storage
-  const accessToken = getAccessToken();
+interface TrainStatusResponse extends BaseStatusResponse {
+  data: {
+    model_id: string;
+    messages: string[];
+    train_status: string;
+  };
+}
 
-  // Set the default authorization header for axios
+export function getDeployStatus(modelIdentifier: string): Promise<DeployStatusResponse> {
+  const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   return new Promise((resolve, reject) => {
     axios
       .get(
-        `${thirdaiPlatformBaseUrl}/api/deploy/status?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}&model_identifier=${encodeURIComponent(values.model_identifier)}`
+        `${thirdaiPlatformBaseUrl}/api/deploy/status?model_identifier=${encodeURIComponent(modelIdentifier)}`
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export function getTrainingStatus(modelIdentifier: string): Promise<TrainStatusResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(
+        `${thirdaiPlatformBaseUrl}/api/train/status?model_identifier=${encodeURIComponent(modelIdentifier)}`
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+interface LogEntry {
+  stderr: string;
+  stdout: string;
+}
+
+interface LogResponse {
+  data: LogEntry[]; // Now it's an array of LogEntry objects
+}
+
+export function getTrainingLogs(modelIdentifier: string): Promise<LogResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(
+        `${thirdaiPlatformBaseUrl}/api/train/logs?model_identifier=${encodeURIComponent(modelIdentifier)}`
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export function getDeploymentLogs(modelIdentifier: string): Promise<LogResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(
+        `${thirdaiPlatformBaseUrl}/api/deploy/logs?model_identifier=${encodeURIComponent(modelIdentifier)}`
       )
       .then((res) => {
         resolve(res.data);
@@ -253,6 +326,50 @@ export function retrain_ndb({
   });
 }
 
+interface RetrainTokenClassifierParams {
+  model_name: string;
+  base_model_identifier?: string;
+}
+
+export function retrainTokenClassifier({
+  model_name,
+  base_model_identifier,
+}: RetrainTokenClassifierParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({
+    model_name,
+    llm_provider: 'openai',
+  });
+
+  if (base_model_identifier) {
+    params.append('base_model_identifier', base_model_identifier);
+  }
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/retrain-udt?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error((axiosError.response.data as any).detail || 'Failed to retrain UDT model')
+            );
+          } else {
+            reject(new Error('Failed to retrain UDT model'));
+          }
+        } else {
+          reject(new Error('Failed to retrain UDT model'));
+        }
+      });
+  });
+}
+
 export interface EnterpriseSearchOptions {
   retrieval_id: string;
   guardrail_id?: string;
@@ -373,7 +490,8 @@ interface StartWorkflowResponse {
 
 export function start_workflow(
   username: string,
-  model_name: string
+  model_name: string,
+  autoscalingEnabled: boolean
 ): Promise<StartWorkflowResponse> {
   const accessToken = getAccessToken();
 
@@ -381,6 +499,7 @@ export function start_workflow(
 
   const params = new URLSearchParams({
     model_identifier: createModelIdentifier(username, model_name),
+    autoscaling_enabled: autoscalingEnabled.toString(), // Convert boolean to string for URL param
   });
 
   return new Promise((resolve, reject) => {
@@ -517,6 +636,63 @@ export function userEmailLogin(
         resolve(res.data);
       })
       .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export function userEmailLoginWithAccessToken(
+  accessToken: string,
+  setAccessToken: (token: string) => void
+): Promise<any> {
+  console.debug('userEmailLogin called with accessToken:', accessToken);
+
+  return new Promise((resolve, reject) => {
+    console.debug('Sending request to /api/user/email-login-with-keycloak with payload:', {
+      access_token: accessToken,
+    });
+
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/user/email-login-with-keycloak`, {
+        access_token: accessToken,
+      })
+      .then((res) => {
+        console.debug('Response from email-login-with-keycloak:', res);
+
+        const accessToken = res.data.data.access_token;
+        const username = res.data.data.user.username;
+
+        if (accessToken) {
+          console.debug('Access token received from backend:', accessToken);
+          // Store accessToken into local storage, replacing any existing one.
+          localStorage.setItem('accessToken', accessToken);
+          setAccessToken(accessToken);
+        } else {
+          console.warn('No access token returned from backend response.');
+        }
+
+        if (username) {
+          console.debug('Username received from backend:', username);
+          localStorage.setItem('username', username);
+        } else {
+          console.warn('No username found in backend response.');
+        }
+
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          console.error('Axios error during login:', {
+            message: err.message,
+            status: err.response?.status,
+            data: err.response?.data,
+            headers: err.response?.headers,
+          });
+          console.error('Validation details from backend:', err.response?.data?.detail);
+        } else {
+          console.error('Unexpected error during login:', err);
+        }
+
         reject(err);
       });
   });
@@ -693,10 +869,114 @@ function useAccessToken() {
   return accessToken;
 }
 
+interface UseLabelsOptions {
+  deploymentUrl: string;
+  maxRecentLabels?: number;
+}
+
+interface UseLabelsResult {
+  allLabels: Set<string>;
+  recentLabels: string[];
+  error: Error | null;
+  isLoading: boolean;
+  refresh: () => Promise<void>;
+}
+
+export function useLabels({
+  deploymentUrl,
+  maxRecentLabels = 5,
+}: UseLabelsOptions): UseLabelsResult {
+  const [allLabels, setAllLabels] = useState<Set<string>>(new Set());
+  const [recentLabels, setRecentLabels] = useState<string[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const accessToken = getAccessToken();
+      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+      const response = await axios.get<{ data: string[] }>(`${deploymentUrl}/get_labels`);
+      const labels = response.data.data;
+
+      setAllLabels((prevLabels) => {
+        const newLabels = new Set(prevLabels);
+        labels.forEach((label: string) => {
+          if (!prevLabels.has(label)) {
+            newLabels.add(label);
+            setRecentLabels((prev) => [label, ...prev].slice(0, maxRecentLabels));
+          }
+        });
+        return newLabels;
+      });
+
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching labels:', err);
+      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [deploymentUrl, maxRecentLabels]);
+
+  return { allLabels, recentLabels, error, isLoading, refresh };
+}
+
+interface Sample {
+  tokens: string[];
+  tags: string[];
+}
+
+interface UseRecentSamplesOptions {
+  deploymentUrl: string;
+  maxRecentSamples?: number;
+}
+
+interface UseRecentSamplesResult {
+  recentSamples: Sample[];
+  error: Error | null;
+  isLoading: boolean;
+  refresh: () => Promise<void>;
+}
+
+export function useRecentSamples({
+  deploymentUrl,
+  maxRecentSamples = 5,
+}: UseRecentSamplesOptions): UseRecentSamplesResult {
+  const [recentSamples, setRecentSamples] = useState<Sample[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const accessToken = getAccessToken();
+      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+      const response = await axios.get<{ data: Sample[] }>(`${deploymentUrl}/get_recent_samples`);
+      setRecentSamples(response.data.data.slice(0, maxRecentSamples));
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching recent samples:', err);
+      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [deploymentUrl, maxRecentSamples]);
+
+  return { recentSamples, error, isLoading, refresh };
+}
+
 export interface TokenClassificationResult {
   query_text: string;
   tokens: string[];
   predicted_tags: string[][];
+}
+
+interface InsertSamplePayload {
+  tokens: string[];
+  tags: string[];
 }
 
 export function useTokenClassificationEndpoints() {
@@ -828,9 +1108,68 @@ export function useTokenClassificationEndpoints() {
       }
     });
 
+  const insertSample = async (sample: InsertSamplePayload): Promise<void> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      await axios.post(`${deploymentUrl}/insert_sample`, sample);
+    } catch (error) {
+      console.error('Error inserting sample:', error);
+      alert('Error inserting sample:' + error);
+      throw new Error('Failed to insert sample');
+    }
+  };
+
+  const addLabel = async (labels: {
+    tags: { name: string; description: string }[];
+  }): Promise<void> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      await axios.post(`${deploymentUrl}/add_labels`, labels);
+    } catch (error) {
+      console.error('Error adding label:', error);
+      alert('Error adding label:' + error);
+      throw new Error('Failed to add label');
+    }
+  };
+
+  const getLabels = async (): Promise<string[]> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      const response = await axios.get(`${deploymentUrl}/get_labels`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching labels:', error);
+      alert('Error fetching labels:' + error);
+      throw new Error('Failed to fetch labels');
+    }
+  };
+
+  const getTextFromFile = async (file: File): Promise<string[]> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post(`${deploymentUrl}/get-text`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error parsing file:', error);
+      alert('Error parsing file:' + error);
+      throw new Error('Failed to parse file');
+    }
+  };
+
   return {
     workflowName,
     predict,
+    insertSample,
+    addLabel,
+    getLabels,
+    getTextFromFile,
     getStats,
   };
 }
@@ -888,8 +1227,28 @@ export function useTextClassificationEndpoints() {
     }
   };
 
+  const getTextFromFile = async (file: File): Promise<string[]> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post(`${deploymentUrl}/get-text`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error parsing file:', error);
+      alert('Error parsing file:' + error);
+      throw new Error('Failed to parse file');
+    }
+  };
+
   return {
     workflowName,
+    getTextFromFile,
     predict,
   };
 }
@@ -1354,5 +1713,28 @@ export async function temporaryCacheToken(modelId: string) {
   } catch (err) {
     console.error('Error getting temporary cache access token:', err);
     throw err; // Re-throwing the error to handle it in the component
+  }
+}
+
+export async function fetchFeedback(username: string, modelName: string) {
+  const modelIdentifier = `${username}/${modelName}`;
+  const accessToken = getAccessToken();
+
+  try {
+    const response = await axios({
+      method: 'get',
+      url: `${deploymentBaseUrl}/api/deploy/feedbacks`,
+      params: {
+        model_identifier: modelIdentifier,
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    return response?.data?.data;
+  } catch (error) {
+    console.error('Error getting Feedback Response:', error);
+    throw error;
   }
 }

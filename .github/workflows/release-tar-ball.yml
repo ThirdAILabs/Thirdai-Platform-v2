@@ -33,7 +33,7 @@ jobs:
       - name: Download and store the model
         run: |
           mkdir -p gen-ai-models
-          wget -O gen-ai-models/Llama-3.2-3B-Instruct-f16.gguf https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-f16.gguf?download=true
+          wget -O gen-ai-models/Llama-3.2-1B-Instruct-f16.gguf https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-f16.gguf?download=true
 
       - name: Ensure scripts directory exists
         run: mkdir -p ./platform/scripts
@@ -148,6 +148,9 @@ jobs:
 
           docker pull thirdaiplatform.azurecr.io/redis:7.4.0
           docker save -o docker_images-${{ env.latest_tag }}/redis_7.4.0.tar thirdaiplatform.azurecr.io/redis:7.4.0
+
+          docker pull thirdaiplatform.azurecr.io/keycloak:26.0.0
+          docker save -o docker_images-${{ env.latest_tag }}/keycloak_26.0.0.tar thirdaiplatform.azurecr.io/keycloak:26.0.0
 
           docker pull registry:2
           docker save -o docker_images-${{ env.latest_tag }}/registry_2.tar registry:2

@@ -10,6 +10,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getWorkflowDetails, deploymentBaseUrl } from '@/lib/backend';
 import _ from 'lodash';
+import { Workflow, fetchWorkflows } from '@/lib/backend';
 
 function AnalyticsContent() {
   const [isClient, setIsClient] = useState(false);
@@ -57,6 +58,28 @@ function AnalyticsContent() {
     init();
   }, [workflowid]);
 
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+
+  useEffect(() => {
+    async function getWorkflows() {
+      try {
+        const fetchedWorkflows = await fetchWorkflows();
+        console.log('workflows', fetchedWorkflows);
+        setWorkflows(fetchedWorkflows);
+      } catch (err) {
+        if (err instanceof Error) {
+          console.log(err.message);
+        } else {
+          console.log('An unknown error occurred');
+        }
+      }
+    }
+
+    getWorkflows();
+  }, []);
+
+  const workflowNames = workflows.map((workflow) => workflow.model_name);
+
   if (!isClient) {
     return null; // Return null on the first render to avoid hydration mismatch
   }
@@ -68,6 +91,7 @@ function AnalyticsContent() {
             username={username} 
             modelName={modelName} 
             deploymentUrl={deploymentUrl} 
+            workflowNames={workflowNames}
           />
         )}
       </div>

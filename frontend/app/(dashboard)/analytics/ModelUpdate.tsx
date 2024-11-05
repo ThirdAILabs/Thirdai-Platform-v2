@@ -18,15 +18,17 @@ interface ModelUpdateProps {
   username: string;
   modelName: string;
   deploymentUrl: string;
+  workflowNames: string[];
 }
 
-export default function ModelUpdate({ username, modelName, deploymentUrl }: ModelUpdateProps) {
+export default function ModelUpdate({ username, modelName, deploymentUrl, workflowNames }: ModelUpdateProps) {
   // States for CSV upload
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploadUpdating, setIsUploadUpdating] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [newModelName, setNewModelName] = useState(``);
+  const [warningMessage, setWarningMessage] = useState('');
 
   // States for polling method
   const [isPollingUpdating, setIsPollingUpdating] = useState(false);
@@ -41,6 +43,11 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
   // New states for button cooldown
   const [uploadButtonDisabled, setUploadButtonDisabled] = useState(false);
   const [pollingButtonDisabled, setPollingButtonDisabled] = useState(false);  
+
+  // Effect to validate model name on each change
+  useEffect(() => {
+    validateModelName(newModelName);
+  }, [newModelName, workflowNames]);
 
   // Timer effect for upload button cooldown
   useEffect(() => {
@@ -118,8 +125,32 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
   };
 
   const validateModelName = (name: string) => {
+    // Check if name exists in workflowNames
+    if (workflowNames.includes(name)) {
+      setWarningMessage('An app with the same name already exists. Please choose a different name.');
+      return false;
+    }
+
+    // Check for valid characters (alphanumeric, hyphens, and underscores)
     const isValid = /^[a-zA-Z0-9-_]+$/.test(name);
     const isNotEmpty = name.trim().length > 0;
+    
+    if (!isValid && isNotEmpty) {
+      setWarningMessage('The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.');
+      return false;
+    }
+    
+    if (name.includes(' ')) {
+      setWarningMessage('The app name cannot contain spaces. Please remove the spaces.');
+      return false;
+    }
+    
+    if (name.includes('.')) {
+      setWarningMessage("The app name cannot contain periods ('.'). Please remove the periods.");
+      return false;
+    }
+    
+    setWarningMessage('');
     return isValid && isNotEmpty;
   };
 
@@ -238,8 +269,8 @@ export default function ModelUpdate({ username, modelName, deploymentUrl }: Mode
                 value={newModelName}
                 onChange={(e) => setNewModelName(e.target.value)}
                 placeholder="Enter new model name"
-                helperText="Example: my-model-v2 or updated_model_123"
-                error={!!uploadError && uploadError.includes('model name')}
+                helperText={warningMessage || "Example: my-model-v2 or updated_model_123"}
+                error={!!warningMessage}
                 sx={{ mt: 1 }}
               />
             </Box>

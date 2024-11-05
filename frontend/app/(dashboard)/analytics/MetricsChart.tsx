@@ -11,8 +11,8 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { LabelMetrics, TrainReportData, TrainingExample } from '@/lib/backend';
-import { ExamplesVisualizer } from './ExamplesVisualizer'
-import {PerformanceSummary} from './PerformanceSummary'
+import { ExamplesVisualizer } from './ExamplesVisualizer';
+import { PerformanceSummary } from './PerformanceSummary';
 
 interface MetricsChartProps {
   beforeMetrics: LabelMetrics;
@@ -24,7 +24,7 @@ const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics
   const allLabels = Array.from(
     new Set([...Object.keys(beforeMetrics), ...Object.keys(afterMetrics)])
   );
-  
+
   // State for selected label
   const [selectedLabel, setSelectedLabel] = useState(allLabels[0]);
 
@@ -82,9 +82,10 @@ const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics
             key={label}
             onClick={() => setSelectedLabel(label)}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors
-              ${selectedLabel === label
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              ${
+                selectedLabel === label
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
           >
             {label}
@@ -108,22 +109,11 @@ const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
-              <YAxis
-                domain={[0, 100]}
-                tickFormatter={(value) => `${value}%`}
-              />
+              <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
               <Tooltip formatter={formatTooltip} />
               <Legend />
-              <Bar 
-                dataKey="Before Training" 
-                fill="#94a3b8"
-                radius={[4, 4, 0, 0]}
-              />
-              <Bar 
-                dataKey="After Training" 
-                fill="#3b82f6"
-                radius={[4, 4, 0, 0]}
-              />
+              <Bar dataKey="Before Training" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="After Training" fill="#3b82f6" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
 
@@ -135,11 +125,13 @@ const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics
                 <span className="text-2xl font-semibold">
                   {(afterMetrics[selectedLabel]?.precision * 100).toFixed(1)}%
                 </span>
-                <span className={`text-sm font-medium ${
-                  Number(getMetricDifference(selectedLabel, 'precision')) >= 0 
-                    ? 'text-green-600' 
-                    : 'text-red-600'
-                }`}>
+                <span
+                  className={`text-sm font-medium ${
+                    Number(getMetricDifference(selectedLabel, 'precision')) >= 0
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}
+                >
                   {Number(getMetricDifference(selectedLabel, 'precision')) >= 0 ? '+' : ''}
                   {getMetricDifference(selectedLabel, 'precision')}%
                 </span>
@@ -151,11 +143,13 @@ const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics
                 <span className="text-2xl font-semibold">
                   {(afterMetrics[selectedLabel]?.recall * 100).toFixed(1)}%
                 </span>
-                <span className={`text-sm font-medium ${
-                  Number(getMetricDifference(selectedLabel, 'recall')) >= 0 
-                    ? 'text-green-600' 
-                    : 'text-red-600'
-                }`}>
+                <span
+                  className={`text-sm font-medium ${
+                    Number(getMetricDifference(selectedLabel, 'recall')) >= 0
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}
+                >
                   {Number(getMetricDifference(selectedLabel, 'recall')) >= 0 ? '+' : ''}
                   {getMetricDifference(selectedLabel, 'recall')}%
                 </span>
@@ -167,11 +161,13 @@ const MetricsChart: React.FC<MetricsChartProps> = ({ beforeMetrics, afterMetrics
                 <span className="text-2xl font-semibold">
                   {(afterMetrics[selectedLabel]?.fmeasure * 100).toFixed(1)}%
                 </span>
-                <span className={`text-sm font-medium ${
-                  Number(getMetricDifference(selectedLabel, 'fmeasure')) >= 0 
-                    ? 'text-green-600' 
-                    : 'text-red-600'
-                }`}>
+                <span
+                  className={`text-sm font-medium ${
+                    Number(getMetricDifference(selectedLabel, 'fmeasure')) >= 0
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}
+                >
                   {Number(getMetricDifference(selectedLabel, 'fmeasure')) >= 0 ? '+' : ''}
                   {getMetricDifference(selectedLabel, 'fmeasure')}%
                 </span>
@@ -195,7 +191,7 @@ export const TrainingResults: React.FC<TrainingResultsProps> = ({ report }) => {
         <CardTitle>Fine-tuning Metrics Comparison</CardTitle>
       </CardHeader>
       <CardContent className="space-y-8">
-        <PerformanceSummary 
+        <PerformanceSummary
           beforeMetrics={report.before_train_metrics}
           afterMetrics={report.after_train_metrics}
         />

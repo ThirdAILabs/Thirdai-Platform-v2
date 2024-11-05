@@ -11,7 +11,7 @@ interface TokenHighlightProps {
 
 const TokenHighlight: React.FC<TokenHighlightProps> = ({ text, index, highlightIndex, type }) => {
   const isHighlighted = index === highlightIndex;
-  
+
   const getHighlightColor = () => {
     if (!isHighlighted) return 'bg-transparent';
     switch (type) {
@@ -28,9 +28,7 @@ const TokenHighlight: React.FC<TokenHighlightProps> = ({ text, index, highlightI
 
   return (
     <span
-      className={`px-1 py-0.5 rounded ${getHighlightColor()} ${
-        isHighlighted ? 'border-2' : ''
-      }`}
+      className={`px-1 py-0.5 rounded ${getHighlightColor()} ${isHighlighted ? 'border-2' : ''}`}
     >
       {text}
     </span>
@@ -74,7 +72,7 @@ const ExamplePair: React.FC<ExamplePairProps> = ({ example, type }) => {
       <div className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getTypeColor()}`}>
         {getTypeLabel()}
       </div>
-      
+
       <div className="space-y-2">
         <div className="space-y-1">
           <div className="text-sm font-medium text-gray-500">Input</div>
@@ -92,7 +90,7 @@ const ExamplePair: React.FC<ExamplePairProps> = ({ example, type }) => {
             ))}
           </div>
         </div>
-        
+
         <div className="space-y-1">
           <div className="text-sm font-medium text-gray-500">Ground Truth</div>
           <div className="p-2 bg-gray-50 rounded">
@@ -161,9 +159,7 @@ export const ExamplesVisualizer: React.FC<ExamplesVisualizerProps> = ({ report }
     <Card>
       <CardHeader>
         <CardTitle>Sample Predictions</CardTitle>
-        <CardDescription>
-          Analyze model predictions with token-level details
-        </CardDescription>
+        <CardDescription>Analyze model predictions with token-level details</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Label Selection */}
@@ -175,9 +171,10 @@ export const ExamplesVisualizer: React.FC<ExamplesVisualizerProps> = ({ report }
                 key={label}
                 onClick={() => setSelectedLabel(label)}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors
-                  ${selectedLabel === label
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ${
+                    selectedLabel === label
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
               >
                 {label}
@@ -206,11 +203,7 @@ export const ExamplesVisualizer: React.FC<ExamplesVisualizerProps> = ({ report }
         {/* Examples */}
         <div className="space-y-4">
           {getExamples().map((example, idx) => (
-            <ExamplePair
-              key={idx}
-              example={example}
-              type={selectedType}
-            />
+            <ExamplePair key={idx} example={example} type={selectedType} />
           ))}
           {getExamples().length === 0 && (
             <div className="text-center py-8 text-gray-500">

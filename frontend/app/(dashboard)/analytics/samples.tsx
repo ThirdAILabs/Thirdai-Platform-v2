@@ -269,27 +269,24 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
             <CardDescription>List of active TAGs</CardDescription>
           </CardHeader>
           <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">
-            {labelError && (
-              labelError.message === "Request failed with status code 404" ? (
-                <Alert 
+            {labelError &&
+              (labelError.message === 'Request failed with status code 404' ? (
+                <Alert
                   severity="info"
                   icon={<Play className="h-4 w-4" />}
                   sx={{
                     backgroundColor: 'rgba(0, 0, 0, 0.05)',
                     '& .MuiAlert-message': {
-                      width: '100%'
-                    }
+                      width: '100%',
+                    },
                   }}
                 >
                   <AlertTitle>Model Not Running</AlertTitle>
                   Please start the model to see the live user feedback
                 </Alert>
               ) : (
-                <Alert severity="error">
-                  Error fetching labels: {labelError.message}
-                </Alert>
-              )
-            )}
+                <Alert severity="error">Error fetching labels: {labelError.message}</Alert>
+              ))}
             {uniqueLabels.map((label, idx) => (
               <React.Fragment key={idx}>
                 {idx > 0 && <Separator />}
@@ -307,27 +304,24 @@ export default function RecentSamples({ deploymentUrl }: RecentSamplesProps) {
             <CardDescription>The latest inserted samples</CardDescription>
           </CardHeader>
           <CardContent className="overflow-y-auto h-[calc(100%-5rem)]">
-            {sampleError && (
-              sampleError.message === "Request failed with status code 404" ? (
-                <Alert 
+            {sampleError &&
+              (sampleError.message === 'Request failed with status code 404' ? (
+                <Alert
                   severity="info"
                   icon={<Play className="h-4 w-4" />}
                   sx={{
                     backgroundColor: 'rgba(0, 0, 0, 0.05)',
                     '& .MuiAlert-message': {
-                      width: '100%'
-                    }
+                      width: '100%',
+                    },
                   }}
                 >
                   <AlertTitle>Model Not Running</AlertTitle>
                   Please start the model to see the live user feedback
                 </Alert>
               ) : (
-                <Alert severity="error">
-                  Error fetching samples: {sampleError.message}
-                </Alert>
-              )
-            )}
+                <Alert severity="error">Error fetching samples: {sampleError.message}</Alert>
+              ))}
             {recentSamples.map((sample, idx) => (
               <React.Fragment key={idx}>
                 {idx > 0 && <Separator />}

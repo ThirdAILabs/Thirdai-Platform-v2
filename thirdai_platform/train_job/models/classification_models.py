@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from logging import Logger
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 import thirdai
@@ -373,34 +373,6 @@ class TokenClassificationModel(ClassificationModel):
             metadata=Metadata(name="tags_and_status", data=tag_metadata, status=status)
         )
 
-    def replace_unknown_tags(
-        self, target: pd.Series, expected_tags: List[str]
-    ) -> Optional[pd.Series]:
-        expected_tags = set(expected_tags)
-
-        extra_tags = set()
-
-        def correct_tags(sample: str) -> str:
-            corrected = []
-            for tag in sample.split():
-                if tag in expected_tags:
-                    corrected.append(tag)
-                else:
-                    extra_tags.add(tag)
-                    corrected.append("O")
-            return " ".join(corrected)
-
-        new_col = target.map(correct_tags)
-
-        if extra_tags:
-            for tag in extra_tags:
-                msg = f"Found unexpected entity tag '{tag}' in dataset. Instances of this tag will treated as untagged. Expected tags are {', '.join(expected_tags)}"
-                self.logger.warning(msg)
-                self.reporter.report_warning(self.config.model_id, msg)
-            return new_col
-
-        return None
-
     def verify_file(self, model: bolt.UniversalDeepTransformer, file: str):
         source_column, target_column = model.source_target_columns()
 
@@ -416,11 +388,42 @@ class TokenClassificationModel(ClassificationModel):
                 f"Expected csv to have columns '{source_column}' and '{target_column}'"
             )
 
-        corrected_labels = self.replace_unknown_tags(
-            df[target_column], model.list_ner_tags()
-        )
-        if corrected_labels is not None:
-            df[target_column] = corrected_labels
+        new_target = []
+
+        tags = set(model.list_ner_tags())
+        extra_tags = set()
+        for i, (source, target) in enumerate(zip(df[source_column], df[target_column])):
+            if not isinstance(source, str):
+                raise ValueError(
+                    f"Invalid training data: column '{source_column}' in row {i} of '{file}' cannot be parsed as string."
+                )
+            if not isinstance(target, str):
+                raise ValueError(
+                    f"Invalid training data: column '{target_column}' in row {i} of '{file}' cannot be parsed as string."
+                )
+            source_toks = source.split()
+            target_toks = target.split()
+
+            if len(source_toks) != len(target_toks):
+                raise ValueError(
+                    f"Invalid training data: expected row {i} of '{file}' to have the same number of tokens in source and target columns."
+                )
+
+            corrected = []
+            for tag in target_toks:
+                if tag in tags:
+                    corrected.append(tag)
+                else:
+                    extra_tags.add(tag)
+                    corrected.append("O")
+            new_target.append(" ".join(corrected))
+
+        if extra_tags:
+            for tag in extra_tags:
+                msg = f"Found unexpected entity tag '{tag}' in dataset. Instances of this tag will treated as untagged. Expected tags are {', '.join(tags)}"
+                self.logger.warning(msg)
+                self.reporter.report_warning(self.config.model_id, msg)
+            df[target_column] = new_target
             df.to_csv(file, index=False)
 
     def train(self, **kwargs):

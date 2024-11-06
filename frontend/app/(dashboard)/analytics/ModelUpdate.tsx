@@ -20,7 +20,7 @@ export default function ModelUpdate({
   modelName,
   deploymentUrl,
   workflowNames,
-  deployStatus
+  deployStatus,
 }: ModelUpdateProps) {
   // States for CSV upload
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -122,7 +122,7 @@ export default function ModelUpdate({
         setSelectedFile(null);
         return;
       }
-      
+
       // Check file size
       if (file.size > MAX_FILE_SIZE) {
         setUploadError('File size must be less than 500MB');
@@ -222,13 +222,17 @@ export default function ModelUpdate({
   // Validation for polling model name
   const validatePollingModelName = (name: string) => {
     if (workflowNames.includes(name)) {
-      setPollingWarningMessage('An app with the same name already exists. Please choose a different name.');
+      setPollingWarningMessage(
+        'An app with the same name already exists. Please choose a different name.'
+      );
       return false;
     }
     const isValid = /^[a-zA-Z0-9-_]+$/.test(name);
     const isNotEmpty = name.trim().length > 0;
     if (!isValid && isNotEmpty) {
-      setPollingWarningMessage('The app name can only contain letters, numbers, underscores, and hyphens.');
+      setPollingWarningMessage(
+        'The app name can only contain letters, numbers, underscores, and hyphens.'
+      );
       return false;
     }
     if (name.includes(' ')) {
@@ -444,11 +448,7 @@ export default function ModelUpdate({
 
             <Button
               onClick={handlePollingUpdate}
-              disabled={
-                isPollingUpdating || 
-                pollingButtonDisabled || 
-                deployStatus !== 'complete'
-              }
+              disabled={isPollingUpdating || pollingButtonDisabled || deployStatus !== 'complete'}
               variant="contained"
               color={pollingSuccess ? 'success' : 'primary'}
               fullWidth

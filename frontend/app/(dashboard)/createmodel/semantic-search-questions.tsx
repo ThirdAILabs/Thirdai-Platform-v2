@@ -77,31 +77,41 @@ const SemanticSearchQuestions = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const calculateTotalLocalFileSize = (currentSources: Array<{ type: string; files: File[] }>, newFiles: File[], indexToUpdate: number): number => {
+  const calculateTotalLocalFileSize = (
+    currentSources: Array<{ type: string; files: File[] }>,
+    newFiles: File[],
+    indexToUpdate: number
+  ): number => {
     let total = 0;
-    
+
     // Add sizes from existing sources (excluding the one being updated)
     currentSources.forEach((source, idx) => {
       if (source.type === SourceType.LOCAL && idx !== indexToUpdate) {
-        source.files.forEach(file => {
+        source.files.forEach((file) => {
           total += file.size;
         });
       }
     });
-    
+
     // Add sizes from new files
-    newFiles.forEach(file => {
+    newFiles.forEach((file) => {
       total += file.size;
     });
-    
+
     return total;
   };
 
-  const validateTotalFileSize = (currentSources: Array<{ type: string; files: File[] }>, newFiles: File[], indexToUpdate: number): boolean => {
+  const validateTotalFileSize = (
+    currentSources: Array<{ type: string; files: File[] }>,
+    newFiles: File[],
+    indexToUpdate: number
+  ): boolean => {
     const totalSize = calculateTotalLocalFileSize(currentSources, newFiles, indexToUpdate);
-    
+
     if (totalSize > MAX_TOTAL_FILE_SIZE) {
-      setFileError(`Total file size (${formatFileSize(totalSize)}) exceeds the maximum limit of 500MB`);
+      setFileError(
+        `Total file size (${formatFileSize(totalSize)}) exceeds the maximum limit of 500MB`
+      );
       return false;
     }
     setFileError('');
@@ -119,7 +129,7 @@ const SemanticSearchQuestions = ({
     }
 
     const fileArray = Array.from(files);
-    
+
     // Validate total file size including new files
     if (!validateTotalFileSize(sources, fileArray, index)) {
       return;

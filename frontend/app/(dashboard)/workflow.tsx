@@ -287,18 +287,18 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       // Combine error and warning messages if they exist
       const errorMessages = error?.messages || [];
       const warningMessages = warning?.messages || [];
-      
+
       // Create a formatted string with headers and messages
       let contentToCopy = '';
-      
+
       if (errorMessages.length > 0) {
-        contentToCopy += 'Errors:\n' + errorMessages.map(msg => `• ${msg}`).join('\n') + '\n\n';
+        contentToCopy += 'Errors:\n' + errorMessages.map((msg) => `• ${msg}`).join('\n') + '\n\n';
       }
-      
+
       if (warningMessages.length > 0) {
-        contentToCopy += 'Warnings:\n' + warningMessages.map(msg => `• ${msg}`).join('\n');
+        contentToCopy += 'Warnings:\n' + warningMessages.map((msg) => `• ${msg}`).join('\n');
       }
-  
+
       // Create a temporary textarea element
       const textarea = document.createElement('textarea');
       textarea.value = contentToCopy.trim();
@@ -306,30 +306,29 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
       textarea.style.left = '-9999px';
       textarea.style.top = '0';
       document.body.appendChild(textarea);
-      
+
       // Select and copy the text
       textarea.select();
       document.execCommand('copy');
-      
+
       // Clean up
       document.body.removeChild(textarea);
-      
+
       // Show success notification
       const toast = document.createElement('div');
-      toast.className = 
+      toast.className =
         'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg z-50';
       toast.textContent = 'Content copied to clipboard';
       document.body.appendChild(toast);
-      
+
       setTimeout(() => {
         document.body.removeChild(toast);
       }, 2000);
-  
     } catch (err) {
       console.error('Failed to copy content:', err);
       // Show error notification
       const errorToast = document.createElement('div');
-      errorToast.className = 
+      errorToast.className =
         'fixed bottom-4 right-4 bg-red-600 text-white px-4 py-2 rounded-md shadow-lg z-50';
       errorToast.textContent = 'Failed to copy content';
       document.body.appendChild(errorToast);
@@ -527,7 +526,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               <AlertCircle className="h-5 w-5" />
             </Button>
           )}
-          
+
           {/* Warning icon */}
           {warning && (
             <Button

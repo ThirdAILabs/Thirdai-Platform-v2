@@ -32,7 +32,7 @@ function AnalyticsContent() {
 
           console.log('workflowDetails', workflowDetails);
           setWorkflowType(workflowDetails.data.type);
-          
+
           // Set deploy status
           setDeployStatus(workflowDetails.data.deploy_status);
 

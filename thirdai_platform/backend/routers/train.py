@@ -780,10 +780,10 @@ def retrain_udt(
         is_retraining=True if not base_model_identifier else False,
     )
 
-    config_path = config.save_train_config()
-
     try:
         if verify_llm_access(llm_provider, api_key=os.getenv("GENAI_KEY")):
+            config_path = config.save_train_config()
+
             generate_data_for_train_job(
                 data_id=str(model.id),
                 secret_token=secret_token,
@@ -798,6 +798,10 @@ def retrain_udt(
                 delete_nomad_job(
                     model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")
                 )
+
+            # Without any LLM access, the model should train only on the user provided samples present in the storage. Or balancing samples gathered from the training data.
+            config.data = UDTData()
+            config_path = config.save_train_config()
 
             submit_nomad_job(
                 str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),

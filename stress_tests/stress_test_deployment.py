@@ -42,8 +42,8 @@ def parse_args():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--host", type=str, default="http://localhost:80")
     parser.add_argument("--deployment_id", type=str)
-    parser.add_argument("--email", type=str)
-    parser.add_argument("--password", type=str)
+    parser.add_argument("--email", type=str, required=True)
+    parser.add_argument("--password", type=str, required=True)
     parser.add_argument("--query_file", type=str)
     parser.add_argument(
         "--min_wait",
@@ -114,6 +114,11 @@ def route(name):
     return f"/{args.deployment_id}/{name}"
 
 
+def log_request_error(response):
+    if response.status_code == 500:
+        print(response.text)
+
+
 login_details = Login.with_email(
     base_url=urljoin(args.host, "/api/"),
     email=args.email,
@@ -148,8 +153,7 @@ class NeuralDBLoadTest(TaskSet):
             timeout=60,
         )
 
-        if response.status_code == 500:
-            print(f"Response content: {response.text}")
+        log_request_error(response)
 
     @task(args.insert_weight)
     def test_insert(self):
@@ -175,8 +179,7 @@ class NeuralDBLoadTest(TaskSet):
             for f in file_objects:
                 f.close()
 
-        if response.status_code == 500:
-            print(f"Response content: {response.text}")
+        log_request_error(response)
 
     @task(args.delete_weight)
     def test_delete(self):
@@ -195,8 +198,7 @@ class NeuralDBLoadTest(TaskSet):
                         headers=auth_header,
                     )
 
-                    if response.status_code == 500:
-                        print(f"Response content: {response.text}")
+                    log_request_error(response)
 
     @task(args.upvote_weight)
     def test_upvote(self):
@@ -209,8 +211,7 @@ class NeuralDBLoadTest(TaskSet):
             timeout=60,
         )
 
-        if response.status_code == 500:
-            print(f"Response content: {response.text}")
+        log_request_error(response)
 
         if response.ok and response.json() and response.json()["data"]["references"]:
             last_ref = response.json()["data"]["references"][-1]
@@ -228,8 +229,7 @@ class NeuralDBLoadTest(TaskSet):
                 headers=auth_header,
             )
 
-            if response.status_code == 500:
-                print(f"Response content: {response.text}")
+            log_request_error(response)
 
     @task(args.associate_weight)
     def test_associate(self):
@@ -242,14 +242,12 @@ class NeuralDBLoadTest(TaskSet):
             headers=auth_header,
         )
 
-        if response.status_code == 500:
-            print(f"Response content: {response.text}")
+        log_request_error(response)
 
     @task(args.sources_weight)
     def test_sources(self):
         response = self.client.get(route("sources"), headers=auth_header)
-        if response.status_code == 500:
-            print(f"Response content: {response.text}")
+        log_request_error(response)
 
     @task(args.implicit_feedback_weight)
     def test_implicit_feedback(self):
@@ -262,8 +260,7 @@ class NeuralDBLoadTest(TaskSet):
             timeout=60,
         )
 
-        if response.status_code == 500:
-            print(f"Response content: {response.text}")
+        log_request_error(response)
 
         if response.ok and response.json() and response.json()["data"]["references"]:
             ref_id = response.json()["data"]["references"][-1]["id"]
@@ -276,8 +273,7 @@ class NeuralDBLoadTest(TaskSet):
             response = self.client.post(
                 route("implicit-feedback"), json=feedback, headers=auth_header
             )
-            if response.status_code == 500:
-                print(f"Response content: {response.text}")
+            log_request_error(response)
 
     @task(args.save_weight)
     def test_save(self):

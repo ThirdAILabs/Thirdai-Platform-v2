@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import shutil
 import subprocess
@@ -8,11 +9,11 @@ from urllib.parse import urljoin
 
 import boto3
 import requests
-
-pass
 from botocore.client import Config
 
 from client.bazaar import ModelBazaar
+
+logging.basicConfig(level=logging.INFO)
 
 
 class StressTestConfig:
@@ -62,8 +63,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str)
     parser.add_argument("--host", type=str, default="http://localhost:80")
-    parser.add_argument("--email", type=str)
-    parser.add_argument("--password", type=str)
+    parser.add_argument("--email", type=str, required=True)
+    parser.add_argument("--password", type=str, required=True)
     parser.add_argument("--autoscaling_enabled", action="store_true")
     parser.add_argument("--users", type=int, default=1000)
     parser.add_argument("--spawn_rate", type=int, default=30)
@@ -106,22 +107,6 @@ def download_query_file(queries_s3_uri):
     source_path = "/".join(queries_s3_uri.strip("s3://").split("/")[1:])
     s3_client.download_file(bucket_name, source_path, query_file_dest_path)
     return query_file_dest_path
-
-
-def create_deployment(client, config, autoscaling_enabled):
-    client.log_in(args.email, args.password)
-    model_object = client.train(
-        f"stress_test_{config.name}",
-        unsupervised_docs=config.docs_s3_uris,
-        model_options={"ndb_options": {"ndb_sub_type": "v2"}},
-        supervised_docs=[],
-        doc_type="s3",
-    )
-    model_identifier = model_object.model_identifier
-    ndb_client = client.deploy(
-        model_identifier, autoscaling_enabled=autoscaling_enabled
-    )
-    return model_identifier, ndb_client
 
 
 def run_stress_test(args, query_file, deployment_id):
@@ -180,17 +165,19 @@ def main(args):
             model_identifier, autoscaling_enabled=args.autoscaling_enabled
         )
 
-        print("Running Stress Test\n\n\n")
+        logging.info("Running Stress Test\n\n\n")
         stress_test_status = run_stress_test(args, query_file, ndb_client.model_id)
-        print(f"\nStress test status: {stress_test_status}\n\n\n")
+        logging.info(f"\nStress test status: {stress_test_status}\n\n\n")
 
-        print("Printing Deployment Logs:\n\n")
+        logging.info("Printing Deployment Logs:\n\n")
         log_file_path = client.logs(model_object)
         with zipfile.ZipFile(log_file_path, "r") as z:
             z.extractall("logs")
-        with open("logs/deployment.log") as f:
-            content = f.read()
-            print(content)
+        with open("logs/deployment.log", "r") as f:
+            lines = f.read_lines()
+            for line in lines:
+                if not line.strip().endswith("200"):
+                    logging.info(line.strip())
 
         check_nomad_job_status(ndb_client.model_id)
 

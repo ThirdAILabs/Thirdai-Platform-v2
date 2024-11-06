@@ -31,6 +31,7 @@ from backend.utils import (
     validate_license_info,
     validate_name,
 )
+from data_generation_job.llms import verify_llm_access
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
@@ -58,7 +59,6 @@ from platform_common.pydantic_models.training import (
 )
 from platform_common.thirdai_storage import storage
 from platform_common.utils import response
-from data_generation_job.llms import verify_llm_access
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 

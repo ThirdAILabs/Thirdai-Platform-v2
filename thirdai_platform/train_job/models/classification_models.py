@@ -1,4 +1,5 @@
 import os
+import random
 import shutil
 import tempfile
 import time
@@ -7,7 +8,6 @@ from abc import abstractmethod
 from logging import Logger
 from pathlib import Path
 from typing import List
-import random
 
 import pandas as pd
 import thirdai
@@ -481,8 +481,12 @@ class TokenClassificationModel(ClassificationModel):
         for user_provided_sample in user_provided_samples:
             samples.append(
                 {
-                    "source": " ".join(user_provided_sample.data.tokens),
-                    "target": " ".join(user_provided_sample.data.tags),
+                    self.tkn_cls_vars.source_column: " ".join(
+                        user_provided_sample.data.tokens
+                    ),
+                    self.tkn_cls_vars.target_column: " ".join(
+                        user_provided_sample.data.tags
+                    ),
                     "user_provided": True,
                 }
             )
@@ -494,8 +498,8 @@ class TokenClassificationModel(ClassificationModel):
         for sample in non_user_provided_samples[: self._num_balancing_samples]:
             samples.append(
                 {
-                    "source": " ".join(sample.data.tokens),
-                    "target": " ".join(sample.data.tags),
+                    self.tkn_cls_vars.source_column: " ".join(sample.data.tokens),
+                    self.tkn_cls_vars.target_column: " ".join(sample.data.tags),
                     "user_provided": False,
                 }
             )

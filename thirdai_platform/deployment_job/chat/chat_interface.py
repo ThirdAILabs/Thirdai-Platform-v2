@@ -1,8 +1,10 @@
+import logging
 from abc import ABC, abstractmethod
 from threading import Lock
 from typing import AsyncGenerator, List, Union
 
 from deployment_job.chat.ndbv2_vectorstore import NeuralDBV2VectorStore
+from fastapi import HTTPException, status
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.docstore.document import Document
 from langchain.vectorstores import NeuralDBVectorStore
@@ -13,8 +15,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableBranch, RunnablePassthrough
 from thirdai import neural_db as ndb
-from fastapi import HTTPException, status
-import logging
 from thirdai import neural_db_v2 as ndbv2
 
 

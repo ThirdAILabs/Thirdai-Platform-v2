@@ -400,37 +400,39 @@ export function trainUDTWithCSV({
   // Create FormData instance to handle file upload
   const formData = new FormData();
   formData.append('files', file);
-  
+
   // Add file info with correct location type
   const fileInfo = {
-    supervised_files: [{
-      filename: file.name,
-      content_type: file.type,
-      path: file.name,
-      location: "local"
-    }],
-    test_files: []
+    supervised_files: [
+      {
+        filename: file.name,
+        content_type: file.type,
+        path: file.name,
+        location: 'local',
+      },
+    ],
+    test_files: [],
   };
   formData.append('file_info', JSON.stringify(fileInfo));
 
   // Simplified model options for token classification
   const modelOptions = {
     udt_options: {
-      udt_sub_type: "token",
-      source_column: "",
-      target_column: "",
-      target_labels: []
+      udt_sub_type: 'token',
+      source_column: '',
+      target_column: '',
+      target_labels: [],
     },
     train_options: {
-      test_split: test_split
-    }
+      test_split: test_split,
+    },
   };
   formData.append('model_options', JSON.stringify(modelOptions));
 
   // Add default job options
   const jobOptions = {
     allocation_cores: 4,
-    allocation_memory: 16000
+    allocation_memory: 16000,
   };
   formData.append('job_options', JSON.stringify(jobOptions));
 
@@ -451,7 +453,9 @@ export function trainUDTWithCSV({
           const axiosError = err as AxiosError;
           if (axiosError.response && axiosError.response.data) {
             reject(
-              new Error((axiosError.response.data as any).detail || 'Failed to train UDT model with CSV')
+              new Error(
+                (axiosError.response.data as any).detail || 'Failed to train UDT model with CSV'
+              )
             );
           } else {
             reject(new Error('Failed to train UDT model with CSV'));

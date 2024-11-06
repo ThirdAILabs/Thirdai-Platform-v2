@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from logging import Logger
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 import thirdai
@@ -34,7 +34,6 @@ from platform_common.thirdai_storage.data_types import (
 )
 from platform_common.thirdai_storage.storage import DataStorage, SQLiteConnector
 from thirdai import bolt
-from train_job.exceptional_handler import apply_exception_handler
 from train_job.models.model import Model
 from train_job.reporter import Reporter
 from train_job.utils import check_csv_only, check_local_nfs_only
@@ -45,7 +44,6 @@ def get_split_filename(original_name: str, split: str) -> str:
     return f"{path}_{split}{ext}"
 
 
-@apply_exception_handler
 class ClassificationModel(Model):
     report_failure_method = "report_status"
 
@@ -179,7 +177,6 @@ class ClassificationModel(Model):
         pass
 
 
-@apply_exception_handler
 class TextClassificationModel(ClassificationModel):
     @property
     def txt_cls_vars(self) -> TextClassificationOptions:
@@ -259,7 +256,6 @@ class PerTagMetrics:
     false_negatives: List[Dict[str, Any]]
 
 
-@apply_exception_handler
 class TokenClassificationModel(ClassificationModel):
     def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
         super().__init__(config, reporter, logger)
@@ -377,12 +373,65 @@ class TokenClassificationModel(ClassificationModel):
             metadata=Metadata(name="tags_and_status", data=tag_metadata, status=status)
         )
 
+    def replace_unknown_tags(
+        self, target: pd.Series, expected_tags: List[str]
+    ) -> Optional[pd.Series]:
+        expected_tags = set(expected_tags)
+
+        extra_tags = set()
+
+        def correct_tags(sample: str) -> str:
+            corrected = []
+            for tag in sample.split():
+                if tag in expected_tags:
+                    corrected.append(tag)
+                else:
+                    extra_tags.add(tag)
+                    corrected.append("O")
+            return " ".join(corrected)
+
+        new_col = target.map(correct_tags)
+
+        if extra_tags:
+            for tag in extra_tags:
+                msg = f"Found unexpected entity tag '{tag}' in dataset. Instances of this tag will treated as untagged. Expected tags are {', '.join(expected_tags)}"
+                self.logger.warning(msg)
+                self.reporter.report_warning(self.config.model_id, msg)
+            return new_col
+
+        return None
+
+    def verify_file(self, model: bolt.UniversalDeepTransformer, file: str):
+        source_column, target_column = model.source_target_columns()
+
+        try:
+            df = pd.read_csv(file)
+        except Exception:
+            raise ValueError(
+                f"Unable to load csv file {file}. Please ensure that it is a valid csv"
+            )
+
+        if source_column not in df.columns or target_column not in df.columns:
+            raise ValueError(
+                f"Expected csv to have columns '{source_column}' and '{target_column}'"
+            )
+
+        corrected_labels = self.replace_unknown_tags(
+            df[target_column], model.list_ner_tags()
+        )
+        if corrected_labels is not None:
+            df[target_column] = corrected_labels
+            df.to_csv(file, index=False)
+
     def train(self, **kwargs):
         self.reporter.report_status(self.config.model_id, "in_progress")
 
         model = self.get_model()
 
         train_files, test_files = self.train_test_files()
+
+        for file in train_files + test_files:
+            self.verify_file(model, file)
 
         if len(test_files):
             before_train_metrics = self.per_tag_metrics(

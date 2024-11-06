@@ -1,0 +1,285 @@
+# Create Team
+
+**Description**: Create a new team.
+
+**Dependencies**:
+- **global_admin_only**: Only global admins can access this endpoint.
+
+**Sample Request**:
+```json
+{
+  "name": "team_example"
+}
+```
+
+**Sample Responses**:
+
+- `201 Created`: Team created successfully.
+```json
+{
+  "team_id": "123e4567-e89b-12d3-a456-426614174000",
+  "team_name": "team_example"
+}
+```
+
+- `400 Bad Request`: Team with this name already exists.
+
+---
+
+# Add User to Team
+
+**Description**: Add a user to a team.
+
+**Dependencies**:
+- **team_admin_or_global_admin**: Only team admins or global admins can access this endpoint.
+
+**Sample Request**:
+```json
+{
+  "email": "user@example.com",
+  "team_id": "123e4567-e89b-12d3-a456-426614174000",
+  "role": "user"
+}
+```
+
+**Sample Responses**:
+
+- `200 OK`: User added to the team successfully.
+```json
+{
+  "user_id": "abc123",
+  "team_id": "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+- `404 Not Found`: User or team not found.
+
+- `400 Bad Request`: User already a member of this team.
+
+---
+
+# Assign Team Admin
+
+**Description**: Assign a user as a team admin.
+
+**Dependencies**:
+- **team_admin_or_global_admin**: Only team admins or global admins can access this endpoint.
+
+**Sample Request**:
+```json
+{
+  "email": "user@example.com",
+  "team_id": "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+**Sample Responses**:
+
+- `200 OK`: User assigned as team admin successfully.
+```json
+{
+  "user_id": "abc123",
+  "team_id": "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+- `404 Not Found`: User or team not found.
+
+---
+
+# Delete Team
+
+**Description**: Delete a team.
+
+**Dependencies**:
+- **global_admin_only**: Only global admins can access this endpoint.
+
+**Sample Request**:
+```json
+{
+  "team_id": "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+**Sample Responses**:
+
+- `200 OK`: Team deleted successfully.
+```json
+{
+  "team_id": "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+- `404 Not Found`: Team not found.
+
+---
+
+# Add Model to Team
+
+**Description**: Add a model to a team.
+
+**Dependencies**:
+- **is_model_owner**: Only the owner of the model can access this endpoint.
+
+**Sample Request**:
+```json
+{
+  "model_identifier": "user123/model_example",
+  "team_id": "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+**Sample Responses**:
+
+- `200 OK`: Model added to the team successfully.
+```json
+{
+  "model_id": "abc123",
+  "team_id": "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+- `404 Not Found`: Model or team not found.
+
+- `400 Bad Request`: Model already belongs to a team.
+
+---
+
+# Remove Model from Team
+
+**Description**: Remove a model from a team.
+
+**Dependencies**:
+- **is_model_owner**: Only the owner of the model can access this endpoint.
+
+**Sample Request**:
+```json
+{
+  "model_identifier": "user123/model_example"
+}
+```
+
+**Sample Responses**:
+
+- `200 OK`: Model removed from the team successfully.
+```json
+{
+  "model_id": "abc123"
+}
+```
+
+- `404 Not Found`: Model not found.
+
+---
+
+# Remove User from Team
+
+**Description**: Remove a user from a team.
+
+**Dependencies**:
+- **team_admin_or_global_admin**: Only team admins or global admins can access this endpoint.
+
+**Sample Request**:
+```json
+{
+  "email": "user@example.com",
+  "team_id": "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+**Sample Responses**:
+
+- `200 OK`: User removed from the team successfully.
+```json
+{
+  "user_id": "abc123",
+  "team_id": "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+- `404 Not Found`: User or team not found.
+
+---
+
+# Remove Team Admin
+
+**Description**: Remove a user's team admin role.
+
+**Dependencies**:
+- **team_admin_or_global_admin**: Only team admins or global admins can access this endpoint.
+
+**Sample Request**:
+```json
+{
+  "email": "user@example.com",
+  "team_id": "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+**Sample Responses**:
+
+- `200 OK`: Team admin role removed successfully.
+```json
+{
+  "user_id": "abc123",
+  "team_id": "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+- `404 Not Found`: User is not part of this team.
+
+- `400 Bad Request`: User is not a team admin of this team.
+
+---
+
+# List Accessible Teams
+
+**Description**: List all teams related to the authenticated user.
+
+**Sample Responses**:
+
+- `200 OK`: List of teams successfully retrieved.
+```json
+{
+  "data": [
+    {
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "team_example"
+    }
+  ]
+}
+```
+
+---
+
+# List Team Users
+
+**Description**: List all users in a specific team.
+
+**Dependencies**:
+- **team_admin_or_global_admin**: Only team admins or global admins can access this endpoint.
+
+**Sample Request**:
+```json
+{
+  "team_id": "123e4567-e89b-12d3-a456-426614174000"
+}
+```
+
+**Sample Responses**:
+
+- `200 OK`: List of users in the team successfully retrieved.
+```json
+{
+  "data": [
+    {
+      "user_id": "abc123",
+      "username": "user_example",
+      "email": "user@example.com",
+      "role": "team_admin"
+    }
+  ]
+}
+```
+
+- `404 Not Found`: Team not found.

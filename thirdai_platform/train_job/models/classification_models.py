@@ -430,9 +430,7 @@ class TokenClassificationModel(ClassificationModel):
             },
         )
 
-    def insert_samples_in_storage(
-        self, supervised_files: typing.List[FileInfo], buffer_size=50_000
-    ):
+    def insert_samples_in_storage(self, supervised_files: typing.List[FileInfo]):
         # these samples will be used as balancing samples for the training of the model
         # this sampling is not uniform but we assume that there won't be many samples
         # TODO(Shubh) : make this sampling uniform using reservoir sampling
@@ -446,7 +444,6 @@ class TokenClassificationModel(ClassificationModel):
             ]
 
             df = pd.concat([df, new_df])
-            df = df.sample(n=min(len(df), buffer_size))
 
         samples = []
 
@@ -465,6 +462,7 @@ class TokenClassificationModel(ClassificationModel):
 
         self.logger.info(f"Inserting {len(samples)} samples into storage.")
         self.data_storage.insert_samples(samples=samples)
+        self.data_storage.clip_storage()
 
     def find_and_save_balancing_samples(self):
         self.logger.info("Finding balancing samples for training.")

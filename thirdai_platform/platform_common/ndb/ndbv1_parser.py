@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import Response
 from platform_common.file_handler import FileInfo, FileLocation, get_cloud_client
@@ -93,6 +93,30 @@ def download_file(doc: FileInfo, tmp_dir: str):
             return None
 
     return local_file_path
+
+
+def get_local_file_infos(files: List[FileInfo], tmp_dir: str):
+    local_file_infos = []
+    for file in files:
+        if file.location in {FileLocation.s3, FileLocation.azure, FileLocation.gcp}:
+            # Download the cloud file to the temporary directory
+            local_file_path = download_file(file, tmp_dir)
+            if local_file_path:
+                local_file_infos.append(
+                    FileInfo(
+                        path=local_file_path,
+                        metadata=file.metadata,
+                        options=file.options,
+                        location=FileLocation.local,
+                    )
+                )
+            else:
+                logging.error(f"Failed to download cloud file: {file.path}")
+        else:
+            # Local files can be used as-is
+            local_file_infos.append(file)
+
+    return local_file_infos
 
 
 def parse_doc(doc: FileInfo, tmp_dir: str) -> ndb.Document:

@@ -190,12 +190,20 @@ def test_udt_text_train():
             supervised_files=[
                 FileInfo(
                     path=os.path.join(file_dir(), "articles.csv"), location="local"
-                )
+                ),
+                FileInfo(
+                    path="https://csg100320028d93f3bc.blob.core.windows.net/test/articles.csv",
+                    location="azure",
+                ),
             ],
             test_files=[
                 FileInfo(
                     path=os.path.join(file_dir(), "articles.csv"), location="local"
-                )
+                ),
+                FileInfo(
+                    path="https://csg100320028d93f3bc.blob.core.windows.net/test/articles.csv",
+                    location="azure",
+                ),
             ],
         ),
         job_options=JobOptions(),
@@ -228,10 +236,18 @@ def test_udt_token_train():
         ),
         data=UDTData(
             supervised_files=[
-                FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local")
+                FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local"),
+                FileInfo(
+                    path="https://csg100320028d93f3bc.blob.core.windows.net/test/ner.csv",
+                    location="local",
+                ),
             ],
             test_files=[
-                FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local")
+                FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local"),
+                FileInfo(
+                    path="https://csg100320028d93f3bc.blob.core.windows.net/test/ner.csv",
+                    location="local",
+                ),
             ],
         ),
         job_options=JobOptions(),

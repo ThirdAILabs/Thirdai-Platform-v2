@@ -282,6 +282,60 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
     return () => clearInterval(intervalId);
   }, [workflow.username, workflow.model_name]);
 
+  const copyContentToClipboard = () => {
+    try {
+      // Combine error and warning messages if they exist
+      const errorMessages = error?.messages || [];
+      const warningMessages = warning?.messages || [];
+
+      // Create a formatted string with headers and messages
+      let contentToCopy = '';
+
+      if (errorMessages.length > 0) {
+        contentToCopy += 'Errors:\n' + errorMessages.map((msg) => `• ${msg}`).join('\n') + '\n\n';
+      }
+
+      if (warningMessages.length > 0) {
+        contentToCopy += 'Warnings:\n' + warningMessages.map((msg) => `• ${msg}`).join('\n');
+      }
+
+      // Create a temporary textarea element
+      const textarea = document.createElement('textarea');
+      textarea.value = contentToCopy.trim();
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '0';
+      document.body.appendChild(textarea);
+
+      // Select and copy the text
+      textarea.select();
+      document.execCommand('copy');
+
+      // Clean up
+      document.body.removeChild(textarea);
+
+      // Show success notification
+      const toast = document.createElement('div');
+      toast.className =
+        'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg z-50';
+      toast.textContent = 'Content copied to clipboard';
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        document.body.removeChild(toast);
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy content:', err);
+      // Show error notification
+      const errorToast = document.createElement('div');
+      errorToast.className =
+        'fixed bottom-4 right-4 bg-red-600 text-white px-4 py-2 rounded-md shadow-lg z-50';
+      errorToast.textContent = 'Failed to copy content';
+      document.body.appendChild(errorToast);
+      setTimeout(() => document.body.removeChild(errorToast), 2000);
+    }
+  };
+
   return (
     <TableRow>
       <TableCell className="font-bold text-center">{workflow.model_name}</TableCell>
@@ -453,28 +507,26 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         </DropdownMenu>
       </TableCell>
 
-      {/* Add error notification icon in the last cell */}
-      <TableCell className="text-right pr-4">
-        {error && (
-          <Button
-            variant="contained"
-            color="error"
-            onClick={() => setShowErrorModal(true)}
-            size="small"
-            sx={{
-              minWidth: 'unset', // To maintain the circular shape
-              padding: '8px',
-              borderRadius: '50%',
-            }}
-          >
-            <AlertCircle className="h-5 w-5" />
-          </Button>
-        )}
-      </TableCell>
-
-      {/* Last cell with warning and error icons */}
+      {/* Single TableCell for both error and warning icons */}
       <TableCell className="text-right pr-4">
         <div className="flex items-center justify-end space-x-2">
+          {/* Error icon */}
+          {error && (
+            <Button
+              variant="contained"
+              color="error"
+              onClick={() => setShowErrorModal(true)}
+              size="small"
+              sx={{
+                minWidth: 'unset',
+                padding: '8px',
+                borderRadius: '50%',
+              }}
+            >
+              <AlertCircle className="h-5 w-5" />
+            </Button>
+          )}
+
           {/* Warning icon */}
           {warning && (
             <Button
@@ -486,7 +538,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 minWidth: 'unset',
                 padding: '8px',
                 borderRadius: '50%',
-                backgroundColor: '#f59e0b', // Amber/yellow color
+                backgroundColor: '#f59e0b',
                 '&:hover': {
                   backgroundColor: '#d97706',
                 },
@@ -512,21 +564,7 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 variant="outlined"
                 size="small"
                 startIcon={<ContentCopy />}
-                onClick={() => {
-                  const content = [...(error?.messages || []), ...(warning?.messages || [])].join(
-                    '\n'
-                  );
-                  navigator.clipboard.writeText(content);
-                  // Show notification
-                  const notification = document.createElement('div');
-                  notification.className =
-                    'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-md shadow-lg';
-                  notification.textContent = 'Content copied to clipboard';
-                  document.body.appendChild(notification);
-                  setTimeout(() => {
-                    document.body.removeChild(notification);
-                  }, 2000);
-                }}
+                onClick={copyContentToClipboard}
               >
                 Copy Content
               </Button>

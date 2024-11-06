@@ -429,13 +429,6 @@ export function trainUDTWithCSV({
   };
   formData.append('model_options', JSON.stringify(modelOptions));
 
-  // Add default job options
-  const jobOptions = {
-    allocation_cores: 4,
-    allocation_memory: 16000,
-  };
-  formData.append('job_options', JSON.stringify(jobOptions));
-
   // Create URL with query parameters
   const params = new URLSearchParams({
     model_name,

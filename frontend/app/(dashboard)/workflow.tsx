@@ -382,14 +382,28 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 >
                   <DropdownMenuItem>
                     <Tooltip
-                      title={(deployStatus === DeployStatus.Failed || deployStatus === DeployStatus.TrainingFailed) ? "Access restricted: model failed" : ""}
+                      title={
+                        deployStatus === DeployStatus.Failed ||
+                        deployStatus === DeployStatus.TrainingFailed
+                          ? 'Access restricted: model failed'
+                          : ''
+                      }
                       arrow
                     >
                       <span>
                         <button
                           type="button"
-                          disabled={(deployStatus === DeployStatus.Failed || deployStatus === DeployStatus.TrainingFailed)}
-                          style={{ cursor: (deployStatus === DeployStatus.Failed || deployStatus === DeployStatus.TrainingFailed) ? "not-allowed" : "pointer" }}
+                          disabled={
+                            deployStatus === DeployStatus.Failed ||
+                            deployStatus === DeployStatus.TrainingFailed
+                          }
+                          style={{
+                            cursor:
+                              deployStatus === DeployStatus.Failed ||
+                              deployStatus === DeployStatus.TrainingFailed
+                                ? 'not-allowed'
+                                : 'pointer',
+                          }}
                         >
                           Usage Dashboard
                         </button>
@@ -405,14 +419,28 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
               >
                 <DropdownMenuItem>
                   <Tooltip
-                    title={(deployStatus === DeployStatus.Failed || deployStatus === DeployStatus.TrainingFailed) ? "Access restricted: model failed" : ""}
+                    title={
+                      deployStatus === DeployStatus.Failed ||
+                      deployStatus === DeployStatus.TrainingFailed
+                        ? 'Access restricted: model failed'
+                        : ''
+                    }
                     arrow
                   >
                     <span>
                       <button
                         type="button"
-                        disabled={(deployStatus === DeployStatus.Failed || deployStatus === DeployStatus.TrainingFailed)}
-                        style={{ cursor: (deployStatus === DeployStatus.Failed || deployStatus === DeployStatus.TrainingFailed) ? "not-allowed" : "pointer" }}
+                        disabled={
+                          deployStatus === DeployStatus.Failed ||
+                          deployStatus === DeployStatus.TrainingFailed
+                        }
+                        style={{
+                          cursor:
+                            deployStatus === DeployStatus.Failed ||
+                            deployStatus === DeployStatus.TrainingFailed
+                              ? 'not-allowed'
+                              : 'pointer',
+                        }}
                       >
                         Usage Dashboard
                       </button>

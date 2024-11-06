@@ -432,7 +432,7 @@ export function trainUDTWithCSV({
   // Add default job options
   const jobOptions = {
     allocation_cores: 4,
-    allocation_memory: 16000
+    allocation_memory: 16000,
   };
   formData.append('job_options', JSON.stringify(jobOptions));
 

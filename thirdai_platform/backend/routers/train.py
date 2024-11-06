@@ -58,6 +58,7 @@ from platform_common.pydantic_models.training import (
 )
 from platform_common.thirdai_storage import storage
 from platform_common.utils import response
+from data_generation_job.llms import verify_llm_access
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
@@ -779,16 +780,55 @@ def retrain_udt(
         is_retraining=True if not base_model_identifier else False,
     )
 
-    config.save_train_config()
+    config_path = config.save_train_config()
 
     try:
-        generate_data_for_train_job(
-            data_id=str(model.id),
-            secret_token=secret_token,
-            license_key=license_info["boltLicenseKey"],
-            options=datagen_options,
-            job_options=JobOptions(),
-        )
+        if verify_llm_access(llm_provider, api_key=os.getenv("GENAI_KEY")):
+            generate_data_for_train_job(
+                data_id=str(model.id),
+                secret_token=secret_token,
+                license_key=license_info["boltLicenseKey"],
+                options=datagen_options,
+                job_options=JobOptions(),
+            )
+        else:
+            if nomad_job_exists(
+                model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")
+            ):
+                delete_nomad_job(
+                    model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")
+                )
+
+            submit_nomad_job(
+                str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
+                nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+                platform=get_platform(),
+                tag=os.getenv("TAG"),
+                registry=os.getenv("DOCKER_REGISTRY"),
+                docker_username=os.getenv("DOCKER_USERNAME"),
+                docker_password=os.getenv("DOCKER_PASSWORD"),
+                image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
+                thirdai_platform_dir=thirdai_platform_dir(),
+                train_script="train_job.run",
+                model_id=str(model.id),
+                share_dir=os.getenv("SHARE_DIR", None),
+                python_path=get_python_path(),
+                aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
+                aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+                aws_region_name=(os.getenv("AWS_REGION_NAME", "")),
+                azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
+                azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
+                gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
+                train_job_name=model.get_train_job_name(),
+                config_path=config_path,
+                allocation_cores=config.job_options.allocation_cores,
+                allocation_memory=config.job_options.allocation_memory,
+                allocation_memory_max=config.job_options.allocation_memory,
+            )
+
+            model.train_status = schema.Status.starting
+            session.commit()
+
     except Exception as err:
         model.train_status = schema.Status.failed
         session.commit()

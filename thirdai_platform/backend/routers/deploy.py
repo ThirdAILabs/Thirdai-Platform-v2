@@ -1,5 +1,6 @@
 import heapq
 import json
+import logging
 import os
 import traceback
 from collections import defaultdict
@@ -23,7 +24,6 @@ from backend.utils import (
     get_platform,
     get_python_path,
     list_all_dependencies,
-    logger,
     model_accessible,
     model_bazaar_path,
     read_file_from_back,
@@ -279,7 +279,7 @@ async def deploy_single_model(
     except Exception as err:
         model.deploy_status = schema.Status.failed
         session.commit()
-        logger.info(traceback.format_exc())
+        logging.error(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(err),
@@ -446,6 +446,7 @@ def get_feedback(
             message=f"No feedback found for the model.",
             data=[],
         )
+
     event_heap = {ActionType.upvote: [], ActionType.associate: []}
     for alloc_dirEntry in os.scandir(feedback_dir):
         if alloc_dirEntry.is_file() and alloc_dirEntry.name.endswith(".jsonl"):
@@ -454,6 +455,10 @@ def get_feedback(
                 line_generator = read_file_from_back(alloc_dirEntry.path)
                 for line in line_generator:
                     feedback_obj = FeedbackLog(**json.loads(line.strip()))
+
+                    # only process events that are relevant
+                    if feedback_obj.event.action not in event_heap:
+                        continue
 
                     if (
                         events_processed_for_this_file[feedback_obj.event.action]
@@ -670,7 +675,7 @@ def undeploy_model(
         session.commit()
 
     except Exception as err:
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -701,7 +706,7 @@ def active_deployment_count(model_id: str, session: Session = Depends(get_sessio
 
 @deploy_router.post("/start-on-prem")
 async def start_on_prem_job(
-    model_name: str = "Llama-3.2-3B-Instruct-f16.gguf",
+    model_name: str = "Llama-3.2-1B-Instruct-f16.gguf",
     restart_if_exists: bool = True,
     autoscaling_enabled: bool = True,
     cores_per_allocation: Optional[int] = None,

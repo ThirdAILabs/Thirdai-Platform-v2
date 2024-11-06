@@ -13,6 +13,8 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableBranch, RunnablePassthrough
 from thirdai import neural_db as ndb
+from fastapi import HTTPException, status
+import logging
 from thirdai import neural_db_v2 as ndbv2
 
 
@@ -96,11 +98,20 @@ class ChatInterface(ABC):
     def _get_chat_history_conn(self, session_id: str):
         # The lock is to prevent table already exists errors if the method is called
         # twice in succession and both connections attempt to create the table.
-        with self.history_lock:
-            chat_history = SQLChatMessageHistory(
-                session_id=session_id, connection_string=self.chat_history_sql_uri
+        try:
+            with self.history_lock:
+                chat_history = SQLChatMessageHistory(
+                    session_id=session_id, connection_string=self.chat_history_sql_uri
+                )
+            return chat_history
+        except Exception as err:
+            logging.error(
+                "Error connecting to sql database to store chat history: " + err
             )
-        return chat_history
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error connecting to sql database to store chat history",
+            )
 
     def get_chat_history(self, session_id: str, **kwargs):
         chat_history = self._get_chat_history_conn(session_id=session_id)

@@ -10,6 +10,8 @@ from .data_types import DataSample, Metadata, MetadataStatus, SampleStatus
 from .schemas import Base, MetaData, Samples, SampleSeen
 from .utils import reservoir_sampling
 
+RESERVOIR_RECENCY_MULTIPLIER = 1
+
 
 class Connector:
     # Interface for data store backend. Can be repurposed to a DB based storage,
@@ -84,6 +86,8 @@ class SQLiteConnector(Connector):
             session.add(reservoir_counter)
 
         if reservoir_size:
+            # NOTE: This isn't true reservoir sampling as the elements are deleted in bulk before adding new ones. This implies that there is a bias towards keeping recent samples in the reservoir. The parameter RESERVOIR_RECENCY_MULTIPLIER can be tuned to control this bias.
+
             # find the indices of the entries to be added to the reservoir
             valid_indices = list(range(len(entries)))
             selected_indices = reservoir_sampling(
@@ -91,10 +95,28 @@ class SQLiteConnector(Connector):
                 reservoir_size,
                 current_size=self.get_sample_count(entries[0][2]),
                 total_items_seen=reservoir_counter.seen,
-                recency_multipler=2,
+                recency_multipler=RESERVOIR_RECENCY_MULTIPLIER,
             )
 
             entries = [entries[i] for i in selected_indices]
+
+            num_samples_to_remove = (
+                len(selected_indices)
+                + self.get_sample_count(entries[0][2])
+                - reservoir_size
+            )
+
+            if num_samples_to_remove > 0:
+                samples_to_remove = (
+                    session.query(Samples)
+                    .filter(Samples.name == entries[0][2])
+                    .order_by(func.random())
+                    .limit(num_samples_to_remove)
+                    .all()
+                )
+                session.query(Samples).filter(
+                    Samples.id.in_([sample.id for sample in samples_to_remove])
+                ).delete(synchronize_session=False)
 
         session.bulk_insert_mappings(
             Samples,

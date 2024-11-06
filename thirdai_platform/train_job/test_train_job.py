@@ -58,7 +58,7 @@ def file_dir():
 @pytest.fixture()
 def dummy_ner_file():
     source, target = "Shubh", "O"
-    df = pd.DataFrame({"source": [source] * 200_000, "target": [target] * 200_000})
+    df = pd.DataFrame({"text": [source] * 200_000, "tags": [target] * 200_000})
     file_path = os.path.join(file_dir(), "dummy_ner.csv")
 
     df.to_csv(file_path, index=False)
@@ -336,12 +336,12 @@ def test_udt_token_train_with_balancing(dummy_ner_file):
 
     model.find_and_save_balancing_samples()
     assert os.path.exists(
-        model.balancing_samples_path
+        model._balancing_samples_path
     ), "Balancing Samples Path does not exist"
 
-    df = pd.read_csv(model.balancing_samples_path)
+    df = pd.read_csv(model._balancing_samples_path)
     assert len(df) == model._num_balancing_samples
 
-    assert df["source"][0] == "Shubh"
-    assert df["target"][0] == "O"
+    assert df["text"][0] == "Shubh"
+    assert df["tags"][0] == "O"
     assert df["user_provided"][0] == False

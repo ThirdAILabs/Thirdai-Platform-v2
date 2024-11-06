@@ -490,7 +490,7 @@ class TokenClassificationModel(ClassificationModel):
             )
 
         self.logger.info(
-            f"Found {len(non_user_provided_samples)} non user provided samples. Adding {self._num_balancing_samples} samples to the balancing set."
+            f"Found {len(non_user_provided_samples)} non user provided samples. Adding {min(self._num_balancing_samples, len(non_user_provided_samples))} samples to the balancing set."
         )
         random.shuffle(non_user_provided_samples)
         for sample in non_user_provided_samples[: self._num_balancing_samples]:

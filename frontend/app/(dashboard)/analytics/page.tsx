@@ -20,6 +20,7 @@ function AnalyticsContent() {
   const [modelName, setModelName] = useState<string>('');
   const [username, setUsername] = useState<string>('');
   const [workflowtype, setWorkflowType] = useState<string>('');
+  const [deployStatus, setDeployStatus] = useState<string>('not_started');
 
   useEffect(() => {
     setIsClient(true);
@@ -31,6 +32,10 @@ function AnalyticsContent() {
 
           console.log('workflowDetails', workflowDetails);
           setWorkflowType(workflowDetails.data.type);
+          
+          // Set deploy status
+          setDeployStatus(workflowDetails.data.deploy_status);
+
           if (
             workflowDetails.data.type === 'enterprise-search' &&
             workflowDetails.data.dependencies?.length > 0
@@ -92,6 +97,7 @@ function AnalyticsContent() {
             modelName={modelName}
             deploymentUrl={deploymentUrl}
             workflowNames={workflowNames}
+            deployStatus={deployStatus}
           />
         )}
       </div>

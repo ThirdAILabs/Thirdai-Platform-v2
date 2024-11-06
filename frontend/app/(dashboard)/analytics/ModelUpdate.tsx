@@ -12,6 +12,7 @@ interface ModelUpdateProps {
   modelName: string;
   deploymentUrl: string;
   workflowNames: string[];
+  deployStatus: string;
 }
 
 export default function ModelUpdate({
@@ -19,6 +20,7 @@ export default function ModelUpdate({
   modelName,
   deploymentUrl,
   workflowNames,
+  deployStatus
 }: ModelUpdateProps) {
   // States for CSV upload
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -236,6 +238,12 @@ export default function ModelUpdate({
       return;
     }
 
+    // Check deploy status before proceeding
+    if (deployStatus !== 'complete') {
+      setPollingError('Model must be fully deployed before updating with user feedback.');
+      return;
+    }
+
     setIsPollingUpdating(true);
     setPollingError('');
     setPollingSuccess(false);
@@ -425,7 +433,11 @@ export default function ModelUpdate({
 
             <Button
               onClick={handlePollingUpdate}
-              disabled={isPollingUpdating || pollingButtonDisabled}
+              disabled={
+                isPollingUpdating || 
+                pollingButtonDisabled || 
+                deployStatus !== 'complete'
+              }
               variant="contained"
               color={pollingSuccess ? 'success' : 'primary'}
               fullWidth
@@ -434,7 +446,9 @@ export default function ModelUpdate({
                 ? 'Initiating Update...'
                 : pollingSuccess
                   ? 'Update Initiated!'
-                  : 'Update Model with User Feedback'}
+                  : deployStatus !== 'complete'
+                    ? "Model Must Be Deployed First (refresh page once it's deployed)"
+                    : 'Update Model with User Feedback'}
             </Button>
           </div>
         </CardContent>

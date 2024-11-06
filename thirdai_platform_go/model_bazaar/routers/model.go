@@ -28,7 +28,7 @@ func (m *ModelRouter) Routers() chi.Router {
 	r.Group(func(r chi.Router) {
 		r.Use(m.userAuth.Verifier())
 		r.Use(m.userAuth.Authenticator())
-		r.Use(auth.ModelReadAccess(m.db))
+		r.Use(auth.ModelPermissionOnly(m.db, auth.ReadPermission))
 
 		r.Get("/details", m.Details)
 		r.Get("/download", m.Download)
@@ -38,7 +38,7 @@ func (m *ModelRouter) Routers() chi.Router {
 	r.Group(func(r chi.Router) {
 		r.Use(m.userAuth.Verifier())
 		r.Use(m.userAuth.Authenticator())
-		r.Use(auth.ModelOwnerOnly(m.db))
+		r.Use(auth.ModelPermissionOnly(m.db, auth.OwnerPermission))
 
 		r.Post("/delete", m.Delete)
 		r.Post("/update-access", m.UpdateAccess)

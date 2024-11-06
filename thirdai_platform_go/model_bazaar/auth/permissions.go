@@ -82,80 +82,61 @@ func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	}
 }
 
-func ModelOwnerOnly(db *gorm.DB) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		hfn := func(w http.ResponseWriter, r *http.Request) {
-			params := r.URL.Query()
-			if !params.Has("model_id") {
-				http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
-				return
-			}
-			modelId := params.Get("model_id")
+type modelPermissions int // Private so that no other permissions can be defined
 
-			userId, err := UserIdFromContext(r)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
-				return
-			}
+const (
+	NoPermission    modelPermissions = 0
+	ReadPermission  modelPermissions = 1
+	WritePermission modelPermissions = 2
+	OwnerPermission modelPermissions = 3
+)
 
-			user, err := schema.GetUser(userId, db, true)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
-				return
-			}
-
-			model, err := schema.GetModel(modelId, db, false, false, false)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
-				return
-			}
-
-			if !user.IsAdmin &&
-				model.UserId != userId &&
-				!(model.TeamId != nil &&
-					model.Access == schema.Protected &&
-					isTeamAdmin(*model.TeamId, userId, db)) {
-				http.Error(w, "user must be model owner to access endpoint", http.StatusUnauthorized)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		}
-		return http.HandlerFunc(hfn)
-	}
-}
-
-func ExpectHasModelReadAccess(modelId, userId string, db *gorm.DB) error {
+func GetModelPermissions(modelId, userId string, db *gorm.DB) (modelPermissions, error) {
 	user, err := schema.GetUser(userId, db, false)
 	if err != nil {
-		return err
+		return NoPermission, err
 	}
 
 	if user.IsAdmin {
-		return nil
+		return OwnerPermission, nil
 	}
 
 	model, err := schema.GetModel(modelId, db, false, false, false)
 	if err != nil {
-		return err
+		return NoPermission, err
 	}
 
-	if model.UserId == userId || model.Access == schema.Public {
-		return nil
+	if model.UserId == userId {
+		return OwnerPermission, nil
 	}
 
-	userTeam, err := schema.GetUserTeam(*model.TeamId, userId, db)
-	if err != nil {
-		return err
-	}
-	if userTeam != nil {
-		return nil
+	if model.Access == schema.Public {
+		if model.DefaultPermission == schema.WritePerm {
+			return WritePermission, nil
+		}
+		return ReadPermission, nil
 	}
 
-	return fmt.Errorf("user does not have permissions to access the model")
+	if model.Access == schema.Protected {
+		userTeam, err := schema.GetUserTeam(*model.TeamId, userId, db)
+		if err != nil {
+			return NoPermission, err
+		}
+		if userTeam != nil {
+			if userTeam.IsTeamAdmin {
+				return OwnerPermission, nil
+			}
+			if model.DefaultPermission == schema.WritePerm {
+				return WritePermission, nil
+			}
+			return ReadPermission, nil
+		}
+	}
+
+	return NoPermission, nil
 }
 
-func ModelReadAccess(db *gorm.DB) func(http.Handler) http.Handler {
+func ModelPermissionOnly(db *gorm.DB, minPermission modelPermissions) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
 			params := r.URL.Query()
@@ -171,13 +152,18 @@ func ModelReadAccess(db *gorm.DB) func(http.Handler) http.Handler {
 				return
 			}
 
-			err = ExpectHasModelReadAccess(modelId, userId, db)
+			permission, err := GetModelPermissions(modelId, userId, db)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusUnauthorized)
 				return
 			}
 
-			next.ServeHTTP(w, r)
+			if permission == minPermission {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			http.Error(w, fmt.Sprintf("user %v does not have owner permission for model %v", userId, modelId), http.StatusUnauthorized)
 		}
 		return http.HandlerFunc(hfn)
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/schema"
 
 	"gorm.io/gorm"
@@ -117,4 +118,91 @@ func countDownstreamModels(modelId string, db *gorm.DB, activeOnly bool) (int64,
 	}
 
 	return count, nil
+}
+
+type statusResponse struct {
+	Status   string   `json:"status"`
+	Messages []string `json:"messages"`
+}
+
+func getStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, trainStatus bool) {
+	params := r.URL.Query()
+	if !params.Has("model_id") {
+		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
+		return
+	}
+	modelId := params.Get("model_id")
+
+	var res statusResponse
+
+	err := db.Transaction(func(db *gorm.DB) error {
+		model, err := schema.GetModel(modelId, db, false, false, false)
+		if err != nil {
+			return err
+		}
+
+		status, messages, err := getModelStatus(model, db, trainStatus)
+		if err != nil {
+			return err
+		}
+		res.Status = status
+		res.Messages = messages
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("retrieving model status"), http.StatusBadRequest)
+		return
+	}
+
+	writeJsonResponse(w, res)
+}
+
+type updateStatusRequest struct {
+	Status   string                 `json:"status"`
+	Metadata map[string]interface{} `json:"metadata"`
+}
+
+func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, trainStatus bool) {
+	modelId, err := auth.ValueFromContext(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var params updateStatusRequest
+	if !parseRequestBody(w, r, &params) {
+		return
+	}
+
+	var key string
+	if trainStatus {
+		key = "train_status"
+	} else {
+		key = "deploy_status"
+	}
+
+	result := db.Model(&schema.Model{Id: modelId}).Update(key, params.Status)
+	if result.Error != nil {
+		err := schema.NewDbError("updating model status", result.Error)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if len(params.Metadata) > 0 {
+		metadataJson, err := json.Marshal(params.Metadata)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("serializing metadata failed: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		result := db.Save(&schema.ModelAttribute{ModelId: modelId, Key: "metadata", Value: string(metadataJson)})
+		if result.Error != nil {
+			err := schema.NewDbError("adding model metadata attribute", result.Error)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

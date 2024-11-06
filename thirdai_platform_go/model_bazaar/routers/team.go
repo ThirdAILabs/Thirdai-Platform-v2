@@ -47,7 +47,7 @@ func (t *TeamRouter) Routes() chi.Router {
 	r.Group(func(r chi.Router) {
 		r.Use(t.userAuth.Verifier())
 		r.Use(t.userAuth.Authenticator())
-		r.Use(auth.ModelOwnerOnly(t.db))
+		r.Use(auth.ModelPermissionOnly(t.db, auth.OwnerPermission))
 
 		r.Post("/add-model", t.AddModelToTeam)
 		r.Post("/remove-model", t.RemoveModelFromTeam)

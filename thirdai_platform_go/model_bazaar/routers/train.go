@@ -55,9 +55,10 @@ func (t *TrainRouter) Routes() chi.Router {
 	r.Group(func(r chi.Router) {
 		r.Use(t.jobAuth.Verifier())
 		r.Use(t.jobAuth.Authenticator())
-		r.Use(auth.ModelReadAccess(t.db))
+		r.Use(auth.ModelPermissionOnly(t.db, auth.ReadPermission))
 
-		r.Post("/status", t.GetStatus)
+		r.Get("/status", t.GetStatus)
+		r.Get("/logs", t.Logs)
 	})
 
 	return r
@@ -298,82 +299,14 @@ func (t *TrainRouter) UploadFiles(w http.ResponseWriter, r *http.Request) {
 	writeJsonResponse(w, map[string]string{"artifact_path": artifactDir})
 }
 
-type updateStatusRequest struct {
-	Status   string                 `json:"status"`
-	Metadata map[string]interface{} `json:"metadata"`
+func (t *TrainRouter) GetStatus(w http.ResponseWriter, r *http.Request) {
+	getStatusHandler(w, r, t.db, true)
 }
 
 func (t *TrainRouter) UpdateStatus(w http.ResponseWriter, r *http.Request) {
-	modelId, err := auth.ValueFromContext(r, "model_id")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	var params updateStatusRequest
-	if !parseRequestBody(w, r, &params) {
-		return
-	}
-
-	result := t.db.Model(&schema.Model{Id: modelId}).Update("train_status", params.Status)
-	if result.Error != nil {
-		err := schema.NewDbError("updating model train status", result.Error)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if len(params.Metadata) > 0 {
-		metadataJson, err := json.Marshal(params.Metadata)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("serializing metadata failed: %v", err), http.StatusBadRequest)
-			return
-		}
-
-		result := t.db.Save(&schema.ModelAttribute{ModelId: modelId, Key: "metadata", Value: string(metadataJson)})
-		if result.Error != nil {
-			err := schema.NewDbError("adding model metadata attribute", result.Error)
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-	}
-
-	w.WriteHeader(http.StatusOK)
+	updateStatusHandler(w, r, t.db, true)
 }
 
-type trainStatusResponse struct {
-	Status   string   `json:"status"`
-	Messages []string `json:"messages"`
-}
+func (t *TrainRouter) Logs(w http.ResponseWriter, r *http.Request) {
 
-func (t *TrainRouter) GetStatus(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("model_id") {
-		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
-		return
-	}
-	modelId := params.Get("model_id")
-
-	var res trainStatusResponse
-
-	err := t.db.Transaction(func(db *gorm.DB) error {
-		model, err := schema.GetModel(modelId, db, false, false, false)
-		if err != nil {
-			return err
-		}
-
-		status, messages, err := getModelStatus(model, db, true)
-		if err != nil {
-			return err
-		}
-		res.Status = status
-		res.Messages = messages
-		return nil
-	})
-
-	if err != nil {
-		http.Error(w, fmt.Sprintf("retrieving model status"), http.StatusBadRequest)
-		return
-	}
-
-	writeJsonResponse(w, res)
 }

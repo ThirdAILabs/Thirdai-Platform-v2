@@ -39,13 +39,18 @@ ENV DOCKER_PASSWORD $docker_password
 ENV PLATFORM docker
 ENV EXPORT_IMAGE_NAMES_COMMAND $export_image_names_command
 
+# The following block downloads pretrained HuggingFace models to our cache,
+# so they are not downloaded during runtime
 ENV HF_HOME=/app/.cache
-ENV HF_HUB_DISABLE_TELEMETRY=1
 RUN mkdir -p /app/.cache
 COPY download_pretrained_transformers.py /app/
 RUN python3 download_pretrained_transformers.py
 
+# The following line disables telemetry for the Unstructured library
 ENV SCARF_NO_ANALYTICS=true
+
+# The following line disables telemetry for the HuggingFace library
+ENV HF_HUB_DISABLE_TELEMETRY=1
 
 RUN python3 -m nltk.downloader -d /usr/share/nltk_data stopwords punkt_tab
 

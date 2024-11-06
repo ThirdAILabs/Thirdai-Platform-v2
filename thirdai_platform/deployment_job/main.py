@@ -62,6 +62,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    response = await call_next(request)
+
+    logger.info(
+        f"Request: {request.method}; URl: {request.url} - {response.status_code}"
+    )
+
+    return response
+
 
 if config.model_options.model_type == ModelType.NDB:
     backend_router_factory = NDBRouter

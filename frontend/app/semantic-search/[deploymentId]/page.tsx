@@ -257,7 +257,6 @@ function App() {
     }
   }, []);
 
-  // Effect to periodically fetch sources every 3 seconds
   useEffect(() => {
     // Only set up the interval if modelService is available
     if (!modelService) return;

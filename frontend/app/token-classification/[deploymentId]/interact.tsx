@@ -305,7 +305,7 @@ export default function Interact() {
         let parsed: ParsedData;
         if (fileExtension === 'csv') {
           parsed = await parseCSV(file);
-        } else if (fileExtension === 'pdf') {
+        } else if (['pdf', 'docx', 'html'].includes(fileExtension ?? '')) {
           try {
             const content = await getTextFromFile(file);
             parsed = {

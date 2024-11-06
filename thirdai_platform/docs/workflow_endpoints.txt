@@ -1,0 +1,103 @@
+# Create Enterprise Search Workflow
+
+**Description**: Create a new enterprise search workflow, associating it with a retrieval model and optionally a guardrail model. This endpoint allows users to create workflows by specifying various options like retrieval ID, guardrail ID, etc.
+
+**Dependencies**:
+- **get_current_user**: Requires the user to be authenticated.
+
+**Request Parameters**:
+- `workflow_name`: The name of the workflow to be created (string).
+- `options`: The configuration options for the workflow (JSON).
+
+### Options:
+- **retrieval_id**: The ID of the retrieval model (required).
+- **guardrail_id**: The ID of the optional guardrail model (NLP model for restricting output).
+- **llm_provider**: Optional large language model provider (e.g., OpenAI).
+- **nlp_classifier_id**: Optional NLP classifier to be used in the workflow.
+- **default_mode**: Optional mode (e.g., chat, search) for the workflow.
+
+**Request Body**:
+```json
+{
+  "workflow_name": "search_workflow_1",
+  "options": {
+    "retrieval_id": "retrieval_model_123",
+    "guardrail_id": "guardrail_model_456",
+    "llm_provider": "openai", 
+    "nlp_classifier_id": "classifier_789",
+    "default_mode": "chat",
+  }
+}
+```
+
+**Responses**:
+- `200 OK`: Workflow created successfully.
+```json
+{
+  "message": "Successfully created Enterprise Search workflow.",
+  "data": {
+    "model_id": "model_uuid_here",
+    "user_id": "user_uuid_here"
+  }
+}
+```
+
+- `400 Bad Request`: Invalid workflow name.
+```json
+{
+  "message": "workflow_name is not a valid model name."
+}
+```
+
+- `400 Bad Request`: Workflow with the same name already exists for the user.
+```json
+{
+  "message": "Workflow with name workflow_name already exists for user username."
+}
+```
+
+- `400 Bad Request`: Search model does not exist.
+```json
+{
+  "message": "Search component must be an existing retrieval model. Search model retrieval_id does not exist."
+}
+```
+
+- `400 Bad Request`: Search model is not a retrieval model.
+```json
+{
+  "message": "Search component must be an existing retrieval model. Search model retrieval_id is not a retrieval model."
+}
+```
+
+- `400 Bad Request`: User does not have permission to access the search model.
+```json
+{
+  "message": "User username does not have permission to access search model search_model_name."
+}
+```
+
+- `400 Bad Request`: Guardrail model does not exist.
+```json
+{
+  "message": "Guardrail component must be an existing nlp model. Guardrail retrieval_id does not exist."
+}
+```
+
+- `400 Bad Request`: Guardrail model is not an NLP model.
+```json
+{
+  "message": "Guardrail component must be an existing nlp model. Guardrail retrieval_id is not an NLP model."
+}
+```
+
+- `400 Bad Request`: User does not have permission to access the guardrail model.
+```json
+{
+  "message": "User username does not have permission to access guardrail model guardrail_model_name."
+}
+```
+
+- `500 Internal Server Error`: An error occurred while creating the workflow.
+
+---

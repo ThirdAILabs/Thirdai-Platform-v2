@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from threading import Lock
 from typing import AsyncGenerator, List, Union
 
 from deployment_job.chat.ndbv2_vectorstore import NeuralDBV2VectorStore
@@ -76,6 +77,8 @@ class ChatInterface(ABC):
             answer=document_chain,
         )
 
+        self.history_lock = Lock()
+
     @abstractmethod
     def llm(self) -> LLM:
         raise NotImplementedError()
@@ -90,10 +93,17 @@ class ChatInterface(ABC):
 
         return top_k_docs
 
+    def _get_chat_history_conn(self, session_id: str):
+        # The lock is to prevent table already exists errors if the method is called
+        # twice in succession and both connections attempt to create the table.
+        with self.history_lock:
+            chat_history = SQLChatMessageHistory(
+                session_id=session_id, connection_string=self.chat_history_sql_uri
+            )
+        return chat_history
+
     def get_chat_history(self, session_id: str, **kwargs):
-        chat_history = SQLChatMessageHistory(
-            session_id=session_id, connection_string=self.chat_history_sql_uri
-        )
+        chat_history = self._get_chat_history_conn(session_id=session_id)
         chat_history_list = [
             {
                 "content": message.content,
@@ -104,9 +114,7 @@ class ChatInterface(ABC):
         return chat_history_list
 
     def chat(self, user_input: str, session_id: str, **kwargs):
-        chat_history = SQLChatMessageHistory(
-            session_id=session_id, connection_string=self.chat_history_sql_uri
-        )
+        chat_history = self._get_chat_history_conn(session_id=session_id)
         chat_history.add_user_message(user_input)
         response = self.conversational_retrieval_chain.invoke(
             {"messages": chat_history.messages}
@@ -118,9 +126,7 @@ class ChatInterface(ABC):
     async def stream_chat(
         self, user_input: str, session_id: str, **kwargs
     ) -> AsyncGenerator[str, None]:
-        chat_history = SQLChatMessageHistory(
-            session_id=session_id, connection_string=self.chat_history_sql_uri
-        )
+        chat_history = self._get_chat_history_conn(session_id=session_id)
         chat_history.add_user_message(user_input)
 
         response_chunks = []

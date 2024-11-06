@@ -87,10 +87,10 @@ function AnalyticsContent() {
     return (
       <div className="container mx-auto px-4 py-8">
         {modelName && deploymentUrl && (
-          <ModelUpdate 
-            username={username} 
-            modelName={modelName} 
-            deploymentUrl={deploymentUrl} 
+          <ModelUpdate
+            username={username}
+            modelName={modelName}
+            deploymentUrl={deploymentUrl}
             workflowNames={workflowNames}
           />
         )}

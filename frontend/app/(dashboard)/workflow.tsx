@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { AlertCircle } from 'lucide-react';
 import { useContext, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Button, RadioGroup, Radio } from '@mui/material';
+import { Button, RadioGroup, Radio, Tooltip } from '@mui/material';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +27,7 @@ import { InformationCircleIcon } from '@heroicons/react/solid';
 import { Model, getModels } from '@/utils/apiRequests';
 import { UserContext } from '../user_wrapper';
 import { ContentCopy, Download } from '@mui/icons-material'; // MUI icons instead of SVG paths
+import { color } from 'framer-motion';
 
 enum DeployStatus {
   None = '',
@@ -380,7 +381,34 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                   href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
                 >
                   <DropdownMenuItem>
-                    <button type="button">Usage Dashboard</button>
+                    <Tooltip
+                      title={
+                        deployStatus === DeployStatus.Failed ||
+                        deployStatus === DeployStatus.TrainingFailed
+                          ? 'Access restricted: model failed'
+                          : ''
+                      }
+                      arrow
+                    >
+                      <span>
+                        <button
+                          type="button"
+                          disabled={
+                            deployStatus === DeployStatus.Failed ||
+                            deployStatus === DeployStatus.TrainingFailed
+                          }
+                          style={{
+                            cursor:
+                              deployStatus === DeployStatus.Failed ||
+                              deployStatus === DeployStatus.TrainingFailed
+                                ? 'not-allowed'
+                                : 'pointer',
+                          }}
+                        >
+                          Usage Dashboard
+                        </button>
+                      </span>
+                    </Tooltip>
                   </DropdownMenuItem>
                 </Link>
               )}
@@ -390,7 +418,34 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                 href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
               >
                 <DropdownMenuItem>
-                  <button type="button">Usage Dashboard</button>
+                  <Tooltip
+                    title={
+                      deployStatus === DeployStatus.Failed ||
+                      deployStatus === DeployStatus.TrainingFailed
+                        ? 'Access restricted: model failed'
+                        : ''
+                    }
+                    arrow
+                  >
+                    <span>
+                      <button
+                        type="button"
+                        disabled={
+                          deployStatus === DeployStatus.Failed ||
+                          deployStatus === DeployStatus.TrainingFailed
+                        }
+                        style={{
+                          cursor:
+                            deployStatus === DeployStatus.Failed ||
+                            deployStatus === DeployStatus.TrainingFailed
+                              ? 'not-allowed'
+                              : 'pointer',
+                        }}
+                      >
+                        Usage Dashboard
+                      </button>
+                    </span>
+                  </Tooltip>
                 </DropdownMenuItem>
               </Link>
             )}

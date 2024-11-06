@@ -15,8 +15,14 @@ def reservoir_sampling(
     assert total_items_seen >= 0
     assert recency_multipler > 0
 
+    if len(candidates) == 0:
+        return []
+
     if current_size < reservoir_size:
-        return random.sample(candidates, (reservoir_size - current_size))
+        if reservoir_size - current_size > len(candidates):
+            return candidates
+        else:
+            return random.sample(candidates, (reservoir_size - current_size))
 
     items_to_add = []
     for candidate in candidates:

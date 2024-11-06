@@ -197,7 +197,45 @@ export default function ModelUpdate({
     }
   };
 
+  // New state for custom model name in polling section
+  const [pollingModelName, setPollingModelName] = useState(``);
+  const [pollingWarningMessage, setPollingWarningMessage] = useState('');
+
+  // Effect to validate polling model name
+  useEffect(() => {
+    validatePollingModelName(pollingModelName);
+  }, [pollingModelName, workflowNames]);
+
+  // Validation for polling model name
+  const validatePollingModelName = (name: string) => {
+    if (workflowNames.includes(name)) {
+      setPollingWarningMessage('An app with the same name already exists. Please choose a different name.');
+      return false;
+    }
+    const isValid = /^[a-zA-Z0-9-_]+$/.test(name);
+    const isNotEmpty = name.trim().length > 0;
+    if (!isValid && isNotEmpty) {
+      setPollingWarningMessage('The app name can only contain letters, numbers, underscores, and hyphens.');
+      return false;
+    }
+    if (name.includes(' ')) {
+      setPollingWarningMessage('The app name cannot contain spaces.');
+      return false;
+    }
+    if (name.includes('.')) {
+      setPollingWarningMessage("The app name cannot contain periods ('.').");
+      return false;
+    }
+    setPollingWarningMessage('');
+    return isValid && isNotEmpty;
+  };
+
   const handlePollingUpdate = async () => {
+    if (!validatePollingModelName(pollingModelName)) {
+      setPollingError('Please enter a valid model name for the new model.');
+      return;
+    }
+
     setIsPollingUpdating(true);
     setPollingError('');
     setPollingSuccess(false);
@@ -205,7 +243,8 @@ export default function ModelUpdate({
 
     try {
       const response = await retrainTokenClassifier({
-        model_name: modelName,
+        model_name: pollingModelName, // Use custom name for new model
+        base_model_identifier: `${username}/${modelName}`, // Trigger new model creation
       });
 
       if (response.status === 'success') {
@@ -344,6 +383,29 @@ export default function ModelUpdate({
           <CardDescription>View and use recent labeled samples to update the model</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <Box sx={{ mb: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <Typography variant="h6" component="h3" sx={{ mr: 1 }}>
+                Name Your New Model
+              </Typography>
+              <Tooltip title="Use alphanumeric characters, hyphens, and underscores only. This will be the identifier for your updated model.">
+                <HelpCircle size={20} />
+              </Tooltip>
+            </Box>
+            <TextField
+              fullWidth
+              id="polling-model-name"
+              label="New Model Name"
+              variant="outlined"
+              value={pollingModelName}
+              onChange={(e) => setPollingModelName(e.target.value)}
+              placeholder="Enter new model name"
+              helperText={pollingWarningMessage || 'Example: my-model-v2 or updated_model_123'}
+              error={!!pollingWarningMessage}
+              sx={{ mt: 1 }}
+            />
+          </Box>
+
           <div className="mb-6">
             <RecentSamples deploymentUrl={deploymentUrl} />
           </div>

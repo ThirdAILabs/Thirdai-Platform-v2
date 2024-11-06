@@ -49,7 +49,7 @@ export default function Page() {
         let parsed: ParsedData;
         if (fileExtension === 'csv') {
           parsed = await parseCSV(file);
-        } else if (fileExtension === 'pdf') {
+        } else if (['pdf', 'docx', 'html'].includes(fileExtension ?? '')) {
           const content = await getTextFromFile(file);
           parsed = {
             type: 'pdf',

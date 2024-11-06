@@ -93,6 +93,8 @@ export default function ModelUpdate({
     fetchInitialReport();
   }, [username, modelName]);
 
+  const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB in bytes
+
   // Fetch initial training report - Using mock data for now
   useEffect(() => {
     const fetchInitialReport = async () => {
@@ -114,13 +116,22 @@ export default function ModelUpdate({
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      if (file.type === 'text/csv') {
-        setSelectedFile(file);
-        setUploadError('');
-      } else {
+      // Check file type
+      if (file.type !== 'text/csv') {
         setUploadError('Please upload a CSV file');
         setSelectedFile(null);
+        return;
       }
+      
+      // Check file size
+      if (file.size > MAX_FILE_SIZE) {
+        setUploadError('File size must be less than 500MB');
+        setSelectedFile(null);
+        return;
+      }
+
+      setSelectedFile(file);
+      setUploadError('');
     }
   };
 

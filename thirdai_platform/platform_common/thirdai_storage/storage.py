@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import typing
 from abc import abstractmethod
-from collections import defaultdict
 
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import scoped_session, sessionmaker

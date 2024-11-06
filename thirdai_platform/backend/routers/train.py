@@ -744,8 +744,8 @@ def retrain_udt(
     token_classification_options = TokenClassificationDatagenOptions(
         sub_type=UDTSubType.token,
         tags=tags,
-        num_sentences_to_generate=10_000,
-        num_samples_per_tag=500,
+        num_sentences_to_generate=1_000,
+        num_samples_per_tag=100,
         samples=token_classification_samples,
     )
 

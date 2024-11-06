@@ -23,7 +23,7 @@ export default function SessionGuard() {
     if (session?.accessToken) {
       localStorage.setItem('accessToken', session.accessToken);
       if (!tokenCheckInterval) {
-        const interval = setInterval(checkAndRefreshToken, 60 * 60 * 60 * 1000);
+        const interval = setInterval(checkAndRefreshToken, 60 * 1000);
         setTokenCheckInterval(interval);
       }
     }

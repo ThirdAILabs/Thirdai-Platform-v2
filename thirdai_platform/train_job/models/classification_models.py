@@ -666,7 +666,7 @@ class TokenClassificationModel(ClassificationModel):
             row = df.loc[index]
             tokens = row[source_column].split()
             tags = row[target_column].split()
-            assert len(tokens) == len(tags)
+            assert len(tokens) == len(tags),f"length of source tokens ≠ length of target tokens."
 
             sample = DataSample(
                 name="ner",

@@ -7,6 +7,7 @@ from abc import abstractmethod
 from logging import Logger
 from pathlib import Path
 from typing import List
+import random
 
 import pandas as pd
 import thirdai
@@ -216,6 +217,8 @@ class TokenClassificationModel(ClassificationModel):
     def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
         super().__init__(config, reporter, logger)
         self.load_storage()
+        self._num_balancing_samples = 10_000
+        self._balancing_samples_path = self.data_dir / "balancing_samples.csv"
 
     @property
     def tkn_cls_vars(self) -> TokenClassificationOptions:
@@ -337,6 +340,8 @@ class TokenClassificationModel(ClassificationModel):
         start_time = time.time()
 
         supervised_files = self.supervised_files()
+        balancing_samples_path = self.find_and_save_balancing_samples()
+
         # insert samples into data storage for later use
         self.insert_samples_in_storage(supervised_files)
 
@@ -373,6 +378,18 @@ class TokenClassificationModel(ClassificationModel):
             model.train(
                 train_file.path,
                 epochs=self.train_options.supervised_epochs,
+                learning_rate=self.train_options.learning_rate,
+                batch_size=self.train_options.batch_size,
+                metrics=self.train_options.metrics,
+            )
+
+        if balancing_samples_path:
+            self.logger.info(
+                f"Training on balancing samples from {balancing_samples_path}."
+            )
+            model.train(
+                balancing_samples_path,
+                epochs=1,
                 learning_rate=self.train_options.learning_rate,
                 batch_size=self.train_options.batch_size,
                 metrics=self.train_options.metrics,
@@ -448,6 +465,50 @@ class TokenClassificationModel(ClassificationModel):
 
         self.logger.info(f"Inserting {len(samples)} samples into storage.")
         self.data_storage.insert_samples(samples=samples)
+
+    def find_and_save_balancing_samples(self):
+        self.logger.info("Finding balancing samples for training.")
+        user_provided_samples = self.data_storage.retrieve_samples(
+            name="ner", num_samples=None, user_provided=True
+        )
+        non_user_provided_samples = self.data_storage.retrieve_samples(
+            name="ner", num_samples=None, user_provided=False
+        )
+
+        samples = []
+
+        self.logger.info(f"Found {len(user_provided_samples)} user provided samples.")
+        for user_provided_sample in user_provided_samples:
+            samples.append(
+                {
+                    "source": " ".join(user_provided_sample.data.tokens),
+                    "target": " ".join(user_provided_sample.data.tags),
+                    "user_provided": True,
+                }
+            )
+
+        self.logger.info(
+            f"Found {len(non_user_provided_samples)} non user provided samples. Adding {self._num_balancing_samples} samples to the balancing set."
+        )
+        random.shuffle(non_user_provided_samples)
+        for sample in non_user_provided_samples[: self._num_balancing_samples]:
+            samples.append(
+                {
+                    "source": " ".join(sample.data.tokens),
+                    "target": " ".join(sample.data.tags),
+                    "user_provided": False,
+                }
+            )
+
+        if len(samples) > 0:
+            self.logger.info(
+                f"Saving balancing samples to {self._balancing_samples_path}"
+            )
+            dataframe = pd.DataFrame(samples)
+            dataframe.to_csv(self._balancing_samples_path, index=False)
+            return self._balancing_samples_path
+
+        return None
 
     def get_latency(self, model) -> float:
         self.logger.info("Measuring latency of the Token Classification model.")

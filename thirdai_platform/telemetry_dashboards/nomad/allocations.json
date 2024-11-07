@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 4,
+  "id": 3,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -37,13 +37,13 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "fixedColor": "green",
             "mode": "palette-classic"
           },
           "custom": {
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
-            "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
@@ -72,6 +72,7 @@
               "mode": "off"
             }
           },
+          "displayName": "Queries Processed",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -101,7 +102,7 @@
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "tooltip": {
           "mode": "single",
@@ -115,6 +116,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
+          "exemplar": false,
           "expr": "increase(udt_query_count_total[1h])",
           "instant": false,
           "legendFormat": "__auto",
@@ -122,7 +124,7 @@
           "refId": "A"
         }
       ],
-      "title": "Total Queries Processed in last hr (UDT)",
+      "title": "Queries Processed (Last Hour)",
       "type": "timeseries"
     },
     {
@@ -169,6 +171,7 @@
               "mode": "off"
             }
           },
+          "displayName": "Average Query Length",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -198,7 +201,7 @@
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "tooltip": {
           "mode": "single",
@@ -219,7 +222,7 @@
           "refId": "A"
         }
       ],
-      "title": "Average Query Length(UDT)",
+      "title": "Average Query Length",
       "type": "timeseries"
     },
     {
@@ -367,6 +370,7 @@
               "mode": "off"
             }
           },
+          "displayName": "Average Query Time",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -396,7 +400,7 @@
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "tooltip": {
           "mode": "single",
@@ -417,7 +421,7 @@
           "refId": "A"
         }
       ],
-      "title": "Average Query Time(UDT)",
+      "title": "Average Query Time (in Seconds)",
       "type": "timeseries"
     },
     {
@@ -587,8 +591,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -691,8 +694,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -802,8 +804,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -937,8 +938,8 @@
       {
         "current": {
           "selected": false,
-          "text": "deployment-b094d20f-7f5d-4748-bf92-b5095a63c12e",
-          "value": "deployment-b094d20f-7f5d-4748-bf92-b5095a63c12e"
+          "text": "deployment-246f1887-ce8c-4c8f-be2a-d6d60b00db60",
+          "value": "deployment-246f1887-ce8c-4c8f-be2a-d6d60b00db60"
         },
         "datasource": {
           "type": "prometheus",
@@ -998,6 +999,6 @@
   "timezone": "",
   "title": "Allocations",
   "uid": "5XxwU0GVz",
-  "version": 13,
+  "version": 15,
   "weekStart": ""
 }

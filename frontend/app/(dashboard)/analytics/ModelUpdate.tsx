@@ -6,7 +6,7 @@ import { retrainTokenClassifier, trainUDTWithCSV, getTrainReport } from '@/lib/b
 import RecentSamples from './samples';
 import { TrainingResults } from './MetricsChart';
 import type { TrainReportData } from '@/lib/backend';
-
+import UsageStatsUDT from './usageStatsUDT';
 interface ModelUpdateProps {
   username: string;
   modelName: string;
@@ -287,8 +287,9 @@ export default function ModelUpdate({
   };
 
   return (
-    <div className="space-y-6 w-full px-8">
+    <div className="space-y-6 px-4">
       {/* Training Report Section */}
+
       {isLoadingReport ? (
         <Card>
           <CardContent>

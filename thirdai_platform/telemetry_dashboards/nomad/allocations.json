@@ -115,14 +115,14 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "udt_query_count_total",
+          "expr": "increase(udt_query_count_total[1h])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Total Queries Processed(UDT)",
+      "title": "Total Queries Processed in last hr (UDT)",
       "type": "timeseries"
     },
     {
@@ -998,6 +998,6 @@
   "timezone": "",
   "title": "Allocations",
   "uid": "5XxwU0GVz",
-  "version": 11,
+  "version": 13,
   "weekStart": ""
 }

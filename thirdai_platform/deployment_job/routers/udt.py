@@ -23,7 +23,7 @@ from platform_common.thirdai_storage.data_types import (
     TokenClassificationData,
 )
 from platform_common.utils import response
-from prometheus_client import Summary, Counter, Gauge
+from prometheus_client import Counter, Gauge, Summary
 from reporter import Reporter
 from thirdai import neural_db as ndb
 from throughput import Throughput

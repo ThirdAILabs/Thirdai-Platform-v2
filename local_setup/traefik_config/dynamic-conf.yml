@@ -26,5 +26,6 @@ http:
   middlewares:
     limit-body-size:
       buffering:
-        maxRequestBodyBytes: 524288000
-        memRequestBodyBytes: 20971520
+        # For reference: https://doc.traefik.io/traefik/v2.0/middlewares/buffering/
+        maxRequestBodyBytes: 524288000 # 500MB in bytes
+        memRequestBodyBytes: 3145728 # 3MB in bytes

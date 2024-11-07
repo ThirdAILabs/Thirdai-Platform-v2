@@ -461,7 +461,13 @@ class TokenClassificationModel(ClassificationModel):
             samples.append(sample)
 
         self.logger.info(f"Inserting {len(samples)} samples into storage.")
+
         self.data_storage.insert_samples(samples=samples)
+        num_samples_in_storage = self.data_storage.connector.get_sample_count("ner")
+
+        self.logger.info(
+            f"Number of samples in storage after insertion: {num_samples_in_storage}"
+        )
 
     def find_and_save_balancing_samples(self):
         self.logger.info("Finding balancing samples for training.")

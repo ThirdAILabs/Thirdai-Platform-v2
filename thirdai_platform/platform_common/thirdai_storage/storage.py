@@ -22,7 +22,25 @@ class Connector:
         entries: typing.List[typing.tuple[str, str, str, str, bool]],
         reservoir_size: int = None,
     ):
-        # batch insertion of samples to the store
+        """
+        Performs batch insertion of samples into the data store using reservoir sampling.
+
+        Reservoir sampling ensures a random sample of fixed size is maintained even as new samples
+        are added over time. This is useful for keeping a representative subset of data when the
+        total dataset is too large to store completely.
+
+        Args:
+            entries: List of tuples containing sample information with fields:
+                unique_id (str): Unique identifier for the sample
+                datatype (str): Type of the sample (e.g. "token_classification", "text_classification")
+                name (str): Name/category of the sample (e.g. "ner", "sentiment")
+                serialized_data (str): The sample data in serialized format
+                status (str): Processing status of the sample (e.g. "untrained", "trained")
+                user_provided (bool): Whether this sample was provided by a user (True) or generated (False)
+
+            reservoir_size (int, optional): Maximum number of samples to maintain in the reservoir.
+                If None, all samples will be stored without sampling.
+        """
         pass
 
     @abstractmethod
@@ -57,6 +75,14 @@ class Connector:
 
     @abstractmethod
     def remove_untrained_samples(self, name: str):
+        pass
+
+    @abstractmethod
+    def update_metadata_status(self, name: str, status: MetadataStatus):
+        pass
+
+    @abstractmethod
+    def update_sample_status(self, name: str, status: SampleStatus):
         pass
 
 
@@ -134,8 +160,6 @@ class SQLiteConnector(Connector):
         )
 
         reservoir_counter.seen = reservoir_counter.seen + len(entries)
-
-        session.add(reservoir_counter)
         session.commit()
 
     def get_sample_count(self, name: str):

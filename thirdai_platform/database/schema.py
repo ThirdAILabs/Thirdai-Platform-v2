@@ -231,6 +231,9 @@ class Model(SQLDeclarativeBase):
     def get_train_job_name(self):
         return f"train-{self.id}-{self.type}-{self.sub_type}"
 
+    def get_datagen_job_name(self):
+        return f"GenerateData-{self.id}"
+
     def get_deployment_name(self):
         return f"deployment-{self.id}"
 

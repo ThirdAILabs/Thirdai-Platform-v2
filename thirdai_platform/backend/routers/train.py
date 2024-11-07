@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import pathlib
 import secrets
@@ -20,7 +21,6 @@ from backend.utils import (
     get_model_status,
     get_platform,
     get_python_path,
-    logger,
     model_bazaar_path,
     nomad_job_exists,
     remove_unused_samples,
@@ -103,7 +103,7 @@ def train_ndb(
         model_options = NDBOptions.model_validate_json(model_options)
         data = NDBData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
-        print(f"Extra options for training: {model_options}")
+        logging.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -230,7 +230,7 @@ def train_ndb(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -404,7 +404,7 @@ def retrain_ndb(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -439,7 +439,7 @@ def nlp_datagen(
         datagen_options = DatagenOptions.model_validate_json(datagen_options)
         datagen_job_options = JobOptions.model_validate_json(datagen_job_options)
         train_job_options = JobOptions.model_validate_json(train_job_options)
-        print(f"Datagen options: {datagen_options}")
+        logging.info(f"Datagen options: {datagen_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -523,6 +523,14 @@ def nlp_datagen(
         session.add(new_model)
         session.commit()
         session.refresh(new_model)
+
+        attribute = schema.ModelAttribute(
+            model_id=model_id,
+            key="datagen",
+            value="true",
+        )
+        session.add(attribute)
+        session.commit()
     except Exception as err:
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -542,7 +550,7 @@ def nlp_datagen(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -570,7 +578,7 @@ def datagen_callback(
     try:
         model_options = UDTOptions.model_validate_json(model_options)
         data = UDTData.model_validate_json(file_info)
-        print(f"Extra options for training: {model_options}")
+        logging.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -663,7 +671,7 @@ def datagen_callback(
             model.train_status = schema.Status.failed
         session.commit()
 
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -717,8 +725,9 @@ def retrain_udt(
             )
 
         # create a new model
+        model_id = uuid.uuid4()
         model: schema.Model = schema.Model(
-            id=uuid.uuid4(),
+            id=model_id,
             user_id=user.id,
             train_status=schema.Status.not_started,
             deploy_status=schema.Status.not_started,
@@ -732,6 +741,14 @@ def retrain_udt(
         session.add(model)
         session.commit()
         session.refresh(model)
+
+        attribute = schema.ModelAttribute(
+            model_id=model_id,
+            key="datagen",
+            value="false",
+        )
+        session.add(attribute)
+        session.commit()
 
     else:
         model = get_model(session, username=user.username, model_name=model_name)
@@ -814,7 +831,7 @@ def retrain_udt(
     except Exception as err:
         model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -848,7 +865,7 @@ def train_udt(
         model_options = UDTOptions.model_validate_json(model_options)
         data = UDTData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
-        print(f"Extra options for training: {model_options}")
+        logging.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -936,6 +953,15 @@ def train_udt(
         session.add(new_model)
         session.commit()
         session.refresh(new_model)
+
+        attribute = schema.ModelAttribute(
+            model_id=model_id,
+            key="datagen",
+            value="false",
+        )
+        session.add(attribute)
+        session.commit()
+
     except Exception as err:
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -977,7 +1003,7 @@ def train_udt(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),

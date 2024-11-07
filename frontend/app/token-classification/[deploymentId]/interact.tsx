@@ -955,18 +955,21 @@ export default function Interact() {
           flex: 1,
           marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
         }}
-      >{processingTime !== undefined && <Card className="mb-5 pt-5">
-        <CardContent>
-          <div className="flex flex-row">
-            <TimerIcon color="primary" />
-            Inference Time
-            <Typography>
-              {' : '}
-              {(Number(processingTime) * 1000).toFixed(2)} milliseconds
-            </Typography>
-          </div>
-        </CardContent>
-      </Card>}
+      >
+        {processingTime !== undefined && (
+          <Card className="mb-5 pt-5">
+            <CardContent>
+              <div className="flex flex-row">
+                <TimerIcon color="primary" />
+                Inference Time
+                <Typography>
+                  {' : '}
+                  {(Number(processingTime) * 1000).toFixed(2)} milliseconds
+                </Typography>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="p-7 text-start">
           <FeedbackDashboard

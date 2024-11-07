@@ -58,6 +58,7 @@ from platform_common.pydantic_models.training import (
     UDTSubType,
 )
 from platform_common.thirdai_storage import storage
+from platform_common.defaults import NER_TARGET_COLUMN, NER_SOURCE_COLUMN
 from platform_common.utils import response
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
@@ -817,7 +818,12 @@ def retrain_udt(
                 )
 
             # Without any LLM access, the model should train only on the user provided samples present in the storage. Or balancing samples gathered from the training data.
-            config.data = UDTData()
+
+            config.model_options.udt_options.target_column = NER_TARGET_COLUMN
+            config.model_options.udt_options.source_column = NER_SOURCE_COLUMN
+            config.model_options.udt_options.target_labels = [tag.name for tag in tags]
+
+            config.data = UDTData(supervised_files=[])
             config_path = config.save_train_config()
 
             submit_nomad_job(

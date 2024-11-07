@@ -388,7 +388,7 @@ class TokenClassificationModel(ClassificationModel):
                 f"Training on balancing samples from {balancing_samples_path}."
             )
             model.train(
-                balancing_samples_path,
+                str(balancing_samples_path),
                 epochs=1,
                 learning_rate=self.train_options.learning_rate,
                 batch_size=self.train_options.batch_size,
@@ -492,6 +492,7 @@ class TokenClassificationModel(ClassificationModel):
             f"Found {len(non_user_provided_samples)} non user provided samples. Adding {min(self._num_balancing_samples, len(non_user_provided_samples))} samples to the balancing set."
         )
         random.shuffle(non_user_provided_samples)
+
         for sample in non_user_provided_samples[: self._num_balancing_samples]:
             samples.append(
                 {

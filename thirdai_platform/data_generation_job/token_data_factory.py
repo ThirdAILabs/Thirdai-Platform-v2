@@ -19,7 +19,7 @@ from data_generation_job.utils import (
 )
 from data_generation_job.variables import Entity, EntityStatus, NERSample
 from faker import Faker
-from platform_common.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
+from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.utils import save_dict
 from tqdm import tqdm
 

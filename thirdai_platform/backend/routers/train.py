@@ -35,8 +35,8 @@ from data_generation_job.llms import verify_llm_access
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
-from platform_common.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.file_handler import download_local_files
+from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
 from platform_common.pydantic_models.training import (
     DatagenOptions,
@@ -800,6 +800,8 @@ def retrain_udt(
 
     try:
         if verify_llm_access(llm_provider, api_key=os.getenv("GENAI_KEY")):
+            logging.info("LLM access verified, generating data for training")
+
             config_path = config.save_train_config()
 
             generate_data_for_train_job(
@@ -810,6 +812,8 @@ def retrain_udt(
                 job_options=JobOptions(),
             )
         else:
+            logging.info("No LLM access, training only on user provided samples")
+
             if nomad_job_exists(
                 model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")
             ):
@@ -817,14 +821,18 @@ def retrain_udt(
                     model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")
                 )
 
-            # Without any LLM access, the model should train only on the user provided samples present in the storage. Or balancing samples gathered from the training data.
+            config.model_options.udt_options = TokenClassificationOptions(
+                target_labels=[tag.name for tag in tags],
+                source_column=NER_SOURCE_COLUMN,
+                target_column=NER_TARGET_COLUMN,
+            )
 
-            config.model_options.udt_options.target_column = NER_TARGET_COLUMN
-            config.model_options.udt_options.source_column = NER_SOURCE_COLUMN
-            config.model_options.udt_options.target_labels = [tag.name for tag in tags]
-
+            # Without any LLM access, the model should train only on the user provided samples present in the storage. Or balancing samples gathered from the training data. No file passed because user provided samples are already present in the storage.
             config.data = UDTData(supervised_files=[])
+
             config_path = config.save_train_config()
+
+            logging.info("Triggered nomad job for training.")
 
             submit_nomad_job(
                 str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),

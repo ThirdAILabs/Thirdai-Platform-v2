@@ -140,7 +140,7 @@ class UDTRouter:
         }
         ```
         """
-        start_time = time.perf_counter()  
+        start_time = time.perf_counter()
 
         results = self.model.predict(**params.model_dump())
 
@@ -156,7 +156,7 @@ class UDTRouter:
                 f"Prediction complete with {identified_count} tokens identified",
                 extra={"text_length": len(params.text)},
             )
-        end_time = time.perf_counter() 
+        end_time = time.perf_counter()
         time_taken = end_time - start_time
 
         # Add time_taken to the response data

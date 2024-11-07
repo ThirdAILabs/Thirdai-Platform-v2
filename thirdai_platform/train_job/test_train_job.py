@@ -241,14 +241,14 @@ def test_udt_token_train():
                 FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local"),
                 FileInfo(
                     path="https://csg100320028d93f3bc.blob.core.windows.net/test/ner.csv",
-                    location="local",
+                    location="azure",
                 ),
             ],
             test_files=[
                 FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local"),
                 FileInfo(
                     path="https://csg100320028d93f3bc.blob.core.windows.net/test/ner.csv",
-                    location="local",
+                    location="azure",
                 ),
             ],
         ),

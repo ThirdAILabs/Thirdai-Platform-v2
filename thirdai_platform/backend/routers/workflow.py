@@ -1,3 +1,4 @@
+import pathlib
 import uuid
 from typing import List, Optional
 
@@ -7,11 +8,18 @@ from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, status
 from platform_common.pydantic_models.training import ModelType, UDTSubType
-from platform_common.utils import response
+from platform_common.utils import get_section, response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 workflow_router = APIRouter()
+
+root_folder = pathlib.Path(__file__).parent
+
+docs_file = root_folder.joinpath("../../docs/workflow_endpoints.txt")
+
+with open(docs_file) as f:
+    docs = f.read()
 
 
 class EnterpriseSearchOptions(BaseModel):
@@ -26,7 +34,11 @@ class EnterpriseSearchOptions(BaseModel):
         return list(filter(lambda x: x is not None, deps))
 
 
-@workflow_router.post("/enterprise-search")
+@workflow_router.post(
+    "/enterprise-search",
+    summary="Create Enterprise Search Workflow",
+    description=get_section(docs, "Create Enterprise Search Workflow"),
+)
 def create_enterprise_search_workflow(
     workflow_name: str,
     options: EnterpriseSearchOptions,

@@ -493,6 +493,14 @@ def nlp_datagen(
         session.add(new_model)
         session.commit()
         session.refresh(new_model)
+
+        attribute = schema.ModelAttribute(
+            model_id=model_id,
+            key="datagen",
+            value="true",
+        )
+        session.add(attribute)
+        session.commit()
     except Exception as err:
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -677,8 +685,9 @@ def retrain_udt(
             )
 
         # create a new model
+        model_id = uuid.uuid4()
         model: schema.Model = schema.Model(
-            id=uuid.uuid4(),
+            id=model_id,
             user_id=user.id,
             train_status=schema.Status.not_started,
             deploy_status=schema.Status.not_started,
@@ -692,6 +701,14 @@ def retrain_udt(
         session.add(model)
         session.commit()
         session.refresh(model)
+
+        attribute = schema.ModelAttribute(
+            model_id=model_id,
+            key="datagen",
+            value="false",
+        )
+        session.add(attribute)
+        session.commit()
 
     else:
         model = get_model(session, username=user.username, model_name=model_name)
@@ -894,6 +911,15 @@ def train_udt(
         session.add(new_model)
         session.commit()
         session.refresh(new_model)
+
+        attribute = schema.ModelAttribute(
+            model_id=model_id,
+            key="datagen",
+            value="false",
+        )
+        session.add(attribute)
+        session.commit()
+
     except Exception as err:
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

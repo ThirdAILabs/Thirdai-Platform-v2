@@ -24,7 +24,10 @@ Without this process, it is cumbersome to test out platform changes. We would ha
        ```
    - Open a terminal session and run:
      ```
-     sudo nomad agent -dev -config="local_setup/agent.hcl"
+     sudo mkdir -p /opt/nomad/data
+     sudo chown -R <YOUR_USERNAME> /opt/nomad/data
+     sudo chmod -R u+rwx /opt/nomad/data
+     nomad agent -dev -config="local_setup/agent.hcl"
      ```
    - Verify the Nomad cluster is operational by running `nomad node status` or visiting `http://localhost:4646` for the Nomad UI. Make sure that the status is `ready`.
 

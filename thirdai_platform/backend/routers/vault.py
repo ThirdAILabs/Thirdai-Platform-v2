@@ -1,8 +1,10 @@
+import pathlib
+
 import hvac  # type: ignore
 from auth.jwt import verify_access_token
 from backend.auth_dependencies import get_vault_client, global_admin_only
 from fastapi import APIRouter, Depends, HTTPException, status
-from platform_common.utils import response
+from platform_common.utils import get_section, response
 from pydantic import BaseModel
 
 vault_router = APIRouter()
@@ -17,10 +19,20 @@ class SecretResponse(BaseModel):
     value: str
 
 
+root_folder = pathlib.Path(__file__).parent
+
+docs_file = root_folder.joinpath("../../docs/vault_endpoints.txt")
+
+with open(docs_file) as f:
+    docs = f.read()
+
+
 # Note(pratik): Only global admin can add a secret to vault
 @vault_router.post(
     "/add-secret",
     dependencies=[Depends(global_admin_only)],
+    summary="Add Secret",
+    description=get_section(docs, "Add Secret"),
 )
 async def add_secret(
     secret: SecretResponse,
@@ -45,7 +57,12 @@ async def add_secret(
 # Note(pratik): Any user can access the secrets, set by global admin
 # TODO(pratik): Add a way pass the vault secrets to nomad jobs as env
 # variable directly rather than accessing here
-@vault_router.get("/get-secret", dependencies=[Depends(verify_access_token)])
+@vault_router.get(
+    "/get-secret",
+    dependencies=[Depends(verify_access_token)],
+    summary="Get Secret",
+    description=get_section(docs, "Get Secret"),
+)
 async def get_secret(
     secret: SecretRequest, client: hvac.Client = Depends(get_vault_client)
 ):
@@ -72,7 +89,12 @@ async def get_secret(
     )
 
 
-@vault_router.get("/list-keys", dependencies=[Depends(verify_access_token)])
+@vault_router.get(
+    "/list-keys",
+    dependencies=[Depends(verify_access_token)],
+    summary="List Vault Keys",
+    description=get_section(docs, "List Vault Keys"),
+)
 async def list_vault_keys(
     client: hvac.Client = Depends(get_vault_client),
 ):

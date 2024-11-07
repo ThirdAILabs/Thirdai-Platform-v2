@@ -95,7 +95,7 @@ function AnalyticsContent() {
         {modelName && deploymentUrl && (
           <>
             <UsageStatsUDT />
-            <div className='mt-6'>
+            <div className="mt-6">
               <ModelUpdate
                 username={username}
                 modelName={modelName}

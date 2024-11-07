@@ -86,8 +86,13 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 
 	modelId := uuid.New().String()
 
-	if options.ModelOptions == nil {
-		// TODO(Nicholas): set default options
+	if options.ModelOptions == nil && options.BaseModelId == nil {
+		http.Error(w, "Either model options or base model must be specified for ndb training", http.StatusBadRequest)
+		return
+	}
+	if options.BaseModelId != nil && options.ModelOptions != nil {
+		http.Error(w, "Only model options or base model can be specified for ndb training", http.StatusBadRequest)
+		return
 	}
 
 	if len(options.Data.SupervisedFiles)+len(options.Data.UnsupervisedFiles) == 0 {
@@ -223,7 +228,6 @@ func (t *TrainRouter) createModelAndStartTraining(
 
 	model.TrainStatus = schema.Starting
 
-	// TODO(Nicholas): prevent users from deleting base model until training is complete
 	result := t.db.Save(&model)
 	if result.Error != nil {
 		return schema.NewDbError("updating model train status to starting", result.Error)

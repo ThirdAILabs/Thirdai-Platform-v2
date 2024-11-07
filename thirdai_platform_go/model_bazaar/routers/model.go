@@ -201,6 +201,19 @@ func (m *ModelRouter) List(w http.ResponseWriter, r *http.Request) {
 	writeJsonResponse(w, infos)
 }
 
+func countTrainingChildModels(db *gorm.DB, modelId string) (int64, error) {
+	var childModels int64
+	result := db.
+		Where("base_model_id = ?", modelId).
+		Where("train_status IN ?", []string{schema.NotStarted, schema.Starting, schema.InProgress}).
+		Count(&childModels)
+
+	if result.Error != nil {
+		return 0, schema.NewDbError("counting child models", result.Error)
+	}
+	return childModels, nil
+}
+
 func (m *ModelRouter) Delete(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 	if !params.Has("model_id") {
@@ -214,8 +227,16 @@ func (m *ModelRouter) Delete(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		if usedBy > 0 {
+		if usedBy != 0 {
 			return fmt.Errorf("cannot delete model %v since it is used as a dependency by %d other models", modelId, usedBy)
+		}
+
+		childModels, err := countTrainingChildModels(db, modelId)
+		if err != nil {
+			return err
+		}
+		if childModels != 0 {
+			return fmt.Errorf("cannot delete model %v since it is being used as a base model for %d actively training models", modelId, childModels)
 		}
 
 		model, err := schema.GetModel(modelId, db, false, false, false)

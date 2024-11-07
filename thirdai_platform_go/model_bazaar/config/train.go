@@ -50,6 +50,7 @@ type TrainConfig struct {
 
 	ModelOptions interface{} `json:"model_options"`
 	Data         interface{} `json:"data"`
+	TrainOptions interface{} `json:"train_options"`
 
 	JobOptions JobOptions `json:"job_options"`
 

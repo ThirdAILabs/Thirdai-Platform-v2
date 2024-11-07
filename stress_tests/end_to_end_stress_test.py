@@ -174,7 +174,7 @@ def main(args):
         with zipfile.ZipFile(log_file_path, "r") as z:
             z.extractall("logs")
         with open("logs/deployment.log", "r") as f:
-            lines = f.read_lines()
+            lines = f.readlines()
             for line in lines:
                 if not line.strip().endswith("200"):
                     logging.info(line.strip())

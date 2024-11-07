@@ -39,7 +39,7 @@ from requests.auth import HTTPBasicAuth
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="http://localhost:80")
     parser.add_argument("--deployment_id", type=str)
     parser.add_argument("--email", type=str, required=True)

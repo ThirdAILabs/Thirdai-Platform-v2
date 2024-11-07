@@ -374,10 +374,12 @@ export default function Interact() {
       updateTagColors(result.prediction_results.predicted_tags);
       setProcessingTime(result.time_taken);
       setAnnotations(
-        _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(([text, tag]) => ({
-          text: text as string,
-          tag: (tag as string[])[0],
-        }))
+        _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(
+          ([text, tag]) => ({
+            text: text as string,
+            tag: (tag as string[])[0],
+          })
+        )
       );
 
       if (!isFileUpload) {
@@ -944,7 +946,6 @@ export default function Interact() {
               >
                 {renderContent()}
               </Card>
-
             </Box>
           )
         )}
@@ -955,13 +956,14 @@ export default function Interact() {
           marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
         }}
       >
-        <Card className='mb-5 pt-5'>
+        <Card className="mb-5 pt-5">
           <CardContent>
-            <div className='flex flex-row'>
+            <div className="flex flex-row">
               <TimerIcon color="primary" />
               Inference Time
               <Typography>
-                {" : "}{processingTime && (Number(processingTime) * 1000).toFixed(2)} milliseconds
+                {' : '}
+                {processingTime && (Number(processingTime) * 1000).toFixed(2)} milliseconds
               </Typography>
             </div>
           </CardContent>

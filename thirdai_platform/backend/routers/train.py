@@ -35,6 +35,7 @@ from data_generation_job.llms import verify_llm_access
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from platform_common.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.file_handler import download_local_files
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
 from platform_common.pydantic_models.training import (
@@ -58,7 +59,6 @@ from platform_common.pydantic_models.training import (
     UDTSubType,
 )
 from platform_common.thirdai_storage import storage
-from platform_common.defaults import NER_TARGET_COLUMN, NER_SOURCE_COLUMN
 from platform_common.utils import response
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session

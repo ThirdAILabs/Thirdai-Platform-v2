@@ -23,12 +23,19 @@ from platform_common.thirdai_storage.data_types import (
     TokenClassificationData,
 )
 from platform_common.utils import response
-from prometheus_client import Summary
+from prometheus_client import Summary, Counter, Histogram
 from reporter import Reporter
 from thirdai import neural_db as ndb
 from throughput import Throughput
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
+
+udt_predict_query_counter = Counter(
+    "text_length_total", "Total length of text processed"
+)
+udt_predict_query_length_histogram = Histogram(
+    "text_length_histogram", "Distribution of text length processed"
+)
 
 
 class UDTRouter:
@@ -141,6 +148,10 @@ class UDTRouter:
         ```
         """
         start_time = time.perf_counter()
+
+        text_length = len(params.text)
+        udt_predict_query_counter.inc(text_length)
+        udt_predict_query_length_histogram.observe(text_length)
 
         results = self.model.predict(**params.model_dump())
 

@@ -174,12 +174,12 @@ func (t *TrainRouter) createModelAndStartTraining(
 
 	err = t.db.Transaction(func(db *gorm.DB) error {
 		if model.BaseModelId != nil {
-			exists, err := schema.ModelExists(db, *model.BaseModelId)
+			baseModel, err := schema.GetModel(*model.BaseModelId, db, false, true, false)
 			if err != nil {
-				return err
+				return fmt.Errorf("error retrieving specified base model %v: %w", *model.BaseModelId, err)
 			}
-			if !exists {
-				return fmt.Errorf("base model %v does not exist", *model.BaseModelId)
+			if baseModel.Type != model.Type {
+				return fmt.Errorf("specified base model has type %v but new model has type %v", baseModel.Type, model.Type)
 			}
 		}
 

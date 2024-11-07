@@ -29,6 +29,14 @@ type Model struct {
 	Team   *Team
 }
 
+func (m *Model) GetAttributes() map[string]string {
+	attrs := make(map[string]string)
+	for _, attr := range m.Attributes {
+		attrs[attr.Key] = attr.Value
+	}
+	return attrs
+}
+
 type ModelAttribute struct {
 	ModelId string `gorm:"primaryKey"`
 	Key     string `gorm:"primaryKey"`

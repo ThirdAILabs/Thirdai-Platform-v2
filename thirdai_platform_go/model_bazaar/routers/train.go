@@ -1,8 +1,6 @@
 package routers
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"mime"
@@ -30,7 +28,7 @@ type TrainRouter struct {
 	userAuth *auth.JwtManager
 	jobAuth  *auth.JwtManager
 
-	license   licensing.LicenseVerifier
+	license   *licensing.LicenseVerifier
 	variables *Variables
 }
 
@@ -102,7 +100,7 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 
 	options.JobOptions.EnsureValid()
 
-	license, err := t.verifyLicenseForTraining(options.JobOptions.CpuUsageMhz())
+	license, err := verifyLicenseForNewJob(t.nomad, t.license, options.JobOptions.CpuUsageMhz())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -136,32 +134,12 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 	writeJsonResponse(w, map[string]string{"model_id": modelId})
 }
 
-func (t *TrainRouter) verifyLicenseForTraining(jobCpuUsage int) (string, error) {
-	currentCpuUsage, err := t.nomad.TotalCpuUsage()
-	if err != nil {
-		return "", err
-	}
-
-	license, err := t.license.Verify(currentCpuUsage + jobCpuUsage)
-	if err != nil {
-		return "", err
-	}
-
-	return license.BoltLicenseKey, nil
-}
-
 func (t *TrainRouter) createModelAndStartTraining(
 	modelName, modelType, userId string, trainConfig config.TrainConfig,
 ) error {
-	trainConfigData, err := json.Marshal(trainConfig)
+	configPath, err := saveConfig(trainConfig.ModelId, "train", trainConfig, t.storage)
 	if err != nil {
-		return fmt.Errorf("error encoding train config: %w", err)
-	}
-
-	configPath := filepath.Join(storage.ModelPath(trainConfig.ModelId), "train_config.json")
-	err = t.storage.Write(configPath, bytes.NewReader(trainConfigData))
-	if err != nil {
-		return fmt.Errorf("error saving train config: %w", err)
+		return err
 	}
 
 	model := schema.Model{
@@ -213,9 +191,8 @@ func (t *TrainRouter) createModelAndStartTraining(
 		nomad.TrainJob{
 			JobName:    nomad.TrainJobName(model),
 			ConfigPath: configPath,
-			DriverType: t.variables.Driver.DriverType(),
 			Driver:     t.variables.Driver,
-			Resources: nomad.Resource{
+			Resources: nomad.Resources{
 				AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
 				AllocationMemory:    trainConfig.JobOptions.AllocationMemory,
 				AllocationMemoryMax: 60000,
@@ -223,7 +200,7 @@ func (t *TrainRouter) createModelAndStartTraining(
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to start training job: %w", err)
+		return fmt.Errorf("error starting train job: %w", err)
 	}
 
 	model.TrainStatus = schema.Starting

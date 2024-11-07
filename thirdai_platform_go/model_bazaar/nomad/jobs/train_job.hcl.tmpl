@@ -9,9 +9,9 @@ job "{{ .JobName }}" {
 
     task "server" {
 
-      {{ if eq .DriverType "docker" }}
+      {{ if isDocker .Driver }}
         driver = "docker"
-      {{ else if eq .DriverType "local" }}
+      {{ else if isLocal .Driver }}
         driver = "raw_exec"
       {{ end }}
 
@@ -21,7 +21,7 @@ job "{{ .JobName }}" {
       }
 
       config {
-        {{ if eq .DriverType "docker" }}
+        {{ if isDocker .Driver }}
           {{ with .Driver }}
           image = "{{ .Registry }}/{{ .ImageName }}:{{ .Tag }}"
           image_pull_timeout = "15m"
@@ -36,7 +36,7 @@ job "{{ .JobName }}" {
           {{ end }}
           command = "python3"
           args    = ["-m", "train_job.run", "--config", "{{ .ConfigPath }}"]
-        {{ else if eq .DriverType "local" }}
+        {{ else if isLocal .Driver }}
           command = "/bin/sh"
           args    = ["-c", "cd {{ with .Driver }}{{ .PlatformDir }} && {{ .PythonPath }}{{ end }} -m train_job.run --config {{ .ConfigPath }}"]
         {{ end }}

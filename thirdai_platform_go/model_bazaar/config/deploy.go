@@ -1,0 +1,10 @@
+package config
+
+type DeployConfig struct {
+	ModelId             string            `json:"model_id"`
+	ModelBazaarDir      string            `json:"model_bazaar_dir"`
+	ModelBazaarEndpoint string            `json:"model_bazaar_endpoint"`
+	LicenseKey          string            `json:"license_key"`
+	AutoscalingEnabled  bool              `json:"autoscaling_enabled"`
+	Options             map[string]string `json:"options"`
+}

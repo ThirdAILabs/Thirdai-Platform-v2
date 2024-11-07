@@ -33,7 +33,19 @@ type NomadHttpClient struct {
 }
 
 func NewHttpClient() NomadClient {
-	tmpl, err := template.ParseFS(jobTemplates, "jobs/*")
+	funcs := template.FuncMap{
+		"isLocal": func(d Driver) bool {
+			return d.DriverType() == "local"
+		},
+		"isDocker": func(d Driver) bool {
+			return d.DriverType() == "docker"
+		},
+		"replaceHyphen": func(s string) string {
+			return strings.Replace(s, "-", "_", -1)
+		},
+	}
+
+	tmpl, err := template.New("job_templates").Funcs(funcs).ParseFS(jobTemplates, "jobs/*")
 	if err != nil {
 		log.Panicf("error parsing job templates: %v", err)
 	}

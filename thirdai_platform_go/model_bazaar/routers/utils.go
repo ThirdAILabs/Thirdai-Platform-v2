@@ -1,11 +1,16 @@
 package routers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"thirdai_platform/model_bazaar/auth"
+	"thirdai_platform/model_bazaar/licensing"
+	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
+	"thirdai_platform/model_bazaar/storage"
 
 	"gorm.io/gorm"
 )
@@ -205,4 +210,33 @@ func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, tr
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func saveConfig(modelId string, jobType string, config interface{}, store storage.Storage) (string, error) {
+	trainConfigData, err := json.Marshal(config)
+	if err != nil {
+		return "", fmt.Errorf("error encoding train config: %w", err)
+	}
+
+	configPath := filepath.Join(storage.ModelPath(modelId), fmt.Sprintf("%v_config.json", jobType))
+	err = store.Write(configPath, bytes.NewReader(trainConfigData))
+	if err != nil {
+		return "", fmt.Errorf("error saving %v config: %w", jobType, err)
+	}
+
+	return configPath, nil
+}
+
+func verifyLicenseForNewJob(nomad nomad.NomadClient, license *licensing.LicenseVerifier, jobCpuUsage int) (string, error) {
+	currentCpuUsage, err := nomad.TotalCpuUsage()
+	if err != nil {
+		return "", err
+	}
+
+	licenseData, err := license.Verify(currentCpuUsage + jobCpuUsage)
+	if err != nil {
+		return "", err
+	}
+
+	return licenseData.BoltLicenseKey, nil
 }

@@ -39,7 +39,7 @@ func (p LocalDriver) DriverType() string {
 	return "local"
 }
 
-type Resource struct {
+type Resources struct {
 	AllocationMhz       int
 	AllocationMemory    int
 	AllocationMemoryMax int
@@ -54,12 +54,30 @@ type TrainJob struct {
 
 	ConfigPath string
 
-	DriverType string
-	Driver     Driver // Either DockerPlatform or LocalPlatform
+	Driver Driver
 
-	Resources Resource
+	Resources Resources
 }
 
 func (j TrainJob) TemplateName() string {
 	return "train_job.hcl.tmpl"
+}
+
+type DeployJob struct {
+	JobName string
+	ModelId string
+
+	ConfigPath     string
+	DeploymentName string
+
+	AutoscalingEnabled bool
+	AutoscalingMax     int
+
+	Driver Driver
+
+	Resources Resources
+}
+
+func (j DeployJob) TemplateName() string {
+	return "deploy_job.hcl.tmpl"
 }

@@ -41,11 +41,11 @@ type NDBData struct {
 }
 
 type TrainConfig struct {
+	ModelId             string  `json:"model_id"`
 	ModelBazaarDir      string  `json:"model_bazaar_dir"`
-	LicenseKey          string  `json:"license_key"`
 	ModelBazaarEndpoint string  `json:"model_bazaar_endpoint"`
 	UpdateToken         string  `json:"update_token"`
-	ModelId             string  `json:"model_id"`
+	LicenseKey          string  `json:"license_key"`
 	BaseModelId         *string `json:"base_model_id"`
 
 	ModelOptions interface{} `json:"model_options"`

@@ -1,11 +1,15 @@
 package routers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"thirdai_platform/model_bazaar/auth"
+	"thirdai_platform/model_bazaar/config"
+	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
+	"thirdai_platform/model_bazaar/storage"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -17,8 +21,11 @@ type DeployRouter struct {
 	db    *gorm.DB
 	nomad nomad.NomadClient
 
-	userAuth *auth.JwtManager
-	jobAuth  *auth.JwtManager
+	storage   storage.Storage
+	userAuth  *auth.JwtManager
+	jobAuth   *auth.JwtManager
+	variables *Variables
+	license   *licensing.LicenseVerifier
 }
 
 func (d *DeployRouter) Routes() chi.Router {
@@ -28,6 +35,7 @@ func (d *DeployRouter) Routes() chi.Router {
 		r.Use(d.userAuth.Verifier())
 		r.Use(d.userAuth.Authenticator())
 
+		r.Post("/start", d.Start)
 		r.Get("/permissions", d.Permissions)
 	})
 
@@ -45,7 +53,6 @@ func (d *DeployRouter) Routes() chi.Router {
 		r.Use(d.userAuth.Authenticator())
 		r.Use(auth.ModelPermissionOnly(d.db, auth.OwnerPermission))
 
-		r.Post("/start", d.Start)
 		r.Post("/stop", d.Stop)
 	})
 
@@ -95,8 +102,129 @@ func (d *DeployRouter) Permissions(w http.ResponseWriter, r *http.Request) {
 	writeJsonResponse(w, res)
 }
 
-func (d *DeployRouter) Start(w http.ResponseWriter, r *http.Request) {
+func (d *DeployRouter) deployModel(modelId, userId string, autoscalingEnabled bool, autoscalingMax int, memory int, deploymentName string) error {
+	var nomadErr error = nil
+	err := d.db.Transaction(func(txn *gorm.DB) error {
+		perm, err := auth.GetModelPermissions(modelId, userId, txn)
+		if err != nil {
+			return fmt.Errorf("unable to retrieve permission for model: %w", err)
+		}
+		if perm < auth.OwnerPermission {
+			return fmt.Errorf("user %v does not have permission to deploy model %v", userId, modelId)
+		}
 
+		model, err := schema.GetModel(modelId, txn, false, true, false)
+		if err != nil {
+			return err
+		}
+
+		if model.DeployStatus == schema.Starting || model.DeployStatus == schema.InProgress || model.DeployStatus == schema.Complete {
+			return nil
+		}
+
+		// TODO(Nicholas) : autotune memory from metadata if present
+		resources := nomad.Resources{
+			AllocationMhz:       2400,
+			AllocationMemory:    memory,
+			AllocationMemoryMax: 4 * memory,
+		}
+
+		license, err := verifyLicenseForNewJob(d.nomad, d.license, resources.AllocationMhz)
+		if err != nil {
+			return err
+		}
+
+		attrs := model.GetAttributes()
+
+		config := config.DeployConfig{
+			ModelId:             model.Id,
+			ModelBazaarDir:      d.storage.Location(),
+			ModelBazaarEndpoint: d.variables.ModelBazaarEndpoint,
+			LicenseKey:          license,
+			AutoscalingEnabled:  autoscalingEnabled,
+			Options:             attrs,
+		}
+
+		configPath, err := saveConfig(config.ModelId, "deploy", config, d.storage)
+		if err != nil {
+			return err
+		}
+
+		nomadErr = d.nomad.StartJob(
+			nomad.DeployJob{
+				JobName:            nomad.DeployJobName(model),
+				ModelId:            model.Id,
+				ConfigPath:         configPath,
+				DeploymentName:     deploymentName,
+				AutoscalingEnabled: autoscalingEnabled,
+				AutoscalingMax:     autoscalingMax,
+				Driver:             d.variables.Driver,
+				Resources:          resources,
+			},
+		)
+		var newStatus string
+		if nomadErr != nil {
+			newStatus = schema.Failed
+		} else {
+			newStatus = schema.Starting
+		}
+
+		result := txn.Model(&model).Update("deploy_status", newStatus)
+		if result.Error != nil {
+			return schema.NewDbError("updating model deploy status", result.Error)
+		}
+
+		return nil
+	})
+
+	// TODO(nicholas): start on prem llm if needed
+
+	if jerr := errors.Join(err, nomadErr); jerr != nil {
+		return fmt.Errorf("error starting deployment for model %v: %w", modelId, jerr)
+	}
+
+	return nil
+}
+
+type startRequest struct {
+	ModelId            string `json:"model_id"`
+	DeploymentName     string `json:"deployment_name"`
+	AutoScalingEnabled bool   `json:"autoscaling_enabled"`
+	AutoscalingMax     int    `json:"autoscaling_max"`
+	Memory             int    `json:"memory"`
+}
+
+func (d *DeployRouter) Start(w http.ResponseWriter, r *http.Request) {
+	userId, err := auth.UserIdFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var params startRequest
+	if !parseRequestBody(w, r, &params) {
+		return
+	}
+
+	deps, err := listModelDependencies(params.ModelId, d.db)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	for _, dep := range deps {
+		name := ""
+		if dep.Id == params.ModelId {
+			name = params.DeploymentName
+		}
+		err := d.deployModel(dep.Id, userId, params.AutoScalingEnabled, params.AutoscalingMax, params.Memory, name)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (d *DeployRouter) Stop(w http.ResponseWriter, r *http.Request) {

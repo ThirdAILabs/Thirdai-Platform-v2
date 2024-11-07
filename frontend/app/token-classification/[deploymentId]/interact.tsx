@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { Button } from '@/components/ui/button';
 import React, { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import * as _ from 'lodash';
 import { useTokenClassificationEndpoints } from '@/lib/backend';
 import {
@@ -30,6 +30,7 @@ import {
   convertCSVToPDFFormat,
   ParsedData,
 } from '@/utils/fileParsingUtils';
+import TimerIcon from '@mui/icons-material/Timer';
 
 interface Token {
   text: string;
@@ -246,7 +247,7 @@ export default function Interact() {
   const [selecting, setSelecting] = useState<boolean>(false);
   const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(null);
   const [selectedRange, setSelectedRange] = useState<[number, number] | null>(null);
-
+  const [processingTime, setProcessingTime] = useState<number | undefined>();
   const startIndex =
     mouseDownIndex !== null && mouseUpIndex !== null
       ? Math.min(mouseDownIndex, mouseUpIndex)
@@ -370,9 +371,10 @@ export default function Interact() {
     setIsLoading(true);
     try {
       const result = await predict(text);
-      updateTagColors(result.predicted_tags);
+      updateTagColors(result.prediction_results.predicted_tags);
+      setProcessingTime(result.time_taken);
       setAnnotations(
-        _.zip(result.tokens, result.predicted_tags).map(([text, tag]) => ({
+        _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(([text, tag]) => ({
           text: text as string,
           tag: (tag as string[])[0],
         }))
@@ -942,6 +944,7 @@ export default function Interact() {
               >
                 {renderContent()}
               </Card>
+
             </Box>
           )
         )}
@@ -952,6 +955,17 @@ export default function Interact() {
           marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
         }}
       >
+        <Card className='mb-5 pt-5'>
+          <CardContent>
+            <div className='flex flex-row'>
+              <TimerIcon color="primary" />
+              Inference Time
+              <Typography>
+                {" : "}{processingTime && (Number(processingTime) * 1000).toFixed(2)} milliseconds
+              </Typography>
+            </div>
+          </CardContent>
+        </Card>
         <Card className="p-7 text-start">
           <FeedbackDashboard
             cachedTags={cachedTags}

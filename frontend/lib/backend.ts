@@ -1122,8 +1122,12 @@ export interface TokenClassificationResult {
   tokens: string[];
   predicted_tags: string[][];
 }
+export interface PredictionResponse {
+  prediction_results: TokenClassificationResult;
+  time_taken: number;
+}
 
-interface InsertSamplePayload {
+export interface InsertSamplePayload {
   tokens: string[];
   tags: string[];
 }
@@ -1163,7 +1167,7 @@ export function useTokenClassificationEndpoints() {
     init();
   }, []);
 
-  const predict = async (query: string): Promise<TokenClassificationResult> => {
+  const predict = async (query: string): Promise<PredictionResponse> => {
     // Set the default authorization header for axios
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
     try {

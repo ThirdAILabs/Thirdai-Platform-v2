@@ -4,6 +4,8 @@ http:
       rule: "(PathPrefix(`/api`) && !PathPrefix(`/api/auth`))"
       priority: 10
       service: "modelbazaar-service"
+      middlewares:
+        - "limit-body-size"
 
     frontend-http:
       rule: "(PathPrefix(`/api/auth`) || PathPrefix(`/`))"
@@ -20,3 +22,9 @@ http:
       loadBalancer:
         servers:
           - url: "http://localhost:3006"
+
+  middlewares:
+    limit-body-size:
+      buffering:
+        maxRequestBodyBytes: 524288000
+        memRequestBodyBytes: 20971520

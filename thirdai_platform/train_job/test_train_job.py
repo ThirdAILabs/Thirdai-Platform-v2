@@ -175,6 +175,7 @@ def test_ndbv2_train(feedback_train_file):
 
 def test_udt_text_train():
     licensing.activate(THIRDAI_LICENSE)
+    os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
@@ -220,6 +221,7 @@ def test_udt_text_train():
 
 def test_udt_token_train():
     licensing.activate(THIRDAI_LICENSE)
+    os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,

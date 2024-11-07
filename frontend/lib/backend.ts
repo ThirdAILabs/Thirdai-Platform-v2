@@ -1375,13 +1375,13 @@ export function useTextClassificationEndpoints() {
   const predict = async (query: string): Promise<PredictionResult> => {
     // Set the default authorization header for axios
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-    
+
     try {
       const response = await axios.post<PredictionResult>(`${deploymentUrl}/predict`, {
         text: query,
         top_k: 5,
       });
-      
+
       // Return the full response data structure
       return response.data;
     } catch (error) {

@@ -9,7 +9,7 @@ import * as _ from 'lodash';
 import { useTextClassificationEndpoints } from '@/lib/backend';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { parseCSV, parseExcel, parseTXT } from '@/utils/fileParsingUtils';
-import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay'
+import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 
 interface ParsedData {
   type: 'csv' | 'pdf' | 'other';
@@ -94,7 +94,10 @@ export default function Page() {
       const result = await predict(text);
       console.log('result', result);
       setPredictions(
-        result.prediction_results.predicted_classes.map(([name, score]) => [name, Math.floor(score * 100)])
+        result.prediction_results.predicted_classes.map(([name, score]) => [
+          name,
+          Math.floor(score * 100),
+        ])
       );
       setProcessingTime(result.time_taken);
     } catch (error) {
@@ -128,12 +131,10 @@ export default function Page() {
           </Card>
         ))}
       </div>
-  
+
       {/* Right side - Inference Time */}
       <div style={{ flex: 1 }}>
-        {processingTime !== undefined && (
-          <InferenceTimeDisplay processingTime={processingTime} />
-        )}
+        {processingTime !== undefined && <InferenceTimeDisplay processingTime={processingTime} />}
       </div>
     </Box>
   );

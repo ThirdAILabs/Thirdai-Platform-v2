@@ -31,7 +31,7 @@ import {
   ParsedData,
 } from '@/utils/fileParsingUtils';
 // import TimerIcon from '@mui/icons-material/Timer';
-import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay'
+import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 
 interface Token {
   text: string;
@@ -53,7 +53,6 @@ type CachedTagEntry = Token[] | ColumnData;
 interface CachedTags {
   [key: string]: CachedTagEntry;
 }
-
 
 // import { TimerIcon } from 'lucide-react';
 
@@ -985,9 +984,7 @@ export default function Interact() {
           marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
         }}
       >
-        {processingTime !== undefined && (
-          <InferenceTimeDisplay processingTime={processingTime} />
-        )}
+        {processingTime !== undefined && <InferenceTimeDisplay processingTime={processingTime} />}
 
         <Card className="p-7 text-start">
           <FeedbackDashboard

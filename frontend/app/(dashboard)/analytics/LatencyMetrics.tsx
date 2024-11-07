@@ -8,9 +8,7 @@ const LatencyMetrics = () => {
       <Card>
         <CardHeader>
           <CardTitle>Model Performance Metrics</CardTitle>
-          <CardDescription>
-            Real-time latency metrics based on production inference
-          </CardDescription>
+          <CardDescription>Real-time latency metrics based on production inference</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-6">

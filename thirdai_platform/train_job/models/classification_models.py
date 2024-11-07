@@ -464,8 +464,8 @@ class TokenClassificationModel(ClassificationModel):
 
         for index in df.index:
             row = df.loc[index]
-            tokens = row[self.tkn_cls_vars.source_column].split()
-            tags = row[self.tkn_cls_vars.target_column].split()
+            tokens = str(row[self.tkn_cls_vars.source_column]).split()
+            tags = str(row[self.tkn_cls_vars.target_column]).split()
             assert len(tokens) == len(tags)
 
             sample = DataSample(

@@ -11,6 +11,7 @@ import { useSearchParams } from 'next/navigation';
 import { getWorkflowDetails, deploymentBaseUrl } from '@/lib/backend';
 import _ from 'lodash';
 import { Workflow, fetchWorkflows } from '@/lib/backend';
+import LatencyMetrics from './LatencyMetrics';  // Add this import
 
 function AnalyticsContent() {
   const [isClient, setIsClient] = useState(false);
@@ -92,6 +93,10 @@ function AnalyticsContent() {
     return (
       <div className="container mx-auto px-4 py-8">
         {modelName && deploymentUrl && (
+          <>
+          <div className="mb-6">
+              <LatencyMetrics />  {/* Add this line */}
+          </div>
           <ModelUpdate
             username={username}
             modelName={modelName}
@@ -99,6 +104,7 @@ function AnalyticsContent() {
             workflowNames={workflowNames}
             deployStatus={deployStatus}
           />
+          </>
         )}
       </div>
     );

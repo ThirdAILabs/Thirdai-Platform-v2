@@ -34,7 +34,6 @@ udt_query_count = Counter("udt_query_count", "Total number of queries processed"
 udt_query_length_summary = Summary(
     "udt_query_length_summary", "Distribution of query lengths"
 )
-udt_latest_query_length = Gauge("udt_latest_query_length", "Length of the latest query")
 
 
 class UDTRouter:
@@ -152,7 +151,6 @@ class UDTRouter:
 
         text_length = len(params.text.split())
         udt_query_length_summary.observe(text_length)
-        udt_latest_query_length.set(text_length)
 
         results = self.model.predict(**params.model_dump())
 

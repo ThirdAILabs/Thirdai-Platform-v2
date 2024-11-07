@@ -69,7 +69,6 @@ type ModelDependency struct {
 	ModelId   string `json:"model_id"`
 	ModelName string `json:"model_name"`
 	Type      string `json:"type"`
-	Subtype   string `json:"sub_type"`
 	Username  string `json:"username"`
 }
 
@@ -77,7 +76,6 @@ type ModelInfo struct {
 	ModelId      string  `json:"model_id"`
 	ModelName    string  `json:"model_name"`
 	Type         string  `json:"type"`
-	Subtype      string  `json:"sub_type"`
 	Access       string  `json:"access"`
 	TrainStatus  string  `json:"train_status"`
 	DeployStatus string  `json:"deploy_status"`
@@ -112,7 +110,6 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 			ModelId:   dep.ModelId,
 			ModelName: dep.Model.Name,
 			Type:      dep.Model.Type,
-			Subtype:   dep.Model.Subtype,
 			Username:  dep.Model.User.Username,
 		})
 	}
@@ -121,7 +118,6 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 		ModelId:      model.Id,
 		ModelName:    model.Name,
 		Type:         model.Type,
-		Subtype:      model.Subtype,
 		Access:       model.Access,
 		TrainStatus:  trainStatus,
 		DeployStatus: deployStatus,

@@ -122,13 +122,7 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 		IsRetraining:        false,
 	}
 
-	subtype, err := options.ModelOptions.SubType()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	err = t.createModelAndStartTraining(options.ModelName, schema.NdbType, subtype, userId, trainConfig)
+	err = t.createModelAndStartTraining(options.ModelName, schema.NdbModel, userId, trainConfig)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error starting ndb training: %v", err), http.StatusBadRequest)
 		return
@@ -152,7 +146,7 @@ func (t *TrainRouter) verifyLicenseForTraining(jobCpuUsage int) (string, error) 
 }
 
 func (t *TrainRouter) createModelAndStartTraining(
-	modelName, modelType, modelSubtype, userId string, trainConfig config.TrainConfig,
+	modelName, modelType, userId string, trainConfig config.TrainConfig,
 ) error {
 	trainConfigData, err := json.Marshal(trainConfig)
 	if err != nil {
@@ -169,7 +163,6 @@ func (t *TrainRouter) createModelAndStartTraining(
 		Id:                trainConfig.ModelId,
 		Name:              modelName,
 		Type:              modelType,
-		Subtype:           modelSubtype,
 		PublishedDate:     time.Now(),
 		TrainStatus:       schema.NotStarted,
 		DeployStatus:      schema.NotStarted,

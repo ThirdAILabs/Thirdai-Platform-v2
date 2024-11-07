@@ -5,9 +5,9 @@ import "time"
 type Model struct {
 	Id string `gorm:"primaryKey"`
 
-	Name          string
-	Type          string
-	Subtype       string
+	Name string
+	Type string
+
 	PublishedDate time.Time
 
 	TrainStatus  string

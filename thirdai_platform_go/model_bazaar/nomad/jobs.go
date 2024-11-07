@@ -6,11 +6,11 @@ import (
 )
 
 func TrainJobName(model schema.Model) string {
-	return fmt.Sprintf("train-%v-%v-%v", model.Id, model.Type, model.Subtype)
+	return fmt.Sprintf("train-%v-%v", model.Id, model.Type)
 }
 
 func DeployJobName(model schema.Model) string {
-	return fmt.Sprintf("deploy-%v-%v-%v", model.Id, model.Type, model.Subtype)
+	return fmt.Sprintf("deploy-%v-%v", model.Id, model.Type)
 }
 
 type Driver interface {

@@ -41,16 +41,7 @@ func CheckValidPermission(permission string) error {
 }
 
 const (
-	NlpType = "nlp"
-	NdbType = "ndb"
-)
-
-const (
-	NlpTokenSubtype = "token"
-	NlpTextSubtype  = "text"
-)
-
-const (
-	NdbV1Subtype = "v1"
-	NdbV2Subtype = "v2"
+	NdbModel      = "ndb"
+	NlpTokenModel = "nlp-token"
+	NlpTextModel  = "nlp-text"
 )

@@ -18,19 +18,14 @@ def reservoir_sampling(
     if len(candidates) == 0:
         return []
 
-    if current_size < reservoir_size:
-        if reservoir_size - current_size > len(candidates):
-            return candidates
-        else:
-            return random.sample(candidates, (reservoir_size - current_size))
+    if reservoir_size - current_size > len(candidates):
+        return candidates
 
     items_to_add = []
     for candidate in candidates:
         total_items_seen += 1
         # Reservoir full, decide whether to replace an existing item
-        probability = recency_multipler * (
-            reservoir_size / (total_items_seen + reservoir_size)
-        )
+        probability = recency_multipler * (reservoir_size / (total_items_seen + 1))
         if random.random() <= probability:
             items_to_add.append(candidate)
         # Else, discard the candidate

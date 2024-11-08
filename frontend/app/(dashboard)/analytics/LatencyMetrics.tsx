@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tag, Clock, Database, Zap } from 'lucide-react';
 import { useLabels } from '@/lib/backend';
+
 
 interface PerformanceData {
   avg_time_per_sample: number;
@@ -22,48 +23,45 @@ const LatencyMetrics = ({ deploymentUrl, performanceData }: LatencyMetricsProps)
     recentLabels,
     error: labelError,
     isLoading: isLoadingLabels,
+    refresh: refreshLabels,
   } = useLabels({ deploymentUrl });
 
   // Create a set of unique labels and convert it back to an array
   const uniqueLabels = Array.from(new Set(recentLabels));
   const numLabels = uniqueLabels.length;
 
+  useEffect(() => {
+    refreshLabels();
+  }, [refreshLabels]);
+
   // If still loading or no performance data, return null
   if (isLoadingLabels || !performanceData) {
     return null;
   }
 
-  // Performance data for different model sizes
-  const modelData = {
-    5: {
-      avg_time_per_sample: 0.00140074630305171,
-      avg_time_per_token: 6.0522040020554004e-05,
-      throughput: 16522.90636040008,
-      total_time: 14.007463030517101,
-      total_tokens: 231444,
-      total_samples: 10000
-    },
-    10: {
-      avg_time_per_sample: 0.0009167316736653447,
-      avg_time_per_token: 3.946547476463791e-05,
-      throughput: 25338.60306923321,
-      total_time: 9.167316736653447,
-      total_tokens: 232287,
-      total_samples: 10000
-    },
-    16: {
-      avg_time_per_sample: 0.0009164524495601654,
-      avg_time_per_token: 3.9399177563880944e-05,
-      throughput: 25381.240468246386,
-      total_time: 9.164524495601654,
-      total_tokens: 232607,
-      total_samples: 10000
-    }
-  };
+  let relevantPerformanceData;
 
-  // Get the correct performance data based on number of labels
-  const relevantPerformanceData = modelData[numLabels as keyof typeof modelData];
-  
+  if (numLabels < 5) {
+    relevantPerformanceData = {
+      avg_time_per_sample: (0.00140074630305171 - ((0.0009164524495601654 - 0.00140074630305171) / 11) * numLabels),
+      avg_time_per_token: (6.0522040020554004e-05 - ((3.9399177563880944e-05 - 6.0522040020554004e-05) / 11) * numLabels),
+      throughput: (16522.90636040008 - ((25381.240468246386 - 16522.90636040008) / 11) * numLabels),
+      total_time: (14.007463030517101 - ((9.164524495601654 - 14.007463030517101) / 11) * numLabels),
+      total_tokens: (231444 - ((232607 - 231444) / 11) * numLabels),
+      total_samples: (10000)
+    };
+  }
+  else {
+    relevantPerformanceData = {
+      avg_time_per_sample: (0.00140074630305171 + ((0.0009164524495601654 - 0.00140074630305171) / 11) * numLabels),
+      avg_time_per_token: (6.0522040020554004e-05 + ((3.9399177563880944e-05 - 6.0522040020554004e-05) / 11) * numLabels),
+      throughput: (16522.90636040008 + ((25381.240468246386 - 16522.90636040008) / 11) * numLabels),
+      total_time: (14.007463030517101 + ((9.164524495601654 - 14.007463030517101) / 11) * numLabels),
+      total_tokens: (231444 + ((232607 - 231444) / 11) * numLabels),
+      total_samples: (10000)
+    };
+  }
+
   // If we don't have performance data for this number of labels, return null
   if (!relevantPerformanceData) {
     return null;

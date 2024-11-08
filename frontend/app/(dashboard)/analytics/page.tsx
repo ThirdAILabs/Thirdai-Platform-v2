@@ -94,7 +94,7 @@ function AnalyticsContent() {
       <div className="container mx-auto px-4 py-8">
         {modelName && deploymentUrl && (
           <>
-            <div className="mb-6">
+            {/* <div className="mb-6">
               <LatencyMetrics 
                 deploymentUrl={deploymentUrl}
                 performanceData={{
@@ -106,7 +106,7 @@ function AnalyticsContent() {
                   total_samples: 10000
                 }}
               />
-            </div>
+            </div> */}
             <ModelUpdate
               username={username}
               modelName={modelName}

@@ -186,9 +186,9 @@ class UDTBaseRouter:
                     "queries_ingested_bytes": self.queries_ingested_bytes.past_hour(),
                 },
                 "total": {
-                    "tokens_identified": self.tokens_identified.total(),
-                    "queries_ingested": self.queries_ingested.total(),
-                    "queries_ingested_bytes": self.queries_ingested.total(),
+                    "tokens_identified": self.tokens_identified.past_hour(),
+                    "queries_ingested": self.queries_ingested.past_hour(),
+                    "queries_ingested_bytes": self.queries_ingested_bytes.past_hour(),
                 },
                 "uptime": int(time.time() - self.start_time),
             },

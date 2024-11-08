@@ -5,7 +5,6 @@ try:
     import sys
     import time
     import traceback
-    from functools import wraps
     from pathlib import Path
     from typing import Any
 
@@ -15,7 +14,6 @@ try:
     from deployment_job.routers.enterprise_search import EnterpriseSearchRouter
     from deployment_job.routers.ndb import NDBRouter
     from deployment_job.routers.udt import UDTRouter
-    from deployment_job.utils import delete_deployment_job
     from fastapi import FastAPI, Request
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse

@@ -175,6 +175,7 @@ def test_ndbv2_train(feedback_train_file):
 
 def test_udt_text_train():
     licensing.activate(THIRDAI_LICENSE)
+    os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
@@ -190,12 +191,20 @@ def test_udt_text_train():
             supervised_files=[
                 FileInfo(
                     path=os.path.join(file_dir(), "articles.csv"), location="local"
-                )
+                ),
+                FileInfo(
+                    path="https://csg100320028d93f3bc.blob.core.windows.net/test/articles.csv",
+                    location="azure",
+                ),
             ],
             test_files=[
                 FileInfo(
                     path=os.path.join(file_dir(), "articles.csv"), location="local"
-                )
+                ),
+                FileInfo(
+                    path="https://csg100320028d93f3bc.blob.core.windows.net/test/articles.csv",
+                    location="azure",
+                ),
             ],
         ),
         job_options=JobOptions(),
@@ -212,6 +221,7 @@ def test_udt_text_train():
 
 def test_udt_token_train():
     licensing.activate(THIRDAI_LICENSE)
+    os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
@@ -228,10 +238,18 @@ def test_udt_token_train():
         ),
         data=UDTData(
             supervised_files=[
-                FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local")
+                FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local"),
+                FileInfo(
+                    path="https://csg100320028d93f3bc.blob.core.windows.net/test/ner.csv",
+                    location="azure",
+                ),
             ],
             test_files=[
-                FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local")
+                FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local"),
+                FileInfo(
+                    path="https://csg100320028d93f3bc.blob.core.windows.net/test/ner.csv",
+                    location="azure",
+                ),
             ],
         ),
         job_options=JobOptions(),

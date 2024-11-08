@@ -94,12 +94,12 @@ export default function Page() {
       const result = await predict(text);
       console.log('result', result);
       setPredictions(
-        result.prediction_results.predicted_classes.map(([name, score]) => [
+        result.data.prediction_results.predicted_classes.map(([name, score]) => [
           name,
           Math.floor(score * 100),
         ])
       );
-      setProcessingTime(result.time_taken);
+      setProcessingTime(result.data.time_taken);
     } catch (error) {
       console.error('Error during prediction:', error);
     } finally {

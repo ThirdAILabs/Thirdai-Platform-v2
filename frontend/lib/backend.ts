@@ -1333,11 +1333,15 @@ interface TextClassificationResult {
 }
 
 interface PredictionResult {
-  prediction_results: {
-    query_text: string;
-    predicted_classes: [string, number][];
+  status: string;
+  message: string;
+  data: {
+    prediction_results: {
+      query_text: string;
+      predicted_classes: [string, number][];
+    };
+    time_taken: number;
   };
-  time_taken: number;
 }
 
 export function useTextClassificationEndpoints() {

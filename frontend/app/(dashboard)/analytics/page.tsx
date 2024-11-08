@@ -95,7 +95,17 @@ function AnalyticsContent() {
         {modelName && deploymentUrl && (
           <>
             <div className="mb-6">
-              <LatencyMetrics /> {/* Add this line */}
+              <LatencyMetrics 
+                deploymentUrl={deploymentUrl}
+                performanceData={{
+                  avg_time_per_sample: 0.0009167316736653447,
+                  avg_time_per_token: 3.946547476463791e-05,
+                  throughput: 25338.60306923321,
+                  total_time: 9.167316736653447,
+                  total_tokens: 232287,
+                  total_samples: 10000
+                }}
+              />
             </div>
             <ModelUpdate
               username={username}

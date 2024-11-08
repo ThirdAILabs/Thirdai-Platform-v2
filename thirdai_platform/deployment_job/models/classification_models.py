@@ -49,6 +49,102 @@ class ClassificationModel(Model):
     def predict(self, **kwargs):
         pass
 
+
+class TextClassificationModel(ClassificationModel):
+    def __init__(self, config: DeploymentConfig, logger: Logger):
+        super().__init__(config=config, logger=logger)
+        self.num_classes = self.model.predict({"text": "test"}).shape[-1]
+        self.logger.info(
+            f"TextClassificationModel initialized with {self.num_classes} classes"
+        )
+        self.load_storage()
+
+    def load_storage(self):
+        data_storage_path = (
+            Path(self.config.model_bazaar_dir)
+            / "data"
+            / self.config.model_id
+            / "data_storage.db"
+        )
+
+        try:
+            if not data_storage_path.exists():
+                self.logger.info(f"Data storage path does not exist, creating it")
+
+                data_storage_path.parent.mkdir(parents=True, exist_ok=True)
+
+                # For text classification, get the class names from the model
+                labels = [self.model.class_name(i) for i in range(self.num_classes)]
+                tag_metadata = TagMetadata()
+                for label in labels:
+                    tag_metadata.add_tag(
+                        LabelEntity(name=label, status=LabelStatus.trained)
+                    )
+
+                # Connector will instantiate an sqlite db at the specified path if it doesn't exist
+                self.data_storage = DataStorage(
+                    connector=SQLiteConnector(db_path=data_storage_path)
+                )
+
+                self.data_storage.insert_metadata(
+                    Metadata(
+                        name="tags_and_status",
+                        data=tag_metadata,
+                        status=MetadataStatus.unchanged,
+                    )
+                )
+
+            else:
+                self.data_storage = DataStorage(
+                    connector=SQLiteConnector(db_path=data_storage_path)
+                )
+        except Exception as e:
+            self.logger.error(
+                f"Error loading data storage: {e} for the model {self.config.model_id}"
+            )
+            raise e
+
+    def predict(self, text: str, top_k: int, **kwargs):
+        top_k = min(top_k, self.num_classes)
+        self.logger.info(f"Predicting for text '{text}' with top_k={top_k}")
+        prediction = self.model.predict({"text": text}, top_k=top_k)
+        predicted_classes = [
+            (self.model.class_name(class_id), activation)
+            for class_id, activation in zip(*prediction)
+        ]
+
+        return SearchResultsTextClassification(
+            query_text=text,
+            predicted_classes=predicted_classes,
+        )
+
+    def insert_sample(self, sample: TextClassificationData):
+        self.logger.info(f"Inserting sample: {sample}")
+        text_sample = DataSample(
+            name="text_classification",
+            data=sample,
+            user_provided=True,
+            status=SampleStatus.untrained,
+        )
+        self.data_storage.insert_samples(
+            samples=[text_sample], override_buffer_limit=True
+        )
+
+    def get_recent_samples(self, num_samples: int = 5) -> List[TextClassificationData]:
+        recent_samples = self.data_storage.retrieve_samples(
+            name="text_classification",
+            num_samples=num_samples,
+            user_provided=True,  # Assuming we want user-provided samples
+        )
+
+        return [sample.data for sample in recent_samples]
+
+
+class TokenClassificationModel(ClassificationModel):
+    def __init__(self, config: DeploymentConfig, logger: Logger):
+        super().__init__(config=config, logger=logger)
+        self.load_storage()
+
     def load_storage(self):
         data_storage_path = (
             Path(self.config.model_bazaar_dir)
@@ -92,56 +188,6 @@ class ClassificationModel(Model):
                 f"Error loading data storage: {e} for the model {self.config.model_id}"
             )
             raise e
-
-
-class TextClassificationModel(ClassificationModel):
-    def __init__(self, config: DeploymentConfig, logger: Logger):
-        super().__init__(config=config, logger=logger)
-        self.num_classes = self.model.predict({"text": "test"}).shape[-1]
-        self.logger.info(
-            f"TextClassificationModel initialized with {self.num_classes} classes"
-        )
-
-    def predict(self, text: str, top_k: int, **kwargs):
-        top_k = min(top_k, self.num_classes)
-        self.logger.info(f"Predicting for text '{text}' with top_k={top_k}")
-        prediction = self.model.predict({"text": text}, top_k=top_k)
-        predicted_classes = [
-            (self.model.class_name(class_id), activation)
-            for class_id, activation in zip(*prediction)
-        ]
-
-        return SearchResultsTextClassification(
-            query_text=text,
-            predicted_classes=predicted_classes,
-        )
-
-    def insert_sample(self, sample: TextClassificationData):
-        self.logger.info(f"Inserting sample: {sample}")
-        text_sample = DataSample(
-            name="text_classification",
-            data=sample,
-            user_provided=True,
-            status=SampleStatus.untrained,
-        )
-        self.data_storage.insert_samples(
-            samples=[text_sample], override_buffer_limit=True
-        )
-
-    def get_recent_samples(self, num_samples: int = 5) -> List[TextClassificationData]:
-        recent_samples = self.data_storage.retrieve_samples(
-            name="text_classification",
-            num_samples=num_samples,
-            user_provided=True,  # Assuming we want user-provided samples
-        )
-
-        return [sample.data for sample in recent_samples]
-
-
-class TokenClassificationModel(ClassificationModel):
-    def __init__(self, config: DeploymentConfig, logger: Logger):
-        super().__init__(config=config, logger=logger)
-        self.load_storage()
 
     def predict(self, text: str, **kwargs):
         predicted_tags = self.model.predict({"source": text}, top_k=1, as_unicode=True)

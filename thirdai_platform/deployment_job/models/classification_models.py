@@ -101,6 +101,7 @@ class TextClassificationModel(ClassificationModel):
         self.logger.info(
             f"TextClassificationModel initialized with {self.num_classes} classes"
         )
+        self.load_storage()
 
     def predict(self, text: str, top_k: int, **kwargs):
         top_k = min(top_k, self.num_classes)

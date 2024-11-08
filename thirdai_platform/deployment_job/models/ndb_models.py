@@ -402,7 +402,7 @@ class NDBV2Model(NDBModel):
             id=chunk.chunk_id,
             text=chunk.text,
             source=self.full_source_path(chunk.document),
-            metadata=chunk.metadata,
+            metadata=chunk.metadata or {},
             context="",
             source_id=chunk.doc_id,
             score=score,

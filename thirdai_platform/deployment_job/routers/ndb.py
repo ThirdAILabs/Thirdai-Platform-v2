@@ -25,7 +25,15 @@ from deployment_job.pydantic_models.inputs import (
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
 from deployment_job.utils import validate_name
-from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Form,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from platform_common.file_handler import download_local_files, get_cloud_client
@@ -548,6 +556,7 @@ class NDBRouter:
     def save(
         self,
         input: SaveModel,
+        background_tasks: BackgroundTasks,
         token: str = Depends(Permissions.verify_permission("read")),
     ):
         """
@@ -602,27 +611,29 @@ class NDBRouter:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     message="You don't have permissions to override this model.",
                 )
+
+        background_tasks.add_task(self._perform_save, model_id, token, input.override)
+
+        return response(
+            status_code=status.HTTP_202_ACCEPTED,
+            message="Save operation initiated in the background.",
+            data={"new_model_id": model_id if not input.override else None},
+        )
+
+    def _perform_save(self, model_id: str, token: str, override: bool):
         try:
             self.model.save(model_id=model_id)
-            if not input.override:
+            if not override:
                 self.reporter.save_model(
                     access_token=token,
                     model_id=model_id,
                     base_model_id=self.config.model_id,
-                    model_name=input.model_name,
+                    model_name=model_id,
                     metadata={"thirdai_version": str(thirdai.__version__)},
                 )
+            self.logger.info("Successfully saved the model in the background.")
         except Exception as err:
-            self.logger.error(traceback.print_exc())
-            return response(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
-            )
-
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Successfully saved the model.",
-            data={"new_model_id": model_id if not input.override else None},
-        )
+            self.logger.error(f"Error in background save: {traceback.format_exc()}")
 
     def highlighted_pdf(
         self, reference_id: int, token=Depends(Permissions.verify_permission("read"))

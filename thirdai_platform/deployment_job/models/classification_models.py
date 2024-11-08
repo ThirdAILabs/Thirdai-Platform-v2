@@ -20,6 +20,7 @@ from platform_common.thirdai_storage.data_types import (
     SampleStatus,
     TagMetadata,
     TokenClassificationData,
+    TextClassificationData,
 )
 from platform_common.thirdai_storage.storage import DataStorage, SQLiteConnector
 from thirdai import bolt
@@ -47,55 +48,6 @@ class ClassificationModel(Model):
     @abstractmethod
     def predict(self, **kwargs):
         pass
-
-
-class TextClassificationModel(ClassificationModel):
-    def __init__(self, config: DeploymentConfig, logger: Logger):
-        super().__init__(config=config, logger=logger)
-        self.num_classes = self.model.predict({"text": "test"}).shape[-1]
-        self.logger.info(
-            f"TextClassificationModel initialized with {self.num_classes} classes"
-        )
-
-    def predict(self, text: str, top_k: int, **kwargs):
-        top_k = min(top_k, self.num_classes)
-        self.logger.info(f"Predicting for text '{text}' with top_k={top_k}")
-        prediction = self.model.predict({"text": text}, top_k=top_k)
-        predicted_classes = [
-            (self.model.class_name(class_id), activation)
-            for class_id, activation in zip(*prediction)
-        ]
-
-        return SearchResultsTextClassification(
-            query_text=text,
-            predicted_classes=predicted_classes,
-        )
-
-
-class TokenClassificationModel(ClassificationModel):
-    def __init__(self, config: DeploymentConfig, logger: Logger):
-        super().__init__(config=config, logger=logger)
-        self.load_storage()
-
-    def predict(self, text: str, **kwargs):
-        predicted_tags = self.model.predict({"source": text}, top_k=1, as_unicode=True)
-        predictions = []
-        for predicted_tag in predicted_tags:
-            predictions.append([x[0] for x in predicted_tag])
-
-        tokens = text.split()
-
-        if len(predictions) != len(tokens):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Error parsing input text, this is likely because the input contains unsupported unicode characters.",
-            )
-
-        return SearchResultsTokenClassification(
-            query_text=text,
-            tokens=tokens,
-            predicted_tags=predictions,
-        )
 
     def load_storage(self):
         data_storage_path = (
@@ -140,6 +92,76 @@ class TokenClassificationModel(ClassificationModel):
                 f"Error loading data storage: {e} for the model {self.config.model_id}"
             )
             raise e
+
+
+class TextClassificationModel(ClassificationModel):
+    def __init__(self, config: DeploymentConfig, logger: Logger):
+        super().__init__(config=config, logger=logger)
+        self.num_classes = self.model.predict({"text": "test"}).shape[-1]
+        self.logger.info(
+            f"TextClassificationModel initialized with {self.num_classes} classes"
+        )
+
+    def predict(self, text: str, top_k: int, **kwargs):
+        top_k = min(top_k, self.num_classes)
+        self.logger.info(f"Predicting for text '{text}' with top_k={top_k}")
+        prediction = self.model.predict({"text": text}, top_k=top_k)
+        predicted_classes = [
+            (self.model.class_name(class_id), activation)
+            for class_id, activation in zip(*prediction)
+        ]
+
+        return SearchResultsTextClassification(
+            query_text=text,
+            predicted_classes=predicted_classes,
+        )
+
+    def insert_sample(self, sample: TextClassificationData):
+        self.logger.info(f"Inserting sample: {sample}")
+        text_sample = DataSample(
+            name="text_classification",
+            data=sample,
+            user_provided=True,
+            status=SampleStatus.untrained,
+        )
+        self.data_storage.insert_samples(
+            samples=[text_sample], override_buffer_limit=True
+        )
+
+    def get_recent_samples(self, num_samples: int = 5) -> List[TextClassificationData]:
+        recent_samples = self.data_storage.retrieve_samples(
+            name="text_classification",
+            num_samples=num_samples,
+            user_provided=True,  # Assuming we want user-provided samples
+        )
+
+        return [sample.data for sample in recent_samples]
+
+
+class TokenClassificationModel(ClassificationModel):
+    def __init__(self, config: DeploymentConfig, logger: Logger):
+        super().__init__(config=config, logger=logger)
+        self.load_storage()
+
+    def predict(self, text: str, **kwargs):
+        predicted_tags = self.model.predict({"source": text}, top_k=1, as_unicode=True)
+        predictions = []
+        for predicted_tag in predicted_tags:
+            predictions.append([x[0] for x in predicted_tag])
+
+        tokens = text.split()
+
+        if len(predictions) != len(tokens):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Error parsing input text, this is likely because the input contains unsupported unicode characters.",
+            )
+
+        return SearchResultsTokenClassification(
+            query_text=text,
+            tokens=tokens,
+            predicted_tags=predictions,
+        )
 
     @property
     def tag_metadata(self) -> TagMetadata:

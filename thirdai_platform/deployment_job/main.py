@@ -14,13 +14,16 @@ try:
     from deployment_job.reporter import Reporter
     from deployment_job.routers.enterprise_search import EnterpriseSearchRouter
     from deployment_job.routers.ndb import NDBRouter
-    from deployment_job.routers.udt import UDTRouter
+    from deployment_job.routers.udt import (
+        UDTRouterTokenClassification,
+        UDTRouterTextClassification,
+    )
     from deployment_job.utils import delete_deployment_job
     from fastapi import FastAPI, Request
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse
     from platform_common.logging import setup_logger
-    from platform_common.pydantic_models.deployment import DeploymentConfig
+    from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
     from platform_common.pydantic_models.training import ModelType
     from prometheus_client import make_asgi_app
     from thirdai import licensing
@@ -138,7 +141,14 @@ async def async_timer() -> None:
 if config.model_options.model_type == ModelType.NDB:
     backend_router_factory = NDBRouter
 elif config.model_options.model_type == ModelType.UDT:
-    backend_router_factory = UDTRouter
+    if config.model_options.udt_sub_type == UDTSubType.token:
+        backend_router_factory = UDTRouterTokenClassification
+    elif config.model_options.udt_sub_type == UDTSubType.text:
+        backend_router_factory = UDTRouterTextClassification
+    else:
+        error_message = f"Unsupported UDT Type '{config.model_options.udt_sub_type}'."
+        logger.error(error_message)
+        raise ValueError(error_message)
 elif config.model_options.model_type == ModelType.ENTERPRISE_SEARCH:
     backend_router_factory = EnterpriseSearchRouter
 else:

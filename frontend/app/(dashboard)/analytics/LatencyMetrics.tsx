@@ -39,28 +39,14 @@ const LatencyMetrics = ({ deploymentUrl, performanceData }: LatencyMetricsProps)
     return null;
   }
 
-  let relevantPerformanceData;
-
-  if (numLabels < 5) {
-    relevantPerformanceData = {
-      avg_time_per_sample: (0.00140074630305171 - ((0.0009164524495601654 - 0.00140074630305171) / 11) * numLabels),
-      avg_time_per_token: (6.0522040020554004e-05 - ((3.9399177563880944e-05 - 6.0522040020554004e-05) / 11) * numLabels),
-      throughput: (16522.90636040008 - ((25381.240468246386 - 16522.90636040008) / 11) * numLabels),
-      total_time: (14.007463030517101 - ((9.164524495601654 - 14.007463030517101) / 11) * numLabels),
-      total_tokens: (231444 - ((232607 - 231444) / 11) * numLabels),
-      total_samples: (10000)
-    };
-  }
-  else {
-    relevantPerformanceData = {
-      avg_time_per_sample: (0.00140074630305171 + ((0.0009164524495601654 - 0.00140074630305171) / 11) * numLabels),
-      avg_time_per_token: (6.0522040020554004e-05 + ((3.9399177563880944e-05 - 6.0522040020554004e-05) / 11) * numLabels),
-      throughput: (16522.90636040008 + ((25381.240468246386 - 16522.90636040008) / 11) * numLabels),
-      total_time: (14.007463030517101 + ((9.164524495601654 - 14.007463030517101) / 11) * numLabels),
-      total_tokens: (231444 + ((232607 - 231444) / 11) * numLabels),
-      total_samples: (10000)
-    };
-  }
+  const relevantPerformanceData = {
+    avg_time_per_sample: (0.00140074630305171 - ((0.0009164524495601654 - 0.00140074630305171) / 11) * (5 - numLabels)),
+    avg_time_per_token: (6.0522040020554004e-05 - ((3.9399177563880944e-05 - 6.0522040020554004e-05) / 11) * (5 - numLabels)),
+    throughput: (16522.90636040008 - ((25381.240468246386 - 16522.90636040008) / 11) * (5 - numLabels)),
+    total_time: (14.007463030517101 - ((9.164524495601654 - 14.007463030517101) / 11) * (5 - numLabels)),
+    total_tokens: (231444 - ((232607 - 231444) / 11) * (5 - numLabels)),
+    total_samples: (10000)
+  };
 
   // If we don't have performance data for this number of labels, return null
   if (!relevantPerformanceData) {

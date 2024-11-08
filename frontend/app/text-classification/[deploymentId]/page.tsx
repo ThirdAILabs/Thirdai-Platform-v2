@@ -10,6 +10,27 @@ import { useTextClassificationEndpoints } from '@/lib/backend';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { parseCSV, parseExcel, parseTXT } from '@/utils/fileParsingUtils';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
+import { ThumbsUp } from 'lucide-react';
+
+const ThumbsUpButton = () => {
+  const [isActive, setIsActive] = useState(false);
+
+  return (
+    <button
+      onClick={() => setIsActive(!isActive)}
+      className={`p-2 rounded-full transition-all duration-200 ${isActive
+          ? 'bg-blue-100 text-blue-600'
+          : 'hover:bg-gray-100 text-gray-600'
+        }`}
+    >
+      <ThumbsUp
+        size={24}
+        className={`transition-transform duration-200 ${isActive ? 'scale-110 fill-current' : ''
+          }`}
+      />
+    </button>
+  );
+};
 
 interface ParsedData {
   type: 'csv' | 'pdf' | 'other';
@@ -126,6 +147,9 @@ export default function Page() {
               <div className="bg-gray-50 rounded-lg p-4 text-center min-w-[100px]">
                 <p className="text-sm text-muted-foreground mb-1">score</p>
                 <CardTitle className="text-xl">{prediction[1]}</CardTitle>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4 text-center min-w-[100px]">
+                <ThumbsUpButton></ThumbsUpButton>
               </div>
             </div>
           </Card>

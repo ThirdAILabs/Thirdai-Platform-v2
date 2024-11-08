@@ -20,9 +20,9 @@ const ThumbsUpButton: React.FC<ThumbsUpButtonProps> = ({ inputText, prediction }
     const accessToken = localStorage.getItem('accessToken');
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
     try {
-      await axios.post(`${deploymentBaseUrl}/add_sample`, {
-        inputText,
-        tag: prediction
+      await axios.post(`http://localhost/50b8ac76-8bf5-41eb-9628-e5eba05b196b/add_sample`, {
+        text: inputText,
+        label: prediction
       });
     } catch (error) {
       console.error('Error sending feedback:', error);

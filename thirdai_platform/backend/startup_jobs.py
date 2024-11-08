@@ -229,6 +229,13 @@ def create_promfile(promfile_path: str):
                 "job_name": "deployment-jobs",
                 "metrics_path": "/metrics",
                 "http_sd_configs": [{"url": deployment_targets_endpoint}],
+                "relabel_configs": [
+                    {
+                        "source_labels": ["model_id"],
+                        "target_label": "workload",
+                        "replacement": "deployment-${1}",
+                    }
+                ],
             },
         ],
     }

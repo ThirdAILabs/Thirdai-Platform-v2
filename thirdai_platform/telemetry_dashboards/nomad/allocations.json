@@ -44,6 +44,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "barWidthFactor": 0.6,
@@ -117,14 +118,14 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "increase(udt_query_count_total[1h])",
+          "expr": "sum (udt_query_count_total{job=\"deployment-jobs\",workload=\"$workload\"})",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Queries Processed (Last Hour)",
+      "title": "Queries Processed",
       "type": "timeseries"
     },
     {
@@ -215,7 +216,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "rate(udt_query_length_summary_sum[1h]) / rate(udt_query_length_summary_count[1h])",
+          "expr": "sum (udt_query_length_summary_sum{job=\"deployment-jobs\",workload=\"$workload\"}) / sum (udt_query_length_summary_count{job=\"deployment-jobs\",workload=\"$workload\"})\n",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -298,7 +299,7 @@
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "tooltip": {
           "mode": "single",
@@ -313,7 +314,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(udt_query_count_total[1h])",
+          "expr": "rate(sum (udt_query_count_total{job=\"deployment-jobs\",workload=\"$workload\"}))\n",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -414,14 +415,14 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "rate(udt_predict_sum[1h]) / rate(udt_predict_count[1h])",
+          "expr": "sum (udt_predict_sum{job=\"deployment-jobs\",workload=\"$workload\"}) / sum (udt_predict_count{job=\"deployment-jobs\",workload=\"$workload\"})\n",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average Query Time (in Seconds)",
+      "title": "Average inference time (in sec)",
       "type": "timeseries"
     },
     {
@@ -938,8 +939,8 @@
       {
         "current": {
           "selected": false,
-          "text": "deployment-246f1887-ce8c-4c8f-be2a-d6d60b00db60",
-          "value": "deployment-246f1887-ce8c-4c8f-be2a-d6d60b00db60"
+          "text": "deployment-2260f73e-91c8-43b2-b994-ea81d8133fee",
+          "value": "deployment-2260f73e-91c8-43b2-b994-ea81d8133fee"
         },
         "datasource": {
           "type": "prometheus",
@@ -999,6 +1000,6 @@
   "timezone": "",
   "title": "Allocations",
   "uid": "5XxwU0GVz",
-  "version": 15,
+  "version": 17,
   "weekStart": ""
 }

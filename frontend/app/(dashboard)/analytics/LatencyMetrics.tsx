@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tag, Clock, Database, Zap } from 'lucide-react';
 import { useLabels } from '@/lib/backend';
 
-
 interface PerformanceData {
   avg_time_per_sample: number;
   avg_time_per_token: number;
@@ -40,12 +39,17 @@ const LatencyMetrics = ({ deploymentUrl, performanceData }: LatencyMetricsProps)
   }
 
   const relevantPerformanceData = {
-    avg_time_per_sample: (0.00140074630305171 - ((0.0009164524495601654 - 0.00140074630305171) / 11) * (5 - numLabels)),
-    avg_time_per_token: (6.0522040020554004e-05 - ((3.9399177563880944e-05 - 6.0522040020554004e-05) / 11) * (5 - numLabels)),
-    throughput: (16522.90636040008 - ((25381.240468246386 - 16522.90636040008) / 11) * (5 - numLabels)),
-    total_time: (14.007463030517101 - ((9.164524495601654 - 14.007463030517101) / 11) * (5 - numLabels)),
-    total_tokens: (231444 - ((232607 - 231444) / 11) * (5 - numLabels)),
-    total_samples: (10000)
+    avg_time_per_sample:
+      0.00140074630305171 - ((0.0009164524495601654 - 0.00140074630305171) / 11) * (5 - numLabels),
+    avg_time_per_token:
+      6.0522040020554004e-5 -
+      ((3.9399177563880944e-5 - 6.0522040020554004e-5) / 11) * (5 - numLabels),
+    throughput:
+      16522.90636040008 - ((25381.240468246386 - 16522.90636040008) / 11) * (5 - numLabels),
+    total_time:
+      14.007463030517101 - ((9.164524495601654 - 14.007463030517101) / 11) * (5 - numLabels),
+    total_tokens: 231444 - ((232607 - 231444) / 11) * (5 - numLabels),
+    total_samples: 10000,
   };
 
   // If we don't have performance data for this number of labels, return null
@@ -70,9 +74,7 @@ const LatencyMetrics = ({ deploymentUrl, performanceData }: LatencyMetricsProps)
       <Card>
         <CardHeader>
           <CardTitle>Model Performance Metrics</CardTitle>
-          <CardDescription>
-            Performance metrics for {numLabels}-tag NER model
-          </CardDescription>
+          <CardDescription>Performance metrics for {numLabels}-tag NER model</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-4 gap-6">

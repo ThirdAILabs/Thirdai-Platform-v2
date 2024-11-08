@@ -15,7 +15,7 @@ def convert_to_ndb_file(
     Convert a file to an NDB file type based on its extension.
     """
     filename, ext = os.path.splitext(file)
-
+    ext = ext.lower()
     if ext == ".pdf":
         return ndb.PDF(file, metadata=metadata, save_extra_info=False, version="v1")
     elif ext == ".docx":

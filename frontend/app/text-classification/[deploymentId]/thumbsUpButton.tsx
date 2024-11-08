@@ -2,30 +2,30 @@ import { ThumbsUp } from 'lucide-react';
 import { Typography } from '@mui/material';
 import { useState } from 'react';
 import axios from 'axios';
+import { deploymentBaseUrl } from '@/lib/backend';
 
 interface ThumbsUpButtonProps {
   inputText: string;
-  prediction: [string, number][];
+  prediction: string;
 }
 
 const ThumbsUpButton: React.FC<ThumbsUpButtonProps> = ({ inputText, prediction }) => {
   const [isActive, setIsActive] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
-
   const handleFeedback = async () => {
     setIsActive(true);
     setFeedbackMessage('Feedback received');
 
     // Send feedback to backend
-    // try {
-    //   await axios.post('/logTextClassification', {
-    //     inputText,
-    //     tag: prediction[0][0]
-    //   });
-    // } catch (error) {
-    //   console.error('Error sending feedback:', error);
-    //   setFeedbackMessage('Error sending feedback');
-    // }
+    try {
+      await axios.post(`${deploymentBaseUrl}/add_sample`, {
+        inputText,
+        tag: prediction
+      });
+    } catch (error) {
+      console.error('Error sending feedback:', error);
+      setFeedbackMessage('Error sending feedback');
+    }
 
     // Reset the feedback message and thumbs-up icon after 5 seconds
     setTimeout(() => {

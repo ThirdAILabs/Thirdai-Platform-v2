@@ -128,7 +128,7 @@ export default function Page() {
                 <p className="text-sm text-muted-foreground mb-1">score</p>
                 <CardTitle className="text-xl">{prediction[1]}</CardTitle>
               </div>
-              <ThumbsUpButton />
+              <ThumbsUpButton inputText={inputText} prediction={prediction[0]} />
             </div>
           </Card>
         ))}

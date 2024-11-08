@@ -11,7 +11,10 @@ from typing import List
 
 import pandas as pd
 import thirdai
-from platform_common.file_handler import expand_cloud_buckets_and_directories
+from platform_common.file_handler import (
+    expand_cloud_buckets_and_directories,
+    get_local_file_infos,
+)
 from platform_common.pii.udt_common_patterns import find_common_pattern
 from platform_common.pydantic_models.training import (
     FileInfo,
@@ -34,7 +37,7 @@ from thirdai import bolt
 from train_job.exceptional_handler import apply_exception_handler
 from train_job.models.model import Model
 from train_job.reporter import Reporter
-from train_job.utils import check_csv_only, check_local_nfs_only
+from train_job.utils import check_csv_only
 
 
 @apply_exception_handler
@@ -55,19 +58,39 @@ class ClassificationModel(Model):
         )
         self.logger.info(f"Found {len(all_files)} supervised files.")
         check_csv_only(all_files)
-        check_local_nfs_only(all_files)
-        return all_files
+        self.temp_supervised_dir = tempfile.mkdtemp()
+        return get_local_file_infos(all_files, self.temp_supervised_dir)
 
     def test_files(self) -> List[FileInfo]:
         all_files = expand_cloud_buckets_and_directories(self.config.data.test_files)
         self.logger.info(f"Found {len(all_files)} test files.")
         check_csv_only(all_files)
-        check_local_nfs_only(all_files)
-        return all_files
+        self.temp_test_dir = tempfile.mkdtemp()
+        return get_local_file_infos(all_files, self.temp_test_dir)
 
     @abstractmethod
     def initialize_model(self):
         pass
+
+    def cleanup_temp_dirs(self):
+        """
+        Clean up temporary directories created for downloaded files.
+        """
+        if hasattr(self, "temp_supervised_dir") and os.path.isdir(
+            self.temp_supervised_dir
+        ):
+            shutil.rmtree(self.temp_supervised_dir)
+            self.logger.info(
+                f"Cleaned up supervised files temporary directory: {self.temp_supervised_dir}"
+            )
+            del self.temp_supervised_dir  # Remove attribute after cleanup
+
+        if hasattr(self, "temp_test_dir") and os.path.isdir(self.temp_test_dir):
+            shutil.rmtree(self.temp_test_dir)
+            self.logger.info(
+                f"Cleaned up test files temporary directory: {self.temp_test_dir}"
+            )
+            del self.temp_test_dir  # Remove attribute after cleanup
 
     def get_size(self):
         """
@@ -163,43 +186,47 @@ class TextClassificationModel(ClassificationModel):
         )
 
     def train(self, **kwargs):
-        self.reporter.report_status(self.config.model_id, "in_progress")
+        try:
+            self.reporter.report_status(self.config.model_id, "in_progress")
 
-        model = self.get_model()
+            model = self.get_model()
 
-        start_time = time.time()
-        for train_file in self.supervised_files():
-            self.logger.info(f"Training on supervised file: {train_file.path}")
-            model.train(
-                train_file.path,
-                epochs=self.train_options.supervised_epochs,
-                learning_rate=self.train_options.learning_rate,
-                batch_size=self.train_options.batch_size,
-                metrics=self.train_options.metrics,
+            start_time = time.time()
+            for train_file in self.supervised_files():
+                self.logger.info(f"Training on supervised file: {train_file.path}")
+                model.train(
+                    train_file.path,
+                    epochs=self.train_options.supervised_epochs,
+                    learning_rate=self.train_options.learning_rate,
+                    batch_size=self.train_options.batch_size,
+                    metrics=self.train_options.metrics,
+                )
+            training_time = time.time() - start_time
+            self.logger.info(f"Training completed in {training_time:.2f} seconds.")
+
+            self.save_model(model)
+
+            self.evaluate(model, self.test_files())
+
+            num_params = self.get_num_params(model)
+            model_size = self.get_size()
+            model_size_in_memory = model_size * 4
+            latency = self.get_latency(model)
+
+            self.reporter.report_complete(
+                self.config.model_id,
+                metadata={
+                    "num_params": str(num_params),
+                    "thirdai_version": str(thirdai.__version__),
+                    "training_time": str(training_time),
+                    "size": str(model_size),
+                    "size_in_memory": str(model_size_in_memory),
+                    "latency": str(latency),
+                },
             )
-        training_time = time.time() - start_time
-        self.logger.info(f"Training completed in {training_time:.2f} seconds.")
-
-        self.save_model(model)
-
-        self.evaluate(model, self.test_files())
-
-        num_params = self.get_num_params(model)
-        model_size = self.get_size()
-        model_size_in_memory = model_size * 4
-        latency = self.get_latency(model)
-
-        self.reporter.report_complete(
-            self.config.model_id,
-            metadata={
-                "num_params": str(num_params),
-                "thirdai_version": str(thirdai.__version__),
-                "training_time": str(training_time),
-                "size": str(model_size),
-                "size_in_memory": str(model_size_in_memory),
-                "latency": str(latency),
-            },
-        )
+        finally:
+            # Ensure cleanup of temporary directories after training, even on failure
+            self.cleanup_temp_dirs()
 
     def get_latency(self, model) -> float:
         self.logger.info("Measuring latency of the UDT instance.")
@@ -333,102 +360,105 @@ class TokenClassificationModel(ClassificationModel):
         )
 
     def train(self, **kwargs):
-        self.reporter.report_status(self.config.model_id, "in_progress")
+        try:
+            self.reporter.report_status(self.config.model_id, "in_progress")
 
-        model = self.get_model()
+            model = self.get_model()
 
-        start_time = time.time()
+            start_time = time.time()
 
-        supervised_files = self.supervised_files()
-        balancing_samples_path = self.find_and_save_balancing_samples()
+            supervised_files = self.supervised_files()
+            balancing_samples_path = self.find_and_save_balancing_samples()
+            # insert samples into data storage for later use
+            self.insert_samples_in_storage(supervised_files)
 
-        # insert samples into data storage for later use
-        self.insert_samples_in_storage(supervised_files)
+            tags = self.tag_metadata
 
-        tags = self.tag_metadata
+            # new labels to add to the model
+            new_labels = [
+                name
+                for name, label in tags.tag_status.items()
+                if label.status == LabelStatus.uninserted
+            ]
+            self.logger.info(f"New labels to add: {new_labels}")
 
-        # new labels to add to the model
-        new_labels = [
-            name
-            for name, label in tags.tag_status.items()
-            if label.status == LabelStatus.uninserted
-        ]
-        self.logger.info(f"New labels to add: {new_labels}")
-
-        for new_label in new_labels:
-            common_pattern = find_common_pattern(new_label)
-            try:
-                if common_pattern:
-                    self.logger.debug(
-                        f"Adding rule based tag {common_pattern} to the model."
+            for new_label in new_labels:
+                common_pattern = find_common_pattern(new_label)
+                try:
+                    if common_pattern:
+                        self.logger.debug(
+                            f"Adding rule based tag {common_pattern} to the model."
+                        )
+                        model.add_ner_rule(common_pattern)
+                    else:
+                        self.logger.debug(
+                            f"Adding bolt based tag {new_label} to the model."
+                        )
+                        model.add_ner_entities([new_label])
+                except Exception as e:
+                    self.logger.error(
+                        f"Failed to add new label {new_label} to the model with error {e}."
                     )
-                    model.add_ner_rule(common_pattern)
-                else:
-                    self.logger.debug(
-                        f"Adding bolt based tag {new_label} to the model."
-                    )
-                    model.add_ner_entities([new_label])
-            except Exception as e:
-                self.logger.error(
-                    f"Failed to add new label {new_label} to the model with error {e}."
+
+            for train_file in self.supervised_files():
+                self.logger.info(f"Training on file: {train_file.path}")
+                model.train(
+                    train_file.path,
+                    epochs=self.train_options.supervised_epochs,
+                    learning_rate=self.train_options.learning_rate,
+                    batch_size=self.train_options.batch_size,
+                    metrics=self.train_options.metrics,
                 )
 
-        for train_file in self.supervised_files():
-            self.logger.info(f"Training on file: {train_file.path}")
-            model.train(
-                train_file.path,
-                epochs=self.train_options.supervised_epochs,
-                learning_rate=self.train_options.learning_rate,
-                batch_size=self.train_options.batch_size,
-                metrics=self.train_options.metrics,
+            if balancing_samples_path:
+                self.logger.info(
+                    f"Training on balancing samples from {balancing_samples_path}."
+                )
+                model.train(
+                    str(balancing_samples_path),
+                    epochs=1,
+                    learning_rate=self.train_options.learning_rate,
+                    batch_size=self.train_options.batch_size,
+                    metrics=self.train_options.metrics,
+                )
+
+            training_time = time.time() - start_time
+            self.logger.info(f"Training completed in {training_time:.2f} seconds.")
+
+            # converts the status of all tags to trained and update in the storage
+            for tag in tags.tag_status:
+                tags.tag_status[tag].status = LabelStatus.trained
+
+            # this is atomic in the sense that if model and db are in a consistent state if anything fails
+            self.save_model_and_metadata(
+                model,
+                old_metadata=self.tag_metadata,  # db still holds old metadata
+                latest_metadata=tags,
             )
 
-        if balancing_samples_path:
-            self.logger.info(
-                f"Training on balancing samples from {balancing_samples_path}."
+            self.data_storage.update_sample_status("ner", SampleStatus.trained)
+
+            self.evaluate(model, self.test_files())
+
+            num_params = self.get_num_params(model)
+            model_size = self.get_size()
+            model_size_in_memory = model_size * 4
+            latency = self.get_latency(model)
+
+            self.reporter.report_complete(
+                self.config.model_id,
+                metadata={
+                    "num_params": str(num_params),
+                    "thirdai_version": str(thirdai.__version__),
+                    "training_time": str(training_time),
+                    "size": str(model_size),
+                    "size_in_memory": str(model_size_in_memory),
+                    "latency": str(latency),
+                },
             )
-            model.train(
-                str(balancing_samples_path),
-                epochs=1,
-                learning_rate=self.train_options.learning_rate,
-                batch_size=self.train_options.batch_size,
-                metrics=self.train_options.metrics,
-            )
-
-        training_time = time.time() - start_time
-        self.logger.info(f"Training completed in {training_time:.2f} seconds.")
-
-        # converts the status of all tags to trained and update in the storage
-        for tag in tags.tag_status:
-            tags.tag_status[tag].status = LabelStatus.trained
-
-        # this is atomic in the sense that if model and db are in a consistent state if anything fails
-        self.save_model_and_metadata(
-            model,
-            old_metadata=self.tag_metadata,  # db still holds old metadata
-            latest_metadata=tags,
-        )
-
-        self.data_storage.update_sample_status("ner", SampleStatus.trained)
-
-        self.evaluate(model, self.test_files())
-
-        num_params = self.get_num_params(model)
-        model_size = self.get_size()
-        model_size_in_memory = model_size * 4
-        latency = self.get_latency(model)
-
-        self.reporter.report_complete(
-            self.config.model_id,
-            metadata={
-                "num_params": str(num_params),
-                "thirdai_version": str(thirdai.__version__),
-                "training_time": str(training_time),
-                "size": str(model_size),
-                "size_in_memory": str(model_size_in_memory),
-                "latency": str(latency),
-            },
-        )
+        finally:
+            # Ensure cleanup of temporary directories after training, even on failure
+            self.cleanup_temp_dirs()
 
     def insert_samples_in_storage(self, supervised_files: typing.List[FileInfo]):
         # these samples will be used as balancing samples for the training of the model
@@ -449,8 +479,8 @@ class TokenClassificationModel(ClassificationModel):
 
         for index in df.index:
             row = df.loc[index]
-            tokens = row[self.tkn_cls_vars.source_column].split()
-            tags = row[self.tkn_cls_vars.target_column].split()
+            tokens = str(row[self.tkn_cls_vars.source_column]).split()
+            tags = str(row[self.tkn_cls_vars.target_column]).split()
             assert len(tokens) == len(tags)
 
             sample = DataSample(

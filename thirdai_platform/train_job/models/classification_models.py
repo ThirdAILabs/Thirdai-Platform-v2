@@ -114,14 +114,12 @@ class ClassificationModel(Model):
         """
         Clean up temporary directories created for downloaded files.
         """
-        if hasattr(self, "temp_supervised_dir") and os.path.isdir(
-            self.temp_supervised_dir
-        ):
-            shutil.rmtree(self.temp_supervised_dir)
+        if hasattr(self, "temp_train_dir") and os.path.isdir(self.temp_train_dir):
+            shutil.rmtree(self.temp_train_dir)
             self.logger.info(
-                f"Cleaned up supervised files temporary directory: {self.temp_supervised_dir}"
+                f"Cleaned up supervised files temporary directory: {self.temp_train_dir}"
             )
-            del self.temp_supervised_dir  # Remove attribute after cleanup
+            del self.temp_train_dir  # Remove attribute after cleanup
 
         if hasattr(self, "temp_test_dir") and os.path.isdir(self.temp_test_dir):
             shutil.rmtree(self.temp_test_dir)
@@ -230,9 +228,9 @@ class TextClassificationModel(ClassificationModel):
 
             start_time = time.time()
             for train_file in train_files:
-                self.logger.info(f"Training on supervised file: {train_file.path}")
+                self.logger.info(f"Training on supervised file: {train_file}")
                 model.train(
-                    train_file.path,
+                    train_file,
                     epochs=self.train_options.supervised_epochs,
                     learning_rate=self.train_options.learning_rate,
                     batch_size=self.train_options.batch_size,
@@ -508,10 +506,10 @@ class TokenClassificationModel(ClassificationModel):
                         f"Failed to add new label {new_label} to the model with error {e}."
                     )
 
-            for train_file in train_file:
+            for train_file in train_files:
                 self.logger.info(f"Training on file: {train_file}")
                 model.train(
-                    train_file.path,
+                    train_file,
                     epochs=self.train_options.supervised_epochs,
                     learning_rate=self.train_options.learning_rate,
                     batch_size=self.train_options.batch_size,
@@ -700,10 +698,9 @@ class TokenClassificationModel(ClassificationModel):
 
         samples = []
 
-        for index in df.index:
-            row = df.loc[index]
-            tokens = row[source_column].split()
-            tags = row[target_column].split()
+        for row in df.itertuples():
+            tokens = getattr(row, source_column).split()
+            tags = getattr(row, target_column).split()
             assert len(tokens) == len(
                 tags
             ), f"length of source tokens ≠ length of target tokens."

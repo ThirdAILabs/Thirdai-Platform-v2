@@ -31,10 +31,12 @@ from backend.utils import (
     validate_license_info,
     validate_name,
 )
+from data_generation_job.llms import verify_llm_access
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from platform_common.file_handler import download_local_files
+from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
 from platform_common.pydantic_models.training import (
     DatagenOptions,
@@ -796,16 +798,72 @@ def retrain_udt(
         is_retraining=True if not base_model_identifier else False,
     )
 
-    config.save_train_config()
-
     try:
-        generate_data_for_train_job(
-            data_id=str(model.id),
-            secret_token=secret_token,
-            license_key=license_info["boltLicenseKey"],
-            options=datagen_options,
-            job_options=JobOptions(),
-        )
+        if verify_llm_access(llm_provider, api_key=os.getenv("GENAI_KEY")):
+            logging.info("LLM access verified, generating data for training")
+
+            config_path = config.save_train_config()
+
+            generate_data_for_train_job(
+                data_id=str(model.id),
+                secret_token=secret_token,
+                license_key=license_info["boltLicenseKey"],
+                options=datagen_options,
+                job_options=JobOptions(),
+            )
+        else:
+            logging.info("No LLM access, training only on user provided samples")
+
+            if nomad_job_exists(
+                model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")
+            ):
+                delete_nomad_job(
+                    model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")
+                )
+
+            config.model_options.udt_options = TokenClassificationOptions(
+                target_labels=[tag.name for tag in tags],
+                source_column=NER_SOURCE_COLUMN,
+                target_column=NER_TARGET_COLUMN,
+            )
+
+            # Without any LLM access, the model should train only on the user provided samples present in the storage. Or balancing samples gathered from the training data. No file passed because user provided samples are already present in the storage.
+            config.data = UDTData(supervised_files=[])
+
+            config_path = config.save_train_config()
+
+            logging.info("Triggered nomad job for training.")
+
+            submit_nomad_job(
+                str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
+                nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+                platform=get_platform(),
+                tag=os.getenv("TAG"),
+                registry=os.getenv("DOCKER_REGISTRY"),
+                docker_username=os.getenv("DOCKER_USERNAME"),
+                docker_password=os.getenv("DOCKER_PASSWORD"),
+                image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
+                thirdai_platform_dir=thirdai_platform_dir(),
+                train_script="train_job.run",
+                model_id=str(model.id),
+                share_dir=os.getenv("SHARE_DIR", None),
+                python_path=get_python_path(),
+                aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
+                aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+                aws_region_name=(os.getenv("AWS_REGION_NAME", "")),
+                azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
+                azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
+                gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
+                train_job_name=model.get_train_job_name(),
+                config_path=config_path,
+                allocation_cores=config.job_options.allocation_cores,
+                allocation_memory=config.job_options.allocation_memory,
+                allocation_memory_max=config.job_options.allocation_memory,
+            )
+
+            model.train_status = schema.Status.starting
+            session.commit()
+
     except Exception as err:
         model.train_status = schema.Status.failed
         session.commit()

@@ -1,4 +1,5 @@
 import os
+import random
 import shutil
 import tempfile
 import time
@@ -243,6 +244,8 @@ class TokenClassificationModel(ClassificationModel):
     def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
         super().__init__(config, reporter, logger)
         self.load_storage()
+        self._num_balancing_samples = 10_000
+        self._balancing_samples_path = self.data_dir / "balancing_samples.csv"
 
     @property
     def tkn_cls_vars(self) -> TokenClassificationOptions:
@@ -365,6 +368,7 @@ class TokenClassificationModel(ClassificationModel):
             start_time = time.time()
 
             supervised_files = self.supervised_files()
+            balancing_samples_path = self.find_and_save_balancing_samples()
             # insert samples into data storage for later use
             self.insert_samples_in_storage(supervised_files)
 
@@ -401,6 +405,18 @@ class TokenClassificationModel(ClassificationModel):
                 model.train(
                     train_file.path,
                     epochs=self.train_options.supervised_epochs,
+                    learning_rate=self.train_options.learning_rate,
+                    batch_size=self.train_options.batch_size,
+                    metrics=self.train_options.metrics,
+                )
+
+            if balancing_samples_path:
+                self.logger.info(
+                    f"Training on balancing samples from {balancing_samples_path}."
+                )
+                model.train(
+                    str(balancing_samples_path),
+                    epochs=1,
                     learning_rate=self.train_options.learning_rate,
                     batch_size=self.train_options.batch_size,
                     metrics=self.train_options.metrics,
@@ -444,9 +460,7 @@ class TokenClassificationModel(ClassificationModel):
             # Ensure cleanup of temporary directories after training, even on failure
             self.cleanup_temp_dirs()
 
-    def insert_samples_in_storage(
-        self, supervised_files: typing.List[FileInfo], buffer_size=50_000
-    ):
+    def insert_samples_in_storage(self, supervised_files: typing.List[FileInfo]):
         # these samples will be used as balancing samples for the training of the model
         # this sampling is not uniform but we assume that there won't be many samples
         # TODO(Shubh) : make this sampling uniform using reservoir sampling
@@ -460,7 +474,6 @@ class TokenClassificationModel(ClassificationModel):
             ]
 
             df = pd.concat([df, new_df])
-            df = df.sample(n=min(len(df), buffer_size))
 
         samples = []
 
@@ -478,7 +491,62 @@ class TokenClassificationModel(ClassificationModel):
             samples.append(sample)
 
         self.logger.info(f"Inserting {len(samples)} samples into storage.")
+
         self.data_storage.insert_samples(samples=samples)
+        num_samples_in_storage = self.data_storage.connector.get_sample_count("ner")
+
+        self.logger.info(
+            f"Number of samples in storage after insertion: {num_samples_in_storage}"
+        )
+
+    def find_and_save_balancing_samples(self):
+        self.logger.info("Finding balancing samples for training.")
+        user_provided_samples = self.data_storage.retrieve_samples(
+            name="ner", num_samples=None, user_provided=True
+        )
+        non_user_provided_samples = self.data_storage.retrieve_samples(
+            name="ner", num_samples=None, user_provided=False
+        )
+
+        samples = []
+
+        self.logger.info(f"Found {len(user_provided_samples)} user provided samples.")
+        for user_provided_sample in user_provided_samples:
+            samples.append(
+                {
+                    self.tkn_cls_vars.source_column: " ".join(
+                        user_provided_sample.data.tokens
+                    ),
+                    self.tkn_cls_vars.target_column: " ".join(
+                        user_provided_sample.data.tags
+                    ),
+                    "user_provided": True,
+                }
+            )
+
+        self.logger.info(
+            f"Found {len(non_user_provided_samples)} non user provided samples. Adding {min(self._num_balancing_samples, len(non_user_provided_samples))} samples to the balancing set."
+        )
+        random.shuffle(non_user_provided_samples)
+
+        for sample in non_user_provided_samples[: self._num_balancing_samples]:
+            samples.append(
+                {
+                    self.tkn_cls_vars.source_column: " ".join(sample.data.tokens),
+                    self.tkn_cls_vars.target_column: " ".join(sample.data.tags),
+                    "user_provided": False,
+                }
+            )
+
+        if len(samples) > 0:
+            self.logger.info(
+                f"Saving balancing samples to {self._balancing_samples_path}"
+            )
+            dataframe = pd.DataFrame(samples)
+            dataframe.to_csv(self._balancing_samples_path, index=False)
+            return self._balancing_samples_path
+
+        return None
 
     def get_latency(self, model) -> float:
         self.logger.info("Measuring latency of the Token Classification model.")

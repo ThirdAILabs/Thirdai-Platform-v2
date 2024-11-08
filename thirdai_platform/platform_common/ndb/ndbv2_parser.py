@@ -18,7 +18,7 @@ def convert_to_ndb_doc(
     options: Dict[str, Any],
 ) -> ndbv2.Document:
     filename, ext = os.path.splitext(resource_path)
-
+    ext = ext.lower()
     if ext == ".pdf":
         doc_keywords = ""
         if options.get("title_as_keywords", False):

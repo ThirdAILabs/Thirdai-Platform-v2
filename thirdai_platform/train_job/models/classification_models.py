@@ -8,7 +8,6 @@ import time
 import typing
 from abc import abstractmethod
 from collections import defaultdict
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from logging import Logger
 from pathlib import Path
@@ -742,21 +741,8 @@ class TokenClassificationModel(ClassificationModel):
         self, before_train_metrics: ModelMetrics, after_train_metrics: ModelMetrics
     ):
         train_report = {
-            "before_train_metrics": before_train_metrics.per_tag_metrics.metrics,
-            "after_train_metrics": after_train_metrics.per_tag_metrics.metrics,
-            "after_train_examples": {
-                "true_positives": after_train_metrics.per_tag_metrics.true_positives,
-                "false_positives": after_train_metrics.per_tag_metrics.false_positives,
-                "false_negatives": after_train_metrics.per_tag_metrics.false_negatives,
-            },
-            "new_throughput": {
-                "token_throughput": after_train_metrics.token_throughput,
-                "sample_throughput": after_train_metrics.sample_throughput,
-            },
-            "old_throughput": {
-                "token_throughput": before_train_metrics.token_throughput,
-                "sample_throughput": before_train_metrics.sample_throughput,
-            },
+            "before_train_metrics": before_train_metrics.model_dump_json(),
+            "after_train_metrics": after_train_metrics.model_dump_json(),
         }
 
         timestamp = int(datetime.now(timezone.utc).timestamp())

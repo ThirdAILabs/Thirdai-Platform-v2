@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"thirdai_platform/model_bazaar/routers"
+	"thirdai_platform/model_bazaar/services"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -130,12 +130,12 @@ func (c *client) demoteAdmin(userId string) error {
 	return err
 }
 
-func (c *client) listUsers() ([]routers.UserInfo, error) {
-	return get[[]routers.UserInfo](c, "/user/list")
+func (c *client) listUsers() ([]services.UserInfo, error) {
+	return get[[]services.UserInfo](c, "/user/list")
 }
 
-func (c *client) userInfo() (routers.UserInfo, error) {
-	return get[routers.UserInfo](c, "/user/info")
+func (c *client) userInfo() (services.UserInfo, error) {
+	return get[services.UserInfo](c, "/user/info")
 }
 
 func (c *client) createTeam(name string) (string, error) {
@@ -181,14 +181,14 @@ func (c *client) removeTeamAdmin(teamId, userId string) error {
 	return err
 }
 
-func (c *client) listTeams() ([]routers.TeamInfo, error) {
-	return get[[]routers.TeamInfo](c, "/team/list")
+func (c *client) listTeams() ([]services.TeamInfo, error) {
+	return get[[]services.TeamInfo](c, "/team/list")
 }
 
-func (c *client) listTeamModels(teamId string) ([]routers.ModelInfo, error) {
-	return get[[]routers.ModelInfo](c, fmt.Sprintf("/team/models?team_id=%v", teamId))
+func (c *client) listTeamModels(teamId string) ([]services.ModelInfo, error) {
+	return get[[]services.ModelInfo](c, fmt.Sprintf("/team/models?team_id=%v", teamId))
 }
 
-func (c *client) listTeamUsers(teamId string) ([]routers.TeamUserInfo, error) {
-	return get[[]routers.TeamUserInfo](c, fmt.Sprintf("/team/users?team_id=%v", teamId))
+func (c *client) listTeamUsers(teamId string) ([]services.TeamUserInfo, error) {
+	return get[[]services.TeamUserInfo](c, fmt.Sprintf("/team/users?team_id=%v", teamId))
 }

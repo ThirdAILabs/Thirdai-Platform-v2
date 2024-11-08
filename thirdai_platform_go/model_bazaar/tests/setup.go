@@ -2,7 +2,7 @@ package tests
 
 import (
 	"testing"
-	"thirdai_platform/model_bazaar/routers"
+	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/schema"
 
 	"github.com/go-chi/chi/v5"
@@ -34,7 +34,7 @@ func setupTestEnv(t *testing.T) testEnv {
 		t.Fatal(err)
 	}
 
-	modelBazaar := routers.NewModelBazaar(db)
+	modelBazaar := services.NewModelBazaar(db)
 
 	modelBazaar.InitAdmin(adminUsername, adminEmail, adminPassword)
 

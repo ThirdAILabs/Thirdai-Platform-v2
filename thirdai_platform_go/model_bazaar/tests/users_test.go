@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 	"testing"
-	"thirdai_platform/model_bazaar/routers"
+	"thirdai_platform/model_bazaar/services"
 )
 
 func TestSignupAndLogin(t *testing.T) {
@@ -93,8 +93,8 @@ func TestUserInfo(t *testing.T) {
 	}
 }
 
-func sortUserList(users []routers.UserInfo) {
-	slices.SortFunc(users, func(a, b routers.UserInfo) int {
+func sortUserList(users []services.UserInfo) {
+	slices.SortFunc(users, func(a, b services.UserInfo) int {
 		if a.Username == b.Username {
 			return 0
 		}

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"slices"
 	"testing"
-	"thirdai_platform/model_bazaar/routers"
+	"thirdai_platform/model_bazaar/services"
 )
 
-func sortTeamList(users []routers.TeamInfo) {
-	slices.SortFunc(users, func(a, b routers.TeamInfo) int {
+func sortTeamList(users []services.TeamInfo) {
+	slices.SortFunc(users, func(a, b services.TeamInfo) int {
 		if a.Name == b.Name {
 			return 0
 		}
@@ -19,8 +19,8 @@ func sortTeamList(users []routers.TeamInfo) {
 	})
 }
 
-func sortUserTeamList(users []routers.UserTeamInfo) {
-	slices.SortFunc(users, func(a, b routers.UserTeamInfo) int {
+func sortUserTeamList(users []services.UserTeamInfo) {
+	slices.SortFunc(users, func(a, b services.UserTeamInfo) int {
 		if a.TeamName == b.TeamName {
 			return 0
 		}
@@ -31,8 +31,8 @@ func sortUserTeamList(users []routers.UserTeamInfo) {
 	})
 }
 
-func sortTeamUserList(users []routers.TeamUserInfo) {
-	slices.SortFunc(users, func(a, b routers.TeamUserInfo) int {
+func sortTeamUserList(users []services.TeamUserInfo) {
+	slices.SortFunc(users, func(a, b services.TeamUserInfo) int {
 		if a.Username == b.Username {
 			return 0
 		}

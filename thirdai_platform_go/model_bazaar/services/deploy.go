@@ -152,7 +152,7 @@ func (s *DeployService) deployModel(modelId, userId string, autoscalingEnabled b
 
 		nomadErr = s.nomad.StartJob(
 			nomad.DeployJob{
-				JobName:            nomad.DeployJobName(model),
+				JobName:            model.DeployJobName(),
 				ModelId:            model.Id,
 				ConfigPath:         configPath,
 				DeploymentName:     deploymentName,
@@ -249,7 +249,7 @@ func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		err = s.nomad.StopJob(nomad.DeployJobName(model))
+		err = s.nomad.StopJob(model.DeployJobName())
 		if err != nil {
 			return err
 		}

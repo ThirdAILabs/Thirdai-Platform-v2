@@ -1,6 +1,9 @@
 package schema
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type Model struct {
 	Id string `gorm:"primaryKey"`
@@ -76,4 +79,12 @@ type UserTeam struct {
 
 	User *User
 	Team *Team
+}
+
+func (m *Model) TrainJobName() string {
+	return fmt.Sprintf("train-%v-%v", m.Id, m.Type)
+}
+
+func (m *Model) DeployJobName() string {
+	return fmt.Sprintf("deploy-%v-%v", m.Id, m.Type)
 }

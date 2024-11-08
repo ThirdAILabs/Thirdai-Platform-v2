@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
@@ -18,10 +19,17 @@ import (
 //go:embed jobs/*
 var jobTemplates embed.FS
 
+type JobInfo struct {
+	Name   string
+	Status string
+}
+
 type NomadClient interface {
 	StartJob(job Job) error
 
 	StopJob(jobName string) error
+
+	JobInfo(jobName string) (JobInfo, error)
 
 	TotalCpuUsage() (int, error)
 }
@@ -84,11 +92,12 @@ func (c *NomadHttpClient) parseJob(job Job) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error sending parse request to nomad: %w", err)
 	}
+	defer res.Body.Close()
+
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("parse nomad job returned status %d", res.StatusCode)
 	}
 
-	defer res.Body.Close()
 	var jobDef interface{}
 	err = json.NewDecoder(res.Body).Decode(&job)
 	if err != nil {
@@ -121,6 +130,8 @@ func (c *NomadHttpClient) submitJob(jobDef interface{}) error {
 	if err != nil {
 		return fmt.Errorf("error submitting job to nomad: %w", err)
 	}
+	defer res.Body.Close()
+
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("submit nomad job returned status %d", res.StatusCode)
 	}
@@ -152,19 +163,55 @@ func (c *NomadHttpClient) StopJob(jobName string) error {
 	if err != nil {
 		return fmt.Errorf("error creating new request: %w", err)
 	}
-	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("X-Nomad-Token", c.token)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error deleting nomad job: %w", err)
+		return fmt.Errorf("error deleting nomad job '%v': %w", jobName, err)
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("delete nomad job returned status %d", res.StatusCode)
 	}
 
 	return nil
+}
+
+var ErrJobNotFound = errors.New("nomad job not found")
+
+func (c *NomadHttpClient) JobInfo(jobName string) (JobInfo, error) {
+	url, err := url.JoinPath(c.addr, fmt.Sprintf("v1/job/%v", jobName))
+	if err != nil {
+		return JobInfo{}, fmt.Errorf("error formatting job url: %w", err)
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return JobInfo{}, fmt.Errorf("error creating new request: %w", err)
+	}
+	req.Header.Add("X-Nomad-Token", c.token)
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return JobInfo{}, fmt.Errorf("error retrieving nomad job '%v': %w", jobName, err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		if res.StatusCode == http.StatusNotFound {
+			return JobInfo{}, ErrJobNotFound
+		}
+		return JobInfo{}, fmt.Errorf("get nomad job returned status %d", res.StatusCode)
+	}
+
+	var info JobInfo
+	err = json.NewDecoder(res.Body).Decode(&info)
+	if err != nil {
+		return JobInfo{}, fmt.Errorf("error parsing job info from nomad: %w", err)
+	}
+
+	return info, nil
 }
 
 type nomadAllocation struct {
@@ -194,6 +241,7 @@ func (c *NomadHttpClient) TotalCpuUsage() (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("error getting nomad job allocations: %w", err)
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("list nomad allocations returned status %d", res.StatusCode)

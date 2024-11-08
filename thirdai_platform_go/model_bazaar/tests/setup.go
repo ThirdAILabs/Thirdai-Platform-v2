@@ -2,8 +2,8 @@ package tests
 
 import (
 	"testing"
-	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/schema"
+	"thirdai_platform/model_bazaar/services"
 
 	"github.com/go-chi/chi/v5"
 	"gorm.io/driver/sqlite"
@@ -34,7 +34,7 @@ func setupTestEnv(t *testing.T) testEnv {
 		t.Fatal(err)
 	}
 
-	modelBazaar := services.NewModelBazaar(db)
+	modelBazaar := services.NewModelBazaar(db, newNomadStub())
 
 	modelBazaar.InitAdmin(adminUsername, adminEmail, adminPassword)
 

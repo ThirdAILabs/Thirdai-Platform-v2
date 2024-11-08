@@ -189,7 +189,7 @@ func (s *TrainService) createModelAndStartTraining(
 
 	err = s.nomad.StartJob(
 		nomad.TrainJob{
-			JobName:    nomad.TrainJobName(model),
+			JobName:    model.TrainJobName(),
 			ConfigPath: configPath,
 			Driver:     s.variables.Driver,
 			Resources: nomad.Resources{

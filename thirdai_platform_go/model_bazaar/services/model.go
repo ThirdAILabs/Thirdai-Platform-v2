@@ -245,14 +245,14 @@ func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if model.TrainStatus == schema.Starting || model.TrainStatus == schema.InProgress {
-			err = s.nomad.StopJob(nomad.TrainJobName(model))
+			err = s.nomad.StopJob(model.TrainJobName())
 			if err != nil {
 				return err
 			}
 		}
 
 		if model.DeployStatus == schema.Starting || model.DeployStatus == schema.InProgress || model.DeployStatus == schema.Complete {
-			err = s.nomad.StopJob(nomad.DeployJobName(model))
+			err = s.nomad.StopJob(model.DeployJobName())
 			if err != nil {
 				return err
 			}

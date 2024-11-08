@@ -1,18 +1,5 @@
 package nomad
 
-import (
-	"fmt"
-	"thirdai_platform/model_bazaar/schema"
-)
-
-func TrainJobName(model schema.Model) string {
-	return fmt.Sprintf("train-%v-%v", model.Id, model.Type)
-}
-
-func DeployJobName(model schema.Model) string {
-	return fmt.Sprintf("deploy-%v-%v", model.Id, model.Type)
-}
-
 type Driver interface {
 	DriverType() string
 }
@@ -46,6 +33,8 @@ type Resources struct {
 }
 
 type Job interface {
+	GetJobName() string
+
 	TemplateName() string
 }
 
@@ -57,6 +46,10 @@ type TrainJob struct {
 	Driver Driver
 
 	Resources Resources
+}
+
+func (j TrainJob) GetJobName() string {
+	return j.JobName
 }
 
 func (j TrainJob) TemplateName() string {
@@ -76,6 +69,10 @@ type DeployJob struct {
 	Driver Driver
 
 	Resources Resources
+}
+
+func (j DeployJob) GetJobName() string {
+	return j.JobName
 }
 
 func (j DeployJob) TemplateName() string {

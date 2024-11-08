@@ -140,13 +140,13 @@ func getStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, train
 
 	var res statusResponse
 
-	err := db.Transaction(func(db *gorm.DB) error {
-		model, err := schema.GetModel(modelId, db, false, false, false)
+	err := db.Transaction(func(txn *gorm.DB) error {
+		model, err := schema.GetModel(modelId, txn, false, false, false)
 		if err != nil {
 			return err
 		}
 
-		status, messages, err := getModelStatus(model, db, trainStatus)
+		status, messages, err := getModelStatus(model, txn, trainStatus)
 		if err != nil {
 			return err
 		}

@@ -20,7 +20,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type TrainRouter struct {
+type TrainService struct {
 	db      *gorm.DB
 	nomad   nomad.NomadClient
 	storage storage.Storage
@@ -32,31 +32,31 @@ type TrainRouter struct {
 	variables *Variables
 }
 
-func (t *TrainRouter) Routes() chi.Router {
+func (s *TrainService) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Group(func(r chi.Router) {
-		r.Use(t.userAuth.Verifier())
-		r.Use(t.userAuth.Authenticator())
+		r.Use(s.userAuth.Verifier())
+		r.Use(s.userAuth.Authenticator())
 
-		r.Post("/ndb", t.TrainNdb)
-		r.Post("/upload", t.UploadFiles)
+		r.Post("/ndb", s.TrainNdb)
+		r.Post("/upload", s.UploadFiles)
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(t.jobAuth.Verifier())
-		r.Use(t.jobAuth.Authenticator())
+		r.Use(s.jobAuth.Verifier())
+		r.Use(s.jobAuth.Authenticator())
 
-		r.Post("/update-status", t.UpdateStatus)
+		r.Post("/update-status", s.UpdateStatus)
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(t.jobAuth.Verifier())
-		r.Use(t.jobAuth.Authenticator())
-		r.Use(auth.ModelPermissionOnly(t.db, auth.ReadPermission))
+		r.Use(s.jobAuth.Verifier())
+		r.Use(s.jobAuth.Authenticator())
+		r.Use(auth.ModelPermissionOnly(s.db, auth.ReadPermission))
 
-		r.Get("/status", t.GetStatus)
-		r.Get("/logs", t.Logs)
+		r.Get("/status", s.GetStatus)
+		r.Get("/logs", s.Logs)
 	})
 
 	return r
@@ -70,7 +70,7 @@ type ndbTrainOptions struct {
 	JobOptions   config.JobOptions  `json:"job_options"`
 }
 
-func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
+func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 	userId, err := auth.UserIdFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -100,22 +100,22 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 
 	options.JobOptions.EnsureValid()
 
-	license, err := verifyLicenseForNewJob(t.nomad, t.license, options.JobOptions.CpuUsageMhz())
+	license, err := verifyLicenseForNewJob(s.nomad, s.license, options.JobOptions.CpuUsageMhz())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	token, err := t.jobAuth.CreateToken("model_id", modelId, time.Hour*10*24)
+	token, err := s.jobAuth.CreateToken("model_id", modelId, time.Hour*10*24)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	trainConfig := config.TrainConfig{
-		ModelBazaarDir:      t.storage.Location(),
+		ModelBazaarDir:      s.storage.Location(),
 		LicenseKey:          license,
-		ModelBazaarEndpoint: t.variables.ModelBazaarEndpoint,
+		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
 		UpdateToken:         token,
 		ModelId:             modelId,
 		BaseModelId:         options.BaseModelId,
@@ -125,7 +125,7 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 		IsRetraining:        false,
 	}
 
-	err = t.createModelAndStartTraining(options.ModelName, schema.NdbModel, userId, trainConfig)
+	err = s.createModelAndStartTraining(options.ModelName, schema.NdbModel, userId, trainConfig)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error starting ndb training: %v", err), http.StatusBadRequest)
 		return
@@ -134,10 +134,10 @@ func (t *TrainRouter) TrainNdb(w http.ResponseWriter, r *http.Request) {
 	writeJsonResponse(w, map[string]string{"model_id": modelId})
 }
 
-func (t *TrainRouter) createModelAndStartTraining(
+func (s *TrainService) createModelAndStartTraining(
 	modelName, modelType, userId string, trainConfig config.TrainConfig,
 ) error {
-	configPath, err := saveConfig(trainConfig.ModelId, "train", trainConfig, t.storage)
+	configPath, err := saveConfig(trainConfig.ModelId, "train", trainConfig, s.storage)
 	if err != nil {
 		return err
 	}
@@ -155,9 +155,9 @@ func (t *TrainRouter) createModelAndStartTraining(
 		UserId:            userId,
 	}
 
-	err = t.db.Transaction(func(db *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		if model.BaseModelId != nil {
-			baseModel, err := schema.GetModel(*model.BaseModelId, db, false, true, false)
+			baseModel, err := schema.GetModel(*model.BaseModelId, txn, false, true, false)
 			if err != nil {
 				return fmt.Errorf("error retrieving specified base model %v: %w", *model.BaseModelId, err)
 			}
@@ -167,7 +167,7 @@ func (t *TrainRouter) createModelAndStartTraining(
 		}
 
 		var duplicateModel schema.Model
-		result := db.Find(&duplicateModel, "user_id = ? AND name = ?", userId, model.Name)
+		result := txn.Find(&duplicateModel, "user_id = ? AND name = ?", userId, model.Name)
 		if result.Error != nil {
 			return schema.NewDbError("checking for duplicate model", result.Error)
 		}
@@ -175,7 +175,7 @@ func (t *TrainRouter) createModelAndStartTraining(
 			return fmt.Errorf("a model with name %v already exists", model.Name)
 		}
 
-		result = db.Create(&model)
+		result = txn.Create(&model)
 		if result.Error != nil {
 			return schema.NewDbError("creating model entry", result.Error)
 		}
@@ -187,11 +187,11 @@ func (t *TrainRouter) createModelAndStartTraining(
 		return err
 	}
 
-	err = t.nomad.StartJob(
+	err = s.nomad.StartJob(
 		nomad.TrainJob{
 			JobName:    nomad.TrainJobName(model),
 			ConfigPath: configPath,
-			Driver:     t.variables.Driver,
+			Driver:     s.variables.Driver,
 			Resources: nomad.Resources{
 				AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
 				AllocationMemory:    trainConfig.JobOptions.AllocationMemory,
@@ -203,9 +203,7 @@ func (t *TrainRouter) createModelAndStartTraining(
 		return fmt.Errorf("error starting train job: %w", err)
 	}
 
-	model.TrainStatus = schema.Starting
-
-	result := t.db.Save(&model)
+	result := s.db.Model(&model).Update("train_status", schema.Starting)
 	if result.Error != nil {
 		return schema.NewDbError("updating model train status to starting", result.Error)
 	}
@@ -234,7 +232,7 @@ func getMultipartBoundary(r *http.Request) (string, error) {
 	return boundary, nil
 }
 
-func (t *TrainRouter) UploadFiles(w http.ResponseWriter, r *http.Request) {
+func (s *TrainService) UploadFiles(w http.ResponseWriter, r *http.Request) {
 	boundary, err := getMultipartBoundary(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -262,7 +260,7 @@ func (t *TrainRouter) UploadFiles(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			newFilepath := filepath.Join(artifactDir, part.FileName())
-			err := t.storage.Write(newFilepath, part)
+			err := s.storage.Write(newFilepath, part)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("error saving file '%v': %v", part.FileName(), err), http.StatusBadRequest)
 				return
@@ -273,14 +271,14 @@ func (t *TrainRouter) UploadFiles(w http.ResponseWriter, r *http.Request) {
 	writeJsonResponse(w, map[string]string{"artifact_path": artifactDir})
 }
 
-func (t *TrainRouter) GetStatus(w http.ResponseWriter, r *http.Request) {
-	getStatusHandler(w, r, t.db, true)
+func (s *TrainService) GetStatus(w http.ResponseWriter, r *http.Request) {
+	getStatusHandler(w, r, s.db, true)
 }
 
-func (t *TrainRouter) UpdateStatus(w http.ResponseWriter, r *http.Request) {
-	updateStatusHandler(w, r, t.db, true)
+func (s *TrainService) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	updateStatusHandler(w, r, s.db, true)
 }
 
-func (t *TrainRouter) Logs(w http.ResponseWriter, r *http.Request) {
+func (s *TrainService) Logs(w http.ResponseWriter, r *http.Request) {
 
 }

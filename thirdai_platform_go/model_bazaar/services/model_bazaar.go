@@ -10,16 +10,16 @@ import (
 )
 
 type ModelBazaar struct {
-	user UserRouter
-	team TeamRouter
+	user UserService
+	team TeamService
 }
 
 func NewModelBazaar(db *gorm.DB) ModelBazaar {
 	userAuth := auth.NewJwtManager()
 
 	return ModelBazaar{
-		user: UserRouter{db: db, userAuth: userAuth},
-		team: TeamRouter{db: db, userAuth: userAuth},
+		user: UserService{db: db, userAuth: userAuth},
+		team: TeamService{db: db, userAuth: userAuth},
 	}
 }
 

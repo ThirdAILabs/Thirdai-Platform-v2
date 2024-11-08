@@ -12,34 +12,34 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserRouter struct {
+type UserService struct {
 	db       *gorm.DB
 	userAuth *auth.JwtManager
 }
 
-func (u *UserRouter) Routes() chi.Router {
+func (s *UserService) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Group(func(r chi.Router) {
-		r.Post("/signup", u.Signup)
-		r.Post("/login", u.Login)
+		r.Post("/signup", s.Signup)
+		r.Post("/login", s.Login)
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(u.userAuth.Verifier())
-		r.Use(u.userAuth.Authenticator())
+		r.Use(s.userAuth.Verifier())
+		r.Use(s.userAuth.Authenticator())
 
-		r.Get("/list", u.List)
-		r.Get("/info", u.Info)
+		r.Get("/list", s.List)
+		r.Get("/info", s.Info)
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(u.userAuth.Verifier())
-		r.Use(u.userAuth.Authenticator())
-		r.Use(auth.AdminOnly(u.db))
+		r.Use(s.userAuth.Verifier())
+		r.Use(s.userAuth.Authenticator())
+		r.Use(auth.AdminOnly(s.db))
 
-		r.Post("/promote-admin", u.PromoteAdmin)
-		r.Post("/demote-admin", u.DemoteAdmin)
+		r.Post("/promote-admin", s.PromoteAdmin)
+		r.Post("/demote-admin", s.DemoteAdmin)
 	})
 
 	return r
@@ -55,7 +55,7 @@ type signupResponse struct {
 	UserId string `json:"user_id"`
 }
 
-func (u *UserRouter) CreateUser(username, email, password string, admin bool) (schema.User, error) {
+func (s *UserService) CreateUser(username, email, password string, admin bool) (schema.User, error) {
 	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {
 		return schema.User{}, fmt.Errorf("error encrypting password: %w", err)
@@ -63,9 +63,9 @@ func (u *UserRouter) CreateUser(username, email, password string, admin bool) (s
 
 	newUser := schema.User{Id: uuid.New().String(), Username: username, Email: email, Password: hashedPwd, IsAdmin: admin}
 
-	err = u.db.Transaction(func(db *gorm.DB) error {
+	err = s.db.Transaction(func(txn *gorm.DB) error {
 		var existingUser schema.User
-		result := db.Find(&existingUser, "username = ? or email = ?", username, email)
+		result := txn.Find(&existingUser, "username = ? or email = ?", username, email)
 		if result.Error != nil {
 			return schema.NewDbError("checking for existing username/email", result.Error)
 		}
@@ -77,7 +77,7 @@ func (u *UserRouter) CreateUser(username, email, password string, admin bool) (s
 			}
 		}
 
-		result = db.Create(&newUser)
+		result = txn.Create(&newUser)
 		if result.Error != nil {
 			return schema.NewDbError("creating new user entry", result.Error)
 		}
@@ -92,13 +92,13 @@ func (u *UserRouter) CreateUser(username, email, password string, admin bool) (s
 	return newUser, nil
 }
 
-func (u *UserRouter) Signup(w http.ResponseWriter, r *http.Request) {
+func (s *UserService) Signup(w http.ResponseWriter, r *http.Request) {
 	var params signupRequest
 	if !parseRequestBody(w, r, &params) {
 		return
 	}
 
-	newUser, err := u.CreateUser(params.Username, params.Email, params.Password, false)
+	newUser, err := s.CreateUser(params.Username, params.Email, params.Password, false)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -118,14 +118,14 @@ type loginResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
-func (u *UserRouter) Login(w http.ResponseWriter, r *http.Request) {
+func (s *UserService) Login(w http.ResponseWriter, r *http.Request) {
 	var params loginRequest
 	if !parseRequestBody(w, r, &params) {
 		return
 	}
 
 	var user schema.User
-	result := u.db.Find(&user, "email = ?", params.Email)
+	result := s.db.Find(&user, "email = ?", params.Email)
 	if result.Error != nil {
 		err := schema.NewDbError("locating user for email", result.Error)
 		http.Error(w, fmt.Sprintf("login failed: %v", err), http.StatusBadRequest)
@@ -142,7 +142,7 @@ func (u *UserRouter) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := u.userAuth.CreateUserJwt(user.Id)
+	token, err := s.userAuth.CreateUserJwt(user.Id)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("login failed: %v", err), http.StatusInternalServerError)
 		return
@@ -155,21 +155,21 @@ type adminRequest struct {
 	UserId string `json:"user_id"`
 }
 
-func (u *UserRouter) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
+func (s *UserService) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
 	var params adminRequest
 	if !parseRequestBody(w, r, &params) {
 		return
 	}
 
-	err := u.db.Transaction(func(db *gorm.DB) error {
-		user, err := schema.GetUser(params.UserId, db, false)
+	err := s.db.Transaction(func(txn *gorm.DB) error {
+		user, err := schema.GetUser(params.UserId, txn, false)
 		if err != nil {
 			return err
 		}
 
 		user.IsAdmin = true
 
-		result := db.Save(&user)
+		result := txn.Save(&user)
 		if result.Error != nil {
 			return schema.NewDbError("updating user role to admin", result.Error)
 		}
@@ -185,20 +185,20 @@ func (u *UserRouter) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (u *UserRouter) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
+func (s *UserService) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 	var params adminRequest
 	if !parseRequestBody(w, r, &params) {
 		return
 	}
 
-	err := u.db.Transaction(func(db *gorm.DB) error {
-		user, err := schema.GetUser(params.UserId, db, false)
+	err := s.db.Transaction(func(txn *gorm.DB) error {
+		user, err := schema.GetUser(params.UserId, txn, false)
 		if err != nil {
 			return err
 		}
 
 		var count int64
-		result := db.Model(&schema.User{}).Where("is_admin = ?", true).Count(&count)
+		result := txn.Model(&schema.User{}).Where("is_admin = ?", true).Count(&count)
 		if result.Error != nil {
 			return schema.NewDbError("counting existing admins", result.Error)
 		}
@@ -209,7 +209,7 @@ func (u *UserRouter) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 
 		user.IsAdmin = false
 
-		result = db.Save(&user)
+		result = txn.Save(&user)
 		if result.Error != nil {
 			return schema.NewDbError("update user role to user", result.Error)
 		}
@@ -258,14 +258,14 @@ func convertToUserInfo(user *schema.User) UserInfo {
 	}
 }
 
-func (u *UserRouter) List(w http.ResponseWriter, r *http.Request) {
+func (s *UserService) List(w http.ResponseWriter, r *http.Request) {
 	userId, err := auth.UserIdFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	user, err := schema.GetUser(userId, u.db, true)
+	user, err := schema.GetUser(userId, s.db, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
@@ -273,13 +273,13 @@ func (u *UserRouter) List(w http.ResponseWriter, r *http.Request) {
 	var users []schema.User
 	var result *gorm.DB
 	if user.IsAdmin {
-		result = u.db.Preload("Teams").Preload("Teams.Team").Find(&users)
+		result = s.db.Preload("Teams").Preload("Teams.Team").Find(&users)
 	} else if len(user.Teams) > 0 {
 		userTeams := make([]string, 0, len(user.Teams))
 		for _, t := range user.Teams {
 			userTeams = append(userTeams, t.TeamId)
 		}
-		result = u.db.Preload("Teams").Preload("Teams.Team").Joins("JOIN user_teams ON user_teams.user_id = users.id").Where("user_teams.team_id in ?", userTeams).Find(&users)
+		result = s.db.Preload("Teams").Preload("Teams.Team").Joins("JOIN user_teams ON user_teams.user_id = users.id").Where("user_teams.team_id in ?", userTeams).Find(&users)
 	} else {
 		users = []schema.User{user}
 	}
@@ -297,14 +297,14 @@ func (u *UserRouter) List(w http.ResponseWriter, r *http.Request) {
 	writeJsonResponse(w, infos)
 }
 
-func (u *UserRouter) Info(w http.ResponseWriter, r *http.Request) {
+func (s *UserService) Info(w http.ResponseWriter, r *http.Request) {
 	userId, err := auth.UserIdFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	user, err := schema.GetUser(userId, u.db, true)
+	user, err := schema.GetUser(userId, s.db, true)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error retrieving user info: %v", err), http.StatusBadRequest)
 	}

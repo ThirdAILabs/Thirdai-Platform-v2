@@ -17,6 +17,8 @@ const ThumbsUpButton: React.FC<ThumbsUpButtonProps> = ({ inputText, prediction }
     setFeedbackMessage('Feedback received');
 
     // Send feedback to backend
+    const accessToken = localStorage.getItem('accessToken');
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
     try {
       await axios.post(`${deploymentBaseUrl}/add_sample`, {
         inputText,

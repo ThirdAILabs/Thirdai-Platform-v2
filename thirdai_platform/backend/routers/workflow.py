@@ -3,7 +3,7 @@ import uuid
 from typing import List, Optional
 
 from backend.auth_dependencies import get_current_user
-from backend.utils import get_model, validate_name
+from backend.utils import get_model, validate_name, get_disk_usage
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, status
@@ -131,11 +131,13 @@ def create_enterprise_search_workflow(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
         )
 
+    usage_stat = get_disk_usage()
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully created Enterprise Search workflow.",
         data={
             "model_id": str(workflow_id),
             "user_id": str(user.id),
+            "disk_usage": usage_stat.free / usage_stat.total
         },
     )

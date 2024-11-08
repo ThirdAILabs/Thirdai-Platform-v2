@@ -19,6 +19,7 @@ from backend.utils import (
     get_model_from_identifier,
     model_bazaar_path,
     validate_name,
+    get_disk_usage
 )
 from database import schema
 from database.session import get_session
@@ -396,9 +397,13 @@ def upload_chunk(
             message=str(error),
         )
 
+    usage_stat = get_disk_usage()
     return response(
         status_code=status.HTTP_200_OK,
         message="Uploaded chunk",
+        data = {    
+            "disk_usage": usage_stat.free / usage_stat.total
+        }
     )
 
 

@@ -30,6 +30,7 @@ from backend.utils import (
     submit_nomad_job,
     thirdai_platform_dir,
     validate_license_info,
+    get_disk_usage
 )
 from database import schema
 from database.session import get_session
@@ -363,6 +364,7 @@ async def deploy_model(
                 + err.detail,
             )
 
+    usage_stat = get_disk_usage()
     return response(
         status_code=status.HTTP_202_ACCEPTED,
         message="Deployment is in-progress",
@@ -370,6 +372,7 @@ async def deploy_model(
             "status": "queued",
             "model_identifier": model_identifier,
             "model_id": str(model.id),
+            "disk_usage": usage_stat.free / usage_stat.total
         },
     )
 

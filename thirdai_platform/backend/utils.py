@@ -766,3 +766,9 @@ def read_file_from_back(path: str):
 
     finally:
         fp.close()
+
+def get_disk_usage():
+    return shutil.disk_usage(
+                os.path.join(model_bazaar_path())
+            )
+    

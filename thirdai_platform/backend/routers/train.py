@@ -30,6 +30,7 @@ from backend.utils import (
     update_json,
     validate_license_info,
     validate_name,
+    get_disk_usage
 )
 from database import schema
 from database.session import get_session
@@ -226,12 +227,15 @@ def train_ndb(
             message=str(err),
         )
 
+    usage_stat = get_disk_usage()
+
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully submitted the job",
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": usage_stat.free / usage_stat.total
         },
     )
 
@@ -396,12 +400,14 @@ def retrain_ndb(
             message=str(err),
         )
 
+    usage_stat = get_disk_usage()
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully submitted the job",
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": usage_stat.free / usage_stat.total
         },
     )
 
@@ -538,12 +544,14 @@ def nlp_datagen(
             message=str(err),
         )
 
+    usage_stat = get_disk_usage()
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully submitted the job",
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": usage_stat.free / usage_stat.total
         },
     )
 
@@ -815,12 +823,15 @@ def retrain_udt(
             message=str(err),
         )
 
+    usage_stat = get_disk_usage()
+    
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully submitted the job",
         data={
             "model_id": str(model.id),
             "user_id": str(user.id),
+            "disk_usage": usage_stat.free / usage_stat.total
         },
     )
 
@@ -985,12 +996,15 @@ def train_udt(
             message=str(err),
         )
 
+    usage_stat = get_disk_usage()
+    
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully submitted the job",
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": usage_stat.free / usage_stat.total
         },
     )
 

@@ -48,15 +48,17 @@ class FileInfo(BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
         if not self.cloud_credentials:
-            self.cloud_credentials = self._get_relevant_credentials()
+            self.cloud_credentials = self.get_relevant_credentials(
+                location=self.location
+            )
 
-    def _get_relevant_credentials(self) -> Optional[CloudCredentials]:
+    def get_relevant_credentials(self, location: str) -> Optional[CloudCredentials]:
         """Initialize only the relevant credentials based on the location."""
-        if self.location == FileLocation.s3:
+        if location == FileLocation.s3.value:
             return CloudCredentials(aws=AWSCredentials())
-        elif self.location == FileLocation.azure:
+        elif location == FileLocation.azure.value:
             return CloudCredentials(azure=AzureCredentials())
-        elif self.location == FileLocation.gcp:
+        elif location == FileLocation.gcp.value:
             return CloudCredentials(gcp=GCPCredentials())
         return None  # No credentials needed for local or nfs locations
 
@@ -418,6 +420,4 @@ class TrainConfig(BaseModel):
             if bucket_name and file_info.cloud_credentials:
                 registry.save_credentials(bucket_name, file_info.cloud_credentials)
 
-        registry_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(registry_path, "w") as file:
-            file.write(registry.model_dump_json(indent=4))
+        registry.save_to_disk(registry_path=registry_path)

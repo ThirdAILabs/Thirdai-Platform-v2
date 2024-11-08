@@ -29,10 +29,12 @@ class Model(ABC):
 
         self.logger.info(f"Data directory created or exists at {self.data_dir}")
 
-        credentials_registry_path = self.model_dir / "credentials.json"
+        self.credentials_registry_path = (
+            Path(self.config.model_bazaar_dir) / "credentials.json"
+        )
 
-        if credentials_registry_path.exists():
-            with open(credentials_registry_path) as file:
+        if self.credentials_registry_path.exists():
+            with open(self.credentials_registry_path) as file:
                 self.credentials_registry = CredentialRegistry.model_validate_json(
                     file.read()
                 )

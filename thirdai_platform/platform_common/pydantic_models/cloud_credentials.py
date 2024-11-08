@@ -1,3 +1,5 @@
+import logging
+from pathlib import Path
 from typing import Dict, Optional
 
 from pydantic import BaseModel, Field
@@ -45,9 +47,13 @@ class CloudCredentials(BaseModel):
 class CredentialRegistry(BaseModel):
     credentials_map: Dict[str, CloudCredentials] = Field(default_factory=dict)
 
-    def save_credentials(self, bucket_name: str, credentials: CloudCredentials):
-        if not self.credentials_exists(bucket_name):
+    def save_credentials(
+        self, bucket_name: str, credentials: CloudCredentials, update: bool = False
+    ):
+        if not self.credentials_exists(bucket_name) or update:
             self.credentials_map[bucket_name] = credentials
+        else:
+            logging.warning("Credentials exists for the bucket, skipping update")
 
     def credentials_exists(self, bucket_name):
         return self.get_credentials(bucket_name) is not None
@@ -58,3 +64,8 @@ class CredentialRegistry(BaseModel):
     def remove_credentials(self, bucket_name: str):
         if bucket_name in self.credentials_map:
             del self.credentials_map[bucket_name]
+
+    def save_to_disk(self, registry_path: Path):
+        registry_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(registry_path, "w") as file:
+            file.write(self.model_dump_json(indent=4))

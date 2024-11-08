@@ -314,6 +314,10 @@ class NDBV1Model(NDBModel):
                     bucket_name=bucket_name, credentials=doc.cloud_credentials
                 )
 
+        self.credentials_registry.save_to_disk(
+            registry_path=self.credentials_registry_path
+        )
+
         with self.db_lock:
             self.db.insert(ndb_docs)
 
@@ -457,6 +461,9 @@ class NDBV2Model(NDBModel):
                     bucket_name=bucket_name, credentials=doc.cloud_credentials
                 )
 
+        self.credentials_registry.save_to_disk(
+            registry_path=self.credentials_registry_path
+        )
         with self.db_lock:
             self.db.insert(ndb_docs)
 

@@ -52,7 +52,9 @@ class Model(ABC):
             self.model_dir / "checkpoints" / "supervised"
         )
 
-        credentials_registry_path = self.model_dir / "credentials.json"
+        credentials_registry_path = (
+            Path(self.config.model_bazaar_dir) / "credentials.json"
+        )
 
         self.config.populate_credential_registry_and_save(
             registry_path=credentials_registry_path

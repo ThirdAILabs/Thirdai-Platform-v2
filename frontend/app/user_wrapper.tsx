@@ -17,8 +17,8 @@ interface UserContext {
 export const UserContext = createContext<UserContext>({
   user: null,
   accessToken: null,
-  setAccessToken: (user) => {},
-  logout: () => {},
+  setAccessToken: (user) => { },
+  logout: () => { },
 });
 
 export default function UserWrapper({ children }: { children: React.ReactNode }) {
@@ -36,6 +36,7 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
       process.env.NEXT_PUBLIC_IDENTITY_PROVIDER &&
       process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes('keycloak')
     ) {
+      console.log("Pushing login keycloak")
       router.push('/login-keycloak');
     } else {
       router.push('/login-email');

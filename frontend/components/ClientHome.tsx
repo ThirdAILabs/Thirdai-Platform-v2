@@ -15,6 +15,7 @@ interface ClientHomeProps {
 
 export default function ClientHome({ session, accessToken }: ClientHomeProps) {
   const { setAccessToken } = useContext(UserContext);
+  console.log("Client Home")
 
   useEffect(() => {
     if (accessToken) {

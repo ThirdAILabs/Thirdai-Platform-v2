@@ -10,8 +10,10 @@ from typing import List
 
 import pandas as pd
 import thirdai
-from platform_common.file_handler import expand_cloud_buckets_and_directories
-from platform_common.ndb.ndbv1_parser import get_local_file_infos
+from platform_common.file_handler import (
+    expand_cloud_buckets_and_directories,
+    get_local_file_infos,
+)
 from platform_common.pii.udt_common_patterns import find_common_pattern
 from platform_common.pydantic_models.training import (
     FileInfo,
@@ -69,7 +71,7 @@ class ClassificationModel(Model):
     def initialize_model(self):
         pass
 
-    def cleamup_temp_dirs(self):
+    def cleanup_temp_dirs(self):
         """
         Clean up temporary directories created for downloaded files.
         """
@@ -223,7 +225,7 @@ class TextClassificationModel(ClassificationModel):
             )
         finally:
             # Ensure cleanup of temporary directories after training, even on failure
-            self.cleamup_temp_dirs()
+            self.cleanup_temp_dirs()
 
     def get_latency(self, model) -> float:
         self.logger.info("Measuring latency of the UDT instance.")
@@ -440,7 +442,7 @@ class TokenClassificationModel(ClassificationModel):
             )
         finally:
             # Ensure cleanup of temporary directories after training, even on failure
-            self.cleamup_temp_dirs()
+            self.cleanup_temp_dirs()
 
     def insert_samples_in_storage(
         self, supervised_files: typing.List[FileInfo], buffer_size=50_000

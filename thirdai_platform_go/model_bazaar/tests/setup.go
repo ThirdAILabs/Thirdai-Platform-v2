@@ -34,7 +34,7 @@ func setupTestEnv(t *testing.T) testEnv {
 		t.Fatal(err)
 	}
 
-	modelBazaar := services.NewModelBazaar(db, newNomadStub())
+	modelBazaar := services.NewModelBazaar(db, newNomadStub(), nil, nil, services.Variables{})
 
 	modelBazaar.InitAdmin(adminUsername, adminEmail, adminPassword)
 

@@ -22,7 +22,7 @@ type ModelService struct {
 	sessionAuth *auth.JwtManager
 }
 
-func (s *ModelService) Routers() chi.Router {
+func (s *ModelService) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Group(func(r chi.Router) {

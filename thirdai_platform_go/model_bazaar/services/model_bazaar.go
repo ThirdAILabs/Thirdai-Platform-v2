@@ -6,8 +6,10 @@ import (
 	"log"
 	"log/slog"
 	"thirdai_platform/model_bazaar/auth"
+	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
+	"thirdai_platform/model_bazaar/storage"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -16,20 +18,51 @@ import (
 )
 
 type ModelBazaar struct {
-	user UserService
-	team TeamService
+	user   UserService
+	team   TeamService
+	model  ModelService
+	train  TrainService
+	deploy DeployService
 
 	db    *gorm.DB
 	nomad nomad.NomadClient
 	stop  chan bool
 }
 
-func NewModelBazaar(db *gorm.DB, nomad nomad.NomadClient) ModelBazaar {
+func NewModelBazaar(
+	db *gorm.DB, nomad nomad.NomadClient, storage storage.Storage, license *licensing.LicenseVerifier, variables Variables,
+) ModelBazaar {
 	userAuth := auth.NewJwtManager()
+	jobAuth := auth.NewJwtManager()
 
 	return ModelBazaar{
-		user:  UserService{db: db, userAuth: userAuth},
-		team:  TeamService{db: db, userAuth: userAuth},
+		user: UserService{db: db, userAuth: userAuth},
+		team: TeamService{db: db, userAuth: userAuth},
+		model: ModelService{
+			db:          db,
+			nomad:       nomad,
+			storage:     storage,
+			userAuth:    userAuth,
+			sessionAuth: auth.NewJwtManager(),
+		},
+		train: TrainService{
+			db:        db,
+			nomad:     nomad,
+			storage:   storage,
+			userAuth:  userAuth,
+			jobAuth:   jobAuth,
+			license:   license,
+			variables: variables,
+		},
+		deploy: DeployService{
+			db:        db,
+			nomad:     nomad,
+			storage:   storage,
+			userAuth:  userAuth,
+			jobAuth:   jobAuth,
+			license:   license,
+			variables: variables,
+		},
 		db:    db,
 		nomad: nomad,
 		stop:  make(chan bool, 1),
@@ -44,6 +77,9 @@ func (m *ModelBazaar) Routes() chi.Router {
 
 	r.Mount("/user", m.user.Routes())
 	r.Mount("/team", m.team.Routes())
+	r.Mount("/model", m.model.Routes())
+	r.Mount("/train", m.train.Routes())
+	r.Mount("/deploy", m.deploy.Routes())
 
 	return r
 }

@@ -29,7 +29,7 @@ type TrainService struct {
 	jobAuth  *auth.JwtManager
 
 	license   *licensing.LicenseVerifier
-	variables *Variables
+	variables Variables
 }
 
 func (s *TrainService) Routes() chi.Router {

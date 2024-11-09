@@ -18,14 +18,15 @@ import (
 )
 
 type DeployService struct {
-	db    *gorm.DB
-	nomad nomad.NomadClient
+	db      *gorm.DB
+	nomad   nomad.NomadClient
+	storage storage.Storage
 
-	storage   storage.Storage
-	userAuth  *auth.JwtManager
-	jobAuth   *auth.JwtManager
-	variables *Variables
+	userAuth *auth.JwtManager
+	jobAuth  *auth.JwtManager
+
 	license   *licensing.LicenseVerifier
+	variables Variables
 }
 
 func (s *DeployService) Routes() chi.Router {

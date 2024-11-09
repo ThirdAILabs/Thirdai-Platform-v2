@@ -7,7 +7,7 @@ job "{{ .JobName }}" {
   group "train-job" {
     count = 1
 
-    task "server" {
+    task "backend" {
 
       {{ if isDocker .Driver }}
         driver = "docker"

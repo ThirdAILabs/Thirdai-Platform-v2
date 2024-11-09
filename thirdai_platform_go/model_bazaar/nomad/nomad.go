@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -24,12 +25,19 @@ type JobInfo struct {
 	Status string
 }
 
+type JobLog struct {
+	Stdout string `json:"stdout"`
+	Stderr string `json:"stderr"`
+}
+
 type NomadClient interface {
 	StartJob(job Job) error
 
 	StopJob(jobName string) error
 
 	JobInfo(jobName string) (JobInfo, error)
+
+	JobLogs(jobName string) ([]JobLog, error)
 
 	TotalCpuUsage() (int, error)
 }
@@ -40,7 +48,7 @@ type NomadHttpClient struct {
 	templates *template.Template
 }
 
-func NewHttpClient() NomadClient {
+func NewHttpClient(addr string, token string) NomadClient {
 	funcs := template.FuncMap{
 		"isLocal": func(d Driver) bool {
 			return d.DriverType() == "local"
@@ -58,7 +66,7 @@ func NewHttpClient() NomadClient {
 		log.Panicf("error parsing job templates: %v", err)
 	}
 
-	return &NomadHttpClient{templates: tmpl}
+	return &NomadHttpClient{addr: addr, token: token, templates: tmpl}
 }
 
 func (c *NomadHttpClient) parseJob(job Job) (interface{}, error) {
@@ -212,6 +220,109 @@ func (c *NomadHttpClient) JobInfo(jobName string) (JobInfo, error) {
 	}
 
 	return info, nil
+}
+
+type jobAllocation struct {
+	ID string
+}
+
+func (c *NomadHttpClient) jobAllocations(jobName string) ([]string, error) {
+	url, err := url.JoinPath(c.addr, fmt.Sprintf("v1/job/%v/allocations", jobName))
+	if err != nil {
+		return nil, fmt.Errorf("error formatting job allocations url: %w", err)
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating new request: %w", err)
+	}
+	req.Header.Add("X-Nomad-Token", c.token)
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving allocations for nomad job '%v': %w", jobName, err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("get nomad job allocations returned status %d", res.StatusCode)
+	}
+
+	var allocations []jobAllocation
+	err = json.NewDecoder(res.Body).Decode(&allocations)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing job allocations from nomad: %w", err)
+	}
+
+	allocIds := make([]string, 0, len(allocations))
+	for _, alloc := range allocations {
+		allocIds = append(allocIds, alloc.ID)
+	}
+
+	return allocIds, nil
+}
+
+func (c *NomadHttpClient) getLogs(allocId string, logType string) (string, error) {
+	url, err := url.JoinPath(c.addr, fmt.Sprintf("v1/client/fs/logs/%v", allocId))
+	if err != nil {
+		return "", fmt.Errorf("error formatting allocation logs url: %w", err)
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("error creating new request: %w", err)
+	}
+	req.Header.Add("X-Nomad-Token", c.token)
+
+	params := map[string]string{
+		"task": "backend", "type": logType, "origin": "end", "offset": "5000", "plain": "true",
+	}
+	query := req.URL.Query()
+	for k, v := range params {
+		query.Add(k, v)
+	}
+	req.URL.RawQuery = query.Encode()
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error retrieving nomad logs: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("get nomad job logs returned status %d", res.StatusCode)
+	}
+
+	content, err := io.ReadAll(res.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading log response: %w", err)
+	}
+
+	return string(content), err
+}
+
+func (c *NomadHttpClient) JobLogs(jobName string) ([]JobLog, error) {
+	allocations, err := c.jobAllocations(jobName)
+	if err != nil {
+		return nil, err
+	}
+
+	logs := make([]JobLog, 0)
+
+	for _, alloc := range allocations {
+		stdoutLogs, err := c.getLogs(alloc, "stdout")
+		if err != nil {
+			return nil, fmt.Errorf("error getting logs from stdout for job %v: %w", jobName, err)
+		}
+		stderrLogs, err := c.getLogs(alloc, "stderr")
+		if err != nil {
+			return nil, fmt.Errorf("error getting logs from stderr for job %v: %w", jobName, err)
+		}
+
+		logs = append(logs, JobLog{Stdout: stdoutLogs, Stderr: stderrLogs})
+	}
+
+	return logs, nil
 }
 
 type nomadAllocation struct {

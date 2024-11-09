@@ -25,7 +25,10 @@ func (c *NomadStub) JobInfo(jobName string) (nomad.JobInfo, error) {
 		return nomad.JobInfo{Name: jobName, Status: "running"}, nil
 	}
 	return nomad.JobInfo{Name: jobName, Status: "dead"}, nil
+}
 
+func (c *NomadStub) JobLogs(jobName string) ([]nomad.JobLog, error) {
+	return []nomad.JobLog{}, nil
 }
 
 func (c *NomadStub) TotalCpuUsage() (int, error) {

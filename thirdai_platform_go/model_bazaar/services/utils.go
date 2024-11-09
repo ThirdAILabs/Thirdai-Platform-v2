@@ -212,6 +212,36 @@ func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, tr
 	w.WriteHeader(http.StatusOK)
 }
 
+func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad.NomadClient, training bool) {
+	params := r.URL.Query()
+	if !params.Has("model_id") {
+		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
+		return
+	}
+	modelId := params.Get("model_id")
+
+	model, err := schema.GetModel(modelId, db, false, false, false)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error getting logs: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	var jobName string
+	if training {
+		jobName = model.TrainJobName()
+	} else {
+		jobName = model.DeployJobName()
+	}
+
+	logs, err := c.JobLogs(jobName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error getting logs: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	writeJsonResponse(w, logs)
+}
+
 func saveConfig(modelId string, jobType string, config interface{}, store storage.Storage) (string, error) {
 	trainConfigData, err := json.Marshal(config)
 	if err != nil {

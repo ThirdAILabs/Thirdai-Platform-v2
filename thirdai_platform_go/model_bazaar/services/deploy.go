@@ -275,5 +275,5 @@ func (s *DeployService) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *DeployService) Logs(w http.ResponseWriter, r *http.Request) {
-
+	getLogsHandler(w, r, s.db, s.nomad, true)
 }

@@ -41,7 +41,7 @@ job "{{ .JobName }}" {
       tags = [
         "traefik.enable=true",
         "traefik.http.routers.{{ .ModelId }}-http.middlewares={{ .ModelId }}-stripprefix",
-        {{ if neq .DeploymentName "" }}
+        {{ if ne .DeploymentName "" }}
         "traefik.http.routers.{{ .ModelId }}-http.rule=(PathPrefix(`/{{ .ModelId }}/`) || PathPrefix(`/{{ .DeploymentName }}/`))",
         "traefik.http.middlewares.{{ .ModelId }}-stripprefix.stripprefix.prefixes=/{{ .ModelId }},/{{ .DeploymentName }}",
         {{ else }}

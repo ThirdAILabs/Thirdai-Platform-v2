@@ -280,5 +280,5 @@ func (s *TrainService) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TrainService) Logs(w http.ResponseWriter, r *http.Request) {
-
+	getLogsHandler(w, r, s.db, s.nomad, true)
 }

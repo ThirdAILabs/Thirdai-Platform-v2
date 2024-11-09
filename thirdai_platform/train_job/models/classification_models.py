@@ -468,7 +468,6 @@ class TokenClassificationModel(ClassificationModel):
                     if len(test_files) == 0
                     else self.per_tag_metrics(
                         model=model,
-                        train_files=train_files,
                         test_files=test_files,
                         samples_to_collect=0,
                     )
@@ -546,7 +545,6 @@ class TokenClassificationModel(ClassificationModel):
                     if len(test_files) == 0
                     else self.per_tag_metrics(
                         model=model,
-                        train_files=train_files,
                         test_files=test_files,
                         samples_to_collect=5,
                     )

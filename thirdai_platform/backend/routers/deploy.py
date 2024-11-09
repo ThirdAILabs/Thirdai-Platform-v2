@@ -613,7 +613,9 @@ def update_deployment_status(
 
 
 @deploy_router.post("/warning")
-def train_warning(model_id: str, message: str, session: Session = Depends(get_session)):
+def deploy_warning(
+    model_id: str, message: str, session: Session = Depends(get_session)
+):
     trained_model: schema.Model = (
         session.query(schema.Model).filter(schema.Model.id == model_id).first()
     )
@@ -743,7 +745,7 @@ async def start_on_prem_job(
 
 
 @deploy_router.get("/logs", dependencies=[Depends(verify_model_read_access)])
-def train_logs(
+def deploy_logs(
     model_identifier: str,
     session: Session = Depends(get_session),
 ):

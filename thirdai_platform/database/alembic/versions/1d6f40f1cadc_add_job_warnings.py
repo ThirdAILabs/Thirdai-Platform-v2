@@ -89,4 +89,5 @@ def downgrade() -> None:
     op.create_index("ix_job_errors_model_id", "job_errors", ["model_id"], unique=False)
     op.drop_index(op.f("ix_job_messages_model_id"), table_name="job_messages")
     op.drop_table("job_messages")
+    op.execute("DROP TYPE level")
     # ### end Alembic commands ###

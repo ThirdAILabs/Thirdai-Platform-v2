@@ -199,7 +199,9 @@ class UDTRouterTextClassification(UDTBaseRouter):
     def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
         super().__init__(config, reporter, logger)
         # Add routes specific to text classification
-        self.router.add_api_route("/add_sample", self.add_sample, methods=["POST"])
+        self.router.add_api_route(
+            "/insert_sample", self.insert_sample, methods=["POST"]
+        )
         self.router.add_api_route(
             "/get_recent_samples", self.get_recent_samples, methods=["GET"]
         )
@@ -217,7 +219,7 @@ class UDTRouterTextClassification(UDTBaseRouter):
             logger.error(error_message)
             raise ValueError(error_message)
 
-    def add_sample(
+    def insert_sample(
         self,
         sample: TextClassificationData,
         token=Depends(Permissions.verify_permission("write")),

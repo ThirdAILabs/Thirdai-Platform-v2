@@ -363,25 +363,14 @@ func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
-		// TODO(Nicholas) should this just be update? need to have error message if model not found
-		model, err := schema.GetModel(modelId, txn, false, false, false)
-		if err != nil {
-			return err
-		}
-
-		model.Access = newAccess
-
-		result := txn.Save(&model)
-		if result.Error != nil {
-			return schema.NewDbError("updating model access", result.Error)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error updating model access: %v", err), http.StatusBadRequest)
+	result := s.db.Model(&schema.Model{Id: modelId}).Update("access", newAccess)
+	if result.Error != nil {
+		err := schema.NewDbError("updating model access", result.Error)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if result.RowsAffected != 1 {
+		http.Error(w, fmt.Sprintf("unable to update access for model %v, please check that the model exists", modelId), http.StatusBadRequest)
 		return
 	}
 
@@ -401,25 +390,14 @@ func (s *ModelService) UpdateDefaultPermission(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	err := s.db.Transaction(func(txn *gorm.DB) error {
-		// TODO(Nicholas) should this just be update? need to have error message if model not found
-		model, err := schema.GetModel(modelId, txn, false, false, false)
-		if err != nil {
-			return err
-		}
-
-		model.DefaultPermission = newPermission
-
-		result := txn.Save(&model)
-		if result.Error != nil {
-			return schema.NewDbError("updating model default permission", result.Error)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error updating model default permission: %v", err), http.StatusBadRequest)
+	result := s.db.Model(&schema.Model{Id: modelId}).Update("default_permission", newPermission)
+	if result.Error != nil {
+		err := schema.NewDbError("updating model default permission", result.Error)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if result.RowsAffected != 1 {
+		http.Error(w, fmt.Sprintf("unable to update default permission for model %v, please check that the model exists", modelId), http.StatusBadRequest)
 		return
 	}
 

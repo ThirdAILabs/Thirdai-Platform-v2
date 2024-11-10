@@ -134,6 +134,35 @@ func TestListUsers(t *testing.T) {
 	if err != ErrUnauthorized {
 		t.Fatal("expected unauthorized error")
 	}
+
+	user2, err := env.newUser("qrs")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	team, err := admin.createTeam("team1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = admin.addUserToTeam(team, user1.userId)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = admin.addUserToTeam(team, user2.userId)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	users, err = user1.listUsers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sortUserList(users)
+	if len(users) != 2 || users[0].Username != "abc" || users[1].Username != "qrs" {
+		t.Fatal("invalid user1 user list")
+	}
 }
 
 func checkAdminStatus(c client, t *testing.T, isAdmin bool) {

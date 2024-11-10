@@ -10,10 +10,8 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
-	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/jwtauth/v5"
 	"gorm.io/gorm"
 )
 
@@ -37,7 +35,6 @@ func (s *DeployService) Routes() chi.Router {
 		r.Use(s.userAuth.Authenticator())
 
 		r.Post("/start", s.Start)
-		r.Get("/permissions", s.Permissions)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -65,42 +62,6 @@ func (s *DeployService) Routes() chi.Router {
 	})
 
 	return r
-}
-
-type permissionsResponse struct {
-	Read     bool      `json:"read"`
-	Write    bool      `json:"write"`
-	Override bool      `json:"override"`
-	Exp      time.Time `json:"exp"`
-}
-
-func (s *DeployService) Permissions(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("model_id") || !params.Has("user_id") {
-		http.Error(w, "'model_id' or 'user_id' query parameters missing", http.StatusBadRequest)
-		return
-	}
-	modelId, userId := params.Get("model_id"), params.Get("user_id")
-
-	permission, err := auth.GetModelPermissions(modelId, userId, s.db)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving model permissions: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	token, _, err := jwtauth.FromContext(r.Context())
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving access token: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	res := permissionsResponse{
-		Read:     permission >= auth.ReadPermission,
-		Write:    permission >= auth.WritePermission,
-		Override: permission >= auth.OwnerPermission,
-		Exp:      token.Expiration(),
-	}
-	writeJsonResponse(w, res)
 }
 
 func (s *DeployService) deployModel(modelId, userId string, autoscalingEnabled bool, autoscalingMax int, memory int, deploymentName string) error {

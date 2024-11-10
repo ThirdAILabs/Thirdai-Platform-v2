@@ -1,9 +1,14 @@
 package tests
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
+	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/services"
+	"thirdai_platform/model_bazaar/storage"
 
 	"github.com/go-chi/chi/v5"
 	"gorm.io/driver/sqlite"
@@ -34,7 +39,23 @@ func setupTestEnv(t *testing.T) testEnv {
 		t.Fatal(err)
 	}
 
-	modelBazaar := services.NewModelBazaar(db, newNomadStub(), nil, nil, services.Variables{})
+	tmpDir := t.TempDir()
+	licensePath := filepath.Join(tmpDir, "/platform_license")
+	storagePath := filepath.Join(tmpDir, "/storage")
+
+	file, err := os.Create(licensePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = json.NewEncoder(file).Encode(TEST_LICENSE)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	modelBazaar := services.NewModelBazaar(
+		db, newNomadStub(), storage.NewSharedDisk(storagePath),
+		licensing.NewVerifier(licensePath), services.Variables{},
+	)
 
 	modelBazaar.InitAdmin(adminUsername, adminEmail, adminPassword)
 
@@ -64,4 +85,13 @@ func (t *testEnv) adminClient() (client, error) {
 	c := t.newClient()
 	err := c.login(loginInfo{Email: adminEmail, Password: adminPassword})
 	return c, err
+}
+
+var TEST_LICENSE = map[string]interface{}{
+	"license": map[string]string{
+		"cpuMhzLimit":    "100000000",
+		"expiryDate":     "2030-04-03T00:00:00+00:00",
+		"boltLicenseKey": "236C00-47457C-4641C5-52E3BB-3D1F34-V3",
+	},
+	"signature": "SM8NMmVhdW23u9g97LnmkbG1lqiG7U07RkUdXIVll9XYI6qVYfRPbLZVNYJiYoo/iY6Jrpom/ga+NRYGDz8P+9cfpwF3CfAsdjlH41CkBTB3aZr/0t1JC/M4J3IQe5DXMF30DDjmhrrTsYsSfFcvtq8J4GG9QnMiveoB2nozuwA8Xz7XlSCujJcTFwpqFvEsJ5RGH6OuJaNXT2auuCO0EdAsNxyDOxmYxnTlKH9NdeZT9DLoEYjSfmfk4b3gLxNpmMoXPk8MJWGeoSdM99TR1wtb1JbGg/KtJSKkFkmzdCNz2dXc2ol28AkIq3eqGiU7VLh/fVZ8hvUqe7yw+FTUEw==",
 }

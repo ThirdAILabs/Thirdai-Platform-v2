@@ -2,9 +2,7 @@ package tests
 
 import (
 	"fmt"
-	"slices"
 	"testing"
-	"thirdai_platform/model_bazaar/services"
 )
 
 func TestSignupAndLogin(t *testing.T) {
@@ -91,18 +89,6 @@ func TestUserInfo(t *testing.T) {
 	if info.Username != "abc" || info.Email != "abc@mail.com" || info.Id != client.userId || info.Admin {
 		t.Fatalf("invalid user info %v", info)
 	}
-}
-
-func sortUserList(users []services.UserInfo) {
-	slices.SortFunc(users, func(a, b services.UserInfo) int {
-		if a.Username == b.Username {
-			return 0
-		}
-		if a.Username < b.Username {
-			return -1
-		}
-		return 1
-	})
 }
 
 func TestListUsers(t *testing.T) {

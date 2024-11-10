@@ -117,7 +117,7 @@ func GetModelPermissions(modelId, userId string, db *gorm.DB) (modelPermissions,
 		return ReadPermission, nil
 	}
 
-	if model.Access == schema.Protected {
+	if model.Access == schema.Protected && model.TeamId != nil {
 		userTeam, err := schema.GetUserTeam(*model.TeamId, userId, db)
 		if err != nil {
 			return NoPermission, err
@@ -158,7 +158,7 @@ func ModelPermissionOnly(db *gorm.DB, minPermission modelPermissions) func(http.
 				return
 			}
 
-			if permission == minPermission {
+			if permission >= minPermission {
 				next.ServeHTTP(w, r)
 				return
 			}

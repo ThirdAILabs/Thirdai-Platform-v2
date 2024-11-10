@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
 
 	"github.com/go-chi/chi/v5"
@@ -191,4 +192,53 @@ func (c *client) listTeamModels(teamId string) ([]services.ModelInfo, error) {
 
 func (c *client) listTeamUsers(teamId string) ([]services.TeamUserInfo, error) {
 	return get[[]services.TeamUserInfo](c, fmt.Sprintf("/team/users?team_id=%v", teamId))
+}
+
+func (c *client) modelInfo(modelId string) (services.ModelInfo, error) {
+	return get[services.ModelInfo](c, fmt.Sprintf("/model/info?model_id=%v", modelId))
+}
+
+func (c *client) listModels() ([]services.ModelInfo, error) {
+	return get[[]services.ModelInfo](c, "/model/list")
+}
+
+func (c *client) deleteModel(modelId string) error {
+	_, err := post[int](c, fmt.Sprintf("/model/delete?model_id=%v", modelId), nil, false)
+	return err
+}
+
+func (c *client) updateAccess(modelId, newAccess string) error {
+	_, err := post[int](c, fmt.Sprintf("/model/update-access?model_id=%v&new_access=%v", modelId, newAccess), nil, false)
+	return err
+}
+
+func (c *client) updateDefaultPermission(modelId, newPermission string) error {
+	_, err := post[int](c, fmt.Sprintf("/model/update-default-permission?model_id=%v&new_permission=%v", modelId, newPermission), nil, false)
+	return err
+}
+
+func (c *client) modelPermissions(modelId string) (services.ModelPermissions, error) {
+	return get[services.ModelPermissions](c, fmt.Sprintf("/model/permissions?model_id=%v", modelId))
+}
+
+func (c *client) trainNdb(name string) (string, error) {
+	params := services.NdbTrainOptions{
+		ModelName:    name,
+		ModelOptions: &config.NdbOptions{},
+		Data: config.NDBData{
+			UnsupervisedFiles: []config.FileInfo{{}},
+		},
+	}
+
+	body, err := json.Marshal(params)
+	if err != nil {
+		return "", err
+	}
+
+	res, err := post[map[string]string](c, "/train/ndb", body, true)
+	if err != nil {
+		return "", err
+	}
+
+	return res["model_id"], nil
 }

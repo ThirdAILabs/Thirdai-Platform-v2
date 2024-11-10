@@ -7,8 +7,10 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/jwtauth/v5"
 	"gorm.io/gorm"
 )
 
@@ -30,9 +32,8 @@ func (s *ModelService) Routes() chi.Router {
 		r.Use(s.userAuth.Authenticator())
 		r.Use(auth.ModelPermissionOnly(s.db, auth.ReadPermission))
 
-		r.Get("/details", s.Details)
+		r.Get("/info", s.Info)
 		r.Get("/download", s.Download)
-
 	})
 
 	r.Group(func(r chi.Router) {
@@ -50,6 +51,8 @@ func (s *ModelService) Routes() chi.Router {
 		r.Use(s.userAuth.Authenticator())
 
 		r.Get("/list", s.List)
+		r.Get("/permissions", s.Permissions)
+
 		r.Post("/save-deployed", s.SaveDeployed)
 		r.Post("/upload-token", s.UploadToken)
 	})
@@ -130,7 +133,7 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 	}, nil
 }
 
-func (s *ModelService) Details(w http.ResponseWriter, r *http.Request) {
+func (s *ModelService) Info(w http.ResponseWriter, r *http.Request) {
 	params := r.URL.Query()
 	if !params.Has("model_id") {
 		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
@@ -201,9 +204,51 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 	writeJsonResponse(w, infos)
 }
 
+type ModelPermissions struct {
+	Read  bool      `json:"read"`
+	Write bool      `json:"write"`
+	Owner bool      `json:"owner"`
+	Exp   time.Time `json:"exp"`
+}
+
+func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+	if !params.Has("model_id") {
+		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
+		return
+	}
+	modelId := params.Get("model_id")
+
+	userId, err := auth.UserIdFromContext(r)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error getting user_id: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	permission, err := auth.GetModelPermissions(modelId, userId, s.db)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error retrieving model permissions: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	token, _, err := jwtauth.FromContext(r.Context())
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error retrieving access token: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	res := ModelPermissions{
+		Read:  permission >= auth.ReadPermission,
+		Write: permission >= auth.WritePermission,
+		Owner: permission >= auth.OwnerPermission,
+		Exp:   token.Expiration(),
+	}
+	writeJsonResponse(w, res)
+}
+
 func countTrainingChildModels(db *gorm.DB, modelId string) (int64, error) {
 	var childModels int64
-	result := db.
+	result := db.Model(&schema.Model{}).
 		Where("base_model_id = ?", modelId).
 		Where("train_status IN ?", []string{schema.NotStarted, schema.Starting, schema.InProgress}).
 		Count(&childModels)

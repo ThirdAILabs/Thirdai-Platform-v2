@@ -28,7 +28,7 @@ func (s *SharedDiskStorage) Read(path string) (io.Reader, error) {
 func (s *SharedDiskStorage) Write(path string, data io.Reader) error {
 	fullpath := filepath.Join(s.basepath, path)
 
-	err := os.MkdirAll(filepath.Dir(fullpath), 0666)
+	err := os.MkdirAll(filepath.Dir(fullpath), 0777)
 	if err != nil {
 		return fmt.Errorf("error creating parent directory %v: %v", path, err)
 	}

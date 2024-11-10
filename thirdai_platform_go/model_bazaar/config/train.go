@@ -7,12 +7,6 @@ const (
 )
 
 const (
-	ModelDataTypeNdb        = "ndb"
-	ModelDataTypeUdt        = "udt"
-	ModelDataTypeUdtDatagen = "udt_datagen"
-)
-
-const (
 	FileLocLocal = "local"
 	FileLocS3    = "s3"
 )
@@ -26,13 +20,10 @@ type FileInfo struct {
 }
 
 type NdbOptions struct {
-	ModelType  string                 `json:"model_type"`
 	NdbOptions map[string]interface{} `json:"ndb_options"`
 }
 
 type NDBData struct {
-	ModelDataType string `json:"model_data_type"`
-
 	UnsupervisedFiles []FileInfo `json:"unsupervised_files"`
 	SupervisedFiles   []FileInfo `json:"supervised_files"`
 	TestFiles         []FileInfo `json:"test_files"`

@@ -35,30 +35,37 @@ func writeJsonResponse(w http.ResponseWriter, data interface{}) {
 }
 
 func listModelDependencies(modelId string, db *gorm.DB) ([]schema.Model, error) {
-	queue := make(chan string)
-	queue <- modelId
 	visited := map[string]struct{}{}
-
 	models := []schema.Model{}
 
-	for len(queue) > 0 {
-		id := <-queue
-		if _, ok := visited[id]; ok {
-			continue
+	var recurse func(string) error
+
+	recurse = func(m string) error {
+		if _, ok := visited[m]; ok {
+			return nil
 		}
 
-		visited[id] = struct{}{}
+		visited[m] = struct{}{}
 
-		model, err := schema.GetModel(id, db, true, false, false)
+		model, err := schema.GetModel(m, db, true, false, false)
 		if err != nil {
-			return nil, fmt.Errorf("error while listing model dependencies: %w", err)
+			return fmt.Errorf("error while listing model dependencies: %w", err)
+		}
+
+		for _, dep := range model.Dependencies {
+			err := recurse(dep.DependencyId)
+			if err != nil {
+				return err
+			}
 		}
 
 		models = append(models, model)
+		return nil
+	}
 
-		for _, dep := range model.Dependencies {
-			queue <- dep.DependencyId
-		}
+	err := recurse(modelId)
+	if err != nil {
+		return nil, err
 	}
 
 	return models, nil

@@ -62,7 +62,7 @@ func (s *TrainService) Routes() chi.Router {
 	return r
 }
 
-type ndbTrainOptions struct {
+type NdbTrainOptions struct {
 	ModelName    string             `json:"model_name"`
 	BaseModelId  *string            `json:"base_model_id"`
 	ModelOptions *config.NdbOptions `json:"model_options"`
@@ -77,7 +77,7 @@ func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var options ndbTrainOptions
+	var options NdbTrainOptions
 	if !parseRequestBody(w, r, &options) {
 		return
 	}

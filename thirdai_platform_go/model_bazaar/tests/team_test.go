@@ -2,46 +2,9 @@ package tests
 
 import (
 	"fmt"
-	"slices"
 	"testing"
-	"thirdai_platform/model_bazaar/services"
+	"thirdai_platform/model_bazaar/schema"
 )
-
-func sortTeamList(users []services.TeamInfo) {
-	slices.SortFunc(users, func(a, b services.TeamInfo) int {
-		if a.Name == b.Name {
-			return 0
-		}
-		if a.Name < b.Name {
-			return -1
-		}
-		return 1
-	})
-}
-
-func sortUserTeamList(users []services.UserTeamInfo) {
-	slices.SortFunc(users, func(a, b services.UserTeamInfo) int {
-		if a.TeamName == b.TeamName {
-			return 0
-		}
-		if a.TeamName < b.TeamName {
-			return -1
-		}
-		return 1
-	})
-}
-
-func sortTeamUserList(users []services.TeamUserInfo) {
-	slices.SortFunc(users, func(a, b services.TeamUserInfo) int {
-		if a.Username == b.Username {
-			return 0
-		}
-		if a.Username < b.Username {
-			return -1
-		}
-		return 1
-	})
-}
 
 func TestCreateDeleteTeams(t *testing.T) {
 	env := setupTestEnv(t)
@@ -364,5 +327,121 @@ func TestListTeamsAndTeamUsers(t *testing.T) {
 	_, err = user1.listTeamUsers(team2)
 	if err != ErrUnauthorized {
 		t.Fatal("only admins can list team users")
+	}
+}
+
+func TestTeamModels(t *testing.T) {
+	env := setupTestEnv(t)
+
+	admin, err := env.adminClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	team, err := admin.createTeam("abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	user1, err := env.newUser("123")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	user2, err := env.newUser("456")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = admin.addUserToTeam(team, user1.userId)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = admin.addUserToTeam(team, user2.userId)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	model1, err := user1.trainNdb("searchy")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = user2.modelInfo(model1)
+	if err != ErrUnauthorized {
+		t.Fatal("user shouldn't be able to access another user's model")
+	}
+
+	err = user1.addModelToTeam(team, model1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = user2.modelInfo(model1)
+	if err != ErrUnauthorized {
+		t.Fatal("model access must be updated after adding to team")
+	}
+
+	err = user1.updateAccess(model1, schema.Protected)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	info, err := user2.modelInfo(model1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.ModelId != model1 || *info.TeamId != team {
+		t.Fatalf("wrong model info %v", info)
+	}
+
+	models, err := admin.listTeamModels(team)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(models) != 1 || models[0].ModelId != model1 {
+		t.Fatalf("wrong team models %v", models)
+	}
+
+	model2, err := user2.trainNdb("retrievy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = user1.updateAccess(model2, schema.Protected)
+	if err != ErrUnauthorized {
+		t.Fatal("only model owner can update access")
+	}
+
+	err = user2.updateAccess(model2, schema.Protected)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = user2.addModelToTeam(team, model2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	models, err = admin.listTeamModels(team)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sortModelList(models)
+	if len(models) != 2 || models[0].ModelId != model2 || models[1].ModelId != model1 {
+		t.Fatalf("wrong team models %v", models)
+	}
+
+	err = admin.removeModelFromTeam(team, model1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	models, err = admin.listTeamModels(team)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(models) != 1 || models[0].ModelId != model2 {
+		t.Fatalf("wrong team models %v", models)
 	}
 }

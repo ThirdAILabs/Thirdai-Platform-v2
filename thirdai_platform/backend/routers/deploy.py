@@ -613,7 +613,9 @@ def update_deployment_status(
 
 
 @deploy_router.post("/warning")
-def train_warning(model_id: str, message: str, session: Session = Depends(get_session)):
+def deploy_warning(
+    model_id: str, message: str, session: Session = Depends(get_session)
+):
     trained_model: schema.Model = (
         session.query(schema.Model).filter(schema.Model.id == model_id).first()
     )
@@ -716,19 +718,6 @@ def undeploy_model(
     )
 
 
-@deploy_router.get("/active-deployment-count")
-def active_deployment_count(model_id: str, session: Session = Depends(get_session)):
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Successfully retrieved number of deployments using model.",
-        data={
-            "deployment_count": active_deployments_using_model(
-                model_id=model_id, session=session
-            )
-        },
-    )
-
-
 @deploy_router.post("/start-on-prem")
 async def start_on_prem_job(
     model_name: str = "Llama-3.2-1B-Instruct-f16.gguf",
@@ -756,7 +745,7 @@ async def start_on_prem_job(
 
 
 @deploy_router.get("/logs", dependencies=[Depends(verify_model_read_access)])
-def train_logs(
+def deploy_logs(
     model_identifier: str,
     session: Session = Depends(get_session),
 ):

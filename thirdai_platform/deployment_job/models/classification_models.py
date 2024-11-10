@@ -239,7 +239,7 @@ class TokenClassificationModel(ClassificationModel):
             name="ner", data=sample, user_provided=True, status=SampleStatus.untrained
         )
         self.data_storage.insert_samples(
-            samples=[token_tag_sample], override_buffer_limit=True
+            samples=[token_tag_sample], override_reservoir_limit=True
         )
 
     def get_recent_samples(self, num_samples: int = 5) -> List[TokenClassificationData]:

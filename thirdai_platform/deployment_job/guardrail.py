@@ -88,7 +88,7 @@ class Guardrail:
                 detail=f"Unable to access guardrail model: error {res.status_code}",
             )
 
-        return res.json()["data"]
+        return res.json()["data"]["prediction_results"]
 
     def redact_pii(self, text: str, access_token: str, label_map: LabelMap):
         data = self.query_pii_model(text=text, access_token=access_token)

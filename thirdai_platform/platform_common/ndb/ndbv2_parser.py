@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import pdftitle
 from fastapi import Response
-from platform_common.file_handler import FileInfo, FileLocation, get_cloud_client
+from platform_common.file_handler import FileInfo, FileLocation, download_file
 from thirdai import neural_db_v2 as ndbv2
 
 
@@ -18,7 +18,7 @@ def convert_to_ndb_doc(
     options: Dict[str, Any],
 ) -> Optional[ndbv2.Document]:
     filename, ext = os.path.splitext(resource_path)
-
+    ext = ext.lower()
     if ext == ".pdf":
         doc_keywords = ""
         if options.get("title_as_keywords", False):
@@ -104,87 +104,44 @@ def parse_doc(
     Process a file, downloading it from S3, Azure, or GCP if necessary,
     and convert it to an NDB file.
     """
-    # S3 handling
-    if doc.location == FileLocation.s3:
-        try:
-            # TODO (YASH): calling get_cloud_client for every document will be a problem, we have to come up with a way to reuse client.
-            s3_client = get_cloud_client(provider="s3")
+    if doc.location in {FileLocation.s3, FileLocation.azure, FileLocation.gcp}:
+        local_file_path = download_file(doc, tmp_dir)
+        if not local_file_path:
+            raise ValueError(f"Error downloading file '{doc.path}' from {doc.location}")
+
+        # Set display_path based on the cloud provider
+        if doc.location == FileLocation.s3:
             bucket_name, prefix = doc.parse_s3_url()
-            local_file_path = os.path.join(tmp_dir, os.path.basename(prefix))
-
-            s3_client.download_file(bucket_name, prefix, local_file_path)
-        except Exception as error:
-            logging.error(f"Error downloading file '{doc.path}' from S3: {error}")
-            raise ValueError(f"Error downloading file '{doc.path}' from S3: {error}")
-
-        ndb_doc = preload_chunks(
-            resource_path=local_file_path,
-            display_path=f"/{bucket_name}.s3.amazonaws.com/{prefix}",
-            doc_id=doc.doc_id,
-            metadata=doc.metadata,
-            options=doc.options,
-        )
-
-        os.remove(local_file_path)
-        return ndb_doc
-
-    # Azure handling
-    elif doc.location == FileLocation.azure:
-        try:
+            display_path = f"/{bucket_name}.s3.amazonaws.com/{prefix}"
+        elif doc.location == FileLocation.azure:
             account_name = os.getenv("AZURE_ACCOUNT_NAME")
-            azure_client = get_cloud_client(provider="azure")
             container_name, blob_name = doc.parse_azure_url()
-            local_file_path = os.path.join(tmp_dir, os.path.basename(blob_name))
-
-            azure_client.download_file(container_name, blob_name, local_file_path)
-        except Exception as error:
-            logging.error(f"Error downloading file '{doc.path}' from Azure: {error}")
-            raise ValueError(f"Error downloading file '{doc.path}' from Azure: {error}")
-
-        ndb_doc = preload_chunks(
-            resource_path=local_file_path,
-            display_path=f"/{account_name}.blob.core.windows.net/{container_name}/{blob_name}",
-            doc_id=doc.doc_id,
-            metadata=doc.metadata,
-            options=doc.options,
-        )
-
-        os.remove(local_file_path)
-        return ndb_doc
-
-    # GCP handling
-    elif doc.location == FileLocation.gcp:
-        try:
-            gcp_client = get_cloud_client(provider="gcp")
+            display_path = (
+                f"/{account_name}.blob.core.windows.net/{container_name}/{blob_name}"
+            )
+        elif doc.location == FileLocation.gcp:
             bucket_name, blob_name = doc.parse_gcp_url()
-            local_file_path = os.path.join(tmp_dir, os.path.basename(blob_name))
+            display_path = f"/storage.googleapis.com/{bucket_name}/{blob_name}"
+    else:
+        # Local file handling
+        save_artifact_uuid = str(uuid.uuid4())
+        artifact_dir = os.path.join(doc_save_dir, save_artifact_uuid)
+        os.makedirs(artifact_dir, exist_ok=True)
+        local_file_path = os.path.join(artifact_dir, os.path.basename(doc.path))
+        shutil.copy(src=doc.path, dst=artifact_dir)
+        display_path = os.path.join(save_artifact_uuid, os.path.basename(doc.path))
 
-            gcp_client.download_file(bucket_name, blob_name, local_file_path)
-        except Exception as error:
-            logging.error(f"Error downloading file '{doc.path}' from GCP: {error}")
-            raise ValueError(f"Error downloading file '{doc.path}' from GCP: {error}")
-
-        ndb_doc = preload_chunks(
-            resource_path=local_file_path,
-            display_path=f"/storage.googleapis.com/{bucket_name}/{blob_name}",
-            doc_id=doc.doc_id,
-            metadata=doc.metadata,
-            options=doc.options,
-        )
-
-        os.remove(local_file_path)
-        return ndb_doc
-
-    # Local file handling
-    save_artifact_uuid = str(uuid.uuid4())
-    artifact_dir = os.path.join(doc_save_dir, save_artifact_uuid)
-    os.makedirs(artifact_dir, exist_ok=True)
-    shutil.copy(src=doc.path, dst=artifact_dir)
-
-    return preload_chunks(
-        resource_path=os.path.join(artifact_dir, os.path.basename(doc.path)),
-        display_path=os.path.join(save_artifact_uuid, os.path.basename(doc.path)),
+    # Convert the downloaded or local file into an NDB document
+    ndb_doc = preload_chunks(
+        resource_path=local_file_path,
+        display_path=display_path,
         doc_id=doc.doc_id,
         metadata=doc.metadata,
         options=doc.options,
     )
+
+    # Remove the local file if it was downloaded from cloud storage
+    if doc.location in {FileLocation.s3, FileLocation.azure, FileLocation.gcp}:
+        os.remove(local_file_path)
+
+    return ndb_doc

@@ -27,6 +27,10 @@ jobs:
     - name: Run Stress Tests
       env:
         GENAI_KEY: ${{ secrets.GENAI_KEY }}
+        AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
+        AWS_ACCESS_SECRET: ${{ secrets.AWS_ACCESS_SECRET }}
+        NOMAD_ENDPOINT: ${{ secrets.DAILY_PLATFORM_UPDATE_IP }}:4646
+        TASK_RUNNER_TOKEN: ${{ secrets.DAILY_PLATFORM_UPDATE_NOMAD_TOKEN }}
       run: |
         python3 stress_tests/run_all_stress_tests.py --host ${{ secrets.DAILY_PLATFORM_UPDATE_IP }} --email ${{ secrets.STRESS_TEST_EMAIL }} --password ${{ secrets.STRESS_TEST_PASSWORD }}
     

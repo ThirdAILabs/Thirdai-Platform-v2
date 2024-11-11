@@ -25,6 +25,7 @@ from platform_common.pydantic_models.training import (
     TrainConfig,
     UDTData,
     UDTOptions,
+    UDTTrainOptions,
 )
 from thirdai import bolt, licensing
 from thirdai import neural_db as ndb
@@ -41,6 +42,9 @@ class DummyReporter(Reporter):
         pass
 
     def report_status(self, model_id: str, status: str, message: str = ""):
+        pass
+
+    def report_warning(self, model_id: str, message: str):
         pass
 
 
@@ -232,7 +236,8 @@ def test_udt_text_train():
     )
 
 
-def test_udt_token_train():
+@pytest.mark.parametrize("test_split", [0, 0.25])
+def test_udt_token_train(test_split):
     licensing.activate(THIRDAI_LICENSE)
     os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
@@ -248,6 +253,7 @@ def test_udt_token_train():
                 target_column="tags",
                 default_tag="O",
             ),
+            train_options=UDTTrainOptions(test_split=test_split),
         ),
         data=UDTData(
             supervised_files=[

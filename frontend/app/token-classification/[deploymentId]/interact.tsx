@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { Button } from '@/components/ui/button';
 import React, { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import * as _ from 'lodash';
 import { useTokenClassificationEndpoints } from '@/lib/backend';
 import {
@@ -30,6 +30,8 @@ import {
   convertCSVToPDFFormat,
   ParsedData,
 } from '@/utils/fileParsingUtils';
+// import TimerIcon from '@mui/icons-material/Timer';
+import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 
 interface Token {
   text: string;
@@ -51,6 +53,33 @@ type CachedTagEntry = Token[] | ColumnData;
 interface CachedTags {
   [key: string]: CachedTagEntry;
 }
+
+// import { TimerIcon } from 'lucide-react';
+
+// interface InferenceTimeDisplayProps {
+//   processingTime: number;
+// }
+
+// const InferenceTimeDisplay: React.FC<InferenceTimeDisplayProps> = ({ processingTime }) => {
+//   return (
+//     <Card className="bg-white hover:bg-gray-50 transition-colors mb-5">
+//       <CardContent className="p-6">
+//         <div className="flex items-center gap-4">
+//           <div className="p-3 bg-primary/10 rounded-full">
+//             <TimerIcon className="w-6 h-6 text-primary" />
+//           </div>
+//           <div className="flex flex-col">
+//             <span className="text-sm text-muted-foreground">Inference Time</span>
+//             <div className="flex items-baseline gap-1">
+//               <span className="text-2xl font-bold">{(processingTime * 1000).toFixed(2)}</span>
+//               <span className="text-sm text-muted-foreground">ms</span>
+//             </div>
+//           </div>
+//         </div>
+//       </CardContent>
+//     </Card>
+//   );
+// };
 
 interface TagSelectorProps {
   open: boolean;
@@ -196,7 +225,8 @@ function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSel
           className="font-medium"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          style={{ marginBottom: '5px' }}
+          placeholder="find existing label or create a new one"
+          style={{ marginBottom: '5px', width: '300px' }}
           onKeyDown={(e) => {
             e.stopPropagation();
           }}
@@ -245,7 +275,7 @@ export default function Interact() {
   const [selecting, setSelecting] = useState<boolean>(false);
   const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(null);
   const [selectedRange, setSelectedRange] = useState<[number, number] | null>(null);
-
+  const [processingTime, setProcessingTime] = useState<number | undefined>();
   const startIndex =
     mouseDownIndex !== null && mouseUpIndex !== null
       ? Math.min(mouseDownIndex, mouseUpIndex)
@@ -369,12 +399,15 @@ export default function Interact() {
     setIsLoading(true);
     try {
       const result = await predict(text);
-      updateTagColors(result.predicted_tags);
+      updateTagColors(result.prediction_results.predicted_tags);
+      setProcessingTime(result.time_taken);
       setAnnotations(
-        _.zip(result.tokens, result.predicted_tags).map(([text, tag]) => ({
-          text: text as string,
-          tag: (tag as string[])[0],
-        }))
+        _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(
+          ([text, tag]) => ({
+            text: text as string,
+            tag: (tag as string[])[0],
+          })
+        )
       );
 
       if (!isFileUpload) {
@@ -951,6 +984,8 @@ export default function Interact() {
           marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
         }}
       >
+        {processingTime !== undefined && <InferenceTimeDisplay processingTime={processingTime} />}
+
         <Card className="p-7 text-start">
           <FeedbackDashboard
             cachedTags={cachedTags}

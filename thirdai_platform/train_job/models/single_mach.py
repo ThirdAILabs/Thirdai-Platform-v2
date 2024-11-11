@@ -6,12 +6,10 @@ from typing import List
 from platform_common.ndb.ndbv1_parser import parse_doc
 from platform_common.pydantic_models.training import FileInfo, MachOptions
 from thirdai import neural_db as ndb
-from train_job.exceptional_handler import apply_exception_handler
 from train_job.models.ndb_model_interface import NDBModel
 from train_job.utils import check_disk
 
 
-@apply_exception_handler
 class SingleMach(NDBModel):
     report_failure_method = "report_status"
 

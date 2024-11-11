@@ -551,12 +551,12 @@ func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
 		}
 
 		writeN, err := w.Write(chunk[:readN])
-		if writeN != readN {
-			http.Error(w, fmt.Sprintf("expected to write %d bytes to stream, wrote %d", readN, writeN), http.StatusInternalServerError)
-			return
-		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if writeN != readN {
+			http.Error(w, fmt.Sprintf("expected to write %d bytes to stream, wrote %d", readN, writeN), http.StatusInternalServerError)
 			return
 		}
 		flusher.Flush() // Sends chunk

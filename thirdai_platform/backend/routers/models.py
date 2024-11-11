@@ -13,13 +13,13 @@ from backend.auth_dependencies import (
 )
 from backend.utils import (
     delete_nomad_job,
+    disk_occupied,
     get_expiry_min,
     get_high_level_model_info,
     get_model,
     get_model_from_identifier,
     model_bazaar_path,
     validate_name,
-    get_disk_usage
 )
 from database import schema
 from database.session import get_session
@@ -347,7 +347,7 @@ def upload_chunk(
         Example: "Bearer <token>"
 
     Returns:
-    - JSONResponse: Success message if the chunk is uploaded successfully.
+    - JSONResponse: Success message if the chunk is uploaded successfully. Along with the disk occupied.
     """
     if authorization is None:
         return response(
@@ -397,13 +397,10 @@ def upload_chunk(
             message=str(error),
         )
 
-    usage_stat = get_disk_usage()
     return response(
         status_code=status.HTTP_200_OK,
         message="Uploaded chunk",
-        data = {    
-            "disk_usage": usage_stat.free / usage_stat.total
-        }
+        data={"disk_usage": disk_occupied()},
     )
 
 

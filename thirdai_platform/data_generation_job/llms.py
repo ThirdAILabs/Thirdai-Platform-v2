@@ -117,3 +117,19 @@ llm_classes = {
     "openai": OpenAILLM,
     "cohere": CohereLLM,
 }
+
+
+def verify_llm_access(llm_provider: str, api_key: str):
+    try:
+        if llm_provider == "openai":
+            client = OpenAI(api_key=api_key)
+            client.models.list()
+        elif llm_provider == "cohere":
+            client = cohere.Client(api_key=api_key)
+            client.models.list()
+        else:
+            raise ValueError(f"Invalid LLM provider: {llm_provider}")
+    except Exception as e:
+        return False
+
+    return True

@@ -1,127 +1,95 @@
-import { cookies } from 'next/headers';
-import { AuthOptions, TokenSet } from 'next-auth';
-import { JWT } from 'next-auth/jwt';
+// auth.ts
+import NextAuth from 'next-auth';
 import KeycloakProvider from 'next-auth/providers/keycloak';
-import type { NextApiRequest, NextApiResponse } from 'next';
-import NextAuth from 'next-auth/next';
-
-function requestRefreshOfAccessToken(token: JWT) {
-  const issuerCookie = cookies().get('kc_issuer');
-
-  const issuer = token.issuer || issuerCookie?.value || process.env.KEYCLOAK_ISSUER;
-
-  return fetch(`${issuer}/protocol/openid-connect/token`, {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: process.env.KEYCLOAK_CLIENT_ID,
-      client_secret: process.env.KEYCLOAK_CLIENT_SECRET,
-      grant_type: 'refresh_token',
-      refresh_token: token.refreshToken!,
-    }),
-    method: 'POST',
-    cache: 'no-store',
-  });
-}
+import type { Session, Account, User, Profile  } from 'next-auth';
+import { NextRequest } from 'next/server';
+import { JWT } from 'next-auth/jwt';
+import type { NextAuthConfig } from 'next-auth';
 
 
-export function getAuthOptions(issuer: string): AuthOptions {
-  console.log('Using Keycloak issuer:', issuer);
-  console.log('Auth Options');
+export const { auth, handlers, signIn, signOut } = NextAuth((req?: NextRequest): NextAuthConfig => {
+  console.log("Request: ", req)
+  const host = req?.headers.get('host');
+  const protocol = req?.headers.get('x-forwarded-proto') || 'https';
+  const issuer = `${protocol}://${host}/keycloak/realms/ThirdAI-Platform`;
 
-  const authOptions: AuthOptions = {
+  console.log("Issuer: ", issuer);
+  console.log("Host: ", host);
+  console.log("Protocol: ", protocol);
+
+  const authConfig = {
     providers: [
       KeycloakProvider({
-        clientId: process.env.KEYCLOAK_CLIENT_ID,
-        clientSecret: process.env.KEYCLOAK_CLIENT_SECRET,
-        // Dynamically resolve the issuer using cookies or environment variables
+        clientId: process.env.AUTH_KEYCLOAK_CLIENT_ID!,
+        clientSecret: process.env.AUTH_KEYCLOAK_CLIENT_SECRET!,
         issuer: issuer,
       }),
     ],
-    secret: process.env.NEXTAUTH_SECRET,
-    pages: {
-      signIn: '/auth/signin',
-    },
+    secret: process.env.AUTH_SECRET,
     session: {
-      strategy: 'jwt',
-      maxAge: 60 * 30,
-    },
-    debug: true,
-    logger: {
-      error(code, ...message) {
-        console.error('NextAuth error:', code, message);
-      },
-      warn(code, ...message) {
-        console.warn('NextAuth warning:', code, message);
-      },
-      debug(code, ...message) {
-        console.debug('NextAuth debug:', code, message);
-      },
+      strategy: 'jwt' as 'jwt',
+      maxAge: 60 * 30, // 30 minutes
     },
     callbacks: {
-      async jwt({ token, account }) {
+      async jwt({
+        token,
+        account,
+      }: {
+        token: JWT;
+        account?: Account | null;
+      }) {
+        // Only process account when it's provided
         if (account) {
           token.idToken = account.id_token;
           token.accessToken = account.access_token;
           token.refreshToken = account.refresh_token;
           token.expiresAt = account.expires_at;
-          token.issuer = cookies().get('kc_issuer')?.value ?? process.env.KEYCLOAK_ISSUER;
+          token.issuer = process.env.AUTH_KEYCLOAK_ISSUER; // Set issuer dynamically
+        }
+      
+        // Token refresh logic
+        if (token.expiresAt && Date.now() < token.expiresAt * 1000 - 60 * 1000) {
           return token;
         }
-  
-        if (Date.now() < token.expiresAt! * 1000 - 60 * 1000) {
-          return token;
-        } else {
-          try {
-            const response = await requestRefreshOfAccessToken(token);
-            const tokens: TokenSet = await response.json();
-  
-            if (!response.ok) throw tokens;
-  
-            const updatedToken: JWT = {
-              ...token,
-              idToken: tokens.id_token,
-              accessToken: tokens.access_token,
-              expiresAt: Math.floor(Date.now() / 1000 + (tokens.expires_in as number)),
-              refreshToken: tokens.refresh_token ?? token.refreshToken,
-            };
-            console.log('Refreshed JWT token:', updatedToken);
-            return updatedToken;
-          } catch (error) {
-            console.error('Error refreshing access token', error);
-            return { ...token, error: 'RefreshAccessTokenError' };
-          }
+      
+        // Refresh the access token
+        try {
+          const response = await fetch(`${token.issuer}/protocol/openid-connect/token`, {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              client_id: process.env.AUTH_KEYCLOAK_CLIENT_ID!,
+              client_secret: process.env.AUTH_KEYCLOAK_CLIENT_SECRET!,
+              grant_type: 'refresh_token',
+              refresh_token: token.refreshToken!,
+            }),
+            method: 'POST',
+          });
+      
+          const tokens = await response.json();
+      
+          if (!response.ok) throw tokens;
+      
+          return {
+            ...token,
+            idToken: tokens.id_token,
+            accessToken: tokens.access_token,
+            expiresAt: Math.floor(Date.now() / 1000 + tokens.expires_in),
+            refreshToken: tokens.refresh_token ?? token.refreshToken,
+          };
+        } catch (error) {
+          console.error('Error refreshing access token', error);
+          return { ...token, error: 'RefreshAccessTokenError' as const };
         }
       },
-      async session({ session, token }) {
-        console.log('Using Keycloak issuer:', token);
-        console.log("session call back");
-        session.accessToken = token.accessToken;
+      async session({ session, token }: { session: Session; token: JWT }) {
+        session.token = token;
         session.error = token.error;
-        session.expiresAt = token.expiresAt;
+        session.expiresAt = token.expiresAt
         return session;
       },
     },
+    debug: true,
   };
 
-  return authOptions;
-}
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-
-  try {
-    const issuerCookie = req.cookies['kc_issuer']; // Access cookies from the request
-    
-    const issuer = cookies().get('kc_issuer')?.value ?? process.env.KEYCLOAK_ISSUER
-    console.log('Using issuer:', issuer);
-  
-    const authOptions: AuthOptions = getAuthOptions(issuer)
-    console.log('Auth Options:', authOptions);
-  
-    console.log("handler")
-  
-    return await NextAuth(req, res, authOptions);
-  } catch (error) {
-    console.error('Error in NextAuth handler:', error);
-    res.status(500).json({ error: 'Authentication failed' });
-  }
-}
+  return authConfig;
+});

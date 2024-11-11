@@ -3,7 +3,6 @@
 import { SessionProvider } from 'next-auth/react';
 import { ReactNode } from 'react';
 import { Session } from 'next-auth';
-import KeycloakIssuerSetter from '@/components/KeycloakIssuerSetter';
 
 interface ProvidersProps {
   children: ReactNode;
@@ -13,8 +12,6 @@ interface ProvidersProps {
 export function Providers({ children, session }: ProvidersProps) {
   return (
     <SessionProvider session={session}>
-      {/* Add the KeycloakIssuerSetter to dynamically set the kc_issuer cookie */}
-      <KeycloakIssuerSetter />
       {children}
     </SessionProvider>
   );

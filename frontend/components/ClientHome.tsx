@@ -1,35 +1,30 @@
-// components/ClientHome.tsx
 'use client';
 
-import { useContext } from 'react';
-import { useEffect } from 'react';
-import Login from '@/components/Login';
+import { useEffect, useContext } from 'react';
 import { userEmailLoginWithAccessToken } from '@/lib/backend';
-import { UserContext } from '../app/user_wrapper';
-import { Session } from 'next-auth';
+import { UserContext } from '@/app/user_wrapper';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import Login from '@/components/Login';
 
-interface ClientHomeProps {
-  session: Session | null; // Session type from next-auth
-  accessToken: string | null | undefined; // accessToken is a string
-}
-
-export default function ClientHome({ session, accessToken }: ClientHomeProps) {
+export default function ClientHome() {
   const { setAccessToken } = useContext(UserContext);
-  console.log("Client Home")
+  const { data: session } = useSession();
+  const router = useRouter();
 
   useEffect(() => {
+    const accessToken = session?.token.accessToken;
+    console.log("Access Token: ", accessToken)
     if (accessToken) {
       userEmailLoginWithAccessToken(accessToken, setAccessToken)
         .then(() => {
-          if (session) {
-            window.location.href = '/';
-          }
+          router.push('/');
         })
         .catch((error) => {
           console.error('Failed to log in with email using the access token:', error);
         });
     }
-  }, [accessToken]);
+  }, [session]);
 
   return (
     <div className="flex flex-col space-y-3 justify-center items-center h-screen">

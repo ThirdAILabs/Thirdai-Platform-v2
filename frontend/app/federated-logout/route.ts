@@ -1,46 +1,40 @@
-import { JWT, getToken } from 'next-auth/jwt';
+// app/federated-logout/route.ts
+import { JWT } from 'next-auth/jwt';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { auth } from '@/lib/auth';
+import { Session } from 'next-auth';
 
-function logoutParams(token: JWT): Record<string, string> {
+function getBaseUrl(request: NextRequest): string {
+  const protocol = request.headers.get('x-forwarded-proto') || 'https';
+  const host = request.headers.get('host') || 'localhost';
+  return `${protocol}://${host}`;
+}
+
+function logoutParams(request: NextRequest, token: JWT | undefined): Record<string, string> {
+  const baseUrl = getBaseUrl(request);
   return {
-    id_token_hint: token.idToken as string,
-    post_logout_redirect_uri: process.env.NEXTAUTH_URL,
+    id_token_hint: token?.idToken as string,
+    post_logout_redirect_uri: baseUrl,
   };
 }
 
-function handleEmptyToken() {
-  const response = { error: 'No session present' };
-  const responseHeaders = { status: 400 };
-  return NextResponse.json(response, responseHeaders);
-}
-
-function sendEndSessionEndpointToURL(token: JWT) {
-  const issuerCookie = cookies().get('kc_issuer');
-  const issuer = token.issuer || issuerCookie?.value || process.env.KEYCLOAK_ISSUER;
-
-  const endSessionEndPoint = new URL(`${issuer}/protocol/openid-connect/logout`);
-  const params: Record<string, string> = logoutParams(token);
-  const endSessionParams = new URLSearchParams(params);
-  const response = { url: `${endSessionEndPoint.href}/?${endSessionParams}` };
-  return NextResponse.json(response);
-}
-
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const token = await getToken({ req });
-    if (token) {
-      return sendEndSessionEndpointToURL(token);
+    const session: Session | null = await auth(request as any);
+    const token = session?.token;
+    if (!token) {
+      return NextResponse.redirect(getBaseUrl(request));
     }
-    return handleEmptyToken();
+
+    const issuer = session?.token.issuer || process.env.KEYCLOAK_ISSUER!;
+    const endSessionEndpoint = new URL(`${issuer}/protocol/openid-connect/logout`);
+    const params = logoutParams(request, session.token);
+    const endSessionParams = new URLSearchParams(params);
+    const redirectUrl = `${endSessionEndpoint.href}?${endSessionParams}`;
+
+    return NextResponse.redirect(redirectUrl);
   } catch (error) {
-    console.error(error);
-    const response = {
-      error: 'Unable to logout from the session',
-    };
-    const responseHeaders = {
-      status: 500,
-    };
-    return NextResponse.json(response, responseHeaders);
+    console.error('Error during federated logout:', error);
+    return NextResponse.redirect(getBaseUrl(request));
   }
 }

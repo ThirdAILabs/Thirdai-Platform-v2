@@ -30,9 +30,8 @@ from throughput import Throughput
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
-udt_query_count = Counter("udt_query_count", "Total number of queries processed")
-udt_query_length_summary = Summary(
-    "udt_query_length_summary", "Distribution of query lengths"
+udt_query_length = Summary(
+    "udt_query_length", "Distribution of query lengths"
 )
 
 
@@ -147,10 +146,8 @@ class UDTRouter:
         """
         start_time = time.perf_counter()
 
-        udt_query_count.inc()
-
         text_length = len(params.text.split())
-        udt_query_length_summary.observe(text_length)
+        udt_query_length.observe(text_length)
 
         results = self.model.predict(**params.model_dump())
 

@@ -13,9 +13,9 @@ from backend.datagen import generate_data_for_train_job
 from backend.utils import (
     copy_data_storage,
     delete_nomad_job,
+    disk_usage,
     get_job_logs,
     get_model,
-    disk_usage,
     get_model_from_identifier,
     get_model_status,
     get_platform,

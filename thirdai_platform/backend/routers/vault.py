@@ -3,13 +3,14 @@ from typing import Literal, Optional, Union
 import hvac  # type: ignore
 from auth.jwt import verify_access_token
 from backend.auth_dependencies import get_vault_client, global_admin_only
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from platform_common.pydantic_models.cloud_credentials import (
     AWSCredentials,
     AzureCredentials,
     GCPCredentials,
     GenericKeyValue,
 )
+from platform_common.utils import response
 from pydantic import BaseModel
 
 vault_router = APIRouter()
@@ -54,7 +55,9 @@ async def store_secret(
         path=path, secret=secret_request.credentials.model_dump()
     )
 
-    return {"message": f"Secret stored successfully at {path}"}
+    return response(
+        status_code=status.HTTP_200_OK, message=f"Secret stored successfully at {path}"
+    )
 
 
 @vault_router.get(
@@ -88,7 +91,11 @@ async def retrieve_secret(
             status_code=404, detail=f"Secret not found at path '{path}'"
         )
 
-    return {"path": path, "data": secret_data}
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"Successfully retrieved secret from {path}",
+        data={"path": path, "data": secret_data},
+    )
 
 
 @vault_router.get(
@@ -137,4 +144,8 @@ async def list_all_secrets(client: hvac.Client = Depends(get_vault_client)):
             # Global or generic paths
             all_secrets[label] = list_secrets_at_path(path)
 
-    return {"all_secrets": all_secrets}
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"Successfully listed all secrets",
+        data={"all_secrets": all_secrets},
+    )

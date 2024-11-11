@@ -3,6 +3,7 @@ import { Typography } from '@mui/material';
 import { useState } from 'react';
 import axios from 'axios';
 import { deploymentBaseUrl } from '@/lib/backend';
+import { useParams } from 'next/navigation';
 
 interface ThumbsUpButtonProps {
   inputText: string;
@@ -12,15 +13,17 @@ interface ThumbsUpButtonProps {
 const ThumbsUpButton: React.FC<ThumbsUpButtonProps> = ({ inputText, prediction }) => {
   const [isActive, setIsActive] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
+  const params = useParams();
+  const accessToken = localStorage.getItem('accessToken');
+
   const handleFeedback = async () => {
     setIsActive(true);
     setFeedbackMessage('Feedback received');
 
     // Send feedback to backend
-    const accessToken = localStorage.getItem('accessToken');
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
     try {
-      await axios.post(`http://localhost/50b8ac76-8bf5-41eb-9628-e5eba05b196b/insert_sample`, {
+      await axios.post(`${deploymentBaseUrl}/add_sample`, {
         text: inputText,
         label: prediction
       });

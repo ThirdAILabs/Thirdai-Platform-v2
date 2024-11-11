@@ -3,7 +3,7 @@ import uuid
 from typing import List, Optional
 
 from backend.auth_dependencies import get_current_user
-from backend.utils import disk_usage, get_model, validate_name
+from backend.utils import disk_usage, get_model, is_on_low_disk, validate_name
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, status
@@ -36,6 +36,7 @@ class EnterpriseSearchOptions(BaseModel):
 
 @workflow_router.post(
     "/enterprise-search",
+    dependencies=[Depends(is_on_low_disk())],
     summary="Create Enterprise Search Workflow",
     description=get_section(docs, "Create Enterprise Search Workflow"),
 )

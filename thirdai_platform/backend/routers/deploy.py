@@ -24,6 +24,7 @@ from backend.utils import (
     get_model_status,
     get_platform,
     get_python_path,
+    is_on_low_disk,
     list_all_dependencies,
     model_accessible,
     model_bazaar_path,
@@ -297,7 +298,9 @@ async def deploy_single_model(
         )
 
 
-@deploy_router.post("/run", dependencies=[Depends(is_model_owner)])
+@deploy_router.post(
+    "/run", dependencies=[Depends(is_model_owner), Depends(is_on_low_disk())]
+)
 async def deploy_model(
     model_identifier: str,
     deployment_name: Optional[str] = None,

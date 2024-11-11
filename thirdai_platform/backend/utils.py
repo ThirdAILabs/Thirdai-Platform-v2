@@ -771,3 +771,18 @@ def read_file_from_back(path: str):
 def disk_usage():
     disk_stat = shutil.disk_usage(model_bazaar_path())
     return {"total": disk_stat.total, "used": disk_stat.used, "free": disk_stat.free}
+
+
+def is_on_low_disk():
+    disk_stats = disk_usage()
+
+    threshold = 0.8
+    disk_used = (disk_stats["total"] - disk_stats["free"]) / disk_stats["total"]
+    if disk_used < threshold:
+        space_needed = ((disk_used - threshold) * disk_stats.total) / (
+            1024 * 1024
+        )  # MB
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Platform is at {disk_used * 100:.2f}% disk usage. Clear at least {space_needed:.2f} MB space.",
+        )

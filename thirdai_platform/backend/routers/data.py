@@ -6,7 +6,7 @@ from typing import Dict, List
 
 from backend.auth_dependencies import get_current_user
 from backend.datagen import generate_text_data, generate_token_data
-from backend.utils import disk_usage, validate_license_info
+from backend.utils import disk_usage, is_on_low_disk, validate_license_info
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, status
@@ -74,7 +74,7 @@ def validate_and_generate_data(
 
 @data_router.post(
     "/generate-text-data",
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(is_on_low_disk())],
     summary="Generate Text Data",
     description=get_section(docs, "Generate Text Data"),
 )
@@ -95,7 +95,7 @@ def generate_text_data_endpoint(
 
 @data_router.post(
     "/generate-token-data",
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(is_on_low_disk())],
     summary="Generate Token Data",
     description=get_section(docs, "Generate Token Data"),
 )

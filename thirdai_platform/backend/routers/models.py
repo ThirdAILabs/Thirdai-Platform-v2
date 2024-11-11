@@ -18,6 +18,7 @@ from backend.utils import (
     get_high_level_model_info,
     get_model,
     get_model_from_identifier,
+    is_on_low_disk,
     model_bazaar_path,
     validate_name,
 )
@@ -323,7 +324,7 @@ def upload_token(
     )
 
 
-@model_router.post("/upload-chunk")
+@model_router.post("/upload-chunk", dependencies=[Depends(is_on_low_disk())])
 def upload_chunk(
     chunk: UploadFile,
     chunk_number: int,

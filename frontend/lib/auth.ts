@@ -5,17 +5,16 @@ import type { Session, Account, User, Profile  } from 'next-auth';
 import { NextRequest } from 'next/server';
 import { JWT } from 'next-auth/jwt';
 import type { NextAuthConfig } from 'next-auth';
-
+import { cookies } from 'next/headers';
 
 export const { auth, handlers, signIn, signOut } = NextAuth((req?: NextRequest): NextAuthConfig => {
-  console.log("Request: ", req)
-  const host = req?.headers.get('host');
-  const protocol = req?.headers.get('x-forwarded-proto') || 'https';
-  const issuer = `${protocol}://${host}/keycloak/realms/ThirdAI-Platform`;
+  
+  const cookieStore = cookies();
+  const hostInfo = cookieStore.get('hostInfo')?.value;
 
-  console.log("Issuer: ", issuer);
-  console.log("Host: ", host);
-  console.log("Protocol: ", protocol);
+  // Construct the issuer dynamically
+  const issuer = `${hostInfo}/keycloak/realms/ThirdAI-Platform`;
+
 
   const authConfig = {
     providers: [
@@ -30,6 +29,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth((req?: NextRequest):
       strategy: 'jwt' as 'jwt',
       maxAge: 60 * 30, // 30 minutes
     },
+    trustHost: true,
     callbacks: {
       async jwt({
         token,

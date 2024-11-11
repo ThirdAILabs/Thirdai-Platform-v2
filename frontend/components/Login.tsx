@@ -1,12 +1,20 @@
 // components/Login.tsx
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 
 export default function Login() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    // Set the host and protocol in a cookie
+    const host = window.location.host;
+    const protocol = window.location.protocol.replace(':', '');
+    const hostInfo = `${protocol}://${host}`;
+    Cookies.set('hostInfo', hostInfo, { path: '/' });
+  }, []);
 
   const handleLogin = async () => {
     console.log("Log In called!");

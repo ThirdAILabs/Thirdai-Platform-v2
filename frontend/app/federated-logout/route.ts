@@ -1,5 +1,6 @@
 import { JWT, getToken } from 'next-auth/jwt';
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 function logoutParams(token: JWT): Record<string, string> {
   return {
@@ -15,9 +16,10 @@ function handleEmptyToken() {
 }
 
 function sendEndSessionEndpointToURL(token: JWT) {
-  const endSessionEndPoint = new URL(
-    `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/logout`
-  );
+  const issuerCookie = cookies().get('kc_issuer');
+  const issuer = token.issuer || issuerCookie?.value || process.env.KEYCLOAK_ISSUER;
+  const endSessionEndPoint = new URL(`${issuer}/protocol/openid-connect/logout`);
+
   const params: Record<string, string> = logoutParams(token);
   const endSessionParams = new URLSearchParams(params);
   const response = { url: `${endSessionEndPoint.href}/?${endSessionParams}` };

@@ -390,15 +390,19 @@ def email_login_with_keycloak(
     session: Session = Depends(get_session),
 ):
     try:
+        print("Access Token: ", access_token)
         user_info = keycloak_openid.userinfo(access_token.access_token)
 
+        print("User Info:", user_info)
         keycloak_user_id = user_info.get("sub")
 
+        print("Keycloak User Id:", keycloak_user_id)
         user = (
             session.query(schema.User)
             .filter(schema.User.email == user_info.get("email"))
             .first()
         )
+        print("User Name:", user)
         if not user:
             user = schema.User(
                 id=keycloak_user_id,
@@ -408,6 +412,7 @@ def email_login_with_keycloak(
             session.add(user)
             session.commit()
             session.refresh(user)
+            print("User Name:", user)
 
         return response(
             status_code=status.HTTP_200_OK,

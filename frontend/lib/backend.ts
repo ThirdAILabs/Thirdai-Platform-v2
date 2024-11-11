@@ -6,6 +6,8 @@ import _ from 'lodash';
 import { useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 
+import { cookies } from 'next/headers';
+
 export const thirdaiPlatformBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -645,6 +647,10 @@ export function userEmailLoginWithAccessToken(
   accessToken: string,
   setAccessToken: (token: string) => void
 ): Promise<any> {
+  const issuerCookie = cookies().get('kc_issuer');
+  const issuer = issuerCookie?.value || process.env.KEYCLOAK_ISSUER; // Fallback to env if cookie is missing
+  
+  
   console.debug('userEmailLogin called with accessToken:', accessToken);
 
   return new Promise((resolve, reject) => {

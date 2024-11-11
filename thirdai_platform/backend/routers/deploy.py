@@ -299,7 +299,7 @@ async def deploy_single_model(
 
 
 @deploy_router.post(
-    "/run", dependencies=[Depends(is_model_owner), Depends(is_on_low_disk())]
+    "/run", dependencies=[Depends(is_model_owner), Depends(is_on_low_disk)]
 )
 async def deploy_model(
     model_identifier: str,

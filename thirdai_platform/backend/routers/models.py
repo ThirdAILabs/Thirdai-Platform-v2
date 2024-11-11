@@ -324,7 +324,7 @@ def upload_token(
     )
 
 
-@model_router.post("/upload-chunk", dependencies=[Depends(is_on_low_disk())])
+@model_router.post("/upload-chunk", dependencies=[Depends(is_on_low_disk)])
 def upload_chunk(
     chunk: UploadFile,
     chunk_number: int,

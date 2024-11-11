@@ -1,6 +1,5 @@
 'use client';
-
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { TableHead, TableRow, TableHeader, TableBody, Table } from '@/components/ui/table';
 import {
   Card,
@@ -15,6 +14,8 @@ import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@mui/material';
 import { fetchWorkflows, Workflow } from '@/lib/backend';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
 export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: number }) {
   // Hardcode the model display
@@ -69,6 +70,15 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
   const totalWorkflows = filteredWorkflows.length;
   const displayedWorkflows = filteredWorkflows.slice(offset, offset + modelsPerPage);
 
+  const [isCollapsedList, setIsCollapsedList] = useState(Array(100).fill(true));
+
+  // Toggle the value at a specific index
+  const toggleIsCollapsedList = (index: number) => {
+    setIsCollapsedList((prevList) =>
+      prevList.map((item, idx) => (idx === index ? !item : item))
+    );
+  };
+  console.log("Anand workflow: ", workflows);
   return (
     <Card>
       <CardHeader>
@@ -93,7 +103,17 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
             {displayedWorkflows
               .sort((a, b) => a.model_name.localeCompare(b.model_name)) // Sort by name alphabetically
               .map((workflow, index) => (
-                <WorkFlow key={index + 200} workflow={workflow} />
+                <React.Fragment key={index + 200}>
+                  {workflow.type === "enterprise-search" ? (<>
+                    <WorkFlow workflow={workflow} handleCollapse={toggleIsCollapsedList} index={index} />
+                    {workflows.map((item) => {
+                      if (!isCollapsedList[index] && workflow.dependencies[0].model_id === item.model_id) {
+                        return <WorkFlow workflow={item} handleCollapse={toggleIsCollapsedList} index={index} />
+                      }
+                    })}
+                  </>
+                  ) : (<WorkFlow workflow={workflow} handleCollapse={toggleIsCollapsedList} index={index} />)}
+                </React.Fragment>
               ))}
           </TableBody>
         </Table>

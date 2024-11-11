@@ -90,7 +90,7 @@ func (s *SharedDiskStorage) Unzip(path string) error {
 	}
 	defer zip.Close()
 
-	newPath := strings.TrimSuffix(fullpath, ".zip")
+	newPath := strings.TrimSuffix(path, ".zip")
 
 	for _, file := range zip.File {
 		if strings.HasSuffix(file.Name, "/") {
@@ -125,7 +125,7 @@ func (s *SharedDiskStorage) Zip(path string) error {
 
 	err = archive.AddFS(os.DirFS(fullpath))
 	if err != nil {
-		return fmt.Errorf("error writing directory to zipfile: %w", err)
+		return fmt.Errorf("error writing directory '%v' to zipfile: %w", fullpath, err)
 	}
 
 	return nil

@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"strings"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
 
@@ -44,7 +46,7 @@ func get[T any](c *client, endpoint string) (T, error) {
 		if res.StatusCode == http.StatusUnauthorized {
 			return data, ErrUnauthorized
 		}
-		return data, fmt.Errorf("get %v failed with status %d and res %v", endpoint, res.StatusCode, w.Body.String())
+		return data, fmt.Errorf("get %v failed with status %d and res '%v'", endpoint, res.StatusCode, w.Body.String())
 	}
 
 	err := json.NewDecoder(res.Body).Decode(&data)
@@ -74,7 +76,7 @@ func postWithToken[T any](c *client, endpoint string, body []byte, token string)
 		if res.StatusCode == http.StatusUnauthorized {
 			return data, ErrUnauthorized
 		}
-		return data, fmt.Errorf("post %v failed with status %d and res %v", endpoint, res.StatusCode, w.Body.String())
+		return data, fmt.Errorf("post %v failed with status %d and res '%v'", endpoint, res.StatusCode, w.Body.String())
 	}
 
 	err := json.NewDecoder(res.Body).Decode(&data)
@@ -269,6 +271,45 @@ func zipDir(path string) (string, error) {
 	return newPath, nil
 }
 
+func unzipDir(path string) error {
+	newPath := strings.TrimSuffix(path, ".zip")
+	zip, err := zip.OpenReader(path)
+	if err != nil {
+		return fmt.Errorf("error opening zip reader: %w", err)
+	}
+	defer zip.Close()
+
+	for _, file := range zip.File {
+		if strings.HasSuffix(file.Name, "/") {
+			continue // directory
+		}
+		fileData, err := file.Open()
+		if err != nil {
+			return fmt.Errorf("error opening file in zipfile %v: %w", file.Name, err)
+		}
+		defer fileData.Close()
+
+		part := filepath.Join(newPath, file.Name)
+		err = os.MkdirAll(filepath.Dir(part), 0777)
+		if err != nil {
+			return fmt.Errorf("error making dir for file in zip: %w", err)
+		}
+
+		newFile, err := os.Create(part)
+		if err != nil {
+			return fmt.Errorf("error opening file for file in zip: %w", err)
+		}
+		defer newFile.Close()
+
+		_, err = io.Copy(newFile, fileData)
+		if err != nil {
+			return fmt.Errorf("error writing contents from zipfile %v: %w", file.Name, err)
+		}
+	}
+
+	return nil
+}
+
 func (c *client) startUpload(modelName, modelType string) (string, error) {
 	body := fmt.Sprintf(`{"model_name": "%v", "model_type": "%v"}`, modelName, modelType)
 	data, err := post[map[string]string](c, "/model/upload-start", []byte(body))
@@ -330,7 +371,7 @@ func (c *client) downloadModel(modelId string, dest string) error {
 		if res.StatusCode == http.StatusUnauthorized {
 			return ErrUnauthorized
 		}
-		return fmt.Errorf("get %v failed with status %d and res %v", endpoint, res.StatusCode, w.Body.String())
+		return fmt.Errorf("get %v failed with status %d and res '%v'", endpoint, res.StatusCode, w.Body.String())
 	}
 
 	file, err := os.Create(dest)
@@ -341,6 +382,13 @@ func (c *client) downloadModel(modelId string, dest string) error {
 	_, err = io.Copy(file, w.Body)
 	if err != nil {
 		return err
+	}
+
+	if strings.HasSuffix(dest, ".zip") {
+		err := unzipDir(dest)
+		if err != nil {
+			return fmt.Errorf("error unzipping result: %w", err)
+		}
 	}
 
 	return nil

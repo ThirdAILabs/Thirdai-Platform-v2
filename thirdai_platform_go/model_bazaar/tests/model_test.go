@@ -344,9 +344,12 @@ func TestUploadDownloadNlp(t *testing.T) {
 	downloadFile := filepath.Join(tmpDir, "download.udt")
 
 	modelData := randomBytes(28490)
-	os.WriteFile(uploadFile, modelData, 0666)
+	err = os.WriteFile(uploadFile, modelData, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	modelId, err := user.uploadModel("custom_modet", "nlp-text", uploadFile, 5000)
+	modelId, err := user.uploadModel("custom_model", "nlp-text", uploadFile, 5000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -363,5 +366,63 @@ func TestUploadDownloadNlp(t *testing.T) {
 
 	if !bytes.Equal(modelData, downloaded) {
 		t.Fatal("model bytes are different")
+	}
+}
+
+func TestUploadDownloadNdb(t *testing.T) {
+	env := setupTestEnv(t)
+
+	user, err := env.newUser("abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpDir := t.TempDir()
+
+	uploadFile := filepath.Join(tmpDir, "upload.ndb")
+	downloadFile := filepath.Join(tmpDir, "download.ndb")
+
+	files := []struct {
+		path string
+		data []byte
+	}{
+		{"chunkstore", randomBytes(28490)},
+		{"retriever/primary", randomBytes(9024)},
+		{"retriever/secondary", randomBytes(62348)},
+	}
+
+	for _, file := range files {
+		path := filepath.Join(uploadFile, file.path)
+		err := os.MkdirAll(filepath.Dir(path), 0777)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = os.WriteFile(path, file.data, 0666)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	modelId, err := user.uploadModel("custom_model", "ndb", uploadFile, 5000)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = user.downloadModel(modelId, downloadFile+".zip")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, file := range files {
+		path := filepath.Join(downloadFile, file.path)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !bytes.Equal(data, file.data) {
+			t.Fatal("model bytes are different")
+		}
 	}
 }

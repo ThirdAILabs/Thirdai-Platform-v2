@@ -25,7 +25,7 @@ const ThumbsUpButton: React.FC<ThumbsUpButtonProps> = ({ inputText, prediction }
     try {
       await axios.post(`${deploymentBaseUrl}/add_sample`, {
         text: inputText,
-        label: prediction
+        label: prediction,
       });
     } catch (error) {
       console.error('Error sending feedback:', error);
@@ -43,15 +43,15 @@ const ThumbsUpButton: React.FC<ThumbsUpButtonProps> = ({ inputText, prediction }
     <div className="flex items-center gap-2">
       <button
         onClick={handleFeedback}
-        className={`p-2 rounded-full transition-all duration-200 ${isActive
-          ? 'bg-blue-100 text-blue-600'
-          : 'hover:bg-gray-100 text-gray-600'
-          }`}
+        className={`p-2 rounded-full transition-all duration-200 ${
+          isActive ? 'bg-blue-100 text-blue-600' : 'hover:bg-gray-100 text-gray-600'
+        }`}
       >
         <ThumbsUp
           size={24}
-          className={`transition-transform duration-200 ${isActive ? 'scale-110 fill-current' : ''
-            }`}
+          className={`transition-transform duration-200 ${
+            isActive ? 'scale-110 fill-current' : ''
+          }`}
         />
       </button>
       {feedbackMessage && (

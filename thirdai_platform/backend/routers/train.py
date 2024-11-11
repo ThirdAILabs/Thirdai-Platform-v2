@@ -13,7 +13,7 @@ from backend.datagen import generate_data_for_train_job
 from backend.utils import (
     copy_data_storage,
     delete_nomad_job,
-    disk_occupied,
+    disk_usage,
     get_detailed_reasons,
     get_job_logs,
     get_model,
@@ -235,7 +235,7 @@ def train_ndb(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
-            "disk_usage": disk_occupied(),
+            "disk_usage": disk_usage(),
         },
     )
 
@@ -406,7 +406,7 @@ def retrain_ndb(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
-            "disk_usage": disk_occupied(),
+            "disk_usage": disk_usage(),
         },
     )
 
@@ -549,7 +549,7 @@ def nlp_datagen(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
-            "disk_usage": disk_occupied(),
+            "disk_usage": disk_usage(),
         },
     )
 
@@ -883,7 +883,7 @@ def retrain_udt(
         data={
             "model_id": str(model.id),
             "user_id": str(user.id),
-            "disk_usage": disk_occupied(),
+            "disk_usage": disk_usage(),
         },
     )
 
@@ -1054,7 +1054,7 @@ def train_udt(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
-            "disk_usage": disk_occupied(),
+            "disk_usage": disk_usage(),
         },
     )
 

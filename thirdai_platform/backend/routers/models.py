@@ -13,7 +13,7 @@ from backend.auth_dependencies import (
 )
 from backend.utils import (
     delete_nomad_job,
-    disk_occupied,
+    disk_usage,
     get_expiry_min,
     get_high_level_model_info,
     get_model,
@@ -400,7 +400,7 @@ def upload_chunk(
     return response(
         status_code=status.HTTP_200_OK,
         message="Uploaded chunk",
-        data={"disk_usage": disk_occupied()},
+        data={"disk_usage": disk_usage()},
     )
 
 

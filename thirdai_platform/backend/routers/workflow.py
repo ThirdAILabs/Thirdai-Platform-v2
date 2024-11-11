@@ -3,7 +3,7 @@ import uuid
 from typing import List, Optional
 
 from backend.auth_dependencies import get_current_user
-from backend.utils import disk_occupied, get_model, validate_name
+from backend.utils import disk_usage, get_model, validate_name
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, status
@@ -137,6 +137,6 @@ def create_enterprise_search_workflow(
         data={
             "model_id": str(workflow_id),
             "user_id": str(user.id),
-            "disk_usage": disk_occupied(),
+            "disk_usage": disk_usage(),
         },
     )

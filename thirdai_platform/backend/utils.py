@@ -768,7 +768,6 @@ def read_file_from_back(path: str):
         fp.close()
 
 
-def disk_occupied():
-    usage = shutil.disk_usage(model_bazaar_path())
-
-    return usage.free / usage.total
+def disk_usage():
+    disk_stat = shutil.disk_usage(model_bazaar_path())
+    return {"total": disk_stat.total, "used": disk_stat.used, "free": disk_stat.free}

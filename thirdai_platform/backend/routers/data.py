@@ -6,7 +6,7 @@ from typing import Dict, List
 
 from backend.auth_dependencies import get_current_user
 from backend.datagen import generate_text_data, generate_token_data
-from backend.utils import disk_occupied, validate_license_info
+from backend.utils import disk_usage, validate_license_info
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, status
@@ -68,7 +68,7 @@ def validate_and_generate_data(
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully submitted the data-generation job",
-        data={"disk_usage": disk_occupied()},
+        data={"disk_usage": disk_usage()},
     )
 
 

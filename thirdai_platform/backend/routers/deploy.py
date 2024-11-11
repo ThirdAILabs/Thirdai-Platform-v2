@@ -17,7 +17,7 @@ from backend.auth_dependencies import is_model_owner, verify_model_read_access
 from backend.startup_jobs import start_on_prem_generate_job
 from backend.utils import (
     delete_nomad_job,
-    disk_occupied,
+    disk_usage,
     get_detailed_reasons,
     get_job_logs,
     get_model_from_identifier,
@@ -371,7 +371,7 @@ async def deploy_model(
             "status": "queued",
             "model_identifier": model_identifier,
             "model_id": str(model.id),
-            "disk_usage": disk_occupied(),
+            "disk_usage": disk_usage(),
         },
     )
 

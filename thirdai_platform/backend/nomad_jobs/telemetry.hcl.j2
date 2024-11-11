@@ -8,12 +8,14 @@ job "telemetry" {
       If there are more than one node in the cluster, 
         then this constraint ensures that telemetry job always run on client node,
 
-      The issue originates from victoriametric and grafana creating db on nfs.
-        so, if the telemetry job is started by node of a class [server or (any client)], the job won't get restarted by node of different class [(any client) or server] 
+      The issue originates from ownerships of files created by victoriametric on nfs.
+        - If server starts the job, files created is having (root, nomad_nfs) as ownership and group ownership
+        - If client starts the job, files created is having (nomad_nfs, nomad_nfs) as ownership and group ownership,
+        so, different node class is unaable to restart the victoriametric task.
       
       Incase multiple nodes are in the cluster,
         Assumption: There will be more client nodes than server.
-        so constraint the job to always get scheduled on client node.
+        so constrain the job to always get scheduled on client node.
     #}
     {% if platform == "docker" and target_count != "1" -%}
     constraint {
@@ -26,9 +28,6 @@ job "telemetry" {
     network {
       port "vicky-http" {
         to = 8428
-      }
-      port "loki-http" {
-        to = 3100
       }
 
       port "grafana-http" {
@@ -70,103 +69,6 @@ job "telemetry" {
       resources {
         cpu    = 256
         memory = 600
-      }
-    }
-
-    task "loki" {
-      driver = "docker"
-
-      config {
-        image = "{{ registry }}/loki:k221-47b9075"
-        auth {
-          username = "{{ docker_username }}"
-          password = "{{ docker_password }}"
-          server_address = "{{ registry }}"
-        }
-        group_add = ["4646"]
-        args = [
-          "-config.file",
-          "${NOMAD_TASK_DIR}/loki.yaml",
-        ]
-
-        volumes = [
-          "{{ share_dir }}:/model_bazaar"
-        ]
-        ports = ["loki-http"]
-        
-      }
-
-      resources {
-        cpu    = 500
-        memory = 200
-      }
-
-      /*
-        Date: 19/08/2024
-        Cannot use "data            = file(abspath("./../configs/loki.yaml"))" because file function only works via CLI currently.
-        https://github.com/hashicorp/nomad/issues/19648#issuecomment-1881052624
-        */
-      template {
-        data            = <<EOF
-auth_enabled: false
-server:
-  http_listen_port: 3100
-  grpc_listen_port: 9096
-common:
-  instance_addr: 127.0.0.1
-  path_prefix: {{ nomad_monitoring_dir }}/loki
-  storage:
-    filesystem:
-      chunks_directory: {{ nomad_monitoring_dir }}/loki/chunks
-      rules_directory: {{ nomad_monitoring_dir }}/loki/rules
-  replication_factor: 1
-  ring:
-    kvstore:
-      store: inmemory
-frontend:
-  max_outstanding_per_tenant: 2048
-pattern_ingester:
-  enabled: true
-limits_config:
-  max_global_streams_per_user: 0
-  ingestion_rate_mb: 50000
-  ingestion_burst_size_mb: 50000
-  volume_enabled: true
-query_range:
-  results_cache:
-    cache:
-      embedded_cache:
-        enabled: true
-        max_size_mb: 100
-schema_config:
-  configs:
-    - from: 2020-10-27
-      store: tsdb
-      object_store: filesystem
-      schema: v13
-      index:
-        prefix: index_
-        period: 24h
-ruler:
-  alertmanager_url: http://localhost:9093
-analytics:
-  reporting_enabled: false
-ingester:
-  wal:
-    flush_on_shutdown: true
-EOF
-        destination     = "${NOMAD_TASK_DIR}/loki.yaml"
-      }
-
-      service {
-        name = "loki-web"
-        port = "loki-http"
-        provider = "nomad"
-        tags = [
-          "traefik.enable=true",
-          "traefik.http.routers.loki-http.rule=PathPrefix(`/loki`)",
-          "traefik.http.routers.loki-http.priority=10"
-        ]
       }
     }
 
@@ -235,15 +137,6 @@ datasources:
     {% raw %}{{ range nomadService "vicky-web" }}url: http://{{ .Address }}:{{ .Port }}{{ end }}{% endraw %}
     {%- endif %}
     isDefault: true
-    editable: false
-  - name: Loki
-    type: loki
-    access: proxy
-    {% if platform == "local" -%}
-    url: http://host.docker.internal:{% raw %}{{ range nomadService "loki-web" }}{{ .Port }}{{ end }}{% endraw %}
-    {%- else -%}
-    {% raw %}{{ range nomadService "loki-web" }}url: http://{{ .Address }}:{{ .Port }}{{ end }}{% endraw %}
-    {%- endif %}
     editable: false
 EOF
         destination = "/local/grafana/provisioning/datasources/datasources.yaml"

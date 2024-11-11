@@ -67,9 +67,12 @@ def parse_args():
     parser.add_argument("--implicit_feedback_weight", type=int, default=10)
 
     # Generation is a separate test
-    parser.add_argument("--generation", type=bool, default=False)
+    parser.add_argument("--generation", action="store_true")
     parser.add_argument("--chat_weight", type=int, default=1)
     parser.add_argument("--generate_weight", type=int, default=1)
+    parser.add_argument("--on_prem_llm", action="store_true")
+    parser.add_argument("--on_prem_autoscaling", action="store_true")
+    parser.add_argument("--on_prem_cores", type=int, default=8)
 
     args, unknown = parser.parse_known_args()
 
@@ -119,14 +122,27 @@ def log_request_error(response):
         print(response.text)
 
 
+base_url = urljoin(args.host, "/api/")
+
 login_details = Login.with_email(
-    base_url=urljoin(args.host, "/api/"),
+    base_url=base_url,
     email=args.email,
     password=args.password,
 )
 
 username = login_details.username
 auth_header = {"Authorization": f"Bearer {login_details.access_token}"}
+
+if args.on_prem_llm:
+    response = requests.post(
+        urljoin(base_url, "deploy/start-on-prem"),
+        headers=auth_header,
+        params={
+            "restart_if_exists": True,
+            "autoscaling_enabled": args.on_prem_autoscaling,
+            "cores_per_allocation": args.on_prem_cores,
+        },
+    )
 
 # TODO: option to add different docs
 doc_dir = os.path.join(
@@ -327,6 +343,7 @@ class GenerationLoadTest(TaskSet):
                     "query": query,
                     "references": references,
                     "key": os.getenv("GENAI_KEY"),
+                    "provider": "on-prem" if args.on_prem_llm else "openai",
                 },
                 headers=auth_header,
                 timeout=60,

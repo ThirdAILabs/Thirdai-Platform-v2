@@ -165,6 +165,8 @@ def main(args):
             model_identifier, autoscaling_enabled=args.autoscaling_enabled
         )
 
+        check_nomad_job_status(ndb_client.model_id)
+
         logging.info("Running Stress Test\n\n\n")
         stress_test_status = run_stress_test(args, query_file, ndb_client.model_id)
         logging.info(f"\nStress test status: {stress_test_status}\n\n\n")

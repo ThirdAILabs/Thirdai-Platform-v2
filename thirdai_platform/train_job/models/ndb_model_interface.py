@@ -7,7 +7,6 @@ import thirdai
 from platform_common.file_handler import expand_cloud_buckets_and_directories
 from platform_common.pydantic_models.training import FileInfo, NDBv1Options, TrainConfig
 from thirdai import neural_db as ndb
-from train_job.exceptional_handler import apply_exception_handler
 from train_job.models.model import Model
 from train_job.reporter import Reporter
 from train_job.utils import (
@@ -18,7 +17,6 @@ from train_job.utils import (
 )
 
 
-@apply_exception_handler
 class NDBModel(Model):
     report_failure_method = "report_status"
 

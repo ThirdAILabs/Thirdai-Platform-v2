@@ -87,17 +87,17 @@ def load_config():
 
 
 def main():
-    config: TrainConfig = load_config()
-
-    log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
-
-    setup_logger(log_dir=log_dir, log_prefix="train")
-
-    logger = logging.getLogger("train")
-
-    reporter = HttpReporter(config.model_bazaar_endpoint, logger)
-
     try:
+        config: TrainConfig = load_config()
+
+        log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
+
+        setup_logger(log_dir=log_dir, log_prefix="train")
+
+        logger = logging.getLogger("train")
+
+        reporter = HttpReporter(config.model_bazaar_endpoint, logger)
+
         if config.license_key == "file_license":
             license_path = os.path.join(
                 config.model_bazaar_dir, "license/license.serialized"
@@ -112,11 +112,11 @@ def main():
 
         model.train()
     except Exception as error:
-        logger.error(f"Training failed with error: {error}")
+        logger.error(f"Training failed with error: '{error}'")
         reporter.report_status(
             config.model_id,
             status="failed",
-            message=f"Training failed with error {error}",
+            message=f"Training failed with error: '{error}'",
         )
         raise error
 

@@ -60,14 +60,23 @@ export async function listDeployments(deployment_id: string): Promise<Deployment
   }
 }
 
+// Update the base interface to match the API response structure
+
 interface BaseStatusResponse {
+  data: {
+    model_identifier: string; // Changed from model_id to model_identifier
+    messages: string[];
+  };
+}
+
+interface BaseDeployStatusResponse {
   data: {
     model_id: string;
     messages: string[];
   };
 }
 
-interface DeployStatusResponse extends BaseStatusResponse {
+interface DeployStatusResponse extends BaseDeployStatusResponse {
   data: {
     model_id: string;
     messages: string[];
@@ -77,9 +86,11 @@ interface DeployStatusResponse extends BaseStatusResponse {
 
 interface TrainStatusResponse extends BaseStatusResponse {
   data: {
-    model_id: string;
+    model_identifier: string;
     messages: string[];
     train_status: string;
+    warnings: string[];
+    errors: string[];
   };
 }
 
@@ -366,6 +377,144 @@ export function retrainTokenClassifier({
         } else {
           reject(new Error('Failed to retrain UDT model'));
         }
+      });
+  });
+}
+
+interface TrainUDTWithCSVParams {
+  model_name: string;
+  file: File;
+  base_model_identifier: string;
+  test_split?: number;
+}
+
+export function trainUDTWithCSV({
+  model_name,
+  file,
+  base_model_identifier,
+  test_split = 0.1,
+}: TrainUDTWithCSVParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  // Create FormData instance to handle file upload
+  const formData = new FormData();
+  formData.append('files', file);
+
+  // Add file info with correct location type
+  const fileInfo = {
+    supervised_files: [
+      {
+        filename: file.name,
+        content_type: file.type,
+        path: file.name,
+        location: 'local',
+      },
+    ],
+    test_files: [],
+  };
+  formData.append('file_info', JSON.stringify(fileInfo));
+
+  // Simplified model options for token classification
+  const modelOptions = {
+    udt_options: {
+      udt_sub_type: 'token',
+      source_column: '',
+      target_column: '',
+      target_labels: [],
+    },
+    train_options: {
+      test_split: test_split,
+    },
+  };
+  formData.append('model_options', JSON.stringify(modelOptions));
+
+  // Create URL with query parameters
+  const params = new URLSearchParams({
+    model_name,
+    base_model_identifier,
+  });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`, formData)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error(
+                (axiosError.response.data as any).detail || 'Failed to train UDT model with CSV'
+              )
+            );
+          } else {
+            reject(new Error('Failed to train UDT model with CSV'));
+          }
+        } else {
+          reject(new Error('Failed to train UDT model with CSV'));
+        }
+      });
+  });
+}
+
+// types.ts
+export interface MetricValues {
+  precision: number;
+  recall: number;
+  fmeasure: number;
+}
+
+export interface LabelMetrics {
+  [labelName: string]: MetricValues;
+}
+
+export interface TrainingExample {
+  source: string;
+  target: string;
+  predictions: string;
+  index: number;
+}
+
+export interface LabelExamples {
+  [labelName: string]: TrainingExample[];
+}
+
+export interface ExampleCategories {
+  true_positives: LabelExamples;
+  false_positives: LabelExamples;
+  false_negatives: LabelExamples;
+}
+
+export interface TrainReportData {
+  before_train_metrics: LabelMetrics;
+  after_train_metrics: LabelMetrics;
+  after_train_examples: ExampleCategories;
+}
+
+export interface TrainReportResponse {
+  status: string;
+  message: string;
+  data: TrainReportData;
+}
+
+// api.ts
+export function getTrainReport(modelIdentifier: string): Promise<TrainReportResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(
+        `${thirdaiPlatformBaseUrl}/api/train/train-report?model_identifier=${encodeURIComponent(modelIdentifier)}`
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
       });
   });
 }
@@ -973,8 +1122,12 @@ export interface TokenClassificationResult {
   tokens: string[];
   predicted_tags: string[][];
 }
+export interface PredictionResponse {
+  prediction_results: TokenClassificationResult;
+  time_taken: number;
+}
 
-interface InsertSamplePayload {
+export interface InsertSamplePayload {
   tokens: string[];
   tags: string[];
 }
@@ -1014,7 +1167,7 @@ export function useTokenClassificationEndpoints() {
     init();
   }, []);
 
-  const predict = async (query: string): Promise<TokenClassificationResult> => {
+  const predict = async (query: string): Promise<PredictionResponse> => {
     // Set the default authorization header for axios
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
     try {
@@ -1179,6 +1332,18 @@ interface TextClassificationResult {
   predicted_classes: [string, number][];
 }
 
+interface PredictionResult {
+  status: string;
+  message: string;
+  data: {
+    prediction_results: {
+      query_text: string;
+      predicted_classes: [string, number][];
+    };
+    time_taken: number;
+  };
+}
+
 export function useTextClassificationEndpoints() {
   const accessToken = useAccessToken();
   const params = useParams();
@@ -1211,15 +1376,18 @@ export function useTextClassificationEndpoints() {
     init();
   }, []);
 
-  const predict = async (query: string): Promise<TextClassificationResult> => {
+  const predict = async (query: string): Promise<PredictionResult> => {
     // Set the default authorization header for axios
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
     try {
-      const response = await axios.post(`${deploymentUrl}/predict`, {
+      const response = await axios.post<PredictionResult>(`${deploymentUrl}/predict`, {
         text: query,
         top_k: 5,
       });
-      return response.data.data;
+
+      // Return the full response data structure
+      return response.data;
     } catch (error) {
       console.error('Error predicting tokens:', error);
       alert('Error predicting tokens:' + error);

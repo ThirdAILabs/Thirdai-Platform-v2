@@ -1,6 +1,7 @@
 import React, { useState, ChangeEvent } from 'react';
 import NERQuestions from './ner-questions';
 import SCQQuestions from './sentence-classification-questions';
+import { trainUDTWithCSV } from '@/lib/backend';
 import { 
   Button, 
   Card, 
@@ -15,6 +16,7 @@ import {
   Tab,
   Box,
   Paper,
+  Alert,
 } from '@mui/material';
 
 type ModelType = 'ner' | 'classification' | '';
@@ -45,20 +47,53 @@ function TabPanel(props: TabPanelProps) {
       aria-labelledby={`simple-tab-${index}`}
       {...other}
     >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
     </div>
   );
 }
 
 const NLPQuestions: React.FC<NLPQuestionsProps> = ({ workflowNames }) => {
+  console.log('workflowNames', workflowNames)
   const [modelType, setModelType] = useState<ModelType>('');
   const [tabValue, setTabValue] = useState<number>(0);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvError, setCsvError] = useState<string>('');
+  const [modelName, setModelName] = useState<string>('');
+  const [warningMessage, setWarningMessage] = useState<string>('');
+  const [isCreating, setIsCreating] = useState<boolean>(false);
+  const [createSuccess, setCreateSuccess] = useState<boolean>(false);
+
+  const validateModelName = (name: string): boolean => {
+    if (workflowNames.includes(name)) {
+      console.log('error naming')
+      setWarningMessage('An app with the same name already exists. Please choose a different name.');
+      return false;
+    }
+
+    if (!name.trim()) {
+      setWarningMessage('Model name cannot be empty.');
+      return false;
+    }
+
+    const isValid = /^[a-zA-Z0-9-_]+$/.test(name);
+    if (!isValid) {
+      setWarningMessage('Model name can only contain letters, numbers, underscores, and hyphens.');
+      return false;
+    }
+
+    if (name.includes(' ')) {
+      setWarningMessage('Model name cannot contain spaces.');
+      return false;
+    }
+
+    if (name.includes('.')) {
+      setWarningMessage('Model name cannot contain periods.');
+      return false;
+    }
+
+    setWarningMessage('');
+    return true;
+  };
 
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -66,17 +101,20 @@ const NLPQuestions: React.FC<NLPQuestionsProps> = ({ workflowNames }) => {
 
     if (!file.name.endsWith('.csv')) {
       setCsvError('Please upload a CSV file');
+      setCsvFile(null);
       return;
     }
 
     try {
+      // Read and validate CSV format
       const reader = new FileReader();
       reader.onload = async (e: ProgressEvent<FileReader>) => {
         const text = e.target?.result as string;
-        const isValid = await validateCSVFormat(text, modelType);
+        const isValid = await validateCSVFormat(text);
         
         if (!isValid.success) {
           setCsvError(isValid.error || 'Invalid CSV format');
+          setCsvFile(null);
           return;
         }
         
@@ -86,10 +124,11 @@ const NLPQuestions: React.FC<NLPQuestionsProps> = ({ workflowNames }) => {
       reader.readAsText(file);
     } catch (error) {
       setCsvError(`Error reading file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setCsvFile(null);
     }
   };
 
-  const validateCSVFormat = async (csvText: string, type: ModelType): Promise<CSVValidationResult> => {
+  const validateCSVFormat = async (csvText: string): Promise<CSVValidationResult> => {
     const lines = csvText.split('\n').filter(line => line.trim());
     if (lines.length === 0) {
       return {
@@ -100,42 +139,28 @@ const NLPQuestions: React.FC<NLPQuestionsProps> = ({ workflowNames }) => {
 
     const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
 
-    if (type === 'ner') {
-      if (headers.length !== 2 || !headers.includes('text') || !headers.includes('labels')) {
-        return {
-          success: false,
-          error: 'NER CSV must have "text" and "labels" columns'
-        };
-      }
+    // For NER, we expect 'source' and 'target' columns
+    if (!headers.includes('source') || !headers.includes('target')) {
+      return {
+        success: false,
+        error: 'CSV must have "source" and "target" columns'
+      };
+    }
 
-      // Validate NER JSON format in labels column
-      try {
-        for (let i = 1; i < lines.length; i++) {
-          const columns = lines[i].split(',');
-          if (columns.length !== 2) continue;
-          const labels = JSON.parse(columns[1]);
-          if (!Array.isArray(labels) || !labels.every(label => 
-            typeof label === 'object' && 
-            'text' in label && 
-            'label' in label
-          )) {
-            return {
-              success: false,
-              error: `Invalid label format in row ${i + 1}`
-            };
-          }
-        }
-      } catch (error) {
+    // Validate that each row has matching token counts
+    for (let i = 1; i < lines.length; i++) {
+      const columns = lines[i].split(',');
+      if (columns.length < 2) continue;
+
+      const source = columns[0].trim();
+      const target = columns[1].trim();
+      const sourceTokens = source.split(' ').length;
+      const targetTokens = target.split(' ').length;
+
+      if (sourceTokens !== targetTokens) {
         return {
           success: false,
-          error: 'Invalid JSON format in labels column'
-        };
-      }
-    } else if (type === 'classification') {
-      if (headers.length !== 2 || !headers.includes('text') || !headers.includes('label')) {
-        return {
-          success: false,
-          error: 'Classification CSV must have "text" and "label" columns'
+          error: `Row ${i + 1}: Number of tokens in source (${sourceTokens}) does not match target (${targetTokens})`
         };
       }
     }
@@ -145,10 +170,12 @@ const NLPQuestions: React.FC<NLPQuestionsProps> = ({ workflowNames }) => {
 
   const handleModelTypeChange = (event: SelectChangeEvent<string>) => {
     setModelType(event.target.value as ModelType);
-    // Reset state when model type changes
     setCsvFile(null);
     setCsvError('');
     setTabValue(0);
+    setModelName('');
+    setWarningMessage('');
+    setCreateSuccess(false);
   };
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -156,29 +183,36 @@ const NLPQuestions: React.FC<NLPQuestionsProps> = ({ workflowNames }) => {
   };
 
   const handleCreateModel = async () => {
-    if (!csvFile) return;
+    if (!csvFile) {
+      setCsvError('Please select a CSV file first');
+      return;
+    }
+
+    if (!validateModelName(modelName)) {
+      return;
+    }
+
+    setIsCreating(true);
+    setCsvError('');
+    setCreateSuccess(false);
 
     try {
-      const formData = new FormData();
-      formData.append('file', csvFile);
-      formData.append('modelType', modelType);
-
-      const response = await fetch('/api/create-model', {
-        method: 'POST',
-        body: formData,
+      const response = await trainUDTWithCSV({
+        model_name: modelName,
+        file: csvFile,
+        base_model_identifier: '', // Empty for new model creation
+        test_split: 0.1,
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create model');
+      if (response.status === 'success') {
+        setCreateSuccess(true);
+      } else {
+        throw new Error(response.message || 'Failed to create model');
       }
-
-      const data = await response.json();
-      console.log('Model created:', data);
-      
-      // Handle success (e.g., redirect or show success message)
     } catch (error) {
-      console.error('Error creating model:', error);
       setCsvError(`Error creating model: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -211,7 +245,6 @@ const NLPQuestions: React.FC<NLPQuestionsProps> = ({ workflowNames }) => {
                 <Tabs 
                   value={tabValue} 
                   onChange={handleTabChange}
-                  aria-label="model creation method tabs"
                 >
                   <Tab label="Generate Synthetic Data" />
                   <Tab label="Upload CSV" />
@@ -236,34 +269,44 @@ const NLPQuestions: React.FC<NLPQuestionsProps> = ({ workflowNames }) => {
 
               <TabPanel value={tabValue} index={1}>
                 <Box sx={{ mt: 2 }}>
+                  <FormControl fullWidth sx={{ mb: 3 }}>
+                    <InputLabel>Model Name</InputLabel>
+                    <input
+                      type="text"
+                      value={modelName}
+                      onChange={(e) => setModelName(e.target.value)}
+                      className="w-full px-3 py-2 border rounded"
+                      placeholder="Enter model name"
+                    />
+                    {warningMessage && (
+                      <Typography color="error" variant="caption" sx={{ mt: 1 }}>
+                        {warningMessage}
+                      </Typography>
+                    )}
+                  </FormControl>
+
                   <input
                     type="file"
                     accept=".csv"
                     onChange={handleFileUpload}
-                    style={{ 
-                      width: '100%',
-                      padding: '10px',
-                      marginBottom: '10px',
-                      border: '1px solid #ccc',
-                      borderRadius: '4px'
-                    }}
+                    className="w-full px-3 py-2 border rounded mb-3"
                   />
                   
                   {csvError && (
-                    <Typography color="error" variant="body2" sx={{ mt: 1 }}>
+                    <Alert severity="error" sx={{ mb: 2 }}>
                       {csvError}
-                    </Typography>
+                    </Alert>
                   )}
                   
                   {csvFile && !csvError && (
-                    <Typography color="success.main" variant="body2" sx={{ mt: 1 }}>
+                    <Alert severity="success" sx={{ mb: 2 }}>
                       File "{csvFile.name}" ready to process
-                    </Typography>
+                    </Alert>
                   )}
 
                   <Paper sx={{ p: 2, mt: 3, bgcolor: 'grey.50' }}>
                     <Typography variant="subtitle2" gutterBottom>
-                      {modelType === 'ner' ? 'CSV format for NER:' : 'CSV format for Classification:'}
+                      CSV Format Requirements:
                     </Typography>
                     <Box 
                       component="pre" 
@@ -274,21 +317,21 @@ const NLPQuestions: React.FC<NLPQuestionsProps> = ({ workflowNames }) => {
                         overflow: 'auto'
                       }}
                     >
-                      {modelType === 'ner' ? 
-                        'text,labels\n"John works at Apple","[{\\"text\\":\\"John\\",\\"label\\":\\"PERSON\\"},{\\"text\\":\\"Apple\\",\\"label\\":\\"ORG\\"}]"' :
-                        'text,label\n"Great product!","POSITIVE"\n"Poor service","NEGATIVE"'
-                      }
+                      source,target
+John works at Apple,PERSON O O O ORG
+Name is Jane Smith,O O PERSON PERSON
                     </Box>
                   </Paper>
 
-                  {csvFile && !csvError && (
+                  {(csvFile && !csvError) && (
                     <Button 
                       variant="contained"
                       fullWidth
                       sx={{ mt: 3 }}
                       onClick={handleCreateModel}
+                      disabled={isCreating}
                     >
-                      Create Model
+                      {isCreating ? 'Creating Model...' : createSuccess ? 'Model Created!' : 'Create Model'}
                     </Button>
                   )}
                 </Box>

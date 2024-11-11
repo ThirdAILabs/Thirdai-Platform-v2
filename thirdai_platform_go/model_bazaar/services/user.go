@@ -182,7 +182,7 @@ func (s *UserService) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 func (s *UserService) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
@@ -222,7 +222,7 @@ func (s *UserService) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 type UserTeamInfo struct {

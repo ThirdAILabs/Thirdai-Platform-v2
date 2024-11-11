@@ -333,7 +333,7 @@ func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 func (s *ModelService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
@@ -423,7 +423,7 @@ func (s *ModelService) UploadChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 func modelExtension(modelType string) string {
@@ -591,7 +591,7 @@ func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 func (s *ModelService) UpdateDefaultPermission(w http.ResponseWriter, r *http.Request) {
@@ -618,5 +618,5 @@ func (s *ModelService) UpdateDefaultPermission(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }

@@ -135,7 +135,7 @@ func (s *TeamService) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 func (s *TeamService) AddUserToTeam(w http.ResponseWriter, r *http.Request) {
@@ -178,7 +178,7 @@ func (s *TeamService) AddUserToTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request) {
@@ -224,7 +224,7 @@ func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 func (s *TeamService) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
@@ -276,7 +276,7 @@ func (s *TeamService) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 func (s *TeamService) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request) {
@@ -317,7 +317,7 @@ func (s *TeamService) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 func (s *TeamService) AddTeamAdmin(w http.ResponseWriter, r *http.Request) {
@@ -358,7 +358,7 @@ func (s *TeamService) AddTeamAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 func (s *TeamService) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
@@ -399,7 +399,7 @@ func (s *TeamService) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 type TeamInfo struct {

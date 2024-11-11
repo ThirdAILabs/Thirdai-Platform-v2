@@ -34,6 +34,10 @@ func writeJsonResponse(w http.ResponseWriter, data interface{}) {
 	}
 }
 
+func writeSuccess(w http.ResponseWriter) {
+	writeJsonResponse(w, struct{}{})
+}
+
 func listModelDependencies(modelId string, db *gorm.DB) ([]schema.Model, error) {
 	visited := map[string]struct{}{}
 	models := []schema.Model{}
@@ -216,7 +220,7 @@ func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, tr
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad.NomadClient, training bool) {

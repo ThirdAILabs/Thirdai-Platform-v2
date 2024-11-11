@@ -17,8 +17,12 @@ func NewSharedDisk(basepath string) Storage {
 	return &SharedDiskStorage{basepath: basepath}
 }
 
+func (s *SharedDiskStorage) fullpath(path string) string {
+	return filepath.Join(s.basepath, path)
+}
+
 func (s *SharedDiskStorage) Read(path string) (io.ReadCloser, error) {
-	file, err := os.Open(filepath.Join(s.basepath, path))
+	file, err := os.Open(s.fullpath(path))
 	if err != nil {
 		return nil, fmt.Errorf("error reading file %v: %v", path, err)
 	}
@@ -35,7 +39,7 @@ func (s *SharedDiskStorage) Append(path string, data io.Reader) error {
 }
 
 func (s *SharedDiskStorage) writeData(path string, data io.Reader, flags int) error {
-	fullpath := filepath.Join(s.basepath, path)
+	fullpath := s.fullpath(path)
 
 	err := os.MkdirAll(filepath.Dir(fullpath), 0777)
 	if err != nil {
@@ -57,7 +61,7 @@ func (s *SharedDiskStorage) writeData(path string, data io.Reader, flags int) er
 }
 
 func (s *SharedDiskStorage) Delete(path string) error {
-	err := os.RemoveAll(filepath.Join(s.basepath, path))
+	err := os.RemoveAll(s.fullpath(path))
 	if err != nil {
 		return fmt.Errorf("error deleting file %v: %v", path, err)
 	}
@@ -65,7 +69,7 @@ func (s *SharedDiskStorage) Delete(path string) error {
 }
 
 func (s *SharedDiskStorage) List(path string) ([]string, error) {
-	entries, err := os.ReadDir(path)
+	entries, err := os.ReadDir(s.fullpath(path))
 	if err != nil {
 		return nil, fmt.Errorf("error listing entries at %v: %w", path, err)
 	}
@@ -79,13 +83,14 @@ func (s *SharedDiskStorage) List(path string) ([]string, error) {
 }
 
 func (s *SharedDiskStorage) Unzip(path string) error {
-	zip, err := zip.OpenReader(path)
+	fullpath := s.fullpath(path)
+	zip, err := zip.OpenReader(fullpath)
 	if err != nil {
 		return err
 	}
 	defer zip.Close()
 
-	newPath := strings.TrimSuffix(path, ".zip")
+	newPath := strings.TrimSuffix(fullpath, ".zip")
 
 	for _, file := range zip.File {
 		if strings.HasSuffix(file.Name, "/") {
@@ -108,7 +113,8 @@ func (s *SharedDiskStorage) Unzip(path string) error {
 }
 
 func (s *SharedDiskStorage) Zip(path string) error {
-	zipfile, err := os.Create(path + ".zip")
+	fullpath := s.fullpath(path)
+	zipfile, err := os.Create(fullpath + ".zip")
 	if err != nil {
 		return fmt.Errorf("error creading file to store zip archive: %w", err)
 	}
@@ -117,7 +123,7 @@ func (s *SharedDiskStorage) Zip(path string) error {
 	archive := zip.NewWriter(zipfile)
 	defer archive.Close()
 
-	err = archive.AddFS(os.DirFS(path))
+	err = archive.AddFS(os.DirFS(fullpath))
 	if err != nil {
 		return fmt.Errorf("error writing directory to zipfile: %w", err)
 	}

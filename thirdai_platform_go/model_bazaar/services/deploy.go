@@ -186,7 +186,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
@@ -224,7 +224,7 @@ func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	writeSuccess(w)
 }
 
 func (s *DeployService) GetStatus(w http.ResponseWriter, r *http.Request) {

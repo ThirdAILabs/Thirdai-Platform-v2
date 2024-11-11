@@ -1,12 +1,15 @@
 package tests
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
 
@@ -30,7 +33,7 @@ func jsonError(err error) error {
 
 func get[T any](c *client, endpoint string) (T, error) {
 	req := httptest.NewRequest("GET", endpoint, nil)
-	c.addAuthHeader(req)
+	addAuthHeader(req, c.token)
 	w := httptest.NewRecorder()
 	c.api.ServeHTTP(w, req)
 
@@ -52,9 +55,15 @@ func get[T any](c *client, endpoint string) (T, error) {
 	return data, nil
 }
 
-func post[T any](c *client, endpoint string, body []byte, parseRes bool) (T, error) {
+type NoBody struct{}
+
+func post[T any](c *client, endpoint string, body []byte) (T, error) {
+	return postWithToken[T](c, endpoint, body, c.token)
+}
+
+func postWithToken[T any](c *client, endpoint string, body []byte, token string) (T, error) {
 	req := httptest.NewRequest("POST", endpoint, bytes.NewReader(body))
-	c.addAuthHeader(req)
+	addAuthHeader(req, token)
 	w := httptest.NewRecorder()
 	c.api.ServeHTTP(w, req)
 
@@ -68,18 +77,16 @@ func post[T any](c *client, endpoint string, body []byte, parseRes bool) (T, err
 		return data, fmt.Errorf("post %v failed with status %d and res %v", endpoint, res.StatusCode, w.Body.String())
 	}
 
-	if parseRes {
-		err := json.NewDecoder(res.Body).Decode(&data)
-		if err != nil {
-			return data, err
-		}
+	err := json.NewDecoder(res.Body).Decode(&data)
+	if err != nil {
+		return data, err
 	}
 
 	return data, nil
 }
 
-func (c *client) addAuthHeader(r *http.Request) {
-	r.Header.Add("Authorization", fmt.Sprintf("Bearer %v", c.token))
+func addAuthHeader(r *http.Request, token string) {
+	r.Header.Add("Authorization", fmt.Sprintf("Bearer %v", token))
 }
 
 var ErrUnauthorized = errors.New("unauthorized")
@@ -92,7 +99,7 @@ func (c *client) signup(username, email, password string) (loginInfo, error) {
 		return loginInfo{}, jsonError(err)
 	}
 
-	_, err = post[map[string]string](c, "/user/signup", body, true)
+	_, err = post[map[string]string](c, "/user/signup", body)
 	if err != nil {
 		return loginInfo{}, err
 	}
@@ -106,7 +113,7 @@ func (c *client) login(login loginInfo) error {
 		return jsonError(err)
 	}
 
-	data, err := post[map[string]string](c, "/user/login", body, true)
+	data, err := post[map[string]string](c, "/user/login", body)
 	if err != nil {
 		return err
 	}
@@ -120,14 +127,14 @@ func (c *client) login(login loginInfo) error {
 func (c *client) promoteAdmin(userId string) error {
 	body := []byte(fmt.Sprintf(`{"user_id": "%v"}`, userId))
 
-	_, err := post[int](c, "/user/promote-admin", body, false)
+	_, err := post[NoBody](c, "/user/promote-admin", body)
 	return err
 }
 
 func (c *client) demoteAdmin(userId string) error {
 	body := []byte(fmt.Sprintf(`{"user_id": "%v"}`, userId))
 
-	_, err := post[int](c, "/user/demote-admin", body, false)
+	_, err := post[NoBody](c, "/user/demote-admin", body)
 	return err
 }
 
@@ -140,7 +147,7 @@ func (c *client) userInfo() (services.UserInfo, error) {
 }
 
 func (c *client) createTeam(name string) (string, error) {
-	data, err := post[map[string]string](c, fmt.Sprintf("/team/create?name=%v", name), nil, true)
+	data, err := post[map[string]string](c, fmt.Sprintf("/team/create?name=%v", name), nil)
 	if err != nil {
 		return "", err
 	}
@@ -148,37 +155,37 @@ func (c *client) createTeam(name string) (string, error) {
 }
 
 func (c *client) deleteTeam(teamId string) error {
-	_, err := post[int](c, fmt.Sprintf("/team/delete?team_id=%v", teamId), nil, false)
+	_, err := post[NoBody](c, fmt.Sprintf("/team/delete?team_id=%v", teamId), nil)
 	return err
 }
 
 func (c *client) addUserToTeam(teamId, userId string) error {
-	_, err := post[int](c, fmt.Sprintf("/team/add-user?team_id=%v&user_id=%v", teamId, userId), nil, false)
+	_, err := post[NoBody](c, fmt.Sprintf("/team/add-user?team_id=%v&user_id=%v", teamId, userId), nil)
 	return err
 }
 
 func (c *client) removeUserFromTeam(teamId, userId string) error {
-	_, err := post[int](c, fmt.Sprintf("/team/remove-user?team_id=%v&user_id=%v", teamId, userId), nil, false)
+	_, err := post[NoBody](c, fmt.Sprintf("/team/remove-user?team_id=%v&user_id=%v", teamId, userId), nil)
 	return err
 }
 
 func (c *client) addModelToTeam(teamId, modelId string) error {
-	_, err := post[int](c, fmt.Sprintf("/team/add-model?team_id=%v&model_id=%v", teamId, modelId), nil, false)
+	_, err := post[NoBody](c, fmt.Sprintf("/team/add-model?team_id=%v&model_id=%v", teamId, modelId), nil)
 	return err
 }
 
 func (c *client) removeModelFromTeam(teamId, modelId string) error {
-	_, err := post[int](c, fmt.Sprintf("/team/remove-model?team_id=%v&model_id=%v", teamId, modelId), nil, false)
+	_, err := post[NoBody](c, fmt.Sprintf("/team/remove-model?team_id=%v&model_id=%v", teamId, modelId), nil)
 	return err
 }
 
 func (c *client) addTeamAdmin(teamId, userId string) error {
-	_, err := post[int](c, fmt.Sprintf("/team/add-admin?team_id=%v&user_id=%v", teamId, userId), nil, false)
+	_, err := post[NoBody](c, fmt.Sprintf("/team/add-admin?team_id=%v&user_id=%v", teamId, userId), nil)
 	return err
 }
 
 func (c *client) removeTeamAdmin(teamId, userId string) error {
-	_, err := post[int](c, fmt.Sprintf("/team/remove-admin?team_id=%v&user_id=%v", teamId, userId), nil, false)
+	_, err := post[NoBody](c, fmt.Sprintf("/team/remove-admin?team_id=%v&user_id=%v", teamId, userId), nil)
 	return err
 }
 
@@ -203,17 +210,17 @@ func (c *client) listModels() ([]services.ModelInfo, error) {
 }
 
 func (c *client) deleteModel(modelId string) error {
-	_, err := post[int](c, fmt.Sprintf("/model/delete?model_id=%v", modelId), nil, false)
+	_, err := post[NoBody](c, fmt.Sprintf("/model/delete?model_id=%v", modelId), nil)
 	return err
 }
 
 func (c *client) updateAccess(modelId, newAccess string) error {
-	_, err := post[int](c, fmt.Sprintf("/model/update-access?model_id=%v&new_access=%v", modelId, newAccess), nil, false)
+	_, err := post[NoBody](c, fmt.Sprintf("/model/update-access?model_id=%v&new_access=%v", modelId, newAccess), nil)
 	return err
 }
 
 func (c *client) updateDefaultPermission(modelId, newPermission string) error {
-	_, err := post[int](c, fmt.Sprintf("/model/update-default-permission?model_id=%v&new_permission=%v", modelId, newPermission), nil, false)
+	_, err := post[NoBody](c, fmt.Sprintf("/model/update-default-permission?model_id=%v&new_permission=%v", modelId, newPermission), nil)
 	return err
 }
 
@@ -235,10 +242,106 @@ func (c *client) trainNdb(name string) (string, error) {
 		return "", err
 	}
 
-	res, err := post[map[string]string](c, "/train/ndb", body, true)
+	res, err := post[map[string]string](c, "/train/ndb", body)
 	if err != nil {
 		return "", err
 	}
 
 	return res["model_id"], nil
+}
+
+func zipDir(path string) (string, error) {
+	newPath := path + ".zip"
+	file, err := os.Create(newPath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	zip := zip.NewWriter(file)
+	defer zip.Close()
+
+	err = zip.AddFS(os.DirFS(path))
+	if err != nil {
+		return "", err
+	}
+
+	return newPath, nil
+}
+
+func (c *client) startUpload(modelName, modelType string) (string, error) {
+	body := fmt.Sprintf(`{"model_name": "%v", "model_type": "%v"}`, modelName, modelType)
+	data, err := post[map[string]string](c, "/model/upload-start", []byte(body))
+	if err != nil {
+		return "", err
+	}
+	return data["token"], nil
+}
+
+func (c *client) uploadModel(modelName, modelType, path string, chunksize int) (string, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if info.IsDir() {
+		newPath, err := zipDir(path)
+		if err != nil {
+			return "", err
+		}
+		path = newPath
+	}
+
+	modelData, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	uploadToken, err := c.startUpload(modelName, modelType)
+	if err != nil {
+		return "", err
+	}
+
+	chunk_idx := 0
+	for i := 0; i < len(modelData); i += chunksize {
+		_, err := postWithToken[NoBody](c, fmt.Sprintf("/model/upload-chunk?chunk_idx=%d", chunk_idx), modelData[i:min(i+chunksize, len(modelData))], uploadToken)
+		if err != nil {
+			return "", err
+		}
+		chunk_idx++
+	}
+
+	data, err := postWithToken[map[string]string](c, "/model/upload-commit", nil, uploadToken)
+	if err != nil {
+		return "", err
+	}
+
+	return data["model_id"], nil
+}
+
+func (c *client) downloadModel(modelId string, dest string) error {
+	endpoint := fmt.Sprintf("/model/download?model_id=%v", modelId)
+	req := httptest.NewRequest("GET", endpoint, nil)
+	addAuthHeader(req, c.token)
+	w := httptest.NewRecorder()
+	c.api.ServeHTTP(w, req)
+
+	res := w.Result()
+	if res.StatusCode != http.StatusOK {
+		if res.StatusCode == http.StatusUnauthorized {
+			return ErrUnauthorized
+		}
+		return fmt.Errorf("get %v failed with status %d and res %v", endpoint, res.StatusCode, w.Body.String())
+	}
+
+	file, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(file, w.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

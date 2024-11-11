@@ -1,6 +1,10 @@
 package tests
 
 import (
+	"bytes"
+	"crypto/rand"
+	"os"
+	"path/filepath"
 	"testing"
 	"thirdai_platform/model_bazaar/schema"
 )
@@ -314,5 +318,50 @@ func TestDeleteModel(t *testing.T) {
 	}
 	if len(models) != 0 {
 		t.Fatal("expected no models")
+	}
+}
+
+func randomBytes(n int) []byte {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func TestUploadDownloadNlp(t *testing.T) {
+	env := setupTestEnv(t)
+
+	user, err := env.newUser("abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpDir := t.TempDir()
+
+	uploadFile := filepath.Join(tmpDir, "upload.udt")
+	downloadFile := filepath.Join(tmpDir, "download.udt")
+
+	modelData := randomBytes(28490)
+	os.WriteFile(uploadFile, modelData, 0666)
+
+	modelId, err := user.uploadModel("custom_modet", "nlp-text", uploadFile, 5000)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = user.downloadModel(modelId, downloadFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	downloaded, err := os.ReadFile(downloadFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(modelData, downloaded) {
+		t.Fatal("model bytes are different")
 	}
 }

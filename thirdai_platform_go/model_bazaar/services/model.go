@@ -1,8 +1,13 @@
 package services
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"net/http"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
@@ -11,6 +16,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/jwtauth/v5"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -20,8 +26,8 @@ type ModelService struct {
 	nomad   nomad.NomadClient
 	storage storage.Storage
 
-	userAuth    *auth.JwtManager
-	sessionAuth *auth.JwtManager
+	userAuth          *auth.JwtManager
+	uploadSessionAuth *auth.JwtManager
 }
 
 func (s *ModelService) Routes() chi.Router {
@@ -54,12 +60,12 @@ func (s *ModelService) Routes() chi.Router {
 		r.Get("/permissions", s.Permissions)
 
 		r.Post("/save-deployed", s.SaveDeployed)
-		r.Post("/upload-token", s.UploadToken)
+		r.Post("/upload-start", s.UploadStart)
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(s.sessionAuth.Verifier())
-		r.Use(s.sessionAuth.Authenticator())
+		r.Use(s.uploadSessionAuth.Verifier())
+		r.Use(s.uploadSessionAuth.Authenticator())
 
 		r.Post("/upload-chunk", s.UploadChunk)
 		r.Post("/upload-commit", s.UploadCommit)
@@ -334,20 +340,231 @@ func (s *ModelService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (s *ModelService) UploadToken(w http.ResponseWriter, r *http.Request) {
+type UploadStartRequest struct {
+	ModelName string `json:"model_name"`
+	ModelType string `json:"model_type"`
+}
 
+func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
+	var params UploadStartRequest
+	if !parseRequestBody(w, r, &params) {
+		return
+	}
+
+	userId, err := auth.UserIdFromContext(r)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	model := schema.Model{
+		Id:                uuid.New().String(),
+		Name:              params.ModelName,
+		Type:              params.ModelType,
+		PublishedDate:     time.Now(),
+		TrainStatus:       schema.NotStarted,
+		DeployStatus:      schema.NotStarted,
+		Access:            schema.Private,
+		DefaultPermission: schema.ReadPerm,
+		UserId:            userId,
+	}
+
+	err = s.db.Transaction(func(txn *gorm.DB) error {
+		err := checkForDuplicateModel(txn, model.Name, userId)
+		if err != nil {
+			return err
+		}
+
+		result := txn.Create(&model)
+		if result.Error != nil {
+			return schema.NewDbError("creating new model for upload", result.Error)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error creating new model: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	uploadToken, err := s.uploadSessionAuth.CreateToken("model_id", model.Id, 10*time.Minute)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error creating upload token for model %v: %v", model.Name, err), http.StatusBadRequest)
+		return
+	}
+
+	writeJsonResponse(w, map[string]string{"token": uploadToken})
 }
 
 func (s *ModelService) UploadChunk(w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+	if !params.Has("chunk_idx") {
+		http.Error(w, "'chunk_idx' query parameter missing", http.StatusBadRequest)
+		return
+	}
+	chunkIdx, err := strconv.Atoi(params.Get("chunk_idx"))
+	if err != nil || chunkIdx < 0 {
+		http.Error(w, "expected 'chunk_idx' parameter to be an positive integer", http.StatusBadRequest)
+		return
+	}
 
+	modelId, err := auth.ValueFromContext(r, "model_id")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error retrieving model id from request: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	path := filepath.Join(storage.ModelPath(modelId), fmt.Sprintf("chunks/%d", chunkIdx))
+
+	err = s.storage.Write(path, r.Body)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error uploading chunk %d to storage: %v", chunkIdx, err), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func modelExtension(modelType string) string {
+	switch modelType {
+	case schema.NdbModel:
+		return "ndb.zip"
+	case schema.NlpTextModel:
+	case schema.NlpTokenModel:
+		return "udt"
+	}
+	return "model"
 }
 
 func (s *ModelService) UploadCommit(w http.ResponseWriter, r *http.Request) {
+	modelId, err := auth.ValueFromContext(r, "model_id")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error retrieving model id from request: %v", err), http.StatusBadRequest)
+		return
+	}
 
+	model, err := schema.GetModel(modelId, s.db, false, false, false)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error retrieving model: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	chunks, err := s.storage.List(filepath.Join(storage.ModelPath(modelId), "chunks"))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error listing chunks for model upload: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	chunkSet := make(map[string]struct{})
+	for _, chunk := range chunks {
+		chunkSet[chunk] = struct{}{}
+	}
+
+	modelPath := filepath.Join(storage.ModelPath(modelId), fmt.Sprintf("model.%v", modelExtension(model.Type)))
+	for i := 0; i < len(chunks); i++ {
+		chunkPath := strconv.Itoa(i)
+		if _, ok := chunkSet[chunkPath]; !ok {
+			http.Error(w, fmt.Sprintf("chunk %d is missing", i), http.StatusBadRequest)
+			return
+		}
+
+		chunk, err := s.storage.Read(filepath.Join(storage.ModelPath(modelId), "chunks", chunkPath))
+		if err != nil {
+			http.Error(w, fmt.Sprintf("error reading chunk %d: %v", i, err), http.StatusBadRequest)
+			return
+		}
+		defer chunk.Close()
+
+		err = s.storage.Append(modelPath, chunk)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("error writing chunk %d: %v", i, err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	// TODO(Anyone): add checksum
+
+	if strings.HasSuffix(modelPath, ".zip") {
+		err := s.storage.Unzip(modelPath)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("error unzipping model, please ensure upload is valid zipfile: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	result := s.db.Model(&model).Update("train_status", schema.Complete)
+	if result.Error != nil {
+		err := schema.NewDbError("updating status for uploaded model", result.Error)
+		http.Error(w, fmt.Sprintf("error completing model upload: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	writeJsonResponse(w, map[string]string{"model_id": model.Id})
 }
 
 func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
+	params := r.URL.Query()
+	if !params.Has("model_id") {
+		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
+		return
+	}
+	modelId := params.Get("model_id")
 
+	model, err := schema.GetModel(modelId, s.db, false, false, false)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error retrieving model: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	downloadPath := filepath.Join(storage.ModelPath(model.Id), fmt.Sprintf("model.%v", modelExtension(model.Type)))
+	if strings.HasSuffix(downloadPath, ".zip") {
+		err := s.storage.Zip(strings.TrimSuffix(downloadPath, ".zip"))
+		if err != nil {
+			http.Error(w, fmt.Sprintf("error preparing zipfile for model download: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, fmt.Sprintf("http response does not support chunked response."), http.StatusInternalServerError)
+		return
+	}
+
+	file, err := s.storage.Read(downloadPath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error opening model for download: %v", err), http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	buffer := bufio.NewReader(file)
+	chunk := make([]byte, 10*1024*1024)
+
+	for {
+		readN, err := buffer.Read(chunk)
+		isEof := err == io.EOF
+		if err != nil && !isEof {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		writeN, err := w.Write(chunk[:readN])
+		if writeN != readN {
+			http.Error(w, fmt.Sprintf("expected to write %d bytes to stream, wrote %d", readN, writeN), http.StatusInternalServerError)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		flusher.Flush() // Sends chunk
+
+		if isEof {
+			break
+		}
+	}
 }
 
 func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {

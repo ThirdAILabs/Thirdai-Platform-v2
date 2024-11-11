@@ -166,16 +166,12 @@ func (s *TrainService) createModelAndStartTraining(
 			}
 		}
 
-		var duplicateModel schema.Model
-		result := txn.Find(&duplicateModel, "user_id = ? AND name = ?", userId, model.Name)
-		if result.Error != nil {
-			return schema.NewDbError("checking for duplicate model", result.Error)
-		}
-		if result.RowsAffected != 0 {
-			return fmt.Errorf("a model with name %v already exists", model.Name)
+		err = checkForDuplicateModel(txn, model.Name, userId)
+		if err != nil {
+			return err
 		}
 
-		result = txn.Create(&model)
+		result := txn.Create(&model)
 		if result.Error != nil {
 			return schema.NewDbError("creating model entry", result.Error)
 		}

@@ -277,3 +277,15 @@ func verifyLicenseForNewJob(nomad nomad.NomadClient, license *licensing.LicenseV
 
 	return licenseData.BoltLicenseKey, nil
 }
+
+func checkForDuplicateModel(db *gorm.DB, modelName, userId string) error {
+	var duplicateModel schema.Model
+	result := db.Find(&duplicateModel, "user_id = ? AND name = ?", userId, modelName)
+	if result.Error != nil {
+		return schema.NewDbError("checking for duplicate model", result.Error)
+	}
+	if result.RowsAffected != 0 {
+		return fmt.Errorf("a model with name %v already exists for user %v", modelName, userId)
+	}
+	return nil
+}

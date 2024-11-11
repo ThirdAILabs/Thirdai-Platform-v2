@@ -39,11 +39,11 @@ func NewModelBazaar(
 		user: UserService{db: db, userAuth: userAuth},
 		team: TeamService{db: db, userAuth: userAuth},
 		model: ModelService{
-			db:          db,
-			nomad:       nomad,
-			storage:     storage,
-			userAuth:    userAuth,
-			sessionAuth: auth.NewJwtManager(),
+			db:                db,
+			nomad:             nomad,
+			storage:           storage,
+			userAuth:          userAuth,
+			uploadSessionAuth: auth.NewJwtManager(),
 		},
 		train: TrainService{
 			db:        db,

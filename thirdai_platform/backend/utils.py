@@ -769,6 +769,6 @@ def read_file_from_back(path: str):
 
 
 def disk_occupied():
-    usage = shutil.disk_usage(os.path.join(model_bazaar_path()))
+    usage = shutil.disk_usage(model_bazaar_path())
 
     return usage.free / usage.total

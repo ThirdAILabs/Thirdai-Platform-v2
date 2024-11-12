@@ -3,6 +3,7 @@ package schema
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"gorm.io/gorm"
 )
@@ -13,6 +14,7 @@ type DbError struct {
 }
 
 func NewDbError(action string, err error) error {
+	slog.Error("sql error", "action", action, "error", err)
 	return DbError{action: action, err: err}
 }
 

@@ -2,7 +2,6 @@ package services
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"log/slog"
 	"thirdai_platform/model_bazaar/auth"
@@ -99,7 +98,7 @@ func (m *ModelBazaar) syncTrainStatus(model *schema.Model) {
 	jobNotFound := errors.Is(err, nomad.ErrJobNotFound)
 
 	if err != nil && !jobNotFound {
-		slog.Error(fmt.Sprintf("status sync: %v", err))
+		slog.Error("status sync: train job info", "error", err)
 		return
 	}
 
@@ -107,9 +106,10 @@ func (m *ModelBazaar) syncTrainStatus(model *schema.Model) {
 		result := m.db.Model(model).Where("train_status = ?", model.TrainStatus).Update("train_status", schema.Failed)
 		if result.Error != nil {
 			err := schema.NewDbError("updating train status for failed model", result.Error)
-			slog.Error(fmt.Sprintf("status sync: %v", err))
+			slog.Error("status sync: update train status", "error", err)
 			return
 		}
+		slog.Info("status sync: updated train status", "model_id", model.Id)
 	}
 }
 
@@ -122,7 +122,7 @@ func (m *ModelBazaar) syncDeployStatus(model *schema.Model) {
 	jobNotFound := errors.Is(err, nomad.ErrJobNotFound)
 
 	if err != nil && !jobNotFound {
-		slog.Error(fmt.Sprintf("status sync: %v", err))
+		slog.Error("status sync: deploy job info", "error", err)
 		return
 	}
 
@@ -130,9 +130,11 @@ func (m *ModelBazaar) syncDeployStatus(model *schema.Model) {
 		result := m.db.Model(model).Where("deploy_status = ?", model.DeployStatus).Update("deploy_status", schema.Failed)
 		if result.Error != nil {
 			err := schema.NewDbError("updating deploy status for failed model", result.Error)
-			slog.Error(fmt.Sprintf("status sync: %v", err))
+			slog.Error("status sync: update deploy status", "error", err)
 			return
 		}
+
+		slog.Info("status sync: updated deploy status", "model_id", model.Id)
 	}
 }
 
@@ -146,7 +148,7 @@ func (m *ModelBazaar) statusSync() {
 
 	if result.Error != nil {
 		err := schema.NewDbError("listing active models", result.Error)
-		slog.Error(fmt.Sprintf("status sync: %v", err))
+		slog.Error("status sync: list models", "error", err)
 		return
 	}
 
@@ -157,6 +159,7 @@ func (m *ModelBazaar) statusSync() {
 }
 
 func (m *ModelBazaar) StartStatusSync() {
+	slog.Info("status sync: starting")
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -165,7 +168,7 @@ func (m *ModelBazaar) StartStatusSync() {
 		case <-ticker.C:
 			m.statusSync()
 		case <-m.stop:
-			slog.Info("status sync process stopped")
+			slog.Info("status sync: process stopped")
 			return
 		}
 	}

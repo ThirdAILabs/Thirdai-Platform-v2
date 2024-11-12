@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rand"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -34,6 +35,7 @@ func (m *JwtManager) CreateToken(key, value string, exp time.Duration) (string, 
 	}
 	_, token, err := m.auth.Encode(claims)
 	if err != nil {
+		slog.Error("error generating jwt", "error", err)
 		return "", fmt.Errorf("error generating access token: %w", err)
 	}
 	return token, nil

@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"time"
@@ -25,6 +26,7 @@ func (l *LicensePayload) Expiry() (time.Time, error) {
 	layout := "2006-01-02T15:04:05-07:00"
 	expiry, err := time.Parse(layout, l.ExpiryDate)
 	if err != nil {
+		slog.Error("unable to parse license expiry", "error", err)
 		return time.Time{}, fmt.Errorf("unable to parse expiry in license: %v", err)
 	}
 	return expiry, nil
@@ -46,23 +48,23 @@ func NewVerifier(licensePath string) *LicenseVerifier {
 	// own licenses.
 	block, _ := pem.Decode([]byte(publicKey))
 	if block == nil {
-		log.Fatalf("pem file is corrupted")
+		log.Panicf("pem file is corrupted")
 	}
 
 	key, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
-		log.Fatalf("licensing error: parsing public key: %v", err)
+		log.Panicf("licensing error: parsing public key: %v", err)
 	}
 
 	rsaKey, ok := key.(*rsa.PublicKey)
 	if !ok {
-		log.Fatalf("licensing error: key must be valid rsa key")
+		log.Panicf("licensing error: key must be valid rsa key")
 	}
 
 	v := &LicenseVerifier{publicKey: rsaKey, licensePath: licensePath}
 
 	if _, err := v.Verify(0); err != nil {
-		log.Fatalf("must have valid license for initialization: %v", err)
+		log.Panicf("must have valid license for initialization: %v", err)
 	}
 
 	return v
@@ -74,10 +76,12 @@ func (v *LicenseVerifier) loadLicense() (PlatformLicense, error) {
 	file, err := os.Open(v.licensePath)
 	defer file.Close()
 	if err != nil {
+		slog.Error("error opening license file", "error", err)
 		return license, fmt.Errorf("unable to access platform license: %v", err)
 	}
 	err = json.NewDecoder(file).Decode(&license)
 	if err != nil {
+		slog.Error("unable to parse license file", "error", err)
 		return license, fmt.Errorf("unable to parse platform license: %v", err)
 	}
 
@@ -93,6 +97,7 @@ func (v *LicenseVerifier) Verify(currCpuUsage int) (LicensePayload, error) {
 
 	signature, err := base64.StdEncoding.DecodeString(license.Signature)
 	if err != nil {
+		slog.Error("error decoding license signature", "error", err)
 		return LicensePayload{}, fmt.Errorf("unable to decode license signature: %v", err)
 	}
 
@@ -106,6 +111,7 @@ func (v *LicenseVerifier) Verify(currCpuUsage int) (LicensePayload, error) {
 
 	matchErr := rsa.VerifyPKCS1v15(v.publicKey, crypto.SHA256, hash.Sum(nil), signature)
 	if matchErr != nil {
+		slog.Error("platform license signature doesn't match", "error", err)
 		return LicensePayload{}, fmt.Errorf("license is invalid")
 	}
 
@@ -115,16 +121,19 @@ func (v *LicenseVerifier) Verify(currCpuUsage int) (LicensePayload, error) {
 	}
 
 	if expiry.Before(time.Now()) {
+		slog.Error("platform license is expired", "error", err)
 		return LicensePayload{}, fmt.Errorf("license is expired")
 	}
 
 	// TODO(Anyone): why is this not just stored as an integer in the license?
 	cpuLimit, err := strconv.Atoi(license.License.CpuMhzLimit)
 	if err != nil {
+		slog.Error("platform license has invalid cpu limit", "error", err)
 		return LicensePayload{}, fmt.Errorf("invalid cpu limit: %v", err)
 	}
 
 	if cpuLimit < currCpuUsage {
+		slog.Error("platform license cpu limit exceeded", "error", err)
 		return LicensePayload{}, fmt.Errorf("maximum cpu usage for license exceeded")
 	}
 

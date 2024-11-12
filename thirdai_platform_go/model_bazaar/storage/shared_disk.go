@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,7 @@ type SharedDiskStorage struct {
 }
 
 func NewSharedDisk(basepath string) Storage {
+	slog.Info("creating new shared disk storage", "basepath", basepath)
 	return &SharedDiskStorage{basepath: basepath}
 }
 
@@ -22,8 +24,10 @@ func (s *SharedDiskStorage) fullpath(path string) string {
 }
 
 func (s *SharedDiskStorage) Read(path string) (io.ReadCloser, error) {
-	file, err := os.Open(s.fullpath(path))
+	fullpath := s.fullpath(path)
+	file, err := os.Open(fullpath)
 	if err != nil {
+		slog.Error("error opening file for read", "path", fullpath, "error", err)
 		return nil, fmt.Errorf("error reading file %v: %v", path, err)
 	}
 
@@ -43,17 +47,20 @@ func (s *SharedDiskStorage) writeData(path string, data io.Reader, flags int) er
 
 	err := os.MkdirAll(filepath.Dir(fullpath), 0777)
 	if err != nil {
+		slog.Error("error creating parent directory", "path", fullpath, "error", err)
 		return fmt.Errorf("error creating parent directory %v: %v", path, err)
 	}
 
 	file, err := os.OpenFile(fullpath, flags, 0666)
 	defer file.Close()
 	if err != nil {
+		slog.Error("error opening file for writing", "path", fullpath, "error", err)
 		return fmt.Errorf("error opening file %v: %v", path, err)
 	}
 
 	_, err = io.Copy(file, data)
 	if err != nil {
+		slog.Error("error writing to file", "path", fullpath, "error", err)
 		return fmt.Errorf("error writing to file %v: %v", path, err)
 	}
 
@@ -61,16 +68,20 @@ func (s *SharedDiskStorage) writeData(path string, data io.Reader, flags int) er
 }
 
 func (s *SharedDiskStorage) Delete(path string) error {
-	err := os.RemoveAll(s.fullpath(path))
+	fullpath := s.fullpath(path)
+	err := os.RemoveAll(fullpath)
 	if err != nil {
+		slog.Error("error deleting file", "path", fullpath, "error", err)
 		return fmt.Errorf("error deleting file %v: %v", path, err)
 	}
 	return nil
 }
 
 func (s *SharedDiskStorage) List(path string) ([]string, error) {
-	entries, err := os.ReadDir(s.fullpath(path))
+	fullpath := s.fullpath(path)
+	entries, err := os.ReadDir(fullpath)
 	if err != nil {
+		slog.Error("error listing entries", "path", fullpath, "error", err)
 		return nil, fmt.Errorf("error listing entries at %v: %w", path, err)
 	}
 
@@ -86,7 +97,8 @@ func (s *SharedDiskStorage) Unzip(path string) error {
 	fullpath := s.fullpath(path)
 	zip, err := zip.OpenReader(fullpath)
 	if err != nil {
-		return err
+		slog.Error("error opening zip reader", "path", fullpath, "error", err)
+		return fmt.Errorf("error opening zip reader: %w", err)
 	}
 	defer zip.Close()
 
@@ -99,12 +111,14 @@ func (s *SharedDiskStorage) Unzip(path string) error {
 
 		fileData, err := file.Open()
 		if err != nil {
+			slog.Error("error opening file in zipfile", "path", fullpath, "name", file.Name, "error", err)
 			return fmt.Errorf("error opening file in zipfile %v: %w", file.Name, err)
 		}
 		defer fileData.Close()
 
 		err = s.Write(filepath.Join(newPath, file.Name), fileData)
 		if err != nil {
+			slog.Error("error writing contents of file in zipfile", "path", fullpath, "name", file.Name, "error", err)
 			return fmt.Errorf("error writing contents from zipfile %v: %w", file.Name, err)
 		}
 	}
@@ -116,7 +130,8 @@ func (s *SharedDiskStorage) Zip(path string) error {
 	fullpath := s.fullpath(path)
 	zipfile, err := os.Create(fullpath + ".zip")
 	if err != nil {
-		return fmt.Errorf("error creading file to store zip archive: %w", err)
+		slog.Error("error creating file to store zip archive", "path", fullpath, "error", err)
+		return fmt.Errorf("error creating file to store zip archive: %w", err)
 	}
 	defer zipfile.Close()
 
@@ -125,6 +140,7 @@ func (s *SharedDiskStorage) Zip(path string) error {
 
 	err = archive.AddFS(os.DirFS(fullpath))
 	if err != nil {
+		slog.Error("error writing directory to zip archive", "path", fullpath, "error", err)
 		return fmt.Errorf("error writing directory '%v' to zipfile: %w", fullpath, err)
 	}
 

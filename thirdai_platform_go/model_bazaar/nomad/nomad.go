@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -64,6 +65,11 @@ func NewHttpClient(addr string, token string) NomadClient {
 	tmpl, err := template.New("job_templates").Funcs(funcs).ParseFS(jobTemplates, "jobs/*")
 	if err != nil {
 		log.Panicf("error parsing job templates: %v", err)
+	}
+
+	slog.Info("creating nomad http client")
+	for _, t := range tmpl.Templates() {
+		slog.Info("found job template: " + t.Name())
 	}
 
 	return &NomadHttpClient{addr: addr, token: token, templates: tmpl}
@@ -148,40 +154,54 @@ func (c *NomadHttpClient) submitJob(jobDef interface{}) error {
 }
 
 func (c *NomadHttpClient) StartJob(job Job) error {
+	slog.Info("starting nomad job", "job_name", job.GetJobName(), "template", job.TemplateName())
+
 	jobDef, err := c.parseJob(job)
 	if err != nil {
+		slog.Error("error parsing nomad job", "job_name", job.GetJobName(), "template", job.TemplateName(), "error", err)
 		return fmt.Errorf("error starting nomad job: %w", err)
 	}
 
 	err = c.submitJob(jobDef)
 	if err != nil {
+		slog.Error("error submitting nomad job", "job_name", job.GetJobName(), "template", job.TemplateName(), "error", err)
 		return fmt.Errorf("error starting nomad job: %w", err)
 	}
+
+	slog.Info("nomad job started successfully", "job_name", job.GetJobName(), "template", job.TemplateName())
 
 	return nil
 }
 
 func (c *NomadHttpClient) StopJob(jobName string) error {
+	slog.Info("stopping nomad job", "job_name", jobName)
+
 	url, err := url.JoinPath(c.addr, fmt.Sprintf("v1/job/%v", jobName))
 	if err != nil {
+		slog.Error("error stopping nomad job: unable to format url", "job_name", jobName, "error", err)
 		return fmt.Errorf("error formatting stop job url: %v", err)
 	}
 
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
+		slog.Error("error stopping nomad job: unable to create request", "job_name", jobName, "error", err)
 		return fmt.Errorf("error creating new request: %w", err)
 	}
 	req.Header.Add("X-Nomad-Token", c.token)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
+		slog.Error("error stopping nomad job: unable to send request", "job_name", jobName, "error", err)
 		return fmt.Errorf("error deleting nomad job '%v': %w", jobName, err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
+		slog.Error("error stopping nomad job: received error response", "status_code", res.StatusCode, "job_name", jobName, "error", err)
 		return fmt.Errorf("delete nomad job returned status %d", res.StatusCode)
 	}
+
+	slog.Info("nomad job stopped successfully", "job_name", jobName)
 
 	return nil
 }
@@ -189,19 +209,24 @@ func (c *NomadHttpClient) StopJob(jobName string) error {
 var ErrJobNotFound = errors.New("nomad job not found")
 
 func (c *NomadHttpClient) JobInfo(jobName string) (JobInfo, error) {
+	slog.Debug("retrieving nomad job info", "job_name", jobName)
+
 	url, err := url.JoinPath(c.addr, fmt.Sprintf("v1/job/%v", jobName))
 	if err != nil {
+		slog.Error("error getting nomad job info: unable to format url", "job_name", jobName, "error", err)
 		return JobInfo{}, fmt.Errorf("error formatting job url: %w", err)
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		slog.Error("error getting nomad job info: unable to create request", "job_name", jobName, "error", err)
 		return JobInfo{}, fmt.Errorf("error creating new request: %w", err)
 	}
 	req.Header.Add("X-Nomad-Token", c.token)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
+		slog.Error("error getting nomad job info: unable to send request", "job_name", jobName, "error", err)
 		return JobInfo{}, fmt.Errorf("error retrieving nomad job '%v': %w", jobName, err)
 	}
 	defer res.Body.Close()
@@ -210,14 +235,18 @@ func (c *NomadHttpClient) JobInfo(jobName string) (JobInfo, error) {
 		if res.StatusCode == http.StatusNotFound {
 			return JobInfo{}, ErrJobNotFound
 		}
+		slog.Error("error getting nomad job info: received error response", "status_code", res.StatusCode, "job_name", jobName, "error", err)
 		return JobInfo{}, fmt.Errorf("get nomad job returned status %d", res.StatusCode)
 	}
 
 	var info JobInfo
 	err = json.NewDecoder(res.Body).Decode(&info)
 	if err != nil {
+		slog.Error("error getting nomad job info: unable to parse response", "job_name", jobName, "error", err)
 		return JobInfo{}, fmt.Errorf("error parsing job info from nomad: %w", err)
 	}
+
+	slog.Debug("nomad job info retrieved successfully", "job_name", jobName)
 
 	return info, nil
 }
@@ -302,9 +331,12 @@ func (c *NomadHttpClient) getLogs(allocId string, logType string) (string, error
 }
 
 func (c *NomadHttpClient) JobLogs(jobName string) ([]JobLog, error) {
+	slog.Info("retrieving nomad job logs", "job_name", jobName)
+
 	allocations, err := c.jobAllocations(jobName)
 	if err != nil {
-		return nil, err
+		slog.Error("error listing job allocations", "job_name", jobName, "error", err)
+		return nil, fmt.Errorf("error listing allcoations for job %v: %w", jobName, err)
 	}
 
 	logs := make([]JobLog, 0)
@@ -312,15 +344,19 @@ func (c *NomadHttpClient) JobLogs(jobName string) ([]JobLog, error) {
 	for _, alloc := range allocations {
 		stdoutLogs, err := c.getLogs(alloc, "stdout")
 		if err != nil {
+			slog.Error("error getting stdout logs", "job_name", jobName, "error", err)
 			return nil, fmt.Errorf("error getting logs from stdout for job %v: %w", jobName, err)
 		}
 		stderrLogs, err := c.getLogs(alloc, "stderr")
 		if err != nil {
+			slog.Error("error getting stderr logs", "job_name", jobName, "error", err)
 			return nil, fmt.Errorf("error getting logs from stderr for job %v: %w", jobName, err)
 		}
 
 		logs = append(logs, JobLog{Stdout: stdoutLogs, Stderr: stderrLogs})
 	}
+
+	slog.Info("nomad job logs retrieved successfully", "job_name", jobName)
 
 	return logs, nil
 }
@@ -337,30 +373,37 @@ type nomadAllocation struct {
 }
 
 func (c *NomadHttpClient) TotalCpuUsage() (int, error) {
+	slog.Info("getting nomad total cpu usage")
+
 	url, err := url.JoinPath(c.addr, "v1/allocations")
 	if err != nil {
+		slog.Error("error getting nomad total cpu usage: unable to format url", "error", err)
 		return 0, fmt.Errorf("error formatting allocations url: %w", err)
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		slog.Error("error getting nomad total cpu usage: unable to create request", "error", err)
 		return 0, fmt.Errorf("error creating new request: %w", err)
 	}
 	req.Header.Add("X-Nomad-Token", c.token)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
+		slog.Error("error getting nomad total cpu usage: unable to send request", "error", err)
 		return 0, fmt.Errorf("error getting nomad job allocations: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
+		slog.Error("error getting nomad total cpu usage: received error response", "status_code", res.StatusCode, "error", err)
 		return 0, fmt.Errorf("list nomad allocations returned status %d", res.StatusCode)
 	}
 
 	var allocations []nomadAllocation
 	err = json.NewDecoder(res.Body).Decode(&allocations)
 	if err != nil {
+		slog.Error("error getting nomad total cpu usage: unable to parse response", "error", err)
 		return 0, fmt.Errorf("error decoding response from nomad: %w", err)
 	}
 
@@ -370,6 +413,8 @@ func (c *NomadHttpClient) TotalCpuUsage() (int, error) {
 			totalUsage += (task.Cpu.CpuShares)
 		}
 	}
+
+	slog.Info("got nomad total cpu usage successfully", "total_cpu_usage", totalUsage)
 
 	return totalUsage, nil
 }

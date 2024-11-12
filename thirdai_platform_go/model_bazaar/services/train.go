@@ -3,6 +3,7 @@ package services
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"mime/multipart"
 	"net/http"
@@ -99,6 +100,8 @@ func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	slog.Info("starting ndb training", "model_id", modelId, "model_name", options.ModelName)
+
 	options.JobOptions.EnsureValid()
 
 	license, err := verifyLicenseForNewJob(s.nomad, s.license, options.JobOptions.CpuUsageMhz())
@@ -131,6 +134,8 @@ func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("error starting ndb training: %v", err), http.StatusBadRequest)
 		return
 	}
+
+	slog.Info("started ndb training succesfully", "model_id", modelId, "model_name", options.ModelName)
 
 	writeJsonResponse(w, map[string]string{"model_id": modelId})
 }
@@ -169,6 +174,7 @@ func (s *TrainService) createModelAndStartTraining(
 
 		err = checkForDuplicateModel(txn, model.Name, userId)
 		if err != nil {
+			slog.Info("unable to start training: duplicate model name", "model_id", model.Id, "model_name", model.Name)
 			return err
 		}
 

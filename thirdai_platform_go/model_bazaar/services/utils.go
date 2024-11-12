@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"path/filepath"
 	"thirdai_platform/model_bazaar/auth"
@@ -20,6 +21,7 @@ func parseRequestBody(w http.ResponseWriter, r *http.Request, dest interface{}) 
 	dec := json.NewDecoder(r.Body)
 	err := dec.Decode(dest)
 	if err != nil {
+		slog.Error("error parsing request body", "error", err)
 		http.Error(w, fmt.Sprintf("error parsing request body: %v", err), http.StatusBadRequest)
 		return false
 	}
@@ -31,6 +33,7 @@ func writeJsonResponse(w http.ResponseWriter, data interface{}) {
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(data)
 	if err != nil {
+		slog.Error("error serializing response body", "error", err)
 		http.Error(w, fmt.Sprintf("error serializing response body: %v", err), http.StatusInternalServerError)
 	}
 }
@@ -172,6 +175,8 @@ func getStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job s
 	}
 	modelId := params.Get("model_id")
 
+	slog.Info("getting status for model", "job", job, "model_id", modelId)
+
 	var res statusResponse
 
 	err := db.Transaction(func(txn *gorm.DB) error {
@@ -201,6 +206,8 @@ func getStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job s
 	res.Errors = errors
 	res.Warnings = warnings
 
+	slog.Info("got status for model successfully", "job", job, "model_id", modelId, "status", res.Status)
+
 	writeJsonResponse(w, res)
 }
 
@@ -220,6 +227,8 @@ func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, jo
 	if !parseRequestBody(w, r, &params) {
 		return
 	}
+
+	slog.Info("updating status for model", "job", job, "status", params.Status, "model_id", modelId)
 
 	result := db.Model(&schema.Model{Id: modelId}).Update(job+"_status", params.Status)
 	if result.Error != nil {
@@ -242,6 +251,8 @@ func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, jo
 			return
 		}
 	}
+
+	slog.Info("updated status for model successfully", "job", job, "status", params.Status, "model_id", modelId)
 
 	writeSuccess(w)
 }
@@ -327,6 +338,7 @@ func verifyLicenseForNewJob(nomad nomad.NomadClient, license *licensing.LicenseV
 
 	licenseData, err := license.Verify(currentCpuUsage + jobCpuUsage)
 	if err != nil {
+		slog.Error("license verification failed for new job", "error", err)
 		return "", err
 	}
 

@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/config"
@@ -66,6 +67,8 @@ func (s *DeployService) Routes() chi.Router {
 }
 
 func (s *DeployService) deployModel(modelId, userId string, autoscalingEnabled bool, autoscalingMax int, memory int, deploymentName string) error {
+	slog.Info("deploying model", "model_id", modelId)
+
 	var nomadErr error = nil
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		perm, err := auth.GetModelPermissions(modelId, userId, txn)
@@ -146,6 +149,8 @@ func (s *DeployService) deployModel(modelId, userId string, autoscalingEnabled b
 		return fmt.Errorf("error starting deployment for model %v: %w", modelId, jerr)
 	}
 
+	slog.Info("model deployed successfully", "model_id", modelId)
+
 	return nil
 }
 
@@ -198,6 +203,8 @@ func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
 	}
 	modelId := params.Get("model_id")
 
+	slog.Info("stopping deployment for model", "model_id", modelId)
+
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		usedBy, err := countDownstreamModels(modelId, txn, true)
 		if err != nil {
@@ -224,6 +231,8 @@ func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("error stopping model deployment: %v", err), http.StatusBadRequest)
 		return
 	}
+
+	slog.Info("model stopped successfully", "model_id", modelId)
 
 	writeSuccess(w)
 }

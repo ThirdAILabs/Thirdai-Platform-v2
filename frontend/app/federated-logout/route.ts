@@ -27,6 +27,7 @@ function sendEndSessionEndpointToURL(token: JWT) {
 }
 
 export async function GET(req: NextRequest) {
+  console.log(req)
   try {
     const token = await getToken({ req });
     if (token) {

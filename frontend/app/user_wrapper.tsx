@@ -17,8 +17,8 @@ interface UserContext {
 export const UserContext = createContext<UserContext>({
   user: null,
   accessToken: null,
-  setAccessToken: (user) => {},
-  logout: () => {},
+  setAccessToken: (user) => { },
+  logout: () => { },
 });
 
 export default function UserWrapper({ children }: { children: React.ReactNode }) {
@@ -27,17 +27,20 @@ export default function UserWrapper({ children }: { children: React.ReactNode })
   const [user, setUser] = useState<User | null>(null);
 
   const logout = async () => {
-    setAccessToken(null);
-    localStorage.removeItem('accessToken');
-    setUser(null);
-    await federatedLogout();
 
     if (
       process.env.NEXT_PUBLIC_IDENTITY_PROVIDER &&
       process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes('keycloak')
     ) {
+      await federatedLogout();
+      setAccessToken(null);
+      setUser(null);
+      localStorage.removeItem('accessToken');
       router.push('/login-keycloak');
     } else {
+      setAccessToken(null);
+      localStorage.removeItem('accessToken');
+      setUser(null);
       router.push('/login-email');
     }
   };

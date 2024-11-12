@@ -10,6 +10,8 @@ function requestRefreshOfAccessToken(token: JWT) {
 
   const issuer = token.issuer || issuerCookie?.value || process.env.KEYCLOAK_ISSUER;
 
+  console.log("Issuer: ", issuer)
+
   return fetch(`${issuer}/protocol/openid-connect/token`, {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -91,8 +93,6 @@ export function getAuthOptions(issuer: string): AuthOptions {
         }
       },
       async session({ session, token }) {
-        console.log('Using Keycloak issuer:', token);
-        console.log("session call back");
         session.accessToken = token.accessToken;
         session.error = token.error;
         session.expiresAt = token.expiresAt;

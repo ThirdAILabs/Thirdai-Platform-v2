@@ -24,7 +24,7 @@ http:
     frontend-service:
       loadBalancer:
         servers:
-          - url: "http://localhost:3006"
+          - url: "http://localhost:3000"
 
     keycloak-service:
       loadBalancer:

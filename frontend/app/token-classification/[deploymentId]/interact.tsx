@@ -966,10 +966,7 @@ export default function Interact() {
         {processingTime !== undefined && annotations.length && (
           <div className="mb-4">
             {' '}
-            <InferenceTimeDisplay
-              processingTime={processingTime}
-              tokenCount={annotations.length}
-            />
+            <InferenceTimeDisplay processingTime={processingTime} tokenCount={annotations.length} />
           </div>
         )}
 

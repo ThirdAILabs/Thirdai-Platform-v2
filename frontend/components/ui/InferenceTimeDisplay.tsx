@@ -7,7 +7,10 @@ interface InferenceTimeDisplayProps {
   tokenCount?: number;
 }
 
-const InferenceTimeDisplay: React.FC<InferenceTimeDisplayProps> = ({ processingTime, tokenCount }) => {
+const InferenceTimeDisplay: React.FC<InferenceTimeDisplayProps> = ({
+  processingTime,
+  tokenCount,
+}) => {
   let timePerToken = 0;
   if (tokenCount) {
     timePerToken = processingTime / tokenCount;
@@ -31,8 +34,8 @@ const InferenceTimeDisplay: React.FC<InferenceTimeDisplayProps> = ({ processingT
             </div>
           </div>
 
-          {
-            tokenCount && <>
+          {tokenCount && (
+            <>
               {/* Divider */}
               <div className="border-t border-gray-200" />
 
@@ -67,7 +70,7 @@ const InferenceTimeDisplay: React.FC<InferenceTimeDisplayProps> = ({ processingT
                 </div>
               </div>
             </>
-          }
+          )}
         </div>
       </CardContent>
     </Card>

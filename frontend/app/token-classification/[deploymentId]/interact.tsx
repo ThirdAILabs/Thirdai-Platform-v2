@@ -370,6 +370,11 @@ export default function Interact() {
   };
 
   const handleRun = async (text: string, isFileUpload: boolean = false) => {
+    // Check for empty text or only whitespace
+    if (!text?.trim()) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       const result = await predict(text);

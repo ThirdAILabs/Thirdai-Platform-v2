@@ -5,7 +5,6 @@ try:
     import sys
     import time
     import traceback
-    from functools import wraps
     from pathlib import Path
     from typing import Any
 
@@ -15,7 +14,6 @@ try:
     from deployment_job.routers.enterprise_search import EnterpriseSearchRouter
     from deployment_job.routers.ndb import NDBRouter
     from deployment_job.routers.udt import UDTRouter
-    from deployment_job.utils import delete_deployment_job
     from fastapi import FastAPI, Request
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse
@@ -85,56 +83,6 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-# The following logic will start a timer at this Fast API application's start up.
-# after n minutes, this service will shut down, unless a function that is decorated
-# with @reset_timer is called, in which case the timer restarts.
-reset_event = asyncio.Event()
-
-
-def reset_timer(endpoint_func):
-    """
-    Decorator to reset the shutdown timer on endpoint access.
-    """
-
-    @wraps(endpoint_func)
-    def wrapper(*args, **kwargs):
-        response = endpoint_func(*args, **kwargs)
-        reset_event.set()
-        return response
-
-    return wrapper
-
-
-async def async_timer() -> None:
-    """
-    Async function to start a shutdown timer and reset it upon endpoint access.
-    """
-    while True:
-        try:
-            await asyncio.wait_for(reset_event.wait(), timeout=900)
-            reset_event.clear()  # Clear the event if the endpoint was hit within the timeout period
-            logger.info(
-                "Shutdown timer expired; checking deployment status for shutdown."
-            )
-        except asyncio.TimeoutError:
-            # Timer expired, initiate shutdown
-            if reporter.active_deployment_count(config.model_id) == 0:
-                logger.info("No active deployments; initiating shutdown.")
-                response, job_id = delete_deployment_job(
-                    config.get_nomad_endpoint(),
-                    config.model_id,
-                    os.getenv("TASK_RUNNER_TOKEN"),
-                )
-                if response.status_code == 200:
-                    logger.info(f"Job {job_id} stopped successfully")
-                else:
-                    logger.error(
-                        f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
-                    )
-                reporter.update_deploy_status(config.model_id, "stopped")
-            reset_event.clear()  # Clear event after handling timeout
-
-
 if config.model_options.model_type == ModelType.NDB:
     backend_router_factory = NDBRouter
 elif config.model_options.model_type == ModelType.UDT:
@@ -202,9 +150,6 @@ async def startup_event() -> None:
     try:
         await asyncio.sleep(10)
         reporter.update_deploy_status(config.model_id, "complete")
-        # We will not shutdown the instance if autoscaling is enabled (Production mode)
-        if not config.autoscaling_enabled:
-            asyncio.create_task(async_timer())
     except Exception as e:
         error_message = f"Startup event failed with error: {e}"
         reporter.update_deploy_status(config.model_id, "failed", message=error_message)

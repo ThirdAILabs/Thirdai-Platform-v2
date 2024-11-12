@@ -224,10 +224,11 @@ class TextClassificationOptions(BaseModel):
 
 
 class UDTTrainOptions(BaseModel):
-    supervised_epochs: int = 3
-    learning_rate: float = 0.005
+    supervised_epochs: int = 1
+    learning_rate: float = 0.0001
     batch_size: int = 2048
     max_in_memory_batches: Optional[int] = None
+    test_split: Optional[float] = None
 
     metrics: List[str] = ["precision@1", "loss"]
     validation_metrics: List[str] = ["categorical_accuracy", "recall@1"]
@@ -281,7 +282,7 @@ class TextClassificationDatagenOptions(BaseModel):
 class TokenClassificationDatagenOptions(BaseModel):
     sub_type: Literal[UDTSubType.token] = UDTSubType.token
     tags: List[LabelEntity]
-    num_sentences_to_generate: int = 10_000
+    num_sentences_to_generate: int = 1_000
     num_samples_per_tag: Optional[int] = None
 
     # example NER samples

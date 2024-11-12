@@ -2,6 +2,7 @@ import os
 import shutil
 from typing import Dict
 
+import pandas as pd
 import pytest
 from platform_common.logging import get_default_logger
 from platform_common.pydantic_models.feedback_logs import (
@@ -24,10 +25,12 @@ from platform_common.pydantic_models.training import (
     TrainConfig,
     UDTData,
     UDTOptions,
+    UDTTrainOptions,
 )
 from thirdai import bolt, licensing
 from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
+from train_job.models.classification_models import TokenClassificationModel
 from train_job.reporter import Reporter
 from train_job.run import get_model
 
@@ -41,6 +44,9 @@ class DummyReporter(Reporter):
     def report_status(self, model_id: str, status: str, message: str = ""):
         pass
 
+    def report_warning(self, model_id: str, message: str):
+        pass
+
 
 MODEL_BAZAAR_DIR = "./model_bazaar_tmp"
 
@@ -51,6 +57,17 @@ default_logger = get_default_logger()
 
 def file_dir():
     return os.path.join(os.path.dirname(__file__), "sample_docs")
+
+
+@pytest.fixture()
+def dummy_ner_file():
+    source, target = "Shubh", "O"
+    df = pd.DataFrame({"text": [source] * 200_000, "tags": [target] * 200_000})
+    file_path = os.path.join(file_dir(), "dummy_ner.csv")
+
+    df.to_csv(file_path, index=False)
+    yield file_path
+    os.remove(file_path)
 
 
 @pytest.fixture(autouse=True, scope="function")
@@ -175,6 +192,7 @@ def test_ndbv2_train(feedback_train_file):
 
 def test_udt_text_train():
     licensing.activate(THIRDAI_LICENSE)
+    os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
@@ -190,12 +208,20 @@ def test_udt_text_train():
             supervised_files=[
                 FileInfo(
                     path=os.path.join(file_dir(), "articles.csv"), location="local"
-                )
+                ),
+                FileInfo(
+                    path="https://csg100320028d93f3bc.blob.core.windows.net/test/articles.csv",
+                    location="azure",
+                ),
             ],
             test_files=[
                 FileInfo(
                     path=os.path.join(file_dir(), "articles.csv"), location="local"
-                )
+                ),
+                FileInfo(
+                    path="https://csg100320028d93f3bc.blob.core.windows.net/test/articles.csv",
+                    location="azure",
+                ),
             ],
         ),
         job_options=JobOptions(),
@@ -210,8 +236,10 @@ def test_udt_text_train():
     )
 
 
-def test_udt_token_train():
+@pytest.mark.parametrize("test_split", [0, 0.25])
+def test_udt_token_train(test_split):
     licensing.activate(THIRDAI_LICENSE)
+    os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
@@ -225,13 +253,22 @@ def test_udt_token_train():
                 target_column="tags",
                 default_tag="O",
             ),
+            train_options=UDTTrainOptions(test_split=test_split),
         ),
         data=UDTData(
             supervised_files=[
-                FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local")
+                FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local"),
+                FileInfo(
+                    path="https://csg100320028d93f3bc.blob.core.windows.net/test/ner.csv",
+                    location="azure",
+                ),
             ],
             test_files=[
-                FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local")
+                FileInfo(path=os.path.join(file_dir(), "ner.csv"), location="local"),
+                FileInfo(
+                    path="https://csg100320028d93f3bc.blob.core.windows.net/test/ner.csv",
+                    location="azure",
+                ),
             ],
         ),
         job_options=JobOptions(),
@@ -273,3 +310,62 @@ def test_udt_token_train():
     predictions = boltmodel.predict({"text": "shubh@gmail.com"})
 
     assert predictions[0][0][0] == "EMAIL", f"predictions : {predictions}"
+
+
+def test_udt_token_train_with_balancing(dummy_ner_file):
+    licensing.activate(THIRDAI_LICENSE)
+    config = TrainConfig(
+        model_bazaar_dir=MODEL_BAZAAR_DIR,
+        license_key=THIRDAI_LICENSE,
+        model_bazaar_endpoint="",
+        model_id="udt_123",
+        data_id="data_123",
+        model_options=UDTOptions(
+            udt_options=TokenClassificationOptions(
+                target_labels=["NAME", "EMAIL"],
+                source_column="text",
+                target_column="tags",
+                default_tag="O",
+            ),
+        ),
+        data=UDTData(
+            supervised_files=[FileInfo(path=dummy_ner_file, location="local")],
+        ),
+        job_options=JobOptions(),
+        datagen_options=DatagenOptions(
+            task_prompt="token classification",
+            datagen_options=TokenClassificationDatagenOptions(
+                sub_type="token",
+                tags=[
+                    {
+                        "name": "NAME",
+                    },
+                    {
+                        "name": "EMAIL",
+                    },
+                ],
+            ),
+        ),
+    )
+
+    model: TokenClassificationModel = get_model(config, DummyReporter(), default_logger)
+    assert (
+        model.find_and_save_balancing_samples() is None
+    ), "No Balancing Samples without training"
+
+    model.train()
+
+    storage = model.data_storage
+    assert storage.connector.get_sample_count("ner") == 100_000
+
+    model.find_and_save_balancing_samples()
+    assert os.path.exists(
+        model._balancing_samples_path
+    ), "Balancing Samples Path does not exist"
+
+    df = pd.read_csv(model._balancing_samples_path)
+    assert len(df) == model._num_balancing_samples
+
+    assert df["text"][0] == "Shubh"
+    assert df["tags"][0] == "O"
+    assert df["user_provided"][0] == False

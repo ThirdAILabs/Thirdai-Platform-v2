@@ -19,13 +19,12 @@ from data_generation_job.utils import (
 )
 from data_generation_job.variables import Entity, EntityStatus, NERSample
 from faker import Faker
+from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.utils import save_dict
 from tqdm import tqdm
 
 
 class TokenDataFactory(DataFactory):
-    SOURCE_COLUMN = "source"
-    TARGET_COLUMN = "target"
 
     def __init__(self, logger: Logger):
         super().__init__(logger)
@@ -382,8 +381,8 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
                         self.train_file_location,
                         train_datapoints,
                         fieldnames=[
-                            TokenDataFactory.SOURCE_COLUMN,
-                            TokenDataFactory.TARGET_COLUMN,
+                            NER_SOURCE_COLUMN,
+                            NER_TARGET_COLUMN,
                         ],
                     )
                     self.train_sentences_generated += len(train_datapoints)
@@ -406,8 +405,8 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
                         self.test_file_location,
                         test_datapoints,
                         fieldnames=[
-                            TokenDataFactory.SOURCE_COLUMN,
-                            TokenDataFactory.TARGET_COLUMN,
+                            NER_SOURCE_COLUMN,
+                            NER_TARGET_COLUMN,
                         ],
                     )
                 self.test_sentences_generated += len(test_datapoints)
@@ -417,8 +416,8 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
             "filepath": str(self.train_file_location),
             "error_file": str(self.errored_file_location),
             "task": "TOKEN_CLASSIFICATION",
-            "input_feature": TokenDataFactory.SOURCE_COLUMN,
-            "target_feature": TokenDataFactory.TARGET_COLUMN,
+            "input_feature": NER_SOURCE_COLUMN,
+            "target_feature": NER_TARGET_COLUMN,
             "target_labels": [tag.name for tag in tags],
             "train_samples": self.train_sentences_generated,
             "test_samples": self.test_sentences_generated,
@@ -440,8 +439,8 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
             return {
                 "error_file": str(self.errored_file_location),
                 "task": "TOKEN_CLASSIFICATION",
-                "input_feature": TokenDataFactory.SOURCE_COLUMN,
-                "target_feature": TokenDataFactory.TARGET_COLUMN,
+                "input_feature": NER_SOURCE_COLUMN,
+                "target_feature": NER_TARGET_COLUMN,
                 "target_labels": [],
                 "train_samples": 0,
                 "test_samples": 0,
@@ -529,7 +528,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
         words = template.strip().split()
 
         data_points = [
-            {TokenDataFactory.SOURCE_COLUMN: [], TokenDataFactory.TARGET_COLUMN: []}
+            {NER_SOURCE_COLUMN: [], NER_TARGET_COLUMN: []}
             for _ in range(sentences_to_generate)
         ]
 
@@ -550,9 +549,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
                     splitted_word_tag_value = random.choice(
                         tag_values[word_tag]
                     ).split()
-                    data_points[idx][TokenDataFactory.SOURCE_COLUMN].extend(
-                        splitted_word_tag_value
-                    )
+                    data_points[idx][NER_SOURCE_COLUMN].extend(splitted_word_tag_value)
 
                     """
                     Extending the [TAG] to match the source text
@@ -567,37 +564,29 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
                             source = 'Jessica vega reserved the hall for reunion'
                             target = 'NAME NAME O O O O O'
                     """
-                    data_points[idx][TokenDataFactory.TARGET_COLUMN].extend(
+                    data_points[idx][NER_TARGET_COLUMN].extend(
                         [word_tag] * len(splitted_word_tag_value)
                     )
             else:
                 for idx in range(sentences_to_generate):
-                    data_points[idx][TokenDataFactory.SOURCE_COLUMN].append(
-                        word.strip()
-                    )
-                    data_points[idx][TokenDataFactory.TARGET_COLUMN].append("O")
+                    data_points[idx][NER_SOURCE_COLUMN].append(word.strip())
+                    data_points[idx][NER_TARGET_COLUMN].append("O")
 
         # make sure that the source and target is of same length
         sentences = []
         for data in data_points:
-            if len(data[TokenDataFactory.SOURCE_COLUMN]) != len(
-                data[TokenDataFactory.TARGET_COLUMN]
-            ):
+            if len(data[NER_SOURCE_COLUMN]) != len(data[NER_TARGET_COLUMN]):
                 self.write_on_errorfile(
                     text=f"Source and target aren't of the same length {'-' * 30}\n"
-                    + f"source: {data[TokenDataFactory.SOURCE_COLUMN]}\n"
-                    + f"target: {data[TokenDataFactory.TARGET_COLUMN]}\n"
+                    + f"source: {data[NER_SOURCE_COLUMN]}\n"
+                    + f"target: {data[NER_TARGET_COLUMN]}\n"
                     + f"\n\ntemplate: {template}\n"
                 )
             else:
                 sentences.append(
                     {
-                        TokenDataFactory.SOURCE_COLUMN: " ".join(
-                            data[TokenDataFactory.SOURCE_COLUMN]
-                        ),
-                        TokenDataFactory.TARGET_COLUMN: " ".join(
-                            data[TokenDataFactory.TARGET_COLUMN]
-                        ),
+                        NER_SOURCE_COLUMN: " ".join(data[NER_SOURCE_COLUMN]),
+                        NER_TARGET_COLUMN: " ".join(data[NER_TARGET_COLUMN]),
                     }
                 )
 

@@ -140,6 +140,8 @@ class UDTRouter:
         }
         ```
         """
+        start_time = time.perf_counter()
+
         results = self.model.predict(**params.model_dump())
 
         # TODO(pratik/geordie/yash): Add logging for search results text classification
@@ -154,11 +156,19 @@ class UDTRouter:
                 f"Prediction complete with {identified_count} tokens identified",
                 extra={"text_length": len(params.text)},
             )
+        end_time = time.perf_counter()
+        time_taken = end_time - start_time
+
+        # Add time_taken to the response data
+        response_data = {
+            "prediction_results": jsonable_encoder(results),
+            "time_taken": time_taken,
+        }
 
         return response(
             status_code=status.HTTP_200_OK,
             message="Successful",
-            data=jsonable_encoder(results),
+            data=response_data,
         )
 
     def stats(self, token=Depends(Permissions.verify_permission("read"))):

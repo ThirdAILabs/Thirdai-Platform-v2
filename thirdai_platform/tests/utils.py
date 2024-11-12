@@ -72,7 +72,7 @@ def upload_model(client, access_token, name, access):
         params={"model_name": name, "size": len(data)},
         headers=auth_header(access_token),
     )
-    assert res.status_code == 200
+    assert res.status_code == 200, f"Failed to upload token: {res.status_code} - {res.text}"
     token = res.json()["data"]["token"]
 
     res = client.post(
@@ -81,7 +81,7 @@ def upload_model(client, access_token, name, access):
         files={"chunk": data[: len(data) // 2]},
         headers=auth_header(token),
     )
-    assert res.status_code == 200
+    assert res.status_code == 200, f"Failed to upload chunk 1: {res.status_code} - {res.text}"
 
     res = client.post(
         "/api/model/upload-chunk",
@@ -89,7 +89,7 @@ def upload_model(client, access_token, name, access):
         files={"chunk": data[len(data) // 2 :]},
         headers=auth_header(token),
     )
-    assert res.status_code == 200
+    assert res.status_code == 200, f"Failed to upload chunk 2: {res.status_code} - {res.text}"
 
     res = client.post(
         "/api/model/upload-commit",
@@ -101,4 +101,4 @@ def upload_model(client, access_token, name, access):
         headers=auth_header(token),
     )
 
-    assert res.status_code == 200
+    assert res.status_code == 200, f"Failed to commit upload: {res.status_code} - {res.text}"

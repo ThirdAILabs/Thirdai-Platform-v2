@@ -104,7 +104,10 @@ export function getAuthOptions(issuer: string): AuthOptions {
   return authOptions;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+type CombineRequest = Request & NextApiRequest;
+type CombineResponse = Response & NextApiResponse;
+
+export default async function handler(req: CombineRequest, res: CombineResponse) {
 
   try {
     const issuerCookie = req.cookies['kc_issuer']; // Access cookies from the request

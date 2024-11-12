@@ -13,13 +13,10 @@ from backend.auth_dependencies import (
 )
 from backend.utils import (
     delete_nomad_job,
-    disk_usage,
     get_expiry_min,
     get_high_level_model_info,
     get_model,
     get_model_from_identifier,
-    is_on_low_disk,
-    model_bazaar_path,
     validate_name,
 )
 from database import schema
@@ -36,7 +33,8 @@ from fastapi import (
 )
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, StreamingResponse
-from platform_common.utils import response
+from platform_common.dependencies import is_on_low_disk
+from platform_common.utils import disk_usage, model_bazaar_path, response
 from pydantic import BaseModel
 from sqlalchemy import and_, desc, or_
 from sqlalchemy.orm import Session, joinedload, selectinload

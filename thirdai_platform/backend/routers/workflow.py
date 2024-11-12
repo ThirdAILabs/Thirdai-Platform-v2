@@ -3,12 +3,13 @@ import uuid
 from typing import List, Optional
 
 from backend.auth_dependencies import get_current_user
-from backend.utils import disk_usage, get_model, is_on_low_disk, validate_name
+from backend.utils import get_model, validate_name
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, status
+from platform_common.dependencies import is_on_low_disk
 from platform_common.pydantic_models.training import ModelType, UDTSubType
-from platform_common.utils import get_section, response
+from platform_common.utils import disk_usage, get_section, response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 

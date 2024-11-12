@@ -6,12 +6,13 @@ from typing import Dict, List
 
 from backend.auth_dependencies import get_current_user
 from backend.datagen import generate_text_data, generate_token_data
-from backend.utils import disk_usage, is_on_low_disk, validate_license_info
+from backend.utils import validate_license_info
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, status
+from platform_common.dependencies import is_on_low_disk
 from platform_common.pydantic_models.training import JobOptions, LLMProvider
-from platform_common.utils import get_section, response
+from platform_common.utils import disk_usage, get_section, response
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 

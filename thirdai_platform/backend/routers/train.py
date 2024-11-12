@@ -13,7 +13,6 @@ from backend.datagen import generate_data_for_train_job
 from backend.utils import (
     copy_data_storage,
     delete_nomad_job,
-    disk_usage,
     get_job_logs,
     get_model,
     get_model_from_identifier,
@@ -21,8 +20,6 @@ from backend.utils import (
     get_platform,
     get_python_path,
     get_warnings_and_errors,
-    is_on_low_disk,
-    model_bazaar_path,
     nomad_job_exists,
     remove_unused_samples,
     retrieve_token_classification_samples_for_generation,
@@ -37,6 +34,7 @@ from data_generation_job.llms import verify_llm_access
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files
 from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
@@ -61,7 +59,7 @@ from platform_common.pydantic_models.training import (
     UDTSubType,
 )
 from platform_common.thirdai_storage import storage
-from platform_common.utils import response
+from platform_common.utils import disk_usage, model_bazaar_path, response
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 

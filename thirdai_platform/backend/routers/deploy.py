@@ -17,17 +17,14 @@ from backend.auth_dependencies import is_model_owner, verify_model_read_access
 from backend.startup_jobs import start_on_prem_generate_job
 from backend.utils import (
     delete_nomad_job,
-    disk_usage,
     get_job_logs,
     get_model_from_identifier,
     get_model_status,
     get_platform,
     get_python_path,
     get_warnings_and_errors,
-    is_on_low_disk,
     list_all_dependencies,
     model_accessible,
-    model_bazaar_path,
     read_file_from_back,
     submit_nomad_job,
     thirdai_platform_dir,
@@ -36,6 +33,7 @@ from backend.utils import (
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from platform_common.dependencies import is_on_low_disk
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     EnterpriseSearchOptions,
@@ -44,7 +42,7 @@ from platform_common.pydantic_models.deployment import (
 )
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
 from platform_common.pydantic_models.training import ModelType
-from platform_common.utils import response
+from platform_common.utils import disk_usage, model_bazaar_path, response
 from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()

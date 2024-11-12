@@ -7,8 +7,6 @@ import shutil
 from collections import defaultdict, deque
 from functools import wraps
 from pathlib import Path
-
-pass
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
@@ -21,11 +19,8 @@ from jinja2 import Template
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from platform_common.pydantic_models.training import LabelEntity
 from platform_common.thirdai_storage import data_types, storage
+from platform_common.utils import model_bazaar_path
 from sqlalchemy.orm import Session
-
-
-def model_bazaar_path():
-    return "/model_bazaar" if os.path.exists("/.dockerenv") else os.getenv("SHARE_DIR")
 
 
 def hash_password(password: str):
@@ -754,23 +749,3 @@ def read_file_from_back(path: str):
 
     finally:
         fp.close()
-
-
-def disk_usage():
-    disk_stat = shutil.disk_usage(model_bazaar_path())
-    return {"total": disk_stat.total, "used": disk_stat.used, "free": disk_stat.free}
-
-
-def is_on_low_disk():
-    disk_stats = disk_usage()
-
-    threshold = 0.8
-    disk_used = (disk_stats["total"] - disk_stats["free"]) / disk_stats["total"]
-    if disk_used < threshold:
-        space_needed = ((disk_used - threshold) * disk_stats.total) / (
-            1024 * 1024
-        )  # MB
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Platform is at {disk_used * 100:.2f}% disk usage. Clear at least {space_needed:.2f} MB space.",
-        )

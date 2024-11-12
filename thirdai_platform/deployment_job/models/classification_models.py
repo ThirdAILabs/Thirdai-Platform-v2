@@ -19,8 +19,8 @@ from platform_common.thirdai_storage.data_types import (
     MetadataStatus,
     SampleStatus,
     TagMetadata,
-    TokenClassificationData,
     TextClassificationData,
+    TokenClassificationData,
 )
 from platform_common.thirdai_storage.storage import DataStorage, SQLiteConnector
 from thirdai import bolt

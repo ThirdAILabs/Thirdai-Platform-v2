@@ -14,8 +14,8 @@ try:
     from deployment_job.routers.enterprise_search import EnterpriseSearchRouter
     from deployment_job.routers.ndb import NDBRouter
     from deployment_job.routers.udt import (
-        UDTRouterTokenClassification,
         UDTRouterTextClassification,
+        UDTRouterTokenClassification,
     )
     from fastapi import FastAPI, Request
     from fastapi.middleware.cors import CORSMiddleware

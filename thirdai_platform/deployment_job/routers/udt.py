@@ -20,8 +20,8 @@ from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubT
 from platform_common.thirdai_storage.data_types import (
     LabelCollection,
     LabelStatus,
-    TokenClassificationData,
     TextClassificationData,
+    TokenClassificationData,
 )
 from platform_common.utils import response
 from prometheus_client import Summary

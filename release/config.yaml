@@ -31,6 +31,14 @@ azure:
         password: 6DSwbtoUZpFEsAEdV6bL9VpVK+8qJoRcn8li7VRgAz+ACRDNRKRx
         username: thirdaiplatform-push-mshift
       version: 0.0.12
+    multiple-ip-keycloak:
+      pull_credentials:
+        password: iKszp7FqRkT4aUaIAumtMo4FmK1JvT3MpmjspSA0c2+ACRBo2snq
+        username: thirdaiplatform-pull-multiple-ip-keycloak
+      push_credentials:
+        password: m8qBlhtdQnS+UFE5AxYjKTjGl8Kk4xDnkvWk/cmcJw+ACRC6JOhF
+        username: thirdaiplatform-push-multiple-ip-keycloak
+      version: 0.0.1
     node-discovery:
       pull_credentials:
         password: axmgUWuDvRlAMdEnB8xydKqFEtrAGtm2WuOWEU0KEb+ACRBKSjGY

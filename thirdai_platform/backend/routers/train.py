@@ -1102,6 +1102,101 @@ def extract_labels_from_csv(file: UploadFile) -> Set[str]:
 
     return all_tags
 
+def validate_csv_format(file: UploadFile) -> tuple[bool, str, set[str] | None]:
+    """
+    Validates the CSV file format for token classification.
+    Returns (is_valid, error_message, extracted_labels).
+    """
+    try:
+        content = file.file.read()
+        file.file.seek(0)  # Reset file pointer for later use
+        
+        # Parse CSV
+        df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+        
+        # Check for required columns
+        if set(df.columns) != {"source", "target"}:
+            return False, "CSV must contain exactly two columns named 'source' and 'target'", None
+            
+        # Check for empty dataframe
+        if df.empty:
+            return False, "CSV file is empty", None
+            
+        # Check for null values
+        if df['source'].isnull().any() or df['target'].isnull().any():
+            return False, "CSV contains empty cells", None
+            
+        # Validate token alignment
+        for idx, row in df.iterrows():
+            source_tokens = row['source'].split()
+            target_tokens = row['target'].split()
+            
+            if len(source_tokens) != len(target_tokens):
+                return False, f"Row {idx + 1}: Number of tokens in source ({len(source_tokens)}) doesn't match target ({len(target_tokens)})", None
+        
+        # Extract labels
+        all_tags = set()
+        for row in df["target"]:
+            tags = row.split()
+            all_tags.update(set(tags) - {"O"})
+            
+        if not all_tags:
+            return False, "No valid labels found in the target column", None
+            
+        return True, "", all_tags
+        
+    except UnicodeDecodeError:
+        return False, "File is not a valid CSV file (encoding error)", None
+    except pd.errors.EmptyDataError:
+        return False, "CSV file is empty", None
+    except pd.errors.ParserError:
+        return False, "File is not a valid CSV file (parsing error)", None
+    except Exception as e:
+        return False, f"Error validating CSV: {str(e)}", None
+
+@train_router.post("/validate-token-classifier-csv")
+async def validate_token_classifier_csv(
+    file: UploadFile = File(...),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Validate a CSV file for token classification training.
+    Returns the detected labels if valid.
+    """
+    try:
+        # Basic file type check
+        if not file.filename.endswith(".csv"):
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="File must be a CSV",
+                data={"valid": False}
+            )
+
+        # Validate CSV format and get labels
+        is_valid, error_message, target_labels = validate_csv_format(file)
+        
+        if not is_valid:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=error_message,
+                data={"valid": False}
+            )
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="CSV file is valid",
+            data={
+                "valid": True,
+                "labels": list(target_labels)
+            }
+        )
+
+    except Exception as err:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=f"Error validating CSV: {str(err)}",
+            data={"valid": False}
+        )
 
 @train_router.post("/train-token-classifier")
 async def train_token_classifier(
@@ -1125,6 +1220,24 @@ async def train_token_classifier(
         )
 
     try:
+        # Validate CSV format and get labels
+        is_valid, error_message, target_labels = validate_csv_format(file)
+        
+        if not is_valid:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=error_message,
+            )
+
+        # Validate model name
+        try:
+            validate_name(model_name)
+        except:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"{model_name} is not a valid model name.",
+            )
+
         # Extract unique labels from the CSV
         target_labels = extract_labels_from_csv(file)
 
@@ -1170,21 +1283,18 @@ async def train_token_classifier(
         config = TrainConfig(
             model_bazaar_dir=model_bazaar_path(),
             license_key=validate_license_info()["boltLicenseKey"],
-            model_bazaar_endpoint=os.getenv(
-                "PRIVATE_MODEL_BAZAAR_ENDPOINT", None
-            ),  # Fixed this line
+            model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
             model_id=str(model_id),
             data_id=data_id,
             base_model_id=None,
             model_options=UDTOptions(
-                model_type="udt",  # Added model type
+                model_type="udt",
                 udt_options=TokenClassificationOptions(
-                    target_labels=list(target_labels),
+                    target_labels=list(target_labels),  # Using validated labels
                     source_column="source",
                     target_column="target",
                     default_tag="O",
                 ),
-                # train_options=UDTTrainOptions(test_split=test_split),  # Added back train_options
             ),
             data=UDTData(
                 supervised_files=[

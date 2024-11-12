@@ -460,6 +460,60 @@ export function trainUDTWithCSV({
   });
 }
 
+// First, let's define the response types
+interface APIResponse {
+  status: string;
+  message: string;
+  data?: {
+    valid: boolean;
+    labels?: string[];
+  };
+}
+
+interface ValidationResult {
+  valid: boolean;
+  message: string;
+  labels?: string[];
+}
+
+export async function validateTokenClassifierCSV(file: File): Promise<ValidationResult> {
+  const accessToken = getAccessToken();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await axios.post<APIResponse>(
+      `${thirdaiPlatformBaseUrl}/api/train/validate-token-classifier-csv`,
+      formData,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    return {
+      valid: true,
+      message: response.data.message,
+      labels: response.data.data?.labels,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.data) {
+      // Type assertion to ensure TypeScript knows the shape of error.response.data
+      const errorData = error.response.data as APIResponse;
+      return {
+        valid: false,
+        message: errorData.message || 'Failed to validate CSV file',
+      };
+    }
+    return {
+      valid: false,
+      message: 'Failed to validate CSV file',
+    };
+  }
+}
+
 interface TrainTokenClassifierParams {
   modelName: string;
   file: File;

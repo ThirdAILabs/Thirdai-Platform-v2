@@ -28,4 +28,4 @@ http:
       buffering:
         # For reference: https://doc.traefik.io/traefik/v2.0/middlewares/buffering/
         maxRequestBodyBytes: 524288000 # 500MB in bytes
-        memRequestBodyBytes: 3145728 # 3MB in bytes
+        memRequestBodyBytes: 1048576 # 1MB in bytes

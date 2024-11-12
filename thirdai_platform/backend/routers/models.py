@@ -270,7 +270,7 @@ class ModelInfo(BaseModel):
     metadata: Optional[Dict[str, str]] = None
 
 
-@model_router.get("/upload-token")
+@model_router.get("/upload-token", dependencies=[Depends(is_on_low_disk())])
 def upload_token(
     model_name: str,
     size: int,
@@ -322,7 +322,7 @@ def upload_token(
     )
 
 
-@model_router.post("/upload-chunk")
+@model_router.post("/upload-chunk", dependencies=[Depends(is_on_low_disk())])
 def upload_chunk(
     chunk: UploadFile,
     chunk_number: int,
@@ -380,14 +380,6 @@ def upload_chunk(
         payload = storage.verify_upload_token(token)
     except Exception as error:
         return response(status_code=status.HTTP_401_UNAUTHORIZED, message=str(error))
-
-    try:
-        # check if platform is on low disk
-        is_on_low_disk(threshold=0.8)()
-    except Exception as e:
-        # delete the chunk received so far
-        storage.delete(model_id=payload["model_id"])
-        raise e
 
     try:
         chunk_data = chunk.file.read()

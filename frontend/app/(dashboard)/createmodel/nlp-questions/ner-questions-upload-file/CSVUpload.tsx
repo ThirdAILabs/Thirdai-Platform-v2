@@ -6,15 +6,10 @@ import {
   Alert, 
   CircularProgress, 
   Paper,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Chip,
-  Stack
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { trainTokenClassifierFromCSV, validateTokenClassifierCSV } from '@/lib/backend';
+import TokenTypeConfirmationDialog from './TokenTypeConfirmationDialog';
 
 interface CSVUploadProps {
   modelName: string;
@@ -38,8 +33,7 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
         setError(validationResult.message);
         return false;
       }
-  
-      // Show detected labels in confirmation dialog
+
       setDetectedLabels(validationResult.labels || []);
       setShowConfirmation(true);
       return true;
@@ -107,6 +101,9 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
           <Typography variant="body2" color="text.secondary">
             • Target column should contain labels for each token (use 'O' for non-entities)
           </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • At least one token type other than 'O' must be present
+          </Typography>
         </Box>
 
         <Button
@@ -143,35 +140,23 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
         </Alert>
       )}
 
-      {/* Confirmation Dialog */}
-      <Dialog open={showConfirmation} onClose={() => setShowConfirmation(false)}>
-        <DialogTitle>Confirm Token Types</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ mb: 2 }}>
-            The following token types were detected in your CSV:
-          </Typography>
-          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 2 }}>
-            {detectedLabels.map((label) => (
-              <Chip key={label} label={label} color="primary" sx={{ mb: 1 }} />
-            ))}
-          </Stack>
-          <Typography>
-            Are you sure you want to proceed with training using these token types?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowConfirmation(false)}>Cancel</Button>
-          <Button
-            onClick={() => {
-              setShowConfirmation(false);
-              handleUpload();
-            }}
-            variant="contained"
-          >
-            Proceed with Training
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Token Type Confirmation Dialog */}
+      <TokenTypeConfirmationDialog 
+        open={showConfirmation}
+        onClose={() => setShowConfirmation(false)}
+        onConfirm={() => {
+          setShowConfirmation(false);
+          handleUpload();
+        }}
+        tokenTypes={detectedLabels}
+      />
+
+      {isUploading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+          <CircularProgress size={24} sx={{ mr: 1 }} />
+          <Typography>Training model...</Typography>
+        </Box>
+      )}
     </Box>
   );
 };

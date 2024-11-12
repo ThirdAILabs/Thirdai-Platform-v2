@@ -1106,6 +1106,12 @@ def validate_csv_format(file: UploadFile) -> tuple[bool, str, set[str] | None]:
     """
     Validates the CSV file format for token classification.
     Returns (is_valid, error_message, extracted_labels).
+    
+    Validation rules:
+    1. Must be valid CSV with exactly 'source' and 'target' columns
+    2. Number of tokens must match between source and target
+    3. Must have at least one non-'O' token type
+    4. No empty cells allowed
     """
     try:
         content = file.file.read()
@@ -1134,16 +1140,24 @@ def validate_csv_format(file: UploadFile) -> tuple[bool, str, set[str] | None]:
             if len(source_tokens) != len(target_tokens):
                 return False, f"Row {idx + 1}: Number of tokens in source ({len(source_tokens)}) doesn't match target ({len(target_tokens)})", None
         
-        # Extract labels
-        all_tags = set()
+        # Extract and validate token types
+        token_types = set()
         for row in df["target"]:
-            tags = row.split()
-            all_tags.update(set(tags) - {"O"})
+            tokens = row.split()
+            # Add all non-'O' tokens to our set
+            token_types.update(token for token in tokens if token != 'O')
             
-        if not all_tags:
-            return False, "No valid labels found in the target column", None
+        if not token_types:
+            return False, (
+                "No valid token types found in the target column. "
+                "The CSV must contain at least one token type other than 'O'. "
+                "The 'O' token is used to indicate non-entity tokens and cannot be the only token type."
+            ), None
             
-        return True, "", all_tags
+        # Log found token types for debugging
+        logging.info(f"Found token types: {token_types}")
+            
+        return True, "", token_types
         
     except UnicodeDecodeError:
         return False, "File is not a valid CSV file (encoding error)", None
@@ -1169,17 +1183,23 @@ async def validate_token_classifier_csv(
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message="File must be a CSV",
-                data={"valid": False}
+                data={
+                    "valid": False,
+                    "details": "File must have .csv extension"
+                }
             )
 
         # Validate CSV format and get labels
-        is_valid, error_message, target_labels = validate_csv_format(file)
+        is_valid, error_message, token_types = validate_csv_format(file)
         
         if not is_valid:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message=error_message,
-                data={"valid": False}
+                data={
+                    "valid": False,
+                    "details": error_message
+                }
             )
 
         return response(
@@ -1187,7 +1207,9 @@ async def validate_token_classifier_csv(
             message="CSV file is valid",
             data={
                 "valid": True,
-                "labels": list(target_labels)
+                "labels": list(token_types),
+                "tokenTypeCount": len(token_types),
+                "details": f"Found {len(token_types)} valid token types: {', '.join(sorted(token_types))}"
             }
         )
 
@@ -1195,7 +1217,10 @@ async def validate_token_classifier_csv(
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=f"Error validating CSV: {str(err)}",
-            data={"valid": False}
+            data={
+                "valid": False,
+                "details": str(err)
+            }
         )
 
 @train_router.post("/train-token-classifier")

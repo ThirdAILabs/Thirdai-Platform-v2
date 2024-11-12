@@ -383,7 +383,7 @@ def upload_chunk(
 
     disk_stats = disk_usage()
     threshold = 0.8
-    if disk_stats["used"] / disk_stats["total"] < threshold:
+    if disk_stats["used"] / disk_stats["total"] > threshold:
         # delete the chunk(s) of the model received till now
         storage.delete(payload["model_id"])
 

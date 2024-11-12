@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
-from platform_common.utils import response
+from platform_common.utils import get_section, response
 from pydantic import BaseModel
 from sqlalchemy import exists
 from sqlalchemy.orm import Session, selectinload
@@ -27,6 +27,11 @@ basic_security = HTTPBasic()
 root_folder = pathlib.Path(__file__).parent
 template_directory = root_folder.joinpath("../templates/").resolve()
 templates = Jinja2Templates(directory=template_directory)
+
+docs_file = root_folder.joinpath("../../docs/user_endpoints.txt")
+
+with open(docs_file) as f:
+    docs = f.read()
 
 
 class AccessToken(BaseModel):
@@ -111,29 +116,15 @@ def send_reset_password_code(email: str, reset_password_code: int):
     )
 
 
-@user_router.post("/email-signup-basic")
+@user_router.post(
+    "/email-signup-basic",
+    summary="Email SignUp",
+    description=get_section(docs, "Email Signup"),
+)
 def email_signup(
     body: AccountSignupBody,
     session: Session = Depends(get_session),
 ):
-    """
-    Sign up a new user with email and password.
-
-    Parameters:
-    - body: The body of the request containing username, email, and password.
-        - Example:
-        ```json
-        {
-            "username": "johndoe",
-            "email": "johndoe@example.com",
-            "password": "securepassword"
-        }
-        ```
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the signup status.
-    """
     user: Optional[schema.User] = (
         session.query(schema.User)
         .filter(
@@ -191,27 +182,16 @@ def email_signup(
     )
 
 
-@user_router.post("/add-global-admin", dependencies=[Depends(global_admin_only)])
+@user_router.post(
+    "/add-global-admin",
+    dependencies=[Depends(global_admin_only)],
+    summary="Add Global Admin",
+    description=get_section(docs, "Add Global Admin"),
+)
 def add_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
-    """
-    Promote a user to global admin.
-
-    Parameters:
-    - admin_request: The request body containing the user's email.
-        - Example:
-        ```json
-        {
-            "email": "user@example.com"
-        }
-        ```
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the success of the operation.
-    """
     email = admin_request.email
     user: Optional[schema.User] = (
         session.query(schema.User).filter(schema.User.email == email).first()
@@ -233,27 +213,16 @@ def add_global_admin(
     )
 
 
-@user_router.post("/delete-global-admin", dependencies=[Depends(global_admin_only)])
+@user_router.post(
+    "/delete-global-admin",
+    dependencies=[Depends(global_admin_only)],
+    summary="Demote Global Admin",
+    description=get_section(docs, "Demote Global Admin"),
+)
 def demote_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
-    """
-    Demote a global admin to a regular user.
-
-    Parameters:
-    - admin_request: The request body containing the user's email.
-        - Example:
-        ```json
-        {
-            "email": "user@example.com"
-        }
-        ```
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the success of the operation.
-    """
     email = admin_request.email
     user: Optional[schema.User] = (
         session.query(schema.User).filter(schema.User.email == email).first()
@@ -293,29 +262,14 @@ def demote_global_admin(
     )
 
 
-@user_router.delete("/delete-user")
+@user_router.delete(
+    "/delete-user", summary="Delete User", description=get_section(docs, "Delete User")
+)
 def delete_user(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
     current_user: schema.User = Depends(global_admin_only),
 ):
-    """
-    Delete a user from the system and reassign their models.
-
-    Parameters:
-    - admin_request: The request body containing the user's email.
-        - Example:
-        ```json
-        {
-            "email": "user@example.com"
-        }
-        ```
-    - session: The database session (dependency).
-    - current_user: The current authenticated global admin (dependency).
-
-    Returns:
-    - A JSON response indicating the success of the operation.
-    """
     email = admin_request.email
 
     user: Optional[schema.User] = (
@@ -352,18 +306,8 @@ def delete_user(
     )
 
 
-@user_router.get("/redirect-verify")
+@user_router.get("/redirect-verify", include_in_schema=False)
 def redirect_email_verify(verification_token: str, request: Request):
-    """
-    Redirect to email verification endpoint.
-
-    Parameters:
-    - verification_token: The verification token for the user.
-    - request: The HTTP request object (dependency).
-
-    Returns:
-    - A HTML response with the redirection page.
-    """
     base_url = os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT")
     args = {"verification_token": verification_token}
     verify_url = urljoin(base_url, f"api/user/email-verify?{urlencode(args)}")
@@ -372,18 +316,8 @@ def redirect_email_verify(verification_token: str, request: Request):
     return templates.TemplateResponse("verify_email_sent.html", context=context)
 
 
-@user_router.post("/email-verify")
+@user_router.post("/email-verify", include_in_schema=False)
 def email_verify(verification_token: str, session: Session = Depends(get_session)):
-    """
-    Verify the user's email with the provided token.
-
-    Parameters:
-    - verification_token: The verification token for the user.
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the verification status.
-    """
     user: Optional[schema.User] = (
         session.query(schema.User)
         .filter(schema.User.verification_token == verification_token)
@@ -402,28 +336,13 @@ def email_verify(verification_token: str, session: Session = Depends(get_session
     return {"message": "Email verification successful."}
 
 
-@user_router.get("/email-login")
+@user_router.get(
+    "/email-login", summary="Email Login", description=get_section(docs, "Email Login")
+)
 def email_login(
     credentials: HTTPBasicCredentials = Depends(basic_security),
     session: Session = Depends(get_session),
 ):
-    """
-    Log in a user with email and password.
-
-    Parameters:
-    - credentials: The HTTP basic credentials (dependency).
-        - Example:
-        ```json
-        {
-            "username": "johndoe@example.com",
-            "password": "securepassword"
-        }
-        ```
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the login status and user details along with an access token.
-    """
     user: Optional[schema.User] = (
         session.query(schema.User)
         .filter(schema.User.email == credentials.username)
@@ -461,16 +380,15 @@ def email_login(
     )
 
 
-@user_router.post("/email-login-with-keycloak")
+@user_router.post(
+    "/email-login-with-keycloak",
+    summary="Email Login with Keycloak",
+    description=get_section(docs, "Email Login with Keycloak"),
+)
 def email_login_with_keycloak(
     access_token: AccessToken,
     session: Session = Depends(get_session),
 ):
-    """
-    This endpoint handles the login process using a Keycloak access token.
-    It verifies the token directly in this function and returns user info.
-    If the user doesnot exists we create the user here.
-    """
     try:
         user_info = keycloak_openid.userinfo(access_token.access_token)
 
@@ -512,16 +430,15 @@ def email_login_with_keycloak(
         )
 
 
-@user_router.get("/reset-password")
+@user_router.get(
+    "/reset-password",
+    summary="Reset Password",
+    description=get_section(docs, "Reset Password"),
+)
 def reset_password(
     email: str,
     session: Session = Depends(get_session),
 ):
-    """
-    Helps user to reset passoword incase they want to change the password or forgot it.
-
-    - **email**: email of account to reset password for.
-    """
     user: schema.User = (
         session.query(schema.User).filter(schema.User.email == email).first()
     )
@@ -574,29 +491,15 @@ class VerifyResetPassword(BaseModel):
     new_password: str
 
 
-@user_router.post("/new-password", include_in_schema=False)
+@user_router.post(
+    "/new-password",
+    summary="New Password",
+    description=get_section(docs, "New Password"),
+)
 def reset_password_verify(
     body: VerifyResetPassword,
     session: Session = Depends(get_session),
 ):
-    """
-    Reset the user's password after verifying the reset code.
-
-    Parameters:
-    - body: The request body containing the email, reset password code, and new password.
-        - Example:
-        ```json
-        {
-            "email": "johndoe@example.com",
-            "reset_password_code": "123456",
-            "new_password": "newsecurepassword"
-        }
-        ```
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the password reset status.
-    """
     user: Optional[schema.User] = (
         session.query(schema.User).filter(schema.User.email == body.email).first()
     )
@@ -649,26 +552,15 @@ def reset_password_verify(
     )
 
 
-@user_router.get("/list")
+@user_router.get(
+    "/list",
+    summary="List Accessible Users",
+    description=get_section(docs, "List Accessible Users"),
+)
 def list_accessible_users(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    """
-    List users along with their team memberships and roles according to the access level of the authenticated user.
-    Global Admin:-
-        - All users
-    Not Global Admin:-
-        - Union of all members from teams in which the user is either Member or Admin.
-
-    Parameters:
-    - session: The database session (dependency).
-    - authenticated_user: AuthenticatedUser - The authenticated user (dependency).
-
-    Returns:
-    - A JSON response with the list of all users and their team details.
-    """
-
     user: schema.User = authenticated_user.user
 
     # If the user is a Global Admin, return all users
@@ -719,21 +611,13 @@ def list_accessible_users(
     )
 
 
-@user_router.get("/info")
+@user_router.get(
+    "/info", summary="Get User Info", description=get_section(docs, "Get User Info")
+)
 def get_user_info(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    """
-    Get detailed information about the authenticated user.
-
-    Parameters:
-    - session: The database session (dependency).
-    - authenticated_user: The authenticated user (dependency).
-
-    Returns:
-    - A JSON response with the user's information.
-    """
     user: Optional[schema.User] = (
         session.query(schema.User)
         .options(selectinload(schema.User.teams).selectinload(schema.UserTeam.team))

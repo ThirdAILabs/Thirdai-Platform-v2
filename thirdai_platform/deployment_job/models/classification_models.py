@@ -8,6 +8,7 @@ from deployment_job.pydantic_models.inputs import (
     SearchResultsTextClassification,
     SearchResultsTokenClassification,
 )
+from fastapi import HTTPException, status
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
     DataSample,
@@ -77,14 +78,22 @@ class TokenClassificationModel(ClassificationModel):
         self.load_storage()
 
     def predict(self, text: str, **kwargs):
-        predicted_tags = self.model.predict({"source": text}, top_k=1)
+        predicted_tags = self.model.predict({"source": text}, top_k=1, as_unicode=True)
         predictions = []
         for predicted_tag in predicted_tags:
             predictions.append([x[0] for x in predicted_tag])
 
+        tokens = text.split()
+
+        if len(predictions) != len(tokens):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Error parsing input text, this is likely because the input contains unsupported unicode characters.",
+            )
+
         return SearchResultsTokenClassification(
             query_text=text,
-            tokens=text.split(),
+            tokens=tokens,
             predicted_tags=predictions,
         )
 
@@ -162,7 +171,7 @@ class TokenClassificationModel(ClassificationModel):
             name="ner", data=sample, user_provided=True, status=SampleStatus.untrained
         )
         self.data_storage.insert_samples(
-            samples=[token_tag_sample], override_buffer_limit=True
+            samples=[token_tag_sample], override_reservoir_limit=True
         )
 
     def get_recent_samples(self, num_samples: int = 5) -> List[TokenClassificationData]:

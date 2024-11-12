@@ -9,6 +9,7 @@ import * as _ from 'lodash';
 import { useTextClassificationEndpoints } from '@/lib/backend';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { parseCSV, parseExcel, parseTXT } from '@/utils/fileParsingUtils';
+import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 
 interface ParsedData {
   type: 'csv' | 'pdf' | 'other';
@@ -24,6 +25,7 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
+  const [processingTime, setProcessingTime] = useState<number | undefined>();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const MAX_FILE_SIZE = 1024 * 1024; // 1MB in bytes
@@ -49,7 +51,7 @@ export default function Page() {
         let parsed: ParsedData;
         if (fileExtension === 'csv') {
           parsed = await parseCSV(file);
-        } else if (fileExtension === 'pdf') {
+        } else if (['pdf', 'docx', 'html'].includes(fileExtension ?? '')) {
           const content = await getTextFromFile(file);
           parsed = {
             type: 'pdf',
@@ -90,9 +92,14 @@ export default function Page() {
     setIsLoading(true);
     try {
       const result = await predict(text);
+      console.log('result', result);
       setPredictions(
-        result.predicted_classes.map(([name, score]) => [name, Math.floor(score * 100)])
+        result.data.prediction_results.predicted_classes.map(([name, score]) => [
+          name,
+          Math.floor(score * 100),
+        ])
       );
+      setProcessingTime(result.data.time_taken);
     } catch (error) {
       console.error('Error during prediction:', error);
     } finally {
@@ -101,44 +108,34 @@ export default function Page() {
   };
 
   const renderPredictions = () => (
-    <Box mt={4}>
-      {predictions.map((prediction, index) => (
-        <Card
-          key={index}
-          style={{
-            marginTop: '10px',
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <CardHeader>
-            <div className="d-flex flex-column justify-content-start">
-              <p className="text-muted-foreground d-flex flex-row text-left">class</p>
-              <CardTitle>{prediction[0]}</CardTitle>
-            </div>
-          </CardHeader>
-          <div
-            className="bg-muted"
-            style={{
-              display: 'flex',
-              aspectRatio: 1,
-              margin: '12px',
-              justifyContent: 'center',
-              alignItems: 'center',
-              borderRadius: '5px',
-              cursor: 'default',
-              flexDirection: 'column',
-              padding: '5px 10px 10px 10px',
-            }}
+    <Box mt={4} display="flex" gap={4}>
+      {/* Left side - Predictions */}
+      <div style={{ flex: 2 }}>
+        {predictions.map((prediction, index) => (
+          <Card
+            key={index}
+            className={`${index > 0 ? 'mt-4' : ''} bg-white hover:bg-gray-50 transition-colors`}
           >
-            <p className="text-muted-foreground">score</p>
-            <CardTitle>{prediction[1]}</CardTitle>
-          </div>
-        </Card>
-      ))}
+            <div className="flex justify-between items-center p-6">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">class</p>
+                <CardTitle className="text-xl font-bold">
+                  {prediction[0].replace(/_/g, ' ')}
+                </CardTitle>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4 text-center min-w-[100px]">
+                <p className="text-sm text-muted-foreground mb-1">score</p>
+                <CardTitle className="text-xl">{prediction[1]}</CardTitle>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Right side - Inference Time */}
+      <div style={{ flex: 1 }}>
+        {processingTime !== undefined && <InferenceTimeDisplay processingTime={processingTime} />}
+      </div>
     </Box>
   );
 

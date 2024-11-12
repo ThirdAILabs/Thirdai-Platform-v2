@@ -38,3 +38,11 @@ def save_dict(write_to: str, **kwargs):
 def load_dict(path: str):
     with open(path, "r") as fp:
         return json.load(fp)
+
+
+def get_section(docs: str, header: str) -> str:
+    sections = docs.split("---")
+    for section in sections:
+        if header in section:
+            return section.strip()
+    return "Documentation not found."

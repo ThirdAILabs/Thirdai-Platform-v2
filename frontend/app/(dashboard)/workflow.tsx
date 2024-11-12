@@ -461,7 +461,7 @@ export function WorkFlow({
                     <Tooltip
                       title={
                         deployStatus === DeployStatus.Failed ||
-                        deployStatus === DeployStatus.TrainingFailed
+                          deployStatus === DeployStatus.TrainingFailed
                           ? 'Access restricted: model failed'
                           : ''
                       }
@@ -477,44 +477,7 @@ export function WorkFlow({
                           style={{
                             cursor:
                               deployStatus === DeployStatus.Failed ||
-                              deployStatus === DeployStatus.TrainingFailed
-                                ? 'not-allowed'
-                                : 'pointer',
-                          }}
-                        >
-                          Usage Dashboard
-                        </button>
-                      </span>
-                    </Tooltip>
-                  </DropdownMenuItem>
-                </Link>
-              )}
-
-              {workflow.type === 'udt' && (
-                <Link
-                  href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
-                >
-                  <DropdownMenuItem>
-                    <Tooltip
-                      title={
-                        deployStatus === DeployStatus.Failed ||
-                        deployStatus === DeployStatus.TrainingFailed
-                          ? 'Access restricted: model failed'
-                          : ''
-                      }
-                      arrow
-                    >
-                      <span>
-                        <button
-                          type="button"
-                          disabled={
-                            deployStatus === DeployStatus.Failed ||
-                            deployStatus === DeployStatus.TrainingFailed
-                          }
-                          style={{
-                            cursor:
-                              deployStatus === DeployStatus.Failed ||
-                              deployStatus === DeployStatus.TrainingFailed
+                                deployStatus === DeployStatus.TrainingFailed
                                 ? 'not-allowed'
                                 : 'pointer',
                           }}

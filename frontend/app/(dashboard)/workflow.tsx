@@ -51,13 +51,20 @@ interface ErrorState {
   messages: string[];
 }
 
-
 interface WarningState {
   type: 'training' | 'deployment';
   messages: string[];
 }
 
-export function WorkFlow({ workflow, handleCollapse, index }: { workflow: Workflow, handleCollapse: (index: number) => void, index: number }) {
+export function WorkFlow({
+  workflow,
+  handleCollapse,
+  index,
+}: {
+  workflow: Workflow;
+  handleCollapse: (index: number) => void;
+  index: number;
+}) {
   const { user } = useContext(UserContext);
   const [deployStatus, setDeployStatus] = useState<DeployStatus>(DeployStatus.None);
   const [deployType, setDeployType] = useState<string>('');
@@ -361,7 +368,9 @@ export function WorkFlow({ workflow, handleCollapse, index }: { workflow: Workfl
             onClick={handleStartWorkflow}
             variant="contained"
             style={{ width: '100px' }}
-            disabled={deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive}
+            disabled={
+              deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive
+            }
           >
             {getButtonValue(deployStatus)}
           </Button>
@@ -452,7 +461,7 @@ export function WorkFlow({ workflow, handleCollapse, index }: { workflow: Workfl
                     <Tooltip
                       title={
                         deployStatus === DeployStatus.Failed ||
-                          deployStatus === DeployStatus.TrainingFailed
+                        deployStatus === DeployStatus.TrainingFailed
                           ? 'Access restricted: model failed'
                           : ''
                       }
@@ -468,7 +477,7 @@ export function WorkFlow({ workflow, handleCollapse, index }: { workflow: Workfl
                           style={{
                             cursor:
                               deployStatus === DeployStatus.Failed ||
-                                deployStatus === DeployStatus.TrainingFailed
+                              deployStatus === DeployStatus.TrainingFailed
                                 ? 'not-allowed'
                                 : 'pointer',
                           }}
@@ -489,7 +498,7 @@ export function WorkFlow({ workflow, handleCollapse, index }: { workflow: Workfl
                     <Tooltip
                       title={
                         deployStatus === DeployStatus.Failed ||
-                          deployStatus === DeployStatus.TrainingFailed
+                        deployStatus === DeployStatus.TrainingFailed
                           ? 'Access restricted: model failed'
                           : ''
                       }
@@ -505,7 +514,7 @@ export function WorkFlow({ workflow, handleCollapse, index }: { workflow: Workfl
                           style={{
                             cursor:
                               deployStatus === DeployStatus.Failed ||
-                                deployStatus === DeployStatus.TrainingFailed
+                              deployStatus === DeployStatus.TrainingFailed
                                 ? 'not-allowed'
                                 : 'pointer',
                           }}
@@ -568,7 +577,9 @@ export function WorkFlow({ workflow, handleCollapse, index }: { workflow: Workfl
         {workflow.type === 'enterprise-search' && (
           <TableCell className="text-center font-medium">
             <button
-              onClick={() => { handleCollapse(index) }}
+              onClick={() => {
+                handleCollapse(index);
+              }}
               className="p-2 hover:bg-slate-200 rounded-lg"
             >
               {<ExpandMoreIcon />}
@@ -656,7 +667,9 @@ export function WorkFlow({ workflow, handleCollapse, index }: { workflow: Workfl
                     <tr className="hover:bg-gray-100">
                       <td className="border px-4 py-2">{workflow.model_name}</td>
                       <td className="border px-4 py-2">{formatBytesToMB(workflow.size)}</td>
-                      <td className="border px-4 py-2">{formatBytesToMB(workflow.size_in_memory)}</td>
+                      <td className="border px-4 py-2">
+                        {formatBytesToMB(workflow.size_in_memory)}
+                      </td>
                     </tr>
                     {/* ))} */}
                   </tbody>

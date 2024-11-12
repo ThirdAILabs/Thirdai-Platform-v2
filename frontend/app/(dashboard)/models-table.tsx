@@ -1,13 +1,14 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { TableHead, TableRow, TableHeader, TableBody, Table, TableCell } from '@/components/ui/table';
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  TableHead,
+  TableRow,
+  TableHeader,
+  TableBody,
+  Table,
+  TableCell,
+} from '@/components/ui/table';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { WorkFlow } from './workflow';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -72,9 +73,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
 
   // Toggle the value at a specific index
   const toggleIsCollapsedList = (index: number) => {
-    setIsCollapsedList((prevList) =>
-      prevList.map((item, idx) => (idx === index ? !item : item))
-    );
+    setIsCollapsedList((prevList) => prevList.map((item, idx) => (idx === index ? !item : item)));
   };
 
   return (
@@ -109,7 +108,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
                   />
                   {!isCollapsedList[index] && (
                     <TableRow>
-                      <TableCell />  {/*To shift the dependency table slightly right*/}
+                      <TableCell /> {/*To shift the dependency table slightly right*/}
                       <TableCell colSpan={3}>
                         <div
                           style={{

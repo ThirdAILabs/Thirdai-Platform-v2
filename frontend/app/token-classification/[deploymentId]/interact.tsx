@@ -964,10 +964,12 @@ export default function Interact() {
         }}
       >
         {processingTime !== undefined && (
-          <div className="mb-4">  {/* Added margin-bottom */}
-            <InferenceTimeDisplay 
-              processingTime={processingTime} 
-              text={annotations.map(token => token.text).join(' ')}
+          <div className="mb-4">
+            {' '}
+            {/* Added margin-bottom */}
+            <InferenceTimeDisplay
+              processingTime={processingTime}
+              text={annotations.map((token) => token.text).join(' ')}
             />
           </div>
         )}

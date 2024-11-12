@@ -57,9 +57,7 @@ const InferenceTimeDisplay: React.FC<InferenceTimeDisplayProps> = ({ processingT
             <div className="flex flex-col">
               <span className="text-sm text-muted-foreground">Time per Token</span>
               <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold">
-                  {(timePerToken * 1000).toFixed(3)}
-                </span>
+                <span className="text-2xl font-bold">{(timePerToken * 1000).toFixed(3)}</span>
                 <span className="text-sm text-muted-foreground">ms/token</span>
               </div>
             </div>

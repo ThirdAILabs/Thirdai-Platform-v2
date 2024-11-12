@@ -276,6 +276,7 @@ export default function Interact() {
     setInputText(event.target.value);
     setParsedData(null);
     setAnnotations([]);
+    setProcessingTime(undefined); // make time display disppears as typying begins
   };
 
   const [fileError, setFileError] = useState<string | null>(null);

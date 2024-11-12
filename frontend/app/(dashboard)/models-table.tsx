@@ -14,8 +14,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@mui/material';
 import { fetchWorkflows, Workflow } from '@/lib/backend';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+
 
 export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: number }) {
   // Hardcode the model display
@@ -78,7 +77,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
       prevList.map((item, idx) => (idx === index ? !item : item))
     );
   };
-  console.log("Anand workflow: ", workflows);
+
   return (
     <Card>
       <CardHeader>
@@ -106,9 +105,16 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
                 <React.Fragment key={index + 200}>
                   {workflow.type === "enterprise-search" ? (<>
                     <WorkFlow workflow={workflow} handleCollapse={toggleIsCollapsedList} index={index} />
-                    {workflows.map((item) => {
-                      if (!isCollapsedList[index] && workflow.dependencies[0].model_id === item.model_id) {
-                        return <WorkFlow workflow={item} handleCollapse={toggleIsCollapsedList} index={index} />
+                    {workflow.dependencies.map((dependency) => {
+                      {
+                        return (
+                          workflows.map((item) => {
+                            if (!isCollapsedList[index] && dependency.model_id === item.model_id) {
+                              return (
+                                <WorkFlow workflow={item} handleCollapse={toggleIsCollapsedList} index={index} />
+                              )
+                            }
+                          }))
                       }
                     })}
                   </>

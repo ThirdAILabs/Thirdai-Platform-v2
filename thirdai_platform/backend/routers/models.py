@@ -322,7 +322,7 @@ def upload_token(
     )
 
 
-@model_router.post("/upload-chunk", dependencies=[Depends(is_on_low_disk())])
+@model_router.post("/upload-chunk")
 def upload_chunk(
     chunk: UploadFile,
     chunk_number: int,
@@ -381,6 +381,16 @@ def upload_chunk(
     except Exception as error:
         return response(status_code=status.HTTP_401_UNAUTHORIZED, message=str(error))
 
+    disk_stats = disk_usage()
+    threshold = 0.8
+    if disk_stats["used"] / disk_stats["total"] < threshold:
+        # delete the chunk(s) of the model received till now
+        storage.delete(payload["model_id"])
+
+        return response(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            message="Platform reached the disk limit while uploading the model. Please clear some space.",
+        )
     try:
         chunk_data = chunk.file.read()
         storage.upload_chunk(

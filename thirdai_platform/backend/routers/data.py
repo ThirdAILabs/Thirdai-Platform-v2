@@ -75,7 +75,7 @@ def validate_and_generate_data(
 
 @data_router.post(
     "/generate-text-data",
-    dependencies=[Depends(get_current_user), Depends(is_on_low_disk)],
+    dependencies=[Depends(get_current_user), Depends(is_on_low_disk())],
     summary="Generate Text Data",
     description=get_section(docs, "Generate Text Data"),
 )
@@ -96,7 +96,7 @@ def generate_text_data_endpoint(
 
 @data_router.post(
     "/generate-token-data",
-    dependencies=[Depends(get_current_user), Depends(is_on_low_disk)],
+    dependencies=[Depends(get_current_user), Depends(is_on_low_disk())],
     summary="Generate Token Data",
     description=get_section(docs, "Generate Token Data"),
 )

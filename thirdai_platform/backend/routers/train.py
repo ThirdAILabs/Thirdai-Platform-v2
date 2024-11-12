@@ -79,7 +79,7 @@ def get_base_model(base_model_identifier: str, user: schema.User, session: Sessi
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 
 
-@train_router.post("/ndb", dependencies=[Depends(is_on_low_disk)])
+@train_router.post("/ndb", dependencies=[Depends(is_on_low_disk())])
 def train_ndb(
     model_name: str,
     files: List[UploadFile],
@@ -259,7 +259,7 @@ def list_deletions(deployment_dir: str) -> List[str]:
     return deletions
 
 
-@train_router.post("/ndb-retrain", dependencies=[Depends(is_on_low_disk)])
+@train_router.post("/ndb-retrain", dependencies=[Depends(is_on_low_disk())])
 def retrain_ndb(
     model_name: str,
     base_model_identifier: str,
@@ -410,7 +410,9 @@ def retrain_ndb(
     )
 
 
-@train_router.post("/nlp-datagen", dependencies=[Depends(is_on_low_disk)])
+@train_router.post(
+    "/nlp-datagen", dependencies=[Depends(is_on_low_disk(threshold=0.75))]
+)
 def nlp_datagen(
     model_name: str,
     base_model_identifier: Optional[str] = None,
@@ -553,7 +555,7 @@ def nlp_datagen(
     )
 
 
-@train_router.post("/datagen-callback")
+@train_router.post("/datagen-callback", dependencies=[Depends(is_on_low_disk())])
 def datagen_callback(
     data_id: str,
     secret_token: str,
@@ -674,7 +676,7 @@ def datagen_callback(
     )
 
 
-@train_router.post("/retrain-udt", dependencies=[Depends(is_on_low_disk)])
+@train_router.post("/retrain-udt", dependencies=[Depends(is_on_low_disk())])
 def retrain_udt(
     model_name: str,
     llm_provider: LLMProvider,
@@ -887,7 +889,7 @@ def retrain_udt(
     )
 
 
-@train_router.post("/udt", dependencies=[Depends(is_on_low_disk)])
+@train_router.post("/udt", dependencies=[Depends(is_on_low_disk())])
 def train_udt(
     model_name: str,
     files: List[UploadFile] = [],

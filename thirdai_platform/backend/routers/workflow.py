@@ -37,7 +37,7 @@ class EnterpriseSearchOptions(BaseModel):
 
 @workflow_router.post(
     "/enterprise-search",
-    dependencies=[Depends(is_on_low_disk)],
+    dependencies=[Depends(is_on_low_disk())],
     summary="Create Enterprise Search Workflow",
     description=get_section(docs, "Create Enterprise Search Workflow"),
 )

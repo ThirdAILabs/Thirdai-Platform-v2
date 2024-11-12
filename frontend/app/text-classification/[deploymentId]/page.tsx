@@ -129,17 +129,16 @@ export default function Page() {
                 <CardTitle className="text-xl">{prediction[1]}</CardTitle>
               </div>
               <ThumbsUpButton inputText={inputText} prediction={prediction[0]} />
-            </div >
-          </Card >
-        ))
-        }
-      </div >
+            </div>
+          </Card>
+        ))}
+      </div>
 
       {/* Right side - Inference Time */}
-      < div style={{ flex: 1 }}>
+      <div style={{ flex: 1 }}>
         {processingTime !== undefined && <InferenceTimeDisplay processingTime={processingTime} />}
-      </div >
-    </Box >
+      </div>
+    </Box>
   );
 
   return (

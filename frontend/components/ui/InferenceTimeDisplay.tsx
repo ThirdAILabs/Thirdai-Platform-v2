@@ -4,12 +4,14 @@ import { TimerIcon, ZapIcon, Hash } from 'lucide-react';
 
 interface InferenceTimeDisplayProps {
   processingTime: number;
-  text?: string;
+  tokenCount?: number;
 }
 
-const InferenceTimeDisplay: React.FC<InferenceTimeDisplayProps> = ({ processingTime, text }) => {
-  const wordCount = text?.trim().split(/\s+/).length || 0;
-  const timePerToken = wordCount > 0 ? processingTime / wordCount : 0;
+const InferenceTimeDisplay: React.FC<InferenceTimeDisplayProps> = ({ processingTime, tokenCount }) => {
+  let timePerToken = 0;
+  if (tokenCount) {
+    timePerToken = processingTime / tokenCount;
+  }
 
   return (
     <Card className="bg-white hover:bg-gray-50 transition-colors">
@@ -29,39 +31,43 @@ const InferenceTimeDisplay: React.FC<InferenceTimeDisplayProps> = ({ processingT
             </div>
           </div>
 
-          {/* Divider */}
-          <div className="border-t border-gray-200" />
+          {
+            tokenCount && <>
+              {/* Divider */}
+              <div className="border-t border-gray-200" />
 
-          {/* Total Tokens */}
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-full">
-              <Hash className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm text-muted-foreground">Total Tokens</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold">{wordCount}</span>
-                <span className="text-sm text-muted-foreground">tokens</span>
+              {/* Total Tokens */}
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-full">
+                  <Hash className="w-6 h-6 text-primary" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm text-muted-foreground">Total Tokens</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold">{tokenCount}</span>
+                    <span className="text-sm text-muted-foreground">tokens</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Divider */}
-          <div className="border-t border-gray-200" />
+              {/* Divider */}
+              <div className="border-t border-gray-200" />
 
-          {/* Time per Token */}
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-full">
-              <ZapIcon className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm text-muted-foreground">Time per Token</span>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold">{(timePerToken * 1000).toFixed(3)}</span>
-                <span className="text-sm text-muted-foreground">ms/token</span>
+              {/* Time per Token */}
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary/10 rounded-full">
+                  <ZapIcon className="w-6 h-6 text-primary" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm text-muted-foreground">Time per Token</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold">{(timePerToken * 1000).toFixed(3)}</span>
+                    <span className="text-sm text-muted-foreground">ms/token</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          }
         </div>
       </CardContent>
     </Card>

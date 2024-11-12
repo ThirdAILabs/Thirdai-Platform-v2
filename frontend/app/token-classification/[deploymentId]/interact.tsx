@@ -963,12 +963,12 @@ export default function Interact() {
           marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
         }}
       >
-        {processingTime !== undefined && (
+        {processingTime !== undefined && annotations.length && (
           <div className="mb-4">
             {' '}
             <InferenceTimeDisplay
               processingTime={processingTime}
-              text={annotations.map((token) => token.text).join(' ')}
+              tokenCount={annotations.length}
             />
           </div>
         )}

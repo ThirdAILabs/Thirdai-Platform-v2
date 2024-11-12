@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { TimerIcon, ZapIcon } from 'lucide-react';
+import { TimerIcon, ZapIcon, Hash } from 'lucide-react';
 
 interface InferenceTimeDisplayProps {
   processingTime: number;
@@ -10,8 +10,6 @@ interface InferenceTimeDisplayProps {
 const InferenceTimeDisplay: React.FC<InferenceTimeDisplayProps> = ({ processingTime, text }) => {
   const wordCount = text?.trim().split(/\s+/).length || 0;
   const timePerToken = wordCount > 0 ? processingTime / wordCount : 0;
-  console.log('text', text);
-  console.log('wordCount', wordCount);
 
   return (
     <Card className="bg-white hover:bg-gray-50 transition-colors">
@@ -34,6 +32,23 @@ const InferenceTimeDisplay: React.FC<InferenceTimeDisplayProps> = ({ processingT
           {/* Divider */}
           <div className="border-t border-gray-200" />
 
+          {/* Total Tokens */}
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/10 rounded-full">
+              <Hash className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm text-muted-foreground">Total Tokens</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-2xl font-bold">{wordCount}</span>
+                <span className="text-sm text-muted-foreground">tokens</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-gray-200" />
+
           {/* Time per Token */}
           <div className="flex items-center gap-4">
             <div className="p-3 bg-primary/10 rounded-full">
@@ -43,7 +58,7 @@ const InferenceTimeDisplay: React.FC<InferenceTimeDisplayProps> = ({ processingT
               <span className="text-sm text-muted-foreground">Time per Token</span>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold">
-                  {Math.max(timePerToken * 1000, 1).toFixed(2)}
+                  {(timePerToken * 1000).toFixed(3)}
                 </span>
                 <span className="text-sm text-muted-foreground">ms/token</span>
               </div>

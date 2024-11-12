@@ -1,137 +1,117 @@
-// app/NLPQuestions.js
 import React, { useState } from 'react';
 import NERQuestions from './ner-questions';
 import SCQQuestions from './sentence-classification-questions';
-import { Input } from '@/components/ui/input';
-import { Button, TextField } from '@mui/material';
+import { 
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Typography,
+  Box,
+  Divider
+} from '@mui/material';
 import { CardDescription } from '@/components/ui/card';
-import { Divider } from '@mui/material';
 
 interface NLPQuestionsProps {
   workflowNames: string[];
 }
 
-const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
-  const [question, setQuestion] = useState('');
-  const [loadingAnswer, setLoadingAnswer] = useState<boolean>(false);
-  const [answer, setAnswer] = useState('');
-  const [confirmedAnswer, setConfirmedAnswer] = useState<boolean>(false);
+const NLP_TYPES = [
+  {
+    value: 'text-classification',
+    label: 'Text Classification',
+    description: 'Analyze sentiment and classify text content',
+  },
+  {
+    value: 'text-extraction',
+    label: 'Text Extraction',
+    description: 'Extract entities, PII, or HIPAA information',
+  },
+  {
+    value: 'document-classification',
+    label: 'Document Classification',
+    description: 'Categorize entire documents',
+  },
+];
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setQuestion(e.target.value);
+const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
+  const [selectedType, setSelectedType] = useState<string>('');
+
+  const handleChange = (event: any) => {
+    setSelectedType(event.target.value);
   };
 
-  const submit = async () => {
-    if (!question) {
-      console.error('Question is not valid');
-      alert('Question is not valid');
-      return;
-    }
-    if (loadingAnswer) {
-      return;
-    }
-
-    setLoadingAnswer(true);
-
-    try {
-      const response = await fetch('/endpoints/which-nlp-use-case', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ question }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-
-      const result = await response.json();
-      setAnswer(result.answer);
-    } catch (error) {
-      console.error('Error during fetch:', error);
-      alert('Error during fetch:' + error);
-    } finally {
-      setLoadingAnswer(false);
+  const renderSelectedComponent = () => {
+    switch(selectedType) {
+      case 'text-classification':
+        return (
+          <SCQQuestions
+            workflowNames={workflowNames}
+            question="Text Classification Task"
+            answer="Sentence classification selected"
+          />
+        );
+      case 'text-extraction':
+        return (
+          <NERQuestions
+            workflowNames={workflowNames}
+            modelGoal="Text Extraction Task"
+          />
+        );
+      case 'document-classification':
+        return (
+          <Box>
+            <Typography variant="h6" sx={{ mb: 1 }}>
+              Document Classification
+            </Typography>
+            <CardDescription>
+              Document classification component to be implemented
+            </CardDescription>
+          </Box>
+        );
+      default:
+        return (
+          <Box sx={{ mt: 2 }}>
+            <CardDescription>
+              Please select an NLP task type to begin
+            </CardDescription>
+          </Box>
+        );
     }
   };
 
   return (
-    <div style={{ width: '100%' }}>
-      {!confirmedAnswer && !answer && (
-        <>
-          <span className="block text-lg font-semibold">NLP task assistant</span>
-          <CardDescription>
-            Say &quot;I want to analyze my customers&apos; reviews&quot;
-          </CardDescription>
-          <CardDescription>
-            or &quot;I want to analyze the individual tokens within a report document&quot;
-          </CardDescription>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: '20px',
-              justifyContent: 'space-between',
-              margin: '20px 0',
-            }}
-          >
-            <TextField
-              className="text-md w-full"
-              value={question}
-              onChange={handleInputChange}
-              placeholder="Describe your use case..."
-              onKeyDown={(e) => {
-                if (e.keyCode === 13 && e.shiftKey === false) {
-                  e.preventDefault();
-                  submit();
-                }
-              }}
-            />
-          </div>
-          <Button
-            onClick={submit}
-            variant="contained"
-            color={loadingAnswer ? 'success' : 'primary'}
-            style={{ width: '100%' }}
-          >
-            {loadingAnswer ? 'Understanding your use case...' : 'Submit'}
-          </Button>
-        </>
-      )}
-      {!confirmedAnswer && answer && (
-        <div style={{ marginTop: '20px' }}>
-          <span className="block text-lg font-semibold" style={{ marginBottom: '10px' }}>
-            Our recommendation
-          </span>
-          <CardDescription>{answer}</CardDescription>
-          <div
-            style={{
-              width: '100%',
-              marginTop: '20px',
-              display: 'flex',
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              gap: '10px',
-            }}
-          >
-            <Button style={{ width: '100%' }} variant="outlined" onClick={() => setAnswer('')}>
-              Retry
-            </Button>
-            <Button style={{ width: '100%' }} onClick={() => setConfirmedAnswer(true)}>
-              Continue
-            </Button>
-          </div>
-        </div>
-      )}
-      {confirmedAnswer &&
-        answer &&
-        (answer.includes('Sentence classification') ? (
-          <SCQQuestions workflowNames={workflowNames} question={question} answer={answer} />
-        ) : answer.includes('Token classification') ? (
-          <NERQuestions workflowNames={workflowNames} modelGoal={question} />
-        ) : null)}
-    </div>
+    <Box sx={{ width: '100%' }}>
+      <Typography variant="h6" sx={{ mb: 1 }}>
+        NLP Task Assistant
+      </Typography>
+      
+      <FormControl fullWidth sx={{ mb: 3 }}>
+        <InputLabel>Select an NLP task type</InputLabel>
+        <Select
+          value={selectedType}
+          label="Select an NLP task type"
+          onChange={handleChange}
+        >
+          {NLP_TYPES.map((type) => (
+            <MenuItem key={type.value} value={type.value}>
+              <Box>
+                <Typography variant="subtitle1">
+                  {type.label}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {type.description}
+                </Typography>
+              </Box>
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      {selectedType && <Divider sx={{ mb: 3 }} />}
+      
+      {renderSelectedComponent()}
+    </Box>
   );
 };
 

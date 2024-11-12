@@ -29,7 +29,7 @@ import { UserContext } from '../user_wrapper';
 import { ContentCopy, Download } from '@mui/icons-material'; // MUI icons instead of SVG paths
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import Accordion from '@mui/material';
+
 enum DeployStatus {
   None = '',
   TrainingFailed = 'Training failed',

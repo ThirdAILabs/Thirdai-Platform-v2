@@ -389,7 +389,7 @@ def upload_chunk(
 
         return response(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            message="Platform reached the disk limit while uploading the model. Please clear some space.",
+            message="Platform reached the disk limit while uploading the model. Please clear some space and try again.",
         )
     try:
         chunk_data = chunk.file.read()

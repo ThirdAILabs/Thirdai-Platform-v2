@@ -4,7 +4,6 @@ import { TableHead, TableRow, TableHeader, TableBody, Table, TableCell } from '@
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -14,7 +13,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@mui/material';
 import { fetchWorkflows, Workflow } from '@/lib/backend';
-import { Collapse } from '@mui/material';
+import { ArrowRight } from 'lucide-react';
 
 export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: number }) {
   // Hardcode the model display

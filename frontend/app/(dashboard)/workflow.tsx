@@ -461,7 +461,7 @@ export function WorkFlow({
                     <Tooltip
                       title={
                         deployStatus === DeployStatus.Failed ||
-                          deployStatus === DeployStatus.TrainingFailed
+                        deployStatus === DeployStatus.TrainingFailed
                           ? 'Access restricted: model failed'
                           : ''
                       }
@@ -477,7 +477,7 @@ export function WorkFlow({
                           style={{
                             cursor:
                               deployStatus === DeployStatus.Failed ||
-                                deployStatus === DeployStatus.TrainingFailed
+                              deployStatus === DeployStatus.TrainingFailed
                                 ? 'not-allowed'
                                 : 'pointer',
                           }}

@@ -25,8 +25,6 @@ function requestRefreshOfAccessToken(token: JWT) {
 
 
 export function getAuthOptions(issuer: string): AuthOptions {
-  console.log('Using Keycloak issuer:', issuer);
-  console.log('Auth Options');
 
   const authOptions: AuthOptions = {
     providers: [
@@ -112,12 +110,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const issuerCookie = req.cookies['kc_issuer']; // Access cookies from the request
     
     const issuer = cookies().get('kc_issuer')?.value ?? process.env.KEYCLOAK_ISSUER
-    console.log('Using issuer:', issuer);
   
     const authOptions: AuthOptions = getAuthOptions(issuer)
-    console.log('Auth Options:', authOptions);
-  
-    console.log("handler")
   
     return await NextAuth(req, res, authOptions);
   } catch (error) {

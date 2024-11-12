@@ -5,7 +5,6 @@ export default function KeycloakIssuerSetter() {
     useEffect(() => {
         const currentDomain = window.location.origin;
         const dynamicIssuer = `${currentDomain}/keycloak/realms/ThirdAI-Platform`;
-        console.log("setting keycloak setter", dynamicIssuer);
         Cookies.set('kc_issuer', dynamicIssuer, {
             secure: true,
             sameSite: 'strict',

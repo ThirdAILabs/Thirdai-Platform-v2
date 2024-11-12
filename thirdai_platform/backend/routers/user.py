@@ -390,19 +390,15 @@ def email_login_with_keycloak(
     session: Session = Depends(get_session),
 ):
     try:
-        print("Access Token: ", access_token)
         user_info = keycloak_openid.userinfo(access_token.access_token)
 
-        print("User Info:", user_info)
         keycloak_user_id = user_info.get("sub")
 
-        print("Keycloak User Id:", keycloak_user_id)
         user = (
             session.query(schema.User)
             .filter(schema.User.email == user_info.get("email"))
             .first()
         )
-        print("User Name:", user)
         if not user:
             user = schema.User(
                 id=keycloak_user_id,
@@ -412,7 +408,6 @@ def email_login_with_keycloak(
             session.add(user)
             session.commit()
             session.refresh(user)
-            print("User Name:", user)
 
         return response(
             status_code=status.HTTP_200_OK,
@@ -429,10 +424,19 @@ def email_login_with_keycloak(
     except HTTPException as e:
         return response(status_code=e.status_code, message=e.detail)
     except Exception as e:
-        return response(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message=f"An unexpected error occurred: {str(e)}",
-        )
+        error_message = str(e)
+        if "401" in error_message or "Invalid token issuer" in error_message:
+            return response(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                message="Authentication failed: One possible reason could be an invalid token issuer. Please verify that 'model_bazaar' is configured to use the correct issuer(KEYCLOAK_SERVER_URL) for the domain.",
+                data={},
+            )
+        else:
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message=f"An unexpected error occurred: {error_message}",
+                data={},
+            )
 
 
 @user_router.get(

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { getUsername, trainTokenClassifier } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
-import { 
+import {
   Box,
   Typography,
   Card,
@@ -12,7 +12,7 @@ import {
   Button,
   TextField,
   IconButton,
-  Divider
+  Divider,
 } from '@mui/material';
 import {
   Table,
@@ -28,11 +28,12 @@ import ModelTrainingIcon from '@mui/icons-material/ModelTraining';
 import { CardDescription } from '@/components/ui/card';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CSVUpload from './ner-questions-upload-file/CSVUpload';
 
 const CREATION_METHODS = {
   PRETRAINED: 'pretrained',
   UPLOAD_DATA: 'upload-data',
-  SYNTHETIC: 'synthetic'
+  SYNTHETIC: 'synthetic',
 };
 
 type Example = {
@@ -295,26 +296,38 @@ const NERQuestions = ({
       <Typography variant="h6" sx={{ mb: 2 }}>
         Choose how you want to create your Text Extraction model
       </Typography>
-      
+
       <Grid container spacing={2}>
         {/* Pretrained Model Option */}
         <Grid item xs={12} md={4}>
-          <Card 
-            sx={{ 
-              height: '100%', 
+          <Card
+            sx={{
+              height: '100%',
               cursor: 'pointer',
-              border: creationMethod === CREATION_METHODS.PRETRAINED ? '2px solid #1976d2' : '1px solid #e0e0e0',
-              '&:hover': { borderColor: '#1976d2' }
+              border:
+                creationMethod === CREATION_METHODS.PRETRAINED
+                  ? '2px solid #1976d2'
+                  : '1px solid #e0e0e0',
+              '&:hover': { borderColor: '#1976d2' },
             }}
             onClick={() => setCreationMethod(CREATION_METHODS.PRETRAINED)}
           >
-            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <CardContent
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+              }}
+            >
               <ModelTrainingIcon sx={{ fontSize: 40, mb: 2, color: 'primary.main' }} />
               <Typography variant="h6" gutterBottom>
                 Use Pretrained Model
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Quick start with our pretrained models for common extraction tasks like PII, addresses, or dates
+                Quick start with our pretrained models for common extraction tasks like PII,
+                addresses, or dates
               </Typography>
             </CardContent>
           </Card>
@@ -322,16 +335,27 @@ const NERQuestions = ({
 
         {/* Upload Data Option */}
         <Grid item xs={12} md={4}>
-          <Card 
-            sx={{ 
-              height: '100%', 
+          <Card
+            sx={{
+              height: '100%',
               cursor: 'pointer',
-              border: creationMethod === CREATION_METHODS.UPLOAD_DATA ? '2px solid #1976d2' : '1px solid #e0e0e0',
-              '&:hover': { borderColor: '#1976d2' }
+              border:
+                creationMethod === CREATION_METHODS.UPLOAD_DATA
+                  ? '2px solid #1976d2'
+                  : '1px solid #e0e0e0',
+              '&:hover': { borderColor: '#1976d2' },
             }}
             onClick={() => setCreationMethod(CREATION_METHODS.UPLOAD_DATA)}
           >
-            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <CardContent
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+              }}
+            >
               <UploadFileIcon sx={{ fontSize: 40, mb: 2, color: 'primary.main' }} />
               <Typography variant="h6" gutterBottom>
                 Upload Your Data
@@ -345,16 +369,27 @@ const NERQuestions = ({
 
         {/* Synthetic Data Option */}
         <Grid item xs={12} md={4}>
-          <Card 
-            sx={{ 
-              height: '100%', 
+          <Card
+            sx={{
+              height: '100%',
               cursor: 'pointer',
-              border: creationMethod === CREATION_METHODS.SYNTHETIC ? '2px solid #1976d2' : '1px solid #e0e0e0',
-              '&:hover': { borderColor: '#1976d2' }
+              border:
+                creationMethod === CREATION_METHODS.SYNTHETIC
+                  ? '2px solid #1976d2'
+                  : '1px solid #e0e0e0',
+              '&:hover': { borderColor: '#1976d2' },
             }}
             onClick={() => setCreationMethod(CREATION_METHODS.SYNTHETIC)}
           >
-            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <CardContent
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+              }}
+            >
               <AutoAwesomeIcon sx={{ fontSize: 40, mb: 2, color: 'primary.main' }} />
               <Typography variant="h6" gutterBottom>
                 Generate Training Data
@@ -368,11 +403,7 @@ const NERQuestions = ({
       </Grid>
 
       {creationMethod && (
-        <Button 
-          variant="outlined" 
-          sx={{ mt: 2 }}
-          onClick={() => setCreationMethod('')}
-        >
+        <Button variant="outlined" sx={{ mt: 2 }} onClick={() => setCreationMethod('')}>
           Choose Different Method
         </Button>
       )}
@@ -380,11 +411,34 @@ const NERQuestions = ({
   );
 
   const renderSelectedMethod = () => {
-    switch(creationMethod) {
+    switch (creationMethod) {
       case CREATION_METHODS.PRETRAINED:
         return <Typography>Pretrained model selection UI will go here</Typography>;
       case CREATION_METHODS.UPLOAD_DATA:
-        return <Typography>Data upload interface will go here</Typography>;
+        return (
+          <Box sx={{ width: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Upload Training Data
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Upload a CSV file containing your labeled training data. The file should include text
+              samples and their corresponding labels.
+            </Typography>
+
+            <CSVUpload
+              modelName={modelName}
+              onSuccess={() => {
+                if (!stayOnPage) {
+                  router.push('/');
+                }
+                onCreateModel?.(modelName);
+              }}
+              onError={(errorMessage: string) => {
+                console.error('Error training model:', errorMessage);
+              }}
+            />
+          </Box>
+        );
       case CREATION_METHODS.SYNTHETIC:
         return (
           // Your existing synthetic data generation UI
@@ -415,7 +469,9 @@ const NERQuestions = ({
                         className="text-sm"
                         placeholder="Category Name"
                         value={category.name}
-                        onChange={(e) => handleCategoryChange(categoryIndex, 'name', e.target.value)}
+                        onChange={(e) =>
+                          handleCategoryChange(categoryIndex, 'name', e.target.value)
+                        }
                         InputProps={{
                           inputProps: {
                             list: `category-options-${categoryIndex}`,
@@ -545,7 +601,9 @@ const NERQuestions = ({
           style={{ marginTop: '10px' }}
           disabled={!!appName && !workflowNames.includes(modelName)}
         />
-        {warningMessage && <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>}
+        {warningMessage && (
+          <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>
+        )}
       </Box>
 
       <Divider sx={{ my: 4 }} />

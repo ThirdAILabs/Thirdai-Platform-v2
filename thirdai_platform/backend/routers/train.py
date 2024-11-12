@@ -1,3 +1,4 @@
+import io
 import json
 import logging
 import os
@@ -5,8 +6,9 @@ import secrets
 import shutil
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
+import pandas as pd
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access
 from backend.datagen import generate_data_for_train_job
@@ -34,7 +36,7 @@ from backend.utils import (
 from data_generation_job.llms import verify_llm_access
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from platform_common.file_handler import download_local_files
 from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
@@ -1081,6 +1083,222 @@ def train_udt(
             "user_id": str(user.id),
         },
     )
+
+
+def extract_labels_from_csv(file: UploadFile) -> Set[str]:
+    """Extract unique labels from the target column of the CSV."""
+    # Read CSV content
+    content = file.file.read()
+    file.file.seek(0)  # Reset file pointer for later use
+
+    # Parse CSV
+    df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+
+    # Extract all unique tags from the target column
+    all_tags = set()
+    for row in df["target"]:
+        tags = row.split()
+        all_tags.update(set(tags) - {"O"})  # Exclude the 'O' tag
+
+    return all_tags
+
+
+@train_router.post("/train-token-classifier")
+async def train_token_classifier(
+    model_name: str,
+    file: UploadFile = File(...),
+    test_split: float = Form(default=0.1),
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Train a token classification model from a CSV file.
+    The CSV must have 'source' and 'target' columns.
+    """
+    user: schema.User = authenticated_user.user
+
+    # Validate file type
+    if not file.filename.endswith(".csv"):
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="File must be a CSV",
+        )
+
+    try:
+        # Extract unique labels from the CSV
+        target_labels = extract_labels_from_csv(file)
+
+        if not target_labels:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="No valid labels found in the target column",
+            )
+
+        # Validate model name
+        try:
+            validate_name(model_name)
+        except:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"{model_name} is not a valid model name.",
+            )
+
+        # Check for duplicate model
+        duplicate_model = get_model(
+            session, username=user.username, model_name=model_name
+        )
+        if duplicate_model:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Model with name {model_name} already exists for user {user.username}.",
+            )
+
+        # Generate IDs
+        model_id = uuid.uuid4()
+        data_id = str(model_id)
+
+        # Save uploaded file
+        file_path = os.path.join(
+            model_bazaar_path(), "data", data_id, "supervised", file.filename
+        )
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+        with open(file_path, "wb") as buffer:
+            buffer.write(file.file.read())
+
+        # Create configuration
+        config = TrainConfig(
+            model_bazaar_dir=model_bazaar_path(),
+            license_key=validate_license_info()["boltLicenseKey"],
+            model_bazaar_endpoint=os.getenv(
+                "PRIVATE_MODEL_BAZAAR_ENDPOINT", None
+            ),  # Fixed this line
+            model_id=str(model_id),
+            data_id=data_id,
+            base_model_id=None,
+            model_options=UDTOptions(
+                model_type="udt",  # Added model type
+                udt_options=TokenClassificationOptions(
+                    target_labels=list(target_labels),
+                    source_column="source",
+                    target_column="target",
+                    default_tag="O",
+                ),
+                # train_options=UDTTrainOptions(test_split=test_split),  # Added back train_options
+            ),
+            data=UDTData(
+                supervised_files=[
+                    FileInfo(
+                        path=file_path,
+                        location="local",
+                        filename=file.filename,
+                        content_type="text/csv",
+                    )
+                ],
+                test_files=[],
+            ),
+            job_options=JobOptions(),
+        )
+
+        # Save configuration
+        config_path = os.path.join(
+            config.model_bazaar_dir, "models", str(model_id), "train_config.json"
+        )
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        with open(config_path, "w") as f:
+            f.write(config.model_dump_json(indent=4))
+
+        # Create model in database
+        new_model: schema.Model = schema.Model(
+            id=model_id,
+            user_id=user.id,
+            train_status=schema.Status.not_started,
+            deploy_status=schema.Status.not_started,
+            name=model_name,
+            type="udt",
+            sub_type="token",
+            domain=user.email.split("@")[1],
+            access_level=schema.Access.private,
+        )
+
+        session.add(new_model)
+        session.commit()
+        session.refresh(new_model)
+
+        # Add model attribute
+        attribute = schema.ModelAttribute(  # Added this from the working endpoint
+            model_id=model_id,
+            key="datagen",
+            value="false",
+        )
+        session.add(attribute)
+        session.commit()
+
+        # Submit training job
+        work_dir = os.getcwd()  # Added this from working endpoint
+        try:
+            submit_nomad_job(
+                str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
+                nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+                platform=get_platform(),
+                tag=os.getenv("TAG"),
+                registry=os.getenv("DOCKER_REGISTRY"),
+                docker_username=os.getenv("DOCKER_USERNAME"),
+                docker_password=os.getenv("DOCKER_PASSWORD"),
+                image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
+                thirdai_platform_dir=thirdai_platform_dir(),
+                train_script="train_job.run",
+                model_id=str(model_id),
+                share_dir=os.getenv("SHARE_DIR", None),
+                python_path=get_python_path(),
+                aws_access_key=(
+                    os.getenv("AWS_ACCESS_KEY", "")
+                ),  # Added these AWS/Azure/GCP params
+                aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+                aws_region_name=(os.getenv("AWS_REGION_NAME", "")),
+                azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
+                azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
+                gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
+                train_job_name=new_model.get_train_job_name(),
+                config_path=config_path,
+                allocation_cores=config.job_options.allocation_cores,
+                allocation_memory=config.job_options.allocation_memory,
+                allocation_memory_max=config.job_options.allocation_memory,
+            )
+
+            new_model.train_status = schema.Status.starting
+            session.commit()
+        except Exception as err:
+            new_model.train_status = schema.Status.failed
+            session.add(
+                schema.JobError(
+                    model_id=new_model.id,
+                    job_type="train",
+                    status=schema.Status.failed,
+                    message=f"Failed to start the training job on nomad. Received error: {err}",
+                )
+            )
+            session.commit()
+            logging.error(str(err))
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message=str(err),
+            )
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully submitted the training job",
+            data={
+                "model_id": str(model_id),
+                "user_id": str(user.id),
+            },
+        )
+
+    except Exception as err:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
+        )
 
 
 @train_router.get("/train-report", dependencies=[Depends(verify_model_read_access)])

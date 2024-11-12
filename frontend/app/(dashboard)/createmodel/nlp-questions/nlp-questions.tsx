@@ -1,15 +1,7 @@
 import React, { useState } from 'react';
 import NERQuestions from './ner-questions';
 import SCQQuestions from './sentence-classification-questions';
-import { 
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Typography,
-  Box,
-  Divider
-} from '@mui/material';
+import { FormControl, InputLabel, Select, MenuItem, Typography, Box, Divider } from '@mui/material';
 import { CardDescription } from '@/components/ui/card';
 
 interface NLPQuestionsProps {
@@ -42,7 +34,7 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
   };
 
   const renderSelectedComponent = () => {
-    switch(selectedType) {
+    switch (selectedType) {
       case 'text-classification':
         return (
           <SCQQuestions
@@ -52,29 +44,20 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
           />
         );
       case 'text-extraction':
-        return (
-          <NERQuestions
-            workflowNames={workflowNames}
-            modelGoal="Text Extraction Task"
-          />
-        );
+        return <NERQuestions workflowNames={workflowNames} modelGoal="Text Extraction Task" />;
       case 'document-classification':
         return (
           <Box>
             <Typography variant="h6" sx={{ mb: 1 }}>
               Document Classification
             </Typography>
-            <CardDescription>
-              Document classification component to be implemented
-            </CardDescription>
+            <CardDescription>Document classification component to be implemented</CardDescription>
           </Box>
         );
       default:
         return (
           <Box sx={{ mt: 2 }}>
-            <CardDescription>
-              Please select an NLP task type to begin
-            </CardDescription>
+            <CardDescription>Please select an NLP task type to begin</CardDescription>
           </Box>
         );
     }
@@ -85,20 +68,14 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
       <Typography variant="h6" sx={{ mb: 1 }}>
         NLP Task Assistant
       </Typography>
-      
+
       <FormControl fullWidth sx={{ mb: 3 }}>
         <InputLabel>Select an NLP task type</InputLabel>
-        <Select
-          value={selectedType}
-          label="Select an NLP task type"
-          onChange={handleChange}
-        >
+        <Select value={selectedType} label="Select an NLP task type" onChange={handleChange}>
           {NLP_TYPES.map((type) => (
             <MenuItem key={type.value} value={type.value}>
               <Box>
-                <Typography variant="subtitle1">
-                  {type.label}
-                </Typography>
+                <Typography variant="subtitle1">{type.label}</Typography>
                 <Typography variant="body2" color="text.secondary">
                   {type.description}
                 </Typography>
@@ -109,7 +86,7 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
       </FormControl>
 
       {selectedType && <Divider sx={{ mb: 3 }} />}
-      
+
       {renderSelectedComponent()}
     </Box>
   );

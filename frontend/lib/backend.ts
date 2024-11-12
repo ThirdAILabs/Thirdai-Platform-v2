@@ -460,6 +460,53 @@ export function trainUDTWithCSV({
   });
 }
 
+interface TrainTokenClassifierParams {
+  modelName: string;
+  file: File;
+  testSplit?: number;
+}
+
+export function trainTokenClassifierFromCSV({
+  modelName,
+  file,
+  testSplit = 0.1,
+}: TrainTokenClassifierParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('test_split', testSplit.toString());
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/train/train-token-classifier?model_name=${modelName}`,
+        formData
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error(
+                (axiosError.response.data as any).detail ||
+                  'Failed to train token classification model'
+              )
+            );
+          } else {
+            reject(new Error('Failed to train token classification model'));
+          }
+        } else {
+          reject(new Error('Failed to train token classification model'));
+        }
+      });
+  });
+}
+
 // types.ts
 export interface MetricValues {
   precision: number;

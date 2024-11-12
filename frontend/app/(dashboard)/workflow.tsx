@@ -213,16 +213,6 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
     }
   };
 
-  const [showModal, setShowModal] = useState(false);
-
-  const toggleModal = () => {
-    setShowModal(!showModal);
-  };
-
-  const formatBytesToMB = (bytes: string) => {
-    return (parseInt(bytes) / (1024 * 1024)).toFixed(2) + ' MB';
-  };
-
   // Add new state for error handling
   const [error, setError] = useState<ErrorState | null>(null);
   const [warning, setWarning] = useState<WarningState | null>(null);
@@ -361,11 +351,6 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         >
           {getButtonValue(deployStatus)}
         </Button>
-      </TableCell>
-      <TableCell className="text-center font-medium">
-        <button onClick={toggleModal} className="text-gray-400 hover:text-gray-600 text-sm">
-          <InformationCircleIcon className="h-6 w-6" />
-        </button>
       </TableCell>
       <TableCell className="text-center font-medium">
         <DropdownMenu>
@@ -599,42 +584,6 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
                   </ul>
                 </div>
               )}
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* Modal for displaying model details */}
-      {showModal && (
-        <Modal onClose={toggleModal}>
-          <div className="p-4">
-            <h2 className="text-lg font-bold mb-4">App Details</h2>
-            <div className="overflow-x-auto">
-              <table className="min-w-full table-auto border-collapse border border-gray-300">
-                <thead>
-                  <tr className="bg-gray-200">
-                    <th className="border px-4 py-2 text-left">Model Name</th>
-                    <th className="border px-4 py-2 text-left">Size on Disk (MB)</th>
-                    <th className="border px-4 py-2 text-left">Size in Memory (MB)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* {workflow.models.map((model, index) => (
-                    <tr key={index} className="hover:bg-gray-100">
-                      <td className="border px-4 py-2">{model.model_name}</td>
-                      <td className="border px-4 py-2">{formatBytesToMB(model.size)}</td>
-                      <td className="border px-4 py-2">{formatBytesToMB(model.size_in_memory)}</td>
-                    </tr>
-                  ))} */}
-                  {/* {workflow.models.map((model, index) => ( */}
-                  <tr className="hover:bg-gray-100">
-                    <td className="border px-4 py-2">{workflow.model_name}</td>
-                    <td className="border px-4 py-2">{formatBytesToMB(workflow.size)}</td>
-                    <td className="border px-4 py-2">{formatBytesToMB(workflow.size_in_memory)}</td>
-                  </tr>
-                  {/* ))} */}
-                </tbody>
-              </table>
             </div>
           </div>
         </Modal>

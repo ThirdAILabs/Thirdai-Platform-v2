@@ -59,6 +59,7 @@ func (s *DeployService) Routes() chi.Router {
 		r.Use(s.jobAuth.Authenticator())
 
 		r.Post("/update-status", s.UpdateStatus)
+		r.Post("/log", s.JobLog)
 	})
 
 	return r
@@ -228,13 +229,17 @@ func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *DeployService) GetStatus(w http.ResponseWriter, r *http.Request) {
-	getStatusHandler(w, r, s.db, false)
+	getStatusHandler(w, r, s.db, "deploy")
 }
 
 func (s *DeployService) UpdateStatus(w http.ResponseWriter, r *http.Request) {
-	updateStatusHandler(w, r, s.db, false)
+	updateStatusHandler(w, r, s.db, "deploy")
 }
 
 func (s *DeployService) Logs(w http.ResponseWriter, r *http.Request) {
-	getLogsHandler(w, r, s.db, s.nomad, true)
+	getLogsHandler(w, r, s.db, s.nomad, "deploy")
+}
+
+func (s *DeployService) JobLog(w http.ResponseWriter, r *http.Request) {
+	jobLogHandler(w, r, s.db, "deploy")
 }

@@ -48,6 +48,7 @@ func (s *TrainService) Routes() chi.Router {
 		r.Use(s.jobAuth.Authenticator())
 
 		r.Post("/update-status", s.UpdateStatus)
+		r.Post("/log", s.JobLog)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -268,13 +269,17 @@ func (s *TrainService) UploadFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TrainService) GetStatus(w http.ResponseWriter, r *http.Request) {
-	getStatusHandler(w, r, s.db, true)
+	getStatusHandler(w, r, s.db, "train")
 }
 
 func (s *TrainService) UpdateStatus(w http.ResponseWriter, r *http.Request) {
-	updateStatusHandler(w, r, s.db, true)
+	updateStatusHandler(w, r, s.db, "train")
 }
 
 func (s *TrainService) Logs(w http.ResponseWriter, r *http.Request) {
-	getLogsHandler(w, r, s.db, s.nomad, true)
+	getLogsHandler(w, r, s.db, s.nomad, "train")
+}
+
+func (s *TrainService) JobLog(w http.ResponseWriter, r *http.Request) {
+	jobLogHandler(w, r, s.db, "train")
 }

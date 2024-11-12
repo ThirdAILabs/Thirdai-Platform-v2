@@ -12,6 +12,7 @@ import (
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -136,12 +137,34 @@ func countDownstreamModels(modelId string, db *gorm.DB, activeOnly bool) (int64,
 	return count, nil
 }
 
-type statusResponse struct {
-	Status   string   `json:"status"`
-	Messages []string `json:"messages"`
+func getJobLogs(db *gorm.DB, modelId, job string) ([]string, []string, error) {
+	var logs []schema.JobLog
+
+	result := db.Where("model_id = ?", modelId).Where("job = ?", job).Find(&logs)
+	if result.Error != nil {
+		return nil, nil, schema.NewDbError("retrieving job messages", result.Error)
+	}
+
+	errors := make([]string, 0)
+	warnings := make([]string, 0)
+	for _, log := range logs {
+		if log.Level == "error" {
+			errors = append(errors, log.Message)
+		} else if log.Level == "warning" {
+			warnings = append(warnings, log.Message)
+		}
+	}
+
+	return errors, warnings, nil
 }
 
-func getStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, trainStatus bool) {
+type statusResponse struct {
+	Status   string   `json:"status"`
+	Warnings []string `json:"warnings"`
+	Errors   []string `json:"errors"`
+}
+
+func getStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job string) {
 	params := r.URL.Query()
 	if !params.Has("model_id") {
 		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
@@ -157,19 +180,26 @@ func getStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, train
 			return err
 		}
 
-		status, messages, err := getModelStatus(model, txn, trainStatus)
+		status, _, err := getModelStatus(model, txn, job == "train")
 		if err != nil {
 			return err
 		}
 		res.Status = status
-		res.Messages = messages
 		return nil
 	})
 
 	if err != nil {
-		http.Error(w, fmt.Sprintf("retrieving model status"), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("retrieving model status: %v", err), http.StatusBadRequest)
 		return
 	}
+
+	warnings, errors, err := getJobLogs(db, modelId, job)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("retrieving model job messages: %v", err), http.StatusBadRequest)
+		return
+	}
+	res.Errors = errors
+	res.Warnings = warnings
 
 	writeJsonResponse(w, res)
 }
@@ -179,7 +209,7 @@ type updateStatusRequest struct {
 	Metadata map[string]interface{} `json:"metadata"`
 }
 
-func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, trainStatus bool) {
+func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job string) {
 	modelId, err := auth.ValueFromContext(r, "model_id")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -191,14 +221,7 @@ func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, tr
 		return
 	}
 
-	var key string
-	if trainStatus {
-		key = "train_status"
-	} else {
-		key = "deploy_status"
-	}
-
-	result := db.Model(&schema.Model{Id: modelId}).Update(key, params.Status)
+	result := db.Model(&schema.Model{Id: modelId}).Update(job+"_status", params.Status)
 	if result.Error != nil {
 		err := schema.NewDbError("updating model status", result.Error)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -223,7 +246,35 @@ func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, tr
 	writeSuccess(w)
 }
 
-func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad.NomadClient, training bool) {
+type jobLogRequest struct {
+	Level   string `json:"level"`
+	Message string `json:"message"`
+}
+
+func jobLogHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job string) {
+	modelId, err := auth.ValueFromContext(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var params jobLogRequest
+	if !parseRequestBody(w, r, &params) {
+		return
+	}
+
+	log := schema.JobLog{Id: uuid.New().String(), ModelId: modelId, Job: job, Level: params.Level, Message: params.Message}
+	result := db.Create(&log)
+	if result.Error != nil {
+		err := schema.NewDbError("creating job log", result.Error)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeSuccess(w)
+}
+
+func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad.NomadClient, job string) {
 	params := r.URL.Query()
 	if !params.Has("model_id") {
 		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
@@ -238,7 +289,7 @@ func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad
 	}
 
 	var jobName string
-	if training {
+	if job == "train" {
 		jobName = model.TrainJobName()
 	} else {
 		jobName = model.DeployJobName()

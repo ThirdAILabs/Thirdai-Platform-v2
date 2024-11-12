@@ -81,6 +81,14 @@ type UserTeam struct {
 	Team *Team
 }
 
+type JobLog struct {
+	Id      string `gorm:"primaryKey"`
+	ModelId string `gorm:"index"`
+	Job     string
+	Level   string
+	Message string
+}
+
 func (m *Model) TrainJobName() string {
 	return fmt.Sprintf("train-%v-%v", m.Id, m.Type)
 }

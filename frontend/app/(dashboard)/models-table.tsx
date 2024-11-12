@@ -109,27 +109,37 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
                     index={index}
                   />
                   {!isCollapsedList[index] && (
-                    <>
-                      <hr></hr>
-                      <TableRow>
-                        <TableCell></TableCell>  {/* To  */}
-                        <TableCell colSpan={7}>
-                          {workflow.dependencies.map((dependency) => (
+                    <TableRow>
+                      <TableCell />  {/*To shift the dependency table slightly right*/}
+                      <TableCell colSpan={3}>
+                        <div
+                          style={{
+                            paddingLeft: '1rem', // Indentation
+                            border: '1px solid #ccc', // Vertical line to show nesting
+                            backgroundColor: '#f9f9f9', // Light background color for distinction
+                            borderRadius: '10px', // Rounded corners
+                            margin: '0.5rem 0', // Space around collapsed content
+                            padding: '0.5rem',
+                          }}
+                        >
+                          {workflow.dependencies.map((dependency) =>
                             workflows.map((item) => {
                               if (dependency.model_id === item.model_id) {
                                 return (
                                   <WorkFlow
+                                    key={item.model_id}
                                     workflow={item}
                                     handleCollapse={toggleIsCollapsedList}
                                     index={index}
                                   />
                                 );
                               }
+                              return null; // Prevents rendering undefined items
                             })
-                          ))}
-                        </TableCell>
-                      </TableRow>
-                    </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   )}
                 </React.Fragment>
               ))}

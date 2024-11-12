@@ -13,13 +13,13 @@ from backend.datagen import generate_data_for_train_job
 from backend.utils import (
     copy_data_storage,
     delete_nomad_job,
-    get_detailed_reasons,
     get_job_logs,
     get_model,
     get_model_from_identifier,
     get_model_status,
     get_platform,
     get_python_path,
+    get_warnings_and_errors,
     model_bazaar_path,
     nomad_job_exists,
     remove_unused_samples,
@@ -763,8 +763,8 @@ def retrain_udt(
     token_classification_options = TokenClassificationDatagenOptions(
         sub_type=UDTSubType.token,
         tags=tags,
-        num_sentences_to_generate=10_000,
-        num_samples_per_tag=500,
+        num_sentences_to_generate=1_000,
+        num_samples_per_tag=100,
         samples=token_classification_samples,
     )
 
@@ -1002,6 +1002,28 @@ def train_udt(
             message=str(err),
         )
 
+    if base_model:
+        try:
+            copy_data_storage(base_model, new_model)
+            remove_unused_samples(base_model)
+        except Exception as err:
+            new_model.train_status = schema.Status.failed
+            msg = "Unable to start training job. Encountered error loading data from specified base model."
+            logging.error(f"error copying storage from ner base model: {err}")
+            session.add(
+                schema.JobError(
+                    model_id=new_model.id,
+                    job_type="train",
+                    status=schema.Status.failed,
+                    message=msg,
+                )
+            )
+            session.commit()
+
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=msg
+            )
+
     work_dir = os.getcwd()
 
     try:
@@ -1036,6 +1058,14 @@ def train_udt(
         session.commit()
     except Exception as err:
         new_model.train_status = schema.Status.failed
+        session.add(
+            schema.JobError(
+                model_id=new_model.id,
+                job_type="train",
+                status=schema.Status.failed,
+                message=f"Failed to start the training job on nomad. Received error: {err}",
+            )
+        )
         session.commit()
         logging.error(str(err))
         return response(
@@ -1050,6 +1080,46 @@ def train_udt(
             "model_id": str(model_id),
             "user_id": str(user.id),
         },
+    )
+
+
+@train_router.get("/train-report", dependencies=[Depends(verify_model_read_access)])
+def train_report(model_identifier: str, session: Session = Depends(get_session)):
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    if model.train_status != schema.Status.complete:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Cannot get train report for model {model_identifier} since training is not completed.",
+        )
+
+    report_dir = os.path.join(
+        model_bazaar_path(), "models", str(model.id), "train_reports"
+    )
+    if not os.path.exists(report_dir) or len(os.listdir(report_dir)) == 0:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=(
+                f"No training reports found for model {model_identifier}. Train reports "
+                "are currently only availible for token classification use cases and if a test set "
+                "or test_split is provided."
+            ),
+        )
+
+    reports = os.listdir(report_dir)
+    most_recent_report = max([int(os.path.splitext(report)[0]) for report in reports])
+
+    with open(os.path.join(report_dir, f"{most_recent_report}.json")) as f:
+        report = json.load(f)
+
+    return response(
+        status_code=status.HTTP_200_OK, message="Retrieved train report", data=report
     )
 
 
@@ -1150,18 +1220,43 @@ def train_fail(
         )
 
     trained_model.train_status = new_status
-    if message:
+    if new_status == schema.Status.failed and message:
         session.add(
-            schema.JobError(
+            schema.JobMessage(
                 model_id=trained_model.id,
                 job_type="train",
-                status=new_status,
+                level=schema.Level.error,
                 message=message,
             )
         )
     session.commit()
 
     return {"message": f"successfully updated with following {message}"}
+
+
+@train_router.post("/warning")
+def train_warning(model_id: str, message: str, session: Session = Depends(get_session)):
+    trained_model: schema.Model = (
+        session.query(schema.Model).filter(schema.Model.id == model_id).first()
+    )
+
+    if not trained_model:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"No model with id {model_id}.",
+        )
+
+    session.add(
+        schema.JobMessage(
+            model_id=trained_model.id,
+            job_type="train",
+            level=schema.Level.warning,
+            message=message,
+        )
+    )
+    session.commit()
+
+    return {"message": "successfully logged the message"}
 
 
 @train_router.get("/status", dependencies=[Depends(verify_model_read_access)])
@@ -1189,9 +1284,7 @@ def train_status(
         )
 
     train_status, reasons = get_model_status(model, train_status=True)
-    reasons = get_detailed_reasons(
-        session=session, job_type="train", status=train_status, reasons=reasons
-    )
+    warnings, errors = get_warnings_and_errors(session, model, job_type="train")
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the train status.",
@@ -1199,6 +1292,8 @@ def train_status(
             "model_identifier": model_identifier,
             "train_status": train_status,
             "messages": reasons,
+            "warnings": warnings,
+            "errors": errors,
         },
     )
 

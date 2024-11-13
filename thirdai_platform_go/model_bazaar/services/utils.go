@@ -141,11 +141,21 @@ func countDownstreamModels(modelId string, db *gorm.DB, activeOnly bool) (int64,
 }
 
 func getJobLogs(db *gorm.DB, modelId, job string) ([]string, []string, error) {
+	deps, err := listModelDependencies(modelId, db)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error retrieving job logs: %w", err)
+	}
+
+	depIds := make([]string, 0, len(deps))
+	for _, dep := range deps {
+		depIds = append(depIds, dep.Id)
+	}
+
 	var logs []schema.JobLog
 
-	result := db.Where("model_id = ?", modelId).Where("job = ?", job).Find(&logs)
+	result := db.Where("model_id IN ?", depIds).Where("job = ?", job).Find(&logs)
 	if result.Error != nil {
-		return nil, nil, schema.NewDbError("retrieving job messages", result.Error)
+		return nil, nil, schema.NewDbError("retrieving job logs", result.Error)
 	}
 
 	errors := make([]string, 0)

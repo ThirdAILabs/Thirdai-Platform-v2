@@ -36,10 +36,6 @@ const (
 	WritePerm = "write"
 )
 
-func IsValidPermission(permission string) bool {
-	return permission == ReadPerm || permission == WritePerm
-}
-
 func CheckValidPermission(permission string) error {
 	if permission == ReadPerm || permission == WritePerm {
 		return nil
@@ -52,3 +48,10 @@ const (
 	NlpTokenModel = "nlp-token"
 	NlpTextModel  = "nlp-text"
 )
+
+func CheckValidModelType(modelType string) error {
+	if modelType == NdbModel || modelType == NlpTokenModel || modelType == NlpTextModel {
+		return nil
+	}
+	return fmt.Errorf("invalid model type '%v'", modelType)
+}

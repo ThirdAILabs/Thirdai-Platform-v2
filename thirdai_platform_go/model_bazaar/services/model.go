@@ -351,6 +351,11 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := schema.CheckValidModelType(params.ModelType); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	userId, err := auth.UserIdFromContext(r)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusBadRequest)

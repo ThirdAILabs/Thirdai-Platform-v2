@@ -289,6 +289,11 @@ func jobLogHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job stri
 		return
 	}
 
+	if params.Level != "warning" && params.Level != "error" {
+		http.Error(w, fmt.Sprintf("invalid log level '%v', must be 'warning' or 'error'", params.Level), http.StatusBadRequest)
+		return
+	}
+
 	log := schema.JobLog{Id: uuid.New().String(), ModelId: modelId, Job: job, Level: params.Level, Message: params.Message}
 	result := db.Create(&log)
 	if result.Error != nil {

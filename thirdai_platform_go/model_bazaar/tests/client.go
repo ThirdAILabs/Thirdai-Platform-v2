@@ -35,7 +35,7 @@ func jsonError(err error) error {
 
 func get[T any](c *client, endpoint string) (T, error) {
 	req := httptest.NewRequest("GET", endpoint, nil)
-	addAuthHeader(req, c.token)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %v", c.token))
 	w := httptest.NewRecorder()
 	c.api.ServeHTTP(w, req)
 
@@ -64,8 +64,14 @@ func post[T any](c *client, endpoint string, body []byte) (T, error) {
 }
 
 func postWithToken[T any](c *client, endpoint string, body []byte, token string) (T, error) {
+	return postWithHeaders[T](c, endpoint, body, map[string]string{"Authorization": fmt.Sprintf("Bearer %v", token)})
+}
+
+func postWithHeaders[T any](c *client, endpoint string, body []byte, headers map[string]string) (T, error) {
 	req := httptest.NewRequest("POST", endpoint, bytes.NewReader(body))
-	addAuthHeader(req, token)
+	for k, v := range headers {
+		req.Header.Add(k, v)
+	}
 	w := httptest.NewRecorder()
 	c.api.ServeHTTP(w, req)
 
@@ -85,10 +91,6 @@ func postWithToken[T any](c *client, endpoint string, body []byte, token string)
 	}
 
 	return data, nil
-}
-
-func addAuthHeader(r *http.Request, token string) {
-	r.Header.Add("Authorization", fmt.Sprintf("Bearer %v", token))
 }
 
 var ErrUnauthorized = errors.New("unauthorized")
@@ -362,7 +364,7 @@ func (c *client) uploadModel(modelName, modelType, path string, chunksize int) (
 func (c *client) downloadModel(modelId string, dest string) error {
 	endpoint := fmt.Sprintf("/model/download?model_id=%v", modelId)
 	req := httptest.NewRequest("GET", endpoint, nil)
-	addAuthHeader(req, c.token)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %v", c.token))
 	w := httptest.NewRecorder()
 	c.api.ServeHTTP(w, req)
 

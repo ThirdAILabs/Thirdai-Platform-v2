@@ -5,7 +5,6 @@ from urllib.parse import urljoin
 import pytest
 from utils import doc_dir
 
-pass
 from client.bazaar import ModelBazaar
 from client.utils import auth_header, http_get_with_error, http_post_with_error
 
@@ -20,7 +19,7 @@ def test_deployment_name():
     model1 = admin_client.train(
         f"basic_ndb_{uuid.uuid4()}",
         unsupervised_docs=[os.path.join(doc_dir(), "articles.csv")],
-        model_options={"ndb_options": {"ndb_sub_type": "v2"}},
+        model_options={},
         supervised_docs=[],
         is_async=True,
         job_options={"allocation_memory": 600},
@@ -29,7 +28,7 @@ def test_deployment_name():
     model2 = admin_client.train(
         f"basic_ndb_{uuid.uuid4()}",
         unsupervised_docs=[os.path.join(doc_dir(), "mutual_nda.pdf")],
-        model_options={"ndb_options": {"ndb_sub_type": "v2"}},
+        model_options={},
         supervised_docs=[],
         is_async=True,
     )

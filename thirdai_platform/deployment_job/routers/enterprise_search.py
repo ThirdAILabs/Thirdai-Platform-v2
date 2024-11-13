@@ -1,7 +1,6 @@
 from logging import Logger
 from urllib.parse import urljoin
 
-import requests
 from deployment_job.permissions import Permissions
 from fastapi import APIRouter, Depends, status
 from fastapi.encoders import jsonable_encoder
@@ -11,6 +10,7 @@ from platform_common.utils import response
 from prometheus_client import Summary
 from pydantic_models import inputs
 from reporter import Reporter
+from requests import Session
 
 query_metric = Summary("enterprise_search_query", "Enterprise Search Queries")
 
@@ -20,6 +20,7 @@ class EnterpriseSearchRouter:
         self.config = config
         self.logger = logger
 
+        self.session = Session()
         self.retrieval_endpoint = urljoin(
             self.config.model_bazaar_endpoint,
             self.config.model_options.retrieval_id + "/",
@@ -48,7 +49,7 @@ class EnterpriseSearchRouter:
         params: inputs.NDBSearchParams,
         token: str = Depends(Permissions.verify_permission("read")),
     ):
-        res = requests.post(
+        res = self.session.post(
             url=urljoin(self.retrieval_endpoint, "search"),
             json=params.model_dump(),
             headers={

@@ -54,33 +54,6 @@ interface CachedTags {
   [key: string]: CachedTagEntry;
 }
 
-// import { TimerIcon } from 'lucide-react';
-
-// interface InferenceTimeDisplayProps {
-//   processingTime: number;
-// }
-
-// const InferenceTimeDisplay: React.FC<InferenceTimeDisplayProps> = ({ processingTime }) => {
-//   return (
-//     <Card className="bg-white hover:bg-gray-50 transition-colors mb-5">
-//       <CardContent className="p-6">
-//         <div className="flex items-center gap-4">
-//           <div className="p-3 bg-primary/10 rounded-full">
-//             <TimerIcon className="w-6 h-6 text-primary" />
-//           </div>
-//           <div className="flex flex-col">
-//             <span className="text-sm text-muted-foreground">Inference Time</span>
-//             <div className="flex items-baseline gap-1">
-//               <span className="text-2xl font-bold">{(processingTime * 1000).toFixed(2)}</span>
-//               <span className="text-sm text-muted-foreground">ms</span>
-//             </div>
-//           </div>
-//         </div>
-//       </CardContent>
-//     </Card>
-//   );
-// };
-
 interface TagSelectorProps {
   open: boolean;
   choices: string[];
@@ -303,6 +276,7 @@ export default function Interact() {
     setInputText(event.target.value);
     setParsedData(null);
     setAnnotations([]);
+    setProcessingTime(undefined); // make time display disppears as typying begins
   };
 
   const [fileError, setFileError] = useState<string | null>(null);
@@ -396,6 +370,11 @@ export default function Interact() {
   };
 
   const handleRun = async (text: string, isFileUpload: boolean = false) => {
+    // Check for empty text or only whitespace
+    if (!text?.trim()) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       const result = await predict(text);
@@ -984,7 +963,12 @@ export default function Interact() {
           marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
         }}
       >
-        {processingTime !== undefined && <InferenceTimeDisplay processingTime={processingTime} />}
+        {processingTime !== undefined && annotations.length && (
+          <div className="mb-4">
+            {' '}
+            <InferenceTimeDisplay processingTime={processingTime} tokenCount={annotations.length} />
+          </div>
+        )}
 
         <Card className="p-7 text-start">
           <FeedbackDashboard

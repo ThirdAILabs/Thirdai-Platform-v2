@@ -83,7 +83,6 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
               <TableHead className="hidden md:table-cell text-center">Type</TableHead>
               <TableHead className="hidden md:table-cell text-center">Published on</TableHead>
               <TableHead className="hidden md:table-cell text-center">Action</TableHead>
-              <TableHead className="hidden md:table-cell text-center">Details</TableHead>
               <TableHead className="text-center">
                 <span className="sr-only">Actions</span>
               </TableHead>

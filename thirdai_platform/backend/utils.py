@@ -7,8 +7,6 @@ import shutil
 from collections import defaultdict, deque
 from functools import wraps
 from pathlib import Path
-
-pass
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
@@ -21,11 +19,8 @@ from jinja2 import Template
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from platform_common.pydantic_models.training import LabelEntity
 from platform_common.thirdai_storage import data_types, storage
+from platform_common.utils import model_bazaar_path
 from sqlalchemy.orm import Session
-
-
-def model_bazaar_path():
-    return "/model_bazaar" if os.path.exists("/.dockerenv") else os.getenv("SHARE_DIR")
 
 
 def hash_password(password: str):

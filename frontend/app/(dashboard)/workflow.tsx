@@ -27,9 +27,9 @@ import { InformationCircleIcon } from '@heroicons/react/solid';
 import { Model, getModels } from '@/utils/apiRequests';
 import { UserContext } from '../user_wrapper';
 import { ContentCopy, Download } from '@mui/icons-material'; // MUI icons instead of SVG paths
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import { color } from 'framer-motion';
+import { ExpandMore, ExpandLess, ChevronRight } from '@mui/icons-material';
+// import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import { fetchWorkflows } from '@/lib/backend';
 
 enum DeployStatus {
   None = '',
@@ -58,14 +58,16 @@ interface WarningState {
 
 export function WorkFlow({
   workflow,
-  handleCollapse,
-  index,
-  allowActions
+  // handleCollapse,
+  // index,
+  allowActions,
+  level
 }: {
   workflow: Workflow;
-  handleCollapse: (index: number) => void;
-  index: number;
+  // handleCollapse: (index: number) => void;
+  // index: number;
   allowActions: boolean
+  level: number
 }) {
   const { user } = useContext(UserContext);
   const [deployStatus, setDeployStatus] = useState<DeployStatus>(DeployStatus.None);
@@ -73,7 +75,10 @@ export function WorkFlow({
   const [modelOwner, setModelOwner] = useState<{ [key: string]: string }>({});
   const [selectedMode, setSelectedMode] = useState<DeployMode>(DeployMode.Dev);
   const [showDeploymentModal, setShowDeploymentModal] = useState(false);
-
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
+  const toggleCollapseIcon = () => {
+    setIsCollapsed(!isCollapsed);
+  }
   useEffect(() => {
     getModelsData();
   }, []);
@@ -175,6 +180,30 @@ export function WorkFlow({
     toggleDeploymentModal();
     await handleDeploy();
   };
+
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+
+  useEffect(() => {
+    async function getWorkflows() {
+      try {
+        const fetchedWorkflows = await fetchWorkflows();
+        setWorkflows(fetchedWorkflows);
+      } catch (err) {
+        if (err instanceof Error) {
+          console.log(err.message);
+        } else {
+          console.log('An unknown error occurred');
+        }
+      }
+    }
+
+    // Call the function immediately
+    getWorkflows();
+
+    const intervalId = setInterval(getWorkflows, 3000);
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     if (workflow.train_status === 'failed') {
@@ -339,290 +368,327 @@ export function WorkFlow({
   };
 
   return (
-    <TableRow>
-      <TableCell className="font-bold text-center">{workflow.model_name}</TableCell>
-      <TableCell className="text-center font-medium">
-        <Badge variant="outline" className={`capitalize ${getBadgeColor(deployStatus)}`}>
-          {deployStatus}
-        </Badge>
-      </TableCell>
-      <TableCell className="hidden md:table-cell text-center font-medium">{deployType}</TableCell>
-      <TableCell className="hidden md:table-cell text-center font-medium">
-        {new Date(workflow.publish_date).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        })}
-      </TableCell>
-      <TableCell className="hidden md:table-cell text-center font-medium">
-        <Button
-          onClick={handleStartWorkflow}
-          variant="contained"
-          style={{ width: '100px' }}
-          disabled={deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive}
-        >
-          {getButtonValue(deployStatus)}
-        </Button>
-      </TableCell>
-      <TableCell className="text-center font-medium">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              aria-haspopup="true"
-              size="small"
-              variant="text" // Using "text" as base variant
-              sx={{
-                color: 'inherit', // Default text color
-                '&:hover': {
-                  backgroundColor: 'var(--accent)', // Replace with your accent color
-                  color: 'var(--accent-foreground)', // Replace with your foreground color for hover
-                },
+    <>
+      <TableRow>
+        {/* Collapsible button */}
+        {workflow.type === 'enterprise-search' ? (
+          <TableCell className="text-center font-medium">
+            <button
+              onClick={() => {
+                toggleCollapseIcon();
               }}
+              className="p-2 hover:bg-slate-200 rounded-lg"
             >
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Toggle menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            {deployStatus === DeployStatus.Active && (
-              <DropdownMenuItem
-                onClick={async () => {
-                  try {
-                    const response = await stop_workflow(workflow.username, workflow.model_name);
-                    console.log('Workflow undeployed successfully:', response);
-                    // Optionally, update the UI state to reflect the undeployment
-                    setDeployStatus(DeployStatus.Inactive);
-                  } catch (error) {
-                    console.error('Error undeploying workflow:', error);
-                    alert('Error undeploying workflow:' + error);
-                  }
+              {isCollapsed ? <ChevronRight /> : <ExpandMore />}
+            </button>
+          </TableCell>
+        ) : (<TableCell />)}
+
+        <TableCell>
+          <div className="flex items-center">
+            <div style={{ marginLeft: `${level * 20}px` }} className="flex items-center">
+              {level > 0 && (
+                <span className="mr-2 text-gray-400">└─</span>
+              )}
+              {workflow.model_name}
+            </div>
+          </div>
+        </TableCell>
+
+        <TableCell className="text-center font-medium">
+          <Badge variant="outline" className={`capitalize ${getBadgeColor(deployStatus)}`}>
+            {deployStatus}
+          </Badge>
+        </TableCell>
+        <TableCell className="hidden md:table-cell text-center font-medium">{deployType}</TableCell>
+        <TableCell className="hidden md:table-cell text-center font-medium">
+          {new Date(workflow.publish_date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}
+        </TableCell>
+        <TableCell className="hidden md:table-cell text-center font-medium">
+          <Button
+            onClick={handleStartWorkflow}
+            variant="contained"
+            style={{ width: '100px' }}
+            disabled={deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive}
+          >
+            {getButtonValue(deployStatus)}
+          </Button>
+        </TableCell>
+        <TableCell className="text-center font-medium">
+          {allowActions && <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                aria-haspopup="true"
+                size="small"
+                variant="text" // Using "text" as base variant
+                sx={{
+                  color: 'inherit', // Default text color
+                  '&:hover': {
+                    backgroundColor: 'var(--accent)', // Replace with your accent color
+                    color: 'var(--accent-foreground)', // Replace with your foreground color for hover
+                  },
                 }}
               >
-                <button type="button">Stop App</button>
-              </DropdownMenuItem>
-            )}
-
-            {(modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
-              <DropdownMenuItem
-                onClick={async () => {
-                  if (window.confirm('Are you sure you want to delete this workflow?')) {
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Toggle menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              {deployStatus === DeployStatus.Active && (
+                <DropdownMenuItem
+                  onClick={async () => {
                     try {
-                      const response = await delete_workflow(
-                        workflow.username,
-                        workflow.model_name
-                      );
-                      console.log('Workflow deleted successfully:', response);
+                      const response = await stop_workflow(workflow.username, workflow.model_name);
+                      console.log('Workflow undeployed successfully:', response);
+                      // Optionally, update the UI state to reflect the undeployment
+                      setDeployStatus(DeployStatus.Inactive);
                     } catch (error) {
-                      console.error('Error deleting workflow:', error);
-                      alert('Error deleting workflow:' + error);
+                      console.error('Error undeploying workflow:', error);
+                      alert('Error undeploying workflow:' + error);
                     }
-                  }
-                }}
-              >
-                <form>
-                  <button type="button">Delete App</button>
-                </form>
-              </DropdownMenuItem>
-            )}
+                  }}
+                >
+                  <button type="button">Stop App</button>
+                </DropdownMenuItem>
+              )}
 
-            {workflow.type === 'enterprise-search' &&
-              (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
+              {(modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
+                <DropdownMenuItem
+                  onClick={async () => {
+                    if (window.confirm('Are you sure you want to delete this workflow?')) {
+                      try {
+                        const response = await delete_workflow(
+                          workflow.username,
+                          workflow.model_name
+                        );
+                        console.log('Workflow deleted successfully:', response);
+                      } catch (error) {
+                        console.error('Error deleting workflow:', error);
+                        alert('Error deleting workflow:' + error);
+                      }
+                    }
+                  }}
+                >
+                  <form>
+                    <button type="button">Delete App</button>
+                  </form>
+                </DropdownMenuItem>
+              )}
+
+              {workflow.type === 'enterprise-search' &&
+                (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
+                  <Link
+                    href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
+                  >
+                    <DropdownMenuItem>
+                      <button type="button">Usage Dashboard</button>
+                    </DropdownMenuItem>
+                  </Link>
+                )}
+
+              {workflow.type === 'udt' && (
                 <Link
                   href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
                 >
                   <DropdownMenuItem>
-                    <button type="button">Usage Dashboard</button>
+                    <Tooltip
+                      title={
+                        deployStatus === DeployStatus.Failed ||
+                          deployStatus === DeployStatus.TrainingFailed
+                          ? 'Access restricted: model failed'
+                          : ''
+                      }
+                      arrow
+                    >
+                      <span>
+                        <button
+                          type="button"
+                          disabled={
+                            deployStatus === DeployStatus.Failed ||
+                            deployStatus === DeployStatus.TrainingFailed
+                          }
+                          style={{
+                            cursor:
+                              deployStatus === DeployStatus.Failed ||
+                                deployStatus === DeployStatus.TrainingFailed
+                                ? 'not-allowed'
+                                : 'pointer',
+                          }}
+                        >
+                          Usage Dashboard
+                        </button>
+                      </span>
+                    </Tooltip>
                   </DropdownMenuItem>
                 </Link>
               )}
+            </DropdownMenuContent>
+          </DropdownMenu>}
+        </TableCell>
 
-            {workflow.type === 'udt' && (
-              <Link
-                href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
+        {/* Single TableCell for both error and warning icons */}
+        <TableCell className="text-right pr-4">
+          <div className="flex items-center justify-end space-x-2">
+            {/* Error icon */}
+            {error && (
+              <Button
+                variant="contained"
+                color="error"
+                onClick={() => setShowErrorModal(true)}
+                size="small"
+                sx={{
+                  minWidth: 'unset',
+                  padding: '8px',
+                  borderRadius: '50%',
+                }}
               >
-                <DropdownMenuItem>
-                  <Tooltip
-                    title={
-                      deployStatus === DeployStatus.Failed ||
-                        deployStatus === DeployStatus.TrainingFailed
-                        ? 'Access restricted: model failed'
-                        : ''
-                    }
-                    arrow
-                  >
-                    <span>
-                      <button
-                        type="button"
-                        disabled={
-                          deployStatus === DeployStatus.Failed ||
-                          deployStatus === DeployStatus.TrainingFailed
-                        }
-                        style={{
-                          cursor:
-                            deployStatus === DeployStatus.Failed ||
-                              deployStatus === DeployStatus.TrainingFailed
-                              ? 'not-allowed'
-                              : 'pointer',
-                        }}
-                      >
-                        Usage Dashboard
-                      </button>
-                    </span>
-                  </Tooltip>
-                </DropdownMenuItem>
-              </Link>
+                <AlertCircle className="h-5 w-5" />
+              </Button>
             )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
 
-      {/* Single TableCell for both error and warning icons */}
-      <TableCell className="text-right pr-4">
-        <div className="flex items-center justify-end space-x-2">
-          {/* Error icon */}
-          {error && (
-            <Button
-              variant="contained"
-              color="error"
-              onClick={() => setShowErrorModal(true)}
-              size="small"
-              sx={{
-                minWidth: 'unset',
-                padding: '8px',
-                borderRadius: '50%',
-              }}
-            >
-              <AlertCircle className="h-5 w-5" />
-            </Button>
-          )}
+            {/* Warning icon */}
+            {warning && (
+              <Button
+                variant="contained"
+                color="warning"
+                onClick={() => setShowErrorModal(true)}
+                size="small"
+                sx={{
+                  minWidth: 'unset',
+                  padding: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: '#f59e0b',
+                  '&:hover': {
+                    backgroundColor: '#d97706',
+                  },
+                }}
+              >
+                <AlertCircle className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
+        </TableCell>
 
-          {/* Warning icon */}
-          {warning && (
-            <Button
-              variant="contained"
-              color="warning"
-              onClick={() => setShowErrorModal(true)}
-              size="small"
-              sx={{
-                minWidth: 'unset',
-                padding: '8px',
-                borderRadius: '50%',
-                backgroundColor: '#f59e0b',
-                '&:hover': {
-                  backgroundColor: '#d97706',
-                },
-              }}
-            >
-              <AlertCircle className="h-5 w-5" />
-            </Button>
-          )}
-        </div>
-      </TableCell>
-
-      {/* Collapsible button */}
+        {/* Collapsible button
       {workflow.type === 'enterprise-search' && (
         <TableCell className="text-center font-medium">
           <button
             onClick={() => {
               handleCollapse(index);
+              toggleCollapseIcon();
             }}
             className="p-2 hover:bg-slate-200 rounded-lg"
           >
-            {<ExpandMoreIcon />}
+            {isCollapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
           </button>
         </TableCell>
-      )}
+      )} */}
 
-      {/* Error/Warning Modal */}
-      {showErrorModal && (error || warning) && (
-        <Modal onClose={() => setShowErrorModal(false)}>
-          <div className="p-6 max-h-[80vh] flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">
-                {error?.type === 'training' || warning?.type === 'training'
-                  ? 'Training Status'
-                  : 'Deployment Status'}
-              </h2>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<ContentCopy />}
-                onClick={copyContentToClipboard}
-              >
-                Copy Content
-              </Button>
-            </div>
-            <div className="flex-1 overflow-y-auto min-h-0">
-              {/* Show errors if any */}
-              {error && error.messages.length > 0 && (
-                <div className="space-y-2 mb-4">
-                  <h3 className="font-medium text-red-600 sticky top-0 bg-white py-2">Errors:</h3>
-                  <ul className="list-disc pl-5 space-y-2">
-                    {error.messages.map((message, index) => (
-                      <li key={index} className="text-gray-600">
-                        {message}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Show warnings if any */}
-              {warning && warning.messages.length > 0 && (
-                <div className="space-y-2">
-                  <h3 className="font-medium text-amber-600 sticky top-0 bg-white py-2">
-                    Warnings:
-                  </h3>
-                  <ul className="list-disc pl-5 space-y-2">
-                    {warning.messages.map((message, index) => (
-                      <li key={index} className="text-gray-600">
-                        {message}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* Modal for selecting between Dev mode and Production mode */}
-      {showDeploymentModal && (
-        <Modal onClose={toggleDeploymentModal}>
-          <div className="p-2 max-w-[200px] mx-auto">
-            <h2 className="text-sm font-semibold mb-2">Choose Configuration</h2>
-            <div>
-              <RadioGroup
-                aria-label="mode-selection"
-                value={selectedMode}
-                onChange={(e) => setSelectedMode(e.target.value as DeployMode)}
-                className="space-y-1"
-              >
-                <div className="flex items-center space-x-1">
-                  <Radio value={DeployMode.Dev} size="small" />
-                  <span className="text-sm">Dev</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Radio value={DeployMode.Production} size="small" />
-                  <span className="text-sm">Prod</span>
-                </div>
-              </RadioGroup>
-              <div className="mt-2 flex justify-center">
+        {/* Error/Warning Modal */}
+        {showErrorModal && (error || warning) && (
+          <Modal onClose={() => setShowErrorModal(false)}>
+            <div className="p-6 max-h-[80vh] flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">
+                  {error?.type === 'training' || warning?.type === 'training'
+                    ? 'Training Status'
+                    : 'Deployment Status'}
+                </h2>
                 <Button
-                  onClick={handleModeSelection}
-                  variant="contained"
+                  variant="outlined"
                   size="small"
-                  className="text-sm py-1 px-3"
+                  startIcon={<ContentCopy />}
+                  onClick={copyContentToClipboard}
                 >
-                  Confirm
+                  Copy Content
                 </Button>
               </div>
+              <div className="flex-1 overflow-y-auto min-h-0">
+                {/* Show errors if any */}
+                {error && error.messages.length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    <h3 className="font-medium text-red-600 sticky top-0 bg-white py-2">Errors:</h3>
+                    <ul className="list-disc pl-5 space-y-2">
+                      {error.messages.map((message, index) => (
+                        <li key={index} className="text-gray-600">
+                          {message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Show warnings if any */}
+                {warning && warning.messages.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-amber-600 sticky top-0 bg-white py-2">
+                      Warnings:
+                    </h3>
+                    <ul className="list-disc pl-5 space-y-2">
+                      {warning.messages.map((message, index) => (
+                        <li key={index} className="text-gray-600">
+                          {message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </Modal>
+          </Modal>
+        )}
+
+        {/* Modal for selecting between Dev mode and Production mode */}
+        {showDeploymentModal && (
+          <Modal onClose={toggleDeploymentModal}>
+            <div className="p-2 max-w-[200px] mx-auto">
+              <h2 className="text-sm font-semibold mb-2">Choose Configuration</h2>
+              <div>
+                <RadioGroup
+                  aria-label="mode-selection"
+                  value={selectedMode}
+                  onChange={(e) => setSelectedMode(e.target.value as DeployMode)}
+                  className="space-y-1"
+                >
+                  <div className="flex items-center space-x-1">
+                    <Radio value={DeployMode.Dev} size="small" />
+                    <span className="text-sm">Dev</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Radio value={DeployMode.Production} size="small" />
+                    <span className="text-sm">Prod</span>
+                  </div>
+                </RadioGroup>
+                <div className="mt-2 flex justify-center">
+                  <Button
+                    onClick={handleModeSelection}
+                    variant="contained"
+                    size="small"
+                    className="text-sm py-1 px-3"
+                  >
+                    Confirm
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </TableRow>
+      {!isCollapsed && workflow.dependencies?.map(dependency => {
+        return (
+          workflows.map((item) => {
+            if (item.model_id === dependency.model_id) {
+              return <WorkFlow workflow={item} allowActions={false} level={1} />
+            }
+          })
+        )
+      }
       )}
-    </TableRow>
+    </>
   );
 }

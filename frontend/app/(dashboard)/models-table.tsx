@@ -1,20 +1,19 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+
+import { useEffect, useState } from 'react';
+import { TableHead, TableRow, TableHeader, TableBody, Table } from '@/components/ui/table';
 import {
-  TableHead,
-  TableRow,
-  TableHeader,
-  TableBody,
-  Table,
-  TableCell,
-} from '@/components/ui/table';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { WorkFlow } from './workflow';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@mui/material';
 import { fetchWorkflows, Workflow } from '@/lib/backend';
-import { ArrowRight } from 'lucide-react';
 
 export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: number }) {
   // Hardcode the model display
@@ -69,13 +68,6 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
   const totalWorkflows = filteredWorkflows.length;
   const displayedWorkflows = filteredWorkflows.slice(offset, offset + modelsPerPage);
 
-  const [isCollapsedList, setIsCollapsedList] = useState(Array(100).fill(true));
-
-  // Toggle the value at a specific index
-  const toggleIsCollapsedList = (index: number) => {
-    setIsCollapsedList((prevList) => prevList.map((item, idx) => (idx === index ? !item : item)));
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -85,6 +77,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead></TableHead>
               <TableHead className="text-center">Name</TableHead>
               <TableHead className="text-center">Status</TableHead>
               <TableHead className="hidden md:table-cell text-center">Type</TableHead>
@@ -99,48 +92,11 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
             {displayedWorkflows
               .sort((a, b) => a.model_name.localeCompare(b.model_name)) // Sort by name alphabetically
               .map((workflow, index) => (
-                <React.Fragment key={index + 200}>
-                  <WorkFlow
-                    workflow={workflow}
-                    handleCollapse={toggleIsCollapsedList}
-                    index={index}
-                    allowActions={true}
-                  />
-                  {!isCollapsedList[index] && (
-                    <TableRow>
-                      <TableCell /> {/*To shift the dependency table slightly right*/}
-                      <TableCell colSpan={3}>
-                        <div
-                          style={{
-                            paddingLeft: '1rem', // Indentation
-                            border: '1px solid #ccc', // Vertical line to show nesting
-                            backgroundColor: '#f9f9f9', // Light background color for distinction
-                            borderRadius: '10px', // Rounded corners
-                            margin: '0.5rem 0', // Space around collapsed content
-                            padding: '0.5rem',
-                          }}
-                        >
-                          {workflow.dependencies.map((dependency) =>
-                            workflows.map((item) => {
-                              if (dependency.model_id === item.model_id) {
-                                return (
-                                  <WorkFlow
-                                    key={item.model_id}
-                                    workflow={item}
-                                    handleCollapse={toggleIsCollapsedList}
-                                    index={index}
-                                    allowActions={false}
-                                  />
-                                );
-                              }
-                              return null; // Prevents rendering undefined items
-                            })
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </React.Fragment>
+                <WorkFlow
+                  key={index + 200}
+                  workflow={workflow}
+                  allowActions={true}
+                  level={0} />
               ))}
           </TableBody>
         </Table>

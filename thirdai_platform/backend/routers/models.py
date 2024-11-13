@@ -383,13 +383,17 @@ def upload_chunk(
 
     disk_stats = disk_usage()
     threshold = 0.8
-    if disk_stats["used"] / disk_stats["total"] > threshold:
+    disk_use = disk_stats["used"] / disk_stats["total"]
+    if disk_use > threshold:
+        space_needed = ((disk_use - threshold) * disk_stats["total"]) / (
+            1024 * 1024
+        )  # MB
         # delete the chunk(s) of the model received till now
         storage.delete(payload["model_id"])
 
         return response(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            message="Platform reached the disk limit while uploading the model. Please clear some space and try again.",
+            message=f"Platform reached the disk limit while uploading the model. Please clear {space_needed:.2f} MB space and try again.",
         )
     try:
         chunk_data = chunk.file.read()

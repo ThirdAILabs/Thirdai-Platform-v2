@@ -25,7 +25,6 @@ from backend.utils import (
     get_warnings_and_errors,
     list_all_dependencies,
     model_accessible,
-    model_bazaar_path,
     read_file_from_back,
     submit_nomad_job,
     thirdai_platform_dir,
@@ -34,6 +33,7 @@ from backend.utils import (
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from platform_common.dependencies import is_on_low_disk
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     EnterpriseSearchOptions,
@@ -42,7 +42,7 @@ from platform_common.pydantic_models.deployment import (
 )
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
 from platform_common.pydantic_models.training import ModelType
-from platform_common.utils import response
+from platform_common.utils import disk_usage, model_bazaar_path, response
 from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()
@@ -295,7 +295,9 @@ async def deploy_single_model(
         )
 
 
-@deploy_router.post("/run", dependencies=[Depends(is_model_owner)])
+@deploy_router.post(
+    "/run", dependencies=[Depends(is_model_owner), Depends(is_on_low_disk())]
+)
 async def deploy_model(
     model_identifier: str,
     deployment_name: Optional[str] = None,
@@ -369,6 +371,7 @@ async def deploy_model(
             "status": "queued",
             "model_identifier": model_identifier,
             "model_id": str(model.id),
+            "disk_usage": disk_usage(),
         },
     )
 

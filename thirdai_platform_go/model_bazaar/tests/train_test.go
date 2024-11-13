@@ -120,7 +120,7 @@ func TestFileUpload(t *testing.T) {
 
 	res, err := postWithHeaders[map[string]string](
 		&client,
-		"/train/upload",
+		"/train/upload-data",
 		body.Bytes(),
 		map[string]string{
 			"Authorization": fmt.Sprintf("Bearer %v", client.token),

@@ -59,7 +59,7 @@ func setupTestEnv(t *testing.T) testEnv {
 	nomadStub := newNomadStub()
 
 	modelBazaar := services.NewModelBazaar(
-		db, nomadStub, storage.NewSharedDisk(storagePath),
+		db, nomadStub, store,
 		licensing.NewVerifier(licensePath), services.Variables{},
 	)
 

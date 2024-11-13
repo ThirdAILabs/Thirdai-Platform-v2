@@ -203,6 +203,7 @@ class NDBData(BaseModel):
 class UDTSubType(str, Enum):
     text = "text"
     token = "token"
+    doc = "doc"
 
 
 class TokenClassificationOptions(BaseModel):

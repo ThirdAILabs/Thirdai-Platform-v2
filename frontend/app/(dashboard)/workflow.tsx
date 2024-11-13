@@ -103,8 +103,21 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         break;
       }
       case 'udt': {
-        const prefix =
-          workflow.sub_type === 'token' ? '/token-classification' : '/text-classification';
+        let prefix;
+        switch(workflow.sub_type) {
+          case 'token':
+            prefix = '/token-classification';
+            break;
+          case 'doc':
+            prefix = '/doc-classification';
+            break;
+          case 'text':
+            prefix = '/text-classification';
+            break;
+          default:
+            prefix = '/text-classification';
+            break;
+        }
         window.open(`${prefix}/${workflow.model_id}`, '_blank');
         break;
       }

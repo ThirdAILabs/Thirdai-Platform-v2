@@ -67,6 +67,8 @@ class UDTRouter:
             return TextClassificationModel(config=config, logger=logger)
         elif subtype == UDTSubType.token:
             return TokenClassificationModel(config=config, logger=logger)
+        elif subtype == UDTSubType.doc:
+            return TextClassificationModel(config=config, logger=logger)
         else:
             error_message = f"Unsupported UDT subtype '{subtype}'."
             logger.error(error_message)

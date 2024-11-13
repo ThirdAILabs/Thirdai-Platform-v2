@@ -774,7 +774,7 @@ async def train_document_classifier(
                 deploy_status=schema.Status.not_started,
                 name=model_name,
                 type="udt",
-                sub_type="text",
+                sub_type=UDTSubType.doc,
                 domain=user.email.split("@")[1],
                 access_level=schema.Access.private,
             )

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"log/slog"
+	"os"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
@@ -72,7 +73,9 @@ func (m *ModelBazaar) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Recoverer)
-	r.Use(middleware.Logger)
+	r.Use(middleware.RequestLogger(&middleware.DefaultLogFormatter{
+		Logger: log.New(os.Stderr, "", log.LstdFlags), NoColor: false,
+	}))
 
 	r.Mount("/user", m.user.Routes())
 	r.Mount("/team", m.team.Routes())

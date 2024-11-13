@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import NERQuestions from './ner-questions';
 import SCQQuestions from './sentence-classification-questions';
+import DocumentQuestions from './document-questions';
 import { FormControl, InputLabel, Select, MenuItem, Typography, Box, Divider } from '@mui/material';
 import { CardDescription } from '@/components/ui/card';
 
@@ -46,14 +47,7 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
       case 'text-extraction':
         return <NERQuestions workflowNames={workflowNames} modelGoal="Text Extraction Task" />;
       case 'document-classification':
-        return (
-          <Box>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-              Document Classification
-            </Typography>
-            <CardDescription>Document classification component to be implemented</CardDescription>
-          </Box>
-        );
+        return <DocumentQuestions workflowNames={workflowNames} />;
       default:
         return (
           <Box sx={{ mt: 2 }}>

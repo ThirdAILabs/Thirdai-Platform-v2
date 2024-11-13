@@ -551,6 +551,313 @@ def nlp_datagen(
         },
     )
 
+import os
+from typing import List
+import pandas as pd
+from fastapi import UploadFile, File, Form, HTTPException
+from pydantic import BaseModel
+from pathlib import Path
+import tempfile
+import shutil
+
+class FolderValidationResponse(BaseModel):
+    valid: bool
+    message: str
+    categories: List[str] = []
+    file_counts: dict = {}
+
+async def create_classification_csv(temp_dir: str, files: List[UploadFile]) -> tuple[str, List[str]]:
+    """
+    Create a CSV file from folder structure in the format expected by TextClassificationOptions
+    Returns the path to the created CSV and list of categories
+    """
+    rows = []
+    categories = set()
+    
+    # Process each file and read its content
+    for file in files:
+        parts = Path(file.filename).parts
+        if len(parts) < 2:
+            continue
+            
+        category = parts[0]
+        categories.add(category)
+        
+        # Read file content
+        contents = await file.read()
+        
+        # For text files, read directly
+        if file.filename.endswith('.txt'):
+            text_content = contents.decode('utf-8')
+        # For other file types, you might need additional processing or libraries
+        else:
+            # Placeholder for other file types - implement proper document reading
+            text_content = f"Content of {file.filename}"
+        
+        rows.append({
+            'text': text_content,
+            'label': category
+        })
+        
+        await file.seek(0)  # Reset file pointer
+
+    # Create DataFrame and save to CSV
+    df = pd.DataFrame(rows)
+    csv_path = os.path.join(temp_dir, 'document_classification.csv')
+    df.to_csv(csv_path, index=False)
+    
+    return csv_path, list(categories)
+
+@train_router.post("/validate-document-classification-folder")
+async def validate_document_classification_folder(
+    files: List[UploadFile] = File(...),
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Process files and maintain folder structure
+            categories = set()
+            category_files = {}
+            
+            for file in files:
+                parts = Path(file.filename).parts
+                if len(parts) < 2:
+                    continue
+                    
+                category = parts[1]
+                categories.add(category)
+                
+                if category not in category_files:
+                    category_files[category] = []
+                category_files[category].append(file.filename)
+
+            # Basic validation checks
+            if len(categories) < 2:
+                return FolderValidationResponse(
+                    valid=False,
+                    message="At least two different categories (folders) are required",
+                    categories=list(categories),
+                    file_counts=category_files
+                )
+
+            # Check minimum files per category
+            insufficient_categories = []
+            for category, files_list in category_files.items():
+                if len(files_list) < 10:
+                    insufficient_categories.append(f"{category} ({len(files_list)} files)")
+
+            if insufficient_categories:
+                return FolderValidationResponse(
+                    valid=False,
+                    message=f"The following categories have fewer than 10 documents: {', '.join(insufficient_categories)}",
+                    categories=list(categories),
+                    file_counts=category_files
+                )
+
+            # Validate file types
+            valid_extensions = {'.txt', '.doc', '.docx', '.pdf'}
+            invalid_files = []
+            
+            for category, files_list in category_files.items():
+                for file in files_list:
+                    ext = Path(file).suffix.lower()
+                    if ext not in valid_extensions:
+                        invalid_files.append(file)
+
+            if invalid_files:
+                return FolderValidationResponse(
+                    valid=False,
+                    message=f"Invalid file types found: {', '.join(invalid_files)}. Only .txt, .doc, .docx, and .pdf files are supported.",
+                    categories=list(categories),
+                    file_counts=category_files
+                )
+
+            return FolderValidationResponse(
+                valid=True,
+                message="Folder structure is valid",
+                categories=list(categories),
+                file_counts=category_files
+            )
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@train_router.post("/train-document-classifier")
+async def train_document_classifier(
+    model_name: str = Form(...),
+    files: List[UploadFile] = File(...),
+    test_split: float = Form(default=0.1),
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    user: schema.User = authenticated_user.user
+
+    try:
+        # Validate model name
+        try:
+            validate_name(model_name)
+        except:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"{model_name} is not a valid model name.",
+            )
+
+        # Check for duplicate model
+        duplicate_model = get_model(session, username=user.username, model_name=model_name)
+        if duplicate_model:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Model with name {model_name} already exists for user {user.username}.",
+            )
+
+        # Generate IDs
+        model_id = uuid.uuid4()
+        data_id = str(model_id)
+
+        # Create temporary directory for processing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Convert folder structure to CSV
+            csv_path, categories = await create_classification_csv(temp_dir, files)
+
+            # Create directory for model data
+            data_dir = os.path.join(model_bazaar_path(), "data", data_id, "supervised")
+            os.makedirs(data_dir, exist_ok=True)
+
+            # Copy CSV to final location
+            final_csv_path = os.path.join(data_dir, "document_classification.csv")
+            shutil.copy2(csv_path, final_csv_path)
+
+            # Create configuration
+            config = TrainConfig(
+                model_bazaar_dir=model_bazaar_path(),
+                license_key=validate_license_info()["boltLicenseKey"],
+                model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
+                model_id=str(model_id),
+                data_id=data_id,
+                base_model_id=None,
+                model_options=UDTOptions(
+                    model_type="udt",
+                    udt_options=TextClassificationOptions(  # Using existing TextClassificationOptions
+                        text_column="text",
+                        label_column="label",
+                        n_target_classes=len(categories)
+                    ),
+                ),
+                data=UDTData(
+                    supervised_files=[
+                        FileInfo(
+                            path=final_csv_path,
+                            location="local",
+                            filename="document_classification.csv",
+                            content_type="text/csv",
+                        )
+                    ],
+                    test_files=[],
+                ),
+                job_options=JobOptions(),
+            )
+
+            # Save configuration and proceed with model creation
+            config_path = os.path.join(
+                config.model_bazaar_dir, "models", str(model_id), "train_config.json"
+            )
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
+            with open(config_path, "w") as f:
+                f.write(config.model_dump_json(indent=4))
+
+            # Create model in database
+            new_model: schema.Model = schema.Model(
+                id=model_id,
+                user_id=user.id,
+                train_status=schema.Status.not_started,
+                deploy_status=schema.Status.not_started,
+                name=model_name,
+                type="udt",
+                sub_type="text",
+                domain=user.email.split("@")[1],
+                access_level=schema.Access.private,
+            )
+
+            session.add(new_model)
+            session.commit()
+            session.refresh(new_model)
+
+            # Add model attribute
+            attribute = schema.ModelAttribute(
+                model_id=model_id,
+                key="datagen",
+                value="false",
+            )
+            session.add(attribute)
+            session.commit()
+
+            # Submit training job
+            work_dir = os.getcwd()
+            try:
+                submit_nomad_job(
+                    str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
+                    nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+                    platform=get_platform(),
+                    tag=os.getenv("TAG"),
+                    registry=os.getenv("DOCKER_REGISTRY"),
+                    docker_username=os.getenv("DOCKER_USERNAME"),
+                    docker_password=os.getenv("DOCKER_PASSWORD"),
+                    image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
+                    thirdai_platform_dir=thirdai_platform_dir(),
+                    train_script="train_job.run",
+                    model_id=str(model_id),
+                    share_dir=os.getenv("SHARE_DIR", None),
+                    python_path=get_python_path(),
+                    aws_access_key=os.getenv("AWS_ACCESS_KEY", ""),
+                    aws_access_secret=os.getenv("AWS_ACCESS_SECRET", ""),
+                    aws_region_name=os.getenv("AWS_REGION_NAME", ""),
+                    azure_account_name=os.getenv("AZURE_ACCOUNT_NAME", ""),
+                    azure_account_key=os.getenv("AZURE_ACCOUNT_KEY", ""),
+                    gcp_credentials_file=os.getenv("GCP_CREDENTIALS_FILE", ""),
+                    train_job_name=new_model.get_train_job_name(),
+                    config_path=config_path,
+                    allocation_cores=config.job_options.allocation_cores,
+                    allocation_memory=config.job_options.allocation_memory,
+                    allocation_memory_max=config.job_options.allocation_memory,
+                )
+
+                new_model.train_status = schema.Status.starting
+                session.commit()
+                
+            except Exception as err:
+                new_model.train_status = schema.Status.failed
+                session.add(
+                    schema.JobError(
+                        model_id=new_model.id,
+                        job_type="train",
+                        status=schema.Status.failed,
+                        message=f"Failed to start the training job on nomad. Received error: {err}",
+                    )
+                )
+                session.commit()
+                logging.error(str(err))
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message=str(err),
+                )
+
+            return response(
+                status_code=status.HTTP_200_OK,
+                message="Successfully submitted the training job",
+                data={
+                    "model_id": str(model_id),
+                    "user_id": str(user.id),
+                },
+            )
+
+    except Exception as err:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
+        )
+
+
 
 class CSVValidationResponse(BaseModel):
     valid: bool

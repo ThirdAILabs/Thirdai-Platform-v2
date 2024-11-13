@@ -1,16 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  Box, 
-  Typography, 
-  TextField,
-  Paper,
-  Button,
-  Alert,
-  CircularProgress,
-  Divider
-} from '@mui/material';
+    Box, 
+    Typography, 
+    TextField,
+    Paper,
+    Button,
+    Alert,
+    CircularProgress,
+    Divider,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText
+  } from '@mui/material';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import DescriptionIcon from '@mui/icons-material/Description';
+import FolderIcon from '@mui/icons-material/Folder';
+import InfoIcon from '@mui/icons-material/Info';
 import { useRouter } from 'next/navigation';
+import { validateDocumentClassificationFolder, trainDocumentClassifier } from '@/lib/backend';
 
 interface DocumentQuestionsProps {
   workflowNames: string[];
@@ -39,68 +47,101 @@ const DocumentQuestions = ({
   
   const router = useRouter();
 
-  const handleFolderSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFolderSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
       setSelectedFolder(files);
       setError('');
       setSuccess(false);
       
-      // Process folder structure
+      // Process folder structure using webkitRelativePath
       const structure: FolderStructure = {};
       Array.from(files).forEach((file) => {
-        const path = file.webkitRelativePath;
-        const [category] = path.split('/').filter(Boolean);
-        
-        if (!structure[category]) {
-          structure[category] = [];
+        const pathParts = file.webkitRelativePath.split('/');
+        // Use pathParts[1] to get the category folder name instead of the root folder
+        if (pathParts.length >= 3) {  // Changed from >= 2 to >= 3 since we expect 3 parts
+          const category = pathParts[1];  // Changed from pathParts[0] to pathParts[1]
+          if (!structure[category]) {
+            structure[category] = [];
+          }
+          structure[category].push(file.name);
         }
-        structure[category].push(file.name);
       });
       
       setFolderStructure(structure);
+  
+      // Validate folder structure
+      if (Object.keys(structure).length < 2) {
+        setError('At least 2 different categories (subfolders) are required');
+        return;
+      }
+  
+      try {
+        const validationResult = await validateDocumentClassificationFolder(files);
+        if (!validationResult.valid) {
+          setError(validationResult.message);
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Error validating folder structure';
+        setError(errorMessage);
+      }
     }
   };
 
   const validateFolderStructure = (): boolean => {
-    // Check if folder structure exists
     if (Object.keys(folderStructure).length === 0) {
       setError('Please select a folder containing your document categories');
       return false;
     }
 
-    // Check for minimum number of categories
-    if (Object.keys(folderStructure).length < 2) {
+    // Get actual categories (first level folders)
+    const categories = new Set(
+      Array.from(selectedFolder!).map(file => {
+        const parts = file.webkitRelativePath.split('/');
+        return parts.length >= 3 ? parts[1] : ''; // Changed from parts[0] to parts[1]
+      }).filter(Boolean)
+    );
+  
+    if (categories.size < 2) {
       setError('At least 2 different categories (subfolders) are required');
       return false;
     }
-
+  
     // Check for minimum documents per category
-    const insufficientCategories = Object.entries(folderStructure)
-      .filter(([_, files]) => files.length < 10)
+    const categoryFiles = new Map<string, number>();
+    Array.from(selectedFolder!).forEach(file => {
+      const pathParts = file.webkitRelativePath.split('/');
+      if (pathParts.length >= 3) {  // Changed from >= 2 to >= 3
+        const category = pathParts[1];  // Changed from pathParts[0] to pathParts[1]
+        categoryFiles.set(category, (categoryFiles.get(category) || 0) + 1);
+      }
+    });
+  
+    const insufficientCategories = Array.from(categoryFiles.entries())
+      .filter(([_, count]) => count < 10)
       .map(([category]) => category);
-
+  
     if (insufficientCategories.length > 0) {
       setError(`The following categories have fewer than 10 documents: ${insufficientCategories.join(', ')}`);
       return false;
     }
-
+  
     // Check file extensions
     const validExtensions = ['.txt', '.doc', '.docx', '.pdf'];
     const invalidFiles: string[] = [];
-
-    Object.values(folderStructure).flat().forEach(filename => {
-      const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+  
+    Array.from(selectedFolder!).forEach(file => {
+      const extension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
       if (!validExtensions.includes(extension)) {
-        invalidFiles.push(filename);
+        invalidFiles.push(file.name);
       }
     });
-
+  
     if (invalidFiles.length > 0) {
       setError(`Invalid file types found: ${invalidFiles.join(', ')}. Only .txt, .doc, .docx, and .pdf files are supported.`);
       return false;
     }
-
+  
     return true;
   };
 
@@ -124,18 +165,23 @@ const DocumentQuestions = ({
     setSuccess(false);
 
     try {
-      // Create FormData with all files
-      const formData = new FormData();
-      formData.append('modelName', modelName);
-      Array.from(selectedFolder).forEach((file) => {
-        formData.append('files', file, file.webkitRelativePath);
+      // First validate the folder structure
+      const validationResult = await validateDocumentClassificationFolder(selectedFolder);
+
+      if (!validationResult.valid) {
+        setError(validationResult.message);
+        return;
+      }
+
+      // If validation passes, proceed with training
+      const trainingResult = await trainDocumentClassifier({
+        modelName: modelName,
+        files: selectedFolder,
+        testSplit: 0.1
       });
 
-      // Mock API call for now - replace with actual API endpoint
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       setSuccess(true);
-      onCreateModel?.(modelName);
+      onCreateModel?.(trainingResult.data.model_id);
       
       if (!stayOnPage) {
         router.push('/');
@@ -188,88 +234,91 @@ const DocumentQuestions = ({
 
       {/* Folder Upload Section */}
       <Box sx={{ width: '100%' }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Upload your document classification dataset
+        <Typography variant="h6" gutterBottom>
+          Upload Your Document Classification Dataset
         </Typography>
 
         <Paper sx={{ p: 3, mb: 3 }}>
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              Folder Structure Requirements:
-            </Typography>
-            
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle1" color="primary" sx={{ mb: 1 }}>
-                Required Structure:
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {/* Quick Overview */}
+            <Box>
+              <Typography variant="subtitle1" color="primary" gutterBottom>
+                Dataset Requirements
               </Typography>
-              <Box sx={{ pl: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  main-folder/
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ pl: 2 }}>
-                  ├── category1/
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ pl: 4 }}>
-                  ├── document1.txt
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ pl: 4 }}>
-                  └── document2.txt
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ pl: 2 }}>
-                  └── category2/
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ pl: 4 }}>
-                  ├── document1.txt
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ pl: 4 }}>
-                  └── document2.txt
-                </Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemIcon>
+                    <FolderIcon color="primary" />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary="Select a main folder containing category subfolders"
+                    secondary="Each subfolder name represents a document type/category"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemIcon>
+                    <DescriptionIcon color="primary" />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary="Place example documents in each category folder"
+                    secondary="Minimum 10 documents per category (.txt, .doc, .docx, .pdf)"
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemIcon>
+                    <InfoIcon color="primary" />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary="Minimum 2 different categories required"
+                    secondary="Example: invoices/, receipts/, contracts/"
+                  />
+                </ListItem>
+              </List>
+            </Box>
+
+            {/* Visual Example */}
+            <Box sx={{ bgcolor: '#f5f5f5', p: 2, borderRadius: 1 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Example Structure:
+              </Typography>
+              <Box sx={{ fontFamily: 'monospace', pl: 2, fontSize: '0.9rem' }}>
+                📁 my-documents/<br />
+                ┣ 📁 invoices/<br />
+                ┃  ┣ 📄 invoice1.pdf<br />
+                ┃  ┣ 📄 invoice2.pdf<br />
+                ┃  ┗ 📄 invoice3.pdf<br />
+                ┗ 📁 contracts/<br />
+                &nbsp;&nbsp; ┣ 📄 contract1.pdf<br />
+                &nbsp;&nbsp; ┣ 📄 contract2.pdf<br />
+                &nbsp;&nbsp; ┗ 📄 contract3.pdf
               </Box>
             </Box>
 
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle1" color="primary" sx={{ mb: 1 }}>
-                Key Points:
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                • Folder names represent document categories/labels
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                • Each subfolder must contain example documents for that category
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                • At least 2 different categories (subfolders) required
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                • Minimum 10 documents per category recommended
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                • Supported file formats: .txt, .doc, .docx, .pdf
-              </Typography>
+            {/* Upload Button */}
+            <Box>
+              <Button
+                variant="contained"
+                component="label"
+                startIcon={<FolderOpenIcon />}
+                size="large"
+                sx={{ mb: 2 }}
+              >
+                Select Folder
+                <input
+                  type="file"
+                  hidden
+                  {...{ webkitdirectory: "", directory: "" }}
+                  onChange={handleFolderSelect}
+                />
+              </Button>
+
+              {selectedFolder && (
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  Selected folder contains {selectedFolder.length} files
+                </Typography>
+              )}
             </Box>
           </Box>
-
-          <Button
-            variant="contained"
-            component="label"
-            startIcon={<FolderOpenIcon />}
-            sx={{ mb: 2 }}
-          >
-            Select Folder
-            <input
-              type="file"
-              hidden
-              // Enable folder selection
-              {...{ webkitdirectory: "", directory: "" }}
-              onChange={handleFolderSelect}
-            />
-          </Button>
-
-          {selectedFolder && (
-            <Typography variant="body2">
-              Selected folder contains {selectedFolder.length} files
-            </Typography>
-          )}
         </Paper>
 
         {/* Add folder structure preview */}

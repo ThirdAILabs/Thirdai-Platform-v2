@@ -337,6 +337,125 @@ export function retrain_ndb({
   });
 }
 
+export async function validateDocumentClassificationFolder(files: FileList) {
+  const accessToken = getAccessToken();
+  const formData = new FormData();
+  
+  // Group files by their categories first
+  const categoryMap = new Map<string, File[]>();
+  
+  Array.from(files).forEach((file) => {
+    const pathParts = file.webkitRelativePath.split('/');
+    // Change this to use the category folder name (pathParts[1])
+    if (pathParts.length >= 3) {
+      const category = pathParts[1];  // Changed from pathParts[0] to pathParts[1]
+      if (!categoryMap.has(category)) {
+        categoryMap.set(category, []);
+      }
+      categoryMap.get(category)?.push(file);
+    }
+  });
+
+  // Debug logging
+  console.log('Categories being sent to backend:', Array.from(categoryMap.keys()));
+
+  // Add files to FormData maintaining category structure
+  categoryMap.forEach((files, category) => {
+    files.forEach((file) => {
+      // Include the full relative path in the file name
+      formData.append('files', file, file.webkitRelativePath);
+    });
+  });
+
+  // Debug: Log what's being sent
+  console.log('Files being sent:', Array.from(formData.getAll('files')).map(f => {
+    if (f instanceof File) {
+      return f.name;
+    }
+    return f;
+  }));
+
+  try {
+    const response = await axios.post(
+      `${thirdaiPlatformBaseUrl}/api/train/validate-document-classification-folder`,
+      formData,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+
+    console.log('Backend validation response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Validation error details:', error);
+    if (axios.isAxiosError(error) && error.response?.data) {
+      throw new Error(error.response.data.message || 'Failed to validate folder structure');
+    }
+    throw new Error('Failed to validate folder structure');
+  }
+}
+
+// Similar changes for trainDocumentClassifier
+export async function trainDocumentClassifier({
+  modelName,
+  files,
+  testSplit = 0.1,
+}: {
+  modelName: string;
+  files: FileList;
+  testSplit?: number;
+}) {
+  const accessToken = getAccessToken();
+  const formData = new FormData();
+  formData.append('model_name', modelName);
+  formData.append('test_split', testSplit.toString());
+
+  // Group files by their categories first
+  const categoryMap = new Map<string, File[]>();
+  
+  Array.from(files).forEach((file) => {
+    const pathParts = file.webkitRelativePath.split('/');
+    if (pathParts.length >= 3) {
+      const category = pathParts[1];  // Changed from pathParts[0] to pathParts[1]
+      if (!categoryMap.has(category)) {
+        categoryMap.set(category, []);
+      }
+      categoryMap.get(category)?.push(file);
+    }
+  });
+
+  // Add files to FormData maintaining category structure
+  categoryMap.forEach((files, category) => {
+    files.forEach((file) => {
+      formData.append('files', file, file.webkitRelativePath);
+    });
+  });
+
+  try {
+    const response = await axios.post(
+      `${thirdaiPlatformBaseUrl}/api/train/train-document-classifier`,
+      formData,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error('Training error details:', error);
+    if (axios.isAxiosError(error) && error.response?.data) {
+      throw new Error(error.response.data.message || 'Failed to train model');
+    }
+    throw new Error('Failed to train model');
+  }
+}
+
 export async function validateSentenceClassifierCSV(file: File) {
   const accessToken = getAccessToken();
   const formData = new FormData();

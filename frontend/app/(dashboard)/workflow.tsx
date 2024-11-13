@@ -476,7 +476,7 @@ export function WorkFlow({
                       <Tooltip
                         title={
                           deployStatus === DeployStatus.Failed ||
-                            deployStatus === DeployStatus.TrainingFailed
+                          deployStatus === DeployStatus.TrainingFailed
                             ? 'Access restricted: model failed'
                             : ''
                         }
@@ -492,7 +492,7 @@ export function WorkFlow({
                             style={{
                               cursor:
                                 deployStatus === DeployStatus.Failed ||
-                                  deployStatus === DeployStatus.TrainingFailed
+                                deployStatus === DeployStatus.TrainingFailed
                                   ? 'not-allowed'
                                   : 'pointer',
                             }}
@@ -648,7 +648,13 @@ export function WorkFlow({
           return Workflows.map((thisWorkflow) => {
             if (thisWorkflow.model_id === dependency.model_id) {
               return (
-                <WorkFlow key={dependency.model_id} workflow={thisWorkflow} Workflows={Workflows} allowActions={false} level={1} />
+                <WorkFlow
+                  key={dependency.model_id}
+                  workflow={thisWorkflow}
+                  Workflows={Workflows}
+                  allowActions={false}
+                  level={1}
+                />
               );
             }
           });

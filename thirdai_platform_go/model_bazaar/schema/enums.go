@@ -7,7 +7,7 @@ const (
 	Starting   = "starting"
 	InProgress = "in_progress"
 	Stopped    = "stopped"
-	Complete   = "Complete"
+	Complete   = "complete"
 	Failed     = "failed"
 )
 
@@ -16,6 +16,13 @@ const (
 	Protected = "protected"
 	Public    = "public"
 )
+
+func CheckValidStatus(status string) error {
+	if status == NotStarted || status == Starting || status == InProgress || status == Stopped || status == Complete || status == Failed {
+		return nil
+	}
+	return fmt.Errorf("invalid status '%v'", status)
+}
 
 func CheckValidAccess(access string) error {
 	if access == Public || access == Private || access == Protected {

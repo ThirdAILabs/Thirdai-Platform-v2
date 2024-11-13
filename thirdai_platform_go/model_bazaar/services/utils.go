@@ -161,10 +161,10 @@ func getJobLogs(db *gorm.DB, modelId, job string) ([]string, []string, error) {
 	return errors, warnings, nil
 }
 
-type statusResponse struct {
+type StatusResponse struct {
 	Status   string   `json:"status"`
-	Warnings []string `json:"warnings"`
 	Errors   []string `json:"errors"`
+	Warnings []string `json:"warnings"`
 }
 
 func getStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job string) {
@@ -177,7 +177,7 @@ func getStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job s
 
 	slog.Info("getting status for model", "job", job, "model_id", modelId)
 
-	var res statusResponse
+	var res StatusResponse
 
 	err := db.Transaction(func(txn *gorm.DB) error {
 		model, err := schema.GetModel(modelId, txn, false, false, false)
@@ -198,7 +198,7 @@ func getStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job s
 		return
 	}
 
-	warnings, errors, err := getJobLogs(db, modelId, job)
+	errors, warnings, err := getJobLogs(db, modelId, job)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("retrieving model job messages: %v", err), http.StatusBadRequest)
 		return
@@ -225,6 +225,11 @@ func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, jo
 
 	var params updateStatusRequest
 	if !parseRequestBody(w, r, &params) {
+		return
+	}
+
+	if err := schema.CheckValidStatus(params.Status); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 

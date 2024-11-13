@@ -16,7 +16,10 @@ import (
 )
 
 type testEnv struct {
-	api chi.Router
+	modelBazaar services.ModelBazaar
+	api         chi.Router
+	storage     storage.Storage
+	nomad       *NomadStub
 }
 
 const (
@@ -33,7 +36,7 @@ func setupTestEnv(t *testing.T) testEnv {
 
 	err = db.AutoMigrate(
 		&schema.Model{}, &schema.ModelAttribute{}, &schema.ModelDependency{},
-		&schema.User{}, &schema.Team{}, &schema.UserTeam{},
+		&schema.User{}, &schema.Team{}, &schema.UserTeam{}, &schema.JobLog{},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -52,14 +55,17 @@ func setupTestEnv(t *testing.T) testEnv {
 		t.Fatal(err)
 	}
 
+	store := storage.NewSharedDisk(storagePath)
+	nomadStub := newNomadStub()
+
 	modelBazaar := services.NewModelBazaar(
-		db, newNomadStub(), storage.NewSharedDisk(storagePath),
+		db, nomadStub, storage.NewSharedDisk(storagePath),
 		licensing.NewVerifier(licensePath), services.Variables{},
 	)
 
 	modelBazaar.InitAdmin(adminUsername, adminEmail, adminPassword)
 
-	return testEnv{api: modelBazaar.Routes()}
+	return testEnv{modelBazaar: modelBazaar, api: modelBazaar.Routes(), storage: store, nomad: nomadStub}
 }
 
 func (t *testEnv) newClient() client {

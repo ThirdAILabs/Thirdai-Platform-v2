@@ -13,6 +13,7 @@ import (
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"gorm.io/driver/postgres"
@@ -92,7 +93,7 @@ func main() {
 		},
 	)
 
-	go model_bazaar.StartStatusSync()
+	go model_bazaar.StartStatusSync(5 * time.Second)
 
 	model_bazaar.InitAdmin(c.AdminUsername, c.AdminEmail, c.AdminPassword)
 

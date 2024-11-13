@@ -158,9 +158,9 @@ func (m *ModelBazaar) statusSync() {
 	}
 }
 
-func (m *ModelBazaar) StartStatusSync() {
+func (m *ModelBazaar) StartStatusSync(interval time.Duration) {
 	slog.Info("status sync: starting")
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {

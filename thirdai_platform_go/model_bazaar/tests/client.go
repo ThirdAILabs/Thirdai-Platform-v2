@@ -393,3 +393,21 @@ func (c *client) downloadModel(modelId string, dest string) error {
 
 	return nil
 }
+
+func (c *client) trainStatus(modelId string) (services.StatusResponse, error) {
+	return get[services.StatusResponse](c, fmt.Sprintf("/train/status?model_id=%v", modelId))
+}
+
+func (c *client) deployStatus(modelId string) (services.StatusResponse, error) {
+	return get[services.StatusResponse](c, fmt.Sprintf("/deploy/status?model_id=%v", modelId))
+}
+
+func (c *client) deploy(modelId string) error {
+	_, err := post[NoBody](c, "/deploy/start", []byte(fmt.Sprintf(`{"model_id": "%v"}`, modelId)))
+	return err
+}
+
+func (c *client) undeploy(modelId string) error {
+	_, err := post[NoBody](c, fmt.Sprintf("/deploy/stop?model_id=%v", modelId), nil)
+	return err
+}

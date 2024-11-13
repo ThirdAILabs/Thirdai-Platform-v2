@@ -1,12 +1,14 @@
 package tests
 
-import "thirdai_platform/model_bazaar/nomad"
+import (
+	"thirdai_platform/model_bazaar/nomad"
+)
 
 type NomadStub struct {
 	activeJobs map[string]string
 }
 
-func newNomadStub() nomad.NomadClient {
+func newNomadStub() *NomadStub {
 	return &NomadStub{activeJobs: make(map[string]string)}
 }
 
@@ -33,4 +35,8 @@ func (c *NomadStub) JobLogs(jobName string) ([]nomad.JobLog, error) {
 
 func (c *NomadStub) TotalCpuUsage() (int, error) {
 	return 0, nil
+}
+
+func (c *NomadStub) Clear() {
+	c.activeJobs = map[string]string{}
 }

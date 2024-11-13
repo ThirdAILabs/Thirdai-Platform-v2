@@ -53,8 +53,8 @@ func (s *TrainService) Routes() chi.Router {
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(s.jobAuth.Verifier())
-		r.Use(s.jobAuth.Authenticator())
+		r.Use(s.userAuth.Verifier())
+		r.Use(s.userAuth.Authenticator())
 		r.Use(auth.ModelPermissionOnly(s.db, auth.ReadPermission))
 
 		r.Get("/status", s.GetStatus)
@@ -110,7 +110,7 @@ func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := s.jobAuth.CreateToken("model_id", modelId, time.Hour*10*24)
+	token, err := s.jobAuth.CreateToken("model_id", modelId, time.Hour*1000*24)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
 		return
@@ -120,7 +120,7 @@ func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 		ModelBazaarDir:      s.storage.Location(),
 		LicenseKey:          license,
 		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
-		UpdateToken:         token,
+		JobAuthToken:        token,
 		ModelId:             modelId,
 		BaseModelId:         options.BaseModelId,
 		ModelOptions:        options.ModelOptions,

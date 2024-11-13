@@ -11,6 +11,7 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
@@ -84,6 +85,10 @@ func (s *DeployService) deployModel(modelId, userId string, autoscalingEnabled b
 			return err
 		}
 
+		if model.TrainStatus != schema.Complete {
+			return fmt.Errorf("cannot deploy %v since it has train status %v", model.Id, model.TrainStatus)
+		}
+
 		if model.DeployStatus == schema.Starting || model.DeployStatus == schema.InProgress || model.DeployStatus == schema.Complete {
 			return nil
 		}
@@ -100,6 +105,11 @@ func (s *DeployService) deployModel(modelId, userId string, autoscalingEnabled b
 			return err
 		}
 
+		token, err := s.jobAuth.CreateToken("model_id", modelId, time.Hour*1000*24)
+		if err != nil {
+			return fmt.Errorf("error creating job token: %v", err)
+		}
+
 		attrs := model.GetAttributes()
 
 		config := config.DeployConfig{
@@ -107,6 +117,7 @@ func (s *DeployService) deployModel(modelId, userId string, autoscalingEnabled b
 			ModelBazaarDir:      s.storage.Location(),
 			ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
 			LicenseKey:          license,
+			JobAuthToken:        token,
 			AutoscalingEnabled:  autoscalingEnabled,
 			Options:             attrs,
 		}
@@ -222,6 +233,11 @@ func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
 		err = s.nomad.StopJob(model.DeployJobName())
 		if err != nil {
 			return err
+		}
+
+		result := txn.Model(&model).Update("deploy_status", schema.Stopped)
+		if result.Error != nil {
+			return schema.NewDbError("updating deploy status for stopped model", result.Error)
 		}
 
 		return nil

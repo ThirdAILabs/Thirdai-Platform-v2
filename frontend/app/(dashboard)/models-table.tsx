@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { TableHead, TableRow, TableHeader, TableBody, Table } from '@/components/ui/table';
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { WorkFlow } from './workflow';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -97,7 +91,8 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
                   workflow={workflow}
                   Workflows={workflows}
                   allowActions={true}
-                  level={0} />
+                  level={0}
+                />
               ))}
           </TableBody>
         </Table>

@@ -58,12 +58,12 @@ export function WorkFlow({
   workflow,
   Workflows,
   allowActions,
-  level
+  level,
 }: {
-  workflow: Workflow
-  Workflows: Workflow[]
-  allowActions: boolean
-  level: number
+  workflow: Workflow;
+  Workflows: Workflow[];
+  allowActions: boolean;
+  level: number;
 }) {
   const { user } = useContext(UserContext);
   const [deployStatus, setDeployStatus] = useState<DeployStatus>(DeployStatus.None);
@@ -74,7 +74,7 @@ export function WorkFlow({
   const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
   const toggleCollapseIcon = () => {
     setIsCollapsed(!isCollapsed);
-  }
+  };
   useEffect(() => {
     getModelsData();
   }, []);
@@ -353,14 +353,14 @@ export function WorkFlow({
               {isCollapsed ? <ChevronRight /> : <ExpandMore />}
             </button>
           </TableCell>
-        ) : (<TableCell />)}
+        ) : (
+          <TableCell />
+        )}
 
         <TableCell>
           <div className="flex items-center">
             <div style={{ marginLeft: `${level * 20}px` }} className="flex items-center">
-              {level > 0 && (
-                <span className="mr-2 text-gray-400">└─</span>
-              )}
+              {level > 0 && <span className="mr-2 text-gray-400">└─</span>}
               {workflow.model_name}
             </div>
           </div>
@@ -384,122 +384,129 @@ export function WorkFlow({
             onClick={handleStartWorkflow}
             variant="contained"
             style={{ width: '100px' }}
-            disabled={deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive}
+            disabled={
+              deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive
+            }
           >
             {getButtonValue(deployStatus)}
           </Button>
         </TableCell>
         <TableCell className="text-center font-medium">
-          {allowActions && <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                aria-haspopup="true"
-                size="small"
-                variant="text" // Using "text" as base variant
-                sx={{
-                  color: 'inherit', // Default text color
-                  '&:hover': {
-                    backgroundColor: 'var(--accent)', // Replace with your accent color
-                    color: 'var(--accent-foreground)', // Replace with your foreground color for hover
-                  },
-                }}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-                <span className="sr-only">Toggle menu</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              {deployStatus === DeployStatus.Active && (
-                <DropdownMenuItem
-                  onClick={async () => {
-                    try {
-                      const response = await stop_workflow(workflow.username, workflow.model_name);
-                      console.log('Workflow undeployed successfully:', response);
-                      // Optionally, update the UI state to reflect the undeployment
-                      setDeployStatus(DeployStatus.Inactive);
-                    } catch (error) {
-                      console.error('Error undeploying workflow:', error);
-                      alert('Error undeploying workflow:' + error);
-                    }
+          {allowActions && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  aria-haspopup="true"
+                  size="small"
+                  variant="text" // Using "text" as base variant
+                  sx={{
+                    color: 'inherit', // Default text color
+                    '&:hover': {
+                      backgroundColor: 'var(--accent)', // Replace with your accent color
+                      color: 'var(--accent-foreground)', // Replace with your foreground color for hover
+                    },
                   }}
                 >
-                  <button type="button">Stop App</button>
-                </DropdownMenuItem>
-              )}
-
-              {(modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
-                <DropdownMenuItem
-                  onClick={async () => {
-                    if (window.confirm('Are you sure you want to delete this workflow?')) {
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Toggle menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                {deployStatus === DeployStatus.Active && (
+                  <DropdownMenuItem
+                    onClick={async () => {
                       try {
-                        const response = await delete_workflow(
+                        const response = await stop_workflow(
                           workflow.username,
                           workflow.model_name
                         );
-                        console.log('Workflow deleted successfully:', response);
+                        console.log('Workflow undeployed successfully:', response);
+                        // Optionally, update the UI state to reflect the undeployment
+                        setDeployStatus(DeployStatus.Inactive);
                       } catch (error) {
-                        console.error('Error deleting workflow:', error);
-                        alert('Error deleting workflow:' + error);
+                        console.error('Error undeploying workflow:', error);
+                        alert('Error undeploying workflow:' + error);
                       }
-                    }
-                  }}
-                >
-                  <form>
-                    <button type="button">Delete App</button>
-                  </form>
-                </DropdownMenuItem>
-              )}
+                    }}
+                  >
+                    <button type="button">Stop App</button>
+                  </DropdownMenuItem>
+                )}
 
-              {workflow.type === 'enterprise-search' &&
-                (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
+                {(modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to delete this workflow?')) {
+                        try {
+                          const response = await delete_workflow(
+                            workflow.username,
+                            workflow.model_name
+                          );
+                          console.log('Workflow deleted successfully:', response);
+                        } catch (error) {
+                          console.error('Error deleting workflow:', error);
+                          alert('Error deleting workflow:' + error);
+                        }
+                      }
+                    }}
+                  >
+                    <form>
+                      <button type="button">Delete App</button>
+                    </form>
+                  </DropdownMenuItem>
+                )}
+
+                {workflow.type === 'enterprise-search' &&
+                  (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
+                    <Link
+                      href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
+                    >
+                      <DropdownMenuItem>
+                        <button type="button">Usage Dashboard</button>
+                      </DropdownMenuItem>
+                    </Link>
+                  )}
+
+                {workflow.type === 'udt' && (
                   <Link
                     href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
                   >
                     <DropdownMenuItem>
-                      <button type="button">Usage Dashboard</button>
+                      <Tooltip
+                        title={
+                          deployStatus === DeployStatus.Failed ||
+                          deployStatus === DeployStatus.TrainingFailed
+                            ? 'Access restricted: model failed'
+                            : ''
+                        }
+                        arrow
+                      >
+                        <span>
+                          <button
+                            type="button"
+                            disabled={
+                              deployStatus === DeployStatus.Failed ||
+                              deployStatus === DeployStatus.TrainingFailed
+                            }
+                            style={{
+                              cursor:
+                                deployStatus === DeployStatus.Failed ||
+                                deployStatus === DeployStatus.TrainingFailed
+                                  ? 'not-allowed'
+                                  : 'pointer',
+                            }}
+                          >
+                            Usage Dashboard
+                          </button>
+                        </span>
+                      </Tooltip>
                     </DropdownMenuItem>
                   </Link>
                 )}
-
-              {workflow.type === 'udt' && (
-                <Link
-                  href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
-                >
-                  <DropdownMenuItem>
-                    <Tooltip
-                      title={
-                        deployStatus === DeployStatus.Failed ||
-                          deployStatus === DeployStatus.TrainingFailed
-                          ? 'Access restricted: model failed'
-                          : ''
-                      }
-                      arrow
-                    >
-                      <span>
-                        <button
-                          type="button"
-                          disabled={
-                            deployStatus === DeployStatus.Failed ||
-                            deployStatus === DeployStatus.TrainingFailed
-                          }
-                          style={{
-                            cursor:
-                              deployStatus === DeployStatus.Failed ||
-                                deployStatus === DeployStatus.TrainingFailed
-                                ? 'not-allowed'
-                                : 'pointer',
-                          }}
-                        >
-                          Usage Dashboard
-                        </button>
-                      </span>
-                    </Tooltip>
-                  </DropdownMenuItem>
-                </Link>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </TableCell>
 
         {/* Single TableCell for both error and warning icons */}
@@ -636,16 +643,16 @@ export function WorkFlow({
         )}
       </TableRow>
       {/* Dependency models being rendered as child*/}
-      {!isCollapsed && workflow.dependencies?.map(dependency => {
-        return (
-          Workflows.map((item) => {
+      {!isCollapsed &&
+        workflow.dependencies?.map((dependency) => {
+          return Workflows.map((item) => {
             if (item.model_id === dependency.model_id) {
-              return <WorkFlow workflow={item} Workflows={Workflows} allowActions={false} level={1} />
+              return (
+                <WorkFlow workflow={item} Workflows={Workflows} allowActions={false} level={1} />
+              );
             }
-          })
-        )
-      }
-      )}
+          });
+        })}
     </>
   );
 }

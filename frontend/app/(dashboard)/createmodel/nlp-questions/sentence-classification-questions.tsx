@@ -15,6 +15,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ModelTrainingIcon from '@mui/icons-material/ModelTraining';
 import SyntheticClassification from './sentence-questions-synthetic/SyntheticClassification';
+import CSVUpload from './sentence-questions-upload-file/CSVUpload';
 
 const CREATION_METHODS = {
   PRETRAINED: 'pretrained',
@@ -168,7 +169,18 @@ const SCQQuestions = ({
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Upload a CSV file containing your labeled training data. The file should include text samples and their corresponding labels.
             </Typography>
-            {/* Add your CSVUpload component here */}
+            <CSVUpload 
+              modelName={modelName}
+              onSuccess={() => {
+                if (!stayOnPage) {
+                  router.push('/');
+                }
+                onCreateModel?.(modelName);
+              }}
+              onError={(errorMessage: string) => {
+                console.error('Error training model:', errorMessage);
+              }}
+            />
           </Box>
         );
       case CREATION_METHODS.SYNTHETIC:

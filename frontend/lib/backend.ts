@@ -337,6 +337,109 @@ export function retrain_ndb({
   });
 }
 
+export async function validateSentenceClassifierCSV(file: File) {
+  const accessToken = getAccessToken();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await axios.post(
+      `${thirdaiPlatformBaseUrl}/api/train/validate-text-classification-csv`,
+      formData,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.data) {
+      throw new Error(error.response.data.message || 'Failed to validate CSV');
+    }
+    throw new Error('Failed to validate CSV');
+  }
+}
+
+export async function trainSentenceClassifierFromCSV({
+  modelName,
+  file,
+  testSplit = 0.1,
+}: {
+  modelName: string;
+  file: File;
+  testSplit?: number;
+}) {
+  const accessToken = getAccessToken();
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('model_name', modelName);
+  formData.append('test_split', testSplit.toString());
+
+  try {
+    const response = await axios.post(
+      `${thirdaiPlatformBaseUrl}/api/train/train-text-classification-csv`,
+      formData,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.data) {
+      throw new Error(error.response.data.message || 'Failed to train model');
+    }
+    throw new Error('Failed to train model');
+  }
+}
+
+// Alternative version using Promise style if you prefer
+export function trainSentenceClassifierFromCSVPromise({
+  modelName,
+  file,
+  testSplit = 0.1,
+}: {
+  modelName: string;
+  file: File;
+  testSplit?: number;
+}): Promise<any> {
+  const accessToken = getAccessToken();
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('model_name', modelName);
+  formData.append('test_split', testSplit.toString());
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/train/train-text-classification-csv`,
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (err.response && err.response.data) {
+          reject(new Error(err.response.data.message || 'Failed to train model'));
+        } else {
+          reject(new Error('Failed to train model'));
+        }
+      });
+  });
+}
+
 interface RetrainTokenClassifierParams {
   model_name: string;
   base_model_identifier?: string;
@@ -460,7 +563,6 @@ export function trainUDTWithCSV({
   });
 }
 
-// First, let's define the response types
 interface APIResponse {
   status: string;
   message: string;

@@ -552,6 +552,270 @@ def nlp_datagen(
     )
 
 
+class CSVValidationResponse(BaseModel):
+    valid: bool
+    message: str
+    labels: List[str] = []
+
+@train_router.post("/validate-text-classification-csv")
+async def validate_text_classification_csv(
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    try:
+        # Read CSV content
+        contents = await file.read()
+        df = pd.read_csv(pd.io.common.BytesIO(contents))
+
+        # Validation checks
+        if 'text' not in df.columns or 'label' not in df.columns:
+            return CSVValidationResponse(
+                valid=False,
+                message="CSV must contain 'text' and 'label' columns",
+                labels=[]
+            )
+
+        # Check for empty values
+        if df['text'].isnull().any() or df['label'].isnull().any():
+            return CSVValidationResponse(
+                valid=False,
+                message="CSV contains empty values in text or label columns",
+                labels=[]
+            )
+
+        # Get unique labels
+        unique_labels = df['label'].unique().tolist()
+        
+        # Check minimum number of labels
+        if len(unique_labels) < 2:
+            return CSVValidationResponse(
+                valid=False,
+                message="At least two different labels are required",
+                labels=unique_labels
+            )
+
+        # Check minimum examples per label
+        label_counts = df['label'].value_counts()
+        insufficient_labels = label_counts[label_counts < 10].index.tolist()
+        if insufficient_labels:
+            return CSVValidationResponse(
+                valid=False,
+                message=f"Labels {', '.join(insufficient_labels)} have fewer than 10 examples",
+                labels=unique_labels
+            )
+
+        return CSVValidationResponse(
+            valid=True,
+            message="CSV file is valid",
+            labels=unique_labels
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class CSVValidationResponse(BaseModel):
+    valid: bool
+    message: str
+    labels: List[str] = []
+
+@train_router.post("/train-text-classification-csv")
+async def train_text_classification_csv(
+    model_name: str = Form(...),
+    file: UploadFile = File(...),
+    test_split: float = Form(default=0.1),
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    user: schema.User = authenticated_user.user
+
+    # Validate file type
+    if not file.filename.endswith(".csv"):
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="File must be a CSV",
+        )
+
+    try:
+        # Read CSV and validate format
+        contents = await file.read()
+        df = pd.read_csv(pd.io.common.BytesIO(contents))
+        
+        if 'text' not in df.columns or 'label' not in df.columns:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="CSV must contain 'text' and 'label' columns",
+            )
+
+        # Get unique labels
+        unique_labels = df['label'].unique().tolist()
+        if len(unique_labels) < 2:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="At least two different labels are required",
+            )
+
+        # Validate model name
+        try:
+            validate_name(model_name)
+        except:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"{model_name} is not a valid model name.",
+            )
+
+        # Check for duplicate model
+        duplicate_model = get_model(session, username=user.username, model_name=model_name)
+        if duplicate_model:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Model with name {model_name} already exists for user {user.username}.",
+            )
+
+        # Generate IDs
+        model_id = uuid.uuid4()
+        data_id = str(model_id)
+
+        # Save uploaded file
+        file_path = os.path.join(
+            model_bazaar_path(), "data", data_id, "supervised", file.filename
+        )
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        
+        file.file.seek(0)  # Reset file pointer
+        with open(file_path, "wb") as buffer:
+            buffer.write(file.file.read())
+
+        # Create configuration
+        config = TrainConfig(
+            model_bazaar_dir=model_bazaar_path(),
+            license_key=validate_license_info()["boltLicenseKey"],
+            model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
+            model_id=str(model_id),
+            data_id=data_id,
+            base_model_id=None,
+            model_options=UDTOptions(
+                model_type="udt",
+                udt_options=TextClassificationOptions(
+                    text_column="text",
+                    label_column="label",
+                    n_target_classes=len(unique_labels)
+                ),
+            ),
+            data=UDTData(
+                supervised_files=[
+                    FileInfo(
+                        path=file_path,
+                        location="local",
+                        filename=file.filename,
+                        content_type="text/csv",
+                    )
+                ],
+                test_files=[],
+            ),
+            job_options=JobOptions(),
+        )
+
+        # Save configuration
+        config_path = os.path.join(
+            config.model_bazaar_dir, "models", str(model_id), "train_config.json"
+        )
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        with open(config_path, "w") as f:
+            f.write(config.model_dump_json(indent=4))
+
+        # Create model in database
+        new_model: schema.Model = schema.Model(
+            id=model_id,
+            user_id=user.id,
+            train_status=schema.Status.not_started,
+            deploy_status=schema.Status.not_started,
+            name=model_name,
+            type="udt",
+            sub_type="text",
+            domain=user.email.split("@")[1],
+            access_level=schema.Access.private,
+        )
+
+        session.add(new_model)
+        session.commit()
+        session.refresh(new_model)
+
+        # Add model attribute
+        attribute = schema.ModelAttribute(
+            model_id=model_id,
+            key="datagen",
+            value="false",
+        )
+        session.add(attribute)
+        session.commit()
+
+        # Submit training job
+        work_dir = os.getcwd()
+        try:
+            submit_nomad_job(
+                str(Path(work_dir) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
+                nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+                platform=get_platform(),
+                tag=os.getenv("TAG"),
+                registry=os.getenv("DOCKER_REGISTRY"),
+                docker_username=os.getenv("DOCKER_USERNAME"),
+                docker_password=os.getenv("DOCKER_PASSWORD"),
+                image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
+                thirdai_platform_dir=thirdai_platform_dir(),
+                train_script="train_job.run",
+                model_id=str(model_id),
+                share_dir=os.getenv("SHARE_DIR", None),
+                python_path=get_python_path(),
+                aws_access_key=os.getenv("AWS_ACCESS_KEY", ""),
+                aws_access_secret=os.getenv("AWS_ACCESS_SECRET", ""),
+                aws_region_name=os.getenv("AWS_REGION_NAME", ""),
+                azure_account_name=os.getenv("AZURE_ACCOUNT_NAME", ""),
+                azure_account_key=os.getenv("AZURE_ACCOUNT_KEY", ""),
+                gcp_credentials_file=os.getenv("GCP_CREDENTIALS_FILE", ""),
+                train_job_name=new_model.get_train_job_name(),
+                config_path=config_path,
+                allocation_cores=config.job_options.allocation_cores,
+                allocation_memory=config.job_options.allocation_memory,
+                allocation_memory_max=config.job_options.allocation_memory,
+            )
+
+            new_model.train_status = schema.Status.starting
+            session.commit()
+        except Exception as err:
+            new_model.train_status = schema.Status.failed
+            session.add(
+                schema.JobError(
+                    model_id=new_model.id,
+                    job_type="train",
+                    status=schema.Status.failed,
+                    message=f"Failed to start the training job on nomad. Received error: {err}",
+                )
+            )
+            session.commit()
+            logging.error(str(err))
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message=str(err),
+            )
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully submitted the training job",
+            data={
+                "model_id": str(model_id),
+                "user_id": str(user.id),
+            },
+        )
+
+    except Exception as err:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
+        )
+
+
 @train_router.post("/datagen-callback")
 def datagen_callback(
     data_id: str,

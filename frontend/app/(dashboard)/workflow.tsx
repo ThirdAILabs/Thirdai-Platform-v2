@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { AlertCircle } from 'lucide-react';
-import { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button, RadioGroup, Radio, Tooltip } from '@mui/material';
 import {
@@ -344,7 +344,7 @@ export function WorkFlow({
       <TableRow>
         {/* Collapsible button */}
         {workflow.type === 'enterprise-search' ? (
-          <TableCell className="text-center font-medium">
+          <TableCell className="text-center">
             <button
               onClick={() => {
                 toggleCollapseIcon();
@@ -476,7 +476,7 @@ export function WorkFlow({
                       <Tooltip
                         title={
                           deployStatus === DeployStatus.Failed ||
-                          deployStatus === DeployStatus.TrainingFailed
+                            deployStatus === DeployStatus.TrainingFailed
                             ? 'Access restricted: model failed'
                             : ''
                         }
@@ -492,7 +492,7 @@ export function WorkFlow({
                             style={{
                               cursor:
                                 deployStatus === DeployStatus.Failed ||
-                                deployStatus === DeployStatus.TrainingFailed
+                                  deployStatus === DeployStatus.TrainingFailed
                                   ? 'not-allowed'
                                   : 'pointer',
                             }}
@@ -645,10 +645,10 @@ export function WorkFlow({
       {/* Dependency models being rendered as child*/}
       {!isCollapsed &&
         workflow.dependencies?.map((dependency) => {
-          return Workflows.map((item) => {
-            if (item.model_id === dependency.model_id) {
+          return Workflows.map((thisWorkflow) => {
+            if (thisWorkflow.model_id === dependency.model_id) {
               return (
-                <WorkFlow workflow={item} Workflows={Workflows} allowActions={false} level={1} />
+                <WorkFlow key={dependency.model_id} workflow={thisWorkflow} Workflows={Workflows} allowActions={false} level={1} />
               );
             }
           });

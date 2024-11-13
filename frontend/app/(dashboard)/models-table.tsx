@@ -85,9 +85,9 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
           <TableBody>
             {displayedWorkflows
               .sort((a, b) => a.model_name.localeCompare(b.model_name)) // Sort by name alphabetically
-              .map((workflow, index) => (
+              .map((workflow) => (
                 <WorkFlow
-                  key={index + 200}
+                  key={workflow.model_id}
                   workflow={workflow}
                   Workflows={workflows}
                   allowActions={true}

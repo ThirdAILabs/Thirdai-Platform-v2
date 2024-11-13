@@ -105,6 +105,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
                     workflow={workflow}
                     handleCollapse={toggleIsCollapsedList}
                     index={index}
+                    allowActions={true}
                   />
                   {!isCollapsedList[index] && (
                     <TableRow>
@@ -129,6 +130,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
                                     workflow={item}
                                     handleCollapse={toggleIsCollapsedList}
                                     index={index}
+                                    allowActions={false}
                                   />
                                 );
                               }

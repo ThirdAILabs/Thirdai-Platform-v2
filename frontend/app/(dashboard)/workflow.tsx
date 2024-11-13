@@ -60,10 +60,12 @@ export function WorkFlow({
   workflow,
   handleCollapse,
   index,
+  allowActions
 }: {
   workflow: Workflow;
   handleCollapse: (index: number) => void;
   index: number;
+  allowActions: boolean
 }) {
   const { user } = useContext(UserContext);
   const [deployStatus, setDeployStatus] = useState<DeployStatus>(DeployStatus.None);
@@ -381,7 +383,7 @@ export function WorkFlow({
           </button>
         </TableCell>
         <TableCell className="text-center font-medium">
-          <DropdownMenu>
+          {allowActions && <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 aria-haspopup="true"
@@ -461,7 +463,7 @@ export function WorkFlow({
                     <Tooltip
                       title={
                         deployStatus === DeployStatus.Failed ||
-                        deployStatus === DeployStatus.TrainingFailed
+                          deployStatus === DeployStatus.TrainingFailed
                           ? 'Access restricted: model failed'
                           : ''
                       }
@@ -477,7 +479,7 @@ export function WorkFlow({
                           style={{
                             cursor:
                               deployStatus === DeployStatus.Failed ||
-                              deployStatus === DeployStatus.TrainingFailed
+                                deployStatus === DeployStatus.TrainingFailed
                                 ? 'not-allowed'
                                 : 'pointer',
                           }}
@@ -490,7 +492,7 @@ export function WorkFlow({
                 </Link>
               )}
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu>}
         </TableCell>
 
         {/* Single TableCell for both error and warning icons */}

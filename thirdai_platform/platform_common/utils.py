@@ -1,8 +1,14 @@
 import json
+import os
+import shutil
 from typing import Dict
 
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
+
+
+def model_bazaar_path():
+    return "/model_bazaar" if os.path.exists("/.dockerenv") else os.getenv("SHARE_DIR")
 
 
 def response(
@@ -46,3 +52,8 @@ def get_section(docs: str, header: str) -> str:
         if header in section:
             return section.strip()
     return "Documentation not found."
+
+
+def disk_usage():
+    disk_stat = shutil.disk_usage(model_bazaar_path())
+    return {"total": disk_stat.total, "used": disk_stat.used, "free": disk_stat.free}

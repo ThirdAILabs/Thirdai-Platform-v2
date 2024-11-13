@@ -17,8 +17,6 @@ from platform_common.pydantic_models.training import (
     JobOptions,
     NDBData,
     NDBOptions,
-    NDBv1Options,
-    NDBv2Options,
     TextClassificationOptions,
     TokenClassificationDatagenOptions,
     TokenClassificationOptions,
@@ -77,7 +75,7 @@ def create_tmp_model_bazaar_dir():
     shutil.rmtree(MODEL_BAZAAR_DIR)
 
 
-def run_ndb_train_job(ndb_options, extra_supervised_files=[]):
+def run_ndb_train_job(extra_supervised_files=[]):
     licensing.activate(THIRDAI_LICENSE)
 
     source_id = ndb.CSV(
@@ -92,7 +90,7 @@ def run_ndb_train_job(ndb_options, extra_supervised_files=[]):
         model_bazaar_endpoint="",
         model_id="ndb_123",
         data_id="data_123",
-        model_options=NDBOptions(ndb_options=ndb_options),
+        model_options=NDBOptions(),
         data=NDBData(
             unsupervised_files=[
                 FileInfo(
@@ -139,18 +137,6 @@ def run_ndb_train_job(ndb_options, extra_supervised_files=[]):
     return os.path.join(MODEL_BAZAAR_DIR, "models", "ndb_123", "model.ndb")
 
 
-@pytest.mark.parametrize(
-    "ndb_options",
-    [NDBv1Options(), NDBv1Options(retriever="mach", mach_options={})],
-)
-def test_ndbv1_train(ndb_options):
-    db_path = run_ndb_train_job(ndb_options)
-
-    db = ndb.NeuralDB.from_checkpoint(db_path)
-
-    assert len(db.sources()) == 3
-
-
 @pytest.fixture()
 def feedback_train_file():
     logs = [
@@ -181,7 +167,6 @@ def feedback_train_file():
 
 def test_ndbv2_train(feedback_train_file):
     db_path = run_ndb_train_job(
-        ndb_options=NDBv2Options(),
         extra_supervised_files=[FileInfo(path=feedback_train_file, location="local")],
     )
 

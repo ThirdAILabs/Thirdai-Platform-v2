@@ -8,7 +8,7 @@ from typing import AsyncGenerator, List
 import fitz
 import jwt
 import thirdai
-from deployment_job.models.ndb_models import NDBModel, NDBV1Model, NDBV2Model
+from deployment_job.models.ndb_models import NDBModel
 from deployment_job.permissions import Permissions
 from deployment_job.pydantic_models.inputs import (
     AssociateInput,
@@ -37,7 +37,7 @@ from fastapi import (
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from platform_common.file_handler import download_local_files, get_cloud_client
-from platform_common.pydantic_models.deployment import DeploymentConfig, NDBSubType
+from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
     DeleteLog,
@@ -107,20 +107,10 @@ class NDBRouter:
 
     @staticmethod
     def get_model(config: DeploymentConfig, logger: Logger) -> NDBModel:
-        subtype = config.model_options.ndb_sub_type
-        logger.info(f"Initializing model subtype: {subtype}")
-        if subtype == NDBSubType.v1:
-            return NDBV1Model(
-                config=config, logger=logger, write_mode=not config.autoscaling_enabled
-            )
-        elif subtype == NDBSubType.v2:
-            return NDBV2Model(
-                config=config, logger=logger, write_mode=not config.autoscaling_enabled
-            )
-        else:
-            error_message = f"Unsupported NDB subtype '{subtype}'."
-            logger.error(error_message)
-            raise ValueError(error_message)
+        logger.info(f"Initializing ndb model")
+        return NDBModel(
+            config=config, logger=logger, write_mode=not config.autoscaling_enabled
+        )
 
     @ndb_query_metric.time()
     def search(

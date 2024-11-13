@@ -41,7 +41,7 @@ func (s *TrainService) Routes() chi.Router {
 		r.Use(s.userAuth.Authenticator())
 
 		r.Post("/ndb", s.TrainNdb)
-		r.Post("/upload", s.UploadFiles)
+		r.Post("/upload-data", s.UploadData)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -235,7 +235,7 @@ func getMultipartBoundary(r *http.Request) (string, error) {
 	return boundary, nil
 }
 
-func (s *TrainService) UploadFiles(w http.ResponseWriter, r *http.Request) {
+func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 	boundary, err := getMultipartBoundary(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

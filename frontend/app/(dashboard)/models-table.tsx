@@ -78,7 +78,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
           <TableHeader>
             <TableRow>
               <TableHead></TableHead>
-              <TableHead className="text-center">Name</TableHead>
+              <TableHead className="text-left">Name</TableHead>
               <TableHead className="text-center">Status</TableHead>
               <TableHead className="hidden md:table-cell text-center">Type</TableHead>
               <TableHead className="hidden md:table-cell text-center">Published on</TableHead>
@@ -95,6 +95,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
                 <WorkFlow
                   key={index + 200}
                   workflow={workflow}
+                  Workflows={workflows}
                   allowActions={true}
                   level={0} />
               ))}

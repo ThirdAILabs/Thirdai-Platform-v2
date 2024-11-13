@@ -27,9 +27,7 @@ import { InformationCircleIcon } from '@heroicons/react/solid';
 import { Model, getModels } from '@/utils/apiRequests';
 import { UserContext } from '../user_wrapper';
 import { ContentCopy, Download } from '@mui/icons-material'; // MUI icons instead of SVG paths
-import { ExpandMore, ExpandLess, ChevronRight } from '@mui/icons-material';
-// import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import { fetchWorkflows } from '@/lib/backend';
+import { ExpandMore, ChevronRight } from '@mui/icons-material';
 
 enum DeployStatus {
   None = '',
@@ -58,14 +56,12 @@ interface WarningState {
 
 export function WorkFlow({
   workflow,
-  // handleCollapse,
-  // index,
+  Workflows,
   allowActions,
   level
 }: {
-  workflow: Workflow;
-  // handleCollapse: (index: number) => void;
-  // index: number;
+  workflow: Workflow
+  Workflows: Workflow[]
   allowActions: boolean
   level: number
 }) {
@@ -180,30 +176,6 @@ export function WorkFlow({
     toggleDeploymentModal();
     await handleDeploy();
   };
-
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-
-  useEffect(() => {
-    async function getWorkflows() {
-      try {
-        const fetchedWorkflows = await fetchWorkflows();
-        setWorkflows(fetchedWorkflows);
-      } catch (err) {
-        if (err instanceof Error) {
-          console.log(err.message);
-        } else {
-          console.log('An unknown error occurred');
-        }
-      }
-    }
-
-    // Call the function immediately
-    getWorkflows();
-
-    const intervalId = setInterval(getWorkflows, 3000);
-
-    return () => clearInterval(intervalId);
-  }, []);
 
   useEffect(() => {
     if (workflow.train_status === 'failed') {
@@ -377,7 +349,6 @@ export function WorkFlow({
               onClick={() => {
                 toggleCollapseIcon();
               }}
-              className="p-2 hover:bg-slate-200 rounded-lg"
             >
               {isCollapsed ? <ChevronRight /> : <ExpandMore />}
             </button>
@@ -574,21 +545,6 @@ export function WorkFlow({
           </div>
         </TableCell>
 
-        {/* Collapsible button
-      {workflow.type === 'enterprise-search' && (
-        <TableCell className="text-center font-medium">
-          <button
-            onClick={() => {
-              handleCollapse(index);
-              toggleCollapseIcon();
-            }}
-            className="p-2 hover:bg-slate-200 rounded-lg"
-          >
-            {isCollapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
-          </button>
-        </TableCell>
-      )} */}
-
         {/* Error/Warning Modal */}
         {showErrorModal && (error || warning) && (
           <Modal onClose={() => setShowErrorModal(false)}>
@@ -679,11 +635,12 @@ export function WorkFlow({
           </Modal>
         )}
       </TableRow>
+      {/* Dependency models being rendered as child*/}
       {!isCollapsed && workflow.dependencies?.map(dependency => {
         return (
-          workflows.map((item) => {
+          Workflows.map((item) => {
             if (item.model_id === dependency.model_id) {
-              return <WorkFlow workflow={item} allowActions={false} level={1} />
+              return <WorkFlow workflow={item} Workflows={Workflows} allowActions={false} level={1} />
             }
           })
         )

@@ -615,11 +615,6 @@ async def validate_text_classification_csv(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-class CSVValidationResponse(BaseModel):
-    valid: bool
-    message: str
-    labels: List[str] = []
-
 @train_router.post("/train-text-classification-csv")
 async def train_text_classification_csv(
     model_name: str = Form(...),

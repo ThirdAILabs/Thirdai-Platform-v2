@@ -67,8 +67,32 @@ Before running the script, ensure the following are installed on your machine:
    ```bash
    ./driver.sh ./config.yml
    ```
+### Troubleshooting Steps for Changing Public IP on the Fly
 
-5. **What Happens During Execution**:
+When changing the public IP of your Keycloak instance, follow these steps to update the settings and ensure proper functionality:
+
+---
+
+5. **Steps to Update Frontend URL**
+
+   - Navigate to the new admin console URL using the updated public IP:
+     ```
+     https://{newPublicIP}/keycloak/admin/master/console/
+     ```
+   - In the **Keycloak Admin Console**, go to:
+     - Select the realm: `thirdai-platform`.
+     - Navigate to **Realm Settings → General**.
+   - Update the **Frontend URL** to:
+     ```
+     https://{newPublicIP}/keycloak
+     ```
+   - ⚠️ **Important**: Ensure the new public IP corresponds to the subdomain name specified in the SSL certificate.
+   - If the subdomain does not match the new IP, you will need to provide an updated certificate for the new IP.
+   - If using Let's Encrypt or another automated tool, reissue the certificate with the new IP and update your Keycloak server configuration accordingly.
+   - If you are not able to access the admin console on the new URL, you may need to try use the older PublicIP if it is still available to change domain, and if that is also not accesible. You may need to do change the env var `KC_HOSTNAME` and `KC_HOSTNAME_ADMIN` to new public IP.
+
+
+6. **What Happens During Execution**:
    
    - The script checks for the installation of Ansible. If Ansible is not installed, the script will install it automatically.
    - The script verifies if the model folder (`gen-ai-models/`) is present. If the folder is not found, the script issues a warning but proceeds with the playbook execution.

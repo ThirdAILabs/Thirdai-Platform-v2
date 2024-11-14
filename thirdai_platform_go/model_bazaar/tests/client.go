@@ -237,7 +237,7 @@ func (c *client) trainNdb(name string) (string, error) {
 		ModelName:    name,
 		ModelOptions: &config.NdbOptions{},
 		Data: config.NDBData{
-			UnsupervisedFiles: []config.FileInfo{{}},
+			UnsupervisedFiles: []config.FileInfo{{Path: "a.txt", Location: "local"}},
 		},
 	}
 

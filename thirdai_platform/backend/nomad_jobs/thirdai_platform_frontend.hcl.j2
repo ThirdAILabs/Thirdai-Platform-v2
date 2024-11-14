@@ -43,7 +43,7 @@ job "thirdai-platform-frontend" {
         KEYCLOAK_CLIENT_SECRET = ""
         KEYCLOAK_ISSUER = "https://{{ keycloak_server_hostname }}/keycloak/realms/ThirdAI-Platform"
         {# The following is URL for http application #}
-        NEXTAUTH_URL = "http://{{ keycloak_server_hostname }}"
+        AUTH_TRUST_HOST = "true"
         NEXTAUTH_SECRET = "{{ nextauth_secret }}"
 
         {% if use_ssl_in_login == "true" %}

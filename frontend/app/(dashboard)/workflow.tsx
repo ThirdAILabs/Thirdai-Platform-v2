@@ -201,7 +201,13 @@ export function WorkFlow({ workflow }: { workflow: Workflow }) {
         setDeployType('Enterprise Search');
       }
     } else if (workflow.type === 'udt') {
-      setDeployType('Natural Language Processing');
+      if (workflow.sub_type === 'doc') {
+        setDeployType('Document Classification');
+      } else if (workflow.sub_type === 'token') {
+        setDeployType('Text Extraction');
+      } else if (workflow.sub_type === 'text') {
+        setDeployType('Text Classification');
+      }
     } else if (workflow.type === 'enterprise-search') {
       setDeployType('Enterprise Search & Summarizer');
     }

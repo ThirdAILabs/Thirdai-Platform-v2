@@ -326,8 +326,7 @@ const NERQuestions = ({
                 Use Pretrained Model
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Quick start with our pretrained models for common extraction tasks like PII,
-                addresses, or dates
+                Quick start with our pre-trained models for extracting common PII info like Names, Addresses, Emails, SSNs etc
               </Typography>
             </CardContent>
           </Card>
@@ -361,7 +360,7 @@ const NERQuestions = ({
                 Upload Your Data
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Train with your own labeled dataset via CSV upload from your computer or S3
+                Train with your own labeled dataset via a CSV uploaded from your computer or S3
               </Typography>
             </CardContent>
           </Card>
@@ -401,19 +400,13 @@ const NERQuestions = ({
           </Card>
         </Grid>
       </Grid>
-
-      {creationMethod && (
-        <Button variant="outlined" sx={{ mt: 2 }} onClick={() => setCreationMethod('')}>
-          Choose Different Method
-        </Button>
-      )}
     </Box>
   );
 
   const renderSelectedMethod = () => {
     switch (creationMethod) {
       case CREATION_METHODS.PRETRAINED:
-        return <Typography>Pretrained model selection UI will go here</Typography>;
+        return <Typography>Coming Soon</Typography>;
       case CREATION_METHODS.UPLOAD_DATA:
         return (
           <Box sx={{ width: '100%' }}>
@@ -610,6 +603,7 @@ const NERQuestions = ({
 
       {/* Method selection and content */}
       {renderCreationMethodSelection()}
+      {creationMethod && <Divider sx={{ my: 4 }} />}
       {renderSelectedMethod()}
     </div>
   );

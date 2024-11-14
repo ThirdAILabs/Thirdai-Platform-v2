@@ -104,7 +104,7 @@ const SCQQuestions = ({
                 Upload Your Data
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Train with your own labeled dataset via CSV upload from your computer or S3
+                Train with your own labeled dataset via a CSV uploaded from your computer or S3
               </Typography>
             </CardContent>
           </Card>
@@ -133,16 +133,6 @@ const SCQQuestions = ({
           </Card>
         </Grid>
       </Grid>
-
-      {creationMethod && (
-        <Button 
-          variant="outlined" 
-          sx={{ mt: 2 }}
-          onClick={() => setCreationMethod('')}
-        >
-          Choose Different Method
-        </Button>
-      )}
     </Box>
   );
 
@@ -151,13 +141,13 @@ const SCQQuestions = ({
       case CREATION_METHODS.PRETRAINED:
         return (
           <Box sx={{ width: '100%' }}>
-            <Typography variant="h6" gutterBottom>
+            Coming Soon
+            {/* <Typography variant="h6" gutterBottom>
               Select a Pretrained Model
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Choose from our collection of pretrained models for common text classification tasks.
-            </Typography>
-            {/* Add your pretrained model selection UI here */}
+            </Typography> */}
           </Box>
         );
       case CREATION_METHODS.UPLOAD_DATA:

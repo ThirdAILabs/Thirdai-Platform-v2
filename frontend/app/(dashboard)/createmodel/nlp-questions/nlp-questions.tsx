@@ -13,12 +13,12 @@ const NLP_TYPES = [
   {
     value: 'text-classification',
     label: 'Text Classification',
-    description: 'Analyze sentiment and classify text content',
+    description: 'Examples: Sentiment Analysis, Intent Classification etc',
   },
   {
     value: 'text-extraction',
     label: 'Text Extraction',
-    description: 'Extract entities, PII, or HIPAA information',
+    description: 'Examples: PII Detection, HIPAA Compliance Detection etc',
   },
   {
     value: 'document-classification',
@@ -59,10 +59,6 @@ const NLPQuestions = ({ workflowNames }: NLPQuestionsProps) => {
 
   return (
     <Box sx={{ width: '100%' }}>
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        NLP Task Assistant
-      </Typography>
-
       <FormControl fullWidth sx={{ mb: 3 }}>
         <InputLabel>Select an NLP task type</InputLabel>
         <Select value={selectedType} label="Select an NLP task type" onChange={handleChange}>

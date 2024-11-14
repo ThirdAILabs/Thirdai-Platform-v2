@@ -5,15 +5,14 @@ try:
     from pathlib import Path
 
     import nltk
+    from licensing.verify import verify_license
     from platform_common.logging import setup_logger
 
     nltk.download("punkt_tab")
     print("Downloading punkttab")
 
     import argparse
-    import os
 
-    import thirdai
     from platform_common.pydantic_models.training import (
         ModelType,
         TrainConfig,
@@ -75,15 +74,7 @@ def main():
 
         reporter = HttpReporter(config.model_bazaar_endpoint, logger)
 
-        if config.license_key == "file_license":
-            license_path = os.path.join(
-                config.model_bazaar_dir, "license/license.serialized"
-            )
-            thirdai.licensing.set_path(license_path)
-            logger.info(f"License activated using file path: {license_path}")
-        else:
-            thirdai.licensing.activate(config.license_key)
-            logger.info("License activated with key")
+        verify_license.activate_thirdai_license(config.license_key)
 
         model = get_model(config, reporter, logger)
 

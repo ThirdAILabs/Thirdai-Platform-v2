@@ -4,6 +4,7 @@ from typing import Dict
 
 import pandas as pd
 import pytest
+from licensing.verify import verify_license
 from platform_common.logging import get_default_logger
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
@@ -25,7 +26,7 @@ from platform_common.pydantic_models.training import (
     UDTOptions,
     UDTTrainOptions,
 )
-from thirdai import bolt, licensing
+from thirdai import bolt
 from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
 from train_job.models.classification_models import TokenClassificationModel
@@ -48,7 +49,9 @@ class DummyReporter(Reporter):
 
 MODEL_BAZAAR_DIR = "./model_bazaar_tmp"
 
-THIRDAI_LICENSE = "236C00-47457C-4641C5-52E3BB-3D1F34-V3"
+THIRDAI_LICENSE = os.path.join(
+    os.path.dirname(__file__), "../tests/ndb_enterprise_license.json"
+)
 
 default_logger = get_default_logger()
 
@@ -76,7 +79,7 @@ def create_tmp_model_bazaar_dir():
 
 
 def run_ndb_train_job(extra_supervised_files=[]):
-    licensing.activate(THIRDAI_LICENSE)
+    verify_license.verify_and_activate(THIRDAI_LICENSE)
 
     source_id = ndb.CSV(
         os.path.join(file_dir(), "articles.csv"),
@@ -176,7 +179,8 @@ def test_ndbv2_train(feedback_train_file):
 
 
 def test_udt_text_train():
-    licensing.activate(THIRDAI_LICENSE)
+    verify_license.verify_and_activate(THIRDAI_LICENSE)
+
     os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
         model_bazaar_dir=MODEL_BAZAAR_DIR,
@@ -223,7 +227,8 @@ def test_udt_text_train():
 
 @pytest.mark.parametrize("test_split", [0, 0.25])
 def test_udt_token_train(test_split):
-    licensing.activate(THIRDAI_LICENSE)
+    verify_license.verify_and_activate(THIRDAI_LICENSE)
+
     os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
         model_bazaar_dir=MODEL_BAZAAR_DIR,
@@ -298,7 +303,8 @@ def test_udt_token_train(test_split):
 
 
 def test_udt_token_train_with_balancing(dummy_ner_file):
-    licensing.activate(THIRDAI_LICENSE)
+    verify_license.verify_and_activate(THIRDAI_LICENSE)
+
     config = TrainConfig(
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,

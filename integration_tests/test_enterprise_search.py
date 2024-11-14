@@ -3,15 +3,21 @@ import uuid
 from urllib.parse import urljoin
 
 import pytest
-from thirdai import bolt, licensing
+from thirdai import bolt
 from utils import doc_dir
 
 from client.bazaar import ModelBazaar
 from client.utils import auth_header, http_post_with_error
+from thirdai_platform.licensing.verify import verify_license
 
 
 def upload_guardrail_model(admin_client: ModelBazaar):
-    licensing.activate("236C00-47457C-4641C5-52E3BB-3D1F34-V3")
+    verify_license.verify_and_activate(
+        os.path.join(
+            os.path.dirname(__file__),
+            "../thirdai_platform/tests/ndb_enterprise_license.json",
+        )
+    )
 
     model = bolt.UniversalDeepTransformer(
         data_types={

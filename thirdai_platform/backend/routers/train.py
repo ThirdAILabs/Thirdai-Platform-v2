@@ -62,6 +62,7 @@ from platform_common.pydantic_models.training import (
 )
 from platform_common.thirdai_storage import storage
 from platform_common.utils import response
+from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
@@ -566,41 +567,67 @@ class FolderValidationResponse(BaseModel):
     categories: List[str] = []
     file_counts: dict = {}
 
-async def create_classification_csv(temp_dir: str, files: List[UploadFile]) -> tuple[str, List[str]]:
+def cap_text_length(text: str, word_limit: int = 1000) -> str:
+    """Helper function to cap text to specified number of words"""
+    words = text.split()
+    if len(words) <= word_limit:
+        return text
+    return ' '.join(words[:word_limit])
+
+async def create_classification_csv(temp_dir: str, 
+                                 files: List[UploadFile], 
+                                 word_limit: int = 1000) -> tuple[str, List[str]]:
     """
     Create a CSV file from folder structure in the format expected by TextClassificationOptions
+    
+    Args:
+        temp_dir (str): Directory for temporary file processing
+        files (List[UploadFile]): List of uploaded files
+        word_limit (int, optional): Maximum number of words to use per document. Defaults to 1000.
     """
     rows = []
     categories = set()
     
-    logging.debug(f"Processing {len(files)} files in create_classification_csv")
-    
     for file in files:
         parts = Path(file.filename).parts
-        logging.debug(f"Processing file: {file.filename}, parts: {parts}")
-        
-        # We need at least 3 parts: parent_folder/category/filename
         if len(parts) < 3:
-            logging.warning(f"Skipping file {file.filename} - invalid path structure")
             continue
             
-        # Take the second part as category (index 1)
-        category = parts[1]  # Changed from parts[0]
+        category = parts[1]
         categories.add(category)
-        logging.debug(f"Added category: {category}, Current categories: {categories}")
+        
+        # Get file extension and convert to lowercase
+        ext = Path(file.filename).suffix.lower()
+        
+        content = await file.read()
         
         try:
-            content = await file.read()
-            logging.debug(f"Successfully read content for file: {file.filename}")
-            
-            # For text files, decode directly
-            if file.filename.endswith('.txt'):
+            if ext == '.txt':
+                # Direct text processing for .txt files
                 text_content = content.decode('utf-8')
             else:
-                text_content = f"Content of {file.filename}"
+                # For other formats, use ndb parser
+                # Save file temporarily
+                temp_file_path = Path(temp_dir) / file.filename
+                os.makedirs(temp_file_path.parent, exist_ok=True)
+                
+                with open(temp_file_path, "wb") as f:
+                    f.write(content)
+                
+                try:
+                    # Convert to ndb Document
+                    doc = convert_to_ndb_file(str(temp_file_path), metadata=None, options=None)
+                    # Get text content from display column
+                    text_content = " ".join(doc.table.df["display"].tolist())
+                finally:
+                    if temp_file_path.exists():
+                        os.remove(temp_file_path)
+            
+            # Cap the text length before adding to rows
+            capped_text = cap_text_length(text_content, word_limit)
             
             rows.append({
-                'text': text_content,
+                'text': capped_text,
                 'label': category
             })
             
@@ -608,16 +635,12 @@ async def create_classification_csv(temp_dir: str, files: List[UploadFile]) -> t
             logging.error(f"Error processing file {file.filename}: {str(e)}")
             continue
     
-    logging.debug(f"Final categories found: {categories}")
-    logging.debug(f"Total rows processed: {len(rows)}")
-    
     if not rows:
         raise ValueError("No valid files were processed")
-        
+    
     if len(categories) < 2:
-        raise ValueError(f"Found only {len(categories)} categories, minimum 2 required. Categories: {categories}")
+        raise ValueError(f"Found only {len(categories)} categories, minimum 2 required")
 
-    # Create DataFrame and save to CSV
     df = pd.DataFrame(rows)
     csv_path = os.path.join(temp_dir, 'document_classification.csv')
     df.to_csv(csv_path, index=False)

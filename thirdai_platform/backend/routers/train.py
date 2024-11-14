@@ -569,37 +569,53 @@ class FolderValidationResponse(BaseModel):
 async def create_classification_csv(temp_dir: str, files: List[UploadFile]) -> tuple[str, List[str]]:
     """
     Create a CSV file from folder structure in the format expected by TextClassificationOptions
-    Returns the path to the created CSV and list of categories
     """
     rows = []
     categories = set()
     
-    # Process each file and read its content
+    logging.debug(f"Processing {len(files)} files in create_classification_csv")
+    
     for file in files:
         parts = Path(file.filename).parts
-        if len(parts) < 2:
+        logging.debug(f"Processing file: {file.filename}, parts: {parts}")
+        
+        # We need at least 3 parts: parent_folder/category/filename
+        if len(parts) < 3:
+            logging.warning(f"Skipping file {file.filename} - invalid path structure")
             continue
             
-        category = parts[0]
+        # Take the second part as category (index 1)
+        category = parts[1]  # Changed from parts[0]
         categories.add(category)
+        logging.debug(f"Added category: {category}, Current categories: {categories}")
         
-        # Read file content
-        contents = await file.read()
+        try:
+            content = await file.read()
+            logging.debug(f"Successfully read content for file: {file.filename}")
+            
+            # For text files, decode directly
+            if file.filename.endswith('.txt'):
+                text_content = content.decode('utf-8')
+            else:
+                text_content = f"Content of {file.filename}"
+            
+            rows.append({
+                'text': text_content,
+                'label': category
+            })
+            
+        except Exception as e:
+            logging.error(f"Error processing file {file.filename}: {str(e)}")
+            continue
+    
+    logging.debug(f"Final categories found: {categories}")
+    logging.debug(f"Total rows processed: {len(rows)}")
+    
+    if not rows:
+        raise ValueError("No valid files were processed")
         
-        # For text files, read directly
-        if file.filename.endswith('.txt'):
-            text_content = contents.decode('utf-8')
-        # For other file types, you might need additional processing or libraries
-        else:
-            # Placeholder for other file types - implement proper document reading
-            text_content = f"Content of {file.filename}"
-        
-        rows.append({
-            'text': text_content,
-            'label': category
-        })
-        
-        await file.seek(0)  # Reset file pointer
+    if len(categories) < 2:
+        raise ValueError(f"Found only {len(categories)} categories, minimum 2 required. Categories: {categories}")
 
     # Create DataFrame and save to CSV
     df = pd.DataFrame(rows)

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import RAGQuestions from './rag-questions';
 import NLPQuestions from './nlp-questions/nlp-questions';
-import DocumentClassificationQuestions from './document-class-questions';
 import SemanticSearchQuestions from './semantic-search-questions';
 import TabularClassificationQuestions from './tabular-class-questions';
 import { fetchWorkflows, Workflow } from '@/lib/backend';

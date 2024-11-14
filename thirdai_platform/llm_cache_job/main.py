@@ -3,11 +3,12 @@ import os
 import traceback
 from pathlib import Path
 
-import thirdai
+pass
 from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from licensing.verify import verify_license
 from llm_cache_job.cache import Cache, NDBSemanticCache
 from llm_cache_job.permissions import Permissions
 from platform_common.logging import setup_logger
@@ -25,12 +26,7 @@ app.add_middleware(
 
 license_key = os.getenv("LICENSE_KEY")
 model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
-if license_key == "file_license":
-    thirdai.licensing.set_path(
-        os.path.join(model_bazaar_dir, "license/license.serialized")
-    )
-else:
-    thirdai.licensing.activate(license_key)
+verify_license.activate_thirdai_license(license_key)
 
 log_dir: Path = Path(model_bazaar_dir) / "logs"
 

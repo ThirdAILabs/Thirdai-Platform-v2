@@ -20,11 +20,13 @@ try:
     from fastapi import FastAPI, Request
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse
+    from licensing.verify import verify_license
     from platform_common.logging import setup_logger
     from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
     from platform_common.pydantic_models.training import ModelType
     from prometheus_client import make_asgi_app
-    from thirdai import licensing
+
+    pass
 except ImportError as e:
     logging.error(f"Failed to import module: {e}")
     sys.exit(f"ImportError: {e}")
@@ -45,7 +47,7 @@ logger = logging.getLogger("deployment")
 
 reporter = Reporter(config.model_bazaar_endpoint, logger)
 
-licensing.activate(config.license_key)
+verify_license.activate_thirdai_license(config.license_key)
 
 Permissions.init(
     model_bazaar_endpoint=config.model_bazaar_endpoint, model_id=config.model_id

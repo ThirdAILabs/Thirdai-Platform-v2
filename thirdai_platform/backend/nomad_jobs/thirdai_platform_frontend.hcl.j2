@@ -42,7 +42,7 @@ job "thirdai-platform-frontend" {
         KEYCLOAK_CLIENT_ID = "thirdai-login-client"
         KEYCLOAK_CLIENT_SECRET = ""
         KEYCLOAK_ISSUER = "https://{{ keycloak_server_hostname }}/keycloak/realms/ThirdAI-Platform"
-        {# The following is URL for http application #}
+        {# AUTH_TRUST_HOST https://authjs.dev/getting-started/migrating-to-v5#environment-variables #}
         AUTH_TRUST_HOST = "true"
         NEXTAUTH_SECRET = "{{ nextauth_secret }}"
 

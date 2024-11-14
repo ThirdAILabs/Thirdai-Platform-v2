@@ -41,21 +41,15 @@ func (opts *NdbTrainOptions) validate() error {
 	}
 
 	if opts.ModelOptions != nil {
-		allErrors = append(allErrors, opts.ModelOptions.ValidateAndSetDefaults())
+		allErrors = append(allErrors, opts.ModelOptions.Validate())
 	}
-	allErrors = append(allErrors, opts.Data.ValidateAndSetDefaults())
-	allErrors = append(allErrors, opts.JobOptions.ValidateAndSetDefaults())
+	allErrors = append(allErrors, opts.Data.Validate())
+	allErrors = append(allErrors, opts.JobOptions.Validate())
 
 	return errors.Join(allErrors...)
 }
 
 func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
-	userId, err := auth.UserIdFromContext(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
 	var options NdbTrainOptions
 	if !parseRequestBody(w, r, &options) {
 		return
@@ -66,44 +60,14 @@ func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	modelId := uuid.New().String()
-
-	slog.Info("starting ndb training", "model_id", modelId, "model_name", options.ModelName)
-
-	license, err := verifyLicenseForNewJob(s.nomad, s.license, options.JobOptions.CpuUsageMhz())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	jobToken, err := s.jobAuth.CreateToken("model_id", modelId, time.Hour*1000*24)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	trainConfig := config.TrainConfig{
-		ModelBazaarDir:      s.storage.Location(),
-		LicenseKey:          license,
-		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
-		JobAuthToken:        jobToken,
-		ModelId:             modelId,
-		BaseModelId:         options.BaseModelId,
-		ModelOptions:        options.ModelOptions,
-		Data:                options.Data,
-		JobOptions:          options.JobOptions,
-		IsRetraining:        false,
-	}
-
-	err = s.createModelAndStartTraining(options.ModelName, schema.NdbModel, userId, trainConfig)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error starting ndb training: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	slog.Info("started ndb training succesfully", "model_id", modelId, "model_name", options.ModelName)
-
-	writeJsonResponse(w, map[string]string{"model_id": modelId})
+	s.basicTraining(w, r, basicTrainArgs{
+		modelName:    options.ModelName,
+		modelType:    schema.NdbModel,
+		baseModelId:  options.BaseModelId,
+		modelOptions: options.ModelOptions,
+		data:         options.Data,
+		jobOptions:   options.JobOptions,
+	})
 }
 
 type NdbRetrainOptions struct {
@@ -123,7 +87,7 @@ func (opts *NdbRetrainOptions) validate() error {
 		allErrors = append(allErrors, fmt.Errorf("base model id must be specified"))
 	}
 
-	allErrors = append(allErrors, opts.JobOptions.ValidateAndSetDefaults())
+	allErrors = append(allErrors, opts.JobOptions.Validate())
 
 	return errors.Join(allErrors...)
 }
@@ -237,7 +201,7 @@ func (s *TrainService) RetrainNdb(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("error collecting retraining data: %v", err), http.StatusBadRequest)
 	}
 
-	if err := data.ValidateAndSetDefaults(); err != nil {
+	if err := data.Validate(); err != nil {
 		http.Error(w, fmt.Sprintf("data validation failed for ndb retrainin: %v", err), http.StatusBadRequest)
 		return
 	}

@@ -43,7 +43,7 @@ type NdbOptions struct {
 	AdvancedSearch bool   `json:"advanced_search"`
 }
 
-func (opts *NdbOptions) ValidateAndSetDefaults() error {
+func (opts *NdbOptions) Validate() error {
 	opts.ModelType = schema.NdbModel
 	return nil
 }
@@ -57,7 +57,7 @@ type NDBData struct {
 	Deletions []string `json:"deletions"`
 }
 
-func (data *NDBData) ValidateAndSetDefaults() error {
+func (data *NDBData) Validate() error {
 	data.ModelDataType = ndbDataType
 
 	if len(data.UnsupervisedFiles)+len(data.SupervisedFiles) == 0 {
@@ -84,7 +84,7 @@ type NlpTokenOptions struct {
 	DefaultTag   string   `json:"default_tag"`
 }
 
-func (opts *NlpTokenOptions) ValidateAndSetDefaults() error {
+func (opts *NlpTokenOptions) Validate() error {
 	opts.ModelType = schema.NlpTokenModel
 	opts.DefaultTag = "O"
 
@@ -108,7 +108,7 @@ type NlpTextOptions struct {
 	Delimiter      string `json:"delimiter"`
 }
 
-func (opts *NlpTextOptions) ValidateAndSetDefaults() error {
+func (opts *NlpTextOptions) Validate() error {
 	opts.ModelType = schema.NlpTextModel
 	opts.Delimiter = ","
 
@@ -134,7 +134,7 @@ type NlpData struct {
 	TestFiles       []FileInfo `json:"test_files"`
 }
 
-func (data *NlpData) ValidateAndSetDefaults() error {
+func (data *NlpData) Validate() error {
 	data.ModelDataType = nlpDataType
 
 	if len(data.SupervisedFiles) == 0 {
@@ -160,7 +160,7 @@ type NlpTrainOptions struct {
 	TestSplit          *float32 `json:"test_split"`
 }
 
-func (opts *NlpTrainOptions) ValidateAndSetDefaults() error {
+func (opts *NlpTrainOptions) Validate() error {
 	if opts.Epochs == 0 {
 		opts.Epochs = 1
 	}
@@ -198,7 +198,7 @@ type JobOptions struct {
 	AllocationMemory int `json:"allocation_memory"`
 }
 
-func (opts JobOptions) ValidateAndSetDefaults() error {
+func (opts *JobOptions) Validate() error {
 	opts.AllocationCores = max(opts.AllocationCores, 1)
 	if opts.AllocationMemory < 500 {
 		opts.AllocationMemory = 6800

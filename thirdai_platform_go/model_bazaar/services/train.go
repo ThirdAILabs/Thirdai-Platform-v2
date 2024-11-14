@@ -41,6 +41,8 @@ func (s *TrainService) Routes() chi.Router {
 		r.Use(s.userAuth.Authenticator())
 
 		r.Post("/ndb", s.TrainNdb)
+		r.Post("/nlp-token", s.TrainNlpToken)
+		r.Post("/nlp-text", s.TrainNlpText)
 		r.Post("/upload-data", s.UploadData)
 	})
 
@@ -62,6 +64,62 @@ func (s *TrainService) Routes() chi.Router {
 	})
 
 	return r
+}
+
+type basicTrainArgs struct {
+	modelName    string
+	modelType    string
+	baseModelId  *string
+	modelOptions interface{}
+	data         interface{}
+	jobOptions   config.JobOptions
+}
+
+func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, args basicTrainArgs) {
+	userId, err := auth.UserIdFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	modelId := uuid.New().String()
+
+	slog.Info("starting training", "model_type", args.modelType, "model_id", modelId, "model_name", args.modelName)
+
+	license, err := verifyLicenseForNewJob(s.nomad, s.license, args.jobOptions.CpuUsageMhz())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	jobToken, err := s.jobAuth.CreateToken("model_id", modelId, time.Hour*1000*24)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	trainConfig := config.TrainConfig{
+		ModelBazaarDir:      s.storage.Location(),
+		LicenseKey:          license,
+		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
+		JobAuthToken:        jobToken,
+		ModelId:             modelId,
+		BaseModelId:         args.baseModelId,
+		ModelOptions:        args.modelOptions,
+		Data:                args.data,
+		JobOptions:          args.jobOptions,
+		IsRetraining:        false,
+	}
+
+	err = s.createModelAndStartTraining(args.modelName, args.modelType, userId, trainConfig)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error starting %v training: %v", args.modelType, err), http.StatusBadRequest)
+		return
+	}
+
+	slog.Info("started training succesfully", "model_type", args.modelType, "model_id", modelId, "model_name", args.modelName)
+
+	writeJsonResponse(w, map[string]string{"model_id": modelId})
 }
 
 func (s *TrainService) createModelAndStartTraining(

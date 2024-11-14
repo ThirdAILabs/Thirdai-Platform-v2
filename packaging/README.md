@@ -77,7 +77,7 @@ When changing the public IP of your Keycloak instance, follow these steps to upd
 
    - Navigate to the new admin console URL using the updated public IP:
      ```
-     https://{newPublicIP}/keycloak/admin/master/console/
+     https://{oldPublicIP}/keycloak/admin/master/console/
      ```
    - In the **Keycloak Admin Console**, go to:
      - Select the realm: `thirdai-platform`.
@@ -89,7 +89,7 @@ When changing the public IP of your Keycloak instance, follow these steps to upd
    - ⚠️ **Important**: Ensure the new public IP corresponds to the subdomain name specified in the SSL certificate.
    - If the subdomain does not match the new IP, you will need to provide an updated certificate for the new IP.
    - If using Let's Encrypt or another automated tool, reissue the certificate with the new IP and update your Keycloak server configuration accordingly.
-   - If you are not able to access the admin console on the new URL, you may need to try use the older PublicIP if it is still available to change domain, and if that is also not accesible. You may need to do change the env var `KC_HOSTNAME` and `KC_HOSTNAME_ADMIN` to new public IP.
+   - If you dont have the access to older admin console, then you may need to do change the env var `KC_HOSTNAME` and `KC_HOSTNAME_ADMIN` to new public IP in the Keycloak Job, restart it before seeing the change. 
 
 
 6. **What Happens During Execution**:

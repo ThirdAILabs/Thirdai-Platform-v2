@@ -1,6 +1,13 @@
 'use client';
 
-import { useState, useRef } from 'react';
+declare module 'react' {
+  interface InputHTMLAttributes<T> extends HTMLAttributes<T> {
+    webkitdirectory?: string;
+    directory?: string;
+  }
+}
+
+import { useState, useRef, useCallback } from 'react';
 import { Container, Box, CircularProgress, Typography, Alert } from '@mui/material';
 import { Tabs } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -10,12 +17,19 @@ import { useTextClassificationEndpoints } from '@/lib/backend';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { parseCSV, parseExcel, parseTXT } from '@/utils/fileParsingUtils';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
+import { Loader2, CheckCircle2} from 'lucide-react';
 
 interface ParsedData {
   type: 'csv' | 'pdf' | 'other';
   content: string;
   rows?: { label: string; content: string }[];
   pdfParagraphs?: string[];
+}
+
+interface FileResult {
+  filename: string;
+  predictions: [string, number][];
+  processingTime?: number;
 }
 
 export default function Page() {
@@ -26,9 +40,57 @@ export default function Page() {
   const [fileError, setFileError] = useState<string | null>(null);
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [processingTime, setProcessingTime] = useState<number | undefined>();
+  const [folderResults, setFolderResults] = useState<FileResult[]>([]);
+  const [processingFolder, setProcessingFolder] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
-  const MAX_FILE_SIZE = 1024 * 1024; // 1MB in bytes
+  const MAX_FILE_SIZE = 1024 * 1024;
+
+  const processFile = async (file: File): Promise<[string, number][]> => {
+    const content = await parseTXT(file);
+    const result = await predict(content);
+    return result.data.prediction_results.predicted_classes.map(([name, score]) => [
+      name,
+      Math.floor(score * 100),
+    ]);
+  };
+
+  const handleFolderUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []).filter(file => file.name.endsWith('.txt'));
+    if (files.length === 0) {
+      setFileError('No .txt files found in the folder');
+      return;
+    }
+
+    setProcessingFolder(true);
+    setFolderResults([]);
+    setPredictions([]); // Clear single query results
+    setProcessingTime(undefined); // Clear processing time
+    setInputText(''); // Clear input text
+
+    try {
+      for (const file of files) {
+        const startTime = performance.now();
+        const predictions = await processFile(file);
+        const processingTime = performance.now() - startTime;
+        
+        setFolderResults(prev => [...prev, {
+          filename: file.name,
+          predictions,
+          processingTime
+        }]);
+      }
+    } catch (error) {
+      console.error('Error processing folder:', error);
+      setFileError('Error processing folder files');
+    } finally {
+      setProcessingFolder(false);
+      if (folderInputRef.current) {
+        folderInputRef.current.value = '';
+      }
+    }
+  };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -90,6 +152,7 @@ export default function Page() {
       return;
     }
     setIsLoading(true);
+    setFolderResults([]); // Clear folder results
     try {
       const result = await predict(text);
       console.log('result', result);
@@ -107,48 +170,83 @@ export default function Page() {
     }
   };
 
-  const renderPredictions = () => (
-    <Box mt={4} display="flex" gap={4}>
-      {/* Left side - Predictions */}
-      <div style={{ flex: 2 }}>
-        {predictions.map((prediction, index) => (
-          <Card
-            key={index}
-            className={`${index > 0 ? 'mt-4' : ''} bg-white hover:bg-gray-50 transition-colors`}
-          >
-            <div className="flex justify-between items-center p-6">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">class</p>
-                <CardTitle className="text-xl font-bold">
-                  {prediction[0].replace(/_/g, ' ')}
-                </CardTitle>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-4 text-center min-w-[100px]">
-                <p className="text-sm text-muted-foreground mb-1">score</p>
-                <CardTitle className="text-xl">{prediction[1]}</CardTitle>
-              </div>
+  const renderPredictionRow = (prediction: [string, number], isHighest: boolean) => (
+    <div 
+      className={`flex justify-between items-center p-4 rounded-lg transition-colors ${
+        isHighest ? 'bg-green-50 border border-green-200' : 'hover:bg-gray-50'
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        {isHighest && <CheckCircle2 className="text-green-500 w-5 h-5" />}
+        <span className={`text-lg ${isHighest ? 'font-medium' : ''}`}>
+          {prediction[0].replace(/_/g, ' ')}
+        </span>
+      </div>
+      <div className={`px-4 py-2 rounded-full ${
+        isHighest ? 'bg-green-100 text-green-700' : 'bg-gray-100'
+      }`}>
+        {prediction[1]}%
+      </div>
+    </div>
+  );
+
+  const renderPredictions = () => {
+    const maxProbability = Math.max(...predictions.map(p => p[1]));
+    
+    return (
+      <Box mt={4} display="flex" gap={4}>
+        <div style={{ flex: 2 }}>
+          <Card className="bg-white p-4">
+            <CardTitle className="mb-4">Classification Results</CardTitle>
+            <div className="space-y-2">
+              {predictions.map((prediction, index) => (
+                <div key={index}>
+                  {renderPredictionRow(prediction, prediction[1] === maxProbability)}
+                </div>
+              ))}
             </div>
           </Card>
-        ))}
-      </div>
+        </div>
 
-      {/* Right side - Inference Time */}
-      <div style={{ flex: 1 }}>
-        {processingTime !== undefined && <InferenceTimeDisplay processingTime={processingTime} />}
-      </div>
+        <div style={{ flex: 1 }}>
+          {processingTime !== undefined && <InferenceTimeDisplay processingTime={processingTime} />}
+        </div>
+      </Box>
+    );
+  };
+
+  const renderFolderResults = () => (
+    <Box mt={4}>
+      {folderResults.map((result, index) => {
+        const maxProbability = Math.max(...result.predictions.map(p => p[1]));
+        
+        return (
+          <Card key={index} className="mb-4 bg-white">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold">
+                {result.filename}
+              </CardTitle>
+            </CardHeader>
+            <div className="p-4 space-y-2">
+              {result.predictions.map((prediction, pIndex) => (
+                <div key={pIndex}>
+                  {renderPredictionRow(prediction, prediction[1] === maxProbability)}
+                </div>
+              ))}
+              {result.processingTime && (
+                <div className="text-sm text-muted-foreground mt-4 text-right">
+                  Processed in {(result.processingTime / 1000).toFixed(2)}s
+                </div>
+              )}
+            </div>
+          </Card>
+        );
+      })}
     </Box>
   );
 
   return (
-    <div
-      className="bg-muted"
-      style={{
-        width: '100%',
-        display: 'flex',
-        justifyContent: 'center',
-        height: '100vh',
-      }}
-    >
+    <div className="bg-muted" style={{ width: '100%', display: 'flex', justifyContent: 'center', height: '100vh' }}>
       <Tabs defaultValue="interact" style={{ width: '100%' }}>
         <div style={{ position: 'fixed', top: '20px', left: '20px' }}>
           <div className="text-muted-foreground" style={{ fontSize: '16px' }}>
@@ -156,30 +254,19 @@ export default function Page() {
           </div>
           <div style={{ fontWeight: 'bold', fontSize: '24px' }}>{workflowName}</div>
         </div>
-        <Container
-          style={{
-            textAlign: 'center',
-            paddingTop: '20vh',
-            width: '70%',
-            minWidth: '400px',
-            maxWidth: '800px',
-          }}
-        >
+        <Container style={{ textAlign: 'center', paddingTop: '20vh', width: '70%', minWidth: '400px', maxWidth: '800px' }}>
           <Box display="flex" flexDirection="column" width="100%">
-            <Box display="flex" justifyContent="center" alignItems="center" width="100%">
-              <label htmlFor="file-upload" style={{ marginRight: '10px' }}>
+            <Box display="flex" justifyContent="center" alignItems="center" width="100%" gap={2}>
+              <label htmlFor="file-upload">
                 <Button size="sm" asChild>
                   <span>Upload File</span>
                 </Button>
               </label>
-              <input
-                ref={fileInputRef}
-                id="file-upload"
-                type="file"
-                accept=".txt,.pdf,.docx,.csv,.xls,.xlsx"
-                onChange={handleFileChange}
-                style={{ display: 'none' }}
-              />
+              <label htmlFor="folder-upload">
+                <Button size="sm" variant="outline" asChild>
+                  <span>Upload Folder</span>
+                </Button>
+              </label>
               <Input
                 autoFocus
                 className="text-md"
@@ -196,12 +283,31 @@ export default function Page() {
               />
               <Button
                 size="sm"
-                style={{ height: '3rem', marginLeft: '10px', padding: '0 20px' }}
+                style={{ height: '3rem', padding: '0 20px' }}
                 onClick={() => handleRun()}
               >
                 Run
               </Button>
             </Box>
+
+            <input
+              ref={fileInputRef}
+              id="file-upload"
+              type="file"
+              accept=".txt,.pdf,.docx,.csv,.xls,.xlsx"
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
+            <input
+              ref={folderInputRef}
+              id="folder-upload"
+              type="file"
+              webkitdirectory=""
+              directory=""
+              multiple
+              onChange={handleFolderUpload}
+              style={{ display: 'none' }}
+            />
 
             {fileError && (
               <Alert severity="error" style={{ marginTop: '8px' }}>
@@ -210,16 +316,24 @@ export default function Page() {
             )}
 
             <Typography variant="caption" display="block" mt={1}>
-              Supported file types: .txt, .pdf, .docx, .csv, .xls, .xlsx (Max size: 1MB)
+              Supported files: .txt, .pdf, .docx, .csv, .xls, .xlsx (Max: 1MB) or folder of .txt files
             </Typography>
           </Box>
 
-          {isLoading ? (
+          {processingFolder ? (
+            <Box mt={4} display="flex" justifyContent="center" alignItems="center" gap={2}>
+              <Loader2 className="animate-spin" />
+              <span>Processing folder... ({folderResults.length} files done)</span>
+            </Box>
+          ) : isLoading ? (
             <Box mt={4} display="flex" justifyContent="center">
               <CircularProgress />
             </Box>
           ) : (
-            predictions.length > 0 && renderPredictions()
+            <>
+              {predictions.length > 0 && renderPredictions()}
+              {folderResults.length > 0 && renderFolderResults()}
+            </>
           )}
         </Container>
       </Tabs>

@@ -118,7 +118,7 @@ func main() {
 	model_bazaar.InitAdmin(c.AdminUsername, c.AdminEmail, c.AdminPassword)
 
 	r := chi.NewRouter()
-	r.Mount("/api/v1", model_bazaar.Routes())
+	r.Mount("/api/v2", model_bazaar.Routes())
 
 	slog.Info("starting serrver", "port", c.Port)
 	err = http.ListenAndServe(fmt.Sprintf(":%v", c.Port), r)

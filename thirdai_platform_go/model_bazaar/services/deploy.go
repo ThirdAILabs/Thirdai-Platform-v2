@@ -185,6 +185,9 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	params.Memory = max(params.Memory, 1000)
+	params.AutoscalingMax = max(params.AutoscalingMax, 1)
+
 	deps, err := listModelDependencies(params.ModelId, s.db)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

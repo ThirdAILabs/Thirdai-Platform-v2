@@ -22,9 +22,21 @@ import (
 	"gorm.io/gorm"
 )
 
+type DbInfo struct {
+	Host     string
+	User     string
+	Password string
+	Dbname   string
+	Port     int
+}
+
+func (info *DbInfo) format() string {
+	return fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v", info.Host, info.User, info.Password, info.Dbname, info.Port)
+}
+
 type Config struct {
-	Dsn                 string
-	NomadAddr           string
+	DB                  DbInfo
+	NomadEndpoint       string
 	NomadToken          string
 	ShareDir            string
 	LicensePath         string
@@ -54,9 +66,13 @@ func loadConfig() Config {
 	configFilePath := flag.String("config", "", "the config file to use to start model_bazaar")
 	flag.Parse()
 
+	if *configFilePath == "" {
+		log.Fatal("missing arg 'config'")
+	}
+
 	configFile, err := os.Open(*configFilePath)
 	if err != nil {
-		log.Fatalf("unable to open config file '%v': %v", configFilePath, err)
+		log.Fatalf("unable to open config file '%v': %v", *configFilePath, err)
 	}
 
 	var c Config
@@ -94,6 +110,11 @@ func initDb(dsn string) *gorm.DB {
 func main() {
 	c := loadConfig()
 
+	err := os.MkdirAll(filepath.Join(c.ShareDir, "logs/"), 0777)
+	if err != nil {
+		log.Fatalf("error creating log dir: %v", err)
+	}
+
 	logFile, err := os.OpenFile(filepath.Join(c.ShareDir, "logs/model_bazaar.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
 		log.Fatalf("error opening log file: %v", err)
@@ -103,8 +124,8 @@ func main() {
 	initLogging(logFile)
 
 	model_bazaar := services.NewModelBazaar(
-		initDb(c.Dsn),
-		nomad.NewHttpClient(c.NomadAddr, c.NomadToken),
+		initDb(c.DB.format()),
+		nomad.NewHttpClient(c.NomadEndpoint, c.NomadToken),
 		storage.NewSharedDisk(c.ShareDir),
 		licensing.NewVerifier(c.LicensePath),
 		services.Variables{

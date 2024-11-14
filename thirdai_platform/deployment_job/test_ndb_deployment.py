@@ -4,8 +4,6 @@ import shutil
 from unittest.mock import patch
 
 import pytest
-
-pass
 from deployment_job.permissions import Permissions
 from fastapi.testclient import TestClient
 from licensing.verify import verify_license

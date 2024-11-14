@@ -13,9 +13,6 @@ try:
 
     import argparse
 
-    pass
-
-    pass
     from platform_common.pydantic_models.training import (
         ModelType,
         TrainConfig,

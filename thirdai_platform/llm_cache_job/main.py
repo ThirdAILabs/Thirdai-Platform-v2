@@ -3,7 +3,6 @@ import os
 import traceback
 from pathlib import Path
 
-pass
 from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware

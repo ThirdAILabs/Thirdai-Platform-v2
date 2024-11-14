@@ -25,8 +25,6 @@ try:
     from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
     from platform_common.pydantic_models.training import ModelType
     from prometheus_client import make_asgi_app
-
-    pass
 except ImportError as e:
     logging.error(f"Failed to import module: {e}")
     sys.exit(f"ImportError: {e}")

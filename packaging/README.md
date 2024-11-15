@@ -75,20 +75,32 @@ When changing the public IP of your Keycloak instance, follow these steps to upd
 
 5. **Steps to Update Frontend URL**
 
-   - Navigate to the new admin console URL using the updated public IP:
-     ```
-     https://{oldPublicIP}/keycloak/admin/master/console/
-     ```
+   - To access the admin console, follow these steps:
+
+      1. **Set up Port Forwarding**  
+         Open a terminal on your local machine and run the following command:  
+         ```bash
+         sudo ssh -i ~/Downloads/pratik-west-1.pem -L 443:<PRIVATE_IP_OF_MACHINE>:443 ubuntu@<NEW_PUBLIC_IP>
+         ```  
+
+      2. **Access the Admin Console**  
+         Once port forwarding is successfully set up, open your browser on the local machine and navigate to:  
+         ```  
+         https://localhost/keycloak/admin/master/console/  
+         ```  
+
+         You should now be redirected to the admin console.
+
    - In the **Keycloak Admin Console**, go to:
-     - Select the realm: `Thirdai-Platform`.
-     - Navigate to **Realm Settings → General**.
+      - Select the realm: `Thirdai-Platform`.
+      - Navigate to **Realm Settings → General**.
+
    - Update the **Frontend URL** to:
      ```
      https://{newPublicIP}/keycloak
      ```
    - ⚠️ **Important**: Ensure the new public IP corresponds to the subdomain name specified for the SSL certificate.
    - If the subdomain does not match the new IP, you will need to provide an updated certificate for the new IP.
-   - If using Let's Encrypt or another automated tool, reissue the certificate with the new IP and update your Keycloak server configuration accordingly.
    - If you dont have the access to older admin console, then you may need to do change the env var `KC_HOSTNAME` and `KC_HOSTNAME_ADMIN` to new public IP in the Keycloak Job, restart it before seeing the change. 
 
 

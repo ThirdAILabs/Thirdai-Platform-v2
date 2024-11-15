@@ -125,7 +125,7 @@ func doDelete(ndb *client.NdbClient, t *testing.T) {
 	}
 }
 
-func TestNdbDevMode(t *testing.T) {
+func createAndDeployNdb(t *testing.T, autoscaling bool) *client.NdbClient {
 	client := getClient(t)
 
 	ndb, err := client.TrainNdb(
@@ -142,21 +142,28 @@ func TestNdbDevMode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ndb.Deploy(false)
+	err = ndb.Deploy(autoscaling)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
+
+	t.Cleanup(func() {
 		err := ndb.Undeploy()
 		if err != nil {
 			t.Fatal(err)
 		}
-	}()
+	})
 
 	err = ndb.AwaitDeploy(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	return ndb
+}
+
+func TestNdbDevMode(t *testing.T) {
+	ndb := createAndDeployNdb(t, false)
 
 	checkQuery(ndb, t)
 
@@ -177,39 +184,7 @@ func TestNdbDevMode(t *testing.T) {
 }
 
 func TestNdbProdMode(t *testing.T) {
-	client := getClient(t)
-
-	baseNdb, err := client.TrainNdb(
-		randomName("base-ndb"), []config.FileInfo{
-			{Path: "./data/articles.csv", Location: "local"},
-			{Path: "./data/supervised.csv", Location: "local"},
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = baseNdb.AwaitTrain(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = baseNdb.Deploy(true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer func() {
-		err := baseNdb.Undeploy()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	err = baseNdb.AwaitDeploy(100 * time.Second)
-	if err != nil {
-		t.Fatal(err)
-	}
+	baseNdb := createAndDeployNdb(t, true)
 
 	checkQuery(baseNdb, t)
 
@@ -241,12 +216,13 @@ func TestNdbProdMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
+
+	t.Cleanup(func() {
 		err := retrainedNdb.Undeploy()
 		if err != nil {
 			t.Fatal(err)
 		}
-	}()
+	})
 
 	err = retrainedNdb.AwaitDeploy(100 * time.Second)
 	if err != nil {
@@ -257,5 +233,96 @@ func TestNdbProdMode(t *testing.T) {
 	checkUpvote(retrainedNdb, t)
 	checkAssociate(retrainedNdb, t)
 	checkSources(retrainedNdb, t, []string{"articles.csv", "articles.csv", "four_english_words.docx", "mutual_nda.pdf"})
+}
 
+func createNdbAndInsert(t *testing.T, autoscaling bool) (*client.NdbClient, []client.Source, []client.Source) {
+	ndb := createAndDeployNdb(t, autoscaling)
+
+	oldSources, err := ndb.Sources()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ndb.Insert([]config.FileInfo{
+		{
+			Path:     "./data/articles.csv",
+			Location: "local",
+			DocId:    &oldSources[0].SourceId,
+			Options:  map[string]interface{}{"upsert": true},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newSources, err := ndb.Sources()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return ndb, oldSources, newSources
+}
+
+func TestNdbUpsertDevMode(t *testing.T) {
+	_, oldSources, newSources := createNdbAndInsert(t, false)
+
+	if len(oldSources) != 1 || oldSources[0].Version != 1 {
+		t.Fatalf("incorrect old sources: %v", oldSources)
+	}
+
+	if len(newSources) != 1 ||
+		newSources[0].Version != 2 ||
+		filepath.Base(newSources[0].Source) != filepath.Base(oldSources[0].Source) ||
+		newSources[0].SourceId != oldSources[0].SourceId {
+		t.Fatalf("incorrect new sources: %v", newSources)
+	}
+}
+
+func TestNdbUpsertProdMode(t *testing.T) {
+	ndb, oldSources, newSources := createNdbAndInsert(t, true)
+
+	if len(oldSources) != 1 || oldSources[0].Version != 1 {
+		t.Fatalf("incorrect old sources: %v", oldSources)
+	}
+	if newSources[0] != oldSources[0] {
+		t.Fatal("old and new sources should match in prod mode")
+	}
+
+	retrainedNdb, err := ndb.Retrain(randomName("retrained-ndb"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = retrainedNdb.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = retrainedNdb.Deploy(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		err := retrainedNdb.Undeploy()
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	err = retrainedNdb.AwaitDeploy(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	retrainedSources, err := retrainedNdb.Sources()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(retrainedSources) != 1 ||
+		retrainedSources[0].Version != 2 ||
+		filepath.Base(retrainedSources[0].Source) != filepath.Base(oldSources[0].Source) ||
+		retrainedSources[0].SourceId != oldSources[0].SourceId {
+		t.Fatalf("incorrect retrained sources: %v", newSources)
+	}
 }

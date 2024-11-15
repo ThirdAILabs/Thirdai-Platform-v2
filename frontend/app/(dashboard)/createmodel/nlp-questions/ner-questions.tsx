@@ -326,7 +326,8 @@ const NERQuestions = ({
                 Use Pretrained Model
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Quick start with our pre-trained models for extracting common PII info like Names, Addresses, Emails, SSNs etc
+                Quick start with our pre-trained models for extracting common PII info like Names,
+                Addresses, Emails, SSNs etc
               </Typography>
             </CardContent>
           </Card>

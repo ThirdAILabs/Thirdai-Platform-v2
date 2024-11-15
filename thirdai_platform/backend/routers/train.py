@@ -4,6 +4,7 @@ import logging
 import os
 import secrets
 import shutil
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional, Set
@@ -38,6 +39,7 @@ from database.session import get_session
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files
+from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
 from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
 from platform_common.pydantic_models.training import (
@@ -59,7 +61,6 @@ from platform_common.pydantic_models.training import (
     UDTSubType,
 )
 from platform_common.thirdai_storage import storage
-from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
 from platform_common.utils import disk_usage, model_bazaar_path, response
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
@@ -555,14 +556,6 @@ def nlp_datagen(
         },
     )
 
-import os
-from typing import List
-import pandas as pd
-from fastapi import UploadFile, File, Form, HTTPException
-from pydantic import BaseModel
-from pathlib import Path
-import tempfile
-import shutil
 
 class FolderValidationResponse(BaseModel):
     valid: bool
@@ -570,19 +563,21 @@ class FolderValidationResponse(BaseModel):
     categories: List[str] = []
     file_counts: dict = {}
 
+
 def cap_text_length(text: str, word_limit: int = 1000) -> str:
     """Helper function to cap text to specified number of words"""
     words = text.split()
     if len(words) <= word_limit:
         return text
-    return ' '.join(words[:word_limit])
+    return " ".join(words[:word_limit])
 
-async def create_classification_csv(temp_dir: str, 
-                                 files: List[UploadFile], 
-                                 word_limit: int = 1000) -> tuple[str, List[str]]:
+
+async def create_classification_csv(
+    temp_dir: str, files: List[UploadFile], word_limit: int = 1000
+) -> tuple[str, List[str]]:
     """
     Create a CSV file from folder structure in the format expected by TextClassificationOptions
-    
+
     Args:
         temp_dir (str): Directory for temporary file processing
         files (List[UploadFile]): List of uploaded files
@@ -590,65 +585,65 @@ async def create_classification_csv(temp_dir: str,
     """
     rows = []
     categories = set()
-    
+
     for file in files:
         parts = Path(file.filename).parts
         if len(parts) < 3:
             continue
-            
+
         category = parts[1]
         categories.add(category)
-        
+
         # Get file extension and convert to lowercase
         ext = Path(file.filename).suffix.lower()
-        
+
         content = await file.read()
-        
+
         try:
-            if ext == '.txt':
+            if ext == ".txt":
                 # Direct text processing for .txt files
-                text_content = content.decode('utf-8')
+                text_content = content.decode("utf-8")
             else:
                 # For other formats, use ndb parser
                 # Save file temporarily
                 temp_file_path = Path(temp_dir) / file.filename
                 os.makedirs(temp_file_path.parent, exist_ok=True)
-                
+
                 with open(temp_file_path, "wb") as f:
                     f.write(content)
-                
+
                 try:
                     # Convert to ndb Document
-                    doc = convert_to_ndb_file(str(temp_file_path), metadata=None, options=None)
+                    doc = convert_to_ndb_file(
+                        str(temp_file_path), metadata=None, options=None
+                    )
                     # Get text content from display column
                     text_content = " ".join(doc.table.df["display"].tolist())
                 finally:
                     if temp_file_path.exists():
                         os.remove(temp_file_path)
-            
+
             # Cap the text length before adding to rows
             capped_text = cap_text_length(text_content, word_limit)
-            
-            rows.append({
-                'text': capped_text,
-                'label': category
-            })
-            
+
+            rows.append({"text": capped_text, "label": category})
+
         except Exception as e:
             logging.error(f"Error processing file {file.filename}: {str(e)}")
             continue
-    
+
     if not rows:
         raise ValueError("No valid files were processed")
-    
+
     if len(categories) < 2:
         raise ValueError(f"Found only {len(categories)} categories, minimum 2 required")
 
     df = pd.DataFrame(rows)
-    csv_path = os.path.join(temp_dir, 'document_classification.csv')
+    csv_path = os.path.join(temp_dir, "document_classification.csv")
     df.to_csv(csv_path, index=False)
-    
+
     return csv_path, list(categories)
+
 
 @train_router.post("/validate-document-classification-folder")
 async def validate_document_classification_folder(
@@ -661,15 +656,15 @@ async def validate_document_classification_folder(
             # Process files and maintain folder structure
             categories = set()
             category_files = {}
-            
+
             for file in files:
                 parts = Path(file.filename).parts
                 if len(parts) < 2:
                     continue
-                    
+
                 category = parts[1]
                 categories.add(category)
-                
+
                 if category not in category_files:
                     category_files[category] = []
                 category_files[category].append(file.filename)
@@ -680,27 +675,29 @@ async def validate_document_classification_folder(
                     valid=False,
                     message="At least two different categories (folders) are required",
                     categories=list(categories),
-                    file_counts=category_files
+                    file_counts=category_files,
                 )
 
             # Check minimum files per category
             insufficient_categories = []
             for category, files_list in category_files.items():
                 if len(files_list) < 10:
-                    insufficient_categories.append(f"{category} ({len(files_list)} files)")
+                    insufficient_categories.append(
+                        f"{category} ({len(files_list)} files)"
+                    )
 
             if insufficient_categories:
                 return FolderValidationResponse(
                     valid=False,
                     message=f"The following categories have fewer than 10 documents: {', '.join(insufficient_categories)}",
                     categories=list(categories),
-                    file_counts=category_files
+                    file_counts=category_files,
                 )
 
             # Validate file types
-            valid_extensions = {'.txt', '.doc', '.docx', '.pdf'}
+            valid_extensions = {".txt", ".doc", ".docx", ".pdf"}
             invalid_files = []
-            
+
             for category, files_list in category_files.items():
                 for file in files_list:
                     ext = Path(file).suffix.lower()
@@ -712,18 +709,19 @@ async def validate_document_classification_folder(
                     valid=False,
                     message=f"Invalid file types found: {', '.join(invalid_files)}. Only .txt, .doc, .docx, and .pdf files are supported.",
                     categories=list(categories),
-                    file_counts=category_files
+                    file_counts=category_files,
                 )
 
             return FolderValidationResponse(
                 valid=True,
                 message="Folder structure is valid",
                 categories=list(categories),
-                file_counts=category_files
+                file_counts=category_files,
             )
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 @train_router.post("/train-document-classifier")
 async def train_document_classifier(
@@ -746,7 +744,9 @@ async def train_document_classifier(
             )
 
         # Check for duplicate model
-        duplicate_model = get_model(session, username=user.username, model_name=model_name)
+        duplicate_model = get_model(
+            session, username=user.username, model_name=model_name
+        )
         if duplicate_model:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -783,7 +783,7 @@ async def train_document_classifier(
                     udt_options=TextClassificationOptions(  # Using existing TextClassificationOptions
                         text_column="text",
                         label_column="label",
-                        n_target_classes=len(categories)
+                        n_target_classes=len(categories),
                     ),
                 ),
                 data=UDTData(
@@ -866,7 +866,7 @@ async def train_document_classifier(
 
                 new_model.train_status = schema.Status.starting
                 session.commit()
-                
+
             except Exception as err:
                 new_model.train_status = schema.Status.failed
                 session.add(
@@ -900,11 +900,11 @@ async def train_document_classifier(
         )
 
 
-
 class CSVValidationResponse(BaseModel):
     valid: bool
     message: str
     labels: List[str] = []
+
 
 @train_router.post("/validate-text-classification-csv")
 async def validate_text_classification_csv(
@@ -918,46 +918,44 @@ async def validate_text_classification_csv(
         df = pd.read_csv(pd.io.common.BytesIO(contents))
 
         # Validation checks
-        if 'text' not in df.columns or 'label' not in df.columns:
+        if "text" not in df.columns or "label" not in df.columns:
             return CSVValidationResponse(
                 valid=False,
                 message="CSV must contain 'text' and 'label' columns",
-                labels=[]
+                labels=[],
             )
 
         # Check for empty values
-        if df['text'].isnull().any() or df['label'].isnull().any():
+        if df["text"].isnull().any() or df["label"].isnull().any():
             return CSVValidationResponse(
                 valid=False,
                 message="CSV contains empty values in text or label columns",
-                labels=[]
+                labels=[],
             )
 
         # Get unique labels
-        unique_labels = df['label'].unique().tolist()
-        
+        unique_labels = df["label"].unique().tolist()
+
         # Check minimum number of labels
         if len(unique_labels) < 2:
             return CSVValidationResponse(
                 valid=False,
                 message="At least two different labels are required",
-                labels=unique_labels
+                labels=unique_labels,
             )
 
         # Check minimum examples per label
-        label_counts = df['label'].value_counts()
+        label_counts = df["label"].value_counts()
         insufficient_labels = label_counts[label_counts < 10].index.tolist()
         if insufficient_labels:
             return CSVValidationResponse(
                 valid=False,
                 message=f"Labels {', '.join(insufficient_labels)} have fewer than 10 examples",
-                labels=unique_labels
+                labels=unique_labels,
             )
 
         return CSVValidationResponse(
-            valid=True,
-            message="CSV file is valid",
-            labels=unique_labels
+            valid=True, message="CSV file is valid", labels=unique_labels
         )
 
     except Exception as e:
@@ -985,15 +983,15 @@ async def train_text_classification_csv(
         # Read CSV and validate format
         contents = await file.read()
         df = pd.read_csv(pd.io.common.BytesIO(contents))
-        
-        if 'text' not in df.columns or 'label' not in df.columns:
+
+        if "text" not in df.columns or "label" not in df.columns:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message="CSV must contain 'text' and 'label' columns",
             )
 
         # Get unique labels
-        unique_labels = df['label'].unique().tolist()
+        unique_labels = df["label"].unique().tolist()
         if len(unique_labels) < 2:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -1010,7 +1008,9 @@ async def train_text_classification_csv(
             )
 
         # Check for duplicate model
-        duplicate_model = get_model(session, username=user.username, model_name=model_name)
+        duplicate_model = get_model(
+            session, username=user.username, model_name=model_name
+        )
         if duplicate_model:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -1026,7 +1026,7 @@ async def train_text_classification_csv(
             model_bazaar_path(), "data", data_id, "supervised", file.filename
         )
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
+
         file.file.seek(0)  # Reset file pointer
         with open(file_path, "wb") as buffer:
             buffer.write(file.file.read())
@@ -1044,7 +1044,7 @@ async def train_text_classification_csv(
                 udt_options=TextClassificationOptions(
                     text_column="text",
                     label_column="label",
-                    n_target_classes=len(unique_labels)
+                    n_target_classes=len(unique_labels),
                 ),
             ),
             data=UDTData(
@@ -1712,11 +1712,12 @@ def extract_labels_from_csv(file: UploadFile) -> Set[str]:
 
     return all_tags
 
+
 def validate_csv_format(file: UploadFile) -> tuple[bool, str, set[str] | None]:
     """
     Validates the CSV file format for token classification.
     Returns (is_valid, error_message, extracted_labels).
-    
+
     Validation rules:
     1. Must be valid CSV with exactly 'source' and 'target' columns
     2. Number of tokens must match between source and target
@@ -1726,49 +1727,61 @@ def validate_csv_format(file: UploadFile) -> tuple[bool, str, set[str] | None]:
     try:
         content = file.file.read()
         file.file.seek(0)  # Reset file pointer for later use
-        
+
         # Parse CSV
         df = pd.read_csv(io.StringIO(content.decode("utf-8")))
-        
+
         # Check for required columns
         if set(df.columns) != {"source", "target"}:
-            return False, "CSV must contain exactly two columns named 'source' and 'target'", None
-            
+            return (
+                False,
+                "CSV must contain exactly two columns named 'source' and 'target'",
+                None,
+            )
+
         # Check for empty dataframe
         if df.empty:
             return False, "CSV file is empty", None
-            
+
         # Check for null values
-        if df['source'].isnull().any() or df['target'].isnull().any():
+        if df["source"].isnull().any() or df["target"].isnull().any():
             return False, "CSV contains empty cells", None
-            
+
         # Validate token alignment
         for idx, row in df.iterrows():
-            source_tokens = row['source'].split()
-            target_tokens = row['target'].split()
-            
+            source_tokens = row["source"].split()
+            target_tokens = row["target"].split()
+
             if len(source_tokens) != len(target_tokens):
-                return False, f"Row {idx + 1}: Number of tokens in source ({len(source_tokens)}) doesn't match target ({len(target_tokens)})", None
-        
+                return (
+                    False,
+                    f"Row {idx + 1}: Number of tokens in source ({len(source_tokens)}) doesn't match target ({len(target_tokens)})",
+                    None,
+                )
+
         # Extract and validate token types
         token_types = set()
         for row in df["target"]:
             tokens = row.split()
             # Add all non-'O' tokens to our set
-            token_types.update(token for token in tokens if token != 'O')
-            
+            token_types.update(token for token in tokens if token != "O")
+
         if not token_types:
-            return False, (
-                "No valid token types found in the target column. "
-                "The CSV must contain at least one token type other than 'O'. "
-                "The 'O' token is used to indicate non-entity tokens and cannot be the only token type."
-            ), None
-            
+            return (
+                False,
+                (
+                    "No valid token types found in the target column. "
+                    "The CSV must contain at least one token type other than 'O'. "
+                    "The 'O' token is used to indicate non-entity tokens and cannot be the only token type."
+                ),
+                None,
+            )
+
         # Log found token types for debugging
         logging.info(f"Found token types: {token_types}")
-            
+
         return True, "", token_types
-        
+
     except UnicodeDecodeError:
         return False, "File is not a valid CSV file (encoding error)", None
     except pd.errors.EmptyDataError:
@@ -1777,6 +1790,7 @@ def validate_csv_format(file: UploadFile) -> tuple[bool, str, set[str] | None]:
         return False, "File is not a valid CSV file (parsing error)", None
     except Exception as e:
         return False, f"Error validating CSV: {str(e)}", None
+
 
 @train_router.post("/validate-token-classifier-csv")
 async def validate_token_classifier_csv(
@@ -1793,23 +1807,17 @@ async def validate_token_classifier_csv(
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message="File must be a CSV",
-                data={
-                    "valid": False,
-                    "details": "File must have .csv extension"
-                }
+                data={"valid": False, "details": "File must have .csv extension"},
             )
 
         # Validate CSV format and get labels
         is_valid, error_message, token_types = validate_csv_format(file)
-        
+
         if not is_valid:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message=error_message,
-                data={
-                    "valid": False,
-                    "details": error_message
-                }
+                data={"valid": False, "details": error_message},
             )
 
         return response(
@@ -1819,19 +1827,17 @@ async def validate_token_classifier_csv(
                 "valid": True,
                 "labels": list(token_types),
                 "tokenTypeCount": len(token_types),
-                "details": f"Found {len(token_types)} valid token types: {', '.join(sorted(token_types))}"
-            }
+                "details": f"Found {len(token_types)} valid token types: {', '.join(sorted(token_types))}",
+            },
         )
 
     except Exception as err:
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=f"Error validating CSV: {str(err)}",
-            data={
-                "valid": False,
-                "details": str(err)
-            }
+            data={"valid": False, "details": str(err)},
         )
+
 
 @train_router.post("/train-token-classifier")
 async def train_token_classifier(
@@ -1857,7 +1863,7 @@ async def train_token_classifier(
     try:
         # Validate CSV format and get labels
         is_valid, error_message, target_labels = validate_csv_format(file)
-        
+
         if not is_valid:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,

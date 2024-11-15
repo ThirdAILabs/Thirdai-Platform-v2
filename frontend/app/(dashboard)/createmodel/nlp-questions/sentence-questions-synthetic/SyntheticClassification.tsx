@@ -1,10 +1,5 @@
 import React, { useState } from 'react';
-import { 
-  Button, 
-  TextField,
-  IconButton,
-  Box
-} from '@mui/material';
+import { Button, TextField, IconButton, Box } from '@mui/material';
 import {
   Table,
   TableBody,
@@ -40,16 +35,16 @@ interface SyntheticClassificationProps {
 
 const predefinedChoices = ['POSITIVE_SENTIMENT', 'NEGATIVE_SENTIMENT'];
 
-const SyntheticClassification = ({ 
+const SyntheticClassification = ({
   workflowNames,
-  question, 
+  question,
   answer,
   onModelCreated,
   modelName = '',
-  stayOnPage = false
+  stayOnPage = false,
 }: SyntheticClassificationProps) => {
   const [categories, setCategories] = useState<Category[]>([
-    { name: '', examples: [{ text: '' }], description: '' }
+    { name: '', examples: [{ text: '' }], description: '' },
   ]);
   const [isDataGenerating, setIsDataGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<GeneratedData[]>([]);
@@ -106,16 +101,18 @@ const SyntheticClassification = ({
         category.examples.length > 0 &&
         category.examples.every((ex) => ex.text) &&
         category.description &&
-        !category.name.includes(' ')  // Ensure no spaces in category names
+        !category.name.includes(' ') // Ensure no spaces in category names
       );
     });
   };
 
   const generateData = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    
+
     if (!validateCategories()) {
-      alert('All categories must have a name (without spaces), at least one example, and a description.');
+      alert(
+        'All categories must have a name (without spaces), at least one example, and a description.'
+      );
       return;
     }
 
@@ -129,14 +126,14 @@ const SyntheticClassification = ({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          question, 
-          answer, 
-          categories: categories.map(cat => ({
+        body: JSON.stringify({
+          question,
+          answer,
+          categories: categories.map((cat) => ({
             name: cat.name,
-            example: cat.examples[0].text,  // API expects single example
-            description: cat.description
-          }))
+            example: cat.examples[0].text, // API expects single example
+            description: cat.description,
+          })),
         }),
       });
 
@@ -167,17 +164,13 @@ const SyntheticClassification = ({
       setIsCreating(true);
 
       // Transform the data to match API expectations
-      const apiCategories = categories.map(cat => ({
+      const apiCategories = categories.map((cat) => ({
         name: cat.name,
         example: cat.examples[0].text,
-        description: cat.description
+        description: cat.description,
       }));
 
-      const modelResponse = await trainSentenceClassifier(
-        modelName,
-        question,
-        apiCategories
-      );
+      const modelResponse = await trainSentenceClassifier(modelName, question, apiCategories);
 
       console.log('Created text classification model:', modelResponse.data.model_id);
 

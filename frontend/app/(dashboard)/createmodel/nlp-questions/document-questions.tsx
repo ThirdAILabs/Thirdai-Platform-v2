@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { 
-    Box, 
-    Typography, 
-    TextField,
-    Paper,
-    Button,
-    Alert,
-    CircularProgress,
-    Divider,
-    List,
-    ListItem,
-    ListItemIcon,
-    ListItemText
-  } from '@mui/material';
+import {
+  Box,
+  Typography,
+  TextField,
+  Paper,
+  Button,
+  Alert,
+  CircularProgress,
+  Divider,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+} from '@mui/material';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import DescriptionIcon from '@mui/icons-material/Description';
 import FolderIcon from '@mui/icons-material/Folder';
@@ -31,11 +31,11 @@ interface FolderStructure {
   [category: string]: string[]; // category name -> array of file names
 }
 
-const DocumentQuestions = ({ 
+const DocumentQuestions = ({
   workflowNames,
   onCreateModel,
   stayOnPage,
-  appName 
+  appName,
 }: DocumentQuestionsProps) => {
   const [modelName, setModelName] = useState(!appName ? '' : appName);
   const [selectedFolder, setSelectedFolder] = useState<FileList | null>(null);
@@ -44,7 +44,7 @@ const DocumentQuestions = ({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
-  
+
   const router = useRouter();
 
   const handleFolderSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,36 +53,38 @@ const DocumentQuestions = ({
       setSelectedFolder(files);
       setError('');
       setSuccess(false);
-      
+
       // Process folder structure using webkitRelativePath
       const structure: FolderStructure = {};
       Array.from(files).forEach((file) => {
         const pathParts = file.webkitRelativePath.split('/');
         // Use pathParts[1] to get the category folder name instead of the root folder
-        if (pathParts.length >= 3) {  // Changed from >= 2 to >= 3 since we expect 3 parts
-          const category = pathParts[1];  // Changed from pathParts[0] to pathParts[1]
+        if (pathParts.length >= 3) {
+          // Changed from >= 2 to >= 3 since we expect 3 parts
+          const category = pathParts[1]; // Changed from pathParts[0] to pathParts[1]
           if (!structure[category]) {
             structure[category] = [];
           }
           structure[category].push(file.name);
         }
       });
-      
+
       setFolderStructure(structure);
-  
+
       // Validate folder structure
       if (Object.keys(structure).length < 2) {
         setError('At least 2 different categories (subfolders) are required');
         return;
       }
-  
+
       try {
         const validationResult = await validateDocumentClassificationFolder(files);
         if (!validationResult.valid) {
           setError(validationResult.message);
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Error validating folder structure';
+        const errorMessage =
+          error instanceof Error ? error.message : 'Error validating folder structure';
         setError(errorMessage);
       }
     }
@@ -96,52 +98,59 @@ const DocumentQuestions = ({
 
     // Get actual categories (first level folders)
     const categories = new Set(
-      Array.from(selectedFolder!).map(file => {
-        const parts = file.webkitRelativePath.split('/');
-        return parts.length >= 3 ? parts[1] : ''; // Changed from parts[0] to parts[1]
-      }).filter(Boolean)
+      Array.from(selectedFolder!)
+        .map((file) => {
+          const parts = file.webkitRelativePath.split('/');
+          return parts.length >= 3 ? parts[1] : ''; // Changed from parts[0] to parts[1]
+        })
+        .filter(Boolean)
     );
-  
+
     if (categories.size < 2) {
       setError('At least 2 different categories (subfolders) are required');
       return false;
     }
-  
+
     // Check for minimum documents per category
     const categoryFiles = new Map<string, number>();
-    Array.from(selectedFolder!).forEach(file => {
+    Array.from(selectedFolder!).forEach((file) => {
       const pathParts = file.webkitRelativePath.split('/');
-      if (pathParts.length >= 3) {  // Changed from >= 2 to >= 3
-        const category = pathParts[1];  // Changed from pathParts[0] to pathParts[1]
+      if (pathParts.length >= 3) {
+        // Changed from >= 2 to >= 3
+        const category = pathParts[1]; // Changed from pathParts[0] to pathParts[1]
         categoryFiles.set(category, (categoryFiles.get(category) || 0) + 1);
       }
     });
-  
+
     const insufficientCategories = Array.from(categoryFiles.entries())
       .filter(([_, count]) => count < 10)
       .map(([category]) => category);
-  
+
     if (insufficientCategories.length > 0) {
-      setError(`The following categories have fewer than 10 documents: ${insufficientCategories.join(', ')}`);
+      setError(
+        `The following categories have fewer than 10 documents: ${insufficientCategories.join(', ')}`
+      );
       return false;
     }
-  
+
     // Check file extensions
     const validExtensions = ['.txt', '.doc', '.docx', '.pdf'];
     const invalidFiles: string[] = [];
-  
-    Array.from(selectedFolder!).forEach(file => {
+
+    Array.from(selectedFolder!).forEach((file) => {
       const extension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
       if (!validExtensions.includes(extension)) {
         invalidFiles.push(file.name);
       }
     });
-  
+
     if (invalidFiles.length > 0) {
-      setError(`Invalid file types found: ${invalidFiles.join(', ')}. Only .txt, .doc, .docx, and .pdf files are supported.`);
+      setError(
+        `Invalid file types found: ${invalidFiles.join(', ')}. Only .txt, .doc, .docx, and .pdf files are supported.`
+      );
       return false;
     }
-  
+
     return true;
   };
 
@@ -177,17 +186,18 @@ const DocumentQuestions = ({
       const trainingResult = await trainDocumentClassifier({
         modelName: modelName,
         files: selectedFolder,
-        testSplit: 0.1
+        testSplit: 0.1,
       });
 
       setSuccess(true);
       onCreateModel?.(trainingResult.data.model_id);
-      
+
       if (!stayOnPage) {
         router.push('/');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred while training the model';
+      const errorMessage =
+        error instanceof Error ? error.message : 'An error occurred while training the model';
       setError(errorMessage);
     } finally {
       setIsUploading(false);
@@ -214,11 +224,14 @@ const DocumentQuestions = ({
             if (name.includes(' ')) {
               warningMessage = 'The app name cannot contain spaces. Please remove the spaces.';
             } else if (name.includes('.')) {
-              warningMessage = "The app name cannot contain periods ('.'). Please remove the periods.";
+              warningMessage =
+                "The app name cannot contain periods ('.'). Please remove the periods.";
             } else if (!regexPattern.test(name)) {
-              warningMessage = 'The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.';
+              warningMessage =
+                'The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.';
             } else if (workflowNames.includes(name)) {
-              warningMessage = 'An app with the same name already exists. Please choose a different name.';
+              warningMessage =
+                'An app with the same name already exists. Please choose a different name.';
             }
             setWarningMessage(warningMessage);
             setModelName(name);
@@ -227,7 +240,9 @@ const DocumentQuestions = ({
           style={{ marginTop: '10px' }}
           disabled={!!appName && !workflowNames.includes(modelName)}
         />
-        {warningMessage && <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>}
+        {warningMessage && (
+          <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>
+        )}
       </Box>
 
       <Divider sx={{ my: 4 }} />
@@ -250,7 +265,7 @@ const DocumentQuestions = ({
                   <ListItemIcon>
                     <FolderIcon color="primary" />
                   </ListItemIcon>
-                  <ListItemText 
+                  <ListItemText
                     primary="Select a main folder containing category subfolders"
                     secondary="Each subfolder name represents a document type/category"
                   />
@@ -259,7 +274,7 @@ const DocumentQuestions = ({
                   <ListItemIcon>
                     <DescriptionIcon color="primary" />
                   </ListItemIcon>
-                  <ListItemText 
+                  <ListItemText
                     primary="Place example documents in each category folder"
                     secondary="Minimum 10 documents per category (.txt, .doc, .docx, .pdf)"
                   />
@@ -268,7 +283,7 @@ const DocumentQuestions = ({
                   <ListItemIcon>
                     <InfoIcon color="primary" />
                   </ListItemIcon>
-                  <ListItemText 
+                  <ListItemText
                     primary="Minimum 2 different categories required"
                     secondary="Example: invoices/, receipts/, contracts/"
                   />
@@ -282,14 +297,22 @@ const DocumentQuestions = ({
                 Example Structure:
               </Typography>
               <Box sx={{ fontFamily: 'monospace', pl: 2, fontSize: '0.9rem' }}>
-                📁 my-documents/<br />
-                ┣ 📁 invoices/<br />
-                ┃  ┣ 📄 invoice1.pdf<br />
-                ┃  ┣ 📄 invoice2.pdf<br />
-                ┃  ┗ 📄 invoice3.pdf<br />
-                ┗ 📁 contracts/<br />
-                &nbsp;&nbsp; ┣ 📄 contract1.pdf<br />
-                &nbsp;&nbsp; ┣ 📄 contract2.pdf<br />
+                📁 my-documents/
+                <br />
+                ┣ 📁 invoices/
+                <br />
+                ┃ ┣ 📄 invoice1.pdf
+                <br />
+                ┃ ┣ 📄 invoice2.pdf
+                <br />
+                ┃ ┗ 📄 invoice3.pdf
+                <br />
+                ┗ 📁 contracts/
+                <br />
+                &nbsp;&nbsp; ┣ 📄 contract1.pdf
+                <br />
+                &nbsp;&nbsp; ┣ 📄 contract2.pdf
+                <br />
                 &nbsp;&nbsp; ┗ 📄 contract3.pdf
               </Box>
             </Box>
@@ -307,7 +330,7 @@ const DocumentQuestions = ({
                 <input
                   type="file"
                   hidden
-                  {...{ webkitdirectory: "", directory: "" }}
+                  {...{ webkitdirectory: '', directory: '' }}
                   onChange={handleFolderSelect}
                 />
               </Button>

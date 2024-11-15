@@ -16,7 +16,12 @@ interface LabelConfirmationDialogProps {
   labels: string[];
 }
 
-const LabelConfirmationDialog = ({ open, onClose, onConfirm, labels }: LabelConfirmationDialogProps) => {
+const LabelConfirmationDialog = ({
+  open,
+  onClose,
+  onConfirm,
+  labels,
+}: LabelConfirmationDialogProps) => {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Confirm Labels</DialogTitle>

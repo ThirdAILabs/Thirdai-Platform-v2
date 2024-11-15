@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import { 
-  Box, 
-  Button, 
-  Typography, 
-  Alert, 
-  CircularProgress, 
-  Paper,
-} from '@mui/material';
+import { Box, Button, Typography, Alert, CircularProgress, Paper } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { trainTokenClassifierFromCSV, validateTokenClassifierCSV } from '@/lib/backend';
 import TokenTypeConfirmationDialog from './TokenTypeConfirmationDialog';
@@ -28,7 +21,7 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
   const validateAndProcessFile = async (file: File) => {
     try {
       const validationResult = await validateTokenClassifierCSV(file);
-      
+
       if (!validationResult.valid) {
         setError(validationResult.message);
         return false;
@@ -77,7 +70,8 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
         throw new Error(response.message || 'Failed to train model');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred while training the model';
+      const errorMessage =
+        error instanceof Error ? error.message : 'An error occurred while training the model';
       setError(errorMessage);
       onError?.(errorMessage);
     } finally {
@@ -113,12 +107,7 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
           sx={{ mb: 2 }}
         >
           Select CSV File
-          <input
-            type="file"
-            hidden
-            accept=".csv"
-            onChange={handleFileSelect}
-          />
+          <input type="file" hidden accept=".csv" onChange={handleFileSelect} />
         </Button>
 
         {selectedFile && (
@@ -141,7 +130,7 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
       )}
 
       {/* Token Type Confirmation Dialog */}
-      <TokenTypeConfirmationDialog 
+      <TokenTypeConfirmationDialog
         open={showConfirmation}
         onClose={() => setShowConfirmation(false)}
         onConfirm={() => {

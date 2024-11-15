@@ -117,7 +117,7 @@ export function WorkFlow({
       }
       case 'udt': {
         let prefix;
-        switch(workflow.sub_type) {
+        switch (workflow.sub_type) {
           case 'token':
             prefix = '/token-classification';
             break;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { trainSentenceClassifier } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
-import { 
+import {
   Box,
   Typography,
   Card,
@@ -9,7 +9,7 @@ import {
   Grid,
   Button,
   TextField,
-  Divider 
+  Divider,
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
@@ -20,7 +20,7 @@ import CSVUpload from './sentence-questions-upload-file/CSVUpload';
 const CREATION_METHODS = {
   PRETRAINED: 'pretrained',
   UPLOAD_DATA: 'upload-data',
-  SYNTHETIC: 'synthetic'
+  SYNTHETIC: 'synthetic',
 };
 
 interface SCQQuestionsProps {
@@ -32,13 +32,13 @@ interface SCQQuestionsProps {
   appName?: string;
 }
 
-const SCQQuestions = ({ 
-  question, 
-  answer, 
+const SCQQuestions = ({
+  question,
+  answer,
   workflowNames,
   onCreateModel,
   stayOnPage,
-  appName 
+  appName,
 }: SCQQuestionsProps) => {
   const [creationMethod, setCreationMethod] = useState<string>('');
   const [modelName, setModelName] = useState(!appName ? '' : appName);
@@ -62,26 +62,38 @@ const SCQQuestions = ({
       <Typography variant="h6" sx={{ mb: 2 }}>
         Choose how you want to create your Text Classification model
       </Typography>
-      
+
       <Grid container spacing={2}>
         {/* Pretrained Model Option */}
         <Grid item xs={12} md={4}>
-          <Card 
-            sx={{ 
-              height: '100%', 
+          <Card
+            sx={{
+              height: '100%',
               cursor: 'pointer',
-              border: creationMethod === CREATION_METHODS.PRETRAINED ? '2px solid #1976d2' : '1px solid #e0e0e0',
-              '&:hover': { borderColor: '#1976d2' }
+              border:
+                creationMethod === CREATION_METHODS.PRETRAINED
+                  ? '2px solid #1976d2'
+                  : '1px solid #e0e0e0',
+              '&:hover': { borderColor: '#1976d2' },
             }}
             onClick={() => setCreationMethod(CREATION_METHODS.PRETRAINED)}
           >
-            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <CardContent
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+              }}
+            >
               <ModelTrainingIcon sx={{ fontSize: 40, mb: 2, color: 'primary.main' }} />
               <Typography variant="h6" gutterBottom>
                 Use Pretrained Model
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Quick start with our pretrained models for common tasks like sentiment analysis or content moderation
+                Quick start with our pretrained models for common tasks like sentiment analysis or
+                content moderation
               </Typography>
             </CardContent>
           </Card>
@@ -89,16 +101,27 @@ const SCQQuestions = ({
 
         {/* Upload Data Option */}
         <Grid item xs={12} md={4}>
-          <Card 
-            sx={{ 
-              height: '100%', 
+          <Card
+            sx={{
+              height: '100%',
               cursor: 'pointer',
-              border: creationMethod === CREATION_METHODS.UPLOAD_DATA ? '2px solid #1976d2' : '1px solid #e0e0e0',
-              '&:hover': { borderColor: '#1976d2' }
+              border:
+                creationMethod === CREATION_METHODS.UPLOAD_DATA
+                  ? '2px solid #1976d2'
+                  : '1px solid #e0e0e0',
+              '&:hover': { borderColor: '#1976d2' },
             }}
             onClick={() => setCreationMethod(CREATION_METHODS.UPLOAD_DATA)}
           >
-            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <CardContent
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+              }}
+            >
               <UploadFileIcon sx={{ fontSize: 40, mb: 2, color: 'primary.main' }} />
               <Typography variant="h6" gutterBottom>
                 Upload Your Data
@@ -112,22 +135,34 @@ const SCQQuestions = ({
 
         {/* Synthetic Data Option */}
         <Grid item xs={12} md={4}>
-          <Card 
-            sx={{ 
-              height: '100%', 
+          <Card
+            sx={{
+              height: '100%',
               cursor: 'pointer',
-              border: creationMethod === CREATION_METHODS.SYNTHETIC ? '2px solid #1976d2' : '1px solid #e0e0e0',
-              '&:hover': { borderColor: '#1976d2' }
+              border:
+                creationMethod === CREATION_METHODS.SYNTHETIC
+                  ? '2px solid #1976d2'
+                  : '1px solid #e0e0e0',
+              '&:hover': { borderColor: '#1976d2' },
             }}
             onClick={() => setCreationMethod(CREATION_METHODS.SYNTHETIC)}
           >
-            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <CardContent
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+              }}
+            >
               <AutoAwesomeIcon sx={{ fontSize: 40, mb: 2, color: 'primary.main' }} />
               <Typography variant="h6" gutterBottom>
                 Generate Training Data
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Provide examples and let AI generate training data for your custom classification needs
+                Provide examples and let AI generate training data for your custom classification
+                needs
               </Typography>
             </CardContent>
           </Card>
@@ -137,7 +172,7 @@ const SCQQuestions = ({
   );
 
   const renderSelectedMethod = () => {
-    switch(creationMethod) {
+    switch (creationMethod) {
       case CREATION_METHODS.PRETRAINED:
         return (
           <Box sx={{ width: '100%' }}>
@@ -157,9 +192,10 @@ const SCQQuestions = ({
               Upload Training Data
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Upload a CSV file containing your labeled training data. The file should include text samples and their corresponding labels.
+              Upload a CSV file containing your labeled training data. The file should include text
+              samples and their corresponding labels.
             </Typography>
-            <CSVUpload 
+            <CSVUpload
               modelName={modelName}
               onSuccess={() => {
                 if (!stayOnPage) {
@@ -207,11 +243,14 @@ const SCQQuestions = ({
             if (name.includes(' ')) {
               warningMessage = 'The app name cannot contain spaces. Please remove the spaces.';
             } else if (name.includes('.')) {
-              warningMessage = "The app name cannot contain periods ('.'). Please remove the periods.";
+              warningMessage =
+                "The app name cannot contain periods ('.'). Please remove the periods.";
             } else if (!regexPattern.test(name)) {
-              warningMessage = 'The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.';
+              warningMessage =
+                'The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.';
             } else if (workflowNames.includes(name)) {
-              warningMessage = 'An app with the same name already exists. Please choose a different name.';
+              warningMessage =
+                'An app with the same name already exists. Please choose a different name.';
             }
             setWarningMessage(warningMessage);
             setModelName(name);
@@ -220,7 +259,9 @@ const SCQQuestions = ({
           style={{ marginTop: '10px' }}
           disabled={!!appName && !workflowNames.includes(modelName)}
         />
-        {warningMessage && <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>}
+        {warningMessage && (
+          <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>
+        )}
       </Box>
 
       <Divider sx={{ my: 4 }} />

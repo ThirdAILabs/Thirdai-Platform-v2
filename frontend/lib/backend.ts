@@ -340,15 +340,15 @@ export function retrain_ndb({
 export async function validateDocumentClassificationFolder(files: FileList) {
   const accessToken = getAccessToken();
   const formData = new FormData();
-  
+
   // Group files by their categories first
   const categoryMap = new Map<string, File[]>();
-  
+
   Array.from(files).forEach((file) => {
     const pathParts = file.webkitRelativePath.split('/');
     // Change this to use the category folder name (pathParts[1])
     if (pathParts.length >= 3) {
-      const category = pathParts[1];  // Changed from pathParts[0] to pathParts[1]
+      const category = pathParts[1]; // Changed from pathParts[0] to pathParts[1]
       if (!categoryMap.has(category)) {
         categoryMap.set(category, []);
       }
@@ -368,12 +368,15 @@ export async function validateDocumentClassificationFolder(files: FileList) {
   });
 
   // Debug: Log what's being sent
-  console.log('Files being sent:', Array.from(formData.getAll('files')).map(f => {
-    if (f instanceof File) {
-      return f.name;
-    }
-    return f;
-  }));
+  console.log(
+    'Files being sent:',
+    Array.from(formData.getAll('files')).map((f) => {
+      if (f instanceof File) {
+        return f.name;
+      }
+      return f;
+    })
+  );
 
   try {
     const response = await axios.post(
@@ -381,9 +384,9 @@ export async function validateDocumentClassificationFolder(files: FileList) {
       formData,
       {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'multipart/form-data'
-        }
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
       }
     );
 
@@ -415,11 +418,11 @@ export async function trainDocumentClassifier({
 
   // Group files by their categories first
   const categoryMap = new Map<string, File[]>();
-  
+
   Array.from(files).forEach((file) => {
     const pathParts = file.webkitRelativePath.split('/');
     if (pathParts.length >= 3) {
-      const category = pathParts[1];  // Changed from pathParts[0] to pathParts[1]
+      const category = pathParts[1]; // Changed from pathParts[0] to pathParts[1]
       if (!categoryMap.has(category)) {
         categoryMap.set(category, []);
       }
@@ -440,9 +443,9 @@ export async function trainDocumentClassifier({
       formData,
       {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'multipart/form-data'
-        }
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
       }
     );
 
@@ -467,9 +470,9 @@ export async function validateSentenceClassifierCSV(file: File) {
       formData,
       {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'multipart/form-data'
-        }
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
       }
     );
 
@@ -503,9 +506,9 @@ export async function trainSentenceClassifierFromCSV({
       formData,
       {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'multipart/form-data'
-        }
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
       }
     );
 
@@ -536,16 +539,12 @@ export function trainSentenceClassifierFromCSVPromise({
 
   return new Promise((resolve, reject) => {
     axios
-      .post(
-        `${thirdaiPlatformBaseUrl}/api/train/train-text-classification-csv`,
-        formData,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      )
+      .post(`${thirdaiPlatformBaseUrl}/api/train/train-text-classification-csv`, formData, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      })
       .then((res) => {
         resolve(res.data);
       })
@@ -708,7 +707,7 @@ export async function validateTokenClassifierCSV(file: File): Promise<Validation
       formData,
       {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'multipart/form-data',
         },
       }

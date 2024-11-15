@@ -1,5 +1,5 @@
 import React from 'react';
-import { 
+import {
   Dialog,
   DialogTitle,
   DialogContent,
@@ -7,7 +7,7 @@ import {
   Button,
   Typography,
   Chip,
-  Stack
+  Stack,
 } from '@mui/material';
 
 interface ConfirmationDialogProps {
@@ -17,32 +17,20 @@ interface ConfirmationDialogProps {
   tokenTypes: string[];
 }
 
-const TokenTypeConfirmationDialog = ({ 
-  open, 
-  onClose, 
-  onConfirm, 
-  tokenTypes 
+const TokenTypeConfirmationDialog = ({
+  open,
+  onClose,
+  onConfirm,
+  tokenTypes,
 }: ConfirmationDialogProps) => {
   return (
-    <Dialog 
-      open={open} 
-      onClose={onClose}
-      maxWidth="sm"
-      fullWidth
-    >
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Confirm Token Types</DialogTitle>
       <DialogContent>
-        <Typography sx={{ mb: 2 }}>
-          The following token types were detected in your CSV:
-        </Typography>
+        <Typography sx={{ mb: 2 }}>The following token types were detected in your CSV:</Typography>
         <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 2 }}>
           {tokenTypes.map((label) => (
-            <Chip 
-              key={label} 
-              label={label} 
-              color="primary" 
-              sx={{ mb: 1 }} 
-            />
+            <Chip key={label} label={label} color="primary" sx={{ mb: 1 }} />
           ))}
         </Stack>
         <Typography>
@@ -51,11 +39,7 @@ const TokenTypeConfirmationDialog = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button 
-          onClick={onConfirm} 
-          variant="contained"
-          color="primary"
-        >
+        <Button onClick={onConfirm} variant="contained" color="primary">
           Proceed with Training
         </Button>
       </DialogActions>

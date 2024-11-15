@@ -17,7 +17,7 @@ import { useTextClassificationEndpoints } from '@/lib/backend';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { parseCSV, parseExcel, parseTXT } from '@/utils/fileParsingUtils';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
-import { Loader2, CheckCircle2} from 'lucide-react';
+import { Loader2, CheckCircle2 } from 'lucide-react';
 
 interface ParsedData {
   type: 'csv' | 'pdf' | 'other';
@@ -48,11 +48,11 @@ export default function Page() {
   const MAX_FILE_SIZE = 1024 * 1024;
 
   const handleFolderUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []).filter(file => {
+    const files = Array.from(event.target.files || []).filter((file) => {
       const extension = file.name.split('.').pop()?.toLowerCase();
       return ['txt', 'pdf', 'docx', 'csv', 'xls', 'xlsx', 'html'].includes(extension ?? '');
     });
-  
+
     if (files.length === 0) {
       setFileError('No supported files found in the folder');
       return;
@@ -71,14 +71,14 @@ export default function Page() {
           console.warn(`Skipping ${file.name}: exceeds size limit of 1MB`);
           continue;
         }
-  
+
         const startTime = performance.now();
         const fileExtension = file.name.split('.').pop()?.toLowerCase();
 
         try {
           // Add a small delay between files
-          await new Promise(resolve => setTimeout(resolve, 500));
-  
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
           let content: string;
           if (fileExtension === 'csv') {
             const parsed = await parseCSV(file);
@@ -90,29 +90,31 @@ export default function Page() {
               reader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
               reader.readAsArrayBuffer(file);
             });
-            
+
             // Create a new File object with the buffer
             const newFile = new File([fileBuffer], file.name, { type: file.type });
             const textContent = await getTextFromFile(newFile);
             content = textContent.join('\n');
           } else if (['xls', 'xlsx'].includes(fileExtension ?? '')) {
             const excelRows = await parseExcel(file);
-            content = excelRows.map(row => row.content).join('\n\n');
+            content = excelRows.map((row) => row.content).join('\n\n');
           } else {
             content = await parseTXT(file);
           }
-  
+
           const predictions = await predict(content);
           const processingTime = performance.now() - startTime;
-          
-          setFolderResults(prev => [...prev, {
-            filename: file.name,
-            predictions: predictions.data.prediction_results.predicted_classes.map(([name, score]) => [
-              name,
-              Math.floor(score * 100),
-            ]),
-            processingTime
-          }]);
+
+          setFolderResults((prev) => [
+            ...prev,
+            {
+              filename: file.name,
+              predictions: predictions.data.prediction_results.predicted_classes.map(
+                ([name, score]) => [name, Math.floor(score * 100)]
+              ),
+              processingTime,
+            },
+          ]);
         } catch (error) {
           console.error(`Error processing file ${file.name}:`, error);
           // Continue processing other files even if one fails
@@ -208,7 +210,7 @@ export default function Page() {
   };
 
   const renderPredictionRow = (prediction: [string, number], isHighest: boolean) => (
-    <div 
+    <div
       className={`flex justify-between items-center p-4 rounded-lg transition-colors ${
         isHighest ? 'bg-green-50 border border-green-200' : 'hover:bg-gray-50'
       }`}
@@ -219,17 +221,19 @@ export default function Page() {
           {prediction[0].replace(/_/g, ' ')}
         </span>
       </div>
-      <div className={`px-4 py-2 rounded-full ${
-        isHighest ? 'bg-green-100 text-green-700' : 'bg-gray-100'
-      }`}>
+      <div
+        className={`px-4 py-2 rounded-full ${
+          isHighest ? 'bg-green-100 text-green-700' : 'bg-gray-100'
+        }`}
+      >
         {prediction[1]}%
       </div>
     </div>
   );
 
   const renderPredictions = () => {
-    const maxProbability = Math.max(...predictions.map(p => p[1]));
-    
+    const maxProbability = Math.max(...predictions.map((p) => p[1]));
+
     return (
       <Box mt={4} display="flex" gap={4}>
         <div style={{ flex: 2 }}>
@@ -255,14 +259,12 @@ export default function Page() {
   const renderFolderResults = () => (
     <Box mt={4}>
       {folderResults.map((result, index) => {
-        const maxProbability = Math.max(...result.predictions.map(p => p[1]));
-        
+        const maxProbability = Math.max(...result.predictions.map((p) => p[1]));
+
         return (
           <Card key={index} className="mb-4 bg-white">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold">
-                {result.filename}
-              </CardTitle>
+              <CardTitle className="text-lg font-semibold">{result.filename}</CardTitle>
             </CardHeader>
             <div className="p-4 space-y-2">
               {result.predictions.map((prediction, pIndex) => (
@@ -283,7 +285,10 @@ export default function Page() {
   );
 
   return (
-    <div className="bg-muted" style={{ width: '100%', display: 'flex', justifyContent: 'center', height: '100vh' }}>
+    <div
+      className="bg-muted"
+      style={{ width: '100%', display: 'flex', justifyContent: 'center', height: '100vh' }}
+    >
       <Tabs defaultValue="interact" style={{ width: '100%' }}>
         <div style={{ position: 'fixed', top: '20px', left: '20px' }}>
           <div className="text-muted-foreground" style={{ fontSize: '16px' }}>
@@ -291,7 +296,15 @@ export default function Page() {
           </div>
           <div style={{ fontWeight: 'bold', fontSize: '24px' }}>{workflowName}</div>
         </div>
-        <Container style={{ textAlign: 'center', paddingTop: '20vh', width: '70%', minWidth: '400px', maxWidth: '800px' }}>
+        <Container
+          style={{
+            textAlign: 'center',
+            paddingTop: '20vh',
+            width: '70%',
+            minWidth: '400px',
+            maxWidth: '800px',
+          }}
+        >
           <Box display="flex" flexDirection="column" width="100%">
             <Box display="flex" justifyContent="center" alignItems="center" width="100%" gap={2}>
               <label htmlFor="file-upload">
@@ -353,7 +366,8 @@ export default function Page() {
             )}
 
             <Typography variant="caption" display="block" mt={1}>
-              Supported files: .txt, .pdf, .docx, .csv, .xls, .xlsx (Max: 1MB) or folder containing any of these file types
+              Supported files: .txt, .pdf, .docx, .csv, .xls, .xlsx (Max: 1MB) or folder containing
+              any of these file types
             </Typography>
           </Box>
 

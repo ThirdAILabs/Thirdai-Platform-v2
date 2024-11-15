@@ -16,7 +16,7 @@ from deployment_job.reporter import Reporter
 from fastapi import APIRouter, Depends, Query, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
-from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
+from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
     LabelCollection,
     LabelStatus,
@@ -208,16 +208,8 @@ class UDTRouterTextClassification(UDTBaseRouter):
 
     @staticmethod
     def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
-        subtype = config.model_options.udt_sub_type
-        logger.info(f"Initializing Text Classification model of subtype: {subtype}")
-        if subtype == UDTSubType.text:
-            return TextClassificationModel(config=config, logger=logger)
-        else:
-            error_message = (
-                f"Unsupported UDT subtype '{subtype}' for Text Classification."
-            )
-            logger.error(error_message)
-            raise ValueError(error_message)
+        logger.info(f"Initializing Nlp Text Classification model")
+        return TextClassificationModel(config=config, logger=logger)
 
     def insert_sample(
         self,
@@ -258,16 +250,8 @@ class UDTRouterTokenClassification(UDTBaseRouter):
 
     @staticmethod
     def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
-        subtype = config.model_options.udt_sub_type
-        logger.info(f"Initializing Token Classification model of subtype: {subtype}")
-        if subtype == UDTSubType.token:
-            return TokenClassificationModel(config=config, logger=logger)
-        else:
-            error_message = (
-                f"Unsupported UDT subtype '{subtype}' for Token Classification."
-            )
-            logger.error(error_message)
-            raise ValueError(error_message)
+        logger.info(f"Initializing Nlp Token Classification model")
+        return TokenClassificationModel(config=config, logger=logger)
 
     def add_labels(
         self,

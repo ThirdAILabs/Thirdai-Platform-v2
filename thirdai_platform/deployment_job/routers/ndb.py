@@ -594,7 +594,7 @@ class NDBRouter:
                 )
         else:
             override_permission = Permissions.check_permission(
-                token=token, permission_type="override"
+                token=token, permission_type="owner"
             )
             if not override_permission:
                 return response(

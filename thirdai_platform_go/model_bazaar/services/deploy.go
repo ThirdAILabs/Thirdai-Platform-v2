@@ -114,6 +114,7 @@ func (s *DeployService) deployModel(modelId, userId string, autoscalingEnabled b
 
 		config := config.DeployConfig{
 			ModelId:             model.Id,
+			ModelType:           model.Type,
 			ModelBazaarDir:      s.storage.Location(),
 			ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
 			LicenseKey:          license,

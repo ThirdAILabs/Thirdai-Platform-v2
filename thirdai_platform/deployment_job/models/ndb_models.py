@@ -38,7 +38,7 @@ class NDBModel(Model):
 
         self.chat_instances = {}
         self.chat_instance_lock = Lock()
-        self.set_chat(provider=self.config.model_options.llm_provider)
+        self.set_chat(provider=self.config.options.get("llm_provider", "openai"))
 
     def get_ndb_path(self, model_id: str) -> Path:
         """
@@ -317,7 +317,7 @@ class NDBModel(Model):
 
                 llm_chat_interface = llm_providers.get(provider)
 
-                key = kwargs.get("key") or self.config.model_options.genai_key
+                key = kwargs.get("key") or self.config.options.get("genai_key", None)
 
                 # Remove 'key' from kwargs if present
                 kwargs.pop("key", None)

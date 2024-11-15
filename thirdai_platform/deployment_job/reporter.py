@@ -6,7 +6,7 @@ import requests
 
 
 class Reporter:
-    def __init__(self, api_url: str, logger: Logger):
+    def __init__(self, api_url: str, auth_token: str, logger: Logger):
         """
         Initializes the Reporter instance with the API URL.
 
@@ -14,6 +14,7 @@ class Reporter:
             api_url (str): The base URL for the API.
         """
         self._api = api_url
+        self._auth_token = auth_token
         self.logger = logger
 
     def _request(self, method: str, suffix: str, *args, **kwargs) -> dict:
@@ -38,7 +39,12 @@ class Reporter:
         if "headers" not in kwargs:
             kwargs["headers"] = {}
 
-        kwargs["headers"].update({"User-Agent": "NDB Deployment job"})
+        kwargs["headers"].update(
+            {
+                "Authorization": f"Bearer {self._auth_token}",
+                "User-Agent": "NDB Deployment job",
+            }
+        )
 
         url = urljoin(self._api, suffix)
 
@@ -136,14 +142,7 @@ class Reporter:
             model_id (str): The ID of the model.
             status (str): The new status of the deployment.
         """
-        self._request(
-            "post",
-            "api/deploy/update-status",
-            params={
-                "model_id": model_id,
-                "new_status": status,
-            },
-        )
+        self._request("post", "api/v2/deploy/update-status", json={"status": status})
 
     def log(
         self,

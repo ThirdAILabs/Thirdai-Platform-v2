@@ -21,7 +21,7 @@ try:
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse
     from platform_common.logging import setup_logger
-    from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
+    from platform_common.pydantic_models.deployment import DeploymentConfig
     from platform_common.pydantic_models.training import ModelType
     from prometheus_client import make_asgi_app
     from thirdai import licensing
@@ -43,7 +43,7 @@ setup_logger(log_dir=log_dir, log_prefix="deployment")
 
 logger = logging.getLogger("deployment")
 
-reporter = Reporter(config.model_bazaar_endpoint, logger)
+reporter = Reporter(config.model_bazaar_endpoint, config.job_auth_token, logger)
 
 licensing.activate(config.license_key)
 
@@ -86,21 +86,16 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-if config.model_options.model_type == ModelType.NDB:
+if config.model_type == ModelType.NDB:
     backend_router_factory = NDBRouter
-elif config.model_options.model_type == ModelType.UDT:
-    if config.model_options.udt_sub_type == UDTSubType.token:
-        backend_router_factory = UDTRouterTokenClassification
-    elif config.model_options.udt_sub_type == UDTSubType.text:
-        backend_router_factory = UDTRouterTextClassification
-    else:
-        error_message = f"Unsupported UDT Type '{config.model_options.udt_sub_type}'."
-        logger.error(error_message)
-        raise ValueError(error_message)
-elif config.model_options.model_type == ModelType.ENTERPRISE_SEARCH:
+elif config.model_type == ModelType.NLP_TOKEN:
+    backend_router_factory = UDTRouterTokenClassification
+elif config.model_type == ModelType.NLP_TEXT:
+    backend_router_factory = UDTRouterTextClassification
+elif config.model_type == ModelType.ENTERPRISE_SEARCH:
     backend_router_factory = EnterpriseSearchRouter
 else:
-    error_message = f"Unsupported ModelType '{config.model_options.model_type}'."
+    error_message = f"Unsupported ModelType '{config.model_type}'."
     logger.error(error_message)
     raise ValueError(error_message)
 

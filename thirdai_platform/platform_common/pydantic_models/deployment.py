@@ -1,50 +1,21 @@
 import os
-from typing import Literal, Optional, Union
+from typing import Dict, Any
 
-from platform_common.pydantic_models.training import ModelType, UDTSubType
-from pydantic import BaseModel, Field
-
-
-class NDBDeploymentOptions(BaseModel):
-    model_type: Literal[ModelType.NDB] = ModelType.NDB
-
-    llm_provider: str = "openai"
-    genai_key: Optional[str] = None
-
-    class Config:
-        protected_namespaces = ()
-
-
-class UDTDeploymentOptions(BaseModel):
-    model_type: Literal[ModelType.UDT] = ModelType.UDT
-
-    udt_sub_type: UDTSubType
-
-    class Config:
-        protected_namespaces = ()
-
-
-class EnterpriseSearchOptions(BaseModel):
-    model_type: Literal[ModelType.ENTERPRISE_SEARCH] = ModelType.ENTERPRISE_SEARCH
-
-    retrieval_id: str
-    guardrail_id: Optional[str] = None
-
-    class Config:
-        protected_namespaces = ()
+from platform_common.pydantic_models.training import ModelType
+from pydantic import BaseModel
 
 
 class DeploymentConfig(BaseModel):
     model_id: str
+    model_type: ModelType
     model_bazaar_endpoint: str
     model_bazaar_dir: str
     license_key: str
+    job_auth_token: str
 
     autoscaling_enabled: bool = False
 
-    model_options: Union[
-        NDBDeploymentOptions, UDTDeploymentOptions, EnterpriseSearchOptions
-    ] = Field(..., discriminator="model_type")
+    options: Dict[str, Any]
 
     class Config:
         protected_namespaces = ()

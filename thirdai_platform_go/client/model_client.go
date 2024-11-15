@@ -66,8 +66,8 @@ func (c *ModelClient) AwaitDeploy(timeout time.Duration) error {
 	return c.awaitJob("deploy", timeout)
 }
 
-func (c *ModelClient) Deploy() error {
-	body := []byte(fmt.Sprintf(`{"model_id": "%v"}`, c.modelId))
+func (c *ModelClient) Deploy(autoscaling bool) error {
+	body := []byte(fmt.Sprintf(`{"model_id": "%v", "autoscaling_enabled": %v}`, c.modelId, autoscaling))
 
 	u, err := url.JoinPath(c.baseUrl, "/api/v2/deploy/start")
 	if err != nil {

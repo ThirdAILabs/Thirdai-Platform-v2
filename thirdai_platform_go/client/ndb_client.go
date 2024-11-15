@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/url"
 	"thirdai_platform/model_bazaar/config"
+	"thirdai_platform/model_bazaar/services"
 )
 
 type NdbClient struct {
@@ -72,6 +73,11 @@ func (c *NdbClient) Insert(files []config.FileInfo) error {
 	}
 
 	params := insertParams{Documents: updateLocalFilePrefixes(files, "")}
+	for i := range params.Documents {
+		if params.Documents[i].Options == nil {
+			params.Documents[i].Options = map[string]interface{}{}
+		}
+	}
 	err = json.NewEncoder(part).Encode(params)
 	if err != nil {
 		return fmt.Errorf("error encoding request: %w", err)
@@ -90,7 +96,7 @@ func (c *NdbClient) Insert(files []config.FileInfo) error {
 	headers := authHeader(c.authToken)
 	headers["Content-Type"] = writer.FormDataContentType()
 
-	_, err = postWithHeaders[map[string]string](u, body.Bytes(), nil, headers)
+	_, err = postWithHeaders[noBody](u, body.Bytes(), nil, headers)
 	return err
 }
 
@@ -168,7 +174,7 @@ func (c *NdbClient) Associate(samples []AssociatePair) error {
 type Source struct {
 	Source   string `json:"source"`
 	SourceId string `json:"source_id"`
-	Version  string `json:"version"`
+	Version  int    `json:"version"`
 }
 
 type sourcesResponse struct {
@@ -186,4 +192,34 @@ func (c *NdbClient) Sources() ([]Source, error) {
 		return nil, err
 	}
 	return res.Data, nil
+}
+
+func (c *NdbClient) Retrain(newModelName string) (*NdbClient, error) {
+	params := services.NdbRetrainOptions{
+		ModelName:   newModelName,
+		BaseModelId: c.modelId,
+	}
+
+	body, err := json.Marshal(params)
+	if err != nil {
+		return nil, fmt.Errorf("error encoding request: %w", err)
+	}
+
+	u, err := url.JoinPath(c.baseUrl, "/api/v2/train/ndb-retrain")
+	if err != nil {
+		return nil, fmt.Errorf("error formatting url: %w", err)
+	}
+
+	res, err := post[map[string]string](u, body, nil, c.authToken)
+	if err != nil {
+		return nil, err
+	}
+
+	return &NdbClient{
+		ModelClient{
+			baseUrl:   c.baseUrl,
+			authToken: c.authToken,
+			modelId:   res["model_id"],
+		},
+	}, nil
 }

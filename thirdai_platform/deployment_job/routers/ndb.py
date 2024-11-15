@@ -240,7 +240,7 @@ class NDBRouter:
             self.insertion_logger.log(InsertLog(documents=documents))
             self.logger.info("Document insertion logged for autoscaling deployment")
             return response(
-                status_code=status.HTTP_202_ACCEPTED,
+                status_code=status.HTTP_200_OK,
                 message="Insert logged successfully.",
             )
         else:
@@ -279,7 +279,7 @@ class NDBRouter:
             self.deletion_logger.log(DeleteLog(doc_ids=input.source_ids))
             self.logger.info("Deletion logged for autoscaling deployment")
             return response(
-                status_code=status.HTTP_202_ACCEPTED,
+                status_code=status.HTTP_200_OK,
                 message="Delete logged successfully.",
             )
         else:
@@ -341,7 +341,7 @@ class NDBRouter:
 
         if prod_mode:
             return response(
-                status_code=status.HTTP_202_ACCEPTED,
+                status_code=status.HTTP_200_OK,
                 message="Upvote logged successfully.",
             )
         else:
@@ -400,7 +400,7 @@ class NDBRouter:
 
         if prod_mode:
             return response(
-                status_code=status.HTTP_202_ACCEPTED,
+                status_code=status.HTTP_200_OK,
                 message="Associate logged successfully.",
             )
         else:
@@ -605,7 +605,7 @@ class NDBRouter:
         background_tasks.add_task(self._perform_save, model_id, token, input.override)
 
         return response(
-            status_code=status.HTTP_202_ACCEPTED,
+            status_code=status.HTTP_200_OK,
             message="Save operation initiated in the background.",
             data={"new_model_id": model_id if not input.override else None},
         )

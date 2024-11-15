@@ -388,6 +388,10 @@ func (c *NomadHttpClient) TotalCpuUsage() (int, error) {
 	}
 	req.Header.Add("X-Nomad-Token", c.token)
 
+	q := req.URL.Query()
+	q.Add("resources", "true")
+	req.URL.RawQuery = q.Encode()
+
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		slog.Error("error getting nomad total cpu usage: unable to send request", "error", err)
@@ -409,8 +413,10 @@ func (c *NomadHttpClient) TotalCpuUsage() (int, error) {
 
 	totalUsage := 0
 	for _, alloc := range allocations {
-		for _, task := range alloc.AllocatedResources.Tasks {
-			totalUsage += (task.Cpu.CpuShares)
+		if alloc.ClientStatus == "running" {
+			for _, task := range alloc.AllocatedResources.Tasks {
+				totalUsage += task.Cpu.CpuShares
+			}
 		}
 	}
 

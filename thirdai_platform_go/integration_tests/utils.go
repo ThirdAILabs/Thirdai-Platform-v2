@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func getClient(t *testing.T) client.PlatformClient {
+func getClient(t *testing.T) *client.PlatformClient {
 	client := client.New("http://localhost:80")
 	err := client.Login("admin@mail.com", "password")
 	if err != nil {

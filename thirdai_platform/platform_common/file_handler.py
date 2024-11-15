@@ -94,7 +94,10 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
     expanded_files = []
     for file_info in file_infos:
         if file_info.location == FileLocation.local:
-            expanded_files.append(file_info)
+            directory_files = list_files_in_nfs_dir(file_info.path)
+            expanded_files.extend(
+                expand_file_info(paths=directory_files, file_info=file_info)
+            )
         elif file_info.location == FileLocation.s3:
             s3_client = get_cloud_client(provider="s3")
             bucket_name, source_path = file_info.parse_s3_url()
@@ -135,11 +138,6 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
                     ],
                     file_info=file_info,
                 )
-            )
-        elif file_info.location == FileLocation.nfs:
-            directory_files = list_files_in_nfs_dir(file_info.path)
-            expanded_files.extend(
-                expand_file_info(paths=directory_files, file_info=file_info)
             )
     return expanded_files
 

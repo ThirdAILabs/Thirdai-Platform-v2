@@ -67,8 +67,8 @@ func (s *DeployService) Routes() chi.Router {
 	return r
 }
 
-func (s *DeployService) deployModel(modelId, userId string, autoscalingEnabled bool, autoscalingMax int, memory int, deploymentName string) error {
-	slog.Info("deploying model", "model_id", modelId)
+func (s *DeployService) deployModel(modelId, userId string, autoscaling bool, autoscalingMax int, memory int, deploymentName string) error {
+	slog.Info("deploying model", "model_id", modelId, "autoscaling", autoscaling, "autoscalingMax", autoscalingMax, "memory", memory, "deployment_name", deploymentName)
 
 	var nomadErr error = nil
 	err := s.db.Transaction(func(txn *gorm.DB) error {
@@ -119,7 +119,7 @@ func (s *DeployService) deployModel(modelId, userId string, autoscalingEnabled b
 			ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
 			LicenseKey:          license,
 			JobAuthToken:        token,
-			AutoscalingEnabled:  autoscalingEnabled,
+			Autoscaling:         autoscaling,
 			Options:             attrs,
 		}
 
@@ -134,7 +134,7 @@ func (s *DeployService) deployModel(modelId, userId string, autoscalingEnabled b
 				ModelId:            model.Id,
 				ConfigPath:         configPath,
 				DeploymentName:     deploymentName,
-				AutoscalingEnabled: autoscalingEnabled,
+				AutoscalingEnabled: autoscaling,
 				AutoscalingMax:     autoscalingMax,
 				Driver:             s.variables.Driver,
 				Resources:          resources,
@@ -168,11 +168,11 @@ func (s *DeployService) deployModel(modelId, userId string, autoscalingEnabled b
 }
 
 type startRequest struct {
-	ModelId            string `json:"model_id"`
-	DeploymentName     string `json:"deployment_name"`
-	AutoScalingEnabled bool   `json:"autoscaling_enabled"`
-	AutoscalingMax     int    `json:"autoscaling_max"`
-	Memory             int    `json:"memory"`
+	ModelId        string `json:"model_id"`
+	DeploymentName string `json:"deployment_name"`
+	Autoscaling    bool   `json:"autoscaling_enabled"`
+	AutoscalingMax int    `json:"autoscaling_max"`
+	Memory         int    `json:"memory"`
 }
 
 func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +201,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 		if dep.Id == params.ModelId {
 			name = params.DeploymentName
 		}
-		err := s.deployModel(dep.Id, userId, params.AutoScalingEnabled, params.AutoscalingMax, params.Memory, name)
+		err := s.deployModel(dep.Id, userId, params.Autoscaling, params.AutoscalingMax, params.Memory, name)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

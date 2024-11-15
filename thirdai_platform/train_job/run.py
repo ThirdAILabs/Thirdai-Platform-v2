@@ -31,7 +31,7 @@ except ImportError as e:
 
 
 def get_model(config: TrainConfig, reporter: Reporter, logger: Logger):
-    model_type = config.model_options.model_type
+    model_type = config.model_type
     logger.info(f"model type: {model_type}")
 
     if model_type == ModelType.NDB:

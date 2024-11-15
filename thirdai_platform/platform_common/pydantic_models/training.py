@@ -271,7 +271,7 @@ class TrainConfig(BaseModel):
     license_key: str
     model_bazaar_endpoint: str
     model_id: str
-    job_auth_token : str
+    job_auth_token: str
     base_model_id: Optional[str] = None
 
     # The model and data fields are separate because the model_options are designed
@@ -280,7 +280,8 @@ class TrainConfig(BaseModel):
     # some processing, to download files, copy to directories, etc. Thus they are separated
     # so that the model options can be passed through while the data is processed
     # in the train endpoint.
-    model_options: Union[NDBOptions, UDTOptions] = Field(
+    model_type: ModelType
+    model_options: Optional[Union[NDBOptions, UDTOptions]] = Field(
         ..., discriminator="model_type"
     )
     datagen_options: Optional[DatagenOptions] = None
@@ -297,7 +298,7 @@ class TrainConfig(BaseModel):
 
     @model_validator(mode="after")
     def check_model_data_match(self):
-        if self.model_options.model_type.value not in self.data.model_data_type.value:
+        if self.model_type.value not in self.data.model_data_type.value:
             raise ValueError("Model and data fields don't match")
         return self
 

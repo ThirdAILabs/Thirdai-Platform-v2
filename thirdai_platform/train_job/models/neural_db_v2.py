@@ -21,14 +21,6 @@ class NeuralDBV2(Model):
     def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
         super().__init__(config=config, reporter=reporter, logger=logger)
 
-        self.ndb_options: NDBOptions = self.config.model_options
-
-        splade = self.ndb_options.advanced_search
-
-        self.logger.info(
-            f"NDB options - advanced_search: {splade}, in_memory: {self.ndb_options.in_memory}"
-        )
-
         if self.config.base_model_id:
             base_model_path = os.path.join(
                 self.config.model_bazaar_dir,
@@ -48,8 +40,15 @@ class NeuralDBV2(Model):
             )
             self.db = ndbv2.NeuralDB.load(self.ndb_save_path())
         else:
+            ndb_options: NDBOptions = self.config.model_options
+            splade = ndb_options.advanced_search
+
+            self.logger.info(
+                f"NDB options - advanced_search: {splade}, in_memory: {ndb_options.in_memory}"
+            )
+
             self.logger.info("Creating new NDBv2 model")
-            if not self.ndb_options.in_memory:
+            if not ndb_options.in_memory:
                 save_path = self.ndb_save_path()
             else:
                 save_path = None
@@ -71,7 +70,7 @@ class NeuralDBV2(Model):
         for file in all_files:
             if file.ext() != ".csv" and file.ext() != ".jsonl":
                 raise ValueError(
-                    "Only CSV or jsonl files are supported for NDB supervised training."
+                    f"Only CSV or jsonl files are supported for NDB supervised training. Found file {file.path}"
                 )
         return all_files
 
@@ -263,7 +262,8 @@ class NeuralDBV2(Model):
         self.logger.warning("Evaluation method called. Not implemented.")
 
     def save(self):
-        if self.ndb_options.in_memory:
+        # Check to see if db is on disk or not
+        if not os.path.exists(os.path.join(self.ndb_save_path(), "chunk_store")):
             self.db.save(self.ndb_save_path())
 
     def get_latency(self) -> float:

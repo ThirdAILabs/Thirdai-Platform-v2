@@ -139,7 +139,9 @@ func (s *TrainService) getNdbRetrainingData(baseModelId string) (config.NDBData,
 	data := config.NDBData{
 		UnsupervisedFiles: []config.FileInfo{},
 		SupervisedFiles: []config.FileInfo{
-			{Path: filepath.Join(deploymentDir, "feedback"), Location: config.FileLocLocal},
+			// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
+			// in the future once this is standardized it will not be needed
+			{Path: filepath.Join(s.storage.Location(), deploymentDir, "feedback"), Location: config.FileLocLocal, Options: map[string]interface{}{}},
 		},
 		Deletions: []string{},
 	}
@@ -163,7 +165,7 @@ func (s *TrainService) getNdbRetrainingData(baseModelId string) (config.NDBData,
 	return data, nil
 }
 
-func (s *TrainService) RetrainNdb(w http.ResponseWriter, r *http.Request) {
+func (s *TrainService) NdbRetrain(w http.ResponseWriter, r *http.Request) {
 	userId, err := auth.UserIdFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -212,6 +214,7 @@ func (s *TrainService) RetrainNdb(w http.ResponseWriter, r *http.Request) {
 		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
 		JobAuthToken:        jobToken,
 		ModelId:             modelId,
+		ModelType:           schema.NdbModel,
 		BaseModelId:         &options.BaseModelId,
 		ModelOptions:        nil,
 		Data:                data,
@@ -219,7 +222,7 @@ func (s *TrainService) RetrainNdb(w http.ResponseWriter, r *http.Request) {
 		IsRetraining:        true,
 	}
 
-	err = s.createModelAndStartTraining(options.ModelName, schema.NdbModel, userId, trainConfig)
+	err = s.createModelAndStartTraining(options.ModelName, userId, trainConfig)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error starting ndb training: %v", err), http.StatusBadRequest)
 		return

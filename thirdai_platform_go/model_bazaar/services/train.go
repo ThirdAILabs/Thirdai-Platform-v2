@@ -41,6 +41,7 @@ func (s *TrainService) Routes() chi.Router {
 		r.Use(s.userAuth.Authenticator())
 
 		r.Post("/ndb", s.TrainNdb)
+		r.Post("/ndb-retrain", s.NdbRetrain)
 		r.Post("/nlp-token", s.TrainNlpToken)
 		r.Post("/nlp-text", s.TrainNlpText)
 		r.Post("/upload-data", s.UploadData)
@@ -104,6 +105,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
 		JobAuthToken:        jobToken,
 		ModelId:             modelId,
+		ModelType:           args.modelType,
 		BaseModelId:         args.baseModelId,
 		ModelOptions:        args.modelOptions,
 		Data:                args.data,
@@ -111,7 +113,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		IsRetraining:        false,
 	}
 
-	err = s.createModelAndStartTraining(args.modelName, args.modelType, userId, trainConfig)
+	err = s.createModelAndStartTraining(args.modelName, userId, trainConfig)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error starting %v training: %v", args.modelType, err), http.StatusBadRequest)
 		return
@@ -123,7 +125,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 }
 
 func (s *TrainService) createModelAndStartTraining(
-	modelName, modelType, userId string, trainConfig config.TrainConfig,
+	modelName, userId string, trainConfig config.TrainConfig,
 ) error {
 	configPath, err := saveConfig(trainConfig.ModelId, "train", trainConfig, s.storage)
 	if err != nil {
@@ -133,7 +135,7 @@ func (s *TrainService) createModelAndStartTraining(
 	model := schema.Model{
 		Id:                trainConfig.ModelId,
 		Name:              modelName,
-		Type:              modelType,
+		Type:              trainConfig.ModelType,
 		PublishedDate:     time.Now(),
 		TrainStatus:       schema.NotStarted,
 		DeployStatus:      schema.NotStarted,
@@ -151,6 +153,15 @@ func (s *TrainService) createModelAndStartTraining(
 			}
 			if baseModel.Type != model.Type {
 				return fmt.Errorf("specified base model has type %v but new model has type %v", baseModel.Type, model.Type)
+			}
+
+			perm, err := auth.GetModelPermissions(baseModel.Id, userId, txn)
+			if err != nil {
+				return fmt.Errorf("error verifying permissions for base model %v: %w", baseModel.Id, err)
+			}
+
+			if perm < auth.ReadPermission {
+				return fmt.Errorf("user %v does not have permission to access base model %v", userId, baseModel.Id)
 			}
 		}
 

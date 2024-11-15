@@ -198,6 +198,7 @@ func (opts *NlpTrainOptions) Validate() error {
 
 type TrainConfig struct {
 	ModelId             string  `json:"model_id"`
+	ModelType           string  `json:"model_type"`
 	ModelBazaarDir      string  `json:"model_bazaar_dir"`
 	ModelBazaarEndpoint string  `json:"model_bazaar_endpoint"`
 	JobAuthToken        string  `json:"job_auth_token"`

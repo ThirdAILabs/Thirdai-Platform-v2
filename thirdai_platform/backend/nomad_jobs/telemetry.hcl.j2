@@ -43,6 +43,11 @@ job "telemetry" {
         name     = "vicky-web"
         provider = "nomad"
         port     = "vicky-http"
+        tags = [
+          "traefik.enable=true",
+          "traefik.http.routers.vicky-http.rule=PathPrefix(`/victoriametrics`)",
+          "traefik.http.routers.vicky-http.priority=10"
+        ]
       }
 
       config {
@@ -58,7 +63,8 @@ job "telemetry" {
           "--storageDataPath={{ nomad_monitoring_dir }}/victoriametric",
           "--retentionPeriod=1d",
           "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
-          "--promscrape.config={{ nomad_monitoring_dir }}/node_discovery/prometheus.yaml"
+          "--promscrape.config={{ nomad_monitoring_dir }}/node_discovery/prometheus.yaml",
+          "--http.pathPrefix=/victoriametrics"
         ]
         {% if platform == "local" -%}
         extra_hosts = ["host.docker.internal:host-gateway"]
@@ -230,9 +236,9 @@ datasources:
     type: prometheus
     access: proxy
     {% if platform == "local" -%}
-    url: http://host.docker.internal:{% raw %}{{ range nomadService "vicky-web" }}{{ .Port }}{{ end }}{% endraw %}
+    url: http://host.docker.internal/victoriametrics
     {%- else -%}
-    {% raw %}{{ range nomadService "vicky-web" }}url: http://{{ .Address }}:{{ .Port }}{{ end }}{% endraw %}
+    {% raw %}{{ range nomadService "vicky-web" }}url: http://{{ .Address }}/victoriametrics{{ end }}{% endraw %}
     {%- endif %}
     isDefault: true
     editable: false

@@ -274,14 +274,16 @@ async def restart_telemetry_jobs():
     share_dir = os.getenv("SHARE_DIR")
 
     # Copying the telemetry dashboards
-    telemetry_dashboard_path = os.path.join(model_bazaar_path(), "nomad-monitoring", "telemetry_dashboards")
+    telemetry_dashboard_path = os.path.join(
+        model_bazaar_path(), "nomad-monitoring", "telemetry_dashboards"
+    )
 
     shutil.copytree(
-        str(cwd / "telemetry_dashboards"),
-        telemetry_dashboard_path,
-        dirs_exist_ok=True
+        str(cwd / "telemetry_dashboards"), telemetry_dashboard_path, dirs_exist_ok=True
     )
-    promfile_path = os.path.join(model_bazaar_path(), "nomad-monitoring", "node_discovery", "prometheus.yaml")
+    promfile_path = os.path.join(
+        model_bazaar_path(), "nomad-monitoring", "node_discovery", "prometheus.yaml"
+    )
 
     # Creating prometheus config file
     targets = create_promfile(promfile_path)

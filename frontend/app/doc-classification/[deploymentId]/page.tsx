@@ -47,39 +47,76 @@ export default function Page() {
 
   const MAX_FILE_SIZE = 1024 * 1024;
 
-  const processFile = async (file: File): Promise<[string, number][]> => {
-    const content = await parseTXT(file);
-    const result = await predict(content);
-    return result.data.prediction_results.predicted_classes.map(([name, score]) => [
-      name,
-      Math.floor(score * 100),
-    ]);
-  };
-
   const handleFolderUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []).filter(file => file.name.endsWith('.txt'));
+    const files = Array.from(event.target.files || []).filter(file => {
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      return ['txt', 'pdf', 'docx', 'csv', 'xls', 'xlsx', 'html'].includes(extension ?? '');
+    });
+  
     if (files.length === 0) {
-      setFileError('No .txt files found in the folder');
+      setFileError('No supported files found in the folder');
       return;
     }
 
     setProcessingFolder(true);
     setFolderResults([]);
-    setPredictions([]); // Clear single query results
-    setProcessingTime(undefined); // Clear processing time
-    setInputText(''); // Clear input text
+    setPredictions([]);
+    setProcessingTime(undefined);
+    setInputText('');
 
     try {
+      // Process files sequentially with delay
       for (const file of files) {
+        if (file.size > MAX_FILE_SIZE) {
+          console.warn(`Skipping ${file.name}: exceeds size limit of 1MB`);
+          continue;
+        }
+  
         const startTime = performance.now();
-        const predictions = await processFile(file);
-        const processingTime = performance.now() - startTime;
-        
-        setFolderResults(prev => [...prev, {
-          filename: file.name,
-          predictions,
-          processingTime
-        }]);
+        const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
+        try {
+          // Add a small delay between files
+          await new Promise(resolve => setTimeout(resolve, 500));
+  
+          let content: string;
+          if (fileExtension === 'csv') {
+            const parsed = await parseCSV(file);
+            content = parsed.content;
+          } else if (['pdf', 'docx', 'html'].includes(fileExtension ?? '')) {
+            // Create a new FileReader for each file
+            const fileBuffer = await new Promise<ArrayBuffer>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = (e) => resolve(e.target?.result as ArrayBuffer);
+              reader.readAsArrayBuffer(file);
+            });
+            
+            // Create a new File object with the buffer
+            const newFile = new File([fileBuffer], file.name, { type: file.type });
+            const textContent = await getTextFromFile(newFile);
+            content = textContent.join('\n');
+          } else if (['xls', 'xlsx'].includes(fileExtension ?? '')) {
+            const excelRows = await parseExcel(file);
+            content = excelRows.map(row => row.content).join('\n\n');
+          } else {
+            content = await parseTXT(file);
+          }
+  
+          const predictions = await predict(content);
+          const processingTime = performance.now() - startTime;
+          
+          setFolderResults(prev => [...prev, {
+            filename: file.name,
+            predictions: predictions.data.prediction_results.predicted_classes.map(([name, score]) => [
+              name,
+              Math.floor(score * 100),
+            ]),
+            processingTime
+          }]);
+        } catch (error) {
+          console.error(`Error processing file ${file.name}:`, error);
+          // Continue processing other files even if one fails
+        }
       }
     } catch (error) {
       console.error('Error processing folder:', error);
@@ -316,7 +353,7 @@ export default function Page() {
             )}
 
             <Typography variant="caption" display="block" mt={1}>
-              Supported files: .txt, .pdf, .docx, .csv, .xls, .xlsx (Max: 1MB) or folder of .txt files
+              Supported files: .txt, .pdf, .docx, .csv, .xls, .xlsx (Max: 1MB) or folder containing any of these file types
             </Typography>
           </Box>
 

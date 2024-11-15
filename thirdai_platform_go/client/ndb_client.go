@@ -223,3 +223,11 @@ func (c *NdbClient) Retrain(newModelName string) (*NdbClient, error) {
 		},
 	}, nil
 }
+
+func (c *NdbClient) ClientForDeployment(name string) *NdbClient {
+	return &NdbClient{ModelClient{
+		baseUrl:   c.baseUrl,
+		authToken: c.authToken,
+		modelId:   name,
+	}}
+}

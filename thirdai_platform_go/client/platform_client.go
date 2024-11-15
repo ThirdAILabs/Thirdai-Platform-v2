@@ -93,6 +93,10 @@ func (c *PlatformClient) uploadFiles(files []config.FileInfo) ([]config.FileInfo
 }
 
 func (c *PlatformClient) TrainNdb(name string, files []config.FileInfo) (*NdbClient, error) {
+	return c.TrainNdbWithJobOptions(name, files, config.JobOptions{})
+}
+
+func (c *PlatformClient) TrainNdbWithJobOptions(name string, files []config.FileInfo, jobOptions config.JobOptions) (*NdbClient, error) {
 	uploadFiles, err := c.uploadFiles(files)
 	if err != nil {
 		return nil, fmt.Errorf("error uploading files for training: %w", err)
@@ -104,6 +108,7 @@ func (c *PlatformClient) TrainNdb(name string, files []config.FileInfo) (*NdbCli
 		Data: config.NDBData{
 			UnsupervisedFiles: uploadFiles,
 		},
+		JobOptions: jobOptions,
 	}
 
 	body, err := json.Marshal(params)

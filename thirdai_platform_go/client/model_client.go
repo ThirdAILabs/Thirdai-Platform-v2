@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"thirdai_platform/model_bazaar/services"
@@ -67,7 +68,26 @@ func (c *ModelClient) AwaitDeploy(timeout time.Duration) error {
 }
 
 func (c *ModelClient) Deploy(autoscaling bool) error {
-	body := []byte(fmt.Sprintf(`{"model_id": "%v", "autoscaling_enabled": %v}`, c.modelId, autoscaling))
+	return c.DeployWithName(autoscaling, "")
+}
+
+type deployParams struct {
+	Autoscaling    bool   `json:"autoscaling_enabled"`
+	ModelId        string `json:"model_id"`
+	DeploymentName string `json:"deployment_name"`
+}
+
+func (c *ModelClient) DeployWithName(autoscaling bool, name string) error {
+	params := deployParams{
+		Autoscaling:    autoscaling,
+		ModelId:        c.modelId,
+		DeploymentName: name,
+	}
+
+	body, err := json.Marshal(params)
+	if err != nil {
+		return fmt.Errorf("error encoding request body: %w", err)
+	}
 
 	u, err := url.JoinPath(c.baseUrl, "/api/v2/deploy/start")
 	if err != nil {

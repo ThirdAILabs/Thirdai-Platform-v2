@@ -128,10 +128,11 @@ func doDelete(ndb *client.NdbClient, t *testing.T) {
 func createAndDeployNdb(t *testing.T, autoscaling bool) *client.NdbClient {
 	client := getClient(t)
 
-	ndb, err := client.TrainNdb(
+	ndb, err := client.TrainNdbWithJobOptions(
 		randomName("ndb"), []config.FileInfo{{
 			Path: "./data/articles.csv", Location: "local",
 		}},
+		config.JobOptions{AllocationMemory: 600},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -325,4 +326,75 @@ func TestNdbUpsertProdMode(t *testing.T) {
 		retrainedSources[0].SourceId != oldSources[0].SourceId {
 		t.Fatalf("incorrect retrained sources: %v", newSources)
 	}
+}
+
+func TestDeploymentName(t *testing.T) {
+	c := getClient(t)
+
+	model1, err := c.TrainNdbWithJobOptions(
+		randomName("ndb1"), []config.FileInfo{{
+			Path: "./data/articles.csv", Location: "local",
+		}},
+		config.JobOptions{AllocationMemory: 600},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	model2, err := c.TrainNdbWithJobOptions(
+		randomName("ndb2"), []config.FileInfo{{
+			Path: "./data/mutual_nda.pdf", Location: "local",
+		}},
+		config.JobOptions{AllocationMemory: 600},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = model1.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = model2.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deploymentName := "custom_deployment_name"
+
+	testDeployment := func(ndb *client.NdbClient, doc string) {
+		err := ndb.DeployWithName(false, deploymentName)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			err := ndb.Undeploy()
+			if err != nil {
+				t.Fatal(err)
+			}
+		}()
+
+		err = ndb.AwaitDeploy(100 * time.Second)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		c := ndb.ClientForDeployment(deploymentName)
+
+		sources, err := c.Sources()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(sources) != 1 || filepath.Base(sources[0].Source) != doc {
+			t.Fatalf("incorrect source: %v", sources)
+		}
+
+		_, err = c.Search("American Express Profit Rises 14", 4)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	testDeployment(model1, "articles.csv")
+	testDeployment(model2, "mutual_nda.pdf")
 }

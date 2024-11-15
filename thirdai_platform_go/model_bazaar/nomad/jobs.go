@@ -32,6 +32,15 @@ type Resources struct {
 	AllocationMemoryMax int
 }
 
+type CloudCredentials struct {
+	AwsAccessKey       string
+	AwsAccessSecret    string
+	AwsRegionName      string
+	AzureAccountName   string
+	AzureAccountKey    string
+	GcpCredentialsFile string
+}
+
 type Job interface {
 	GetJobName() string
 
@@ -46,6 +55,8 @@ type TrainJob struct {
 	Driver Driver
 
 	Resources Resources
+
+	CloudCredentials CloudCredentials
 }
 
 func (j TrainJob) GetJobName() string {
@@ -69,6 +80,8 @@ type DeployJob struct {
 	Driver Driver
 
 	Resources Resources
+
+	CloudCredentials CloudCredentials
 }
 
 func (j DeployJob) GetJobName() string {

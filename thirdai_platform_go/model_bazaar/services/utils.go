@@ -336,7 +336,7 @@ func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad
 }
 
 func saveConfig(modelId string, jobType string, config interface{}, store storage.Storage) (string, error) {
-	trainConfigData, err := json.Marshal(config)
+	trainConfigData, err := json.MarshalIndent(config, "", "    ")
 	if err != nil {
 		return "", fmt.Errorf("error encoding train config: %w", err)
 	}
@@ -347,7 +347,9 @@ func saveConfig(modelId string, jobType string, config interface{}, store storag
 		return "", fmt.Errorf("error saving %v config: %w", jobType, err)
 	}
 
-	return configPath, nil
+	// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
+	// in the future once this is standardized it will not be needed
+	return filepath.Join(store.Location(), configPath), nil
 }
 
 func verifyLicenseForNewJob(nomad nomad.NomadClient, license *licensing.LicenseVerifier, jobCpuUsage int) (string, error) {

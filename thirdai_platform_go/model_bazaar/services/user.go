@@ -55,7 +55,7 @@ type signupResponse struct {
 	UserId string `json:"user_id"`
 }
 
-func (s *UserService) CreateUser(username, email, password string, admin bool) (schema.User, error) {
+func (s *UserService) CreateUser(username, email, password string, admin bool, errorIfExists bool) (schema.User, error) {
 	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {
 		return schema.User{}, fmt.Errorf("error encrypting password: %w", err)
@@ -70,6 +70,9 @@ func (s *UserService) CreateUser(username, email, password string, admin bool) (
 			return schema.NewDbError("checking for existing username/email", result.Error)
 		}
 		if result.RowsAffected != 0 {
+			if !errorIfExists {
+				return nil
+			}
 			if existingUser.Username == username {
 				return fmt.Errorf("username %v is already in use", username)
 			} else {
@@ -98,7 +101,7 @@ func (s *UserService) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newUser, err := s.CreateUser(params.Username, params.Email, params.Password, false)
+	newUser, err := s.CreateUser(params.Username, params.Email, params.Password, false, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

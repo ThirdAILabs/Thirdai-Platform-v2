@@ -29,7 +29,7 @@ class Model(ABC):
 
         # Directory for storing data
         self.data_dir: Path = (
-            Path(self.config.model_bazaar_dir) / "data" / self.config.data_id
+            Path(self.config.model_bazaar_dir) / "data" / self.config.model_id
         )
         self.data_dir.mkdir(parents=True, exist_ok=True)
 

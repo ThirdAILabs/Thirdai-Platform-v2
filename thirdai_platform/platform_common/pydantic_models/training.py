@@ -12,12 +12,14 @@ from pydantic import BaseModel, Field, model_validator
 class ModelType(str, Enum):
     NDB = "ndb"
     UDT = "udt"
+    NLP_TOKEN = "nlp-token"
+    NLP_TEXT = "nlp-text"
     ENTERPRISE_SEARCH = "enterprise-search"
 
 
 class ModelDataType(str, Enum):
     NDB = "ndb"
-    UDT = "udt"
+    UDT = "nlp"
     UDT_DATAGEN = "udt_datagen"
 
 
@@ -119,7 +121,7 @@ class FileInfo(BaseModel):
 class NDBOptions(BaseModel):
     model_type: Literal[ModelType.NDB] = ModelType.NDB
 
-    on_disk: bool = True
+    in_memory: bool = True
     advanced_search: bool = False
 
     class Config:
@@ -131,7 +133,6 @@ class NDBData(BaseModel):
 
     unsupervised_files: List[FileInfo] = []
     supervised_files: List[FileInfo] = []
-    test_files: List[FileInfo] = []
 
     deletions: List[str] = []
 
@@ -270,7 +271,7 @@ class TrainConfig(BaseModel):
     license_key: str
     model_bazaar_endpoint: str
     model_id: str
-    data_id: str
+    job_auth_token : str
     base_model_id: Optional[str] = None
 
     # The model and data fields are separate because the model_options are designed

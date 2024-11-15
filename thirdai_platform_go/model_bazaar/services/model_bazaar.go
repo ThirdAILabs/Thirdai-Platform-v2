@@ -87,7 +87,7 @@ func (m *ModelBazaar) Routes() chi.Router {
 }
 
 func (m *ModelBazaar) InitAdmin(username, email, password string) {
-	_, err := m.user.CreateUser(username, email, password, true)
+	_, err := m.user.CreateUser(username, email, password, true, false)
 	if err != nil {
 		log.Panicf("error initializing admin at startup: %v", err)
 	}
@@ -112,7 +112,7 @@ func (m *ModelBazaar) syncTrainStatus(model *schema.Model) {
 			slog.Error("status sync: update train status", "error", err)
 			return
 		}
-		slog.Info("status sync: updated train status", "model_id", model.Id)
+		slog.Info("status sync: updated train status to failed", "model_id", model.Id)
 	}
 }
 
@@ -137,7 +137,7 @@ func (m *ModelBazaar) syncDeployStatus(model *schema.Model) {
 			return
 		}
 
-		slog.Info("status sync: updated deploy status", "model_id", model.Id)
+		slog.Info("status sync: updated deploy status to failed", "model_id", model.Id)
 	}
 }
 

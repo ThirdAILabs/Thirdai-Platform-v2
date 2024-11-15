@@ -18,20 +18,23 @@ const (
 )
 
 type FileInfo struct {
-	Path     string                  `json:"path"`
-	Location string                  `json:"location"`
-	DocId    *string                 `json:"doc_id"`
-	Options  map[string]interface{}  `json:"options"`
-	Metadata *map[string]interface{} `json:"metadata"`
+	Path     string                 `json:"path"`
+	Location string                 `json:"location"`
+	DocId    *string                `json:"doc_id"`
+	Options  map[string]interface{} `json:"options"`
+	Metadata map[string]interface{} `json:"metadata"`
 }
 
 func validateFileInfo(files []FileInfo) error {
-	for _, file := range files {
+	for i, file := range files {
 		if file.Path == "" {
 			return fmt.Errorf("file path cannot be empty")
 		}
 		if file.Location != FileLocLocal && file.Location != FileLocS3 && file.Location != FileLocAzure && file.Location != FileLocGcp {
 			return fmt.Errorf("invalid file location '%v', must be 'local', 's3', 'azure', or 'gcp'", file.Location)
+		}
+		if file.Options == nil {
+			files[i].Options = map[string]interface{}{}
 		}
 	}
 	return nil
@@ -59,6 +62,16 @@ type NDBData struct {
 
 func (data *NDBData) Validate() error {
 	data.ModelDataType = ndbDataType
+
+	if data.UnsupervisedFiles == nil {
+		data.UnsupervisedFiles = []FileInfo{}
+	}
+	if data.SupervisedFiles == nil {
+		data.SupervisedFiles = []FileInfo{}
+	}
+	if data.Deletions == nil {
+		data.Deletions = []string{}
+	}
 
 	if len(data.UnsupervisedFiles)+len(data.SupervisedFiles) == 0 {
 		return fmt.Errorf("NDB training requires either supervised or unsupervised data")
@@ -136,6 +149,13 @@ type NlpData struct {
 
 func (data *NlpData) Validate() error {
 	data.ModelDataType = nlpDataType
+
+	if data.SupervisedFiles == nil {
+		data.SupervisedFiles = []FileInfo{}
+	}
+	if data.TestFiles == nil {
+		data.TestFiles = []FileInfo{}
+	}
 
 	if len(data.SupervisedFiles) == 0 {
 		return fmt.Errorf("Nlp training requires training files")

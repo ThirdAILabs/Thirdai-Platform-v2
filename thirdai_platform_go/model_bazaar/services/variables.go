@@ -6,4 +6,6 @@ type Variables struct {
 	Driver nomad.Driver
 
 	ModelBazaarEndpoint string
+
+	CloudCredentials nomad.CloudCredentials
 }

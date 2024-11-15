@@ -16,8 +16,14 @@ job "{{ .JobName }}" {
       {{ end }}
 
       env {
+        {{ with .CloudCredentials }}
         AWS_ACCESS_KEY = "{{ .AwsAccessKey }}"
         AWS_ACCESS_SECRET = "{{ .AwsAccessSecret }}"
+        AWS_REGION_NAME = "{{ .AwsRegionName }}"
+        AZURE_ACCOUNT_NAME = "{{ .AzureAccountName }}"
+        AZURE_ACCOUNT_KEY = "{{ .AzureAccountKey }}"
+        GCP_CREDENTIALS_FILE = "{{ .GcpCredentialsFile }}"
+        {{ end }}
       }
 
       config {
@@ -49,6 +55,16 @@ job "{{ .JobName }}" {
         memory_max = {{ .AllocationMemoryMax }}
         {{ end }} 
       }
+    }
+
+    restart {
+      attempts = 0
+      mode = "fail"
+    }
+
+    reschedule {
+      attempts  = 0
+      unlimited = false
     }
   }
 }

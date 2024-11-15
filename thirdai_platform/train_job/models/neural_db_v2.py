@@ -26,7 +26,7 @@ class NeuralDBV2(Model):
         splade = self.ndb_options.advanced_search
 
         self.logger.info(
-            f"NDB options - advanced_search: {splade}, on_disk: {self.ndb_options.on_disk}"
+            f"NDB options - advanced_search: {splade}, in_memory: {self.ndb_options.in_memory}"
         )
 
         if self.config.base_model_id:
@@ -49,7 +49,7 @@ class NeuralDBV2(Model):
             self.db = ndbv2.NeuralDB.load(self.ndb_save_path())
         else:
             self.logger.info("Creating new NDBv2 model")
-            if self.ndb_options.on_disk:
+            if not self.ndb_options.in_memory:
                 save_path = self.ndb_save_path()
             else:
                 save_path = None
@@ -263,7 +263,7 @@ class NeuralDBV2(Model):
         self.logger.warning("Evaluation method called. Not implemented.")
 
     def save(self):
-        if not self.ndb_options.on_disk:
+        if self.ndb_options.in_memory:
             self.db.save(self.ndb_save_path())
 
     def get_latency(self) -> float:
@@ -282,7 +282,7 @@ class NeuralDBV2(Model):
                 return os.stat(path).st_size
             return get_directory_size(path)
 
-        # TODO(Nicholas): update this calculation for on_disk=True
+        # TODO(Nicholas): update this calculation for in_memory=False
         size_in_memory = int(
             get_size(self.db.retriever_path(self.ndb_save_path())) * 1.5
             + get_size(self.db.chunk_store_path(self.ndb_save_path()))

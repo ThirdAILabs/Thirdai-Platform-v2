@@ -37,17 +37,12 @@ def get_model(config: TrainConfig, reporter: Reporter, logger: Logger):
     if model_type == ModelType.NDB:
         logger.info(f"Creating NDB model")
         return NeuralDBV2(config, reporter, logger)
-    elif model_type == ModelType.UDT:
-        udt_type = config.model_options.udt_options.udt_sub_type
-        logger.info(f"UDT type: {udt_type}")
-
-        if udt_type == UDTSubType.text:
-            return TextClassificationModel(config, reporter, logger)
-        elif udt_type == UDTSubType.token:
-            return TokenClassificationModel(config, reporter, logger)
-        else:
-            logger.error(f"Unsupported UDT subtype '{udt_type.value}'")
-            raise ValueError(f"Unsupported UDT subtype '{udt_type.value}'")
+    elif model_type == ModelType.NLP_TOKEN:
+        logger.info("Creating NLP token model")
+        return TokenClassificationModel(config, reporter, logger)
+    elif model_type == ModelType.NLP_TEXT:
+        logger.info("Creating NLP text model")
+        return TextClassificationModel(config, reporter, logger)
 
     logger.error(f"Unsupported model type {model_type.value}")
     raise ValueError(f"Unsupported model type {model_type.value}")
@@ -73,7 +68,9 @@ def main():
 
         logger = logging.getLogger("train")
 
-        reporter = HttpReporter(config.model_bazaar_endpoint, logger)
+        reporter = HttpReporter(
+            config.model_bazaar_endpoint, config.job_auth_token, logger
+        )
 
         if config.license_key == "file_license":
             license_path = os.path.join(

@@ -98,7 +98,7 @@ func initDb(dsn string) *gorm.DB {
 
 	err = db.AutoMigrate(
 		&schema.Model{}, &schema.ModelAttribute{}, &schema.ModelDependency{},
-		&schema.User{}, &schema.Team{}, &schema.UserTeam{},
+		&schema.User{}, &schema.Team{}, &schema.UserTeam{}, &schema.JobLog{},
 	)
 	if err != nil {
 		log.Fatalf("error migrating db schema: %v", err)

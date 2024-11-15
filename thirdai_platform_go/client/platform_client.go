@@ -16,6 +16,10 @@ type PlatformClient struct {
 	userId    string
 }
 
+func New(baseUrl string) PlatformClient {
+	return PlatformClient{baseUrl: baseUrl}
+}
+
 func (c *PlatformClient) Signup(username, email, password string) error {
 	body, err := json.Marshal(map[string]string{
 		"email": email, "username": username, "password": password,
@@ -29,7 +33,7 @@ func (c *PlatformClient) Signup(username, email, password string) error {
 		return fmt.Errorf("error formatting url: %w", err)
 	}
 
-	_, err = post[map[string]string](u, body, c.authToken)
+	_, err = post[map[string]string](u, body, nil, c.authToken)
 
 	return err
 }
@@ -45,7 +49,7 @@ func (c *PlatformClient) Login(email, password string) error {
 		return fmt.Errorf("error formatting url: %w", err)
 	}
 
-	data, err := post[map[string]string](u, body, c.authToken)
+	data, err := post[map[string]string](u, body, nil, c.authToken)
 	if err != nil {
 		return err
 	}
@@ -78,7 +82,7 @@ func (c *PlatformClient) uploadFiles(files []config.FileInfo) ([]config.FileInfo
 	headers := authHeader(c.authToken)
 	headers["Content-Type"] = writer.FormDataContentType()
 
-	res, err := postWithHeaders[map[string]string](u, body.Bytes(), headers)
+	res, err := postWithHeaders[map[string]string](u, body.Bytes(), nil, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +116,7 @@ func (c *PlatformClient) TrainNdb(name string, files []config.FileInfo) (NdbClie
 		return NdbClient{}, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	res, err := post[map[string]string](u, body, c.authToken)
+	res, err := post[map[string]string](u, body, nil, c.authToken)
 	if err != nil {
 		return NdbClient{}, err
 	}
@@ -155,7 +159,7 @@ func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []con
 		return NlpTokenClient{}, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	res, err := post[map[string]string](u, body, c.authToken)
+	res, err := post[map[string]string](u, body, nil, c.authToken)
 	if err != nil {
 		return NlpTokenClient{}, err
 	}
@@ -198,7 +202,7 @@ func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []c
 		return NlpTextClient{}, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	res, err := post[map[string]string](u, body, c.authToken)
+	res, err := post[map[string]string](u, body, nil, c.authToken)
 	if err != nil {
 		return NlpTextClient{}, err
 	}

@@ -36,7 +36,7 @@ func parseRes[T any](endpoint, method string, res *http.Response) (T, error) {
 	return data, nil
 }
 
-func get[T any](endpoint string, authToken string) (T, error) {
+func get[T any](endpoint string, params map[string]string, authToken string) (T, error) {
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		return *new(T), fmt.Errorf("error constructing new request: %w", err)
@@ -44,6 +44,14 @@ func get[T any](endpoint string, authToken string) (T, error) {
 	headers := authHeader(authToken)
 	for k, v := range headers {
 		req.Header.Add(k, v)
+	}
+
+	if params != nil {
+		q := req.URL.Query()
+		for k, v := range params {
+			q.Add(k, v)
+		}
+		req.URL.RawQuery = q.Encode()
 	}
 
 	res, err := http.DefaultClient.Do(req)
@@ -55,17 +63,25 @@ func get[T any](endpoint string, authToken string) (T, error) {
 	return parseRes[T](endpoint, "GET", res)
 }
 
-func post[T any](endpoint string, body []byte, authToken string) (T, error) {
-	return postWithHeaders[T](endpoint, body, authHeader(authToken))
+func post[T any](endpoint string, body []byte, params map[string]string, authToken string) (T, error) {
+	return postWithHeaders[T](endpoint, body, params, authHeader(authToken))
 }
 
-func postWithHeaders[T any](endpoint string, body []byte, headers map[string]string) (T, error) {
+func postWithHeaders[T any](endpoint string, body []byte, params map[string]string, headers map[string]string) (T, error) {
 	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(body))
 	if err != nil {
 		return *new(T), fmt.Errorf("error constructing new request: %w", err)
 	}
 	for k, v := range headers {
 		req.Header.Add(k, v)
+	}
+
+	if params != nil {
+		q := req.URL.Query()
+		for k, v := range params {
+			q.Add(k, v)
+		}
+		req.URL.RawQuery = q.Encode()
 	}
 
 	res, err := http.DefaultClient.Do(req)

@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io"
 	"log"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
+	"text/template"
 )
 
 // This will load the given templates into the embed FS so that they are bunddled
@@ -113,7 +113,7 @@ func (c *NomadHttpClient) parseJob(job Job) (interface{}, error) {
 	}
 
 	var jobDef interface{}
-	err = json.NewDecoder(res.Body).Decode(&job)
+	err = json.NewDecoder(res.Body).Decode(&jobDef)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing nomad response from parse request: %v", err)
 	}

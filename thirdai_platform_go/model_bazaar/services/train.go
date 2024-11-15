@@ -182,6 +182,7 @@ func (s *TrainService) createModelAndStartTraining(
 				AllocationMemory:    trainConfig.JobOptions.AllocationMemory,
 				AllocationMemoryMax: 60000,
 			},
+			CloudCredentials: s.variables.CloudCredentials,
 		},
 	)
 	if err != nil {
@@ -252,6 +253,10 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+
+	// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
+	// in the future once this is standardized it will not be needed
+	artifactDir = filepath.Join(s.storage.Location(), artifactDir)
 
 	writeJsonResponse(w, map[string]string{"artifact_path": artifactDir})
 }

@@ -13,14 +13,13 @@ from backend.datagen import generate_data_for_train_job
 from backend.utils import (
     copy_data_storage,
     delete_nomad_job,
-    get_detailed_reasons,
     get_job_logs,
     get_model,
     get_model_from_identifier,
     get_model_status,
     get_platform,
     get_python_path,
-    model_bazaar_path,
+    get_warnings_and_errors,
     nomad_job_exists,
     remove_unused_samples,
     retrieve_token_classification_samples_for_generation,
@@ -35,6 +34,7 @@ from data_generation_job.llms import verify_llm_access
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files
 from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
@@ -47,8 +47,6 @@ from platform_common.pydantic_models.training import (
     ModelType,
     NDBData,
     NDBOptions,
-    NDBSubType,
-    NDBv2Options,
     TextClassificationOptions,
     TokenClassificationDatagenOptions,
     TokenClassificationOptions,
@@ -59,7 +57,7 @@ from platform_common.pydantic_models.training import (
     UDTSubType,
 )
 from platform_common.thirdai_storage import storage
-from platform_common.utils import response
+from platform_common.utils import disk_usage, model_bazaar_path, response
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
@@ -79,7 +77,7 @@ def get_base_model(base_model_identifier: str, user: schema.User, session: Sessi
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 
 
-@train_router.post("/ndb")
+@train_router.post("/ndb", dependencies=[Depends(is_on_low_disk())])
 def train_ndb(
     model_name: str,
     files: List[UploadFile],
@@ -172,7 +170,7 @@ def train_ndb(
             deploy_status=schema.Status.not_started,
             name=model_name,
             type=config.model_options.model_type.value,
-            sub_type=config.model_options.ndb_options.ndb_sub_type.value,
+            sub_type="v2",
             domain=user.domain,
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model else None,
@@ -234,6 +232,7 @@ def train_ndb(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
@@ -258,7 +257,7 @@ def list_deletions(deployment_dir: str) -> List[str]:
     return deletions
 
 
-@train_router.post("/ndb-retrain")
+@train_router.post("/ndb-retrain", dependencies=[Depends(is_on_low_disk())])
 def retrain_ndb(
     model_name: str,
     base_model_identifier: str,
@@ -290,7 +289,7 @@ def retrain_ndb(
 
     base_model = get_base_model(base_model_identifier, user=user, session=session)
 
-    if base_model.type != ModelType.NDB or base_model.sub_type != NDBSubType.v2:
+    if base_model.type != ModelType.NDB:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"NDB retraining can only be performed on NDBv2 base models.",
@@ -325,7 +324,7 @@ def retrain_ndb(
         model_id=str(model_id),
         data_id=data_id,
         base_model_id=(None if not base_model_identifier else str(base_model.id)),
-        model_options=NDBOptions(ndb_options=NDBv2Options()),
+        model_options=NDBOptions(),
         data=NDBData(
             unsupervised_files=unsupervised_files,
             supervised_files=[
@@ -344,7 +343,7 @@ def retrain_ndb(
             deploy_status=schema.Status.not_started,
             name=model_name,
             type=config.model_options.model_type.value,
-            sub_type=config.model_options.ndb_options.ndb_sub_type.value,
+            sub_type="v2",
             domain=user.domain,
             access_level=schema.Access.private,
             parent_id=base_model.id,
@@ -404,11 +403,14 @@ def retrain_ndb(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
 
-@train_router.post("/nlp-datagen")
+@train_router.post(
+    "/nlp-datagen", dependencies=[Depends(is_on_low_disk(threshold=0.75))]
+)
 def nlp_datagen(
     model_name: str,
     base_model_identifier: Optional[str] = None,
@@ -546,11 +548,12 @@ def nlp_datagen(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
 
-@train_router.post("/datagen-callback")
+@train_router.post("/datagen-callback", dependencies=[Depends(is_on_low_disk())])
 def datagen_callback(
     data_id: str,
     secret_token: str,
@@ -671,7 +674,7 @@ def datagen_callback(
     )
 
 
-@train_router.post("/retrain-udt")
+@train_router.post("/retrain-udt", dependencies=[Depends(is_on_low_disk())])
 def retrain_udt(
     model_name: str,
     llm_provider: LLMProvider,
@@ -763,8 +766,8 @@ def retrain_udt(
     token_classification_options = TokenClassificationDatagenOptions(
         sub_type=UDTSubType.token,
         tags=tags,
-        num_sentences_to_generate=10_000,
-        num_samples_per_tag=500,
+        num_sentences_to_generate=1_000,
+        num_samples_per_tag=100,
         samples=token_classification_samples,
     )
 
@@ -879,11 +882,12 @@ def retrain_udt(
         data={
             "model_id": str(model.id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
 
-@train_router.post("/udt")
+@train_router.post("/udt", dependencies=[Depends(is_on_low_disk())])
 def train_udt(
     model_name: str,
     files: List[UploadFile] = [],
@@ -1002,6 +1006,28 @@ def train_udt(
             message=str(err),
         )
 
+    if base_model:
+        try:
+            copy_data_storage(base_model, new_model)
+            remove_unused_samples(base_model)
+        except Exception as err:
+            new_model.train_status = schema.Status.failed
+            msg = "Unable to start training job. Encountered error loading data from specified base model."
+            logging.error(f"error copying storage from ner base model: {err}")
+            session.add(
+                schema.JobError(
+                    model_id=new_model.id,
+                    job_type="train",
+                    status=schema.Status.failed,
+                    message=msg,
+                )
+            )
+            session.commit()
+
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=msg
+            )
+
     work_dir = os.getcwd()
 
     try:
@@ -1036,6 +1062,14 @@ def train_udt(
         session.commit()
     except Exception as err:
         new_model.train_status = schema.Status.failed
+        session.add(
+            schema.JobError(
+                model_id=new_model.id,
+                job_type="train",
+                status=schema.Status.failed,
+                message=f"Failed to start the training job on nomad. Received error: {err}",
+            )
+        )
         session.commit()
         logging.error(str(err))
         return response(
@@ -1049,7 +1083,48 @@ def train_udt(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
+    )
+
+
+@train_router.get("/train-report", dependencies=[Depends(verify_model_read_access)])
+def train_report(model_identifier: str, session: Session = Depends(get_session)):
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    if model.train_status != schema.Status.complete:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Cannot get train report for model {model_identifier} since training is not completed.",
+        )
+
+    report_dir = os.path.join(
+        model_bazaar_path(), "models", str(model.id), "train_reports"
+    )
+    if not os.path.exists(report_dir) or len(os.listdir(report_dir)) == 0:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=(
+                f"No training reports found for model {model_identifier}. Train reports "
+                "are currently only availible for token classification use cases and if a test set "
+                "or test_split is provided."
+            ),
+        )
+
+    reports = os.listdir(report_dir)
+    most_recent_report = max([int(os.path.splitext(report)[0]) for report in reports])
+
+    with open(os.path.join(report_dir, f"{most_recent_report}.json")) as f:
+        report = json.load(f)
+
+    return response(
+        status_code=status.HTTP_200_OK, message="Retrieved train report", data=report
     )
 
 
@@ -1150,18 +1225,43 @@ def train_fail(
         )
 
     trained_model.train_status = new_status
-    if message:
+    if new_status == schema.Status.failed and message:
         session.add(
-            schema.JobError(
+            schema.JobMessage(
                 model_id=trained_model.id,
                 job_type="train",
-                status=new_status,
+                level=schema.Level.error,
                 message=message,
             )
         )
     session.commit()
 
     return {"message": f"successfully updated with following {message}"}
+
+
+@train_router.post("/warning")
+def train_warning(model_id: str, message: str, session: Session = Depends(get_session)):
+    trained_model: schema.Model = (
+        session.query(schema.Model).filter(schema.Model.id == model_id).first()
+    )
+
+    if not trained_model:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"No model with id {model_id}.",
+        )
+
+    session.add(
+        schema.JobMessage(
+            model_id=trained_model.id,
+            job_type="train",
+            level=schema.Level.warning,
+            message=message,
+        )
+    )
+    session.commit()
+
+    return {"message": "successfully logged the message"}
 
 
 @train_router.get("/status", dependencies=[Depends(verify_model_read_access)])
@@ -1189,9 +1289,7 @@ def train_status(
         )
 
     train_status, reasons = get_model_status(model, train_status=True)
-    reasons = get_detailed_reasons(
-        session=session, job_type="train", status=train_status, reasons=reasons
-    )
+    warnings, errors = get_warnings_and_errors(session, model, job_type="train")
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the train status.",
@@ -1199,6 +1297,8 @@ def train_status(
             "model_identifier": model_identifier,
             "train_status": train_status,
             "messages": reasons,
+            "warnings": warnings,
+            "errors": errors,
         },
     )
 

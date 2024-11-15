@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import { Button } from '@/components/ui/button';
 import React, { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import * as _ from 'lodash';
 import { useTokenClassificationEndpoints } from '@/lib/backend';
 import {
@@ -30,6 +30,8 @@ import {
   convertCSVToPDFFormat,
   ParsedData,
 } from '@/utils/fileParsingUtils';
+// import TimerIcon from '@mui/icons-material/Timer';
+import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 
 interface Token {
   text: string;
@@ -196,7 +198,8 @@ function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSel
           className="font-medium"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          style={{ marginBottom: '5px' }}
+          placeholder="find existing label or create a new one"
+          style={{ marginBottom: '5px', width: '300px' }}
           onKeyDown={(e) => {
             e.stopPropagation();
           }}
@@ -245,7 +248,7 @@ export default function Interact() {
   const [selecting, setSelecting] = useState<boolean>(false);
   const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(null);
   const [selectedRange, setSelectedRange] = useState<[number, number] | null>(null);
-
+  const [processingTime, setProcessingTime] = useState<number | undefined>();
   const startIndex =
     mouseDownIndex !== null && mouseUpIndex !== null
       ? Math.min(mouseDownIndex, mouseUpIndex)
@@ -273,6 +276,7 @@ export default function Interact() {
     setInputText(event.target.value);
     setParsedData(null);
     setAnnotations([]);
+    setProcessingTime(undefined); // make time display disppears as typying begins
   };
 
   const [fileError, setFileError] = useState<string | null>(null);
@@ -366,15 +370,23 @@ export default function Interact() {
   };
 
   const handleRun = async (text: string, isFileUpload: boolean = false) => {
+    // Check for empty text or only whitespace
+    if (!text?.trim()) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       const result = await predict(text);
-      updateTagColors(result.predicted_tags);
+      updateTagColors(result.prediction_results.predicted_tags);
+      setProcessingTime(result.time_taken);
       setAnnotations(
-        _.zip(result.tokens, result.predicted_tags).map(([text, tag]) => ({
-          text: text as string,
-          tag: (tag as string[])[0],
-        }))
+        _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(
+          ([text, tag]) => ({
+            text: text as string,
+            tag: (tag as string[])[0],
+          })
+        )
       );
 
       if (!isFileUpload) {
@@ -951,6 +963,13 @@ export default function Interact() {
           marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
         }}
       >
+        {processingTime !== undefined && annotations.length && (
+          <div className="mb-4">
+            {' '}
+            <InferenceTimeDisplay processingTime={processingTime} tokenCount={annotations.length} />
+          </div>
+        )}
+
         <Card className="p-7 text-start">
           <FeedbackDashboard
             cachedTags={cachedTags}

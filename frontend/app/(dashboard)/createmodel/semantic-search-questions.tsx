@@ -35,6 +35,7 @@ enum ParsingType {
 
 const ALLOWED_FILE_TYPES = '.csv,.pdf,.docx';
 const ALLOWED_FILE_TYPES_ARRAY = ['csv', 'pdf', 'docx'];
+const MAX_TOTAL_FILE_SIZE = 500 * 1024 * 1024; // 500MB in bytes
 
 const SemanticSearchQuestions = ({
   workflowNames,
@@ -68,6 +69,55 @@ const SemanticSearchQuestions = ({
     return true;
   };
 
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const calculateTotalLocalFileSize = (
+    currentSources: Array<{ type: string; files: File[] }>,
+    newFiles: File[],
+    indexToUpdate: number
+  ): number => {
+    let total = 0;
+
+    // Add sizes from existing sources (excluding the one being updated)
+    currentSources.forEach((source, idx) => {
+      if (source.type === SourceType.LOCAL && idx !== indexToUpdate) {
+        source.files.forEach((file) => {
+          total += file.size;
+        });
+      }
+    });
+
+    // Add sizes from new files
+    newFiles.forEach((file) => {
+      total += file.size;
+    });
+
+    return total;
+  };
+
+  const validateTotalFileSize = (
+    currentSources: Array<{ type: string; files: File[] }>,
+    newFiles: File[],
+    indexToUpdate: number
+  ): boolean => {
+    const totalSize = calculateTotalLocalFileSize(currentSources, newFiles, indexToUpdate);
+
+    if (totalSize > MAX_TOTAL_FILE_SIZE) {
+      setFileError(
+        `Total file size (${formatFileSize(totalSize)}) exceeds the maximum limit of 500MB`
+      );
+      return false;
+    }
+    setFileError('');
+    return true;
+  };
+
   const addSource = (type: SourceType) => {
     setSources((prev) => [...prev, { type, files: [] }]);
     setFileCount((prev) => [...prev, 0]);
@@ -78,8 +128,14 @@ const SemanticSearchQuestions = ({
       return;
     }
 
-    const newSources = [...sources];
     const fileArray = Array.from(files);
+
+    // Validate total file size including new files
+    if (!validateTotalFileSize(sources, fileArray, index)) {
+      return;
+    }
+
+    const newSources = [...sources];
     newSources[index].files = fileArray;
     setSources(newSources);
 
@@ -157,10 +213,7 @@ const SemanticSearchQuestions = ({
 
     // If user didn't select advanced, it will not add the advanced_search field at all
     const modelOptionsForm = {
-      ndb_options: {
-        ndb_sub_type: 'v2',
-        ...(indexingType === IndexingType.Advanced && { advanced_search: true }),
-      },
+      ...(indexingType === IndexingType.Advanced && { advanced_search: true }),
     };
 
     formData.append('model_options', JSON.stringify(modelOptionsForm));

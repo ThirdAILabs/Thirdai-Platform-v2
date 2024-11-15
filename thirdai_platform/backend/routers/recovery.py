@@ -9,14 +9,13 @@ from backend.utils import (
     delete_nomad_job,
     get_platform,
     get_python_path,
-    model_bazaar_path,
     nomad_job_exists,
     submit_nomad_job,
     thirdai_platform_dir,
 )
 from fastapi import APIRouter, Depends, HTTPException, status
 from platform_common.pydantic_models.recovery_snapshot import BackupConfig
-from platform_common.utils import get_section, response
+from platform_common.utils import get_section, model_bazaar_path, response
 
 recovery_router = APIRouter()
 

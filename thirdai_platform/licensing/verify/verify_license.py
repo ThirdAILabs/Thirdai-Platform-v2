@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import os
 from datetime import datetime, timezone
 
@@ -7,6 +8,7 @@ import requests
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
+from thirdai import licensing
 
 TASK_RUNNER_TOKEN = os.getenv("TASK_RUNNER_TOKEN")
 
@@ -64,3 +66,20 @@ def valid_job_allocation(license_info, nomad_server_url, new_job_cpu_mhz=0):
                 used_cpu_mhz += task["Cpu"]["CpuShares"]
 
     return used_cpu_mhz + new_job_cpu_mhz < cpu_mhz_limit
+
+
+def activate_thirdai_license(thirdai_license):
+    if thirdai_license.startswith("file "):
+        logging.info("activating file based license")
+        license_data = thirdai_license[len("file ") :]
+        with open("./thirdai.license", "wb") as f:
+            f.write(base64.b64decode(license_data))
+        licensing.set_path("./thirdai.license")
+    else:
+        logging.info("activating key based license")
+        licensing.activate(thirdai_license)
+
+
+def verify_and_activate(license_path):
+    license_info = verify_license(license_path)
+    activate_thirdai_license(license_info["boltLicenseKey"])

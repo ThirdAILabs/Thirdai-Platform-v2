@@ -5,19 +5,16 @@ try:
     from pathlib import Path
 
     import nltk
+    from licensing.verify import verify_license
     from platform_common.logging import setup_logger
 
     nltk.download("punkt_tab")
     print("Downloading punkttab")
 
     import argparse
-    import os
 
-    import thirdai
     from platform_common.pydantic_models.training import (
         ModelType,
-        NDBSubType,
-        RetrieverType,
         TrainConfig,
         UDTSubType,
     )
@@ -25,9 +22,7 @@ try:
         TextClassificationModel,
         TokenClassificationModel,
     )
-    from train_job.models.finetunable_retriever import FinetunableRetriever
     from train_job.models.neural_db_v2 import NeuralDBV2
-    from train_job.models.single_mach import SingleMach
     from train_job.reporter import HttpReporter, Reporter
 except ImportError as e:
     logging.error(f"Failed to import module: {e}")
@@ -39,27 +34,8 @@ def get_model(config: TrainConfig, reporter: Reporter, logger: Logger):
     logger.info(f"model type: {model_type}")
 
     if model_type == ModelType.NDB:
-        if config.model_options.ndb_options.ndb_sub_type == NDBSubType.v1:
-            retriever = config.model_options.ndb_options.retriever
-            logger.info(f"NDB v1 with retriever type: {retriever}")
-
-            if retriever == RetrieverType.finetunable_retriever:
-                return FinetunableRetriever(config, reporter, logger)
-            elif retriever == RetrieverType.hybrid or retriever == RetrieverType.mach:
-                return SingleMach(config, reporter, logger)
-            else:
-                logger.error(f"Unsupported NDB retriever '{retriever.value}'")
-                raise ValueError(f"Unsupported NDB retriever '{retriever.value}'")
-
-        elif config.model_options.ndb_options.ndb_sub_type == NDBSubType.v2:
-            return NeuralDBV2(config, reporter, logger)
-        else:
-            logger.error(
-                f"Invalid NDB sub type {config.model_options.ndb_options.ndb_sub_type}"
-            )
-            raise ValueError(
-                f"Invalid NDB sub type {config.model_options.ndb_options.ndb_sub_type}"
-            )
+        logger.info(f"Creating NDB model")
+        return NeuralDBV2(config, reporter, logger)
     elif model_type == ModelType.UDT:
         udt_type = config.model_options.udt_options.udt_sub_type
         logger.info(f"UDT type: {udt_type}")
@@ -98,15 +74,7 @@ def main():
 
         reporter = HttpReporter(config.model_bazaar_endpoint, logger)
 
-        if config.license_key == "file_license":
-            license_path = os.path.join(
-                config.model_bazaar_dir, "license/license.serialized"
-            )
-            thirdai.licensing.set_path(license_path)
-            logger.info(f"License activated using file path: {license_path}")
-        else:
-            thirdai.licensing.activate(config.license_key)
-            logger.info("License activated with key")
+        verify_license.activate_thirdai_license(config.license_key)
 
         model = get_model(config, reporter, logger)
 

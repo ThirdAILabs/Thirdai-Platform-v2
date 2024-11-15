@@ -40,8 +40,7 @@ def create_models_and_users():
     client = TestClient(app)
 
     # So we can initialize NDBs vs upload
-    license_info = verify_license.verify_license(os.environ["LICENSE_PATH"])
-    thirdai.licensing.activate(license_info["boltLicenseKey"])
+    verify_license.verify_and_activate(os.environ["LICENSE_PATH"])
 
     tokens = [create_and_login(client, user) for user in ["user_x", "user_y", "user_z"]]
 
@@ -298,8 +297,7 @@ def setup_users_and_models():
     client = TestClient(app)
 
     # License activation for ThirdAI NeuralDB
-    license_info = verify_license.verify_license(os.environ["LICENSE_PATH"])
-    thirdai.licensing.activate(license_info["boltLicenseKey"])
+    verify_license.verify_and_activate(os.environ["LICENSE_PATH"])
 
     global_admin = global_admin_token(client)
     # creating team

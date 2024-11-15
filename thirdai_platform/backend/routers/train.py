@@ -22,7 +22,6 @@ from backend.utils import (
     get_platform,
     get_python_path,
     get_warnings_and_errors,
-    model_bazaar_path,
     nomad_job_exists,
     remove_unused_samples,
     retrieve_token_classification_samples_for_generation,
@@ -37,6 +36,7 @@ from data_generation_job.llms import verify_llm_access
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files
 from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
@@ -49,8 +49,6 @@ from platform_common.pydantic_models.training import (
     ModelType,
     NDBData,
     NDBOptions,
-    NDBSubType,
-    NDBv2Options,
     TextClassificationOptions,
     TokenClassificationDatagenOptions,
     TokenClassificationOptions,
@@ -61,8 +59,8 @@ from platform_common.pydantic_models.training import (
     UDTSubType,
 )
 from platform_common.thirdai_storage import storage
-from platform_common.utils import response
 from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
+from platform_common.utils import disk_usage, model_bazaar_path, response
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
@@ -82,7 +80,7 @@ def get_base_model(base_model_identifier: str, user: schema.User, session: Sessi
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 
 
-@train_router.post("/ndb")
+@train_router.post("/ndb", dependencies=[Depends(is_on_low_disk())])
 def train_ndb(
     model_name: str,
     files: List[UploadFile],
@@ -175,7 +173,7 @@ def train_ndb(
             deploy_status=schema.Status.not_started,
             name=model_name,
             type=config.model_options.model_type.value,
-            sub_type=config.model_options.ndb_options.ndb_sub_type.value,
+            sub_type="v2",
             domain=user.domain,
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model else None,
@@ -237,6 +235,7 @@ def train_ndb(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
@@ -261,7 +260,7 @@ def list_deletions(deployment_dir: str) -> List[str]:
     return deletions
 
 
-@train_router.post("/ndb-retrain")
+@train_router.post("/ndb-retrain", dependencies=[Depends(is_on_low_disk())])
 def retrain_ndb(
     model_name: str,
     base_model_identifier: str,
@@ -293,7 +292,7 @@ def retrain_ndb(
 
     base_model = get_base_model(base_model_identifier, user=user, session=session)
 
-    if base_model.type != ModelType.NDB or base_model.sub_type != NDBSubType.v2:
+    if base_model.type != ModelType.NDB:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"NDB retraining can only be performed on NDBv2 base models.",
@@ -328,7 +327,7 @@ def retrain_ndb(
         model_id=str(model_id),
         data_id=data_id,
         base_model_id=(None if not base_model_identifier else str(base_model.id)),
-        model_options=NDBOptions(ndb_options=NDBv2Options()),
+        model_options=NDBOptions(),
         data=NDBData(
             unsupervised_files=unsupervised_files,
             supervised_files=[
@@ -347,7 +346,7 @@ def retrain_ndb(
             deploy_status=schema.Status.not_started,
             name=model_name,
             type=config.model_options.model_type.value,
-            sub_type=config.model_options.ndb_options.ndb_sub_type.value,
+            sub_type="v2",
             domain=user.domain,
             access_level=schema.Access.private,
             parent_id=base_model.id,
@@ -407,11 +406,14 @@ def retrain_ndb(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
 
-@train_router.post("/nlp-datagen")
+@train_router.post(
+    "/nlp-datagen", dependencies=[Depends(is_on_low_disk(threshold=0.75))]
+)
 def nlp_datagen(
     model_name: str,
     base_model_identifier: Optional[str] = None,
@@ -549,6 +551,7 @@ def nlp_datagen(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
@@ -1157,7 +1160,7 @@ async def train_text_classification_csv(
         )
 
 
-@train_router.post("/datagen-callback")
+@train_router.post("/datagen-callback", dependencies=[Depends(is_on_low_disk())])
 def datagen_callback(
     data_id: str,
     secret_token: str,
@@ -1278,7 +1281,7 @@ def datagen_callback(
     )
 
 
-@train_router.post("/retrain-udt")
+@train_router.post("/retrain-udt", dependencies=[Depends(is_on_low_disk())])
 def retrain_udt(
     model_name: str,
     llm_provider: LLMProvider,
@@ -1486,11 +1489,12 @@ def retrain_udt(
         data={
             "model_id": str(model.id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
 
-@train_router.post("/udt")
+@train_router.post("/udt", dependencies=[Depends(is_on_low_disk())])
 def train_udt(
     model_name: str,
     files: List[UploadFile] = [],
@@ -1686,6 +1690,7 @@ def train_udt(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 

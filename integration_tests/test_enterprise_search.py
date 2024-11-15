@@ -141,7 +141,7 @@ def test_enterprise_search_with_constraints():
 
     model = admin_client.train(
         model_name,
-        unsupervised_docs=[os.path.join(doc_dir(), "articles.csv")],
+        unsupervised_docs=unsupervised_docs,
         model_options={},
         supervised_docs=[],
         doc_options=doc_options,

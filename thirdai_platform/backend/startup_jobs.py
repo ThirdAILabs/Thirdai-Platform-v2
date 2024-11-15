@@ -272,19 +272,17 @@ async def restart_telemetry_jobs():
     cwd = Path(os.getcwd())
     platform = get_platform()
     share_dir = os.getenv("SHARE_DIR")
+
     # Copying the telemetry dashboards
-    telemetry_dashboard_path = os.path.join(share_dir, "nomad-monitoring")
+    telemetry_dashboard_path = os.path.join(model_bazaar_path(), "nomad-monitoring", "telemetry_dashboards")
+
     shutil.copytree(
         str(cwd / "telemetry_dashboards"),
         telemetry_dashboard_path,
-        dirs_exist_ok=True,
+        dirs_exist_ok=True
     )
-    if platform == "local":
-        promfile_path = os.path.join(
-            share_dir, "nomad-monitoring/node_discovery/prometheus.yaml"
-        )
-    else:
-        promfile_path = "/model_bazaar/nomad-monitoring/node_discovery/prometheus.yaml"
+    promfile_path = os.path.join(model_bazaar_path(), "nomad-monitoring", "node_discovery", "prometheus.yaml")
+
     # Creating prometheus config file
     targets = create_promfile(promfile_path)
 

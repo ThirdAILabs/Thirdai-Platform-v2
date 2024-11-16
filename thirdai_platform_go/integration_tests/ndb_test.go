@@ -188,7 +188,42 @@ func TestNdbDevMode(t *testing.T) {
 }
 
 func TestNdbProdMode(t *testing.T) {
-	baseNdb := createAndDeployNdb(t, true)
+	client := getClient(t)
+
+	baseNdb, err := client.TrainNdbWithJobOptions(
+		randomName("ndb"),
+		[]config.FileInfo{
+			{Path: "./data/articles.csv", Location: "local"},
+			{Path: "./data/supervised.csv", Location: "local"},
+		},
+		nil,
+		config.JobOptions{AllocationMemory: 600},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = baseNdb.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = baseNdb.Deploy(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() {
+		err := baseNdb.Undeploy()
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	err = baseNdb.AwaitDeploy(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	checkQuery(baseNdb, t)
 

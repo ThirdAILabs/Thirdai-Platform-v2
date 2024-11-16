@@ -20,12 +20,7 @@ func (c *ModelClient) getStatus(job string) (services.StatusResponse, error) {
 		return services.StatusResponse{}, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	res, err := get[services.StatusResponse](u, map[string]string{"model_id": c.modelId}, c.authToken)
-	if err != nil {
-		return services.StatusResponse{}, err
-	}
-
-	return res, nil
+	return get[services.StatusResponse](u, map[string]string{"model_id": c.modelId}, c.authToken)
 }
 
 func (c *ModelClient) awaitJob(job string, timeout time.Duration) error {
@@ -64,6 +59,28 @@ func (c *ModelClient) AwaitTrain(timeout time.Duration) error {
 
 func (c *ModelClient) AwaitDeploy(timeout time.Duration) error {
 	return c.awaitJob("deploy", timeout)
+}
+
+type Logs struct {
+	Stdout string `json:"stdout"`
+	Stderr string `json:"stderr"`
+}
+
+func (c *ModelClient) getLogs(job string) ([]Logs, error) {
+	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/api/v2/%v/logs", job))
+	if err != nil {
+		return nil, fmt.Errorf("error formatting url: %w", err)
+	}
+
+	return get[[]Logs](u, map[string]string{"model_id": c.modelId}, c.authToken)
+}
+
+func (c *ModelClient) TrainLogs() ([]Logs, error) {
+	return c.getLogs("train")
+}
+
+func (c *ModelClient) DeployLogs() ([]Logs, error) {
+	return c.getLogs("deploy")
 }
 
 func (c *ModelClient) Deploy(autoscaling bool) error {

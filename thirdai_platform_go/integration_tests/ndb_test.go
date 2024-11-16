@@ -430,13 +430,25 @@ func TestTrainErrorHandling(t *testing.T) {
 		t.Fatal("job should have status failed")
 	}
 
-	warning := "utils.go. Unsupported filetype"
-	if len(status.Warnings) < 1 || !strings.Contains(status.Warnings[0], warning) {
-		t.Fatal("warning not found")
+	logs, err := ndb.TrainLogs()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	error := "Error tokenizing data. C error:"
-	if len(status.Errors) < 1 || !strings.Contains(status.Errors[0], error) {
-		t.Fatal("error not found")
+	warningMsg := "utils.go. Unsupported filetype"
+	if len(status.Warnings) < 1 || !strings.Contains(status.Warnings[0], warningMsg) {
+		t.Fatal("warning not found in status messages")
 	}
+	if !strings.Contains(logs[0].Stderr, warningMsg) {
+		t.Fatal("warning not found in logs")
+	}
+
+	errorMsg := "Error tokenizing data. C error:"
+	if len(status.Errors) < 1 || !strings.Contains(status.Errors[0], errorMsg) {
+		t.Fatal("error not found in status messages")
+	}
+	if !strings.Contains(logs[0].Stderr, errorMsg) {
+		t.Fatal("error not found in logs")
+	}
+
 }

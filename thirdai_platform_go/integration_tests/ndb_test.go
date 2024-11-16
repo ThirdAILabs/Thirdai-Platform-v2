@@ -3,6 +3,7 @@ package integrationtests
 import (
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"thirdai_platform/client"
 	"thirdai_platform/model_bazaar/config"
@@ -129,9 +130,11 @@ func createAndDeployNdb(t *testing.T, autoscaling bool) *client.NdbClient {
 	client := getClient(t)
 
 	ndb, err := client.TrainNdbWithJobOptions(
-		randomName("ndb"), []config.FileInfo{{
+		randomName("ndb"),
+		[]config.FileInfo{{
 			Path: "./data/articles.csv", Location: "local",
 		}},
+		nil,
 		config.JobOptions{AllocationMemory: 600},
 	)
 	if err != nil {
@@ -335,6 +338,7 @@ func TestDeploymentName(t *testing.T) {
 		randomName("ndb1"), []config.FileInfo{{
 			Path: "./data/articles.csv", Location: "local",
 		}},
+		nil,
 		config.JobOptions{AllocationMemory: 600},
 	)
 	if err != nil {
@@ -345,6 +349,7 @@ func TestDeploymentName(t *testing.T) {
 		randomName("ndb2"), []config.FileInfo{{
 			Path: "./data/mutual_nda.pdf", Location: "local",
 		}},
+		nil,
 		config.JobOptions{AllocationMemory: 600},
 	)
 	if err != nil {
@@ -397,4 +402,41 @@ func TestDeploymentName(t *testing.T) {
 
 	testDeployment(model1, "articles.csv")
 	testDeployment(model2, "mutual_nda.pdf")
+}
+
+func TestTrainErrorHandling(t *testing.T) {
+	client := getClient(t)
+
+	ndb, err := client.TrainNdb(
+		randomName("ndb"),
+		[]config.FileInfo{{Path: "./utils.go", Location: "local"}},
+		[]config.FileInfo{{Path: "./data/malformed.csv", Location: "local"}},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ndb.AwaitTrain(100 * time.Second)
+	if err == nil {
+		t.Fatal("training should fail on malformed files")
+	}
+
+	status, err := ndb.TrainStatus()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if status.Status != "failed" {
+		t.Fatal("job should have status failed")
+	}
+
+	warning := "utils.go. Unsupported filetype"
+	if len(status.Warnings) < 1 || !strings.Contains(status.Warnings[0], warning) {
+		t.Fatal("warning not found")
+	}
+
+	error := "Error tokenizing data. C error:"
+	if len(status.Errors) < 1 || !strings.Contains(status.Errors[0], error) {
+		t.Fatal("error not found")
+	}
 }

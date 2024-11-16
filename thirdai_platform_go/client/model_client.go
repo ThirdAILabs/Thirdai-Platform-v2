@@ -14,22 +14,18 @@ type ModelClient struct {
 	modelId   string
 }
 
-func (c *ModelClient) getStatus(job string) (bool, error) {
+func (c *ModelClient) getStatus(job string) (services.StatusResponse, error) {
 	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/api/v2/%v/status", job))
 	if err != nil {
-		return false, fmt.Errorf("error formatting url: %w", err)
+		return services.StatusResponse{}, fmt.Errorf("error formatting url: %w", err)
 	}
 
 	res, err := get[services.StatusResponse](u, map[string]string{"model_id": c.modelId}, c.authToken)
 	if err != nil {
-		return false, err
+		return services.StatusResponse{}, err
 	}
 
-	if res.Status == "failed" || res.Status == "stopped" {
-		return false, fmt.Errorf("%v has status: %v", job, res.Status)
-	}
-
-	return res.Status == "complete", nil
+	return res, nil
 }
 
 func (c *ModelClient) awaitJob(job string, timeout time.Duration) error {
@@ -38,11 +34,14 @@ func (c *ModelClient) awaitJob(job string, timeout time.Duration) error {
 	for {
 		select {
 		case <-check:
-			done, err := c.getStatus(job)
+			status, err := c.getStatus(job)
 			if err != nil {
 				return err
 			}
-			if done {
+			if status.Status == "failed" || status.Status == "stopped" {
+				return fmt.Errorf("%v has status: %v", job, status.Status)
+			}
+			if status.Status == "complete" {
 				return nil
 			}
 		case <-stop:
@@ -51,11 +50,11 @@ func (c *ModelClient) awaitJob(job string, timeout time.Duration) error {
 	}
 }
 
-func (c *ModelClient) TrainComplete() (bool, error) {
+func (c *ModelClient) TrainStatus() (services.StatusResponse, error) {
 	return c.getStatus("train")
 }
 
-func (c *ModelClient) DeployComplete() (bool, error) {
+func (c *ModelClient) DeployStatus() (services.StatusResponse, error) {
 	return c.getStatus("deploy")
 }
 

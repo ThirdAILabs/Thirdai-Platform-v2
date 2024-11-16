@@ -95,7 +95,7 @@ class HttpReporter(Reporter):
         self._request(
             "post",
             "api/v2/train/log",
-            json={"level": "warning", "message": message},
+            json={"level": "error", "message": message},
         )
 
     def report_warning(self, model_id: str, message: str):

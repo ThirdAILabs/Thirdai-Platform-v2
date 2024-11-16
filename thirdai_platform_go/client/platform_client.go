@@ -92,21 +92,27 @@ func (c *PlatformClient) uploadFiles(files []config.FileInfo) ([]config.FileInfo
 	return updateLocalFilePrefixes(files, artifactDir), nil
 }
 
-func (c *PlatformClient) TrainNdb(name string, files []config.FileInfo) (*NdbClient, error) {
-	return c.TrainNdbWithJobOptions(name, files, config.JobOptions{})
+func (c *PlatformClient) TrainNdb(name string, unsupervised []config.FileInfo, supervised []config.FileInfo) (*NdbClient, error) {
+	return c.TrainNdbWithJobOptions(name, unsupervised, supervised, config.JobOptions{})
 }
 
-func (c *PlatformClient) TrainNdbWithJobOptions(name string, files []config.FileInfo, jobOptions config.JobOptions) (*NdbClient, error) {
-	uploadFiles, err := c.uploadFiles(files)
+func (c *PlatformClient) TrainNdbWithJobOptions(name string, unsupervised []config.FileInfo, supervised []config.FileInfo, jobOptions config.JobOptions) (*NdbClient, error) {
+	unsupervisedFiles, err := c.uploadFiles(unsupervised)
 	if err != nil {
-		return nil, fmt.Errorf("error uploading files for training: %w", err)
+		return nil, fmt.Errorf("error uploading unsupervised files for training: %w", err)
+	}
+
+	supervisedFiles, err := c.uploadFiles(supervised)
+	if err != nil {
+		return nil, fmt.Errorf("error uploading supervised files for training: %w", err)
 	}
 
 	params := services.NdbTrainOptions{
 		ModelName:    name,
 		ModelOptions: &config.NdbOptions{},
 		Data: config.NDBData{
-			UnsupervisedFiles: uploadFiles,
+			UnsupervisedFiles: unsupervisedFiles,
+			SupervisedFiles:   supervisedFiles,
 		},
 		JobOptions: jobOptions,
 	}

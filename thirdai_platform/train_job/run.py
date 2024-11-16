@@ -14,11 +14,7 @@ try:
     import os
 
     import thirdai
-    from platform_common.pydantic_models.training import (
-        ModelType,
-        TrainConfig,
-        UDTSubType,
-    )
+    from platform_common.pydantic_models.training import ModelType, TrainConfig
     from train_job.models.classification_models import (
         TextClassificationModel,
         TokenClassificationModel,

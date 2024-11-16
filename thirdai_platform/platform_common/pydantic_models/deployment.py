@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Any
+from typing import Any, Dict
 
 from platform_common.pydantic_models.training import ModelType
 from pydantic import BaseModel

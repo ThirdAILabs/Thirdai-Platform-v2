@@ -7,7 +7,7 @@ export default async function federatedLogout() {
     console.log("Data: ", data);
     if (response?.ok) {
       await signOut({ redirect: false });
-      window.location.href = data.url;
+      window.location.href = data.redirectUrl;
       return;
     }
     throw new Error(data.error);

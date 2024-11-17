@@ -50,17 +50,13 @@ type NlpTextClient struct {
 	ModelClient
 }
 
-type nlpTextPredictionsRaw struct {
-	PredictedClasses [][]any `json:"predicted_classes"`
-}
-
 type PredictedClass struct {
-	Class string
-	Score float32
+	Class string  `json:"class"`
+	Score float32 `json:"score"`
 }
 
 type NlpTextPredictions struct {
-	PredictedClasses []PredictedClass
+	PredictedClasses []PredictedClass `json:"predicted_classes"`
 }
 
 func (c *NlpTextClient) Predict(text string, topk int) (NlpTextPredictions, error) {
@@ -75,28 +71,10 @@ func (c *NlpTextClient) Predict(text string, topk int) (NlpTextPredictions, erro
 		return NlpTextPredictions{}, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	res, err := post[nlpPredictResults[nlpTextPredictionsRaw]](u, body, c.authToken)
+	res, err := post[nlpPredictResults[NlpTextPredictions]](u, body, c.authToken)
 	if err != nil {
 		return NlpTextPredictions{}, err
 	}
 
-	results := NlpTextPredictions{
-		PredictedClasses: make([]PredictedClass, 0, len(res.Data.PredictionResults.PredictedClasses)),
-	}
-
-	for _, pred := range res.Data.PredictionResults.PredictedClasses {
-		if len(pred) != 2 {
-			return results, fmt.Errorf("invalid results returned from predict")
-		}
-		class, cok := pred[0].(string)
-		score, sok := pred[1].(float32)
-
-		if !cok || !sok {
-			return results, fmt.Errorf("invalid results returned from predict")
-		}
-
-		results.PredictedClasses = append(results.PredictedClasses, PredictedClass{Class: class, Score: score})
-	}
-
-	return results, nil
+	return res.Data.PredictionResults, nil
 }

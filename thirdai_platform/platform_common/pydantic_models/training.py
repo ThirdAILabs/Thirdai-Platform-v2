@@ -2,10 +2,7 @@ import os
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from platform_common.thirdai_storage.data_types import (
-    LabelEntity,
-    TokenClassificationData,
-)
+pass
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -19,7 +16,7 @@ class ModelType(str, Enum):
 
 class ModelDataType(str, Enum):
     NDB = "ndb"
-    UDT = "nlp"
+    NLP = "nlp"
     UDT_DATAGEN = "udt_datagen"
 
 
@@ -148,13 +145,8 @@ class NDBData(BaseModel):
         return self
 
 
-class UDTSubType(str, Enum):
-    text = "text"
-    token = "token"
-
-
-class TokenClassificationOptions(BaseModel):
-    udt_sub_type: Literal[UDTSubType.token] = UDTSubType.token
+class NlpTokenOptions(BaseModel):
+    model_type: Literal[ModelType.NLP_TOKEN] = ModelType.NLP_TOKEN
 
     target_labels: List[str]
     source_column: str
@@ -162,8 +154,8 @@ class TokenClassificationOptions(BaseModel):
     default_tag: str = "O"
 
 
-class TextClassificationOptions(BaseModel):
-    udt_sub_type: Literal[UDTSubType.text] = UDTSubType.text
+class NlpTextOptions(BaseModel):
+    model_type: Literal[ModelType.NLP_TEXT] = ModelType.NLP_TEXT
 
     text_column: str
     label_column: str
@@ -171,32 +163,16 @@ class TextClassificationOptions(BaseModel):
     delimiter: str = ","
 
 
-class UDTTrainOptions(BaseModel):
-    supervised_epochs: int = 1
+class NlpTrainOptions(BaseModel):
+    epochs: int = 1
     learning_rate: float = 0.0001
     batch_size: int = 2048
     max_in_memory_batches: Optional[int] = None
     test_split: Optional[float] = None
 
-    metrics: List[str] = ["precision@1", "loss"]
-    validation_metrics: List[str] = ["categorical_accuracy", "recall@1"]
-
-
-class UDTOptions(BaseModel):
-    model_type: Literal[ModelType.UDT] = ModelType.UDT
-
-    udt_options: Union[TokenClassificationOptions, TextClassificationOptions] = Field(
-        ..., discriminator="udt_sub_type"
-    )
-
-    train_options: UDTTrainOptions = UDTTrainOptions()
-
-    class Config:
-        protected_namespaces = ()
-
 
 class UDTData(BaseModel):
-    model_data_type: Literal[ModelDataType.UDT] = ModelDataType.UDT
+    model_data_type: Literal[ModelDataType.NLP] = ModelDataType.NLP
 
     supervised_files: List[FileInfo]
     test_files: List[FileInfo] = []
@@ -218,47 +194,47 @@ class LLMProvider(str, Enum):
     cohere = "cohere"
 
 
-class TextClassificationDatagenOptions(BaseModel):
-    sub_type: Literal[UDTSubType.text] = UDTSubType.text
-    samples_per_label: int
-    target_labels: List[LabelEntity]
-    user_vocab: Optional[List[str]] = None
-    user_prompts: Optional[List[str]] = None
-    vocab_per_sentence: int = 4
+# class TextClassificationDatagenOptions(BaseModel):
+#     # sub_type: Literal[UDTSubType.text] = UDTSubType.text
+#     samples_per_label: int
+#     target_labels: List[LabelEntity]
+#     user_vocab: Optional[List[str]] = None
+#     user_prompts: Optional[List[str]] = None
+#     vocab_per_sentence: int = 4
 
 
-class TokenClassificationDatagenOptions(BaseModel):
-    sub_type: Literal[UDTSubType.token] = UDTSubType.token
-    tags: List[LabelEntity]
-    num_sentences_to_generate: int = 1_000
-    num_samples_per_tag: Optional[int] = None
+# class TokenClassificationDatagenOptions(BaseModel):
+#     # sub_type: Literal[UDTSubType.token] = UDTSubType.token
+#     tags: List[LabelEntity]
+#     num_sentences_to_generate: int = 1_000
+#     num_samples_per_tag: Optional[int] = None
 
-    # example NER samples
-    samples: Optional[List[TokenClassificationData]] = None
-    templates_per_sample: int = 10
+#     # example NER samples
+#     samples: Optional[List[TokenClassificationData]] = None
+#     templates_per_sample: int = 10
 
-    @model_validator(mode="after")
-    def deduplicate_tags(cls, values):
-        tag_map = {}
-        for tag in values.tags:
-            key = tag.name
-            if key in tag_map:
-                tag_map[key].examples = list(
-                    set(tag_map[key].examples) | set(tag.examples)
-                )
-            else:
-                tag_map[key] = tag
-        values.tags = list(tag_map.values())
-        return values
+#     @model_validator(mode="after")
+#     def deduplicate_tags(cls, values):
+#         tag_map = {}
+#         for tag in values.tags:
+#             key = tag.name
+#             if key in tag_map:
+#                 tag_map[key].examples = list(
+#                     set(tag_map[key].examples) | set(tag.examples)
+#                 )
+#             else:
+#                 tag_map[key] = tag
+#         values.tags = list(tag_map.values())
+#         return values
 
 
-class DatagenOptions(BaseModel):
-    task_prompt: str
-    llm_provider: LLMProvider = LLMProvider.openai
+# class DatagenOptions(BaseModel):
+#     task_prompt: str
+#     llm_provider: LLMProvider = LLMProvider.openai
 
-    datagen_options: Union[
-        TokenClassificationDatagenOptions, TextClassificationDatagenOptions
-    ] = Field(..., discriminator="sub_type")
+#     datagen_options: Union[
+#         TokenClassificationDatagenOptions, TextClassificationDatagenOptions
+#     ] = Field(..., discriminator="sub_type")
 
 
 class JobOptions(BaseModel):
@@ -281,11 +257,13 @@ class TrainConfig(BaseModel):
     # so that the model options can be passed through while the data is processed
     # in the train endpoint.
     model_type: ModelType
-    model_options: Optional[Union[NDBOptions, UDTOptions]] = Field(
+    model_options: Optional[Union[NDBOptions, NlpTokenOptions, NlpTextOptions]] = Field(
         ..., discriminator="model_type"
     )
-    datagen_options: Optional[DatagenOptions] = None
+    # datagen_options: Optional[DatagenOptions] = None
     job_options: JobOptions
+
+    train_options: Optional[NlpTrainOptions] = None
 
     data: Union[NDBData, UDTData, UDTGeneratedData] = Field(
         ..., discriminator="model_data_type"
@@ -298,7 +276,7 @@ class TrainConfig(BaseModel):
 
     @model_validator(mode="after")
     def check_model_data_match(self):
-        if self.model_type.value not in self.data.model_data_type.value:
+        if self.data.model_data_type.value not in self.model_type.value:
             raise ValueError("Model and data fields don't match")
         return self
 

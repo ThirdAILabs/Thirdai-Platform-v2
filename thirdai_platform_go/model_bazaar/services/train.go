@@ -73,6 +73,7 @@ type basicTrainArgs struct {
 	baseModelId  *string
 	modelOptions interface{}
 	data         interface{}
+	trainOptions interface{}
 	jobOptions   config.JobOptions
 }
 
@@ -109,6 +110,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		BaseModelId:         args.baseModelId,
 		ModelOptions:        args.modelOptions,
 		Data:                args.data,
+		TrainOptions:        args.trainOptions,
 		JobOptions:          args.jobOptions,
 		IsRetraining:        false,
 	}

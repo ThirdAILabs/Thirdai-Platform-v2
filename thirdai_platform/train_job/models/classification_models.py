@@ -22,10 +22,10 @@ from platform_common.file_handler import (
 )
 from platform_common.pii.udt_common_patterns import find_common_pattern
 from platform_common.pydantic_models.training import (
-    TextClassificationOptions,
-    TokenClassificationOptions,
+    NlpTextOptions,
+    NlpTokenOptions,
+    NlpTrainOptions,
     TrainConfig,
-    UDTTrainOptions,
 )
 from platform_common.thirdai_storage.data_types import (
     DataSample,
@@ -56,8 +56,8 @@ class ClassificationModel(Model):
         return self.model_dir / "model.udt"
 
     @property
-    def train_options(self) -> UDTTrainOptions:
-        return self.config.model_options.train_options
+    def train_options(self) -> NlpTrainOptions:
+        return self.config.train_options
 
     def train_test_files(self) -> Tuple[List[str], List[str]]:
         train_files = expand_cloud_buckets_and_directories(
@@ -193,7 +193,7 @@ class ClassificationModel(Model):
         self.logger.info("Starting evaluation on test files.")
         for test_file in test_files:
             self.logger.info(f"Evaluating on test file: {test_file}")
-            model.evaluate(test_file, metrics=self.train_options.validation_metrics)
+            model.evaluate(test_file, metrics=["precision@1", "recall@1"])
         self.logger.info("Evaluation completed.")
 
     @abstractmethod
@@ -203,8 +203,8 @@ class ClassificationModel(Model):
 
 class TextClassificationModel(ClassificationModel):
     @property
-    def txt_cls_vars(self) -> TextClassificationOptions:
-        return self.config.model_options.udt_options
+    def txt_cls_vars(self) -> NlpTextOptions:
+        return self.config.model_options
 
     def initialize_model(self):
         self.logger.info("Initializing a new Text Classification model.")
@@ -232,10 +232,10 @@ class TextClassificationModel(ClassificationModel):
                 self.logger.info(f"Training on supervised file: {train_file}")
                 model.train(
                     train_file,
-                    epochs=self.train_options.supervised_epochs,
+                    epochs=self.train_options.epochs,
                     learning_rate=self.train_options.learning_rate,
                     batch_size=self.train_options.batch_size,
-                    metrics=self.train_options.metrics,
+                    metrics=["precision@1", "recall@1"],
                 )
             training_time = time.time() - start_time
             self.logger.info(f"Training completed in {training_time:.2f} seconds.")
@@ -292,8 +292,8 @@ class TokenClassificationModel(ClassificationModel):
         self._balancing_samples_path = self.data_dir / "balancing_samples.csv"
 
     @property
-    def tkn_cls_vars(self) -> TokenClassificationOptions:
-        return self.config.model_options.udt_options
+    def tkn_cls_vars(self) -> NlpTokenOptions:
+        return self.config.model_options
 
     def save_model_and_metadata(
         self, model, old_metadata: TagMetadata, latest_metadata: TagMetadata
@@ -515,10 +515,10 @@ class TokenClassificationModel(ClassificationModel):
                 self.logger.info(f"Training on file: {train_file}")
                 model.train(
                     train_file,
-                    epochs=self.train_options.supervised_epochs,
+                    epochs=self.train_options.epochs,
                     learning_rate=self.train_options.learning_rate,
                     batch_size=self.train_options.batch_size,
-                    metrics=self.train_options.metrics,
+                    metrics=["precision@1", "recall@1"],
                 )
 
             if balancing_samples_path:
@@ -530,7 +530,7 @@ class TokenClassificationModel(ClassificationModel):
                     epochs=1,
                     learning_rate=self.train_options.learning_rate,
                     batch_size=self.train_options.batch_size,
-                    metrics=self.train_options.metrics,
+                    metrics=["precision@1", "recall@1"],
                 )
 
             training_time = time.time() - start_time

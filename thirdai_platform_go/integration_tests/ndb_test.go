@@ -129,7 +129,7 @@ func doDelete(ndb *client.NdbClient, t *testing.T) {
 func createAndDeployNdb(t *testing.T, autoscaling bool) *client.NdbClient {
 	client := getClient(t)
 
-	ndb, err := client.TrainNdbWithJobOptions(
+	ndb, err := client.TrainNdb(
 		randomName("ndb"),
 		[]config.FileInfo{{
 			Path: "./data/articles.csv", Location: "local",
@@ -190,7 +190,7 @@ func TestNdbDevMode(t *testing.T) {
 func TestNdbProdMode(t *testing.T) {
 	client := getClient(t)
 
-	baseNdb, err := client.TrainNdbWithJobOptions(
+	baseNdb, err := client.TrainNdb(
 		randomName("ndb"),
 		[]config.FileInfo{
 			{Path: "./data/articles.csv", Location: "local"},
@@ -369,7 +369,7 @@ func TestNdbUpsertProdMode(t *testing.T) {
 func TestDeploymentName(t *testing.T) {
 	c := getClient(t)
 
-	model1, err := c.TrainNdbWithJobOptions(
+	model1, err := c.TrainNdb(
 		randomName("ndb1"), []config.FileInfo{{
 			Path: "./data/articles.csv", Location: "local",
 		}},
@@ -380,7 +380,7 @@ func TestDeploymentName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	model2, err := c.TrainNdbWithJobOptions(
+	model2, err := c.TrainNdb(
 		randomName("ndb2"), []config.FileInfo{{
 			Path: "./data/mutual_nda.pdf", Location: "local",
 		}},
@@ -446,6 +446,7 @@ func TestTrainErrorHandling(t *testing.T) {
 		randomName("ndb"),
 		[]config.FileInfo{{Path: "./utils.go", Location: "local"}},
 		[]config.FileInfo{{Path: "./data/malformed.csv", Location: "local"}},
+		config.JobOptions{AllocationMemory: 600},
 	)
 	if err != nil {
 		t.Fatal(err)

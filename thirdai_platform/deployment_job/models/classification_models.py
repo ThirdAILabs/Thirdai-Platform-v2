@@ -109,7 +109,7 @@ class TextClassificationModel(ClassificationModel):
         self.logger.info(f"Predicting for text '{text}' with top_k={top_k}")
         prediction = self.model.predict({"text": text}, top_k=top_k)
         predicted_classes = [
-            (self.model.class_name(class_id), activation)
+            {"class": self.model.class_name(class_id), "score": float(activation)}
             for class_id, activation in zip(*prediction)
         ]
 

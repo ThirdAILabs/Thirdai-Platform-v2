@@ -92,11 +92,7 @@ func (c *PlatformClient) uploadFiles(files []config.FileInfo) ([]config.FileInfo
 	return updateLocalFilePrefixes(files, artifactDir), nil
 }
 
-func (c *PlatformClient) TrainNdb(name string, unsupervised []config.FileInfo, supervised []config.FileInfo) (*NdbClient, error) {
-	return c.TrainNdbWithJobOptions(name, unsupervised, supervised, config.JobOptions{})
-}
-
-func (c *PlatformClient) TrainNdbWithJobOptions(name string, unsupervised []config.FileInfo, supervised []config.FileInfo, jobOptions config.JobOptions) (*NdbClient, error) {
+func (c *PlatformClient) TrainNdb(name string, unsupervised []config.FileInfo, supervised []config.FileInfo, jobOptions config.JobOptions) (*NdbClient, error) {
 	unsupervisedFiles, err := c.uploadFiles(unsupervised)
 	if err != nil {
 		return nil, fmt.Errorf("error uploading unsupervised files for training: %w", err)
@@ -141,7 +137,7 @@ func (c *PlatformClient) TrainNdbWithJobOptions(name string, unsupervised []conf
 	}, nil
 }
 
-func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []config.FileInfo) (*NlpTokenClient, error) {
+func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTokenClient, error) {
 	uploadFiles, err := c.uploadFiles(files)
 	if err != nil {
 		return nil, fmt.Errorf("error uploading files for training: %w", err)
@@ -158,6 +154,7 @@ func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []con
 		Data: config.NlpData{
 			SupervisedFiles: uploadFiles,
 		},
+		TrainOptions: trainOptions,
 	}
 
 	body, err := json.Marshal(params)
@@ -184,7 +181,7 @@ func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []con
 	}, nil
 }
 
-func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []config.FileInfo) (*NlpTextClient, error) {
+func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []config.FileInfo, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
 	uploadFiles, err := c.uploadFiles(files)
 	if err != nil {
 		return nil, fmt.Errorf("error uploading files for training: %w", err)
@@ -201,6 +198,7 @@ func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []c
 		Data: config.NlpData{
 			SupervisedFiles: uploadFiles,
 		},
+		TrainOptions: trainOptions,
 	}
 
 	body, err := json.Marshal(params)

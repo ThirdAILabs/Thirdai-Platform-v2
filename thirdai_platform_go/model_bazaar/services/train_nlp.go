@@ -13,6 +13,7 @@ type NlpTokenTrainOptions struct {
 	BaseModelId  *string                 `json:"base_model_id"`
 	ModelOptions *config.NlpTokenOptions `json:"model_options"`
 	Data         config.NlpData          `json:"data"`
+	TrainOptions config.NlpTrainOptions  `json:"train_options"`
 	JobOptions   config.JobOptions       `json:"job_options"`
 }
 
@@ -35,6 +36,7 @@ func (opts *NlpTokenTrainOptions) validate() error {
 	}
 
 	allErrors = append(allErrors, opts.Data.Validate())
+	allErrors = append(allErrors, opts.TrainOptions.Validate())
 	allErrors = append(allErrors, opts.JobOptions.Validate())
 
 	return errors.Join(allErrors...)
@@ -57,6 +59,7 @@ func (s *TrainService) TrainNlpToken(w http.ResponseWriter, r *http.Request) {
 		baseModelId:  options.BaseModelId,
 		modelOptions: options.ModelOptions,
 		data:         options.Data,
+		trainOptions: options.TrainOptions,
 		jobOptions:   options.JobOptions,
 	})
 }
@@ -66,6 +69,7 @@ type NlpTextTrainOptions struct {
 	BaseModelId  *string                `json:"base_model_id"`
 	ModelOptions *config.NlpTextOptions `json:"model_options"`
 	Data         config.NlpData         `json:"data"`
+	TrainOptions config.NlpTrainOptions `json:"train_options"`
 	JobOptions   config.JobOptions      `json:"job_options"`
 }
 
@@ -88,6 +92,7 @@ func (opts *NlpTextTrainOptions) validate() error {
 	}
 
 	allErrors = append(allErrors, opts.Data.Validate())
+	allErrors = append(allErrors, opts.TrainOptions.Validate())
 	allErrors = append(allErrors, opts.JobOptions.Validate())
 
 	return errors.Join(allErrors...)
@@ -110,6 +115,7 @@ func (s *TrainService) TrainNlpText(w http.ResponseWriter, r *http.Request) {
 		baseModelId:  options.BaseModelId,
 		modelOptions: options.ModelOptions,
 		data:         options.Data,
+		trainOptions: options.TrainOptions,
 		jobOptions:   options.JobOptions,
 	})
 }

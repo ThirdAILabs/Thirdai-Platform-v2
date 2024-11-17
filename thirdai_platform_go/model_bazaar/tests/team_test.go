@@ -343,6 +343,11 @@ func TestTeamModels(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	unusedTeam, err := admin.createTeam("xyz")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	user1, err := env.newUser("123")
 	if err != nil {
 		t.Fatal(err)
@@ -371,6 +376,11 @@ func TestTeamModels(t *testing.T) {
 	_, err = user2.modelInfo(model1)
 	if err != ErrUnauthorized {
 		t.Fatal("user shouldn't be able to access another user's model")
+	}
+
+	err = user1.addModelToTeam(unusedTeam, model1)
+	if err != ErrUnauthorized {
+		t.Fatal("user cannot add model to a team they are not a member of")
 	}
 
 	err = user1.addModelToTeam(team, model1)

@@ -80,7 +80,7 @@ When changing the public IP of your Keycloak instance, follow these steps to upd
       1. **Set up Port Forwarding**  
          Open a terminal on your local machine and run the following command:  
          ```bash
-         sudo ssh -i ~/Downloads/pratik-west-1.pem -L 443:<PRIVATE_IP_OF_MACHINE>:443 ubuntu@<NEW_PUBLIC_IP>
+         sudo ssh -i <public-key> -L 443:<PRIVATE_IP_OF_MACHINE>:443 ubuntu@<NEW_PUBLIC_IP>
          ```  
 
       2. **Access the Admin Console**  

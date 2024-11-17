@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
   try {
     // Retrieve the token from the request
     const token = await getToken({ req });
+    console.log("Request: ", req);
 
     // If no token is found, return a 400 error
     if (!token) {

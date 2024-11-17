@@ -90,9 +90,9 @@ type JobLog struct {
 }
 
 func (m *Model) TrainJobName() string {
-	return fmt.Sprintf("train-%v-%v", m.Id, m.Type)
+	return fmt.Sprintf("train-%v-%v", m.Type, m.Id)
 }
 
 func (m *Model) DeployJobName() string {
-	return fmt.Sprintf("deploy-%v-%v", m.Id, m.Type)
+	return fmt.Sprintf("deploy-%v-%v", m.Type, m.Id)
 }

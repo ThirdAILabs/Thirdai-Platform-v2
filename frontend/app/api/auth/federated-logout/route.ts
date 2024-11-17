@@ -1,10 +1,14 @@
 import { JWT, getToken } from 'next-auth/jwt';
 import { NextRequest, NextResponse } from 'next/server';
 
-function logoutParams(token: JWT): Record<string, string> {
+function logoutParams(req: NextRequest, token: JWT): Record<string, string> {
+  const protocol = req.headers.get('x-forwarded-proto') || 'http';
+  const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'localhost';
+  const baseUrl = `${protocol}://${host}`;
+
   return {
     id_token_hint: token.idToken as string,
-    post_logout_redirect_uri: process.env.NEXTAUTH_URL,
+    post_logout_redirect_uri: baseUrl,
   };
 }
 
@@ -14,12 +18,12 @@ function handleEmptyToken() {
   return NextResponse.json(response, responseHeaders);
 }
 
-async function sendEndSessionEndpointToURL(token: JWT) {
+async function sendEndSessionEndpointToURL(req: NextRequest, token: JWT) {
   const endSessionEndPoint = new URL(
     `${process.env.KEYCLOAK_ISSUER}/protocol/openid-connect/logout`
   );
 
-  const params: Record<string, string> = logoutParams(token);
+  const params: Record<string, string> = logoutParams(req, token);
   const endSessionParams = new URLSearchParams(params);
 
   const response = await fetch(endSessionEndPoint.toString(), {
@@ -27,7 +31,7 @@ async function sendEndSessionEndpointToURL(token: JWT) {
     body: endSessionParams.toString(),
     method: 'POST',
     cache: 'no-store',
-    redirect: 'manual', // Prevents automatic following of redirects
+    redirect: 'manual', 
   });
 
   return response;
@@ -35,15 +39,17 @@ async function sendEndSessionEndpointToURL(token: JWT) {
 
 function clearAuthCookies(response: NextResponse) {
   const cookies = [
-    'next-auth.session-token',
-    'next-auth.csrf-token',
-    // Add any other NextAuth-related cookies here
+    '__Secure-next-auth.session-token',
+    '__Secure-next-auth.session-token.0',
+    '__Secure-next-auth.session-token.1',
+    '__Host-next-auth.csrf-token',
+    '__Secure-next-auth.callback-url',
   ];
 
   cookies.forEach((cookieName) => {
     response.cookies.set(cookieName, '', {
       path: '/',
-      expires: new Date(0), // Set expiration to a past date to delete the cookie
+      expires: new Date(0),
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -53,20 +59,18 @@ function clearAuthCookies(response: NextResponse) {
 
 export async function GET(req: NextRequest) {
   try {
-    // Retrieve the token from the request
-    const token = await getToken({ req });
+    console.log("Secret: ", process.env.NEXTAUTH_SECRET);
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
     console.log("Request: ", req);
+    console.log("Token: ",  token);
 
-    // If no token is found, return a 400 error
     if (!token) {
       return handleEmptyToken();
     }
 
-    // Send the logout request to Keycloak
-    const response = await sendEndSessionEndpointToURL(token);
+    const response = await sendEndSessionEndpointToURL(req, token);
 
     console.log("Response: ", response);
-    // Check if Keycloak responded with a 302 redirect
     if (response.status === 302) {
       const redirectUrl = response.headers.get('Location');
 
@@ -85,14 +89,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // If Keycloak didn't respond with a 302, handle accordingly
     return NextResponse.json(
       { error: 'Unexpected response from Keycloak logout endpoint.' },
       { status: response.status }
     );
   } catch (error) {
     console.error('Logout Error:', error);
-    // Return a 500 Internal Server Error response in case of unexpected errors
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }

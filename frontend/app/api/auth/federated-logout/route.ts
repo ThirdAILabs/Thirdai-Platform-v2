@@ -59,10 +59,7 @@ function clearAuthCookies(response: NextResponse) {
 
 export async function GET(req: NextRequest) {
   try {
-    console.log("Secret: ", process.env.NEXTAUTH_SECRET);
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-    console.log("Request: ", req);
-    console.log("Token: ",  token);
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, secureCookie: process.env.NODE_ENV === 'production' });
 
     if (!token) {
       return handleEmptyToken();

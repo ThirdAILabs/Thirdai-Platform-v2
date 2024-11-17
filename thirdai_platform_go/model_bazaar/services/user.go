@@ -38,8 +38,8 @@ func (s *UserService) Routes() chi.Router {
 		r.Use(s.userAuth.Authenticator())
 		r.Use(auth.AdminOnly(s.db))
 
-		r.Post("/promote-admin", s.PromoteAdmin)
-		r.Post("/demote-admin", s.DemoteAdmin)
+		r.Post("/{user_id}/admin", s.PromoteAdmin)
+		r.Delete("/{user_id}/admin", s.DemoteAdmin)
 	})
 
 	return r
@@ -154,18 +154,11 @@ func (s *UserService) Login(w http.ResponseWriter, r *http.Request) {
 	writeJsonResponse(w, res)
 }
 
-type adminRequest struct {
-	UserId string `json:"user_id"`
-}
-
 func (s *UserService) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
-	var params adminRequest
-	if !parseRequestBody(w, r, &params) {
-		return
-	}
+	userId := chi.URLParam(r, "user_id")
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
-		user, err := schema.GetUser(params.UserId, txn, false)
+		user, err := schema.GetUser(userId, txn, false)
 		if err != nil {
 			return err
 		}
@@ -189,13 +182,10 @@ func (s *UserService) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *UserService) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
-	var params adminRequest
-	if !parseRequestBody(w, r, &params) {
-		return
-	}
+	userId := chi.URLParam(r, "user_id")
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
-		user, err := schema.GetUser(params.UserId, txn, false)
+		user, err := schema.GetUser(userId, txn, false)
 		if err != nil {
 			return err
 		}
@@ -207,7 +197,7 @@ func (s *UserService) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if count < 2 {
-			return fmt.Errorf("cannot demote admin %v since there would be no admins left", params.UserId)
+			return fmt.Errorf("cannot demote admin %v since there would be no admins left", userId)
 		}
 
 		user.IsAdmin = false

@@ -13,6 +13,7 @@ import (
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -178,12 +179,7 @@ type StatusResponse struct {
 }
 
 func getStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job string) {
-	params := r.URL.Query()
-	if !params.Has("model_id") {
-		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
-		return
-	}
-	modelId := params.Get("model_id")
+	modelId := chi.URLParam(r, "model_id")
 
 	slog.Info("getting status for model", "job", job, "model_id", modelId)
 
@@ -306,12 +302,7 @@ func jobLogHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job stri
 }
 
 func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad.NomadClient, job string) {
-	params := r.URL.Query()
-	if !params.Has("model_id") {
-		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
-		return
-	}
-	modelId := params.Get("model_id")
+	modelId := chi.URLParam(r, "model_id")
 
 	model, err := schema.GetModel(modelId, db, false, false, false)
 	if err != nil {

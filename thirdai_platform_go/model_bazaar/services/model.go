@@ -33,23 +33,26 @@ type ModelService struct {
 func (s *ModelService) Routes() chi.Router {
 	r := chi.NewRouter()
 
-	r.Group(func(r chi.Router) {
+	r.Route("/{model_id}", func(r chi.Router) {
 		r.Use(s.userAuth.Verifier())
 		r.Use(s.userAuth.Authenticator())
-		r.Use(auth.ModelPermissionOnly(s.db, auth.ReadPermission))
 
-		r.Get("/info", s.Info)
-		r.Get("/download", s.Download)
-	})
+		r.Get("/permissions", s.Permissions)
 
-	r.Group(func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
-		r.Use(auth.ModelPermissionOnly(s.db, auth.OwnerPermission))
+		r.Group(func(r chi.Router) {
+			r.Use(auth.ModelPermissionOnly(s.db, auth.ReadPermission))
 
-		r.Post("/delete", s.Delete)
-		r.Post("/update-access", s.UpdateAccess)
-		r.Post("/update-default-permission", s.UpdateDefaultPermission)
+			r.Get("/", s.Info)
+			r.Get("/download", s.Download)
+		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(auth.ModelPermissionOnly(s.db, auth.OwnerPermission))
+
+			r.Delete("/", s.Delete)
+			r.Post("/access", s.UpdateAccess)
+			r.Post("/default-permission", s.UpdateDefaultPermission)
+		})
 	})
 
 	r.Group(func(r chi.Router) {
@@ -57,18 +60,17 @@ func (s *ModelService) Routes() chi.Router {
 		r.Use(s.userAuth.Authenticator())
 
 		r.Get("/list", s.List)
-		r.Get("/permissions", s.Permissions)
 
 		r.Post("/save-deployed", s.SaveDeployed)
-		r.Post("/upload-start", s.UploadStart)
+		r.Post("/upload", s.UploadStart)
 	})
 
 	r.Group(func(r chi.Router) {
 		r.Use(s.uploadSessionAuth.Verifier())
 		r.Use(s.uploadSessionAuth.Authenticator())
 
-		r.Post("/upload-chunk", s.UploadChunk)
-		r.Post("/upload-commit", s.UploadCommit)
+		r.Post("/upload/{chunk_idx}", s.UploadChunk)
+		r.Post("/upload/commit", s.UploadCommit)
 	})
 
 	return r
@@ -140,12 +142,7 @@ func convertToModelInfo(model schema.Model, db *gorm.DB) (ModelInfo, error) {
 }
 
 func (s *ModelService) Info(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("model_id") {
-		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
-		return
-	}
-	modelId := params.Get("model_id")
+	modelId := chi.URLParam(r, "model_id")
 
 	model, err := schema.GetModel(modelId, s.db, true, true, true)
 	if err != nil {
@@ -218,12 +215,7 @@ type ModelPermissions struct {
 }
 
 func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("model_id") {
-		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
-		return
-	}
-	modelId := params.Get("model_id")
+	modelId := chi.URLParam(r, "model_id")
 
 	userId, err := auth.UserIdFromContext(r)
 	if err != nil {
@@ -266,12 +258,7 @@ func countTrainingChildModels(db *gorm.DB, modelId string) (int64, error) {
 }
 
 func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("model_id") {
-		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
-		return
-	}
-	modelId := params.Get("model_id")
+	modelId := chi.URLParam(r, "model_id")
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		usedBy, err := countDownstreamModels(modelId, txn, false)
@@ -403,12 +390,7 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *ModelService) UploadChunk(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("chunk_idx") {
-		http.Error(w, "'chunk_idx' query parameter missing", http.StatusBadRequest)
-		return
-	}
-	chunkIdx, err := strconv.Atoi(params.Get("chunk_idx"))
+	chunkIdx, err := strconv.Atoi(chi.URLParam(r, "chunk_idx"))
 	if err != nil || chunkIdx < 0 {
 		http.Error(w, "expected 'chunk_idx' parameter to be an positive integer", http.StatusBadRequest)
 		return
@@ -509,12 +491,7 @@ func (s *ModelService) UploadCommit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("model_id") {
-		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
-		return
-	}
-	modelId := params.Get("model_id")
+	modelId := chi.URLParam(r, "model_id")
 
 	model, err := schema.GetModel(modelId, s.db, false, false, false)
 	if err != nil {
@@ -572,20 +549,24 @@ func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type updateAccessRequest struct {
+	Access string `json:"access"`
+}
+
 func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("model_id") || !params.Has("new_access") {
-		http.Error(w, "'model_id' or 'new_access' query parameters missing", http.StatusBadRequest)
+	modelId := chi.URLParam(r, "model_id")
+
+	var params updateAccessRequest
+	if !parseRequestBody(w, r, &params) {
 		return
 	}
-	modelId, newAccess := params.Get("model_id"), params.Get("new_access")
 
-	if err := schema.CheckValidAccess(newAccess); err != nil {
+	if err := schema.CheckValidAccess(params.Access); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	result := s.db.Model(&schema.Model{Id: modelId}).Update("access", newAccess)
+	result := s.db.Model(&schema.Model{Id: modelId}).Update("access", params.Access)
 	if result.Error != nil {
 		err := schema.NewDbError("updating model access", result.Error)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -599,20 +580,24 @@ func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
 	writeSuccess(w)
 }
 
+type updateDefaultPermissionRequest struct {
+	Permission string `json:"permission"`
+}
+
 func (s *ModelService) UpdateDefaultPermission(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("model_id") || !params.Has("new_permission") {
-		http.Error(w, "'model_id' or 'new_permission' query parameters missing", http.StatusBadRequest)
+	modelId := chi.URLParam(r, "model_id")
+
+	var params updateDefaultPermissionRequest
+	if !parseRequestBody(w, r, &params) {
 		return
 	}
-	modelId, newPermission := params.Get("model_id"), params.Get("new_permission")
 
-	if err := schema.CheckValidPermission(newPermission); err != nil {
+	if err := schema.CheckValidPermission(params.Permission); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	result := s.db.Model(&schema.Model{Id: modelId}).Update("default_permission", newPermission)
+	result := s.db.Model(&schema.Model{Id: modelId}).Update("default_permission", params.Permission)
 	if result.Error != nil {
 		err := schema.NewDbError("updating model default permission", result.Error)
 		http.Error(w, err.Error(), http.StatusBadRequest)

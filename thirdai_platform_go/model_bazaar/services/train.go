@@ -55,7 +55,7 @@ func (s *TrainService) Routes() chi.Router {
 		r.Post("/log", s.JobLog)
 	})
 
-	r.Group(func(r chi.Router) {
+	r.Route("/{model_id}", func(r chi.Router) {
 		r.Use(s.userAuth.Verifier())
 		r.Use(s.userAuth.Authenticator())
 		r.Use(auth.ModelPermissionOnly(s.db, auth.ReadPermission))

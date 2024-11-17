@@ -19,68 +19,65 @@ type TeamService struct {
 func (s *TeamService) Routes() chi.Router {
 	r := chi.NewRouter()
 
-	r.Group(func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
-		r.Use(auth.AdminOnly(s.db))
+	r.Use(s.userAuth.Verifier())
+	r.Use(s.userAuth.Authenticator())
 
-		r.Post("/create", s.CreateTeam)
-		r.Post("/delete", s.DeleteTeam)
+	r.With(auth.AdminOnly(s.db)).Post("/create", s.CreateTeam)
 
-	})
+	r.Get("/list", s.List)
 
-	r.Group(func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
-		r.Use(auth.AdminOrTeamAdminOnly(s.db))
+	r.Route("/{team_id}", func(r chi.Router) {
+		r.With(auth.AdminOnly(s.db)).Delete("/", s.DeleteTeam)
 
-		r.Post("/add-user", s.AddUserToTeam)
-		r.Post("/remove-user", s.RemoveUserFromTeam)
+		r.Group(func(r chi.Router) {
+			r.Use(auth.AdminOrTeamAdminOnly(s.db))
 
-		r.Post("/add-admin", s.AddTeamAdmin)
-		r.Post("/remove-admin", s.RemoveTeamAdmin)
+			r.Post("/users/{user_id}", s.AddUserToTeam)
+			r.Delete("/users/{user_id}", s.RemoveUserFromTeam)
 
-		r.Get("/users", s.TeamUsers)
-		r.Get("/models", s.TeamModels)
-	})
+			r.Post("/admins/{user_id}", s.AddTeamAdmin)
+			r.Delete("/admins/{user_id}", s.RemoveTeamAdmin)
 
-	r.Group(func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
-		r.Use(auth.ModelPermissionOnly(s.db, auth.OwnerPermission))
+			r.Get("/users", s.TeamUsers)
+			r.Get("/models", s.TeamModels)
+		})
 
-		r.Post("/add-model", s.AddModelToTeam)
-		r.Post("/remove-model", s.RemoveModelFromTeam)
-	})
+		r.Route("/models/{model_id}", func(r chi.Router) {
+			r.Use(auth.TeamMemberOnly(s.db))
+			r.Use(auth.ModelPermissionOnly(s.db, auth.OwnerPermission))
 
-	r.Group(func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
-
-		r.Get("/list", s.List)
+			r.Post("/", s.AddModelToTeam)
+			r.Delete("/", s.RemoveModelFromTeam)
+		})
 	})
 
 	return r
 }
 
+type createTeamRequest struct {
+	Name string `json:"name"`
+}
+
 func (s *TeamService) CreateTeam(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("name") {
-		http.Error(w, "'name' query parameter missing", http.StatusBadRequest)
+	var params createTeamRequest
+	if !parseRequestBody(w, r, &params) {
 		return
 	}
-	name := params.Get("name")
 
-	newTeam := schema.Team{Id: uuid.New().String(), Name: name}
+	if params.Name == "" {
+		http.Error(w, "Team name must be specified", http.StatusBadRequest)
+	}
+
+	newTeam := schema.Team{Id: uuid.New().String(), Name: params.Name}
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		var existingTeam schema.Team
-		result := txn.Find(&existingTeam, "name = ?", name)
+		result := txn.Find(&existingTeam, "name = ?", params.Name)
 		if result.Error != nil {
 			return schema.NewDbError("checking for existing team with name", result.Error)
 		}
 		if result.RowsAffected != 0 {
-			return fmt.Errorf("team with name %v already exists", name)
+			return fmt.Errorf("team with name %v already exists", params.Name)
 		}
 
 		result = txn.Create(&newTeam)
@@ -100,13 +97,9 @@ func (s *TeamService) CreateTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) DeleteTeam(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("team_id") {
-		http.Error(w, "'team_id' query parameter missing", http.StatusBadRequest)
-		return
-	}
+	teamId := chi.URLParam(r, "team_id")
 
-	team := schema.Team{Id: params.Get("team_id")}
+	team := schema.Team{Id: teamId}
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		exists, err := schema.TeamExists(txn, team.Id)
@@ -139,12 +132,7 @@ func (s *TeamService) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) AddUserToTeam(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("team_id") || !params.Has("user_id") {
-		http.Error(w, "'team_id' and 'user_id' query parameters missing", http.StatusBadRequest)
-		return
-	}
-	teamId, userId := params.Get("team_id"), params.Get("user_id")
+	teamId, userId := chi.URLParam(r, "team_id"), chi.URLParam(r, "user_id")
 
 	userTeam := schema.UserTeam{UserId: userId, TeamId: teamId}
 
@@ -182,12 +170,7 @@ func (s *TeamService) AddUserToTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("team_id") || !params.Has("user_id") {
-		http.Error(w, "'team_id' and 'user_id' query parameters missing", http.StatusBadRequest)
-		return
-	}
-	teamId, userId := params.Get("team_id"), params.Get("user_id")
+	teamId, userId := chi.URLParam(r, "team_id"), chi.URLParam(r, "user_id")
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		teamExists, err := schema.TeamExists(txn, teamId)
@@ -228,12 +211,7 @@ func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *TeamService) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("team_id") || !params.Has("model_id") {
-		http.Error(w, "'team_id' and 'model_id' query parameters missing", http.StatusBadRequest)
-		return
-	}
-	teamId, modelId := params.Get("team_id"), params.Get("model_id")
+	teamId, modelId := chi.URLParam(r, "team_id"), chi.URLParam(r, "model_id")
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		teamExists, err := schema.TeamExists(txn, teamId)
@@ -280,12 +258,7 @@ func (s *TeamService) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("team_id") || !params.Has("model_id") {
-		http.Error(w, "'team_id' and 'model_id' query parameters missing", http.StatusBadRequest)
-		return
-	}
-	teamId, modelId := params.Get("team_id"), params.Get("model_id")
+	teamId, modelId := chi.URLParam(r, "team_id"), chi.URLParam(r, "model_id")
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		teamExists, err := schema.TeamExists(txn, teamId)
@@ -321,12 +294,7 @@ func (s *TeamService) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request
 }
 
 func (s *TeamService) AddTeamAdmin(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("team_id") || !params.Has("user_id") {
-		http.Error(w, "'team_id' and 'user_id' query parameters missing", http.StatusBadRequest)
-		return
-	}
-	teamId, userId := params.Get("team_id"), params.Get("user_id")
+	teamId, userId := chi.URLParam(r, "team_id"), chi.URLParam(r, "user_id")
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		teamExists, err := schema.TeamExists(txn, teamId)
@@ -362,12 +330,7 @@ func (s *TeamService) AddTeamAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("team_id") || !params.Has("user_id") {
-		http.Error(w, "'team_id' and 'user_id' query parameters missing", http.StatusBadRequest)
-		return
-	}
-	teamId, userId := params.Get("team_id"), params.Get("user_id")
+	teamId, userId := chi.URLParam(r, "team_id"), chi.URLParam(r, "user_id")
 
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		teamExists, err := schema.TeamExists(txn, teamId)
@@ -453,12 +416,7 @@ type TeamUserInfo struct {
 }
 
 func (s *TeamService) TeamUsers(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("team_id") {
-		http.Error(w, "'team_id' query parameter missing", http.StatusBadRequest)
-		return
-	}
-	teamId := params.Get("team_id")
+	teamId := chi.URLParam(r, "team_id")
 
 	teamExists, err := schema.TeamExists(s.db, teamId)
 	if err != nil {
@@ -492,12 +450,7 @@ func (s *TeamService) TeamUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TeamService) TeamModels(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("team_id") {
-		http.Error(w, "'team_id' query parameter missing", http.StatusBadRequest)
-		return
-	}
-	teamId := params.Get("team_id")
+	teamId := chi.URLParam(r, "team_id")
 
 	teamExists, err := schema.TeamExists(s.db, teamId)
 	if err != nil {

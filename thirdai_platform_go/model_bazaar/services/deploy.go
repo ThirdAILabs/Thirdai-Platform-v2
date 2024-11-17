@@ -32,28 +32,24 @@ type DeployService struct {
 func (s *DeployService) Routes() chi.Router {
 	r := chi.NewRouter()
 
-	r.Group(func(r chi.Router) {
+	r.Route("/{model_id}", func(r chi.Router) {
 		r.Use(s.userAuth.Verifier())
 		r.Use(s.userAuth.Authenticator())
 
-		r.Post("/start", s.Start)
-	})
+		r.Group(func(r chi.Router) {
+			r.Use(auth.ModelPermissionOnly(s.db, auth.OwnerPermission))
 
-	r.Group(func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
-		r.Use(auth.ModelPermissionOnly(s.db, auth.ReadPermission))
+			r.Post("/", s.Start)
+			r.Delete("/", s.Stop)
+		})
 
-		r.Get("/status", s.GetStatus)
-		r.Get("/logs", s.Logs)
-	})
+		r.Group(func(r chi.Router) {
+			r.Use(auth.ModelPermissionOnly(s.db, auth.ReadPermission))
 
-	r.Group(func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
-		r.Use(auth.ModelPermissionOnly(s.db, auth.OwnerPermission))
+			r.Get("/status", s.GetStatus)
+			r.Get("/logs", s.Logs)
+		})
 
-		r.Post("/stop", s.Stop)
 	})
 
 	r.Group(func(r chi.Router) {
@@ -168,7 +164,6 @@ func (s *DeployService) deployModel(modelId, userId string, autoscaling bool, au
 }
 
 type startRequest struct {
-	ModelId        string `json:"model_id"`
 	DeploymentName string `json:"deployment_name"`
 	Autoscaling    bool   `json:"autoscaling_enabled"`
 	AutoscalingMax int    `json:"autoscaling_max"`
@@ -182,6 +177,8 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	modelId := chi.URLParam(r, "model_id")
+
 	var params startRequest
 	if !parseRequestBody(w, r, &params) {
 		return
@@ -190,7 +187,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 	params.Memory = max(params.Memory, 1000)
 	params.AutoscalingMax = max(params.AutoscalingMax, 1)
 
-	deps, err := listModelDependencies(params.ModelId, s.db)
+	deps, err := listModelDependencies(modelId, s.db)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -198,7 +195,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 
 	for _, dep := range deps {
 		name := ""
-		if dep.Id == params.ModelId {
+		if dep.Id == modelId {
 			name = params.DeploymentName
 		}
 		err := s.deployModel(dep.Id, userId, params.Autoscaling, params.AutoscalingMax, params.Memory, name)
@@ -212,12 +209,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
-	params := r.URL.Query()
-	if !params.Has("model_id") {
-		http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
-		return
-	}
-	modelId := params.Get("model_id")
+	modelId := chi.URLParam(r, "model_id")
 
 	slog.Info("stopping deployment for model", "model_id", modelId)
 

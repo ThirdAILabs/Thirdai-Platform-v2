@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"thirdai_platform/model_bazaar/schema"
 
+	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 )
 
@@ -52,12 +53,7 @@ func isTeamAdmin(teamId, userId string, db *gorm.DB) bool {
 func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
-			params := r.URL.Query()
-			if !params.Has("team_id") {
-				http.Error(w, "'team_id' query parameter missing", http.StatusBadRequest)
-				return
-			}
-			teamId := params.Get("team_id")
+			teamId := chi.URLParam(r, "team_id")
 
 			userId, err := UserIdFromContext(r)
 			if err != nil {
@@ -73,6 +69,43 @@ func AdminOrTeamAdminOnly(db *gorm.DB) func(http.Handler) http.Handler {
 
 			if !user.IsAdmin && !isTeamAdmin(teamId, userId, db) {
 				http.Error(w, "user must be admin or team admin to access endpoint", http.StatusUnauthorized)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		}
+		return http.HandlerFunc(hfn)
+	}
+}
+
+func isTeamMember(teamId, userId string, db *gorm.DB) bool {
+	userTeam, err := schema.GetUserTeam(teamId, userId, db)
+	if err != nil || userTeam == nil {
+		return false
+	}
+
+	return true
+}
+
+func TeamMemberOnly(db *gorm.DB) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		hfn := func(w http.ResponseWriter, r *http.Request) {
+			teamId := chi.URLParam(r, "team_id")
+
+			userId, err := UserIdFromContext(r)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+				return
+			}
+
+			user, err := schema.GetUser(userId, db, false)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+				return
+			}
+
+			if !user.IsAdmin && !isTeamMember(teamId, userId, db) {
+				http.Error(w, "user must be team member to access endpoint", http.StatusUnauthorized)
 				return
 			}
 
@@ -139,12 +172,7 @@ func GetModelPermissions(modelId, userId string, db *gorm.DB) (modelPermissions,
 func ModelPermissionOnly(db *gorm.DB, minPermission modelPermissions) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		hfn := func(w http.ResponseWriter, r *http.Request) {
-			params := r.URL.Query()
-			if !params.Has("model_id") {
-				http.Error(w, "'model_id' query parameter missing", http.StatusBadRequest)
-				return
-			}
-			modelId := params.Get("model_id")
+			modelId := chi.URLParam(r, "model_id")
 
 			userId, err := UserIdFromContext(r)
 			if err != nil {

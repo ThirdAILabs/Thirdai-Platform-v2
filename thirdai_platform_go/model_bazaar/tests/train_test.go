@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -134,7 +135,7 @@ func TestFileUpload(t *testing.T) {
 	artifactPath := res["artifact_path"]
 
 	for _, file := range files {
-		obj, err := env.storage.Read(filepath.Join(artifactPath, file.name))
+		obj, err := os.Open(filepath.Join(artifactPath, file.name))
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -38,7 +38,7 @@ func (c *NlpTokenClient) Predict(text string, topk int) (NlpTokenPredictions, er
 		return NlpTokenPredictions{}, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	res, err := post[nlpPredictResults[NlpTokenPredictions]](u, body, nil, c.authToken)
+	res, err := post[nlpPredictResults[NlpTokenPredictions]](u, body, c.authToken)
 	if err != nil {
 		return NlpTokenPredictions{}, err
 	}
@@ -75,7 +75,7 @@ func (c *NlpTextClient) Predict(text string, topk int) (NlpTextPredictions, erro
 		return NlpTextPredictions{}, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	res, err := post[nlpPredictResults[nlpTextPredictionsRaw]](u, body, nil, c.authToken)
+	res, err := post[nlpPredictResults[nlpTextPredictionsRaw]](u, body, c.authToken)
 	if err != nil {
 		return NlpTextPredictions{}, err
 	}

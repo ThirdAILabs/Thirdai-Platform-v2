@@ -85,11 +85,10 @@ class Permissions:
     def _deployment_permissions(cls, token: str):
         deployment_permissions_endpoint = urljoin(
             cls.model_bazaar_endpoint,
-            f"api/v2/model/permissions",
+            f"api/v2/model/{cls.model_id}/permissions",
         )
         response = requests.get(
             deployment_permissions_endpoint,
-            params={"model_id": cls.model_id},
             headers={"Authorization": "Bearer " + token},
         )
         if response.status_code == status.HTTP_401_UNAUTHORIZED:

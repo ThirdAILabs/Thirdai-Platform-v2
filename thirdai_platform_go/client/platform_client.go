@@ -33,7 +33,7 @@ func (c *PlatformClient) Signup(username, email, password string) error {
 		return fmt.Errorf("error formatting url: %w", err)
 	}
 
-	_, err = post[map[string]string](u, body, nil, c.authToken)
+	_, err = post[map[string]string](u, body, c.authToken)
 
 	return err
 }
@@ -49,7 +49,7 @@ func (c *PlatformClient) Login(email, password string) error {
 		return fmt.Errorf("error formatting url: %w", err)
 	}
 
-	data, err := post[map[string]string](u, body, nil, c.authToken)
+	data, err := post[map[string]string](u, body, c.authToken)
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (c *PlatformClient) uploadFiles(files []config.FileInfo) ([]config.FileInfo
 	headers := authHeader(c.authToken)
 	headers["Content-Type"] = writer.FormDataContentType()
 
-	res, err := postWithHeaders[map[string]string](u, body.Bytes(), nil, headers)
+	res, err := postWithHeaders[map[string]string](u, body.Bytes(), headers)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (c *PlatformClient) TrainNdbWithJobOptions(name string, unsupervised []conf
 		return nil, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	res, err := post[map[string]string](u, body, nil, c.authToken)
+	res, err := post[map[string]string](u, body, c.authToken)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []con
 		return nil, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	res, err := post[map[string]string](u, body, nil, c.authToken)
+	res, err := post[map[string]string](u, body, c.authToken)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +213,7 @@ func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []c
 		return nil, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	res, err := post[map[string]string](u, body, nil, c.authToken)
+	res, err := post[map[string]string](u, body, c.authToken)
 	if err != nil {
 		return nil, err
 	}

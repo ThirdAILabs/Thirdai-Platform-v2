@@ -46,7 +46,7 @@ func (c *NdbClient) Search(query string, topk int) ([]NdbSearchResult, error) {
 		return nil, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	res, err := post[ndbSearchResults](u, body, nil, c.authToken)
+	res, err := post[ndbSearchResults](u, body, c.authToken)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (c *NdbClient) Insert(files []config.FileInfo) error {
 	headers := authHeader(c.authToken)
 	headers["Content-Type"] = writer.FormDataContentType()
 
-	_, err = postWithHeaders[noBody](u, body.Bytes(), nil, headers)
+	_, err = postWithHeaders[noBody](u, body.Bytes(), headers)
 	return err
 }
 
@@ -116,7 +116,7 @@ func (c *NdbClient) Delete(doc_ids []string) error {
 		return fmt.Errorf("error formatting url: %w", err)
 	}
 
-	_, err = post[noBody](u, body, nil, c.authToken)
+	_, err = post[noBody](u, body, c.authToken)
 	return err
 }
 
@@ -142,7 +142,7 @@ func (c *NdbClient) Upvote(samples []UpvotePair) error {
 		return fmt.Errorf("error formatting url: %w", err)
 	}
 
-	_, err = post[noBody](u, body, nil, c.authToken)
+	_, err = post[noBody](u, body, c.authToken)
 	return err
 }
 
@@ -167,7 +167,7 @@ func (c *NdbClient) Associate(samples []AssociatePair) error {
 		return fmt.Errorf("error formatting url: %w", err)
 	}
 
-	_, err = post[noBody](u, body, nil, c.authToken)
+	_, err = post[noBody](u, body, c.authToken)
 	return err
 }
 
@@ -187,7 +187,7 @@ func (c *NdbClient) Sources() ([]Source, error) {
 		return nil, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	res, err := get[sourcesResponse](u, nil, c.authToken)
+	res, err := get[sourcesResponse](u, c.authToken)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +210,7 @@ func (c *NdbClient) Retrain(newModelName string) (*NdbClient, error) {
 		return nil, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	res, err := post[map[string]string](u, body, nil, c.authToken)
+	res, err := post[map[string]string](u, body, c.authToken)
 	if err != nil {
 		return nil, err
 	}

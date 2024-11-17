@@ -15,12 +15,12 @@ type ModelClient struct {
 }
 
 func (c *ModelClient) getStatus(job string) (services.StatusResponse, error) {
-	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/api/v2/%v/status", job))
+	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/api/v2/%v/%v/status", job, c.modelId))
 	if err != nil {
 		return services.StatusResponse{}, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	return get[services.StatusResponse](u, map[string]string{"model_id": c.modelId}, c.authToken)
+	return get[services.StatusResponse](u, c.authToken)
 }
 
 func (c *ModelClient) awaitJob(job string, timeout time.Duration) error {
@@ -67,12 +67,12 @@ type Logs struct {
 }
 
 func (c *ModelClient) getLogs(job string) ([]Logs, error) {
-	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/api/v2/%v/logs", job))
+	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/api/v2/%v/%v/logs", job, c.modelId))
 	if err != nil {
 		return nil, fmt.Errorf("error formatting url: %w", err)
 	}
 
-	return get[[]Logs](u, map[string]string{"model_id": c.modelId}, c.authToken)
+	return get[[]Logs](u, c.authToken)
 }
 
 func (c *ModelClient) TrainLogs() ([]Logs, error) {
@@ -89,14 +89,12 @@ func (c *ModelClient) Deploy(autoscaling bool) error {
 
 type deployParams struct {
 	Autoscaling    bool   `json:"autoscaling_enabled"`
-	ModelId        string `json:"model_id"`
 	DeploymentName string `json:"deployment_name"`
 }
 
 func (c *ModelClient) DeployWithName(autoscaling bool, name string) error {
 	params := deployParams{
 		Autoscaling:    autoscaling,
-		ModelId:        c.modelId,
 		DeploymentName: name,
 	}
 
@@ -105,31 +103,29 @@ func (c *ModelClient) DeployWithName(autoscaling bool, name string) error {
 		return fmt.Errorf("error encoding request body: %w", err)
 	}
 
-	u, err := url.JoinPath(c.baseUrl, "/api/v2/deploy/start")
+	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/api/v2/deploy/%v", c.modelId))
 	if err != nil {
 		return fmt.Errorf("error formatting url: %w", err)
 	}
 
-	_, err = post[noBody](u, body, nil, c.authToken)
+	_, err = post[noBody](u, body, c.authToken)
 	return err
 }
 
 func (c *ModelClient) Undeploy() error {
-	u, err := url.JoinPath(c.baseUrl, "/api/v2/deploy/stop")
+	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/api/v2/deploy/%v", c.modelId))
 	if err != nil {
 		return fmt.Errorf("error formatting url: %w", err)
 	}
 
-	_, err = post[noBody](u, nil, map[string]string{"model_id": c.modelId}, c.authToken)
-	return err
+	return deleteReq(u, c.authToken)
 }
 
 func (c *ModelClient) Delete() error {
-	u, err := url.JoinPath(c.baseUrl, "/api/v2/model/delete")
+	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/api/v2/model/%v", c.modelId))
 	if err != nil {
 		return fmt.Errorf("error formatting url: %w", err)
 	}
 
-	_, err = post[noBody](u, nil, map[string]string{"model_id": c.modelId}, c.authToken)
-	return err
+	return deleteReq(u, c.authToken)
 }

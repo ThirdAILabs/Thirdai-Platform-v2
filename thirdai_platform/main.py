@@ -11,6 +11,7 @@ load_dotenv()
 
 import fastapi
 import uvicorn
+from auth.jwt import validate_access_token
 from backend.routers.data import data_router
 from backend.routers.deploy import deploy_router as deploy
 from backend.routers.models import model_router as model
@@ -74,6 +75,17 @@ async def global_exception_handler(request: fastapi.Request, exc: Exception):
 
 @app.middleware("http")
 async def log_requests(request: fastapi.Request, call_next):
+    log_text = f"URL: {request.url} - Query params: {request.query_params} - Path params: {request.path_params}"
+    try:
+        user = validate_access_token(
+            access_token=request.headers.get("Authorization").split()[1]
+        )
+        log_text = f"USERNAME: {user.user.username} - " + log_text
+    except Exception as e:
+        pass
+
+    logger.info(log_text)
+
     response = await call_next(request)
 
     logger.info(

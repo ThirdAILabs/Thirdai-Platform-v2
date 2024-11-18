@@ -51,20 +51,7 @@ def create_access_token(user_id, expiration_min=15):
     return access_token
 
 
-def verify_access_token(
-    access_token: str = fastapi.Depends(token_bearer),
-    session: Session = fastapi.Depends(get_session),
-) -> AuthenticatedUser:
-    # This function verifies that the given access token is valid and returns the
-    # email from the payload if it is. Throws if the token is invalid. This function
-    # should be used in the depends clause of any protected endpoint.
-    #
-    # The fastapi.Depends function is a type of dependency manager which will force
-    # the input to meet the required args of the dependent function and then call
-    # the dependent function before executing the main body of the function for
-    # this endpoint. See the comment above for `token_bearer` to see what exactly
-    # it does in this case.
-    # Docs: https://fastapi.tiangolo.com/tutorial/dependencies/
+def validate_access_token(access_token: str, session: Session = next(get_session())):
     if identity_provider == "keycloak":
         # Get the Keycloak public key
         public_key = keycloak_openid.public_key()
@@ -142,6 +129,23 @@ def verify_access_token(
             raise CREDENTIALS_EXCEPTION
 
     return AuthenticatedUser(user=user, exp=expiration)
+
+
+def verify_access_token(
+    access_token: str = fastapi.Depends(token_bearer),
+    session: Session = fastapi.Depends(get_session),
+) -> AuthenticatedUser:
+    # This function verifies that the given access token is valid and returns the
+    # email from the payload if it is. Throws if the token is invalid. This function
+    # should be used in the depends clause of any protected endpoint.
+    #
+    # The fastapi.Depends function is a type of dependency manager which will force
+    # the input to meet the required args of the dependent function and then call
+    # the dependent function before executing the main body of the function for
+    # this endpoint. See the comment above for `token_bearer` to see what exactly
+    # it does in this case.
+    # Docs: https://fastapi.tiangolo.com/tutorial/dependencies/
+    return validate_access_token(access_token, session)
 
 
 def verify_access_token_no_throw(

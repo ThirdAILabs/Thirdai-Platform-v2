@@ -6,14 +6,14 @@ from platform_common.pii.logtypes.pydantic_models import (
 
 class UnstructuredTokenClassificationLog(LogType):
     def __init__(self, log: str):
-        self.inference_sample = {"source": log}
+        self._inference_sample = {"source": log}
 
     def process_prediction(self, model_predictions: str):
         predictions = []
         for prediction in model_predictions:
             predictions.append([x[0] for x in prediction])
 
-        tokens = self.inference_sample["source"].split()
+        tokens = self._inference_sample["source"].split()
 
         if len(predictions) != len(tokens):
             raise ValueError(
@@ -22,7 +22,11 @@ class UnstructuredTokenClassificationLog(LogType):
 
         return UnstructuredTokenClassificationResults(
             literal="unstructured",
-            query_text=self.inference_sample["source"],
+            query_text=self._inference_sample["source"],
             tokens=tokens,
             predicted_tags=predictions,
         )
+
+    @property
+    def inference_sample(self):
+        return self._inference_sample

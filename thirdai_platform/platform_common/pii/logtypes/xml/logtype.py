@@ -1,6 +1,7 @@
 from collections import defaultdict
 from typing import List, Tuple
 
+from platform_common.pii.logtypes.base import LogType
 from platform_common.pii.logtypes.pydantic_models import (
     CharSpan,
     XMLLocation,
@@ -16,8 +17,7 @@ from platform_common.pii.logtypes.xml.utils import (
 )
 
 
-class XMLTokenClassificationLog:
-
+class XMLTokenClassificationLog(LogType):
     def __init__(self, log: str):
         # extract the xml block
         self.clean_log = clean_and_extract_xml_block(log)
@@ -25,7 +25,7 @@ class XMLTokenClassificationLog:
         self.clean_xml = XMLParser(xml_string=self.clean_log, remove_delimiters=True)
 
         source, _, xpath_to_token = self.clean_xml.sample(for_inference=True)
-        self.inference_sample = {"source": " ".join(source)}
+        self._inference_sample = {"source": " ".join(source)}
 
         # this is a mapping from xpath and attribute to the token indices of the inference sample
         self.xpath_to_token = xpath_to_token
@@ -42,8 +42,12 @@ class XMLTokenClassificationLog:
             normalized_xpath = self.clean_xml.normalize_xpath(xpath)
             self.char_spans[(normalized_xpath, attr)] = details
 
+    @property
+    def inference_sample(self):
+        return self._inference_sample
+
     def process_prediction(self, model_predictions: str):
-        tokens = self.inference_sample["source"].split()
+        tokens = self._inference_sample["source"].split()
 
         labels = defaultdict(list)
 

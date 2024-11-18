@@ -27,9 +27,6 @@
  * **Debug**:
  * - Enabled to show debug information in development.
  *
- * **Pages**:
- * - **SignIn**: Custom sign-in page at '/auth/signin'.
- *
  * **Secret**:
  * - Uses NEXTAUTH_SECRET from environment variables for signing tokens.
  */

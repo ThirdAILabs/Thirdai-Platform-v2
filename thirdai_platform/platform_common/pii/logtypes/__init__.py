@@ -8,3 +8,6 @@ def convert_log_to_concrete_type(log: str):
         return XMLTokenClassificationLog(log)
     except:
         return UnstructuredTokenClassificationLog(log)
+
+
+__all__ = ["LogType", "UnstructuredTokenClassificationLog", "XMLTokenClassificationLog"]

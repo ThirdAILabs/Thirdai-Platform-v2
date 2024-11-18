@@ -18,7 +18,7 @@ import SyntheticClassification from './sentence-questions-synthetic/SyntheticCla
 import CSVUpload from './sentence-questions-upload-file/CSVUpload';
 
 const CREATION_METHODS = {
-  PRETRAINED: 'pretrained',
+  // PRETRAINED: 'pretrained',
   UPLOAD_DATA: 'upload-data',
   SYNTHETIC: 'synthetic',
 };
@@ -65,7 +65,7 @@ const SCQQuestions = ({
 
       <Grid container spacing={2}>
         {/* Pretrained Model Option */}
-        <Grid item xs={12} md={4}>
+        {/* <Grid item xs={12} md={4}>
           <Card
             sx={{
               height: '100%',
@@ -97,7 +97,7 @@ const SCQQuestions = ({
               </Typography>
             </CardContent>
           </Card>
-        </Grid>
+        </Grid> */}
 
         {/* Upload Data Option */}
         <Grid item xs={12} md={4}>
@@ -173,18 +173,18 @@ const SCQQuestions = ({
 
   const renderSelectedMethod = () => {
     switch (creationMethod) {
-      case CREATION_METHODS.PRETRAINED:
-        return (
-          <Box sx={{ width: '100%' }}>
-            Coming Soon
-            {/* <Typography variant="h6" gutterBottom>
-              Select a Pretrained Model
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Choose from our collection of pretrained models for common text classification tasks.
-            </Typography> */}
-          </Box>
-        );
+      // case CREATION_METHODS.PRETRAINED:
+      //   return (
+      //     <Box sx={{ width: '100%' }}>
+      //       Coming Soon
+      //       {/* <Typography variant="h6" gutterBottom>
+      //         Select a Pretrained Model
+      //       </Typography>
+      //       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+      //         Choose from our collection of pretrained models for common text classification tasks.
+      //       </Typography> */}
+      //     </Box>
+      //   );
       case CREATION_METHODS.UPLOAD_DATA:
         return (
           <Box sx={{ width: '100%' }}>

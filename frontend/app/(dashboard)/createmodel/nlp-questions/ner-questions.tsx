@@ -31,7 +31,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CSVUpload from './ner-questions-upload-file/CSVUpload';
 
 const CREATION_METHODS = {
-  PRETRAINED: 'pretrained',
+  // PRETRAINED: 'pretrained',
   UPLOAD_DATA: 'upload-data',
   SYNTHETIC: 'synthetic',
 };
@@ -299,7 +299,7 @@ const NERQuestions = ({
 
       <Grid container spacing={2}>
         {/* Pretrained Model Option */}
-        <Grid item xs={12} md={4}>
+        {/* <Grid item xs={12} md={4}>
           <Card
             sx={{
               height: '100%',
@@ -331,7 +331,7 @@ const NERQuestions = ({
               </Typography>
             </CardContent>
           </Card>
-        </Grid>
+        </Grid> */}
 
         {/* Upload Data Option */}
         <Grid item xs={12} md={4}>
@@ -406,8 +406,8 @@ const NERQuestions = ({
 
   const renderSelectedMethod = () => {
     switch (creationMethod) {
-      case CREATION_METHODS.PRETRAINED:
-        return <Typography>Coming Soon</Typography>;
+      // case CREATION_METHODS.PRETRAINED:
+      //   return <Typography>Coming Soon</Typography>;
       case CREATION_METHODS.UPLOAD_DATA:
         return (
           <Box sx={{ width: '100%' }}>

@@ -30,9 +30,9 @@ from backend.startup_jobs import (
     restart_telemetry_jobs,
     restart_thirdai_platform_frontend,
 )
-from database.session import get_session
 from backend.status_sync import sync_job_statuses
 from backend.utils import get_platform
+from database.session import get_session
 from fastapi.middleware.cors import CORSMiddleware
 
 app = fastapi.FastAPI()
@@ -90,7 +90,7 @@ async def log_requests(request: fastapi.Request, call_next):
         session = next(get_session())
         user = validate_access_token(
             access_token=request.headers.get("Authorization").split()[1],
-            session=session
+            session=session,
         )
         audit_log["username"] = user.user.username
     except Exception as e:

@@ -21,8 +21,6 @@ from pydantic import BaseModel
 from sqlalchemy import exists
 from sqlalchemy.orm import Session, selectinload
 
-# from main import audit_logger
-
 user_router = APIRouter()
 basic_security = HTTPBasic()
 
@@ -127,7 +125,6 @@ def email_signup(
     body: AccountSignupBody,
     session: Session = Depends(get_session),
 ):
-    # audit_logger.info(f"EMAIL_SIGNUP: {body.model_dump()}")
     user: Optional[schema.User] = (
         session.query(schema.User)
         .filter(

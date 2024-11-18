@@ -4,12 +4,9 @@ from pathlib import Path
 from typing import List, Optional
 
 from deployment_job.models.model import Model
-from deployment_job.pydantic_models.inputs import (
-    SearchResultsTextClassification,
-    SearchResultsTokenClassification,
-)
+from deployment_job.pydantic_models.inputs import SearchResultsTextClassification
 from fastapi import HTTPException, status
-from platform_common.pii.logtypes import LogType, convert_log_to_concrete_type
+from platform_common.pii.logtypes import convert_log_to_concrete_type
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
     DataSample,

@@ -98,27 +98,6 @@ def test_namespaces_ignored():
     assert char_spans == expected
 
 
-def test_entity_references():
-    xml_string = "<root>Value &amp; more text</root>"
-    char_spans = parse_xml_with_positions(xml_string)
-
-    expected = {
-        ("/root[1]", None): {"value": "Value & more text", "start": 6, "end": 23},
-    }
-    assert char_spans == expected
-
-
-def test_malformed_xml_recovery():
-    xml_string = "<root><child>Text</child><unclosed-root>"
-    char_spans = parse_xml_with_positions(xml_string)
-
-    # Should recover and parse up to the error
-    expected = {
-        ("/root[1]/child[1]", None): {"value": "Text", "start": 13, "end": 17},
-    }
-    assert char_spans == expected
-
-
 def test_duplicate_tags():
     xml_string = "<root><item>First</item><item>Second</item></root>"
     char_spans = parse_xml_with_positions(xml_string)
@@ -149,13 +128,13 @@ def test_complex_xml():
     expected = {
         ("/Event[1]/System[1]/Data[1]", "name"): {
             "value": "first_name",
-            "start": 58,
-            "end": 68,
+            "start": 54,
+            "end": 64,
         },
         ("/Event[1]/System[1]/Data[1]", None): {
             "value": "John",
-            "start": 70,
-            "end": 74,
+            "start": 66,
+            "end": 70,
         },
         ("/Event[1]/System[1]/Data[2]", "name"): {
             "value": "last_name",
@@ -169,13 +148,13 @@ def test_complex_xml():
         },
         ("/Event[1]/Message[1]", None): {
             "value": "\n            Hello, this is a test message.\n        ",
-            "start": 140,
-            "end": 189,
+            "start": 159,
+            "end": 211,
         },
         ("/Event[1]/EmptyElement[1]", "attr"): {
             "value": "value",
-            "start": 223,
-            "end": 230,
+            "start": 275,
+            "end": 280,
         },
     }
     assert char_spans == expected

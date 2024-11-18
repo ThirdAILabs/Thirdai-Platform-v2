@@ -129,21 +129,22 @@ def convert_xpath_using_attributes(xml_root: etree.Element, xpath: str) -> str:
 
 
 def find_span(s1, s2):
-    # Escape special characters in s2 and replace spaces with regex for whitespace
-    pattern = re.escape(s2)
-    pattern = pattern.replace("\\ ", r"\s+")
+    escaped_s2 = re.escape(s2)
+    pattern = escaped_s2.replace(r"\ ", r"[\s\W]+")
+    pattern = pattern.replace(r"\.", r"\.?")
 
-    # Search for the pattern in s1
-    match = re.search(pattern, s1)
+    regex = re.compile(pattern)
+
+    match = regex.search(s1)
     if match:
         start_pos = match.start()
         end_pos = match.end()
-        c = s1[start_pos:end_pos]
+        matched_substring = s1[start_pos:end_pos]
 
-        # Remove whitespaces from both c and s2
-        c_clean = c.replace(" ", "")
-        s2_clean = s2.replace(" ", "")
+        # clean both the strings and compare
+        c_clean = re.sub(r"[\s\W]+", "", matched_substring)
+        s2_clean = re.sub(r"[\s\W]+", "", s2)
 
         if c_clean == s2_clean:
-            return start_pos, end_pos, c
+            return start_pos, end_pos, matched_substring
     return None

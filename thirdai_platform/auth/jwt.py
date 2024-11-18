@@ -51,7 +51,7 @@ def create_access_token(user_id, expiration_min=15):
     return access_token
 
 
-def validate_access_token(access_token: str, session: Session = next(get_session())):
+def validate_access_token(access_token: str, session: Session):
     if identity_provider == "keycloak":
         # Get the Keycloak public key
         public_key = keycloak_openid.public_key()

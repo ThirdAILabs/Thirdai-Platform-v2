@@ -159,7 +159,7 @@ providers:
     allowUiUpdates: true
     options:
       foldersFromFilesStructure: true
-      path: {{ nomad_monitoring_dir }}/telemetry_dashboards
+      path: {{ nomad_monitoring_dir }}/grafana_dashboards
 EOF
         destination = "/local/grafana/provisioning/dashboards/dashboards.yaml"
       }

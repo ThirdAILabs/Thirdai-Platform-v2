@@ -93,7 +93,7 @@ async def log_requests(request: fastapi.Request, call_next):
     logger.info(log_text)
 
     response = await call_next(request)
-    
+
     logger.info(
         f"Request: {request.method}; URl: {request.url} - {response.status_code}"
     )

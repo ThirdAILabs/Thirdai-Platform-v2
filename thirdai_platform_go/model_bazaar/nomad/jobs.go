@@ -91,3 +91,18 @@ func (j DeployJob) GetJobName() string {
 func (j DeployJob) TemplateName() string {
 	return "deploy_job.hcl.tmpl"
 }
+
+type DatagenTrainJob struct {
+	TrainJob
+
+	DatagenConfigPath string
+	GenaiKey          string
+}
+
+func (j DatagenTrainJob) GetJobName() string {
+	return j.JobName
+}
+
+func (j TrainJob) DatagenTrainJob() string {
+	return "datagen_train_job.hcl.tmpl"
+}

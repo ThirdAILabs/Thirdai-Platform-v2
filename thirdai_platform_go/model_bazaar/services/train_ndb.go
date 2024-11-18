@@ -9,13 +9,9 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
-	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
-	"time"
-
-	"github.com/google/uuid"
 )
 
 type NdbTrainOptions struct {
@@ -68,28 +64,6 @@ func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 		data:         options.Data,
 		jobOptions:   options.JobOptions,
 	})
-}
-
-type NdbRetrainOptions struct {
-	ModelName   string            `json:"model_name"`
-	BaseModelId string            `json:"base_model_id"`
-	JobOptions  config.JobOptions `json:"job_options"`
-}
-
-func (opts *NdbRetrainOptions) validate() error {
-	allErrors := make([]error, 0)
-
-	if opts.ModelName == "" {
-		allErrors = append(allErrors, fmt.Errorf("model name must be specified"))
-	}
-
-	if opts.BaseModelId == "" {
-		allErrors = append(allErrors, fmt.Errorf("base model id must be specified"))
-	}
-
-	allErrors = append(allErrors, opts.JobOptions.Validate())
-
-	return errors.Join(allErrors...)
 }
 
 func listLogData[T any](dir string, s storage.Storage) ([]T, error) {
@@ -165,13 +139,29 @@ func (s *TrainService) getNdbRetrainingData(baseModelId string) (config.NDBData,
 	return data, nil
 }
 
-func (s *TrainService) NdbRetrain(w http.ResponseWriter, r *http.Request) {
-	userId, err := auth.UserIdFromContext(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+type NdbRetrainOptions struct {
+	ModelName   string            `json:"model_name"`
+	BaseModelId string            `json:"base_model_id"`
+	JobOptions  config.JobOptions `json:"job_options"`
+}
+
+func (opts *NdbRetrainOptions) validate() error {
+	allErrors := make([]error, 0)
+
+	if opts.ModelName == "" {
+		allErrors = append(allErrors, fmt.Errorf("model name must be specified"))
 	}
 
+	if opts.BaseModelId == "" {
+		allErrors = append(allErrors, fmt.Errorf("base model id must be specified"))
+	}
+
+	allErrors = append(allErrors, opts.JobOptions.Validate())
+
+	return errors.Join(allErrors...)
+}
+
+func (s *TrainService) NdbRetrain(w http.ResponseWriter, r *http.Request) {
 	var options NdbRetrainOptions
 	if !parseRequestBody(w, r, &options) {
 		return
@@ -182,21 +172,7 @@ func (s *TrainService) NdbRetrain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	modelId := uuid.New().String()
-
-	slog.Info("starting ndb retraining", "model_id", modelId, "model_name", options.ModelName)
-
-	license, err := verifyLicenseForNewJob(s.nomad, s.license, options.JobOptions.CpuUsageMhz())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	jobToken, err := s.jobAuth.CreateToken("model_id", modelId, time.Hour*1000*24)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
-		return
-	}
+	slog.Info("starting ndb retraining", "base_model_id", options.BaseModelId, "model_name", options.ModelName)
 
 	data, err := s.getNdbRetrainingData(options.BaseModelId)
 	if err != nil {
@@ -208,27 +184,15 @@ func (s *TrainService) NdbRetrain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	trainConfig := config.TrainConfig{
-		ModelBazaarDir:      s.storage.Location(),
-		LicenseKey:          license,
-		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
-		JobAuthToken:        jobToken,
-		ModelId:             modelId,
-		ModelType:           schema.NdbModel,
-		BaseModelId:         &options.BaseModelId,
-		ModelOptions:        nil,
-		Data:                data,
-		JobOptions:          options.JobOptions,
-		IsRetraining:        true,
-	}
+	s.basicTraining(w, r, basicTrainArgs{
+		modelName:    options.ModelName,
+		modelType:    schema.NdbModel,
+		baseModelId:  &options.BaseModelId,
+		modelOptions: nil,
+		data:         data,
+		jobOptions:   options.JobOptions,
+		retraining:   true,
+	})
 
-	err = s.createModelAndStartTraining(options.ModelName, userId, trainConfig)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("error starting ndb training: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	slog.Info("started ndb training succesfully", "model_id", modelId, "model_name", options.ModelName)
-
-	writeJsonResponse(w, map[string]string{"model_id": modelId})
+	slog.Info("started ndb retraining succesfully", "base_model_id", options.BaseModelId, "model_name", options.ModelName)
 }

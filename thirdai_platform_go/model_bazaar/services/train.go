@@ -67,6 +67,21 @@ func (s *TrainService) Routes() chi.Router {
 	return r
 }
 
+func createModel(modelName, modelType string, baseModelId *string, userId string) schema.Model {
+	return schema.Model{
+		Id:                uuid.New().String(),
+		Name:              modelName,
+		Type:              modelType,
+		PublishedDate:     time.Now(),
+		TrainStatus:       schema.NotStarted,
+		DeployStatus:      schema.NotStarted,
+		Access:            schema.Private,
+		DefaultPermission: schema.ReadPerm,
+		BaseModelId:       baseModelId,
+		UserId:            userId,
+	}
+}
+
 type basicTrainArgs struct {
 	modelName    string
 	modelType    string
@@ -75,6 +90,7 @@ type basicTrainArgs struct {
 	data         interface{}
 	trainOptions interface{}
 	jobOptions   config.JobOptions
+	retraining   bool
 }
 
 func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, args basicTrainArgs) {
@@ -84,9 +100,9 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		return
 	}
 
-	modelId := uuid.New().String()
+	model := createModel(args.modelName, args.modelType, args.baseModelId, userId)
 
-	slog.Info("starting training", "model_type", args.modelType, "model_id", modelId, "model_name", args.modelName)
+	slog.Info("starting training", "model_type", args.modelType, "model_id", model.Id, "model_name", args.modelName)
 
 	license, err := verifyLicenseForNewJob(s.nomad, s.license, args.jobOptions.CpuUsageMhz())
 	if err != nil {
@@ -94,7 +110,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		return
 	}
 
-	jobToken, err := s.jobAuth.CreateToken("model_id", modelId, time.Hour*1000*24)
+	jobToken, err := s.jobAuth.CreateToken("model_id", model.Id, time.Hour*1000*24)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
 		return
@@ -105,49 +121,47 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		LicenseKey:          license,
 		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
 		JobAuthToken:        jobToken,
-		ModelId:             modelId,
+		ModelId:             model.Id,
 		ModelType:           args.modelType,
 		BaseModelId:         args.baseModelId,
 		ModelOptions:        args.modelOptions,
 		Data:                args.data,
 		TrainOptions:        args.trainOptions,
 		JobOptions:          args.jobOptions,
-		IsRetraining:        false,
+		IsRetraining:        args.retraining,
 	}
 
-	err = s.createModelAndStartTraining(args.modelName, userId, trainConfig)
+	configPath, err := saveConfig(trainConfig.ModelId, "train", trainConfig, s.storage)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error starting training: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	job := nomad.TrainJob{
+		JobName:    model.TrainJobName(),
+		ConfigPath: configPath,
+		Driver:     s.variables.Driver,
+		Resources: nomad.Resources{
+			AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
+			AllocationMemory:    trainConfig.JobOptions.AllocationMemory,
+			AllocationMemoryMax: 60000,
+		},
+		CloudCredentials: s.variables.CloudCredentials,
+	}
+
+	err = s.saveModelAndStartJob(model, job)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error starting %v training: %v", args.modelType, err), http.StatusBadRequest)
 		return
 	}
 
-	slog.Info("started training succesfully", "model_type", args.modelType, "model_id", modelId, "model_name", args.modelName)
+	slog.Info("started training succesfully", "model_type", args.modelType, "model_id", model.Id, "model_name", args.modelName)
 
-	writeJsonResponse(w, map[string]string{"model_id": modelId})
+	writeJsonResponse(w, map[string]string{"model_id": model.Id})
 }
 
-func (s *TrainService) createModelAndStartTraining(
-	modelName, userId string, trainConfig config.TrainConfig,
-) error {
-	configPath, err := saveConfig(trainConfig.ModelId, "train", trainConfig, s.storage)
-	if err != nil {
-		return err
-	}
-
-	model := schema.Model{
-		Id:                trainConfig.ModelId,
-		Name:              modelName,
-		Type:              trainConfig.ModelType,
-		PublishedDate:     time.Now(),
-		TrainStatus:       schema.NotStarted,
-		DeployStatus:      schema.NotStarted,
-		Access:            schema.Private,
-		DefaultPermission: schema.ReadPerm,
-		BaseModelId:       trainConfig.BaseModelId,
-		UserId:            userId,
-	}
-
-	err = s.db.Transaction(func(txn *gorm.DB) error {
+func (s *TrainService) saveModelAndStartJob(model schema.Model, job nomad.Job) error {
+	err := s.db.Transaction(func(txn *gorm.DB) error {
 		if model.BaseModelId != nil {
 			baseModel, err := schema.GetModel(*model.BaseModelId, txn, false, true, false)
 			if err != nil {
@@ -157,17 +171,17 @@ func (s *TrainService) createModelAndStartTraining(
 				return fmt.Errorf("specified base model has type %v but new model has type %v", baseModel.Type, model.Type)
 			}
 
-			perm, err := auth.GetModelPermissions(baseModel.Id, userId, txn)
+			perm, err := auth.GetModelPermissions(baseModel.Id, model.UserId, txn)
 			if err != nil {
 				return fmt.Errorf("error verifying permissions for base model %v: %w", baseModel.Id, err)
 			}
 
 			if perm < auth.ReadPermission {
-				return fmt.Errorf("user %v does not have permission to access base model %v", userId, baseModel.Id)
+				return fmt.Errorf("user %v does not have permission to access base model %v", model.UserId, baseModel.Id)
 			}
 		}
 
-		err = checkForDuplicateModel(txn, model.Name, userId)
+		err := checkForDuplicateModel(txn, model.Name, model.UserId)
 		if err != nil {
 			slog.Info("unable to start training: duplicate model name", "model_id", model.Id, "model_name", model.Name)
 			return err
@@ -185,19 +199,7 @@ func (s *TrainService) createModelAndStartTraining(
 		return err
 	}
 
-	err = s.nomad.StartJob(
-		nomad.TrainJob{
-			JobName:    model.TrainJobName(),
-			ConfigPath: configPath,
-			Driver:     s.variables.Driver,
-			Resources: nomad.Resources{
-				AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
-				AllocationMemory:    trainConfig.JobOptions.AllocationMemory,
-				AllocationMemoryMax: 60000,
-			},
-			CloudCredentials: s.variables.CloudCredentials,
-		},
-	)
+	err = s.nomad.StartJob(job)
 	if err != nil {
 		return fmt.Errorf("error starting train job: %w", err)
 	}

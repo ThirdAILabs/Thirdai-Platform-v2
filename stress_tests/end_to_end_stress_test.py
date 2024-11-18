@@ -70,6 +70,15 @@ def parse_args():
     parser.add_argument("--spawn_rate", type=int, default=30)
     parser.add_argument("--run_time", type=int, default=60)  # in seconds
     parser.add_argument("--no_cleanup", action="store_true")
+
+    # Args for underlying stress test
+    parser.add_argument("--docs_folder", type=str)
+    parser.add_argument("--docs_per_insertion", type=int, default=3)
+    parser.add_argument("--min_wait", type=int, default=10)
+    parser.add_argument("--max_wait", type=int, default=20)
+    parser.add_argument("--predict_weight", type=int, default=20)
+    parser.add_argument("--insert_weight", type=int, default=2)
+    parser.add_argument("--delete_weight", type=int, default=1)
     args = parser.parse_args()
 
     return args
@@ -113,7 +122,7 @@ def run_stress_test(args, query_file, deployment_id):
     folder = os.path.dirname(__file__)
     script_path = os.path.join(folder, "stress_test_deployment.py")
     command = (
-        f"locust -f {script_path} --headless --users {args.users} --spawn-rate {args.spawn_rate} --run-time {args.run_time} --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password} --query_file {query_file}",
+        f"locust -f {script_path} --headless --users {args.users} --spawn-rate {args.spawn_rate} --run-time {args.run_time} --host {args.host} --deployment_id {deployment_id} --email {args.email} --password {args.password} --query_file {query_file} --docs_folder {args.docs_folder} --docs_per_insertion {args.docs_per_insertion} --min_wait {args.min_wait} --max_wait {args.max_wait} --predict_weight {args.predict_weight} --insert_weight {args.insert_weight} --delete_weight {args.delete_weight}",
     )
     result = subprocess.run(command, shell=True)
     status = "success" if result.returncode == 0 else "failed"
@@ -153,16 +162,43 @@ def main(args):
     errors = []
     ndb_client = None
     try:
+        doc_dir = "/home/david/intuit_csvs"
+        unsupervised_docs = [
+            os.path.join(doc_dir, f) for f in os.listdir(doc_dir) if os.path.isfile(os.path.join(doc_dir, f))
+        ]
+
+        doc_options = {
+            doc: {
+                "csv_metadata_columns": {
+                    "Tax Year": "string",
+                    "Formset": "string",
+                    "Form Id": "string",
+                    "Table Id": "string",
+                    "Field ID": "string",
+                    "Field FullName": "string",
+                }
+            }
+            for doc in unsupervised_docs
+        }
         model_object = client.train(
             model_name,
-            unsupervised_docs=config.docs_s3_uris,
+            unsupervised_docs=unsupervised_docs,
             model_options={"ndb_options": {"ndb_sub_type": "v2"}},
             supervised_docs=[],
-            doc_type="s3",
+            doc_type="local",
+            doc_options=doc_options,
         )
 
         ndb_client = client.deploy(
             model_identifier, autoscaling_enabled=args.autoscaling_enabled
+        )
+
+        print("HERE")
+
+        res = ndb_client.search(
+            "Account types include Checking, Savings, and Electronic for estimated tax payments",
+            top_k=5,
+            constraints={"Tax Year": {"constraint_type": "EqualTo", "value": "2024"}},
         )
 
         check_nomad_job_status(ndb_client.model_id)

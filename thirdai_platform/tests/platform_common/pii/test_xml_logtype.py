@@ -20,7 +20,7 @@ xml_string = """
 """
 
 
-def test_xml_logtype():
+def test_xml_logtype_end_to_end():
     log = XMLTokenClassificationLog(log=xml_string)
 
     inference_sample = log.inference_sample
@@ -73,6 +73,11 @@ def test_xml_logtype():
     assert len(predictions.predictions) == len(actual_predictions)
     for pred, actual_pred in zip(predictions.predictions, actual_predictions):
         assert pred.label == actual_pred["label"]
-        assert pred.location.char_span == actual_pred["location"]["char_span"]
-        assert pred.location.xpath_location == actual_pred["location"]["xpath_location"]
+        assert (
+            pred.location.char_span.model_dump() == actual_pred["location"]["char_span"]
+        )
+        assert (
+            pred.location.xpath_location.model_dump()
+            == actual_pred["location"]["xpath_location"]
+        )
         assert pred.location.value == actual_pred["location"]["value"]

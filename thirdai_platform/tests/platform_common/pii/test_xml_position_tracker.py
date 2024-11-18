@@ -4,7 +4,7 @@ from platform_common.pii.logtypes.xml.position_tracker import parse_xml_with_pos
 pytestmark = [pytest.mark.unit]
 
 
-def test_text_extraction():
+def test_xml_text_extraction():
     xml_string = "<root><parent><child>Content</child></parent></root>"
     char_spans = parse_xml_with_positions(xml_string)
 
@@ -18,7 +18,7 @@ def test_text_extraction():
     assert char_spans == expected
 
 
-def test_attribute_extraction():
+def test_xml_attribute_extraction():
     xml_string = "<root><element attr1='value1' attr2='value2'></element></root>"
     char_spans = parse_xml_with_positions(xml_string)
 
@@ -29,7 +29,7 @@ def test_attribute_extraction():
     assert char_spans == expected
 
 
-def test_self_closing_tags():
+def test_xml_self_closing_tags():
     xml_string = "<root><empty-element attr='value'/></root>"
     char_spans = parse_xml_with_positions(xml_string)
 
@@ -43,7 +43,7 @@ def test_self_closing_tags():
     assert char_spans == expected
 
 
-def test_comments_handling():
+def test_xml_comments_handling():
     xml_string = "<root><!-- This is a comment --><child>Text</child></root>"
     char_spans = parse_xml_with_positions(xml_string)
 
@@ -53,7 +53,7 @@ def test_comments_handling():
     assert char_spans == expected_positions
 
 
-def test_text_content_extraction():
+def test_xml_text_content_extraction():
     # we ignore the .tail text for the elements
     xml_string = "<root>Leading text<child>Child text</child>Trailing text</root>"
     char_spans = parse_xml_with_positions(xml_string)
@@ -65,7 +65,7 @@ def test_text_content_extraction():
     assert char_spans == expected
 
 
-def test_whitespace_handling():
+def test_xml_whitespace_handling():
     xml_string = (
         "<root>\n    <child>\n        Text with whitespace\n    </child>\n</root>"
     )
@@ -81,7 +81,7 @@ def test_whitespace_handling():
     assert char_spans == expected
 
 
-def test_namespaces_ignored():
+def test_xml_namespaces_ignored():
     xml_string = (
         "<ns:root xmlns:ns='http://example.com/ns'><ns:child>Text</ns:child></ns:root>"
     )
@@ -98,7 +98,7 @@ def test_namespaces_ignored():
     assert char_spans == expected
 
 
-def test_duplicate_tags():
+def test_xml_duplicate_tags():
     xml_string = "<root><item>First</item><item>Second</item></root>"
     char_spans = parse_xml_with_positions(xml_string)
 
@@ -109,7 +109,7 @@ def test_duplicate_tags():
     assert char_spans == expected
 
 
-def test_complex_xml():
+def test_xml_complex_xml():
     xml_string = """
     <Event>
         <System>

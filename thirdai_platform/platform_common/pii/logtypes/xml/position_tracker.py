@@ -162,17 +162,16 @@ class PositionTrackingTarget:
         element_entry["end_offset"] = self.total_offset
 
         # If text positions are recorded, update attrib[None]
-        if element_entry["text_start"] is not None:
+        if "text_value" in element_entry:
             element_entry["attrib"][None] = {
                 "start": element_entry["text_start"],
                 "end": element_entry["text_end"],
-                "value": self.xml_string[
-                    element_entry["text_start"] : element_entry["text_end"]
-                ],
+                "value": element_entry["text_value"],
             }
 
     def data(self, data):
         data_length = len(data)
+
         if data.strip():
             start_offset = self.total_offset
             self._update_position(data_length)
@@ -181,12 +180,13 @@ class PositionTrackingTarget:
             if self.element_stack_elements:
                 current_element = self.element_stack_elements[-1]
                 if current_element["text_start"] is None:
-                    # First text node within this element
+                    # First text node within this element (the .text)
                     current_element["text_start"] = start_offset
                     current_element["text_end"] = end_offset
+                    current_element["text_value"] = data
                 else:
-                    # Concatenate text nodes
-                    current_element["text_end"] = end_offset
+                    # Ignore subsequent text nodes (tails or text after child elements)
+                    pass
             else:
                 # Text outside of any element (unlikely in well-formed XML)
                 pass

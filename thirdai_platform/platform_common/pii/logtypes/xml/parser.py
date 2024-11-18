@@ -5,7 +5,6 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
 from lxml import etree
-from platform_common.pii.logtypes.base import LogType
 from platform_common.pii.logtypes.xml.utils import (
     remove_delimiters_from_xml,
     remove_namespaces,
@@ -35,7 +34,7 @@ class XMLTokenInfo(BaseModel):
                     self.index_to_label_dict[key] = value
 
 
-class XMLParser(LogType):
+class XMLParser:
     def __init__(self, xml_string: str, remove_delimiters: bool = False):
         self.xml_string = xml_string
         self.root = etree.fromstring(bytes(xml_string, encoding="utf-8"))

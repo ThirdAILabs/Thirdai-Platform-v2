@@ -75,19 +75,26 @@ async def global_exception_handler(request: fastapi.Request, exc: Exception):
 
 @app.middleware("http")
 async def log_requests(request: fastapi.Request, call_next):
-    log_text = f"URL: {request.url} - Query params: {request.query_params} - Path params: {request.path_params}"
+    log_text = (
+        f"Protocol: {request.headers.get('x-forwarded-proto', request.url.scheme)} - "
+        f"URL: {request.url} - "
+        f"Query params: {request.query_params} - "
+        f"Path params: {request.path_params}"
+    )
     try:
         user = validate_access_token(
             access_token=request.headers.get("Authorization").split()[1]
         )
         log_text = f"USERNAME: {user.user.username} - " + log_text
     except Exception as e:
-        pass
+        log_text = f"UNAUTHORIZED - " + log_text
+        logger.warning(f"Auth failed: {str(e)}")
 
     logger.info(log_text)
 
     response = await call_next(request)
 
+    print(f'{response.status_code = }')
     logger.info(
         f"Request: {request.method}; URl: {request.url} - {response.status_code}"
     )
@@ -133,6 +140,11 @@ async def startup_event():
 
     await sync_job_statuses()
 
+@app.on_event("shutdown")
+async def shutdown_events():
+    for handler in logger.handlers:
+        handler.flush = lambda: handler.stream.flush()
+    logging.shutdown()
 
 if __name__ == "__main__":
     uvicorn.run(app, host="localhost", port=8000, log_level="info")

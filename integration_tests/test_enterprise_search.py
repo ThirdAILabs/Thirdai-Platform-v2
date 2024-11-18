@@ -156,7 +156,7 @@ def test_enterprise_search_with_constraints():
         top_k=5,
         constraints={"Tax Year": {"constraint_type": "EqualTo", "value": "2024"}},
     )
-    assert all([result["metadata"]["Formset"] == "MNI"] for result in res["references"])
+    assert all(result["metadata"]["Formset"] == "MNI" for result in res["references"])
 
     res = ndb_client.search(
         "no information",
@@ -166,9 +166,7 @@ def test_enterprise_search_with_constraints():
         },
     )
     assert all(
-        [
-            result["metadata"]["Field FullName"]
-            == "common-comall/pri_tool/fdiv0301.ptform:CUT1"
-        ]
+        result["metadata"]["Field FullName"]
+        == "common-comall/pri_tool/fdiv0301.ptform:CUT1"
         for result in res["references"]
     )

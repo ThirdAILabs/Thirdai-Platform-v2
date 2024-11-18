@@ -11,7 +11,7 @@ class PositionTrackingTarget:
 
         # total offset is the offset in the parsed string whereas pos is the offset in the raw input.
         # example : &amp; is 1 character in parsed string ie '&' but 5 characters in raw input.
-        # we are not treating these differently now but we might have to in the future.
+        # current implementation has no support for these escaped characters but we might have to in the future.
         self.total_offset = 0
         self.pos = 0
 
@@ -24,44 +24,44 @@ class PositionTrackingTarget:
         self.pos += length
 
     def start(self, tag, attrib):
-        # Record the start position
+        # record the start position
         start_offset = self.total_offset
 
-        # Ignore namespaces and use only local names
-        namespace_uri, local_name = self._split_namespace(tag)
+        # ignore namespaces, use local name
+        _, local_name = self._split_namespace(tag)
         tag_name = local_name
 
-        # Find the exact start tag in the xml_string
+        # find the exact start tag in the xml_string
         tag_end_match = re.search(r">", self.xml_string[self.pos :])
         if not tag_end_match:
             raise ValueError("Cannot find end of start tag")
         tag_end_pos = self.pos + tag_end_match.end()
         tag_text = self.xml_string[self.pos : tag_end_pos]
 
-        # Determine if self-closing tag. self-closing tags have no matching end tag.
+        # determine if the tag is self-closing. self-closing tags have no matching end tag.
         is_self_closing = tag_text.strip().endswith("/>")
 
-        # Update total_offset and pos
+        # update the total offset and pos.
         self._update_position(len(tag_text))
 
-        # Update tag counters
+        # update the tag counter for the current element.
         if not self.tag_counter_stack:
             # We are at root level
             self.tag_counter_stack.append({})
         current_tag_counts = self.tag_counter_stack[-1]
 
         # count for xml tags starts from 1.
+        # duplicate tags have different counts. ex /a/b[1] and /a/b[2] are different tags.
         count = current_tag_counts.get(tag_name, 0) + 1
         current_tag_counts[tag_name] = count
 
-        # Build current xpath
+        # build the xpath for the current element.
         xpath_parts = []
         for elem in self.element_stack_elements:
             xpath_parts.append(f"{elem['name']}[{elem['count']}]")
         xpath_parts.append(f"{tag_name}[{count}]")
         current_xpath = "/" + "/".join(xpath_parts)
 
-        # Create element entry
         element_entry = {
             "type": "element",
             "name": tag_name,
@@ -75,7 +75,7 @@ class PositionTrackingTarget:
             "text_end": None,  # End position of text content
         }
 
-        # Now, extract attributes with positions
+        # this map will be used to store the positions of the attributes in the xml.
         attrib_positions = {}
 
         # Exclude the tag name at the beginning
@@ -90,7 +90,7 @@ class PositionTrackingTarget:
             attr_text = tag_text[1:-1]  # Exclude '<' and '>' at the ends
             attr_offset = start_offset + 1
 
-        # Now find attributes in attr_text
+        # find key value pairs in the element string.
         attr_pattern = re.compile(r'\s+(\S+?)\s*=\s*(["\'])(.*?)\2', re.DOTALL)
         for match in attr_pattern.finditer(attr_text):
             full_attr_name = match.group(1)
@@ -101,7 +101,7 @@ class PositionTrackingTarget:
             value_start = attr_offset + value_start_in_attr_text
             value_end = attr_offset + value_end_in_attr_text
 
-            # Ignore attribute namespaces as well
+            # ignore namespace, use local name
             _, attr_name = self._split_namespace(full_attr_name)
 
             attrib_positions[attr_name] = {
@@ -110,19 +110,18 @@ class PositionTrackingTarget:
                 "value": attr_value,
             }
 
-        # Initialize attrib[None] for text node
-        attrib_positions[None] = None  # Will be updated in 'data' method
+        # text content of an element is mapped to attribute None.
+        # data method updates this mapping
+        attrib_positions[None] = None
 
-        # Assign the extracted attributes to the element entry
         element_entry["attrib"] = attrib_positions
 
-        # Append to positions
+        # add a new position entry for the current element into the list. this entry will be used to retrieve the charspans for the attributes and text content in the post-processing step.
         self.positions.append(element_entry)
 
-        # Push onto element stack
+        # push the current element entry onto the stack.
         self.element_stack_elements.append(element_entry)
 
-        # Append a new dict to tag_counter_stack for the next level
         self.tag_counter_stack.append({})
 
     def end(self, tag):
@@ -133,8 +132,8 @@ class PositionTrackingTarget:
         element_entry = self.element_stack_elements.pop()
         is_self_closing = element_entry["is_self_closing"]
 
-        # Use local name for tag
-        namespace_uri, local_name = self._split_namespace(tag)
+        # Use local name for tag, ignoring namespaces.
+        _, local_name = self._split_namespace(tag)
         tag_name = local_name
 
         if not is_self_closing:
@@ -144,7 +143,6 @@ class PositionTrackingTarget:
             match = pattern.search(self.xml_string, self.pos)
             if match:
                 tag_text = match.group(0)
-                # Update total_offset and pos
                 length = match.end() - self.pos
                 self._update_position(length)
             else:
@@ -155,13 +153,13 @@ class PositionTrackingTarget:
                 tag_text = self.xml_string[self.pos : gt_pos + 1]
                 self._update_position(len(tag_text))
         else:
-            # For self-closing tags, end_offset is already set
+            # do not need to set end_offset for self-closing tags, already set in start method
             pass
 
         # Set the end_offset
         element_entry["end_offset"] = self.total_offset
 
-        # If text positions are recorded, update attrib[None]
+        # If text positions are recorded, map it to attribute None.
         if "text_value" in element_entry:
             element_entry["attrib"][None] = {
                 "start": element_entry["text_start"],
@@ -176,19 +174,20 @@ class PositionTrackingTarget:
             start_offset = self.total_offset
             self._update_position(data_length)
             end_offset = self.total_offset
+
             # Get the current element to add the text node
             if self.element_stack_elements:
+                # only the first text node within an element is added.
+                # other text nodes are generally tail nodes for child elements.
+                # we are ignoring tail nodes for child elements as of now.
                 current_element = self.element_stack_elements[-1]
                 if current_element["text_start"] is None:
                     # First text node within this element (the .text)
                     current_element["text_start"] = start_offset
                     current_element["text_end"] = end_offset
                     current_element["text_value"] = data
-                else:
-                    # Ignore subsequent text nodes (tails or text after child elements)
-                    pass
             else:
-                # Text outside of any element (unlikely in well-formed XML)
+                # We are not handling text outside that is not within an element.
                 pass
         else:
             self._update_position(data_length)
@@ -198,6 +197,7 @@ class PositionTrackingTarget:
         start_offset = self.total_offset
         self._update_position(len(comment_text))
         end_offset = self.total_offset
+
         # Compute current XPath from the element stack
         current_xpath = self._compute_current_xpath()
         self.positions.append(
@@ -214,7 +214,7 @@ class PositionTrackingTarget:
         char_spans = {}
         # only storing the charspans for elements. assuming comments do not contain pii.
         for position in self.positions:
-            # Ensure the xpath is computed for each position
+            # inserting charspans for attributes of elements into the charspans dict.
             if position["type"] == "element":
                 for attr, details in position["attrib"].items():
                     if details is not None:
@@ -230,7 +230,7 @@ class PositionTrackingTarget:
     def _split_namespace(self, tag):
         if "}" in tag:
             namespace_uri, local_name = tag[1:].split("}")
-            return namespace_uri, local_name  # Return namespace URI and local name
+            return namespace_uri, local_name
         else:
             return None, tag
 
@@ -245,7 +245,6 @@ class PositionTrackingTarget:
 def parse_xml_with_positions(xml_string):
     parser = etree.XMLParser(
         target=PositionTrackingTarget(xml_string),
-        recover=True,  # Continue parsing even if the XML is malformed
         remove_blank_text=False,  # Keep blank text nodes
     )
     try:

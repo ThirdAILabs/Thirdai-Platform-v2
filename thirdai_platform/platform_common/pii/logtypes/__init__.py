@@ -1,5 +1,5 @@
-from platform_common.pii.logtypes.xml import XMLTokenClassificationLog
 from platform_common.pii.logtypes.unstructured import UnstructuredTokenClassificationLog
+from platform_common.pii.logtypes.xml import XMLTokenClassificationLog
 
 
 def convert_log_to_concrete_type(log: str):

@@ -1,5 +1,6 @@
+from typing import Dict, List, Literal, Optional
+
 from pydantic import BaseModel
-from typing import List, Dict, Literal, Optional
 
 
 class XPathLocation(BaseModel):

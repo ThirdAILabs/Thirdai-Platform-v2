@@ -1,5 +1,6 @@
 import re
 from string import punctuation
+
 from lxml import etree
 
 exception_characters = set([" "]).union(set(punctuation))

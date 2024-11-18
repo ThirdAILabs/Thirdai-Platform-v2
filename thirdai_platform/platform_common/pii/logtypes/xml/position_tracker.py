@@ -1,6 +1,7 @@
-import re
-from lxml import etree
 import json
+import re
+
+from lxml import etree
 
 
 class PositionTrackingTarget:

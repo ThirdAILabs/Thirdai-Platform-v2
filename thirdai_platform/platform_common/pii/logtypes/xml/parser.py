@@ -2,16 +2,14 @@ from __future__ import annotations
 
 import typing
 from collections import defaultdict
-from pydantic import BaseModel
-
-from platform_common.pii.logtypes.xml.utils import (
-    remove_namespaces,
-    remove_delimiters_from_xml,
-)
-
 from typing import Dict, List, Optional, Tuple
 
 from lxml import etree
+from platform_common.pii.logtypes.xml.utils import (
+    remove_delimiters_from_xml,
+    remove_namespaces,
+)
+from pydantic import BaseModel
 
 
 class XMLTokenInfo(BaseModel):

@@ -1,18 +1,19 @@
+from collections import defaultdict
+from typing import List, Tuple
+
+from platform_common.pii.logtypes.pydantic_models import (
+    CharSpan,
+    XMLLocation,
+    XMLPrediction,
+    XMLTokenClassificationResults,
+    XPathLocation,
+)
+from platform_common.pii.logtypes.xml.parser import XMLParser
+from platform_common.pii.logtypes.xml.position_tracker import parse_xml_with_positions
 from platform_common.pii.logtypes.xml.utils import (
     clean_and_extract_xml_block,
     find_span,
 )
-from platform_common.pii.logtypes.xml.parser import XMLParser
-from platform_common.pii.logtypes.xml.position_tracker import parse_xml_with_positions
-from platform_common.pii.logtypes.pydantic_models import (
-    XMLTokenClassificationResults,
-    XMLLocation,
-    XMLPrediction,
-    CharSpan,
-    XPathLocation,
-)
-from collections import defaultdict
-from typing import List, Tuple
 
 
 class XMLTokenClassificationLog:

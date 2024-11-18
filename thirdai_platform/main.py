@@ -9,6 +9,8 @@ from platform_common.utils import model_bazaar_path
 
 load_dotenv()
 
+import json
+
 import fastapi
 import uvicorn
 from auth.jwt import validate_access_token
@@ -45,8 +47,10 @@ app.add_middleware(
 log_dir: Path = Path(model_bazaar_path()) / "logs"
 
 setup_logger(log_dir=log_dir, log_prefix="platform_backend")
+setup_logger(log_dir=log_dir, log_prefix="audit")
 
 logger = logging.getLogger("platform-backend")
+audit_logger = logging.getLogger("audit")
 
 app.include_router(user, prefix="/api/user", tags=["user"])
 app.include_router(train, prefix="/api/train", tags=["train"])
@@ -75,22 +79,21 @@ async def global_exception_handler(request: fastapi.Request, exc: Exception):
 
 @app.middleware("http")
 async def log_requests(request: fastapi.Request, call_next):
-    log_text = (
-        f"Protocol: {request.headers.get('x-forwarded-proto', request.url.scheme)} - "
-        f"URL: {request.url} - "
-        f"Query params: {request.query_params} - "
-        f"Path params: {request.path_params}"
-    )
+    audit_log = {
+        "protocol": request.headers.get("x-forwarded-proto", request.url.scheme),
+        "url": str(request.url),
+        "query_params": dict(request.query_params),
+        "path_params": dict(request.path_params),
+    }
     try:
         user = validate_access_token(
             access_token=request.headers.get("Authorization").split()[1]
         )
-        log_text = f"USERNAME: {user.user.username} - " + log_text
+        audit_log["USERNAME"] = user.user.username
     except Exception as e:
-        log_text = f"UNAUTHORIZED - " + log_text
-        logger.warning(f"Auth failed: {str(e)}")
+        audit_log["USERNAME"] = "UNAUTHORIZED"
 
-    logger.info(log_text)
+    audit_logger.info(json.dumps(audit_log))
 
     response = await call_next(request)
 

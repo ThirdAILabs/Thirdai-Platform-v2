@@ -5,8 +5,6 @@ from lxml import etree
 
 exception_characters = set([" "]).union(set(punctuation))
 
-retain_backslash = True
-
 
 def replace_whitespace_with_space(text: str) -> str:
     # Replace all whitespace characters with a single space
@@ -14,28 +12,14 @@ def replace_whitespace_with_space(text: str) -> str:
 
 
 def remove_special_characters(text: str) -> str:
-    # Replace . : - | " ' < > with a space
-
-    if retain_backslash:
-        text = re.sub(r'[:\|"<>\',=%{}&]', " ", text)
-        text = re.sub(r"\\\\", r"\\", text)
-    else:
-        text = re.sub(r'[:\|"<>\'\\,=%{}&]', " ", text)
-        text = re.sub(r"\\", r" ", text)
-
+    text = re.sub(r'[:\|"<>\',=%{}&]', " ", text)
     return text
 
 
 def clean(log: str) -> str:
     # Ensure non-printable characters are removed
     clean_string = re.sub(r"[^\x20-\x7E\t\n\r]", "", log)
-    if retain_backslash:
-        # Only remove backslashes before quotes or equals signs
-        clean_string = re.sub(r"\\(['\"]|=)", r"\1", clean_string)
-        clean_string = re.sub(r"\\\\", r"\\", clean_string)
-    else:
-        clean_string = clean_string.replace("\\", " ")
-
+    clean_string = re.sub(r"\\\\", r"\\", clean_string)
     return clean_string
 
 

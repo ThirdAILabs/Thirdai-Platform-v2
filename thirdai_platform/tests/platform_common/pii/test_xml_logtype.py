@@ -48,7 +48,10 @@ def test_xml_logtype_end_to_end():
             "label": "FIRST_NAME",
             "location": {
                 "char_span": {"start": 54, "end": 59},
-                "xpath_location": {"xpath": "/Event/System/Data[1]", "attribute": None},
+                "xpath_location": {
+                    "xpath": "/Event/System[1]/Data[@name='first_name']",
+                    "attribute": None,
+                },
                 "value": "Shubh",
             },
         },
@@ -56,7 +59,10 @@ def test_xml_logtype_end_to_end():
             "label": "LAST_NAME",
             "location": {
                 "char_span": {"start": 106, "end": 111},
-                "xpath_location": {"xpath": "/Event/System/Data[2]", "attribute": None},
+                "xpath_location": {
+                    "xpath": "/Event/System[1]/Data[@name='last_name']",
+                    "attribute": None,
+                },
                 "value": "Gupta",
             },
         },
@@ -64,7 +70,7 @@ def test_xml_logtype_end_to_end():
             "label": "COMPANY",
             "location": {
                 "char_span": {"start": 163, "end": 175},
-                "xpath_location": {"xpath": "/Event/Message", "attribute": None},
+                "xpath_location": {"xpath": "/Event/Message[1]", "attribute": None},
                 "value": "ThirdAI Corp",
             },
         },

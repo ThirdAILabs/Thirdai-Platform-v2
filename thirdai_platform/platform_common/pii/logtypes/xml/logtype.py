@@ -13,6 +13,7 @@ from platform_common.pii.logtypes.xml.parser import XMLParser
 from platform_common.pii.logtypes.xml.position_tracker import parse_xml_with_positions
 from platform_common.pii.logtypes.xml.utils import (
     clean_and_extract_xml_block,
+    convert_xpath_using_attributes,
     find_span,
 )
 
@@ -23,6 +24,8 @@ class XMLTokenClassificationLog(LogType):
         self.clean_log = clean_and_extract_xml_block(log)
 
         self.clean_xml = XMLParser(xml_string=self.clean_log, remove_delimiters=True)
+
+        self.original_xml = XMLParser(xml_string=log, remove_delimiters=False)
 
         source, _, xpath_to_token = self.clean_xml.sample(for_inference=True)
         self._inference_sample = {"source": " ".join(source)}
@@ -58,7 +61,7 @@ class XMLTokenClassificationLog(LogType):
             if tag != "O":
                 labels[tag].append(index)
 
-        predictions = []
+        predictions: List[XMLPrediction] = []
         for label, positions in labels.items():
             processed_positions = self.process_labels(tokens, positions)
             for processed_position in processed_positions:
@@ -68,6 +71,13 @@ class XMLTokenClassificationLog(LogType):
                         location=processed_position,
                     )
                 )
+
+        # convert xpath from location to attribute based
+        for prediction in predictions:
+            prediction.location.xpath_location.xpath = convert_xpath_using_attributes(
+                xml_root=self.original_xml.root,
+                xpath=prediction.location.xpath_location.xpath,
+            )
 
         return XMLTokenClassificationResults(
             log_type="xml",

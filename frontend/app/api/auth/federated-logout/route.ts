@@ -1,3 +1,37 @@
+/**
+ * Federated Logout API Route using NextAuth and Keycloak
+ *
+ * This API handle the logout process for user. Here are the steps:
+ *
+ * 1. **Retrieve Token**:
+ *    - Use `getToken` from `next-auth/jwt` to get the JWT from request. In production, it 
+ *      just works with https, since it looks for secure cookies.
+ *    - Make sure token is present, else send error "No session present".
+ *
+ * 2. **Prepare Logout Parameters**:
+ *    - `logoutParams` function create the necessary params for Keycloak logout.
+ *    - It get protocol and host from request headers, default to 'http' and 'localhost' if not.
+ *    - These params include `id_token_hint` and `post_logout_redirect_uri`.
+ *    - Note: Some function only work if protocol is 'http' due to secure cookie settings.
+ *
+ * 3. **Send Logout Request to Keycloak**:
+ *    - `sendEndSessionEndpointToURL` send a POST request to Keycloak logout endpoint with params.
+ *    - It set headers properly and handle redirect manually.
+ *
+ * 4. **Clear Authentication Cookies**:
+ *    - `clearAuthCookies` remove all auth related cookies to end session on client side.
+ *    - Cookies are cleared with path '/', expired date, httpOnly, secure based on environment, and sameSite 'lax'.
+ *
+ * 5. **Handle Keycloak Response**:
+ *    - If Keycloak respond with 302, get the redirect URL from 'Location' header.
+ *    - If redirect URL exist, send it back to client and clear cookies.
+ *    - Else, send error "No redirect location provided by Keycloak."
+ *    - If response is ok but not 302, send "Unexpected response from Keycloak logout endpoint."
+ *
+ * 6. **Error Handling**:
+ *    - Catch any error during process, log it and send "Internal Server Error" to client.
+ */
+
 import { JWT, getToken } from 'next-auth/jwt';
 import { NextRequest, NextResponse } from 'next/server';
 

@@ -9,6 +9,7 @@ from deployment_job.pydantic_models.inputs import (
     SearchResultsTokenClassification,
 )
 from fastapi import HTTPException, status
+from platform_common.pii.logtypes import LogType, convert_log_to_concrete_type
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
     DataSample,
@@ -190,24 +191,25 @@ class TokenClassificationModel(ClassificationModel):
             raise e
 
     def predict(self, text: str, **kwargs):
-        predicted_tags = self.model.predict({"source": text}, top_k=1, as_unicode=True)
-        predictions = []
-        for predicted_tag in predicted_tags:
-            predictions.append([x[0] for x in predicted_tag])
+        log = convert_log_to_concrete_type(text)
+        model_predictions = self.model.predict(
+            log.inference_sample, top_k=1, as_unicode=True
+        )
 
-        tokens = text.split()
-
-        if len(predictions) != len(tokens):
+        try:
+            result = log.process_prediction(model_predictions)
+        except ValueError as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Error parsing input text, this is likely because the input contains unsupported unicode characters.",
+                detail=str(e),
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(e),
             )
 
-        return SearchResultsTokenClassification(
-            query_text=text,
-            tokens=tokens,
-            predicted_tags=predictions,
-        )
+        return result
 
     @property
     def tag_metadata(self) -> TagMetadata:

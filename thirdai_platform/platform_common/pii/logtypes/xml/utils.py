@@ -13,7 +13,7 @@ def replace_whitespace_with_space(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def clean_text(text: str) -> str:
+def remove_special_characters(text: str) -> str:
     # Replace . : - | " ' < > with a space
 
     if retain_backslash:
@@ -68,10 +68,14 @@ def remove_namespaces(tree):
 def remove_delimiters_from_xml(tree):
     for elem in tree.iter():
         if elem.text is not None:
-            elem.text = replace_whitespace_with_space(clean_text(elem.text))
+            elem.text = replace_whitespace_with_space(
+                remove_special_characters(elem.text)
+            )
 
         for attr, value in elem.attrib.items():
-            elem.attrib[attr] = replace_whitespace_with_space(clean_text(value))
+            elem.attrib[attr] = replace_whitespace_with_space(
+                remove_special_characters(value)
+            )
 
 
 def convert_xpath_using_attributes(xml_root: etree.Element, xpath: str) -> str:

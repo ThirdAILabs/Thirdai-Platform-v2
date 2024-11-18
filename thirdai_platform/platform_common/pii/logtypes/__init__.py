@@ -1,3 +1,4 @@
+from platform_common.pii.logtypes.base import LogType
 from platform_common.pii.logtypes.unstructured import UnstructuredTokenClassificationLog
 from platform_common.pii.logtypes.xml import XMLTokenClassificationLog
 

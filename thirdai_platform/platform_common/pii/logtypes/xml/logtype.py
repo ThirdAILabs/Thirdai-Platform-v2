@@ -70,7 +70,7 @@ class XMLTokenClassificationLog(LogType):
                 )
 
         return XMLTokenClassificationResults(
-            literal="xml",
+            log_type="xml",
             query_text=self.clean_log,
             predictions=predictions,
         )

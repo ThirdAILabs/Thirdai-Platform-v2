@@ -25,13 +25,13 @@ class XMLPrediction(BaseModel):
 
 
 class XMLTokenClassificationResults(BaseModel):
-    literal: Literal["xml"]
+    log_type: Literal["xml"]
     query_text: str
     predictions: List[XMLPrediction]
 
 
 class UnstructuredTokenClassificationResults(BaseModel):
-    literal: Literal["unstructured"]
+    log_type: Literal["unstructured"]
     query_text: str
     tokens: List[str]
     predicted_tags: List[List[str]]

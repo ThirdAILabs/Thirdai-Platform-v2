@@ -8,14 +8,15 @@ from deployment_job.models.classification_models import (
     TokenClassificationModel,
 )
 from deployment_job.permissions import Permissions
-from deployment_job.pydantic_models.inputs import (
-    SearchResultsTokenClassification,
-    TextAnalysisPredictParams,
-)
+from deployment_job.pydantic_models.inputs import TextAnalysisPredictParams
 from deployment_job.reporter import Reporter
 from fastapi import APIRouter, Depends, Query, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
+from platform_common.pii.logtypes import (
+    UnstructuredTokenClassificationResults,
+    XMLTokenClassificationResults,
+)
 from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
 from platform_common.thirdai_storage.data_types import (
     LabelCollection,
@@ -125,7 +126,7 @@ class UDTBaseRouter:
         results = self.model.predict(**params.model_dump())
 
         # TODO(pratik/geordie/yash): Add logging for search results text classification
-        if isinstance(results, SearchResultsTokenClassification):
+        if isinstance(results, UnstructuredTokenClassificationResults):
             identified_count = len(
                 [tags[0] for tags in results.predicted_tags if tags[0] != "O"]
             )
@@ -136,6 +137,15 @@ class UDTBaseRouter:
                 f"Prediction complete with {identified_count} tokens identified",
                 extra={"text_length": len(params.text)},
             )
+
+        elif isinstance(results, XMLTokenClassificationResults):
+            self.queries_ingested.log(1)
+            self.queries_ingested_bytes.log(len(params.text))
+            self.logger.info(
+                f"Prediction complete with {len(results.predictions)} predictions",
+                extra={"text_length": len(params.text)},
+            )
+
         end_time = time.perf_counter()
         time_taken = end_time - start_time
 

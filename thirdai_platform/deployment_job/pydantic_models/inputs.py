@@ -139,12 +139,6 @@ class SearchResultsTextClassification(BaseModel):
     predicted_classes: List[Tuple[str, float]]
 
 
-class SearchResultsTokenClassification(BaseModel):
-    query_text: str
-    tokens: List[str]
-    predicted_tags: List[List[str]]
-
-
 class SaveModel(BaseModel):
     """
     Represents the parameters for saving a model.

@@ -21,7 +21,7 @@ class UnstructuredTokenClassificationLog(LogType):
             )
 
         return UnstructuredTokenClassificationResults(
-            literal="unstructured",
+            log_type="unstructured",
             query_text=self._inference_sample["source"],
             tokens=tokens,
             predicted_tags=predictions,

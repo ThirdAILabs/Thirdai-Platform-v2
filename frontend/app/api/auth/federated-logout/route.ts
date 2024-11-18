@@ -31,7 +31,7 @@ async function sendEndSessionEndpointToURL(req: NextRequest, token: JWT) {
     body: endSessionParams.toString(),
     method: 'POST',
     cache: 'no-store',
-    redirect: 'manual', 
+    redirect: 'manual',
   });
 
   return response;
@@ -59,8 +59,12 @@ function clearAuthCookies(response: NextResponse) {
 
 export async function GET(req: NextRequest) {
   try {
-    console.log("Request: ", req);
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, secureCookie: process.env.NODE_ENV === 'production' });
+    console.log('Request: ', req);
+    const token = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET,
+      secureCookie: process.env.NODE_ENV === 'production',
+    });
 
     if (!token) {
       return handleEmptyToken();
@@ -68,11 +72,11 @@ export async function GET(req: NextRequest) {
 
     const response = await sendEndSessionEndpointToURL(req, token);
 
-    console.log("Response: ", response);
+    console.log('Response: ', response);
     if (response.status === 302) {
       const redirectUrl = response.headers.get('Location');
 
-      console.log("Redirect URL: ", redirectUrl);
+      console.log('Redirect URL: ', redirectUrl);
       if (redirectUrl) {
         const response = NextResponse.json({ redirectUrl }, { status: 200 });
 
@@ -93,10 +97,6 @@ export async function GET(req: NextRequest) {
     );
   } catch (error) {
     console.error('Logout Error:', error);
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-

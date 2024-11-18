@@ -93,8 +93,7 @@ async def log_requests(request: fastapi.Request, call_next):
     logger.info(log_text)
 
     response = await call_next(request)
-
-    print(f'{response.status_code = }')
+    
     logger.info(
         f"Request: {request.method}; URl: {request.url} - {response.status_code}"
     )
@@ -140,11 +139,6 @@ async def startup_event():
 
     await sync_job_statuses()
 
-@app.on_event("shutdown")
-async def shutdown_events():
-    for handler in logger.handlers:
-        handler.flush = lambda: handler.stream.flush()
-    logging.shutdown()
 
 if __name__ == "__main__":
     uvicorn.run(app, host="localhost", port=8000, log_level="info")

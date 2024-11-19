@@ -66,6 +66,32 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
   const [isLoading, setIsLoading] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
 
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [isNameValid, setIsNameValid] = useState(false);
+
+  const validateAppName = (name: string): string => {
+    if (!name) return 'App name is required.';
+    if (name.includes(' ')) return 'The app name cannot contain spaces.';
+    if (name.includes('.')) return "The app name cannot contain periods ('.')";
+    if (!/^[\w-]+$/.test(name)) return 'The app name can only contain letters, numbers, underscores, and hyphens.';
+    if (workflowNames.includes(name)) return 'An app with the same name already exists.';
+    return '';
+  };
+
+  const handleNext = () => {
+    if (currentStep === 0 && !warningMessage && modelName) {
+      if (!completedSteps.includes(0)) {
+        setCompletedSteps([...completedSteps, 0]);
+      }
+      setCurrentStep(1);
+    } else if (currentStep === 1 && ssModelId) {
+      if (!completedSteps.includes(1)) {
+        setCompletedSteps([...completedSteps, 1]);
+      }
+      setCurrentStep(2);
+    }
+  };
+
   const handleSubmit = async () => {
     setIsLoading(true);
 
@@ -112,6 +138,13 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
     }
   };
 
+  const handleStepClick = (stepIndex: number) => {
+    // Only allow clicking on completed steps or the next available step
+    if (completedSteps.includes(stepIndex) || stepIndex === Math.min(currentStep, completedSteps.length)) {
+      setCurrentStep(stepIndex);
+    }
+  };
+
   const modelDropDownList = existingSSmodels.map((model) => ({
     id: model.model_id,
     name: model.username + '/' + model.model_name,
@@ -152,24 +185,10 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
             value={modelName}
             onChange={(e) => {
               const name = e.target.value;
-              const regexPattern = /^[\w-]+$/;
-              let warningMessage = '';
-
-              if (name.includes(' ')) {
-                warningMessage = 'The app name cannot contain spaces. Please remove the spaces.';
-              }
-              else if (name.includes('.')) {
-                warningMessage = "The app name cannot contain periods ('.'). Please remove the periods.";
-              }
-              else if (!regexPattern.test(name)) {
-                warningMessage = 'The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.';
-              }
-              else if (workflowNames.includes(name)) {
-                warningMessage = 'An app with the same name already exists. Please choose a different name.';
-              }
-
-              setWarningMessage(warningMessage);
+              const warning = validateAppName(name);
+              setWarningMessage(warning);
               setModelName(name);
+              setIsNameValid(!warning);
             }}
             placeholder="Enter app name"
             style={{ marginTop: '10px' }}
@@ -186,17 +205,8 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
         <div>
           {!createdSS && (
             <>
-              <CardDescription>Use an existing knowledge base?</CardDescription>
+              <CardDescription>Would you like to create a new Knowledge Base?</CardDescription>
               <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
-                <Button
-                  variant={ifUseExistingSS === 'Yes' ? 'contained' : 'outlined'}
-                  onClick={() => {
-                    setUseExistingSS('Yes');
-                    setCreatedSS(false);
-                  }}
-                >
-                  Yes
-                </Button>
                 <Button
                   variant={ifUseExistingSS === 'No' ? 'contained' : 'outlined'}
                   onClick={() => {
@@ -204,7 +214,16 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
                     setCreatedSS(false);
                   }}
                 >
-                  No, create a new one
+                  Yes
+                </Button>
+                <Button
+                  variant={ifUseExistingSS === 'Yes' ? 'contained' : 'outlined'}
+                  onClick={() => {
+                    setUseExistingSS('Yes');
+                    setCreatedSS(false);
+                  }}
+                >
+                  No, use an existing one
                 </Button>
               </div>
             </>
@@ -485,38 +504,46 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
 
   return (
     <div>
-      <div
-        className="mb-4"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'flex-start',
-          rowGap: '15px',
-          columnGap: '15px',
-        }}
+      <div className="mb-4"
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'flex-start',
+            rowGap: '15px',
+            columnGap: '15px',
+          }}
       >
-        {steps.map((step, index) => (
-          <Button
-            key={index}
-            variant={index === currentStep ? 'contained' : 'outlined'}
-            onClick={() => setCurrentStep(index)}
-            style={{
-              marginBottom: '10px',
-              minWidth: '140px',
-              height: '40px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textTransform: 'none',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              padding: '0 16px',
-            }}
-          >
-            {step.title}
-          </Button>
-        ))}
+        {steps.map((step, index) => {
+          // Only show steps that are completed or the next available step
+          const isAvailable = completedSteps.includes(index) || index === Math.min(currentStep, completedSteps.length);
+          if (!isAvailable && index > 0) return null;
+
+          return (
+            <Button
+              key={index}
+              variant={index === currentStep ? 'contained' : 'outlined'}
+              onClick={() => handleStepClick(index)}
+              style={{
+                marginBottom: '10px',
+                minWidth: '140px',
+                height: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textTransform: 'none',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                padding: '0 16px',
+                opacity: isAvailable ? 1 : 0.5,
+                cursor: isAvailable ? 'pointer' : 'not-allowed',
+              }}
+              disabled={!isAvailable}
+            >
+              {step.title}
+            </Button>
+          );
+        })}
       </div>
 
       {/* Step Content */}
@@ -531,30 +558,19 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
         )}
 
         {currentStep < steps.length - 1 ? (
-          <Button onClick={() => setCurrentStep(currentStep + 1)}>Next</Button>
+          <Button 
+            onClick={handleNext}
+            disabled={currentStep === 0 && (!modelName || !isNameValid)}
+          >
+            Next
+          </Button>
         ) : (
-          <>
-            {ssModelId && modelName && llmType ? (
-              <div>
-                <Button
-                  onClick={handleSubmit}
-                  style={{ width: '100%' }}
-                  disabled={isLoading || !(ssModelId && modelName && llmType)}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
-                      <span>Creating...</span>
-                    </div>
-                  ) : (
-                    'Create'
-                  )}
-                </Button>
-              </div>
-            ) : (
-              <div style={{ color: 'red' }}>{errorMessage}</div>
-            )}
-          </>
+          <Button
+            onClick={handleSubmit}
+            disabled={isLoading || !(ssModelId && modelName && llmType)}
+          >
+            {isLoading ? 'Creating...' : 'Create'}
+          </Button>
         )}
       </div>
     </div>

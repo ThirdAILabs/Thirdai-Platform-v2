@@ -86,10 +86,7 @@ export default function ChooseProblem() {
         <Box sx={{ width: '100%' }}>
           <Divider sx={{ mb: 3 }} />
           {modelType === 'chatbot' && (
-            <ChatbotQuestions 
-              models={privateModels} 
-              workflowNames={workflowNames}
-            />
+            <ChatbotQuestions models={privateModels} workflowNames={workflowNames} />
           )}
           {modelType === 'nlp-text-analytics' && <NLPQuestions workflowNames={workflowNames} />}
           {modelType === 'enterprise-search' && (

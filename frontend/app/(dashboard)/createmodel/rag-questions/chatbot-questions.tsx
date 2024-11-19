@@ -73,7 +73,8 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
     if (!name) return 'App name is required.';
     if (name.includes(' ')) return 'The app name cannot contain spaces.';
     if (name.includes('.')) return "The app name cannot contain periods ('.')";
-    if (!/^[\w-]+$/.test(name)) return 'The app name can only contain letters, numbers, underscores, and hyphens.';
+    if (!/^[\w-]+$/.test(name))
+      return 'The app name can only contain letters, numbers, underscores, and hyphens.';
     if (workflowNames.includes(name)) return 'An app with the same name already exists.';
     return '';
   };
@@ -140,7 +141,10 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
 
   const handleStepClick = (stepIndex: number) => {
     // Only allow clicking on completed steps or the next available step
-    if (completedSteps.includes(stepIndex) || stepIndex === Math.min(currentStep, completedSteps.length)) {
+    if (
+      completedSteps.includes(stepIndex) ||
+      stepIndex === Math.min(currentStep, completedSteps.length)
+    ) {
       setCurrentStep(stepIndex);
     }
   };
@@ -206,7 +210,9 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
           {!createdSS && (
             <>
               <CardDescription>Would you like to create a new Knowledge Base?</CardDescription>
-              <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+              <div
+                style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}
+              >
                 <Button
                   variant={ifUseExistingSS === 'No' ? 'contained' : 'outlined'}
                   onClick={() => {
@@ -283,7 +289,9 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
             </span>
             <div>
               <CardDescription>Choose an LLM for generating answers</CardDescription>
-              <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+              <div
+                style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}
+              >
                 <Button
                   variant={llmType === LlmProvider.OpenAI ? 'contained' : 'outlined'}
                   onClick={() => setLlmType(LlmProvider.OpenAI)}
@@ -317,7 +325,9 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
                   Would you like to redact PII (Personally Identifiable Information) from your
                   references?
                 </CardDescription>
-                <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+                <div
+                  style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}
+                >
                   <Button
                     variant={ifUseLGR === 'Yes' ? 'contained' : 'outlined'}
                     onClick={() => {
@@ -345,7 +355,14 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
                       <CardDescription>
                         Use an existing NER model to reduce PII from your reference?
                       </CardDescription>
-                      <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'row',
+                          gap: '10px',
+                          marginTop: '10px',
+                        }}
+                      >
                         <Button
                           variant={ifUseExistingLGR === 'Yes' ? 'contained' : 'outlined'}
                           onClick={() => {
@@ -504,18 +521,21 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
 
   return (
     <div>
-      <div className="mb-4"
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'flex-start',
-            rowGap: '15px',
-            columnGap: '15px',
-          }}
+      <div
+        className="mb-4"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'flex-start',
+          rowGap: '15px',
+          columnGap: '15px',
+        }}
       >
         {steps.map((step, index) => {
           // Only show steps that are completed or the next available step
-          const isAvailable = completedSteps.includes(index) || index === Math.min(currentStep, completedSteps.length);
+          const isAvailable =
+            completedSteps.includes(index) ||
+            index === Math.min(currentStep, completedSteps.length);
           if (!isAvailable && index > 0) return null;
 
           return (
@@ -558,10 +578,7 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
         )}
 
         {currentStep < steps.length - 1 ? (
-          <Button 
-            onClick={handleNext}
-            disabled={currentStep === 0 && (!modelName || !isNameValid)}
-          >
+          <Button onClick={handleNext} disabled={currentStep === 0 && (!modelName || !isNameValid)}>
             Next
           </Button>
         ) : (

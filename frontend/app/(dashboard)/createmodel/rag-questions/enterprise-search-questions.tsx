@@ -20,7 +20,10 @@ enum LlmProvider {
   None = 'none',
 }
 
-const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ models, workflowNames }) => {
+const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
+  models,
+  workflowNames,
+}) => {
   const [currentStep, setCurrentStep] = useState(0);
 
   // Knowledge base state
@@ -61,15 +64,21 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
   const validateAppName = (name: string): string => {
     if (!name) return 'App name is required.';
     if (name.includes(' ')) return 'The app name cannot contain spaces. Please remove the spaces.';
-    if (name.includes('.')) return "The app name cannot contain periods ('.'). Please remove the periods.";
-    if (!/^[\w-]+$/.test(name)) return 'The app name can only contain letters, numbers, underscores, and hyphens.';
-    if (workflowNames.includes(name)) return 'An app with the same name already exists. Please choose a different name.';
+    if (name.includes('.'))
+      return "The app name cannot contain periods ('.'). Please remove the periods.";
+    if (!/^[\w-]+$/.test(name))
+      return 'The app name can only contain letters, numbers, underscores, and hyphens.';
+    if (workflowNames.includes(name))
+      return 'An app with the same name already exists. Please choose a different name.';
     return '';
   };
 
   const handleStepClick = (stepIndex: number) => {
     // Only allow clicking on completed steps or the next available step
-    if (completedSteps.includes(stepIndex) || stepIndex === Math.min(currentStep, completedSteps.length)) {
+    if (
+      completedSteps.includes(stepIndex) ||
+      stepIndex === Math.min(currentStep, completedSteps.length)
+    ) {
       setCurrentStep(stepIndex);
     }
   };
@@ -197,7 +206,9 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
           {!createdSS && (
             <>
               <CardDescription>Would you like to create a new Knowledge Base?</CardDescription>
-              <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+              <div
+                style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}
+              >
                 <Button
                   variant={ifUseExistingSS === 'No' ? 'contained' : 'outlined'}
                   onClick={() => {
@@ -263,7 +274,9 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
 
           {ssModelId && (
             <div className="mt-8">
-              <CardDescription>Would you like to add an LLM to your enterprise search?</CardDescription>
+              <CardDescription>
+                Would you like to add an LLM to your enterprise search?
+              </CardDescription>
               <div className="flex gap-4 mt-4">
                 <Button
                   variant="outlined"
@@ -299,7 +312,9 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
             </span>
             <div>
               <CardDescription>Choose an LLM for generating answers</CardDescription>
-              <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+              <div
+                style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}
+              >
                 <Button
                   variant={llmType === LlmProvider.OpenAI ? 'contained' : 'outlined'}
                   onClick={() => setLlmType(LlmProvider.OpenAI)}
@@ -338,7 +353,9 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
                   Would you like to redact PII (Personally Identifiable Information) from your
                   references?
                 </CardDescription>
-                <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+                <div
+                  style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}
+                >
                   <Button
                     variant={ifUseLGR === 'Yes' ? 'contained' : 'outlined'}
                     onClick={() => {
@@ -366,7 +383,14 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
                       <CardDescription>
                         Use an existing NER model to reduce PII from your reference?
                       </CardDescription>
-                      <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'row',
+                          gap: '10px',
+                          marginTop: '10px',
+                        }}
+                      >
                         <Button
                           variant={ifUseExistingLGR === 'Yes' ? 'contained' : 'outlined'}
                           onClick={() => {
@@ -465,12 +489,11 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
       >
         {steps.map((step, index) => {
           // Show all completed steps, current step, and LLM step if opted in
-          const shouldShow = 
-            index <= Math.max(...completedSteps, currentStep) || 
-            (index === 2 && showLLMStep);
-          
+          const shouldShow =
+            index <= Math.max(...completedSteps, currentStep) || (index === 2 && showLLMStep);
+
           if (!shouldShow) return null;
-  
+
           return (
             <Button
               key={index}
@@ -495,27 +518,24 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
           );
         })}
       </div>
-  
+
       {/* Step Content */}
       <div>{steps[currentStep].content}</div>
-  
+
       {/* Step Controls - only show if not on Knowledge Base step or LLM not chosen yet */}
       {!(currentStep === 1 && ssModelId) && (
         <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between' }}>
           {currentStep > 0 && <Button onClick={handlePrevious}>Previous</Button>}
-          
+
           {currentStep < steps.length - 1 ? (
-            <Button 
+            <Button
               onClick={handleNext}
               disabled={currentStep === 0 && (!modelName || !isNameValid)}
             >
               Next
             </Button>
           ) : (
-            <Button
-              onClick={handleSubmit}
-              disabled={isLoading || !(ssModelId && modelName)}
-            >
+            <Button onClick={handleSubmit} disabled={isLoading || !(ssModelId && modelName)}>
               {isLoading ? 'Creating...' : 'Create'}
             </Button>
           )}

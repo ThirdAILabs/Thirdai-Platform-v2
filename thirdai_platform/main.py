@@ -83,7 +83,7 @@ async def log_requests(request: fastapi.Request, call_next):
     client_ip = (
         x_forwarded_for.split(",")[0].strip()
         if x_forwarded_for
-        else request.client.host
+        else (request.client.host if request.client else "Unknown")
     )  # When behind a load balancer or proxy, client IP would be in `x-forwarded-for` header
     audit_log = {
         "ip": client_ip,

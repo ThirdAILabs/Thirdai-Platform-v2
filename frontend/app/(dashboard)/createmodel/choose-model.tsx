@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import RAGQuestions from './rag-questions';
+import EnterpriseSearchQuestions from './rag-questions/enterprise-search-questions';
+import ChatbotQuestions from './rag-questions/chatbot-questions';
 import NLPQuestions from './nlp-questions/nlp-questions';
 import { fetchWorkflows, Workflow } from '@/lib/backend';
 import { FormControl, InputLabel, Select, MenuItem, Typography, Box, Divider } from '@mui/material';
@@ -85,11 +86,14 @@ export default function ChooseProblem() {
         <Box sx={{ width: '100%' }}>
           <Divider sx={{ mb: 3 }} />
           {modelType === 'chatbot' && (
-            <RAGQuestions models={privateModels} workflowNames={workflowNames} isChatbot={true} />
+            <ChatbotQuestions 
+              models={privateModels} 
+              workflowNames={workflowNames}
+            />
           )}
           {modelType === 'nlp-text-analytics' && <NLPQuestions workflowNames={workflowNames} />}
           {modelType === 'enterprise-search' && (
-            <RAGQuestions models={privateModels} workflowNames={workflowNames} isChatbot={false} />
+            <EnterpriseSearchQuestions models={privateModels} workflowNames={workflowNames} />
           )}
         </Box>
       )}

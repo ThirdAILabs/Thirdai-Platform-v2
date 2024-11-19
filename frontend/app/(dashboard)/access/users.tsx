@@ -38,6 +38,24 @@ export default function Users() {
     }
   };
 
+  const promoteUserToGlobalAdmin = async (userEmail: string) => {
+    try {
+      const user = users.find((u) => u.email === userEmail);
+      if (!user) {
+        console.error('User not found');
+        return;
+      }
+
+      const isConfirmed = window.confirm(`Are you sure you want to promote the user to Global Admin?`);
+      if (!isConfirmed) return;
+
+      // TODO: call the required function to promote user to Global Admin
+      await getUsers(); // Refresh the user list
+    } catch (error) {
+      console.error('Failed to delete user', error);
+      alert('Failed to delete user: ' + error);
+    }
+  }
   return (
     <div className="mb-12">
       <h3 className="text-xl font-semibold text-gray-800 mb-4">Users</h3>
@@ -58,14 +76,22 @@ export default function Users() {
             <div className="text-gray-700">Owned Models: {user.ownedModels.join(', ')}</div>
           )}
           {isGlobalAdmin ? (
-            <Button
-              onClick={() => deleteUser(user.name)}
-              variant="contained"
-              color="error"
-              disabled={!isGlobalAdmin}
-            >
-              Delete User
-            </Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '45%' }}>
+              <Button
+                onClick={() => deleteUser(user.name)}
+                variant="contained"
+                color="error"
+              >
+                Delete {user.name}
+              </Button>
+              <Button
+                onClick={() => promoteUserToGlobalAdmin(user.id)}
+                variant="contained"
+                color='success'
+              >
+                Promote {user.name} to Global Admin
+              </Button>
+            </div>
           ) : (
             <></>
           )}

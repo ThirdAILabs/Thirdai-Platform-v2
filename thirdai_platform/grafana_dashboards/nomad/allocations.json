@@ -754,8 +754,8 @@
       {
         "current": {
           "selected": false,
-          "text": "llm-cache",
-          "value": "llm-cache"
+          "text": "telemetry",
+          "value": "telemetry"
         },
         "datasource": {
           "type": "prometheus",
@@ -781,8 +781,8 @@
       {
         "current": {
           "selected": false,
-          "text": "llm-cache",
-          "value": "llm-cache"
+          "text": "telemetry",
+          "value": "telemetry"
         },
         "datasource": {
           "type": "prometheus",

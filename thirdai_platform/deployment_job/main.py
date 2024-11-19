@@ -42,7 +42,9 @@ log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
 
 logger = setup_logger(log_dir=log_dir, log_prefix="deployment")
 audit_logger = setup_logger(
-    log_dir=log_dir / "deployment_audit_logs", log_prefix=os.getenv("NOMAD_ALLOC_ID"), add_stream_handler=False
+    log_dir=log_dir / "deployment_audit_logs",
+    log_prefix=os.getenv("NOMAD_ALLOC_ID"),
+    add_stream_handler=False,
 )
 
 reporter = Reporter(config.model_bazaar_endpoint, logger)

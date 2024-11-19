@@ -4,11 +4,13 @@ from pathlib import Path
 from colorlog import ColoredFormatter
 
 
-def setup_logger(log_dir: Path, log_prefix: str, level=logging.INFO, add_stream_handler: bool = True):
+def setup_logger(
+    log_dir: Path, log_prefix: str, level=logging.INFO, add_stream_handler: bool = True
+):
     log_dir.mkdir(parents=True, exist_ok=True)
 
     logger_file_path = log_dir / f"{log_prefix}.log"
-    
+
     # Get the specific logger
     logger = logging.getLogger(log_prefix)
     logger.setLevel(level)
@@ -23,7 +25,7 @@ def setup_logger(log_dir: Path, log_prefix: str, level=logging.INFO, add_stream_
     # File handler setup
     file_handler = logging.FileHandler(logger_file_path, mode="a+")
     file_handler.setFormatter(file_formatter)
-    
+
     if add_stream_handler:
         # Colored Formatter for console output
         colored_formatter = ColoredFormatter(

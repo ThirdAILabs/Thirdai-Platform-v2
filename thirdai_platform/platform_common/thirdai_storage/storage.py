@@ -2,21 +2,45 @@ from __future__ import annotations
 
 import typing
 from abc import abstractmethod
-from collections import defaultdict
 
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from .data_types import DataSample, Metadata, MetadataStatus, SampleStatus
-from .schemas import Base, MetaData, Samples
+from .schemas import Base, MetaData, Samples, SampleSeen
+from .utils import reservoir_sampling
+
+RESERVOIR_RECENCY_MULTIPLIER = 1
 
 
 class Connector:
     # Interface for data store backend. Can be repurposed to a DB based storage,
     # a file based storage, etc. The DataStore should be persistent.
     @abstractmethod
-    def add_samples(self, entries: typing.List[typing.tuple[str, str, str, str, bool]]):
-        # batch insertion of samples to the store
+    def add_samples(
+        self,
+        entries: typing.List[typing.tuple[str, str, str, str, bool]],
+        reservoir_size: int = None,
+    ):
+        """
+        Performs batch insertion of samples into the data store using reservoir sampling.
+
+        Reservoir sampling ensures a random sample of fixed size is maintained even as new samples
+        are added over time. This is useful for keeping a representative subset of data when the
+        total dataset is too large to store completely.
+
+        Args:
+            entries: List of tuples containing sample information with fields:
+                unique_id (str): Unique identifier for the sample
+                datatype (str): Type of the sample (e.g. "token_classification", "text_classification")
+                name (str): Name/category of the sample (e.g. "ner", "sentiment")
+                serialized_data (str): The sample data in serialized format
+                status (str): Processing status of the sample (e.g. "untrained", "trained")
+                user_provided (bool): Whether this sample was provided by a user (True) or generated (False)
+
+            reservoir_size (int, optional): Maximum number of samples to maintain in the reservoir.
+                If None, all samples will be stored without sampling.
+        """
         pass
 
     @abstractmethod
@@ -53,6 +77,14 @@ class Connector:
     def remove_untrained_samples(self, name: str):
         pass
 
+    @abstractmethod
+    def update_metadata_status(self, name: str, status: MetadataStatus):
+        pass
+
+    @abstractmethod
+    def update_sample_status(self, name: str, status: SampleStatus):
+        pass
+
 
 class SQLiteConnector(Connector):
     def __init__(self, db_path: str):
@@ -61,9 +93,57 @@ class SQLiteConnector(Connector):
         Base.metadata.create_all(self.engine)
 
     def add_samples(
-        self, entries: typing.List[typing.Tuple[str, str, str, str, str, bool]]
+        self,
+        entries: typing.List[typing.Tuple[str, str, str, str, str, bool]],
+        reservoir_size: int = None,
     ):
+        # NOTE : Reservoir Size restrictions will not be held if used in a multi-threaded environment
+
+        if len(entries) == 0:
+            return
+
         session = self.Session()
+
+        reservoir_counter = (
+            session.query(SampleSeen).filter(SampleSeen.name == entries[0][2]).first()
+        )
+        if not reservoir_counter:
+            reservoir_counter = SampleSeen(name=entries[0][2], seen=0)
+            session.add(reservoir_counter)
+
+        if reservoir_size:
+            # NOTE: This isn't true reservoir sampling as the elements are deleted in bulk before adding new ones. This implies that there is a bias towards keeping recent samples in the reservoir. The parameter RESERVOIR_RECENCY_MULTIPLIER can be tuned to control this bias.
+
+            # find the indices of the entries to be added to the reservoir
+            valid_indices = list(range(len(entries)))
+            selected_indices = reservoir_sampling(
+                valid_indices,
+                reservoir_size,
+                current_size=self.get_sample_count(entries[0][2]),
+                total_items_seen=reservoir_counter.seen,
+                recency_multipler=RESERVOIR_RECENCY_MULTIPLIER,
+            )
+
+            entries = [entries[i] for i in selected_indices]
+
+            num_samples_to_remove = (
+                len(selected_indices)
+                + self.get_sample_count(entries[0][2])
+                - reservoir_size
+            )
+
+            if num_samples_to_remove > 0:
+                samples_to_remove = (
+                    session.query(Samples)
+                    .filter(Samples.name == entries[0][2])
+                    .order_by(func.random())
+                    .limit(num_samples_to_remove)
+                    .all()
+                )
+                session.query(Samples).filter(
+                    Samples.id.in_([sample.id for sample in samples_to_remove])
+                ).delete(synchronize_session=False)
+
         session.bulk_insert_mappings(
             Samples,
             [
@@ -78,6 +158,8 @@ class SQLiteConnector(Connector):
                 for unique_id, datatype, name, data, status, user_provided in entries
             ],
         )
+
+        reservoir_counter.seen = reservoir_counter.seen + len(entries)
         session.commit()
 
     def get_sample_count(self, name: str):
@@ -199,41 +281,33 @@ class DataStorage:
         # and it is supposed to be used as a single source of truth.
         self.connector = connector
 
-        # this counter is local to DataStorage and will not be consistent across different instances of DataStorage.
-        # this reduces the write load on the Connector. the number of samples for the same storage might end up being
-        # more than the buffer limit but they can be clipped out later.
-        self._sample_counter = defaultdict(int)
-        for name in self.connector.existing_sample_names():
-            self._sample_counter[name] = connector.get_sample_count(name=name)
-
         # if per name buffer size is None then no limit on the number of samples for each name
-        # this attribute is to be considered as private so that two different instances of
-        # DataStorage with the same connector have same buffer size.
-        self._per_name_buffer_size = 100000
+        # this attribute is set as private so that two different instances of
+        # DataStorage with the same connector have same reservoir size.
+        self._reservoir_size = 100000
 
     def insert_samples(
-        self, samples: typing.List[DataSample], override_buffer_limit=False
+        self, samples: typing.List[DataSample], override_reservoir_limit=False
     ):
         samples_to_insert = []
         for sample in samples:
-            if override_buffer_limit or (
-                self._per_name_buffer_size
-                and self._sample_counter[sample.name] < self._per_name_buffer_size
-            ):
-                samples_to_insert.append(
-                    (
-                        sample.unique_id,
-                        sample.datatype,
-                        sample.name,
-                        sample.serialize_data(),
-                        sample.status.value,
-                        sample.user_provided,
-                    )
+            samples_to_insert.append(
+                (
+                    sample.unique_id,
+                    sample.datatype,
+                    sample.name,
+                    sample.serialize_data(),
+                    sample.status.value,
+                    sample.user_provided,
                 )
+            )
 
-                self._sample_counter[sample.name] += 1
-
-        self.connector.add_samples(samples_to_insert)
+        self.connector.add_samples(
+            samples_to_insert,
+            reservoir_size=(
+                self._reservoir_size if not override_reservoir_limit else None
+            ),
+        )
 
     def retrieve_samples(self, name: str, num_samples: int, user_provided: bool):
         entries = self.connector.get_samples(
@@ -257,11 +331,8 @@ class DataStorage:
 
         for name in existing_sample_types:
             self.connector.delete_old_samples(
-                name=name, samples_to_store=self._per_name_buffer_size
+                name=name, samples_to_store=self._reservoir_size
             )
-
-            # update the sample counter
-            self._sample_counter[name] = self.connector.get_sample_count(name=name)
 
     def insert_metadata(self, metadata: Metadata):
         # updates the serialized data in place if another entry with the same

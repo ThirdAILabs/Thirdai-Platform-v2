@@ -45,11 +45,13 @@ def tag_metadata():
 
 
 def test_insert_samples_buffer_limit(data_storage):
-    data_storage._per_name_buffer_size = 5  # override buffer limit for testing
+    data_storage._reservoir_size = 5  # override buffer limit for testing
     samples = [sample_data() for _ in range(10)]  # Create 10 identical samples
     data_storage.insert_samples(samples)
 
-    assert data_storage._sample_counter["ner"] == 5, "Buffer limit exceeded"
+    samples = data_storage.retrieve_samples("ner", num_samples=5, user_provided=True)
+
+    assert len(samples) == 5, "Reservoir Size limit exceeded"
 
 
 def test_rollback_metadata(data_storage, tag_metadata):

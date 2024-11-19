@@ -287,7 +287,7 @@ export default function ModelUpdate({
   };
 
   return (
-    <div className="space-y-6 px-4">
+    <div className="space-y-6 px-1">
       {/* Training Report Section */}
 
       {isLoadingReport ? (

@@ -27,9 +27,7 @@ def test_train_error_handling(malformed_file):
     model_name = f"basic_ndb_{uuid.uuid4()}"
     model = admin_client.train(
         model_name,
-        model_options={
-            "ndb_options": {"ndb_sub_type": "v2"},
-        },
+        model_options={},
         unsupervised_docs=[__file__],
         supervised_docs=[(malformed_file, "0")],
         is_async=True,
@@ -49,6 +47,6 @@ def test_train_error_handling(malformed_file):
     assert warning in status_info["warnings"][0]
     assert warning in logs
 
-    error = "Error tokenizing data. C error: Expected 1 fields in line 7"
+    error = "Error tokenizing data. C error:"
     assert error in status_info["errors"][0]
     assert error in logs

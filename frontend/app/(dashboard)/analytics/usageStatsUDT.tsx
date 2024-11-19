@@ -1,5 +1,7 @@
 'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@mui/material';
+import Link from 'next/link';
 import _ from 'lodash';
 
 function getUrlParams() {
@@ -15,7 +17,7 @@ export default function usageStatsUDT() {
     const thirdaiPlatformBaseUrl = _.trim(process.env.THIRDAI_PLATFORM_BASE_URL!, '/');
     const grafanaUrl = `${thirdaiPlatformBaseUrl}/grafana`;
     const { model_id } = getUrlParams();
-    const panelUrl = `${grafanaUrl}/d-solo/5XxwU0GVz/allocations?orgId=1&var-workload=deployment-${model_id}&theme=light`;
+    const panelUrl = `${grafanaUrl}/d-solo/be3mgtzxxg4jkb/natural-text-model?orgId=1&var-workload=deployment-${model_id}&theme=light`;
     return (
         <div className="px-1">
             <Card>
@@ -26,29 +28,29 @@ export default function usageStatsUDT() {
                 <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <iframe
-                            src={`${panelUrl}&panelId=26&from=now-1h&to=now&t=${Date.now()}`}
+                            src={`${panelUrl}&panelId=4&from=now-1h&to=now&t=${Date.now()}`}
                             width="420"
                             height="300"
                         ></iframe>
                         <iframe
-                            src={`${panelUrl}&panelId=28&from=now-1h&to=now&t=${Date.now()}`}
+                            src={`${panelUrl}&panelId=3&from=now-1h&to=now&t=${Date.now()}`}
                             width="420"
                             height="300"
                         ></iframe>
                         <iframe
-                            src={`${panelUrl}&panelId=29&from=now-1h&to=now&t=${Date.now()}`}
+                            src={`${panelUrl}&panelId=1&from=now-1h&to=now&t=${Date.now()}`}
                             width="420"
                             height="300"
                         ></iframe>
                     </div>
 
-                    {/* <div className="mt-4 flex justify-center items-center">
+                    <div className="mt-4 flex justify-center items-center">
                         <Link href={grafanaUrl} passHref legacyBehavior>
                             <a target="_blank" rel="noopener noreferrer">
                                 <Button variant="contained">See more system stats</Button>
                             </a>
                         </Link>
-                    </div> */}
+                    </div>
                 </CardContent>
             </Card>
         </div>

@@ -46,11 +46,8 @@ app.add_middleware(
 
 log_dir: Path = Path(model_bazaar_path()) / "logs"
 
-setup_logger(log_dir=log_dir, log_prefix="platform_backend")
-setup_logger(log_dir=log_dir, log_prefix="audit")
-
-logger = logging.getLogger("platform_backend")
-audit_logger = logging.getLogger("audit")
+logger = setup_logger(log_dir=log_dir, log_prefix="platform_backend")
+audit_logger = setup_logger(log_dir=log_dir, log_prefix="audit", add_stream_handler=False)
 
 app.include_router(user, prefix="/api/user", tags=["user"])
 app.include_router(train, prefix="/api/train", tags=["train"])

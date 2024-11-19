@@ -40,13 +40,10 @@ config: DeploymentConfig = load_config()
 
 log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
 
-setup_logger(log_dir=log_dir, log_prefix="deployment")
-setup_logger(
-    log_dir=log_dir / "deployment_audit_logs", log_prefix=os.getenv("NOMAD_ALLOC_ID")
+logger = setup_logger(log_dir=log_dir, log_prefix="deployment")
+audit_logger = setup_logger(
+    log_dir=log_dir / "deployment_audit_logs", log_prefix=os.getenv("NOMAD_ALLOC_ID"), add_stream_handler=False
 )
-
-logger = logging.getLogger("deployment")
-audit_logger = logging.getLogger(os.getenv("NOMAD_ALLOC_ID"))
 
 reporter = Reporter(config.model_bazaar_endpoint, logger)
 

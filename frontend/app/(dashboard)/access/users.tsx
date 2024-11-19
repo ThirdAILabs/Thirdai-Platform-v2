@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@mui/material';
-import { fetchAllUsers, deleteUserAccount } from '@/lib/backend';
+import { fetchAllUsers, deleteUserAccount, promoteUserToGlobalAdmin } from '@/lib/backend';
 import { UserContext } from '../../user_wrapper';
 import { getUsers, User } from '@/utils/apiRequests';
 
@@ -38,24 +38,24 @@ export default function Users() {
     }
   };
 
-  const promoteUserToGlobalAdmin = async (userEmail: string) => {
+  const handlePromotion = async (userName: string) => {
     try {
-      const user = users.find((u) => u.email === userEmail);
+      const user = users.find((u) => u.name === userName);
       if (!user) {
         console.error('User not found');
         return;
       }
 
       const isConfirmed = window.confirm(
-        `Are you sure you want to promote the user to Global Admin?`
+        `Are you sure you want to promote the "${userName}" to Global Admin?`
       );
       if (!isConfirmed) return;
 
-      // TODO: call the required function to promote user to Global Admin
+      await promoteUserToGlobalAdmin(user.email);
       await getUsers(); // Refresh the user list
     } catch (error) {
-      console.error('Failed to delete user', error);
-      alert('Failed to delete user: ' + error);
+      console.error('Failed to promote user', error);
+      alert('Failed to promote user: ' + error);
     }
   };
   return (
@@ -77,21 +77,21 @@ export default function Users() {
           {user.ownedModels.length > 0 && (
             <div className="text-gray-700">Owned Models: {user.ownedModels.join(', ')}</div>
           )}
-          {isGlobalAdmin ? (
+          {isGlobalAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '45%' }}>
               <Button onClick={() => deleteUser(user.name)} variant="contained" color="error">
-                Delete {user.name}
+                Delete user
               </Button>
-              <Button
-                onClick={() => promoteUserToGlobalAdmin(user.id)}
-                variant="contained"
-                color="success"
-              >
-                Promote {user.name} to Global Admin
-              </Button>
+              {user.role !== 'Global Admin' && (
+                <Button
+                  onClick={() => handlePromotion(user.name)}
+                  variant="contained"
+                  color="success"
+                >
+                  Promote user to Global Admin
+                </Button>
+              )}
             </div>
-          ) : (
-            <></>
           )}
         </div>
       ))}

@@ -1791,7 +1791,6 @@ export async function promoteUserToGlobalAdmin(email: string): Promise<void> {
   const accessToken = getAccessToken();
 
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-  console.log(email);
   return new Promise((resolve, reject) => {
     axios
       .post(`${thirdaiPlatformBaseUrl}/api/user/add-global-admin`, { email: email })

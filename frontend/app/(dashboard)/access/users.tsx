@@ -46,7 +46,9 @@ export default function Users() {
         return;
       }
 
-      const isConfirmed = window.confirm(`Are you sure you want to promote the user to Global Admin?`);
+      const isConfirmed = window.confirm(
+        `Are you sure you want to promote the user to Global Admin?`
+      );
       if (!isConfirmed) return;
 
       // TODO: call the required function to promote user to Global Admin
@@ -55,7 +57,7 @@ export default function Users() {
       console.error('Failed to delete user', error);
       alert('Failed to delete user: ' + error);
     }
-  }
+  };
   return (
     <div className="mb-12">
       <h3 className="text-xl font-semibold text-gray-800 mb-4">Users</h3>
@@ -77,17 +79,13 @@ export default function Users() {
           )}
           {isGlobalAdmin ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '45%' }}>
-              <Button
-                onClick={() => deleteUser(user.name)}
-                variant="contained"
-                color="error"
-              >
+              <Button onClick={() => deleteUser(user.name)} variant="contained" color="error">
                 Delete {user.name}
               </Button>
               <Button
                 onClick={() => promoteUserToGlobalAdmin(user.id)}
                 variant="contained"
-                color='success'
+                color="success"
               >
                 Promote {user.name} to Global Admin
               </Button>

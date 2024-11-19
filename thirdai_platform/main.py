@@ -93,13 +93,13 @@ async def startup_event():
         logger.error(f"Failed to start the Generation Job: {error}")
         logger.debug(traceback.format_exc())
 
-    # try:
-    #     logger.info("Starting telemetry Job...")
-    #     await restart_telemetry_jobs()
-    #     logger.info("Successfully started telemetry Job!")
-    # except Exception as error:
-    #     logger.error(f"Failed to start the telemetry Job: {error}")
-    #     logger.debug(traceback.format_exc())
+    try:
+        logger.info("Starting telemetry Job...")
+        await restart_telemetry_jobs()
+        logger.info("Successfully started telemetry Job!")
+    except Exception as error:
+        logger.error(f"Failed to start the telemetry Job: {error}")
+        logger.debug(traceback.format_exc())
 
     platform = get_platform()
     if platform == "docker":

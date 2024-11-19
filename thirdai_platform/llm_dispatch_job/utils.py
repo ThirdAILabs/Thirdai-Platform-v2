@@ -1,3 +1,4 @@
+import os
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
@@ -32,11 +33,8 @@ DEFAULT_PROMPT = "Given this context, "
 
 
 def reference_content(reference: Reference) -> str:
-    if (
-        reference.source
-        and reference.source.endswith(".pdf")
-        or reference.source.endswith(".docx")
-    ):
+    ext = os.path.splitext(reference.source or "")[1].lower()
+    if ext == ".pdf" or ext == ".docx":
         return f'(From file "{reference.source}") {reference.text}'
     if "title" in reference.metadata:
         return f'(From file "{reference.metadata["title"]}") {reference.text}'

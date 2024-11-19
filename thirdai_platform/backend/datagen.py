@@ -7,7 +7,6 @@ from typing import List, Optional
 from backend.utils import (
     get_platform,
     get_python_path,
-    model_bazaar_path,
     submit_nomad_job,
     thirdai_platform_dir,
 )
@@ -22,7 +21,7 @@ from platform_common.pydantic_models.training import (
     UDTSubType,
 )
 from platform_common.thirdai_storage.data_types import TokenClassificationData
-from platform_common.utils import response, save_dict
+from platform_common.utils import model_bazaar_path, response, save_dict
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 

@@ -1332,6 +1332,18 @@ interface TextClassificationResult {
   predicted_classes: [string, number][];
 }
 
+interface PredictionResult {
+  status: string;
+  message: string;
+  data: {
+    prediction_results: {
+      query_text: string;
+      predicted_classes: [string, number][];
+    };
+    time_taken: number;
+  };
+}
+
 export function useTextClassificationEndpoints() {
   const accessToken = useAccessToken();
   const params = useParams();
@@ -1364,15 +1376,18 @@ export function useTextClassificationEndpoints() {
     init();
   }, []);
 
-  const predict = async (query: string): Promise<TextClassificationResult> => {
+  const predict = async (query: string): Promise<PredictionResult> => {
     // Set the default authorization header for axios
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
     try {
-      const response = await axios.post(`${deploymentUrl}/predict`, {
+      const response = await axios.post<PredictionResult>(`${deploymentUrl}/predict`, {
         text: query,
         top_k: 5,
       });
-      return response.data.data;
+
+      // Return the full response data structure
+      return response.data;
     } catch (error) {
       console.error('Error predicting tokens:', error);
       alert('Error predicting tokens:' + error);

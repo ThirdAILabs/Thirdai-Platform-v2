@@ -30,7 +30,8 @@ import {
   convertCSVToPDFFormat,
   ParsedData,
 } from '@/utils/fileParsingUtils';
-import TimerIcon from '@mui/icons-material/Timer';
+// import TimerIcon from '@mui/icons-material/Timer';
+import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 
 interface Token {
   text: string;
@@ -275,6 +276,7 @@ export default function Interact() {
     setInputText(event.target.value);
     setParsedData(null);
     setAnnotations([]);
+    setProcessingTime(undefined); // make time display disppears as typying begins
   };
 
   const [fileError, setFileError] = useState<string | null>(null);
@@ -368,6 +370,11 @@ export default function Interact() {
   };
 
   const handleRun = async (text: string, isFileUpload: boolean = false) => {
+    // Check for empty text or only whitespace
+    if (!text?.trim()) {
+      return;
+    }
+
     setIsLoading(true);
     try {
       const result = await predict(text);
@@ -955,18 +962,13 @@ export default function Interact() {
           flex: 1,
           marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
         }}
-      >{processingTime !== undefined && <Card className="mb-5 pt-5">
-        <CardContent>
-          <div className="flex flex-row">
-            <TimerIcon color="primary" />
-            Inference Time
-            <Typography>
-              {' : '}
-              {(Number(processingTime) * 1000).toFixed(2)} milliseconds
-            </Typography>
+      >
+        {processingTime !== undefined && annotations.length && (
+          <div className="mb-4">
+            {' '}
+            <InferenceTimeDisplay processingTime={processingTime} tokenCount={annotations.length} />
           </div>
-        </CardContent>
-      </Card>}
+        )}
 
         <Card className="p-7 text-start">
           <FeedbackDashboard

@@ -20,7 +20,6 @@ from backend.utils import (
     get_platform,
     get_python_path,
     get_warnings_and_errors,
-    model_bazaar_path,
     nomad_job_exists,
     remove_unused_samples,
     retrieve_token_classification_samples_for_generation,
@@ -31,10 +30,13 @@ from backend.utils import (
     validate_license_info,
     validate_name,
 )
+from data_generation_job.llms import verify_llm_access
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files
+from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
 from platform_common.pydantic_models.training import (
     DatagenOptions,
@@ -45,8 +47,6 @@ from platform_common.pydantic_models.training import (
     ModelType,
     NDBData,
     NDBOptions,
-    NDBSubType,
-    NDBv2Options,
     TextClassificationOptions,
     TokenClassificationDatagenOptions,
     TokenClassificationOptions,
@@ -57,7 +57,7 @@ from platform_common.pydantic_models.training import (
     UDTSubType,
 )
 from platform_common.thirdai_storage import storage
-from platform_common.utils import response
+from platform_common.utils import disk_usage, model_bazaar_path, response
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
@@ -77,7 +77,7 @@ def get_base_model(base_model_identifier: str, user: schema.User, session: Sessi
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 
 
-@train_router.post("/ndb")
+@train_router.post("/ndb", dependencies=[Depends(is_on_low_disk())])
 def train_ndb(
     model_name: str,
     files: List[UploadFile],
@@ -170,7 +170,7 @@ def train_ndb(
             deploy_status=schema.Status.not_started,
             name=model_name,
             type=config.model_options.model_type.value,
-            sub_type=config.model_options.ndb_options.ndb_sub_type.value,
+            sub_type="v2",
             domain=user.domain,
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model else None,
@@ -232,6 +232,7 @@ def train_ndb(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
@@ -256,7 +257,7 @@ def list_deletions(deployment_dir: str) -> List[str]:
     return deletions
 
 
-@train_router.post("/ndb-retrain")
+@train_router.post("/ndb-retrain", dependencies=[Depends(is_on_low_disk())])
 def retrain_ndb(
     model_name: str,
     base_model_identifier: str,
@@ -288,7 +289,7 @@ def retrain_ndb(
 
     base_model = get_base_model(base_model_identifier, user=user, session=session)
 
-    if base_model.type != ModelType.NDB or base_model.sub_type != NDBSubType.v2:
+    if base_model.type != ModelType.NDB:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"NDB retraining can only be performed on NDBv2 base models.",
@@ -323,7 +324,7 @@ def retrain_ndb(
         model_id=str(model_id),
         data_id=data_id,
         base_model_id=(None if not base_model_identifier else str(base_model.id)),
-        model_options=NDBOptions(ndb_options=NDBv2Options()),
+        model_options=NDBOptions(),
         data=NDBData(
             unsupervised_files=unsupervised_files,
             supervised_files=[
@@ -342,7 +343,7 @@ def retrain_ndb(
             deploy_status=schema.Status.not_started,
             name=model_name,
             type=config.model_options.model_type.value,
-            sub_type=config.model_options.ndb_options.ndb_sub_type.value,
+            sub_type="v2",
             domain=user.domain,
             access_level=schema.Access.private,
             parent_id=base_model.id,
@@ -402,11 +403,14 @@ def retrain_ndb(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
 
-@train_router.post("/nlp-datagen")
+@train_router.post(
+    "/nlp-datagen", dependencies=[Depends(is_on_low_disk(threshold=0.75))]
+)
 def nlp_datagen(
     model_name: str,
     base_model_identifier: Optional[str] = None,
@@ -544,11 +548,12 @@ def nlp_datagen(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
 
-@train_router.post("/datagen-callback")
+@train_router.post("/datagen-callback", dependencies=[Depends(is_on_low_disk())])
 def datagen_callback(
     data_id: str,
     secret_token: str,
@@ -669,7 +674,7 @@ def datagen_callback(
     )
 
 
-@train_router.post("/retrain-udt")
+@train_router.post("/retrain-udt", dependencies=[Depends(is_on_low_disk())])
 def retrain_udt(
     model_name: str,
     llm_provider: LLMProvider,
@@ -796,16 +801,72 @@ def retrain_udt(
         is_retraining=True if not base_model_identifier else False,
     )
 
-    config.save_train_config()
-
     try:
-        generate_data_for_train_job(
-            data_id=str(model.id),
-            secret_token=secret_token,
-            license_key=license_info["boltLicenseKey"],
-            options=datagen_options,
-            job_options=JobOptions(),
-        )
+        if verify_llm_access(llm_provider, api_key=os.getenv("GENAI_KEY")):
+            logging.info("LLM access verified, generating data for training")
+
+            config_path = config.save_train_config()
+
+            generate_data_for_train_job(
+                data_id=str(model.id),
+                secret_token=secret_token,
+                license_key=license_info["boltLicenseKey"],
+                options=datagen_options,
+                job_options=JobOptions(),
+            )
+        else:
+            logging.info("No LLM access, training only on user provided samples")
+
+            if nomad_job_exists(
+                model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")
+            ):
+                delete_nomad_job(
+                    model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")
+                )
+
+            config.model_options.udt_options = TokenClassificationOptions(
+                target_labels=[tag.name for tag in tags],
+                source_column=NER_SOURCE_COLUMN,
+                target_column=NER_TARGET_COLUMN,
+            )
+
+            # Without any LLM access, the model should train only on the user provided samples present in the storage. Or balancing samples gathered from the training data. No file passed because user provided samples are already present in the storage.
+            config.data = UDTData(supervised_files=[])
+
+            config_path = config.save_train_config()
+
+            logging.info("Triggered nomad job for training.")
+
+            submit_nomad_job(
+                str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
+                nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+                platform=get_platform(),
+                tag=os.getenv("TAG"),
+                registry=os.getenv("DOCKER_REGISTRY"),
+                docker_username=os.getenv("DOCKER_USERNAME"),
+                docker_password=os.getenv("DOCKER_PASSWORD"),
+                image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
+                thirdai_platform_dir=thirdai_platform_dir(),
+                train_script="train_job.run",
+                model_id=str(model.id),
+                share_dir=os.getenv("SHARE_DIR", None),
+                python_path=get_python_path(),
+                aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
+                aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+                aws_region_name=(os.getenv("AWS_REGION_NAME", "")),
+                azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
+                azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
+                gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
+                train_job_name=model.get_train_job_name(),
+                config_path=config_path,
+                allocation_cores=config.job_options.allocation_cores,
+                allocation_memory=config.job_options.allocation_memory,
+                allocation_memory_max=config.job_options.allocation_memory,
+            )
+
+            model.train_status = schema.Status.starting
+            session.commit()
+
     except Exception as err:
         model.train_status = schema.Status.failed
         session.commit()
@@ -821,11 +882,12 @@ def retrain_udt(
         data={
             "model_id": str(model.id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
 
-@train_router.post("/udt")
+@train_router.post("/udt", dependencies=[Depends(is_on_low_disk())])
 def train_udt(
     model_name: str,
     files: List[UploadFile] = [],
@@ -1021,6 +1083,7 @@ def train_udt(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 

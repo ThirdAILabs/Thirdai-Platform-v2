@@ -25,7 +25,6 @@ from backend.utils import (
     get_warnings_and_errors,
     list_all_dependencies,
     model_accessible,
-    model_bazaar_path,
     read_file_from_back,
     submit_nomad_job,
     thirdai_platform_dir,
@@ -34,6 +33,7 @@ from backend.utils import (
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from platform_common.dependencies import is_on_low_disk
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     EnterpriseSearchOptions,
@@ -42,7 +42,7 @@ from platform_common.pydantic_models.deployment import (
 )
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
 from platform_common.pydantic_models.training import ModelType
-from platform_common.utils import response
+from platform_common.utils import disk_usage, model_bazaar_path, response
 from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()
@@ -212,7 +212,6 @@ async def deploy_single_model(
     requires_on_prem_llm = False
     if model.type == ModelType.NDB:
         model_options = NDBDeploymentOptions(
-            ndb_sub_type=model.sub_type,
             llm_provider=(
                 model.get_attributes().get("llm_provider")
                 or os.getenv("LLM_PROVIDER", "openai")
@@ -296,7 +295,9 @@ async def deploy_single_model(
         )
 
 
-@deploy_router.post("/run", dependencies=[Depends(is_model_owner)])
+@deploy_router.post(
+    "/run", dependencies=[Depends(is_model_owner), Depends(is_on_low_disk())]
+)
 async def deploy_model(
     model_identifier: str,
     deployment_name: Optional[str] = None,
@@ -370,6 +371,7 @@ async def deploy_model(
             "status": "queued",
             "model_identifier": model_identifier,
             "model_id": str(model.id),
+            "disk_usage": disk_usage(),
         },
     )
 
@@ -613,7 +615,9 @@ def update_deployment_status(
 
 
 @deploy_router.post("/warning")
-def train_warning(model_id: str, message: str, session: Session = Depends(get_session)):
+def deploy_warning(
+    model_id: str, message: str, session: Session = Depends(get_session)
+):
     trained_model: schema.Model = (
         session.query(schema.Model).filter(schema.Model.id == model_id).first()
     )
@@ -716,19 +720,6 @@ def undeploy_model(
     )
 
 
-@deploy_router.get("/active-deployment-count")
-def active_deployment_count(model_id: str, session: Session = Depends(get_session)):
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Successfully retrieved number of deployments using model.",
-        data={
-            "deployment_count": active_deployments_using_model(
-                model_id=model_id, session=session
-            )
-        },
-    )
-
-
 @deploy_router.post("/start-on-prem")
 async def start_on_prem_job(
     model_name: str = "Llama-3.2-1B-Instruct-f16.gguf",
@@ -756,7 +747,7 @@ async def start_on_prem_job(
 
 
 @deploy_router.get("/logs", dependencies=[Depends(verify_model_read_access)])
-def train_logs(
+def deploy_logs(
     model_identifier: str,
     session: Session = Depends(get_session),
 ):

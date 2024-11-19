@@ -62,7 +62,7 @@ azure:
       push_credentials:
         password: c3P3qKGzI2dBE6fiKJfF+zHos70aRFcJ6vVLZh+zq0+ACRCEzI7T
         username: thirdaiplatform-push-release-test
-      version: 0.0.18
+      version: 0.0.62
     release-test-main:
       pull_credentials:
         password: 5Di/+qW2Q/++3mp0Ah/rkCq33n2N7f0E8G4+cSHnub+ACRClJvCj

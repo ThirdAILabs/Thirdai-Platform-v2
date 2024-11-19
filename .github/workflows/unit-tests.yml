@@ -24,7 +24,7 @@ on:
 
 jobs:
   backend-unit-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-cores
     services:
       # We need postgres because generate_random_uuid does not work with sqlite since 
       # it requires pg-crypto. Since these tests are just testing individual backend

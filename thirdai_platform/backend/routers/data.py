@@ -10,8 +10,9 @@ from backend.utils import validate_license_info
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, status
+from platform_common.dependencies import is_on_low_disk
 from platform_common.pydantic_models.training import JobOptions, LLMProvider
-from platform_common.utils import get_section, response
+from platform_common.utils import disk_usage, get_section, response
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
@@ -68,12 +69,13 @@ def validate_and_generate_data(
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully submitted the data-generation job",
+        data={"disk_usage": disk_usage()},
     )
 
 
 @data_router.post(
     "/generate-text-data",
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(is_on_low_disk())],
     summary="Generate Text Data",
     description=get_section(docs, "Generate Text Data"),
 )
@@ -94,7 +96,7 @@ def generate_text_data_endpoint(
 
 @data_router.post(
     "/generate-token-data",
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(get_current_user), Depends(is_on_low_disk())],
     summary="Generate Token Data",
     description=get_section(docs, "Generate Token Data"),
 )

@@ -54,11 +54,13 @@ install_ansible
 
 VERBOSE=0  # Default: No verbose mode
 PLATFORM_IMAGE_BRANCH="release-test-main"  # Default value if not provided
+CLEANUP=0  # Flag for cleanup mode
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -v|--verbose) VERBOSE=1 ;;   # Enable verbose mode if -v or --verbose is passed
         -b|--branch) PLATFORM_IMAGE_BRANCH="$2"; shift ;;  # Capture platform_image_branch if provided
+        --cleanup) CLEANUP=1 ;;  # Enable cleanup mode if --cleanup is passed
         *) CONFIG_PATH=$(realpath "$1") ;;  # Treat the first argument as the config path
     esac
     shift
@@ -66,7 +68,7 @@ done
 
 # Check if config file is provided
 if [ -z "$CONFIG_PATH" ]; then
-    echo "Usage: $0 [-v|--verbose] [-b|--branch <branch_name>] /path/to/your/config.yml"
+    echo "Usage: $0 [-v|--verbose] [-b|--branch <branch_name>] [--cleanup] /path/to/your/config.yml"
     exit 1
 fi
 
@@ -106,9 +108,19 @@ if [ "$PLATFORM_IMAGE_BRANCH" == "release-test-main" ]; then
     echo "WARNING: No platform_image_branch specified. Using default 'release-test-main'."
 fi
 
-if [ "$VERBOSE" -eq 1 ]; then
-    echo "Running in verbose mode (-vvvv)"
-    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH" -vvvv
+# Run the appropriate playbook based on the cleanup flag
+if [ "$CLEANUP" -eq 1 ]; then
+    echo "Running cleanup playbook..."
+    if [ "$VERBOSE" -eq 1 ]; then
+        ansible-playbook playbooks/test_cleanup.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH" -vvvv
+    else
+        ansible-playbook playbooks/test_cleanup.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH"
+    fi
 else
-    ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH"
+    echo "Running deployment playbook..."
+    if [ "$VERBOSE" -eq 1 ]; then
+        ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH" -vvvv
+    else
+        ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH"
+    fi
 fi

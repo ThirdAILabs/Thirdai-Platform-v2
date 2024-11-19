@@ -7,8 +7,9 @@ from backend.utils import get_model, validate_name
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, status
+from platform_common.dependencies import is_on_low_disk
 from platform_common.pydantic_models.training import ModelType, UDTSubType
-from platform_common.utils import get_section, response
+from platform_common.utils import disk_usage, get_section, response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -36,6 +37,7 @@ class EnterpriseSearchOptions(BaseModel):
 
 @workflow_router.post(
     "/enterprise-search",
+    dependencies=[Depends(is_on_low_disk())],
     summary="Create Enterprise Search Workflow",
     description=get_section(docs, "Create Enterprise Search Workflow"),
 )
@@ -137,5 +139,6 @@ def create_enterprise_search_workflow(
         data={
             "model_id": str(workflow_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )

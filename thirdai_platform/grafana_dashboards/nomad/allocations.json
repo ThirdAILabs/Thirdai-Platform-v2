@@ -590,7 +590,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -719,7 +720,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -879,8 +881,8 @@
       {
         "current": {
           "selected": false,
-          "text": "GenerateData-62b58636-82b6-48a0-8fb0-0df700ec1737",
-          "value": "GenerateData-62b58636-82b6-48a0-8fb0-0df700ec1737"
+          "text": "GenerateData-c222c359-cb9c-46e5-8731-04cfc6a43602",
+          "value": "GenerateData-c222c359-cb9c-46e5-8731-04cfc6a43602"
         },
         "datasource": {
           "type": "prometheus",
@@ -940,6 +942,6 @@
   "timezone": "",
   "title": "Allocations",
   "uid": "5XxwU0GVz",
-  "version": 53,
+  "version": 63,
   "weekStart": ""
 }

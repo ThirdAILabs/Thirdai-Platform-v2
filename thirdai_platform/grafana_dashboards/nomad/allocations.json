@@ -629,7 +629,7 @@
               }
             ]
           },
-          "unit": "decmbytes"
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -662,7 +662,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum by (task)(nomad_client_allocs_memory_usage{exported_job=\"$workload\",task_group=\"$group\"}) / (1024 * 1024)",
+          "expr": "sum by (task)(nomad_client_allocs_memory_usage{exported_job=\"$workload\",task_group=\"$group\"})",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,

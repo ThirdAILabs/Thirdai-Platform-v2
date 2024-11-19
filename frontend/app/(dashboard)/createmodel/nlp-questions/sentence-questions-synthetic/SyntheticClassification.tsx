@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button, TextField, IconButton, Box } from '@mui/material';
 import {
   Table,
@@ -29,7 +30,7 @@ interface SyntheticClassificationProps {
   question: string;
   answer: string;
   onModelCreated?: (modelId: string) => void;
-  modelName?: string;
+  modelName: string;
   stayOnPage?: boolean;
 }
 
@@ -40,7 +41,7 @@ const SyntheticClassification = ({
   question,
   answer,
   onModelCreated,
-  modelName = '',
+  modelName,
   stayOnPage = false,
 }: SyntheticClassificationProps) => {
   const [categories, setCategories] = useState<Category[]>([
@@ -49,6 +50,8 @@ const SyntheticClassification = ({
   const [isDataGenerating, setIsDataGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<GeneratedData[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+
+  const router = useRouter();
 
   const handleCategoryChange = (
     index: number,
@@ -176,6 +179,10 @@ const SyntheticClassification = ({
 
       if (onModelCreated) {
         onModelCreated(modelResponse.data.model_id);
+      }
+
+      if (!stayOnPage) {
+        router.push('/');
       }
     } catch (error) {
       console.error('Error creating model:', error);

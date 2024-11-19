@@ -405,6 +405,10 @@ const NERQuestions = ({
   );
 
   const renderSelectedMethod = () => {
+    if (generatedData.length > 0) {
+      return renderGeneratedData();
+    }
+
     switch (creationMethod) {
       // case CREATION_METHODS.PRETRAINED:
       //   return <Typography>Coming Soon</Typography>;
@@ -434,122 +438,164 @@ const NERQuestions = ({
           </Box>
         );
       case CREATION_METHODS.SYNTHETIC:
-        return (
-          // Your existing synthetic data generation UI
-          <div>
-            <span className="block text-lg font-semibold">Specify Tokens</span>
-            <CardDescription>Define your own categories or select existing ones</CardDescription>
-            <form onSubmit={(e) => e.preventDefault()}>
-              <div style={{ display: 'flex', flexDirection: 'column', marginTop: '10px' }}>
-                {categories.map((category, categoryIndex) => (
-                  <div
-                    key={categoryIndex}
-                    style={{
-                      marginBottom: '20px',
-                      border: '1px solid #ccc',
-                      padding: '10px',
-                      borderRadius: '4px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        marginBottom: '10px',
-                      }}
-                    >
-                      <TextField
-                        style={{ width: '45%' }}
-                        className="text-sm"
-                        placeholder="Category Name"
-                        value={category.name}
-                        onChange={(e) =>
-                          handleCategoryChange(categoryIndex, 'name', e.target.value)
-                        }
-                        InputProps={{
-                          inputProps: {
-                            list: `category-options-${categoryIndex}`,
-                          },
-                        }}
-                      />
-                      <datalist id={`category-options-${categoryIndex}`}>
-                        {predefinedChoices.map((choice, i) => (
-                          <option key={i} value={choice} />
-                        ))}
-                      </datalist>
-                      <TextField
-                        style={{ width: '45%' }}
-                        className="text-sm"
-                        placeholder="What this category is about."
-                        value={category.description}
-                        onChange={(e) =>
-                          handleCategoryChange(categoryIndex, 'description', e.target.value)
-                        }
-                      />
-                    </div>
-                    {category.examples.map((example, exampleIndex) => (
-                      <div
-                        key={exampleIndex}
-                        style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}
-                      >
-                        <TextField
-                          style={{ flex: 1 }}
-                          className="text-sm"
-                          placeholder={`Example ${exampleIndex + 1}`}
-                          value={example.text}
-                          onChange={(e) =>
-                            handleExampleChange(categoryIndex, exampleIndex, e.target.value)
-                          }
-                        />
-                        <IconButton
-                          onClick={() => handleRemoveExample(categoryIndex, exampleIndex)}
-                          disabled={category.examples.length === 1}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </div>
-                    ))}
-                    <Button
-                      variant="outlined"
-                      startIcon={<AddIcon />}
-                      onClick={() => handleAddExample(categoryIndex)}
-                      style={{ marginRight: '10px' }}
-                    >
-                      Add Example
-                    </Button>
-                    <Button
-                      variant="contained"
-                      color="error"
-                      onClick={() => handleRemoveCategory(categoryIndex)}
-                      disabled={categories.length === 1}
-                    >
-                      Remove Category
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  variant="contained"
-                  style={{ marginTop: '10px', width: 'fit-content' }}
-                  onClick={handleAddAndReviewCategory}
-                >
-                  Add Category
-                </Button>
-                <Button
-                  variant="contained"
-                  color={isDataGenerating ? 'success' : 'primary'}
-                  style={{ marginTop: '30px' }}
-                  onClick={generateData}
-                >
-                  {isDataGenerating ? 'Generating data...' : 'Generate data'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        );
+        return renderSyntheticMethod();
       default:
         return null;
     }
   };
+
+  const renderSyntheticMethod = () => (
+    <div>
+      <span className="block text-lg font-semibold">Specify Tokens</span>
+      <CardDescription>Define your own categories or select existing ones</CardDescription>
+      <form onSubmit={(e) => e.preventDefault()}>
+        <div className="flex flex-col mt-3">
+          {categories.map((category, categoryIndex) => (
+            <div key={categoryIndex} className="mb-5 border border-gray-300 p-3 rounded-md">
+              <div className="flex justify-between mb-3">
+                <TextField
+                  className="w-[45%] text-sm"
+                  placeholder="Category Name"
+                  value={category.name}
+                  onChange={(e) => handleCategoryChange(categoryIndex, 'name', e.target.value)}
+                  InputProps={{
+                    inputProps: {
+                      list: `category-options-${categoryIndex}`,
+                    },
+                  }}
+                />
+                <datalist id={`category-options-${categoryIndex}`}>
+                  {predefinedChoices.map((choice, i) => (
+                    <option key={i} value={choice} />
+                  ))}
+                </datalist>
+                <TextField
+                  className="w-[45%] text-sm"
+                  placeholder="What this category is about."
+                  value={category.description}
+                  onChange={(e) =>
+                    handleCategoryChange(categoryIndex, 'description', e.target.value)
+                  }
+                />
+              </div>
+              {category.examples.map((example, exampleIndex) => (
+                <div key={exampleIndex} className="flex items-center mb-3">
+                  <TextField
+                    className="flex-1 text-sm"
+                    placeholder={`Example ${exampleIndex + 1}`}
+                    value={example.text}
+                    onChange={(e) =>
+                      handleExampleChange(categoryIndex, exampleIndex, e.target.value)
+                    }
+                  />
+                  <IconButton
+                    onClick={() => handleRemoveExample(categoryIndex, exampleIndex)}
+                    disabled={category.examples.length === 1}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </div>
+              ))}
+              <Button
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={() => handleAddExample(categoryIndex)}
+                className="mr-3"
+              >
+                Add Example
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                onClick={() => handleRemoveCategory(categoryIndex)}
+                disabled={categories.length === 1}
+              >
+                Remove Category
+              </Button>
+            </div>
+          ))}
+          <Button variant="contained" className="mt-3 w-fit" onClick={handleAddAndReviewCategory}>
+            Add Category
+          </Button>
+          <Button
+            variant="contained"
+            color={isDataGenerating ? 'success' : 'primary'}
+            className="mt-8"
+            onClick={generateData}
+          >
+            {isDataGenerating ? 'Generating data...' : 'Generate data'}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+
+  const renderGeneratedData = () => (
+    <>
+      <h3 className="text-lg font-semibold mt-5">Categories and Examples</h3>
+      <Table className="mt-3">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Category</TableHead>
+            <TableHead>Example</TableHead>
+            <TableHead>Description</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {categories.map((category, index) => (
+            <TableRow key={index}>
+              <TableCell className="font-medium">{category.name}</TableCell>
+              <TableCell className="font-medium">
+                {category.examples.map((ex, i) => (
+                  <div key={i}>{ex.text}</div>
+                ))}
+              </TableCell>
+              <TableCell className="font-medium">{category.description}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <div className="mt-5">
+        <h3 className="mb-3 text-lg font-semibold">Example Generated Data</h3>
+        <div>
+          {generatedData.map((pair, index) => (
+            <div key={index} className="my-2">
+              {renderTaggedSentence(pair)}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex gap-3 mt-5">
+          <Button
+            variant="outlined"
+            className="flex-1"
+            onClick={() => {
+              setGeneratedData([]);
+              setCreationMethod('');
+            }}
+          >
+            Redefine Tokens
+          </Button>
+          <Button
+            variant="contained"
+            className="flex-1"
+            onClick={handleCreateNERModel}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2" />
+                <span>Creating...</span>
+              </div>
+            ) : (
+              'Create'
+            )}
+          </Button>
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <div>

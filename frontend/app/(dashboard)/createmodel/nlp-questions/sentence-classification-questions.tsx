@@ -216,6 +216,7 @@ const SCQQuestions = ({
             question={question}
             answer={answer}
             onModelCreated={onCreateModel}
+            modelName={modelName}
           />
         );
       default:

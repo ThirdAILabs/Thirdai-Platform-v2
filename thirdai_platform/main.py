@@ -8,7 +8,6 @@ from platform_common.logging import setup_logger
 from platform_common.utils import model_bazaar_path
 
 load_dotenv()
-
 import json
 
 import fastapi
@@ -50,7 +49,7 @@ log_dir: Path = Path(model_bazaar_path()) / "logs"
 setup_logger(log_dir=log_dir, log_prefix="platform_backend")
 setup_logger(log_dir=log_dir, log_prefix="audit")
 
-logger = logging.getLogger("platform-backend")
+logger = logging.getLogger("platform_backend")
 audit_logger = logging.getLogger("audit")
 
 app.include_router(user, prefix="/api/user", tags=["user"])
@@ -80,12 +79,20 @@ async def global_exception_handler(request: fastapi.Request, exc: Exception):
 
 @app.middleware("http")
 async def log_requests(request: fastapi.Request, call_next):
+    x_forwarded_for = request.headers.get("x-forwarded-for")
+    client_ip = (
+        x_forwarded_for.split(",")[0].strip()
+        if x_forwarded_for
+        else request.client.host
+    )  # When behind a load balancer or proxy, client IP would be in `x-forwarded-for` header
     audit_log = {
+        "ip": client_ip,
         "protocol": request.headers.get("x-forwarded-proto", request.url.scheme),
         "url": str(request.url),
         "query_params": dict(request.query_params),
         "path_params": dict(request.path_params),
     }
+
     try:
         session = next(get_session())
         user = validate_access_token(

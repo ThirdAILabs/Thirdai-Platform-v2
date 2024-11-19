@@ -1,5 +1,6 @@
 try:
     import asyncio
+    import json
     import logging
     import os
     import sys
@@ -40,8 +41,12 @@ config: DeploymentConfig = load_config()
 log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
 
 setup_logger(log_dir=log_dir, log_prefix="deployment")
+setup_logger(
+    log_dir=log_dir / "deployment_audit_logs", log_prefix=os.getenv("NOMAD_ALLOC_ID")
+)
 
 logger = logging.getLogger("deployment")
+audit_logger = logging.getLogger(os.getenv("NOMAD_ALLOC_ID"))
 
 reporter = Reporter(config.model_bazaar_endpoint, logger)
 
@@ -64,6 +69,21 @@ app.add_middleware(
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
+    x_forwarded_for = request.headers.get("x-forwarded-for")
+    client_ip = (
+        x_forwarded_for.split(",")[0].strip()
+        if x_forwarded_for
+        else request.client.host
+    )  # When behind a load balancer or proxy, client IP would be in `x-forwarded-for` header
+    audit_log = {
+        "ip": client_ip,
+        "protocol": request.headers.get("x-forwarded-proto", request.url.scheme),
+        "url": str(request.url),
+        "query_params": dict(request.query_params),
+        "path_params": dict(request.path_params),
+    }
+    audit_logger.info(json.dumps(audit_log))
+
     response = await call_next(request)
 
     logger.info(

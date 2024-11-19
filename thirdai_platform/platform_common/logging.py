@@ -37,13 +37,16 @@ def setup_logger(log_dir: Path, log_prefix: str, level=logging.INFO):
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(colored_formatter)
 
-    # Basic configuration with multiple handlers
-    logging.basicConfig(
-        level=level,
-        format=log_format,
-        datefmt=date_format,
-        handlers=[file_handler, console_handler],
-    )
+    # Get the specific logger
+    logger = logging.getLogger(log_prefix)
+    logger.setLevel(level)
+
+    # Add handlers to the logger
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    # To avoid duplicate logs by disabling propagation
+    logger.propagate = False
 
 
 def get_default_logger():

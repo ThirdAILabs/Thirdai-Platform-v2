@@ -3,23 +3,39 @@
 import { useState, useEffect } from 'react';
 import RAGQuestions from './rag-questions';
 import NLPQuestions from './nlp-questions/nlp-questions';
-import DocumentClassificationQuestions from './document-class-questions';
-import SemanticSearchQuestions from './semantic-search-questions';
-import TabularClassificationQuestions from './tabular-class-questions';
 import { fetchWorkflows, Workflow } from '@/lib/backend';
-import { Divider } from '@mui/material';
-import { CardDescription } from '@/components/ui/card';
-import DropdownMenu from '@/components/ui/dropDownMenu';
+import { FormControl, InputLabel, Select, MenuItem, Typography, Box, Divider } from '@mui/material';
+
+const USE_CASES = [
+  {
+    name: 'Enterprise Search',
+    value: 'enterprise-search',
+    description: 'Build a search engine that understands context and meaning in your documents',
+  },
+  {
+    name: 'Chatbot',
+    value: 'chatbot',
+    description:
+      'Create an AI assistant that can engage in conversations and answer questions using your data',
+  },
+  {
+    name: 'NLP / Text Analytics',
+    value: 'nlp-text-analytics',
+    description: 'Extract insights, classify content, and analyze unstructured text data at scale',
+  },
+];
+
 export default function ChooseProblem() {
   const [modelType, setModelType] = useState('');
-
   const [privateModels, setPrivateModels] = useState<Workflow[]>([]);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
 
   useEffect(() => {
     async function getModels() {
       try {
         const response = await fetchWorkflows();
         setPrivateModels(response);
+        setWorkflows(response);
       } catch (err) {
         if (err instanceof Error) {
           console.log(err.message);
@@ -32,75 +48,51 @@ export default function ChooseProblem() {
     getModels();
   }, []);
 
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-
-  useEffect(() => {
-    async function getWorkflows() {
-      try {
-        const fetchedWorkflows = await fetchWorkflows();
-        console.log('workflows', fetchedWorkflows);
-        setWorkflows(fetchedWorkflows);
-      } catch (err) {
-        if (err instanceof Error) {
-          console.log(err.message);
-        } else {
-          console.log('An unknown error occurred');
-        }
-      }
-    }
-
-    getWorkflows();
-  }, []);
-
   const workflowNames = workflows.map((workflow) => workflow.model_name);
 
-  // Updated Use Case names
-  const ENTERPRISE_SEARCH = 'Enterprise Search';
-  const NLP_TEXT_ANALYSIS = 'NLP / Text Analytics';
-  const CHATBOT = 'Chatbot';
-
-  // const DOC_CLASSIFICATION = "Document Classification";
-  // const TABULAR_CLASSIFICATION = "Tabular Classification";
-
-  // Update the useCases array with new names
-  const useCases = [{ name: ENTERPRISE_SEARCH }, { name: CHATBOT }, { name: NLP_TEXT_ANALYSIS }];
-  const handleSetModelType = (model: string) => {
-    setModelType(model);
+  const handleChange = (event: any) => {
+    setModelType(event.target.value);
   };
 
   return (
-    <>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <span className="block text-lg font-semibold">Use case</span>
-        <CardDescription>Please select the app type based on your use case.</CardDescription>
-        <div style={{ marginTop: '10px' }}>
-          <DropdownMenu
-            title="Select a use case"
-            handleSelectedTeam={handleSetModelType}
-            teams={useCases}
-          />
-        </div>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Box>
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          Use case
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Please select the app type based on your use case.
+        </Typography>
 
-        {modelType && (
-          <div style={{ width: '100%', marginTop: '20px' }}>
-            <Divider style={{ marginBottom: '20px' }} />
-            {modelType === CHATBOT && (
-              <RAGQuestions models={privateModels} workflowNames={workflowNames} isChatbot={true} />
-            )}
-            {modelType === NLP_TEXT_ANALYSIS && <NLPQuestions workflowNames={workflowNames} />}
-            {modelType === ENTERPRISE_SEARCH && (
-              <RAGQuestions
-                models={privateModels}
-                workflowNames={workflowNames}
-                isChatbot={false}
-              />
-              // <SemanticSearchQuestions models={privateModels} workflowNames={workflowNames} />
-            )}
-            {/* {modelType === DOC_CLASSIFICATION && <DocumentClassificationQuestions workflowNames={workflowNames} />} */}
-            {/* {modelType === TABULAR_CLASSIFICATION && <TabularClassificationQuestions workflowNames={workflowNames} />} */}
-          </div>
-        )}
-      </div>
-    </>
+        <FormControl fullWidth>
+          <InputLabel>Select a use case</InputLabel>
+          <Select value={modelType} label="Select a use case" onChange={handleChange}>
+            {USE_CASES.map((useCase) => (
+              <MenuItem key={useCase.value} value={useCase.value} sx={{ py: 2 }}>
+                <Box>
+                  <Typography variant="subtitle1">{useCase.name}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {useCase.description}
+                  </Typography>
+                </Box>
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      {modelType && (
+        <Box sx={{ width: '100%' }}>
+          <Divider sx={{ mb: 3 }} />
+          {modelType === 'chatbot' && (
+            <RAGQuestions models={privateModels} workflowNames={workflowNames} isChatbot={true} />
+          )}
+          {modelType === 'nlp-text-analytics' && <NLPQuestions workflowNames={workflowNames} />}
+          {modelType === 'enterprise-search' && (
+            <RAGQuestions models={privateModels} workflowNames={workflowNames} isChatbot={false} />
+          )}
+        </Box>
+      )}
+    </Box>
   );
 }

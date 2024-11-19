@@ -54,6 +54,45 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
   const [isLoading, setIsLoading] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
 
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [isNameValid, setIsNameValid] = useState(false);
+
+  const validateAppName = (name: string): string => {
+    if (!name) return 'App name is required.';
+    if (name.includes(' ')) return 'The app name cannot contain spaces. Please remove the spaces.';
+    if (name.includes('.')) return "The app name cannot contain periods ('.'). Please remove the periods.";
+    if (!/^[\w-]+$/.test(name)) return 'The app name can only contain letters, numbers, underscores, and hyphens.';
+    if (workflowNames.includes(name)) return 'An app with the same name already exists. Please choose a different name.';
+    return '';
+  };
+
+  const handleStepClick = (stepIndex: number) => {
+    // Only allow clicking on completed steps or the next available step
+    if (completedSteps.includes(stepIndex) || stepIndex === Math.min(currentStep, completedSteps.length)) {
+      setCurrentStep(stepIndex);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentStep === 0 && !warningMessage && modelName) {
+      if (!completedSteps.includes(0)) {
+        setCompletedSteps([...completedSteps, 0]);
+      }
+      setCurrentStep(1);
+    } else if (currentStep === 1 && ssModelId) {
+      if (!completedSteps.includes(1)) {
+        setCompletedSteps([...completedSteps, 1]);
+      }
+      setCurrentStep(2);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
   const handleSubmit = async () => {
     setIsLoading(true);
 
@@ -136,24 +175,10 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
             value={modelName}
             onChange={(e) => {
               const name = e.target.value;
-              const regexPattern = /^[\w-]+$/;
-              let warningMessage = '';
-
-              if (name.includes(' ')) {
-                warningMessage = 'The app name cannot contain spaces. Please remove the spaces.';
-              }
-              else if (name.includes('.')) {
-                warningMessage = "The app name cannot contain periods ('.'). Please remove the periods.";
-              }
-              else if (!regexPattern.test(name)) {
-                warningMessage = 'The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.';
-              }
-              else if (workflowNames.includes(name)) {
-                warningMessage = 'An app with the same name already exists. Please choose a different name.';
-              }
-
-              setWarningMessage(warningMessage);
+              const warning = validateAppName(name);
+              setWarningMessage(warning);
               setModelName(name);
+              setIsNameValid(!warning);
             }}
             placeholder="Enter app name"
             style={{ marginTop: '10px' }}
@@ -404,18 +429,23 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
       <div
         className="mb-4"
         style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'flex-start',
-            rowGap: '15px',
-            columnGap: '15px',
-          }}
-        >
-          {steps.map((step, index) => (
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'flex-start',
+          rowGap: '15px',
+          columnGap: '15px',
+        }}
+      >
+        {steps.map((step, index) => {
+          // Only show steps that are completed or the next available step
+          const isAvailable = completedSteps.includes(index) || index === Math.min(currentStep, completedSteps.length);
+          if (!isAvailable && index > 0) return null;
+
+          return (
             <Button
               key={index}
               variant={index === currentStep ? 'contained' : 'outlined'}
-              onClick={() => setCurrentStep(index)}
+              onClick={() => handleStepClick(index)}
               style={{
                 marginBottom: '10px',
                 minWidth: '140px',
@@ -428,53 +458,62 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 padding: '0 16px',
+                opacity: isAvailable ? 1 : 0.5,
+                cursor: isAvailable ? 'pointer' : 'not-allowed',
               }}
+              disabled={!isAvailable}
             >
               {step.title}
             </Button>
-          ))}
-        </div>
-  
-        {/* Step Content */}
-        <div>{steps[currentStep].content}</div>
-  
-        {/* Step Controls */}
-        <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between' }}>
-          {currentStep > 0 ? (
-            <Button onClick={() => setCurrentStep(currentStep - 1)}>Previous</Button>
-          ) : (
-            <div></div>
-          )}
-  
-          {currentStep < steps.length - 1 ? (
-            <Button onClick={() => setCurrentStep(currentStep + 1)}>Next</Button>
-          ) : (
-            <>
-              {ssModelId && modelName ? (
-                <div>
-                  <Button
-                    onClick={handleSubmit}
-                    style={{ width: '100%' }}
-                    disabled={isLoading || !(ssModelId && modelName)}
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
-                        <span>Creating...</span>
-                      </div>
-                    ) : (
-                      'Create'
-                    )}
-                  </Button>
-                </div>
-              ) : (
-                <div style={{ color: 'red' }}>{errorMessage}</div>
-              )}
-            </>
-          )}
-        </div>
+          );
+        })}
       </div>
-    );
-  };
+
+      {/* Step Content */}
+      <div>{steps[currentStep].content}</div>
+
+      {/* Step Controls */}
+      <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between' }}>
+        {currentStep > 0 ? (
+          <Button onClick={handlePrevious}>Previous</Button>
+        ) : (
+          <div></div>
+        )}
+
+        {currentStep < steps.length - 1 ? (
+          <Button 
+            onClick={handleNext}
+            disabled={currentStep === 0 && (!modelName || !isNameValid)}
+          >
+            Next
+          </Button>
+        ) : (
+          <>
+            {ssModelId && modelName ? (
+              <div>
+                <Button
+                  onClick={handleSubmit}
+                  style={{ width: '100%' }}
+                  disabled={isLoading || !(ssModelId && modelName)}
+                >
+                  {isLoading ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
+                      <span>Creating...</span>
+                    </div>
+                  ) : (
+                    'Create'
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div style={{ color: 'red' }}>{errorMessage}</div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default EnterpriseSearchQuestions;

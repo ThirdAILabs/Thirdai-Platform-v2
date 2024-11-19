@@ -196,17 +196,8 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
         <div>
           {!createdSS && (
             <>
-              <CardDescription>Use an existing knowledge base?</CardDescription>
+              <CardDescription>Would you like to create a new Knowledge Base?</CardDescription>
               <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
-                <Button
-                  variant={ifUseExistingSS === 'Yes' ? 'contained' : 'outlined'}
-                  onClick={() => {
-                    setUseExistingSS('Yes');
-                    setCreatedSS(false);
-                  }}
-                >
-                  Yes
-                </Button>
                 <Button
                   variant={ifUseExistingSS === 'No' ? 'contained' : 'outlined'}
                   onClick={() => {
@@ -214,7 +205,16 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
                     setCreatedSS(false);
                   }}
                 >
-                  No, create a new one
+                  Yes
+                </Button>
+                <Button
+                  variant={ifUseExistingSS === 'Yes' ? 'contained' : 'outlined'}
+                  onClick={() => {
+                    setUseExistingSS('Yes');
+                    setCreatedSS(false);
+                  }}
+                >
+                  No, use an existing one
                 </Button>
               </div>
             </>

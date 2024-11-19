@@ -56,6 +56,7 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
 
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [isNameValid, setIsNameValid] = useState(false);
+  const [showLLMStep, setShowLLMStep] = useState(false);
 
   const validateAppName = (name: string): string => {
     if (!name) return 'App name is required.';
@@ -259,6 +260,32 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
               )}
             </>
           )}
+
+          {ssModelId && (
+            <div className="mt-8">
+              <CardDescription>Would you like to add an LLM to your enterprise search?</CardDescription>
+              <div className="flex gap-4 mt-4">
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setShowLLMStep(true);
+                    setCurrentStep(2);
+                  }}
+                >
+                  Yes, add LLM
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    handleSubmit();
+                    router.push('/');
+                  }}
+                >
+                  No, finish setup
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       ),
     },
@@ -437,10 +464,13 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
         }}
       >
         {steps.map((step, index) => {
-          // Only show steps that are completed or the next available step
-          const isAvailable = completedSteps.includes(index) || index === Math.min(currentStep, completedSteps.length);
-          if (!isAvailable && index > 0) return null;
-
+          // Show all completed steps, current step, and LLM step if opted in
+          const shouldShow = 
+            index <= Math.max(...completedSteps, currentStep) || 
+            (index === 2 && showLLMStep);
+          
+          if (!shouldShow) return null;
+  
           return (
             <Button
               key={index}
@@ -458,60 +488,39 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({ m
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 padding: '0 16px',
-                opacity: isAvailable ? 1 : 0.5,
-                cursor: isAvailable ? 'pointer' : 'not-allowed',
               }}
-              disabled={!isAvailable}
             >
               {step.title}
             </Button>
           );
         })}
       </div>
-
+  
       {/* Step Content */}
       <div>{steps[currentStep].content}</div>
-
-      {/* Step Controls */}
-      <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between' }}>
-        {currentStep > 0 ? (
-          <Button onClick={handlePrevious}>Previous</Button>
-        ) : (
-          <div></div>
-        )}
-
-        {currentStep < steps.length - 1 ? (
-          <Button 
-            onClick={handleNext}
-            disabled={currentStep === 0 && (!modelName || !isNameValid)}
-          >
-            Next
-          </Button>
-        ) : (
-          <>
-            {ssModelId && modelName ? (
-              <div>
-                <Button
-                  onClick={handleSubmit}
-                  style={{ width: '100%' }}
-                  disabled={isLoading || !(ssModelId && modelName)}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
-                      <span>Creating...</span>
-                    </div>
-                  ) : (
-                    'Create'
-                  )}
-                </Button>
-              </div>
-            ) : (
-              <div style={{ color: 'red' }}>{errorMessage}</div>
-            )}
-          </>
-        )}
-      </div>
+  
+      {/* Step Controls - only show if not on Knowledge Base step or LLM not chosen yet */}
+      {!(currentStep === 1 && ssModelId) && (
+        <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between' }}>
+          {currentStep > 0 && <Button onClick={handlePrevious}>Previous</Button>}
+          
+          {currentStep < steps.length - 1 ? (
+            <Button 
+              onClick={handleNext}
+              disabled={currentStep === 0 && (!modelName || !isNameValid)}
+            >
+              Next
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={isLoading || !(ssModelId && modelName)}
+            >
+              {isLoading ? 'Creating...' : 'Create'}
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

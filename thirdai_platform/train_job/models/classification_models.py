@@ -163,8 +163,9 @@ class ClassificationModel(Model):
         self.logger.info(f"UDT path for model {model_id}: {udt_path}")
         return udt_path
 
-    def load_model(self, model_id):
-        return bolt.UniversalDeepTransformer.load(str(self.get_udt_path(model_id)))
+    @abstractmethod
+    def load_model(self, model_id, base_model_id):
+        pass
 
     def save_model(self, model):
         self.logger.info(f"Saving model to {self.model_save_path}")
@@ -183,7 +184,7 @@ class ClassificationModel(Model):
             self.logger.info(
                 f"Loading base model with model_id: {self.config.base_model_id}"
             )
-            return self.load_model(self.config.base_model_id)
+            return self.load_model(self.config.model_id, self.config.base_model_id)
 
         # initialize the model from scratch if the model does not exist or if there is not base model
         self.logger.info("Initializing a new model from scratch.")
@@ -218,6 +219,9 @@ class TextClassificationModel(ClassificationModel):
             target=self.txt_cls_vars.label_column,
             delimiter=self.txt_cls_vars.delimiter,
         )
+
+    def load_model(self, model_id, base_model_id):
+        return bolt.UniversalDeepTransformer.load(str(self.get_udt_path(base_model_id)))
 
     def train(self, **kwargs):
         try:
@@ -384,6 +388,34 @@ class TokenClassificationModel(ClassificationModel):
                 self.logger.error(f"Failed to add rule based tag {tag} with error {e}")
 
         return model
+
+    def copy_data_storage(self, old_model_id: str, new_model_id: str):
+        old_storage_dir = (
+            Path(self.config.model_bazaar_dir) / "data" / str(old_model_id)
+        )
+        new_storage_dir = (
+            Path(self.config.model_bazaar_dir) / "data" / str(new_model_id)
+        )
+
+        os.makedirs(new_storage_dir, exist_ok=True)
+        if not os.path.exists(old_storage_dir / "data_storage.db"):
+            raise ValueError("Base model missing sample storage")
+
+        shutil.copy(old_storage_dir / "data_storage.db", new_storage_dir)
+
+    def remove_unused_samples(self, model_id: str):
+        # remove unused samples from the old storage and rollback metadata to be in a consistent state
+        storage_dir = Path(self.config.model_bazaar_dir) / "data" / str(model_id)
+        data_storage = DataStorage(
+            connector=SQLiteConnector(db_path=storage_dir / "data_storage.db")
+        )
+        data_storage.remove_untrained_samples("ner")
+        data_storage.rollback_metadata("tags_and_status")
+
+    def load_model(self, model_id, base_model_id):
+        self.copy_data_storage(old_model_id=base_model_id, new_model_id=model_id)
+        self.remove_unused_samples(new_model_id=model_id)
+        return bolt.UniversalDeepTransformer.load(str(self.get_udt_path(base_model_id)))
 
     def load_storage(self):
         data_storage_path = self.data_dir / "data_storage.db"

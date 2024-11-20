@@ -26,6 +26,8 @@ type NlpTokenDatagenOptions struct {
 
 	Samples            []NlpTokenSample `json:"samples"`
 	TemplatesPerSample int              `json:"templates_per_sample"`
+
+	LoadFromStorage bool `json:"load_from_storage"`
 }
 
 func (opts *NlpTokenDatagenOptions) Validate() error {

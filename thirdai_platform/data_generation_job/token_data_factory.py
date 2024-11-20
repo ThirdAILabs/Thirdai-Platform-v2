@@ -22,6 +22,35 @@ from faker import Faker
 from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.utils import save_dict
 from tqdm import tqdm
+from platform_common.thirdai_storage import storage, data_types
+from platform_common.pydantic_models.training import LabelEntity
+
+
+def tags_in_storage(data_storage: storage.DataStorage) -> List[LabelEntity]:
+    tag_metadata: data_types.TagMetadata = data_storage.get_metadata(
+        "tags_and_status"
+    ).data
+
+    tag_status = tag_metadata.tag_status
+    tags = [tag_status[tag] for tag in tag_status.keys() if tag != "O"]
+    return tags
+
+
+def retrieve_ner_samples_for_generation(
+    data_storage: storage.DataStorage,
+) -> List[data_types.DataSample]:
+    # retrieve all the samples
+    samples: List[data_types.DataSample] = data_storage.retrieve_samples(
+        name="ner", num_samples=None, user_provided=True
+    )
+    # only use the samples that we did not generate synthetic data for
+    token_classification_samples = [
+        sample.data
+        for sample in samples
+        if sample.status == data_types.SampleStatus.untrained
+    ]
+
+    return token_classification_samples
 
 
 class TokenDataFactory(DataFactory):
@@ -434,7 +463,18 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
         num_samples_per_tag: Optional[int] = None,
         samples: List[NERSample] = None,
         templates_per_sample: int = 4,
+        load_from_storage: bool = False,
     ):
+        if load_from_storage:
+            storage_path = "TODO"
+            data_storage = storage.DataStorage(
+                connector=storage.SQLiteConnector(db_path=storage_path)
+            )
+            if not tags:
+                tags = tags_in_storage(data_storage)
+            if not samples:
+                samples = retrieve_ner_samples_for_generation(data_storage)
+
         if len(tags) == 0:
             return {
                 "error_file": str(self.errored_file_location),

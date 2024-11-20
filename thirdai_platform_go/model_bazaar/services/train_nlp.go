@@ -231,23 +231,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 		modelOptions = params.modelOptions()
 	}
 
-	// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
-	// in the future once this is standardized it will not be needed
-	storageDir := filepath.Join(s.storage.Location(), storage.ModelPath(modelId), "generated_data")
-
-	data := config.NlpData{
-		SupervisedFiles: []config.FileInfo{
-			{Path: filepath.Join(storageDir, "train"), Location: "local"},
-		},
-		TestFiles: []config.FileInfo{
-			{Path: filepath.Join(storageDir, "test"), Location: "local"},
-		},
-	}
-
-	if err := data.Validate(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	storageDir, data := s.getDatagenData(modelId)
 
 	trainConfig := config.TrainConfig{
 		ModelBazaarDir:      s.storage.Location(),
@@ -284,6 +268,111 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 	slog.Info("started datagen training successfully", "model_type", params.modelType(), "model_id", modelId, "model_name", params.ModelName)
 }
 
+type NlpTokenRetrainRequest struct {
+	ModelName   string `json:"model_name"`
+	BaseModelId string `json:"base_model_id"`
+
+	LlmProvider string `json:"llm_provider"`
+
+	TrainOptions config.NlpTrainOptions `json:"train_options"`
+	JobOptions   config.JobOptions      `json:"job_options"`
+}
+
+func (opts *NlpTokenRetrainRequest) validate() error {
+	allErrors := make([]error, 0)
+
+	if opts.ModelName == "" {
+		allErrors = append(allErrors, fmt.Errorf("model name must be specified"))
+	}
+
+	if opts.BaseModelId == "" {
+		allErrors = append(allErrors, fmt.Errorf("base_model_id must be specified"))
+	}
+
+	allErrors = append(allErrors, opts.TrainOptions.Validate())
+	allErrors = append(allErrors, opts.JobOptions.Validate())
+
+	return errors.Join(allErrors...)
+}
+
+func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
+	var params NlpTokenRetrainRequest
+	if !parseRequestBody(w, r, &params) {
+		return
+	}
+
+	if err := params.validate(); err != nil {
+		http.Error(w, fmt.Sprintf("unable to start nlp-token training, found the following errors: %v", err), http.StatusBadRequest)
+	}
+
+	userId, err := auth.UserIdFromContext(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	modelId := uuid.New().String()
+
+	slog.Info("starting datagen retraining", "model_type", schema.NlpTokenModel, "model_id", modelId, "model_name", params.ModelName)
+
+	license, err := verifyLicenseForNewJob(s.nomad, s.license, params.JobOptions.CpuUsageMhz())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	jobToken, err := s.jobAuth.CreateToken("model_id", modelId, time.Hour*1000*24)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	storageDir, data := s.getDatagenData(modelId)
+
+	trainConfig := config.TrainConfig{
+		ModelBazaarDir:      s.storage.Location(),
+		LicenseKey:          license,
+		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
+		JobAuthToken:        jobToken,
+		ModelId:             modelId,
+		ModelType:           schema.NlpTokenModel,
+		BaseModelId:         &params.BaseModelId,
+		ModelOptions:        nil,
+		Data:                data,
+		TrainOptions:        params.TrainOptions,
+		JobOptions:          params.JobOptions,
+		IsRetraining:        false,
+	}
+
+	numSamplesPerTag := 100
+	datagenConfig := config.DatagenConfig{
+		ModelId:             modelId,
+		StorageDir:          storageDir,
+		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
+		TaskPrompt:          "token_classification",
+		LlmProvider:         params.LlmProvider,
+		TaskOptions: config.NlpTokenDatagenOptions{
+			ModelType:              schema.NlpTokenModel,
+			Tags:                   nil,
+			NumSentencesToGenerate: 1000,
+			NumSamplesPerTag:       &numSamplesPerTag,
+			Samples:                nil,
+			TemplatesPerSample:     10,
+			LoadFromStorage:        true,
+		},
+	}
+
+	err = s.createModelAndStartDatagenTraining(params.ModelName, userId, trainConfig, datagenConfig, "")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("unable to start training: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	writeJsonResponse(w, map[string]string{"model_id": modelId})
+
+	slog.Info("started datagen retraining successfully", "model_type", schema.NlpTokenModel, "model_id", modelId, "model_name", params.ModelName)
+}
+
 func (s *TrainService) createModelAndStartDatagenTraining(
 	modelName, userId string, trainConfig config.TrainConfig, datagenConfig config.DatagenConfig, genaiKey string,
 ) error {
@@ -316,4 +405,19 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 	}
 
 	return s.saveModelAndStartJob(model, job)
+}
+
+func (s *TrainService) getDatagenData(modelId string) (string, config.NlpData) {
+	// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
+	// in the future once this is standardized it will not be needed
+	storageDir := filepath.Join(s.storage.Location(), storage.ModelPath(modelId), "generated_data")
+
+	return storageDir, config.NlpData{
+		SupervisedFiles: []config.FileInfo{
+			{Path: filepath.Join(storageDir, "train"), Location: "local"},
+		},
+		TestFiles: []config.FileInfo{
+			{Path: filepath.Join(storageDir, "test"), Location: "local"},
+		},
+	}
 }

@@ -1787,6 +1787,41 @@ export async function deleteUserAccount(email: string): Promise<void> {
   });
 }
 
+export interface AddUserPayload {
+  username: string;
+  email: string;
+  password: string;
+}
+
+export interface AddUserResponse {
+  message: string;
+  data?: {
+    user_id: string;
+    email: string;
+  };
+}
+
+export async function addUser(userData: AddUserPayload): Promise<AddUserResponse> {
+  const accessToken = getAccessToken();
+  
+  return new Promise((resolve, reject) => {
+    axios.post<AddUserResponse>(
+      `${thirdaiPlatformBaseUrl}/api/user/add-user`,
+      userData,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }
+    )
+    .then((response) => {
+      resolve(response.data);
+    })
+    .catch((err) => {
+      console.error('Error adding user:', err);
+      reject(err);
+    });
+  });
+}
+
 export async function updateModel(modelIdentifier: string): Promise<void> {
   const accessToken = getAccessToken(); // Ensure this function is implemented elsewhere in your codebase
 

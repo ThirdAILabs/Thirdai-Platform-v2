@@ -4,8 +4,11 @@ import {
   Button, 
   Paper, 
   Typography,
-  Box
+  Box,
+  Alert,
+  Collapse
 } from '@mui/material';
+import { addUser } from '@/lib/backend';
 
 interface UserCreationFormProps {
   onUserCreated: () => void;
@@ -17,23 +20,22 @@ const UserCreationForm: React.FC<UserCreationFormProps> = ({ onUserCreated }) =>
     email: '',
     password: ''
   });
+  const [successMessage, setSuccessMessage] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/users/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      
-      if (!response.ok) throw new Error('Failed to create user');
-      
+      const response = await addUser(formData);
       setFormData({ username: '', email: '', password: '' });
+      setSuccessMessage(response.message);
+      setErrorMessage('');
       onUserCreated();
-    } catch (error) {
-      console.error('Error creating user:', error);
-      alert('Failed to create user');
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(''), 5000);
+    } catch (error: any) {
+      setErrorMessage(error.response?.data?.message || 'Error creating user');
+      setSuccessMessage('');
     }
   };
 
@@ -42,6 +44,16 @@ const UserCreationForm: React.FC<UserCreationFormProps> = ({ onUserCreated }) =>
       <Typography variant="h6" sx={{ mb: 2 }}>
         Create New User
       </Typography>
+      <Collapse in={!!successMessage}>
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {successMessage}
+        </Alert>
+      </Collapse>
+      <Collapse in={!!errorMessage}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {errorMessage}
+        </Alert>
+      </Collapse>
       <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <TextField
           label="Username"

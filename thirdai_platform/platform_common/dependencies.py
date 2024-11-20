@@ -3,7 +3,7 @@ from fastapi import HTTPException, status
 from .utils import disk_usage, model_bazaar_path
 
 
-def is_on_low_disk(threshold: float = 0.8, path=model_bazaar_path()):
+def is_on_low_disk(threshold: float = 0.8, path: str = model_bazaar_path()):
     def func(size: int = 0):
         disk_stats = disk_usage(path=path)
 

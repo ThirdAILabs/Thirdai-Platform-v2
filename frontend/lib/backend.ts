@@ -1525,6 +1525,7 @@ interface UserResponse {
   id: string;
   teams: UserTeamInfo[];
   username: string;
+  verified: boolean;
 }
 
 interface TeamResponse {
@@ -1582,6 +1583,17 @@ export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
       });
   });
 }
+
+export async function verifyUser(email: string): Promise<void> {
+  const accessToken = getAccessToken();
+  
+  return axios.post(
+    `${thirdaiPlatformBaseUrl}/api/user/verify-user`,
+    { email },
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+}
+
 
 // MODEL //
 

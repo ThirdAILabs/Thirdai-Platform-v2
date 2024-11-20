@@ -67,9 +67,9 @@ func (s *TrainService) Routes() chi.Router {
 	return r
 }
 
-func createModel(modelName, modelType string, baseModelId *string, userId string) schema.Model {
+func createModel(modelId, modelName, modelType string, baseModelId *string, userId string) schema.Model {
 	return schema.Model{
-		Id:                uuid.New().String(),
+		Id:                modelId,
 		Name:              modelName,
 		Type:              modelType,
 		PublishedDate:     time.Now(),
@@ -100,7 +100,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		return
 	}
 
-	model := createModel(args.modelName, args.modelType, args.baseModelId, userId)
+	model := createModel(uuid.NewString(), args.modelName, args.modelType, args.baseModelId, userId)
 
 	slog.Info("starting training", "model_type", args.modelType, "model_id", model.Id, "model_name", args.modelName)
 
@@ -179,6 +179,8 @@ func (s *TrainService) saveModelAndStartJob(model schema.Model, job nomad.Job) e
 			if perm < auth.ReadPermission {
 				return fmt.Errorf("user %v does not have permission to access base model %v", model.UserId, baseModel.Id)
 			}
+
+			// TODO(Nicholas): Copy dependencies/attributes from base model
 		}
 
 		err := checkForDuplicateModel(txn, model.Name, model.UserId)

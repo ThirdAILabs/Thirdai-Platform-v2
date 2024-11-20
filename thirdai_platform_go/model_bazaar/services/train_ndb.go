@@ -14,7 +14,7 @@ import (
 	"thirdai_platform/model_bazaar/storage"
 )
 
-type NdbTrainOptions struct {
+type NdbTrainRequest struct {
 	ModelName    string             `json:"model_name"`
 	BaseModelId  *string            `json:"base_model_id"`
 	ModelOptions *config.NdbOptions `json:"model_options"`
@@ -22,7 +22,7 @@ type NdbTrainOptions struct {
 	JobOptions   config.JobOptions  `json:"job_options"`
 }
 
-func (opts *NdbTrainOptions) validate() error {
+func (opts *NdbTrainRequest) validate() error {
 	allErrors := make([]error, 0)
 
 	if opts.ModelName == "" {
@@ -46,7 +46,7 @@ func (opts *NdbTrainOptions) validate() error {
 }
 
 func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
-	var options NdbTrainOptions
+	var options NdbTrainRequest
 	if !parseRequestBody(w, r, &options) {
 		return
 	}
@@ -139,13 +139,13 @@ func (s *TrainService) getNdbRetrainingData(baseModelId string) (config.NDBData,
 	return data, nil
 }
 
-type NdbRetrainOptions struct {
+type NdbRetrainRequest struct {
 	ModelName   string            `json:"model_name"`
 	BaseModelId string            `json:"base_model_id"`
 	JobOptions  config.JobOptions `json:"job_options"`
 }
 
-func (opts *NdbRetrainOptions) validate() error {
+func (opts *NdbRetrainRequest) validate() error {
 	allErrors := make([]error, 0)
 
 	if opts.ModelName == "" {
@@ -162,7 +162,7 @@ func (opts *NdbRetrainOptions) validate() error {
 }
 
 func (s *TrainService) NdbRetrain(w http.ResponseWriter, r *http.Request) {
-	var options NdbRetrainOptions
+	var options NdbRetrainRequest
 	if !parseRequestBody(w, r, &options) {
 		return
 	}

@@ -245,7 +245,7 @@ func (c *client) modelPermissions(modelId string) (services.ModelPermissions, er
 }
 
 func (c *client) trainNdb(name string) (string, error) {
-	params := services.NdbTrainOptions{
+	params := services.NdbTrainRequest{
 		ModelName:    name,
 		ModelOptions: &config.NdbOptions{},
 		Data: config.NDBData{

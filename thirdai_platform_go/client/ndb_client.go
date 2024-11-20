@@ -195,7 +195,7 @@ func (c *NdbClient) Sources() ([]Source, error) {
 }
 
 func (c *NdbClient) Retrain(newModelName string) (*NdbClient, error) {
-	params := services.NdbRetrainOptions{
+	params := services.NdbRetrainRequest{
 		ModelName:   newModelName,
 		BaseModelId: c.modelId,
 	}

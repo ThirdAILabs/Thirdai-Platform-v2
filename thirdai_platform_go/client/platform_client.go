@@ -103,7 +103,7 @@ func (c *PlatformClient) TrainNdb(name string, unsupervised []config.FileInfo, s
 		return nil, fmt.Errorf("error uploading supervised files for training: %w", err)
 	}
 
-	params := services.NdbTrainOptions{
+	params := services.NdbTrainRequest{
 		ModelName:    name,
 		ModelOptions: &config.NdbOptions{},
 		Data: config.NDBData{
@@ -143,7 +143,7 @@ func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []con
 		return nil, fmt.Errorf("error uploading files for training: %w", err)
 	}
 
-	params := services.NlpTokenTrainOptions{
+	params := services.NlpTokenTrainRequest{
 		ModelName: name,
 		ModelOptions: &config.NlpTokenOptions{
 			TargetLabels: labels,
@@ -187,7 +187,7 @@ func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []c
 		return nil, fmt.Errorf("error uploading files for training: %w", err)
 	}
 
-	params := services.NlpTextTrainOptions{
+	params := services.NlpTextTrainRequest{
 		ModelName: name,
 		ModelOptions: &config.NlpTextOptions{
 			NTargetClasses: nTargetClasses,

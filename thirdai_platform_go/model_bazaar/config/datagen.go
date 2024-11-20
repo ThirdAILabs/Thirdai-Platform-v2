@@ -1,5 +1,10 @@
 package config
 
+import (
+	"fmt"
+	"thirdai_platform/model_bazaar/schema"
+)
+
 type LabelEntity struct {
 	Name        string   `json:"name"`
 	Examples    []string `json:"examples"`
@@ -15,12 +20,44 @@ type NlpTokenSample struct {
 type NlpTokenDatagenOptions struct {
 	ModelType string `json:"model_type"`
 
-	Tags                     []LabelEntity `json:"tags"`
-	NumSentencesToGeneration int           `json:"num_sentences_to_generate"`
-	NumSamplesPerTag         *int          `json:"num_samples_per_tag"`
+	Tags                   []LabelEntity `json:"tags"`
+	NumSentencesToGenerate int           `json:"num_sentences_to_generate"`
+	NumSamplesPerTag       *int          `json:"num_samples_per_tag"`
 
 	Samples            []NlpTokenSample `json:"samples"`
 	TemplatesPerSample int              `json:"templates_per_sample"`
+}
+
+func (opts *NlpTokenDatagenOptions) Validate() error {
+	opts.ModelType = schema.NlpTokenModel
+
+	if opts.Tags == nil {
+		return fmt.Errorf("'tags' must be specified in token datagen options")
+	}
+
+	if opts.NumSentencesToGenerate == 0 {
+		opts.NumSentencesToGenerate = 1000
+	}
+
+	if opts.TemplatesPerSample == 0 {
+		opts.TemplatesPerSample = 10
+	}
+
+	return nil
+}
+
+func (opts *NlpTokenDatagenOptions) GetModelOptions() interface{} {
+	tags := make([]string, 0, len(opts.Tags))
+	for _, tag := range opts.Tags {
+		tags = append(tags, tag.Name)
+	}
+	return NlpTokenOptions{
+		ModelType:    schema.NlpTokenModel,
+		TargetLabels: tags,
+		SourceColumn: "source",
+		TargetColumn: "target",
+		DefaultTag:   "O",
+	}
 }
 
 type NlpTextSample struct {
@@ -31,16 +68,53 @@ type NlpTextSample struct {
 type NlpTextDatagenOptions struct {
 	ModelType string `json:"model_type"`
 
-	SamplesPerlabel  int           `json:"samples_per_label"`
 	Labels           []LabelEntity `json:"labels"`
+	SamplesPerlabel  int           `json:"samples_per_label"`
 	UserVocab        []string      `json:"user_vocab"`
 	UserPrompts      []string      `json:"user_prompts"`
 	VocabPerSentence int           `json:"vocab_per_sentence"`
 }
 
+func (opts *NlpTextDatagenOptions) Validate() error {
+	opts.ModelType = schema.NlpTextModel
+
+	if opts.Labels == nil {
+		return fmt.Errorf("'labels' must be specified in text datagen options")
+	}
+
+	if opts.SamplesPerlabel == 0 {
+		return fmt.Errorf("'samples_per_label' must be specified in datagen options")
+	}
+
+	if opts.VocabPerSentence == 0 {
+		opts.VocabPerSentence = 4
+	}
+
+	return nil
+}
+
+func (opts *NlpTextDatagenOptions) GetModelOptions() interface{} {
+	labels := make([]string, 0, len(opts.Labels))
+	for _, label := range opts.Labels {
+		labels = append(labels, label.Name)
+	}
+	return NlpTokenOptions{
+		ModelType:    schema.NlpTokenModel,
+		TargetLabels: labels,
+		SourceColumn: "source",
+		TargetColumn: "target",
+		DefaultTag:   "O",
+	}
+}
+
 type DatagenConfig struct {
+	ModelId    string `json:"model_id"`
+	StorageDir string `json:"storage_dir"`
+
+	ModelBazaarEndpoint string `json:"model_bazaar_endpoint"`
+
 	TaskPrompt  string `json:"task_prompt"`
 	LlmProvider string `json:"llm_provider"`
 
-	DatagenOptions interface{} `json:"datagen_options"`
+	TaskOptions interface{} `json:"task_options"`
 }

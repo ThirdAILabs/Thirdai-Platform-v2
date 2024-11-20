@@ -99,7 +99,6 @@ type NlpTokenOptions struct {
 
 func (opts *NlpTokenOptions) Validate() error {
 	opts.ModelType = schema.NlpTokenModel
-	opts.DefaultTag = "O"
 
 	if opts.SourceColumn == "" {
 		return fmt.Errorf("source_column must be specified")
@@ -107,6 +106,10 @@ func (opts *NlpTokenOptions) Validate() error {
 
 	if opts.TargetColumn == "" {
 		return fmt.Errorf("target_column must be specified")
+	}
+
+	if opts.DefaultTag == "" {
+		opts.DefaultTag = "O"
 	}
 
 	return nil
@@ -123,7 +126,6 @@ type NlpTextOptions struct {
 
 func (opts *NlpTextOptions) Validate() error {
 	opts.ModelType = schema.NlpTextModel
-	opts.Delimiter = ","
 
 	if opts.TextColumn == "" {
 		return fmt.Errorf("text_column must be specified")
@@ -135,6 +137,10 @@ func (opts *NlpTextOptions) Validate() error {
 
 	if opts.NTargetClasses <= 0 {
 		return fmt.Errorf("n_target_classes must be > 0")
+	}
+
+	if opts.Delimiter == "" {
+		opts.Delimiter = ","
 	}
 
 	return nil

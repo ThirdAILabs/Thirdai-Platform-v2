@@ -5,16 +5,18 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
+	"thirdai_platform/model_bazaar/storage"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-type NlpTokenTrainOptions struct {
+type NlpTokenTrainRequest struct {
 	ModelName    string                  `json:"model_name"`
 	BaseModelId  *string                 `json:"base_model_id"`
 	ModelOptions *config.NlpTokenOptions `json:"model_options"`
@@ -23,7 +25,7 @@ type NlpTokenTrainOptions struct {
 	JobOptions   config.JobOptions       `json:"job_options"`
 }
 
-func (opts *NlpTokenTrainOptions) validate() error {
+func (opts *NlpTokenTrainRequest) validate() error {
 	allErrors := make([]error, 0)
 
 	if opts.ModelName == "" {
@@ -49,7 +51,7 @@ func (opts *NlpTokenTrainOptions) validate() error {
 }
 
 func (s *TrainService) TrainNlpToken(w http.ResponseWriter, r *http.Request) {
-	var options NlpTokenTrainOptions
+	var options NlpTokenTrainRequest
 	if !parseRequestBody(w, r, &options) {
 		return
 	}
@@ -70,7 +72,7 @@ func (s *TrainService) TrainNlpToken(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-type NlpTextTrainOptions struct {
+type NlpTextTrainRequest struct {
 	ModelName    string                 `json:"model_name"`
 	BaseModelId  *string                `json:"base_model_id"`
 	ModelOptions *config.NlpTextOptions `json:"model_options"`
@@ -79,7 +81,7 @@ type NlpTextTrainOptions struct {
 	JobOptions   config.JobOptions      `json:"job_options"`
 }
 
-func (opts *NlpTextTrainOptions) validate() error {
+func (opts *NlpTextTrainRequest) validate() error {
 	allErrors := make([]error, 0)
 
 	if opts.ModelName == "" {
@@ -105,7 +107,7 @@ func (opts *NlpTextTrainOptions) validate() error {
 }
 
 func (s *TrainService) TrainNlpText(w http.ResponseWriter, r *http.Request) {
-	var options NlpTextTrainOptions
+	var options NlpTextTrainRequest
 	if !parseRequestBody(w, r, &options) {
 		return
 	}
@@ -126,40 +128,91 @@ func (s *TrainService) TrainNlpText(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-type NlpTokenTrainDatagenOptions struct {
-	ModelName      string                 `json:"model_name"`
-	BaseModelId    *string                `json:"base_model_id"`
-	DatagenOptions config.DatagenConfig   `json:"datagen_options"`
-	TrainOptions   config.NlpTrainOptions `json:"train_options"`
-	JobOptions     config.JobOptions      `json:"job_options"`
+type NlpTrainDatagenRequest struct {
+	ModelName   string  `json:"model_name"`
+	BaseModelId *string `json:"base_model_id"`
+
+	TaskPrompt  string `json:"task_prompt"`
+	LlmProvider string `json:"llm_provider"`
+
+	TokenOptions *config.NlpTokenDatagenOptions `json:"token_options"`
+	TextOptions  *config.NlpTextDatagenOptions  `json:"text_options"`
+
+	TrainOptions config.NlpTrainOptions `json:"train_options"`
+	JobOptions   config.JobOptions      `json:"job_options"`
 }
 
-func (opts *NlpTokenTrainDatagenOptions) validate() error {
-	return nil
+func (opts *NlpTrainDatagenRequest) modelType() string {
+	if opts.TextOptions != nil {
+		return schema.NlpTextModel
+	}
+	return schema.NlpTokenModel
 }
 
-func (s *TrainService) TrainNlpTokenDatagen(w http.ResponseWriter, r *http.Request) {
+func (opts *NlpTrainDatagenRequest) taskOptions() interface{} {
+	if opts.TextOptions != nil {
+		return opts.TextOptions
+	}
+	return opts.TokenOptions
+}
+
+func (opts *NlpTrainDatagenRequest) modelOptions() interface{} {
+	if opts.TextOptions != nil {
+		return opts.TextOptions.GetModelOptions()
+	}
+	return opts.TokenOptions.GetModelOptions()
+}
+
+func (opts *NlpTrainDatagenRequest) validate() error {
+	allErrors := make([]error, 0)
+
+	if opts.ModelName == "" {
+		allErrors = append(allErrors, fmt.Errorf("model name must be specified"))
+	}
+
+	if opts.TokenOptions != nil && opts.TextOptions != nil {
+		allErrors = append(allErrors, fmt.Errorf("cannot specify both 'token_options' and 'text_options'"))
+	}
+
+	if opts.TokenOptions == nil && opts.TextOptions == nil {
+		allErrors = append(allErrors, fmt.Errorf("must specify one of 'token_options' or 'text_options'"))
+	}
+
+	if opts.TokenOptions != nil {
+		allErrors = append(allErrors, opts.TokenOptions.Validate())
+	}
+
+	if opts.TextOptions != nil {
+		allErrors = append(allErrors, opts.TextOptions.Validate())
+	}
+
+	allErrors = append(allErrors, opts.TrainOptions.Validate())
+	allErrors = append(allErrors, opts.JobOptions.Validate())
+
+	return errors.Join(allErrors...)
+}
+
+func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
+	var params NlpTrainDatagenRequest
+	if !parseRequestBody(w, r, &params) {
+		return
+	}
+
+	if err := params.validate(); err != nil {
+		http.Error(w, fmt.Sprintf("unable to start nlp-token training, found the following errors: %v", err), http.StatusBadRequest)
+	}
+
 	userId, err := auth.UserIdFromContext(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	var options NlpTokenTrainDatagenOptions
-	if !parseRequestBody(w, r, &options) {
-		return
-	}
-
-	if err := options.validate(); err != nil {
-		http.Error(w, fmt.Sprintf("unable to start nlp-token dategen training, found the following errors: %v", err), http.StatusBadRequest)
-		return
-	}
-
 	modelId := uuid.New().String()
 
-	slog.Info("starting training", "model_type", schema.NlpTokenModel, "model_id", modelId, "model_name", options.ModelName)
+	slog.Info("starting datagen training", "model_type", params.modelType(), "model_id", modelId, "model_name", params.ModelName)
 
-	license, err := verifyLicenseForNewJob(s.nomad, s.license, options.JobOptions.CpuUsageMhz())
+	license, err := verifyLicenseForNewJob(s.nomad, s.license, params.JobOptions.CpuUsageMhz())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -171,22 +224,23 @@ func (s *TrainService) TrainNlpTokenDatagen(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var modelOptions *config.NlpTokenOptions
-	if options.BaseModelId != nil {
+	var modelOptions interface{}
+	if params.BaseModelId != nil {
 		modelOptions = nil
 	} else {
-		modelOptions = &config.NlpTokenOptions{
-			ModelType:    schema.NlpTokenModel,
-			TargetLabels: []string{}, // todo use the data gen labels
-			SourceColumn: "source",
-			TargetColumn: "target",
-			DefaultTag:   "O",
-		}
+		modelOptions = params.modelOptions()
 	}
+
+	// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
+	// in the future once this is standardized it will not be needed
+	storageDir := filepath.Join(s.storage.Location(), storage.ModelPath(modelId), "generated_data")
 
 	data := config.NlpData{
 		SupervisedFiles: []config.FileInfo{
-			// todo use the data gen files
+			{Path: filepath.Join(storageDir, "train"), Location: "local"},
+		},
+		TestFiles: []config.FileInfo{
+			{Path: filepath.Join(storageDir, "test"), Location: "local"},
 		},
 	}
 
@@ -201,22 +255,33 @@ func (s *TrainService) TrainNlpTokenDatagen(w http.ResponseWriter, r *http.Reque
 		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
 		JobAuthToken:        jobToken,
 		ModelId:             modelId,
-		ModelType:           schema.NlpTokenModel,
-		BaseModelId:         options.BaseModelId,
+		ModelType:           params.modelType(),
+		BaseModelId:         params.BaseModelId,
 		ModelOptions:        modelOptions,
 		Data:                data,
-		TrainOptions:        options.TrainOptions,
-		JobOptions:          options.JobOptions,
+		TrainOptions:        params.TrainOptions,
+		JobOptions:          params.JobOptions,
 		IsRetraining:        false,
 	}
 
-	err = s.createModelAndStartDatagenTraining(options.ModelName, userId, trainConfig, options.DatagenOptions, "")
+	datagenConfig := config.DatagenConfig{
+		ModelId:             modelId,
+		StorageDir:          storageDir,
+		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
+		TaskPrompt:          params.TaskPrompt,
+		LlmProvider:         params.LlmProvider,
+		TaskOptions:         params.taskOptions(),
+	}
+
+	err = s.createModelAndStartDatagenTraining(params.ModelName, userId, trainConfig, datagenConfig, "")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("unable to start training: %v", err), http.StatusBadRequest)
 		return
 	}
 
 	writeJsonResponse(w, map[string]string{"model_id": modelId})
+
+	slog.Info("started datagen training successfully", "model_type", params.modelType(), "model_id", modelId, "model_name", params.ModelName)
 }
 
 func (s *TrainService) createModelAndStartDatagenTraining(
@@ -232,18 +297,7 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 		return err
 	}
 
-	model := schema.Model{
-		Id:                trainConfig.ModelId,
-		Name:              modelName,
-		Type:              trainConfig.ModelType,
-		PublishedDate:     time.Now(),
-		TrainStatus:       schema.NotStarted,
-		DeployStatus:      schema.NotStarted,
-		Access:            schema.Private,
-		DefaultPermission: schema.ReadPerm,
-		BaseModelId:       trainConfig.BaseModelId,
-		UserId:            userId,
-	}
+	model := createModel(trainConfig.ModelId, modelName, trainConfig.ModelType, trainConfig.BaseModelId, userId)
 
 	job := nomad.DatagenTrainJob{
 		TrainJob: nomad.TrainJob{

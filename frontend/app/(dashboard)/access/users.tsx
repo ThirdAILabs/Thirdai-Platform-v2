@@ -52,7 +52,7 @@ export default function Users() {
       if (!isConfirmed) return;
 
       await promoteUserToGlobalAdmin(user.email);
-      await getUsers(); // Refresh the user list
+      await getUsers();
     } catch (error) {
       console.error('Failed to promote user', error);
       alert('Failed to promote user: ' + error);
@@ -78,11 +78,11 @@ export default function Users() {
             <div className="text-gray-700">Owned Models: {user.ownedModels.join(', ')}</div>
           )}
           {isGlobalAdmin && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '45%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '30%' }}>
               <Button onClick={() => deleteUser(user.name)} variant="contained" color="error">
                 Delete user
               </Button>
-              {user.role !== 'Global Admin' && (
+              {user.role === 'Global Admin' && (
                 <Button
                   onClick={() => handlePromotion(user.name)}
                   variant="contained"

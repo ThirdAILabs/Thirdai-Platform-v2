@@ -85,7 +85,7 @@ class NDBRouter:
             "/insert",
             self.insert,
             methods=["POST"],
-            dependencies=[Depends(is_on_low_disk(threshold=0.8))],
+            dependencies=[Depends(is_on_low_disk())],
         )
         self.router.add_api_route("/delete", self.delete, methods=["POST"])
         self.router.add_api_route("/upvote", self.upvote, methods=["POST"])
@@ -101,7 +101,12 @@ class NDBRouter:
         )
         self.router.add_api_route("/chat", self.chat, methods=["POST"])
         self.router.add_api_route("/sources", self.get_sources, methods=["GET"])
-        self.router.add_api_route("/save", self.save, methods=["POST"])
+        self.router.add_api_route(
+            "/save",
+            self.save,
+            methods=["POST"],
+            dependencies=[Depends(is_on_low_disk())],
+        )
         self.router.add_api_route(
             "/highlighted-pdf", self.highlighted_pdf, methods=["GET"]
         )

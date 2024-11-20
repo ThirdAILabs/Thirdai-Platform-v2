@@ -204,7 +204,7 @@ class UDTRouterTextClassification(UDTBaseRouter):
             "/insert_sample",
             self.insert_sample,
             methods=["POST"],
-            dependencies=[Depends(is_on_low_disk(threshold=0.8))],
+            dependencies=[Depends(is_on_low_disk())],
         )
         self.router.add_api_route(
             "/get_recent_samples", self.get_recent_samples, methods=["GET"]
@@ -256,7 +256,7 @@ class UDTRouterTokenClassification(UDTBaseRouter):
             "/insert_sample",
             self.insert_sample,
             methods=["POST"],
-            dependencies=[Depends(is_on_low_disk(threshold=0.8))],
+            dependencies=[Depends(is_on_low_disk())],
         )
         self.router.add_api_route("/get_labels", self.get_labels, methods=["GET"])
         self.router.add_api_route(

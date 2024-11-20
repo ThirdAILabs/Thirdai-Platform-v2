@@ -18,7 +18,7 @@ def setup_env():
     os.environ["ADMIN_USERNAME"] = "admin"
     os.environ["ADMIN_MAIL"] = "admin@mail.com"
     os.environ["ADMIN_PASSWORD"] = "password"
-    os.environ["TEST_ENVIRONMENT"] = "True"
+    os.environ["AIRGAPPED"] = "True"
 
 
 @pytest.fixture(autouse=True, scope="session")

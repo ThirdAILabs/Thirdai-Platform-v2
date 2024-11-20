@@ -5,22 +5,24 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from data_generation_job.llms import llm_classes
+from platform_common.pydantic_models.training import DatagenConfig
 from data_generation_job.prompt_resources.common_prompts import (
     extended_description_prompt,
 )
 from data_generation_job.prompt_resources.util_data import random_prompts, vocab
 from data_generation_job.utils import count_csv_lines
-from data_generation_job.variables import Entity, GeneralVariables
+from data_generation_job.variables import Entity
 from tqdm import tqdm
+import os
 
 
 class DataFactory(ABC):
-    def __init__(self, logger: Logger):
-        self.general_variables: GeneralVariables = GeneralVariables.load_from_env()
+    def __init__(self, logger: Logger, config: DatagenConfig):
+        self.config = config
         self.logger = logger
-        self.save_dir = Path(self.general_variables.storage_dir)
-        self.llm_model = llm_classes.get(self.general_variables.llm_provider.value)(
-            api_key=self.general_variables.genai_key,
+        self.save_dir = Path(self.config.storage_dir)
+        self.llm_model = llm_classes.get(self.config.llm_provider)(
+            api_key=os.getenv("GENAI_KEY"),
             response_file=self.save_dir / "response.txt",
             record_usage_at=self.save_dir / "llm_usage.json",
         )
@@ -30,7 +32,7 @@ class DataFactory(ABC):
         self.train_dir.mkdir(parents=True, exist_ok=True)
         self.train_file_location = self.train_dir / "train.csv"
 
-        if self.general_variables.test_size:
+        if self.config.test_size:
             self.test_dir.mkdir(parents=True, exist_ok=True)
             self.test_file_location = self.test_dir / "test.csv"
             self.test_sentences_generated = 0

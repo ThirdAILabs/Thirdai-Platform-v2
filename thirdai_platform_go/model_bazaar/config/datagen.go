@@ -37,6 +37,12 @@ func (opts *NlpTokenDatagenOptions) Validate() error {
 		return fmt.Errorf("'tags' must be specified in token datagen options")
 	}
 
+	for i, tag := range opts.Tags {
+		if tag.Status == "" {
+			opts.Tags[i].Status = "uninserted"
+		}
+	}
+
 	if opts.NumSentencesToGenerate == 0 {
 		opts.NumSentencesToGenerate = 1000
 	}
@@ -84,6 +90,12 @@ func (opts *NlpTextDatagenOptions) Validate() error {
 		return fmt.Errorf("'labels' must be specified in text datagen options")
 	}
 
+	for i, tag := range opts.Labels {
+		if tag.Status == "" {
+			opts.Labels[i].Status = "uninserted"
+		}
+	}
+
 	if opts.SamplesPerlabel == 0 {
 		return fmt.Errorf("'samples_per_label' must be specified in datagen options")
 	}
@@ -110,13 +122,15 @@ func (opts *NlpTextDatagenOptions) GetModelOptions() interface{} {
 }
 
 type DatagenConfig struct {
-	ModelId    string `json:"model_id"`
-	StorageDir string `json:"storage_dir"`
+	ModelId        string `json:"model_id"`
+	ModelBazaarDir string `json:"model_bazaar_dir"`
+	StorageDir     string `json:"storage_dir"`
 
 	ModelBazaarEndpoint string `json:"model_bazaar_endpoint"`
 
-	TaskPrompt  string `json:"task_prompt"`
-	LlmProvider string `json:"llm_provider"`
+	TaskPrompt  string  `json:"task_prompt"`
+	LlmProvider string  `json:"llm_provider"`
+	TestSize    float32 `json:"test_size"`
 
 	TaskOptions interface{} `json:"task_options"`
 }

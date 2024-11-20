@@ -5,6 +5,7 @@ from logging import Logger
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+from pathlib import Path
 from data_generation_job.data_factory_interface import DataFactory
 from data_generation_job.prompt_resources.token_prompts import (
     dataset_generation_prompt,
@@ -55,8 +56,8 @@ def retrieve_ner_samples_for_generation(
 
 class TokenDataFactory(DataFactory):
 
-    def __init__(self, logger: Logger):
-        super().__init__(logger)
+    def __init__(self, logger: Logger, config):
+        super().__init__(logger, config=config)
         self.faker = Faker()
         self.sentences_per_template = 4
 
@@ -372,7 +373,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
 
             # Splitting into train/test template set
             train_templates, test_templates = train_test_split(
-                data_points=templates, test_size=self.general_variables.test_size
+                data_points=templates, test_size=self.config.test_size
             )
             # Saving the train and test templates
             if train_templates:
@@ -466,7 +467,12 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
         load_from_storage: bool = False,
     ):
         if load_from_storage:
-            storage_path = "TODO"
+            storage_path = (
+                Path(self.config.model_bazaar_dir)
+                / "data"
+                / self.config.model_id
+                / "data_storage.db"
+            )
             data_storage = storage.DataStorage(
                 connector=storage.SQLiteConnector(db_path=storage_path)
             )
@@ -521,7 +527,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
         # divide the values into train and test split for no data leakage while validation
         train_tag_values, test_tag_values = self.train_test_tag_split(
             tag_values=tag_values,
-            test_size=self.general_variables.test_size * self.sentences_per_template,
+            test_size=self.config.test_size * self.sentences_per_template,
             shuffle=True,
             save=True,
         )

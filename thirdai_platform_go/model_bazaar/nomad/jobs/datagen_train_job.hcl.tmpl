@@ -44,6 +44,14 @@ job "{{ .JobName }}" {
           args    = ["-c", "cd {{ with .Driver }}{{ .PlatformDir }} && {{ .PythonPath }}{{ end }} -m data_generation_job.run --config {{ .DatagenConfigPath }}"]
         {{ end }}
       }
+
+      resources {
+        {{ with .Resources }}
+        cpu = {{ .AllocationMhz }}
+        memory = {{ .AllocationMemory }}
+        memory_max = {{ .AllocationMemoryMax }}
+        {{ end }} 
+      }
     }
 
     task "backend" {

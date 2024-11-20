@@ -85,3 +85,49 @@ func TestNlpText(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestNlpTokenDatagen(t *testing.T) {
+	client := getClient(t)
+
+	model, err := client.TrainNlpTokenDatagen(
+		randomName("nlp-token"),
+		"i want to detect a person's name and email in text",
+		config.NlpTokenDatagenOptions{
+			Tags: []config.LabelEntity{
+				{Name: "EMAIL", Examples: []string{"my email is bob@gmail.com"}, Description: "a person's email"},
+				{Name: "NAME", Examples: []string{"my name is bob"}, Description: "a person's name"},
+			},
+			NumSentencesToGenerate: 40,
+		},
+		config.NlpTrainOptions{Epochs: 10},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = model.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = model.Deploy(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		err := model.Undeploy()
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	err = model.AwaitDeploy(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = model.Predict("jonas is my name", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+}

@@ -14,8 +14,8 @@ class TextDataFactory(DataFactory):
     SOURCE_COLUMN = "text"
     TARGET_COLUMN = "label"
 
-    def __init__(self, logger: Logger):
-        super().__init__(logger=logger)
+    def __init__(self, logger: Logger, config):
+        super().__init__(logger=logger, config=config)
 
     def collect_arguments(
         self,
@@ -125,7 +125,7 @@ class TextDataFactory(DataFactory):
             transformed_data_points = shuffle_and_filter(transformed_data_points)
 
             train_data_points, test_data_points = train_test_split(
-                transformed_data_points, test_size=self.general_variables.test_size
+                transformed_data_points, test_size=self.config.test_size
             )
 
             if train_data_points:

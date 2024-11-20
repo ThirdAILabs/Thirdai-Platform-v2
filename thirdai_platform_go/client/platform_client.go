@@ -224,3 +224,67 @@ func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []c
 		},
 	}, nil
 }
+
+func (c *PlatformClient) TrainNlpTokenDatagen(name string, taskPrompt string, options config.NlpTokenDatagenOptions, trainOptions config.NlpTrainOptions) (*NlpTokenClient, error) {
+	params := services.NlpTrainDatagenRequest{
+		ModelName:    name,
+		TaskPrompt:   taskPrompt,
+		TokenOptions: &options,
+		TrainOptions: trainOptions,
+	}
+
+	body, err := json.Marshal(params)
+	if err != nil {
+		return nil, fmt.Errorf("error encoding request: %w", err)
+	}
+
+	u, err := url.JoinPath(c.baseUrl, "/api/v2/train/nlp-datagen")
+	if err != nil {
+		return nil, fmt.Errorf("error formatting url: %w", err)
+	}
+
+	res, err := post[map[string]string](u, body, c.authToken)
+	if err != nil {
+		return nil, err
+	}
+
+	return &NlpTokenClient{
+		ModelClient{
+			baseUrl:   c.baseUrl,
+			authToken: c.authToken,
+			modelId:   res["model_id"],
+		},
+	}, nil
+}
+
+func (c *PlatformClient) TrainNlpTextDatagen(name string, taskPrompt string, options config.NlpTextDatagenOptions, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
+	params := services.NlpTrainDatagenRequest{
+		ModelName:    name,
+		TaskPrompt:   taskPrompt,
+		TextOptions:  &options,
+		TrainOptions: trainOptions,
+	}
+
+	body, err := json.Marshal(params)
+	if err != nil {
+		return nil, fmt.Errorf("error encoding request: %w", err)
+	}
+
+	u, err := url.JoinPath(c.baseUrl, "/api/v2/train/nlp-datagen")
+	if err != nil {
+		return nil, fmt.Errorf("error formatting url: %w", err)
+	}
+
+	res, err := post[map[string]string](u, body, c.authToken)
+	if err != nil {
+		return nil, err
+	}
+
+	return &NlpTextClient{
+		ModelClient{
+			baseUrl:   c.baseUrl,
+			authToken: c.authToken,
+			modelId:   res["model_id"],
+		},
+	}, nil
+}

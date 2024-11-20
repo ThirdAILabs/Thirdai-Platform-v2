@@ -2,7 +2,10 @@ import os
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
-pass
+from platform_common.thirdai_storage.data_types import (
+    LabelEntity,
+    TokenClassificationData,
+)
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -194,47 +197,56 @@ class LLMProvider(str, Enum):
     cohere = "cohere"
 
 
-# class TextClassificationDatagenOptions(BaseModel):
-#     # sub_type: Literal[UDTSubType.text] = UDTSubType.text
-#     samples_per_label: int
-#     target_labels: List[LabelEntity]
-#     user_vocab: Optional[List[str]] = None
-#     user_prompts: Optional[List[str]] = None
-#     vocab_per_sentence: int = 4
+class NlpTextDatagenOptions(BaseModel):
+    model_type: Literal[ModelType.NLP_TEXT] = ModelType.NLP_TEXT
+
+    labels: List[LabelEntity]
+    samples_per_label: int
+    user_vocab: Optional[List[str]] = None
+    user_prompts: Optional[List[str]] = None
+    vocab_per_sentence: int = 4
 
 
-# class TokenClassificationDatagenOptions(BaseModel):
-#     # sub_type: Literal[UDTSubType.token] = UDTSubType.token
-#     tags: List[LabelEntity]
-#     num_sentences_to_generate: int = 1_000
-#     num_samples_per_tag: Optional[int] = None
+class NlpTokenDatagenOptions(BaseModel):
+    # sub_type: Literal[UDTSubType.token] = UDTSubType.token
+    tags: Optional[List[LabelEntity]]
+    num_sentences_to_generate: int = 1_000
+    num_samples_per_tag: Optional[int] = None
 
-#     # example NER samples
-#     samples: Optional[List[TokenClassificationData]] = None
-#     templates_per_sample: int = 10
+    # example NER samples
+    samples: Optional[List[TokenClassificationData]] = None
+    templates_per_sample: int = 10
 
-#     @model_validator(mode="after")
-#     def deduplicate_tags(cls, values):
-#         tag_map = {}
-#         for tag in values.tags:
-#             key = tag.name
-#             if key in tag_map:
-#                 tag_map[key].examples = list(
-#                     set(tag_map[key].examples) | set(tag.examples)
-#                 )
-#             else:
-#                 tag_map[key] = tag
-#         values.tags = list(tag_map.values())
-#         return values
+    load_from_storage: bool = False
+
+    @model_validator(mode="after")
+    def deduplicate_tags(cls, values):
+        tag_map = {}
+        for tag in values.tags:
+            key = tag.name
+            if key in tag_map:
+                tag_map[key].examples = list(
+                    set(tag_map[key].examples) | set(tag.examples)
+                )
+            else:
+                tag_map[key] = tag
+        values.tags = list(tag_map.values())
+        return values
 
 
-# class DatagenOptions(BaseModel):
-#     task_prompt: str
-#     llm_provider: LLMProvider = LLMProvider.openai
+class DatagenConfig(BaseModel):
+    model_id: str
+    model_bazaar_dir: str
+    storage_dir: str
+    model_bazaar_endpoint: str
 
-#     datagen_options: Union[
-#         TokenClassificationDatagenOptions, TextClassificationDatagenOptions
-#     ] = Field(..., discriminator="sub_type")
+    task_prompt: str
+    llm_provider: str
+    test_size: float = 0.05
+
+    task_options: Union[NlpTokenDatagenOptions, NlpTextDatagenOptions] = Field(
+        ..., descriminator="model_type"
+    )
 
 
 class JobOptions(BaseModel):

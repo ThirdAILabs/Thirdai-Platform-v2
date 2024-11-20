@@ -132,8 +132,9 @@ type NlpTrainDatagenRequest struct {
 	ModelName   string  `json:"model_name"`
 	BaseModelId *string `json:"base_model_id"`
 
-	TaskPrompt  string `json:"task_prompt"`
-	LlmProvider string `json:"llm_provider"`
+	TaskPrompt  string  `json:"task_prompt"`
+	LlmProvider string  `json:"llm_provider"`
+	TestSize    float32 `json:"test_size"`
 
 	TokenOptions *config.NlpTokenDatagenOptions `json:"token_options"`
 	TextOptions  *config.NlpTextDatagenOptions  `json:"text_options"`
@@ -168,6 +169,14 @@ func (opts *NlpTrainDatagenRequest) validate() error {
 
 	if opts.ModelName == "" {
 		allErrors = append(allErrors, fmt.Errorf("model name must be specified"))
+	}
+
+	if opts.LlmProvider == "" {
+		opts.LlmProvider = "openai"
+	}
+
+	if opts.TestSize == 0 {
+		opts.TestSize = 0.05
 	}
 
 	if opts.TokenOptions != nil && opts.TextOptions != nil {
@@ -250,6 +259,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 
 	datagenConfig := config.DatagenConfig{
 		ModelId:             modelId,
+		ModelBazaarDir:      s.storage.Location(),
 		StorageDir:          storageDir,
 		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
 		TaskPrompt:          params.TaskPrompt,
@@ -257,7 +267,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 		TaskOptions:         params.taskOptions(),
 	}
 
-	err = s.createModelAndStartDatagenTraining(params.ModelName, userId, trainConfig, datagenConfig, "")
+	err = s.createModelAndStartDatagenTraining(params.ModelName, userId, trainConfig, datagenConfig)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("unable to start training: %v", err), http.StatusBadRequest)
 		return
@@ -272,7 +282,8 @@ type NlpTokenRetrainRequest struct {
 	ModelName   string `json:"model_name"`
 	BaseModelId string `json:"base_model_id"`
 
-	LlmProvider string `json:"llm_provider"`
+	LlmProvider string  `json:"llm_provider"`
+	TestSize    float32 `json:"test_size"`
 
 	TrainOptions config.NlpTrainOptions `json:"train_options"`
 	JobOptions   config.JobOptions      `json:"job_options"`
@@ -287,6 +298,14 @@ func (opts *NlpTokenRetrainRequest) validate() error {
 
 	if opts.BaseModelId == "" {
 		allErrors = append(allErrors, fmt.Errorf("base_model_id must be specified"))
+	}
+
+	if opts.LlmProvider == "" {
+		opts.LlmProvider = "openai"
+	}
+
+	if opts.TestSize == 0 {
+		opts.TestSize = 0.05
 	}
 
 	allErrors = append(allErrors, opts.TrainOptions.Validate())
@@ -347,6 +366,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 	numSamplesPerTag := 100
 	datagenConfig := config.DatagenConfig{
 		ModelId:             modelId,
+		ModelBazaarDir:      s.storage.Location(),
 		StorageDir:          storageDir,
 		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
 		TaskPrompt:          "token_classification",
@@ -362,7 +382,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	err = s.createModelAndStartDatagenTraining(params.ModelName, userId, trainConfig, datagenConfig, "")
+	err = s.createModelAndStartDatagenTraining(params.ModelName, userId, trainConfig, datagenConfig)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("unable to start training: %v", err), http.StatusBadRequest)
 		return
@@ -374,7 +394,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TrainService) createModelAndStartDatagenTraining(
-	modelName, userId string, trainConfig config.TrainConfig, datagenConfig config.DatagenConfig, genaiKey string,
+	modelName, userId string, trainConfig config.TrainConfig, datagenConfig config.DatagenConfig,
 ) error {
 	trainConfigPath, err := saveConfig(trainConfig.ModelId, "train", trainConfig, s.storage)
 	if err != nil {
@@ -382,6 +402,11 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 	}
 
 	datagenConfigPath, err := saveConfig(trainConfig.ModelId, "datagen", datagenConfig, s.storage)
+	if err != nil {
+		return err
+	}
+
+	genaiKey, err := s.variables.GenaiKey(datagenConfig.LlmProvider)
 	if err != nil {
 		return err
 	}

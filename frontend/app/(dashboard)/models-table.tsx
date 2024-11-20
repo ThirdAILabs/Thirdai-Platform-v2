@@ -83,16 +83,15 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayedWorkflows
-              .map((workflow) => (
-                <WorkFlow
-                  key={workflow.model_id}
-                  workflow={workflow}
-                  Workflows={workflows}
-                  allowActions={true}
-                  level={0}
-                />
-              ))}
+            {displayedWorkflows.map((workflow) => (
+              <WorkFlow
+                key={workflow.model_id}
+                workflow={workflow}
+                Workflows={workflows}
+                allowActions={true}
+                level={0}
+              />
+            ))}
           </TableBody>
         </Table>
       </CardContent>

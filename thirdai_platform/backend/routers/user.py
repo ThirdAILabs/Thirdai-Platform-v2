@@ -600,6 +600,7 @@ def list_accessible_users(
                 }
                 for user_team in user.teams
             ],
+            "verified": user.verified,
         }
         for user in users
     ]

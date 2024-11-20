@@ -44,6 +44,8 @@ func (s *TrainService) Routes() chi.Router {
 		r.Post("/ndb-retrain", s.NdbRetrain)
 		r.Post("/nlp-token", s.TrainNlpToken)
 		r.Post("/nlp-text", s.TrainNlpText)
+		r.Post("/nlp-datagen", s.TrainNlpDatagen)
+		r.Post("/nlp-token-retrain", s.NlpTokenRetrain)
 		r.Post("/upload-data", s.UploadData)
 	})
 

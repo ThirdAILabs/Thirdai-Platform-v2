@@ -37,7 +37,6 @@ class UDTBaseRouter:
     def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
         self.model: ClassificationModel = self.get_model(config, logger)
         self.logger = logger
-        self.config = config
 
         # TODO(Nicholas): move these metrics to prometheus
         self.start_time = time.time()
@@ -205,7 +204,7 @@ class UDTRouterTextClassification(UDTBaseRouter):
             "/insert_sample",
             self.insert_sample,
             methods=["POST"],
-            dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
+            dependencies=[Depends(is_on_low_disk(path=config.model_bazaar_dir))],
         )
         self.router.add_api_route(
             "/get_recent_samples", self.get_recent_samples, methods=["GET"]
@@ -257,7 +256,7 @@ class UDTRouterTokenClassification(UDTBaseRouter):
             "/insert_sample",
             self.insert_sample,
             methods=["POST"],
-            dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
+            dependencies=[Depends(is_on_low_disk(path=config.model_bazaar_dir))],
         )
         self.router.add_api_route("/get_labels", self.get_labels, methods=["GET"])
         self.router.add_api_route(

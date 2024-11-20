@@ -1,13 +1,5 @@
 import React, { useState } from 'react';
-import { 
-  TextField, 
-  Button, 
-  Paper, 
-  Typography,
-  Box,
-  Alert,
-  Collapse
-} from '@mui/material';
+import { TextField, Button, Paper, Typography, Box, Alert, Collapse } from '@mui/material';
 import { addUser } from '@/lib/backend';
 
 interface UserCreationFormProps {
@@ -18,7 +10,7 @@ const UserCreationForm: React.FC<UserCreationFormProps> = ({ onUserCreated }) =>
   const [formData, setFormData] = useState({
     username: '',
     email: '',
-    password: ''
+    password: '',
   });
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -54,11 +46,15 @@ const UserCreationForm: React.FC<UserCreationFormProps> = ({ onUserCreated }) =>
           {errorMessage}
         </Alert>
       </Collapse>
-      <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+      >
         <TextField
           label="Username"
           value={formData.username}
-          onChange={(e) => setFormData(prev => ({...prev, username: e.target.value}))}
+          onChange={(e) => setFormData((prev) => ({ ...prev, username: e.target.value }))}
           required
           size="small"
         />
@@ -66,7 +62,7 @@ const UserCreationForm: React.FC<UserCreationFormProps> = ({ onUserCreated }) =>
           label="Email"
           type="email"
           value={formData.email}
-          onChange={(e) => setFormData(prev => ({...prev, email: e.target.value}))}
+          onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
           required
           size="small"
         />
@@ -74,16 +70,11 @@ const UserCreationForm: React.FC<UserCreationFormProps> = ({ onUserCreated }) =>
           label="Password"
           type="password"
           value={formData.password}
-          onChange={(e) => setFormData(prev => ({...prev, password: e.target.value}))}
+          onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
           required
           size="small"
         />
-        <Button 
-          type="submit"
-          variant="contained" 
-          color="primary"
-          sx={{ mt: 1 }}
-        >
+        <Button type="submit" variant="contained" color="primary" sx={{ mt: 1 }}>
           Create User
         </Button>
       </Box>

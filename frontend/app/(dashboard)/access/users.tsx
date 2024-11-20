@@ -86,11 +86,7 @@ export default function Users() {
                     Verify User
                   </Button>
                 )}
-                <Button
-                  onClick={() => deleteUser(user.name)}
-                  variant="contained"
-                  color="error"
-                >
+                <Button onClick={() => deleteUser(user.name)} variant="contained" color="error">
                   Delete User
                 </Button>
               </div>

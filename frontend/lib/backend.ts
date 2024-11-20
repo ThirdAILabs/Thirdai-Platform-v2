@@ -1586,14 +1586,13 @@ export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
 
 export async function verifyUser(email: string): Promise<void> {
   const accessToken = getAccessToken();
-  
+
   return axios.post(
     `${thirdaiPlatformBaseUrl}/api/user/verify-user`,
     { email },
     { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 }
-
 
 // MODEL //
 
@@ -1815,22 +1814,19 @@ export interface AddUserResponse {
 
 export async function addUser(userData: AddUserPayload): Promise<AddUserResponse> {
   const accessToken = getAccessToken();
-  
+
   return new Promise((resolve, reject) => {
-    axios.post<AddUserResponse>(
-      `${thirdaiPlatformBaseUrl}/api/user/add-user`,
-      userData,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      }
-    )
-    .then((response) => {
-      resolve(response.data);
-    })
-    .catch((err) => {
-      console.error('Error adding user:', err);
-      reject(err);
-    });
+    axios
+      .post<AddUserResponse>(`${thirdaiPlatformBaseUrl}/api/user/add-user`, userData, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      .then((response) => {
+        resolve(response.data);
+      })
+      .catch((err) => {
+        console.error('Error adding user:', err);
+        reject(err);
+      });
   });
 }
 

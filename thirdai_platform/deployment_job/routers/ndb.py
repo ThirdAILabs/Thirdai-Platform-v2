@@ -105,7 +105,7 @@ class NDBRouter:
             "/save",
             self.save,
             methods=["POST"],
-            dependencies=[Depends(is_on_low_disk())],
+            dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
         )
         self.router.add_api_route(
             "/highlighted-pdf", self.highlighted_pdf, methods=["GET"]

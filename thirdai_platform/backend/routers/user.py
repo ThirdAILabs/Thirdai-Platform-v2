@@ -146,7 +146,7 @@ def email_signup(
             )
 
     try:
-        is_test_environment = os.getenv("TEST_ENVIRONMENT", "False") == "True"
+        is_test_environment = os.getenv("AIRGAPPED", "False") == "True"
 
         new_user = schema.User(
             username=body.username,
@@ -468,7 +468,7 @@ def reset_password(
     session.add(password_reset)
     session.commit()
 
-    is_test_environment = os.getenv("TEST_ENVIRONMENT", "False") == "True"
+    is_test_environment = os.getenv("AIRGAPPED", "False") == "True"
 
     if is_test_environment:
         return response(

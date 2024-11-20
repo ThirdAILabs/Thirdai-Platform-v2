@@ -4,6 +4,7 @@ import { Button } from '@mui/material';
 import { fetchAllUsers, deleteUserAccount } from '@/lib/backend';
 import { UserContext } from '../../user_wrapper';
 import { getUsers, User } from '@/utils/apiRequests';
+import UserCreationForm from './UserCreationForm';
 
 export default function Users() {
   const { user } = React.useContext(UserContext);
@@ -38,8 +39,14 @@ export default function Users() {
     }
   };
 
+  const handleUserCreated = () => {
+    getUsersData();
+  };
+
   return (
     <div className="mb-12">
+      {isGlobalAdmin && <UserCreationForm onUserCreated={handleUserCreated} />}
+
       <h3 className="text-xl font-semibold text-gray-800 mb-4">Users</h3>
       {users.map((user, index) => (
         <div key={index} className="bg-gray-100 p-4 rounded-lg shadow-md mb-8">

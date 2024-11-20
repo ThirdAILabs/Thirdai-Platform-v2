@@ -240,7 +240,11 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 		modelOptions = params.modelOptions()
 	}
 
-	storageDir, data := s.getDatagenData(modelId)
+	storageDir, data, err := s.getDatagenData(modelId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	trainConfig := config.TrainConfig{
 		ModelBazaarDir:      s.storage.Location(),
@@ -264,6 +268,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
 		TaskPrompt:          params.TaskPrompt,
 		LlmProvider:         params.LlmProvider,
+		TestSize:            params.TestSize,
 		TaskOptions:         params.taskOptions(),
 	}
 
@@ -346,7 +351,11 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	storageDir, data := s.getDatagenData(modelId)
+	storageDir, data, err := s.getDatagenData(modelId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	trainConfig := config.TrainConfig{
 		ModelBazaarDir:      s.storage.Location(),
@@ -371,6 +380,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
 		TaskPrompt:          "token_classification",
 		LlmProvider:         params.LlmProvider,
+		TestSize:            params.TestSize,
 		TaskOptions: config.NlpTokenDatagenOptions{
 			ModelType:              schema.NlpTokenModel,
 			Tags:                   nil,
@@ -432,17 +442,21 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 	return s.saveModelAndStartJob(model, job)
 }
 
-func (s *TrainService) getDatagenData(modelId string) (string, config.NlpData) {
+func (s *TrainService) getDatagenData(modelId string) (string, config.NlpData, error) {
 	// TODO(Any): this is needed because the train/deployment jobs do not use the storage interface
 	// in the future once this is standardized it will not be needed
 	storageDir := filepath.Join(s.storage.Location(), storage.ModelPath(modelId), "generated_data")
 
-	return storageDir, config.NlpData{
+	data := config.NlpData{
 		SupervisedFiles: []config.FileInfo{
-			{Path: filepath.Join(storageDir, "train"), Location: "local"},
+			{Path: filepath.Join(storageDir, "train/train.csv"), Location: "local"},
 		},
 		TestFiles: []config.FileInfo{
-			{Path: filepath.Join(storageDir, "test"), Location: "local"},
+			{Path: filepath.Join(storageDir, "test/test.csv"), Location: "local"},
 		},
 	}
+
+	err := data.Validate()
+
+	return storageDir, data, err
 }

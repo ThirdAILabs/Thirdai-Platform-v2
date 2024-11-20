@@ -49,6 +49,8 @@ type Config struct {
 	AdminEmail    string
 	AdminPassword string
 
+	LlmProviders map[string]string
+
 	Port int
 }
 
@@ -131,6 +133,7 @@ func main() {
 		services.Variables{
 			Driver:              c.Driver(),
 			ModelBazaarEndpoint: c.ModelBazaarEndpoint,
+			LlmProviders:        c.LlmProviders,
 		},
 	)
 

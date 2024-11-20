@@ -108,16 +108,12 @@ func (opts *NlpTextDatagenOptions) Validate() error {
 }
 
 func (opts *NlpTextDatagenOptions) GetModelOptions() interface{} {
-	labels := make([]string, 0, len(opts.Labels))
-	for _, label := range opts.Labels {
-		labels = append(labels, label.Name)
-	}
-	return NlpTokenOptions{
-		ModelType:    schema.NlpTokenModel,
-		TargetLabels: labels,
-		SourceColumn: "source",
-		TargetColumn: "target",
-		DefaultTag:   "O",
+	return NlpTextOptions{
+		ModelType:      schema.NlpTextModel,
+		NTargetClasses: len(opts.Labels),
+		TextColumn:     "text",
+		LabelColumn:    "label",
+		Delimiter:      ",",
 	}
 }
 

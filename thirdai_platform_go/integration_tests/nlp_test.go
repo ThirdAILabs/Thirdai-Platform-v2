@@ -131,3 +131,49 @@ func TestNlpTokenDatagen(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestNlpTextDatagen(t *testing.T) {
+	client := getClient(t)
+
+	model, err := client.TrainNlpTextDatagen(
+		randomName("nlp-token"),
+		"i want to determine if text has a postive or negative sentiment",
+		config.NlpTextDatagenOptions{
+			Labels: []config.LabelEntity{
+				{Name: "POSTIVE", Examples: []string{"i love apples"}, Description: "positive words or phrases"},
+				{Name: "NEGATIVE", Examples: []string{"i hate everything"}, Description: "negative words or phrases"},
+			},
+			SamplesPerlabel: 20,
+		},
+		config.NlpTrainOptions{Epochs: 10},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = model.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = model.Deploy(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		err := model.Undeploy()
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	err = model.AwaitDeploy(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = model.Predict("i really like to eat apples", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+}

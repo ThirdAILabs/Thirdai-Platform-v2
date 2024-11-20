@@ -103,6 +103,6 @@ func (j DatagenTrainJob) GetJobName() string {
 	return j.JobName
 }
 
-func (j TrainJob) DatagenTrainJob() string {
+func (j DatagenTrainJob) TemplateName() string {
 	return "datagen_train_job.hcl.tmpl"
 }

@@ -208,7 +208,8 @@ class NlpTextDatagenOptions(BaseModel):
 
 
 class NlpTokenDatagenOptions(BaseModel):
-    # sub_type: Literal[UDTSubType.token] = UDTSubType.token
+    model_type: Literal[ModelType.NLP_TOKEN] = ModelType.NLP_TOKEN
+
     tags: Optional[List[LabelEntity]]
     num_sentences_to_generate: int = 1_000
     num_samples_per_tag: Optional[int] = None
@@ -247,6 +248,9 @@ class DatagenConfig(BaseModel):
     task_options: Union[NlpTokenDatagenOptions, NlpTextDatagenOptions] = Field(
         ..., descriminator="model_type"
     )
+
+    class Config:
+        protected_namespaces = ()
 
 
 class JobOptions(BaseModel):

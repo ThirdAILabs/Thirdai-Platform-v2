@@ -1,3 +1,4 @@
+import os
 import random
 from abc import ABC, abstractmethod
 from logging import Logger
@@ -5,15 +6,14 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from data_generation_job.llms import llm_classes
-from platform_common.pydantic_models.training import DatagenConfig
 from data_generation_job.prompt_resources.common_prompts import (
     extended_description_prompt,
 )
 from data_generation_job.prompt_resources.util_data import random_prompts, vocab
 from data_generation_job.utils import count_csv_lines
 from data_generation_job.variables import Entity
+from platform_common.pydantic_models.training import DatagenConfig
 from tqdm import tqdm
-import os
 
 
 class DataFactory(ABC):
@@ -32,9 +32,9 @@ class DataFactory(ABC):
         self.train_dir.mkdir(parents=True, exist_ok=True)
         self.train_file_location = self.train_dir / "train.csv"
 
+        self.test_file_location = self.test_dir / "test.csv"
         if self.config.test_size:
             self.test_dir.mkdir(parents=True, exist_ok=True)
-            self.test_file_location = self.test_dir / "test.csv"
             self.test_sentences_generated = 0
 
         self.errored_file_location = self.save_dir / "traceback.err"

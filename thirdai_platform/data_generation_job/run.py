@@ -1,16 +1,15 @@
+import argparse
 import logging
 from pathlib import Path
 
-import argparse
 from platform_common.logging import setup_logger
+from platform_common.pii.udt_common_patterns import find_common_pattern
 from platform_common.pydantic_models.training import (
     DatagenConfig,
     ModelType,
-    NlpTokenDatagenOptions,
     NlpTextDatagenOptions,
+    NlpTokenDatagenOptions,
 )
-from platform_common.pii.udt_common_patterns import find_common_pattern
-
 
 logger = logging.getLogger("data_generation")
 
@@ -39,7 +38,7 @@ def main():
     if config.task_options.model_type == ModelType.NLP_TEXT:
         from data_generation_job.text_data_factory import TextDataFactory
 
-        factory = TextDataFactory(logger=logger)
+        factory = TextDataFactory(logger=logger, config=config)
 
         task_opts: NlpTextDatagenOptions = config.task_options
 
@@ -64,7 +63,7 @@ def main():
     else:
         from data_generation_job.token_data_factory import TokenDataFactory
 
-        factory = TokenDataFactory(logger=logger)
+        factory = TokenDataFactory(logger=logger, config=config)
 
         task_opts: NlpTokenDatagenOptions = config.task_options
 
@@ -72,10 +71,10 @@ def main():
             tag.name for tag in task_opts.tags if find_common_pattern(tag.name)
         ]
 
-        factory.generate_data(
+        dataset_config = factory.generate_data(
             task_prompt=config.task_prompt,
             tags=[
-                tag for tag in common_patterns if find_common_pattern(tag.name) is None
+                tag for tag in task_opts.tags if find_common_pattern(tag.name) is None
             ],
             num_sentences_to_generate=task_opts.num_sentences_to_generate,
             num_samples_per_tag=task_opts.num_samples_per_tag,

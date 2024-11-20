@@ -1,11 +1,11 @@
 from fastapi import HTTPException, status
 
-from .utils import disk_usage
+from .utils import disk_usage, model_bazaar_path
 
 
-def is_on_low_disk(threshold: float = 0.8):
+def is_on_low_disk(threshold: float = 0.8, path=model_bazaar_path()):
     def func(size: int = 0):
-        disk_stats = disk_usage()
+        disk_stats = disk_usage(path=path)
 
         disk_use = (disk_stats["used"] + size) / disk_stats["total"]
         if disk_use > threshold:

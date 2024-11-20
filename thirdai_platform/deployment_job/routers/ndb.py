@@ -85,7 +85,7 @@ class NDBRouter:
             "/insert",
             self.insert,
             methods=["POST"],
-            dependencies=[Depends(is_on_low_disk())],
+            dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
         )
         self.router.add_api_route("/delete", self.delete, methods=["POST"])
         self.router.add_api_route("/upvote", self.upvote, methods=["POST"])

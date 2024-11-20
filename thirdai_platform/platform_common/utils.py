@@ -54,6 +54,6 @@ def get_section(docs: str, header: str) -> str:
     return "Documentation not found."
 
 
-def disk_usage():
-    disk_stat = shutil.disk_usage(model_bazaar_path())
+def disk_usage(path=model_bazaar_path()):
+    disk_stat = shutil.disk_usage(path)
     return {"total": disk_stat.total, "used": disk_stat.used, "free": disk_stat.free}

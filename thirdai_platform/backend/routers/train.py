@@ -1091,6 +1091,59 @@ def train_udt(
         },
     )
 
+class CSVValidationResponse(BaseModel):
+    valid: bool
+    message: str
+    labels: List[str] = []
+
+@train_router.post("/validate-text-classification-csv")
+async def validate_text_classification_csv(
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    try:
+        # Read CSV content
+        contents = await file.read()
+        df = pd.read_csv(pd.io.common.BytesIO(contents))
+        # Validation checks
+        if "text" not in df.columns or "label" not in df.columns:
+            return CSVValidationResponse(
+                valid=False,
+                message="CSV must contain 'text' and 'label' columns",
+                labels=[],
+            )
+        # Check for empty values
+        if df["text"].isnull().any() or df["label"].isnull().any():
+            return CSVValidationResponse(
+                valid=False,
+                message="CSV contains empty values in text or label columns",
+                labels=[],
+            )
+        # Get unique labels
+        unique_labels = df["label"].unique().tolist()
+        # Check minimum number of labels
+        if len(unique_labels) < 2:
+            return CSVValidationResponse(
+                valid=False,
+                message="At least two different labels are required",
+                labels=unique_labels,
+            )
+        # Check minimum examples per label
+        label_counts = df["label"].value_counts()
+        insufficient_labels = label_counts[label_counts < 10].index.tolist()
+        if insufficient_labels:
+            return CSVValidationResponse(
+                valid=False,
+                message=f"Labels {', '.join(insufficient_labels)} have fewer than 10 examples",
+                labels=unique_labels,
+            )
+        return CSVValidationResponse(
+            valid=True, message="CSV file is valid", labels=unique_labels
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 def extract_labels_from_csv(file: UploadFile) -> Set[str]:
     """Extract unique labels from the target column of the CSV."""
     # Read CSV content

@@ -485,74 +485,89 @@ export async function validateSentenceClassifierCSV(file: File) {
   }
 }
 
-export async function trainSentenceClassifierFromCSV({
-  modelName,
-  file,
-  testSplit = 0.1,
-}: {
+interface TrainTextClassifierParams {
   modelName: string;
   file: File;
+  labels: string[];
   testSplit?: number;
-}) {
-  const accessToken = getAccessToken();
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('model_name', modelName);
-  formData.append('test_split', testSplit.toString());
-
-  try {
-    const response = await axios.post(
-      `${thirdaiPlatformBaseUrl}/api/train/train-text-classification-csv`,
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.data) {
-      throw new Error(error.response.data.message || 'Failed to train model');
-    }
-    throw new Error('Failed to train model');
-  }
 }
 
-// Alternative version using Promise style if you prefer
-export function trainSentenceClassifierFromCSVPromise({
+export function trainTextClassifierWithCSV({
   modelName,
   file,
+  labels,
   testSplit = 0.1,
-}: {
-  modelName: string;
-  file: File;
-  testSplit?: number;
-}): Promise<any> {
+}: TrainTextClassifierParams): Promise<any> {
   const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  // Create FormData instance to handle file upload
   const formData = new FormData();
-  formData.append('file', file);
-  formData.append('model_name', modelName);
-  formData.append('test_split', testSplit.toString());
+  formData.append('files', file);
+
+  // Add file info with correct location type
+  const fileInfo = {
+    supervised_files: [
+      {
+        filename: file.name,
+        content_type: file.type,
+        path: file.name,
+        location: 'local',
+      },
+    ],
+    test_files: [], // No test files for now, will be split from training data
+  };
+  formData.append('file_info', JSON.stringify(fileInfo));
+
+  // Model options for text classification with TextClassificationOptions
+  const modelOptions = {
+    model_type: 'udt',
+    udt_options: {
+      udt_sub_type: 'text',
+      text_column: 'text',          // Column containing the text
+      label_column: 'label',        // Column containing the label
+      n_target_classes: labels.length, // Number of unique labels
+      target_labels: labels,        // Array of label names
+    },
+    train_options: {
+      test_split: testSplit,
+    },
+  };
+  formData.append('model_options', JSON.stringify(modelOptions));
+
+  // Job options (using defaults)
+  const jobOptions = {
+    allocation_cores: 1,
+    allocation_memory: 8000,
+  };
+  formData.append('job_options', JSON.stringify(jobOptions));
+
+  // Create URL with query parameters
+  const params = new URLSearchParams({
+    model_name: modelName,
+    base_model_identifier: '', // Empty string for new model
+  });
 
   return new Promise((resolve, reject) => {
     axios
-      .post(`${thirdaiPlatformBaseUrl}/api/train/train-text-classification-csv`, formData, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      })
+      .post(`${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`, formData)
       .then((res) => {
         resolve(res.data);
       })
       .catch((err) => {
-        if (err.response && err.response.data) {
-          reject(new Error(err.response.data.message || 'Failed to train model'));
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error(
+                (axiosError.response.data as any).detail || 'Failed to train text classification model'
+              )
+            );
+          } else {
+            reject(new Error('Failed to train text classification model'));
+          }
         } else {
-          reject(new Error('Failed to train model'));
+          reject(new Error('Failed to train text classification model'));
         }
       });
   });

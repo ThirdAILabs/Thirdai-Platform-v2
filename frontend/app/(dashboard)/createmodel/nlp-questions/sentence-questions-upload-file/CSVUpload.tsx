@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Button, Typography, Alert, CircularProgress, Paper } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { trainSentenceClassifierFromCSV, validateSentenceClassifierCSV } from '@/lib/backend';
+import { trainTextClassifierWithCSV, validateSentenceClassifierCSV } from '@/lib/backend';
 import LabelConfirmationDialog from './LabelConfirmationDialog';
 
 interface CSVUploadProps {
@@ -52,17 +52,23 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
       return;
     }
 
+    if (!detectedLabels.length) {
+      setError('No valid labels detected');
+      return;
+    }
+  
     setIsUploading(true);
     setError('');
     setSuccess(false);
-
+  
     try {
-      const response = await trainSentenceClassifierFromCSV({
+      const response = await trainTextClassifierWithCSV({
         modelName: modelName,
         file: selectedFile,
+        labels: detectedLabels,
         testSplit: 0.1,
       });
-
+  
       if (response.status === 'success') {
         setSuccess(true);
         onSuccess?.();
@@ -70,8 +76,7 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
         throw new Error(response.message || 'Failed to train model');
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'An error occurred while training the model';
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred while training the model';
       setError(errorMessage);
       onError?.(errorMessage);
     } finally {

@@ -14,6 +14,7 @@ from platform_common.pydantic_models.deployment import (
 )
 from thirdai import neural_db_v2 as ndbv2
 
+USER_ID = "abc"
 MODEL_ID = "xyz"
 
 THIRDAI_LICENSE = os.path.join(
@@ -64,7 +65,8 @@ def create_config(tmp_dir: str, autoscaling: bool):
     license_info = verify_license.verify_license(THIRDAI_LICENSE)
 
     return DeploymentConfig(
-        model_id=f"{MODEL_ID}",
+        user_id=USER_ID,
+        model_id=MODEL_ID,
         model_bazaar_endpoint="",
         model_bazaar_dir=tmp_dir,
         license_key=license_info["boltLicenseKey"],

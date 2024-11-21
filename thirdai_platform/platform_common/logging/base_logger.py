@@ -2,10 +2,27 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, List, Union
 
 from colorlog import ColoredFormatter
 from platform_common.logging.logcodes import LogCode
+
+"""
+Similar to Loki, VictoriaLogs supports full-text search over the logs. Since, the number of logs can be very large,
+it also supports assigning (key,value) pairs to the logs which can be used for filtering the logs.
+
+To make search efficient and more customizable, it also supports marking certain fields as "stream fields".
+Searching over stream fields is significantly faster than doing a full text search or simple key-value pair search.
+
+BaseLogger and all its derived classes should have two methods:
+1. get_logger_keys: Returns a dictionary of key,value pairs enabling searching over logs.
+2. stream_fields: Returns a list of fields which should be marked as stream fields in VictoriaLogs.
+
+The fields in stream_fields should not have very high cardinality (i.e. number of unique values should be limited).
+
+Check out this doc to read about how VictoriaLogs stores and retrieves logs:
+https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields
+"""
 
 
 class JSONFormatter(logging.Formatter):
@@ -49,8 +66,13 @@ class BaseLogger:
 
     @property
     def get_logger_keys(self) -> Dict[str, Union[str, int]]:
-        """Returns fields that can be used to uniquely identify a log stream."""
+        """Returns key,value pairs that can be used to filter logs"""
         return {}
+
+    @property
+    def stream_fields(self) -> List[str]:
+        """Returns keys used for indexing logs into unique streams in VictoriaLogs"""
+        return []
 
     def _setup_logger(
         self, log_dir: Path, log_prefix: str, service_type: str, level: int

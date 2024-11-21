@@ -1,12 +1,15 @@
+import io
 import json
 import logging
 import os
 import secrets
 import shutil
+import tempfile
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
+import pandas as pd
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access
 from backend.datagen import generate_data_for_train_job
@@ -33,9 +36,10 @@ from backend.utils import (
 from data_generation_job.llms import verify_llm_access
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files
+from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
 from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
 from platform_common.pydantic_models.training import (
@@ -1087,6 +1091,127 @@ def train_udt(
         },
     )
 
+def extract_labels_from_csv(file: UploadFile) -> Set[str]:
+    """Extract unique labels from the target column of the CSV."""
+    # Read CSV content
+    content = file.file.read()
+    file.file.seek(0)  # Reset file pointer for later use
+    # Parse CSV
+    df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+    # Extract all unique tags from the target column
+    all_tags = set()
+    for row in df["target"]:
+        tags = row.split()
+        all_tags.update(set(tags) - {"O"})  # Exclude the 'O' tag
+    return all_tags
+
+def validate_csv_format(file: UploadFile) -> tuple[bool, str, set[str] | None]:
+    """
+    Validates the CSV file format for token classification.
+    Returns (is_valid, error_message, extracted_labels).
+    Validation rules:
+    1. Must be valid CSV with exactly 'source' and 'target' columns
+    2. Number of tokens must match between source and target
+    3. Must have at least one non-'O' token type
+    4. No empty cells allowed
+    """
+    try:
+        content = file.file.read()
+        file.file.seek(0)  # Reset file pointer for later use
+        # Parse CSV
+        df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+        # Check for required columns
+        if set(df.columns) != {"source", "target"}:
+            return (
+                False,
+                "CSV must contain exactly two columns named 'source' and 'target'",
+                None,
+            )
+        # Check for empty dataframe
+        if df.empty:
+            return False, "CSV file is empty", None
+        # Check for null values
+        if df["source"].isnull().any() or df["target"].isnull().any():
+            return False, "CSV contains empty cells", None
+        # Validate token alignment
+        for idx, row in df.iterrows():
+            source_tokens = row["source"].split()
+            target_tokens = row["target"].split()
+            if len(source_tokens) != len(target_tokens):
+                return (
+                    False,
+                    f"Row {idx + 1}: Number of tokens in source ({len(source_tokens)}) doesn't match target ({len(target_tokens)})",
+                    None,
+                )
+        # Extract and validate token types
+        token_types = set()
+        for row in df["target"]:
+            tokens = row.split()
+            # Add all non-'O' tokens to our set
+            token_types.update(token for token in tokens if token != "O")
+        if not token_types:
+            return (
+                False,
+                (
+                    "No valid token types found in the target column. "
+                    "The CSV must contain at least one token type other than 'O'. "
+                    "The 'O' token is used to indicate non-entity tokens and cannot be the only token type."
+                ),
+                None,
+            )
+        # Log found token types for debugging
+        logging.info(f"Found token types: {token_types}")
+        return True, "", token_types
+    except UnicodeDecodeError:
+        return False, "File is not a valid CSV file (encoding error)", None
+    except pd.errors.EmptyDataError:
+        return False, "CSV file is empty", None
+    except pd.errors.ParserError:
+        return False, "File is not a valid CSV file (parsing error)", None
+    except Exception as e:
+        return False, f"Error validating CSV: {str(e)}", None
+
+@train_router.post("/validate-token-classifier-csv")
+async def validate_token_classifier_csv(
+    file: UploadFile = File(...),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Validate a CSV file for token classification training.
+    Returns the detected labels if valid.
+    """
+    try:
+        # Basic file type check
+        if not file.filename.endswith(".csv"):
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="File must be a CSV",
+                data={"valid": False, "details": "File must have .csv extension"},
+            )
+        # Validate CSV format and get labels
+        is_valid, error_message, token_types = validate_csv_format(file)
+        if not is_valid:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=error_message,
+                data={"valid": False, "details": error_message},
+            )
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="CSV file is valid",
+            data={
+                "valid": True,
+                "labels": list(token_types),
+                "tokenTypeCount": len(token_types),
+                "details": f"Found {len(token_types)} valid token types: {', '.join(sorted(token_types))}",
+            },
+        )
+    except Exception as err:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=f"Error validating CSV: {str(err)}",
+            data={"valid": False, "details": str(err)},
+        )
 
 @train_router.get("/train-report", dependencies=[Depends(verify_model_read_access)])
 def train_report(model_identifier: str, session: Session = Depends(get_session)):

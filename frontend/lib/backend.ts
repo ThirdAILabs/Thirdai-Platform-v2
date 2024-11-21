@@ -602,6 +602,93 @@ export function retrainTokenClassifier({
   });
 }
 
+interface trainTokenClassifierWithCSVParams {
+  model_name: string;
+  file: File;
+  labels: string[];
+  test_split?: number;
+}
+
+export function trainTokenClassifierWithCSV({
+  model_name,
+  file,
+  labels,
+  test_split = 0.1,
+}: trainTokenClassifierWithCSVParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  // Create FormData instance to handle file upload
+  const formData = new FormData();
+  formData.append('files', file);
+
+  // Add file info with correct location type
+  const fileInfo = {
+    supervised_files: [
+      {
+        filename: file.name,
+        content_type: file.type,
+        path: file.name,
+        location: 'local',
+      },
+    ],
+    test_files: [],
+  };
+  formData.append('file_info', JSON.stringify(fileInfo));
+
+  // Model options for token classification with detected labels
+  const modelOptions = {
+    model_type: 'udt',
+    udt_options: {
+      udt_sub_type: 'token',
+      source_column: 'source',
+      target_column: 'target',
+      target_labels: labels,
+    },
+    train_options: {
+      test_split: test_split,
+    },
+  };
+  formData.append('model_options', JSON.stringify(modelOptions));
+
+  // Job options (using defaults)
+  const jobOptions = {
+    allocation_cores: 1,
+    allocation_memory: 8000,
+  };
+  formData.append('job_options', JSON.stringify(jobOptions));
+
+  // Create URL with query parameters
+  const params = new URLSearchParams({
+    model_name,
+    base_model_identifier: '', // Empty string for new model
+  });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`, formData)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error(
+                (axiosError.response.data as any).detail || 'Failed to train token classification model'
+              )
+            );
+          } else {
+            reject(new Error('Failed to train token classification model'));
+          }
+        } else {
+          reject(new Error('Failed to train token classification model'));
+        }
+      });
+  });
+}
+
 interface TrainUDTWithCSVParams {
   model_name: string;
   file: File;

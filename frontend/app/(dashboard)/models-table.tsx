@@ -11,7 +11,7 @@ import { fetchWorkflows, Workflow } from '@/lib/backend';
 
 export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: number }) {
   // Hardcode the model display
-  let modelsPerPage = 5;
+  let modelsPerPage = 10;
 
   const [currentPage, setCurrentPage] = useState(Math.ceil(offset / modelsPerPage) + 1);
 
@@ -83,17 +83,15 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayedWorkflows
-              .sort((a, b) => a.model_name.localeCompare(b.model_name)) // Sort by name alphabetically
-              .map((workflow) => (
-                <WorkFlow
-                  key={workflow.model_id}
-                  workflow={workflow}
-                  Workflows={workflows}
-                  allowActions={true}
-                  level={0}
-                />
-              ))}
+            {displayedWorkflows.map((workflow) => (
+              <WorkFlow
+                key={workflow.model_id}
+                workflow={workflow}
+                Workflows={workflows}
+                allowActions={true}
+                level={0}
+              />
+            ))}
           </TableBody>
         </Table>
       </CardContent>

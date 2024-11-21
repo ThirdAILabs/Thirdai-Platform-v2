@@ -36,7 +36,8 @@ job "deployment-{{ model_id }}" {
     service {
       name = "deployment-{{ model_id }}"
       port = "{{ model_id }}-http"
-      provider = "nomad"
+      provider = "consul"
+
 
       tags = [
         "traefik.enable=true",
@@ -50,6 +51,15 @@ job "deployment-{{ model_id }}" {
         {% endif %}
         "traefik.http.routers.{{ model_id }}-http.priority=10",
       ]
+
+      check {
+        name     = "Deployment-{{ model_id }} Health Check"
+        type     = "http"
+        path     = "/health"
+        interval = "10s"
+        timeout  = "2s"
+      }
+
     }
 
     task "backend" {

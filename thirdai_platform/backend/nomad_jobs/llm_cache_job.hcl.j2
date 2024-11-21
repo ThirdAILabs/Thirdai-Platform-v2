@@ -17,13 +17,21 @@ job "llm-cache" {
     service {
       name = "llm-cache"
       port = "llm-cache-http"
-      provider = "nomad"
+      provider = "consul"
 
       tags = [
         "traefik.enable=true",
         "traefik.http.routers.llm-cache-http.rule=PathPrefix(`/cache/`)",
         "traefik.http.routers.llm-cache-http.priority=10"
       ]
+
+      check {
+        name     = "LLM Cache Health Check"
+        type     = "http"
+        path     = "/health"
+        interval = "10s"
+        timeout  = "2s"
+      }
     }
 
     task "backend" {

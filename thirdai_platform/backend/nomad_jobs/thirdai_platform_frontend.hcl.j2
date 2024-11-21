@@ -19,13 +19,21 @@ job "thirdai-platform-frontend" {
     service {
       name = "thirdai-platform-frontend"
       port = "thirdai-platform-frontend-http"
-      provider = "nomad"
+      provider = "consul"
 
       tags = [
         "traefik.enable=true",
         "traefik.http.routers.thirdai-platform-frontend-http.rule=(PathPrefix(`/api/auth`) || PathPrefix(`/`))",
         "traefik.http.routers.thirdai-platform-frontend-http.priority=1"
       ]
+
+      check {
+        name     = "ThirdAI frontend Health Check"
+        type     = "http"
+        path     = "/health"
+        interval = "10s"
+        timeout  = "2s"
+      }
     }
 
     task "server" {

@@ -17,13 +17,21 @@ job "llm-dispatch" {
     service {
       name = "llm-dispatch"
       port = "llm-dispatch-http"
-      provider = "nomad"
+      provider = "consul"
 
       tags = [
         "traefik.enable=true",
         "traefik.http.routers.llm-dispatch-http.rule=PathPrefix(`/llm-dispatch/`)",
         "traefik.http.routers.llm-dispatch-http.priority=10"
       ]
+
+      check {
+        name     = "LLM Dispatch Health Check"
+        type     = "http"
+        path     = "/health"
+        interval = "10s"
+        timeout  = "2s"
+      }
     }
 
     task "backend" {

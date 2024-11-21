@@ -40,13 +40,21 @@ job "telemetry" {
 
       service {
         name     = "vicky-web"
-        provider = "nomad"
+        provider = "consul"
         port     = "vicky-http"
         tags = [
           "traefik.enable=true",
           "traefik.http.routers.vicky-http.rule=PathPrefix(`/victoriametrics`)",
           "traefik.http.routers.vicky-http.priority=10"
         ]
+
+        check {
+          name     = "Telemetry Health Check"
+          type     = "http"
+          path     = "/health"
+          interval = "10s"
+          timeout  = "2s"
+        }
       }
 
       config {
@@ -117,12 +125,21 @@ job "telemetry" {
       service {
         name = "grafana"
         port = "grafana-http"
-        provider = "nomad"
+        provider = "consul"
+
         tags = [
           "traefik.enable=true",
           "traefik.http.routers.grafana-http.rule=PathPrefix(`/grafana`)",
           "traefik.http.routers.grafana-http.priority=10"
         ]
+
+        check {
+          name     = Grafana Health Check"
+          type     = "http"
+          path     = "/health"
+          interval = "10s"
+          timeout  = "2s"
+        }
       }
 
       resources {

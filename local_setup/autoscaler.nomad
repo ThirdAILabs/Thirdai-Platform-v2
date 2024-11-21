@@ -58,10 +58,11 @@ EOF
 
       service {
         name = "autoscaler"
-        provider = "nomad"
+        provider = "consul"
         port = "http"
 
         check {
+          name     = "Autoscaler Health Check"
           type     = "http"
           path     = "/v1/health"
           interval = "3s"

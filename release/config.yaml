@@ -87,5 +87,13 @@ azure:
         password: PkCR7YWr0zG/sW6rZex19qzQdR4A1QNg7RXWFKCBGt+ACRDolvsb
         username: thirdaiplatform-push-test-3
       version: 0.0.1
+    use-consule:
+      pull_credentials:
+        password: 2Y7/gPgoc0LeQlQE9iqFqinN0yrm5IS4jsn76YpfqI+ACRCrs2TM
+        username: thirdaiplatform-pull-use-consule
+      push_credentials:
+        password: g9gvNqLvH39ZXYylGzSxVMgPvuOH847DtGAZv5OXlQ+ACRBIUPOe
+        username: thirdaiplatform-push-use-consule
+      version: 0.0.1
   registry: thirdaiplatform.azurecr.io
 provider: azure

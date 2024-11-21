@@ -1266,6 +1266,200 @@ async def validate_token_classifier_csv(
             data={"valid": False, "details": str(err)},
         )
 
+class FolderValidationResponse(BaseModel):
+    valid: bool
+    message: str
+    categories: List[str] = []
+    file_counts: dict = {}
+
+@train_router.post("/validate-document-classification-folder")
+async def validate_document_classification_folder(
+    files: List[UploadFile] = File(...),
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Process files and maintain folder structure
+            categories = set()
+            category_files = {}
+            for file in files:
+                parts = Path(file.filename).parts
+                if len(parts) < 2:
+                    continue
+                category = parts[1]
+                categories.add(category)
+                if category not in category_files:
+                    category_files[category] = []
+                category_files[category].append(file.filename)
+            # Basic validation checks
+            if len(categories) < 2:
+                return FolderValidationResponse(
+                    valid=False,
+                    message="At least two different categories (folders) are required",
+                    categories=list(categories),
+                    file_counts=category_files,
+                )
+            # Check minimum files per category
+            insufficient_categories = []
+            for category, files_list in category_files.items():
+                if len(files_list) < 10:
+                    insufficient_categories.append(
+                        f"{category} ({len(files_list)} files)"
+                    )
+            if insufficient_categories:
+                return FolderValidationResponse(
+                    valid=False,
+                    message=f"The following categories have fewer than 10 documents: {', '.join(insufficient_categories)}",
+                    categories=list(categories),
+                    file_counts=category_files,
+                )
+            # Validate file types
+            valid_extensions = {".txt", ".doc", ".docx", ".pdf"}
+            invalid_files = []
+            for category, files_list in category_files.items():
+                for file in files_list:
+                    ext = Path(file).suffix.lower()
+                    if ext not in valid_extensions:
+                        invalid_files.append(file)
+            if invalid_files:
+                return FolderValidationResponse(
+                    valid=False,
+                    message=f"Invalid file types found: {', '.join(invalid_files)}. Only .txt, .doc, .docx, and .pdf files are supported.",
+                    categories=list(categories),
+                    file_counts=category_files,
+                )
+            return FolderValidationResponse(
+                valid=True,
+                message="Folder structure is valid",
+                categories=list(categories),
+                file_counts=category_files,
+            )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+def cap_text_length(text: str, word_limit: int = 1000) -> str:
+    """Helper function to cap text to specified number of words"""
+    words = text.split()
+    if len(words) <= word_limit:
+        return text
+    return " ".join(words[:word_limit])
+
+async def create_classification_csv(
+    temp_dir: str, files: List[UploadFile], word_limit: int = 1000
+) -> tuple[str, List[str]]:
+    """
+    Create a CSV file from folder structure in the format expected by TextClassificationOptions
+    Args:
+        temp_dir (str): Directory for temporary file processing
+        files (List[UploadFile]): List of uploaded files
+        word_limit (int, optional): Maximum number of words to use per document. Defaults to 1000.
+    """
+    rows = []
+    categories = set()
+    for file in files:
+        parts = Path(file.filename).parts
+        if len(parts) < 3:
+            continue
+        category = parts[1]
+        categories.add(category)
+        # Get file extension and convert to lowercase
+        ext = Path(file.filename).suffix.lower()
+        content = await file.read()
+        try:
+            if ext == ".txt":
+                # Direct text processing for .txt files
+                text_content = content.decode("utf-8")
+            else:
+                # For other formats, use ndb parser
+                # Save file temporarily
+                temp_file_path = Path(temp_dir) / file.filename
+                os.makedirs(temp_file_path.parent, exist_ok=True)
+                with open(temp_file_path, "wb") as f:
+                    f.write(content)
+                try:
+                    # Convert to ndb Document
+                    doc = convert_to_ndb_file(
+                        str(temp_file_path), metadata=None, options=None
+                    )
+                    # Get text content from display column
+                    text_content = " ".join(doc.table.df["display"].tolist())
+                finally:
+                    if temp_file_path.exists():
+                        os.remove(temp_file_path)
+            # Cap the text length before adding to rows
+            capped_text = cap_text_length(text_content, word_limit)
+            rows.append({"text": capped_text, "label": category})
+        except Exception as e:
+            logging.error(f"Error processing file {file.filename}: {str(e)}")
+            continue
+    if not rows:
+        raise ValueError("No valid files were processed")
+    if len(categories) < 2:
+        raise ValueError(f"Found only {len(categories)} categories, minimum 2 required")
+    df = pd.DataFrame(rows)
+    csv_path = os.path.join(temp_dir, "document_classification.csv")
+    df.to_csv(csv_path, index=False)
+    return csv_path, list(categories)
+
+class CSVCreationResponse(BaseModel):
+    status: str
+    message: str
+    data: dict = {}
+
+@train_router.post("/create-classification-csv", response_model=CSVCreationResponse)
+async def create_classification_csv_endpoint(
+    files: List[UploadFile] = File(...),
+    word_limit: int = 1000,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Endpoint to create a CSV file from uploaded documents organized in folders
+    """
+    try:
+        # Create a temporary directory for processing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                # Create CSV and get categories
+                csv_path, categories = await create_classification_csv(
+                    temp_dir=temp_dir,
+                    files=files,
+                    word_limit=word_limit
+                )
+                
+                # Read the CSV content
+                with open(csv_path, 'r') as f:
+                    csv_content = f.read()
+
+                # Return the CSV content and categories
+                return CSVCreationResponse(
+                    status="success",
+                    message="Successfully created classification CSV",
+                    data={
+                        "csv_content": csv_content,
+                        "categories": categories,
+                        "n_categories": len(categories)
+                    }
+                )
+
+            except Exception as e:
+                logging.error(f"Error in create_classification_csv: {str(e)}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Error creating CSV: {str(e)}"
+                )
+
+    except Exception as e:
+        logging.error(f"Error in create_classification_csv_endpoint: {str(e)}")
+        return CSVCreationResponse(
+            status="failed",
+            message=f"Failed to create classification CSV: {str(e)}",
+            data={}
+        )
+
+
 @train_router.get("/train-report", dependencies=[Depends(verify_model_read_access)])
 def train_report(model_identifier: str, session: Session = Depends(get_session)):
     try:

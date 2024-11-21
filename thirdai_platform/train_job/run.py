@@ -40,7 +40,7 @@ def get_model(config: TrainConfig, reporter: Reporter, logger: Logger):
         udt_type = config.model_options.udt_options.udt_sub_type
         logger.info(f"UDT type: {udt_type}")
 
-        if udt_type == UDTSubType.text:
+        if udt_type == UDTSubType.text or udt_type == UDTSubType.document:
             return TextClassificationModel(config, reporter, logger)
         elif udt_type == UDTSubType.token:
             return TokenClassificationModel(config, reporter, logger)

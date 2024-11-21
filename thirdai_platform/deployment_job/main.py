@@ -91,7 +91,10 @@ if config.model_options.model_type == ModelType.NDB:
 elif config.model_options.model_type == ModelType.UDT:
     if config.model_options.udt_sub_type == UDTSubType.token:
         backend_router_factory = UDTRouterTokenClassification
-    elif config.model_options.udt_sub_type == UDTSubType.text:
+    elif (
+        config.model_options.udt_sub_type == UDTSubType.text
+        or config.model_options.udt_sub_type == UDTSubType.document
+    ):
         backend_router_factory = UDTRouterTextClassification
     else:
         error_message = f"Unsupported UDT Type '{config.model_options.udt_sub_type}'."

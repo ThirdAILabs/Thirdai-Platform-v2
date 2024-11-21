@@ -210,7 +210,7 @@ class UDTRouterTextClassification(UDTBaseRouter):
     def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
         subtype = config.model_options.udt_sub_type
         logger.info(f"Initializing Text Classification model of subtype: {subtype}")
-        if subtype == UDTSubType.text:
+        if subtype == UDTSubType.text or subtype == UDTSubType.document:
             return TextClassificationModel(config=config, logger=logger)
         else:
             error_message = (

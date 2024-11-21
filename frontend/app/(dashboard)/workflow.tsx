@@ -121,7 +121,7 @@ export function WorkFlow({
           case 'token':
             prefix = '/token-classification';
             break;
-          case 'doc':
+          case 'document':
             prefix = '/doc-classification';
             break;
           case 'text':
@@ -214,7 +214,7 @@ export function WorkFlow({
         setDeployType('Enterprise Search');
       }
     } else if (workflow.type === 'udt') {
-      if (workflow.sub_type === 'doc') {
+      if (workflow.sub_type === 'document') {
         setDeployType('Document Classification');
       } else if (workflow.sub_type === 'token') {
         setDeployType('Text Extraction');

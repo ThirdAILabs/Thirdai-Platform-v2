@@ -401,45 +401,35 @@ export async function validateDocumentClassificationFolder(files: FileList) {
   }
 }
 
-// Similar changes for trainDocumentClassifier
-export async function trainDocumentClassifier({
-  modelName,
-  files,
-  testSplit = 0.1,
-}: {
+interface CreateCSVResponse {
+  status: string;
+  message: string;
+  data: {
+    csv_content: string;
+    categories: string[];
+    n_categories: number;
+  };
+}
+
+interface TrainDocumentClassifierParams {
   modelName: string;
   files: FileList;
   testSplit?: number;
-}) {
+}
+
+// Function to create CSV from documents
+async function createClassificationCSV(files: FileList): Promise<CreateCSVResponse> {
   const accessToken = getAccessToken();
   const formData = new FormData();
-  formData.append('model_name', modelName);
-  formData.append('test_split', testSplit.toString());
 
-  // Group files by their categories first
-  const categoryMap = new Map<string, File[]>();
-
+  // Add all files to FormData
   Array.from(files).forEach((file) => {
-    const pathParts = file.webkitRelativePath.split('/');
-    if (pathParts.length >= 3) {
-      const category = pathParts[1]; // Changed from pathParts[0] to pathParts[1]
-      if (!categoryMap.has(category)) {
-        categoryMap.set(category, []);
-      }
-      categoryMap.get(category)?.push(file);
-    }
-  });
-
-  // Add files to FormData maintaining category structure
-  categoryMap.forEach((files, category) => {
-    files.forEach((file) => {
-      formData.append('files', file, file.webkitRelativePath);
-    });
+    formData.append('files', file, file.webkitRelativePath);
   });
 
   try {
-    const response = await axios.post(
-      `${thirdaiPlatformBaseUrl}/api/train/train-document-classifier`,
+    const response = await axios.post<CreateCSVResponse>(
+      `${thirdaiPlatformBaseUrl}/api/train/create-classification-csv`,
       formData,
       {
         headers: {
@@ -449,13 +439,101 @@ export async function trainDocumentClassifier({
       }
     );
 
+    if (response.data.status === 'failed') {
+      throw new Error(response.data.message);
+    }
+
     return response.data;
   } catch (error) {
-    console.error('Training error details:', error);
+    console.error('CSV creation error:', error);
     if (axios.isAxiosError(error) && error.response?.data) {
-      throw new Error(error.response.data.message || 'Failed to train model');
+      throw new Error(error.response.data.message || 'Failed to create CSV from documents');
     }
-    throw new Error('Failed to train model');
+    throw new Error('Failed to create CSV from documents');
+  }
+}
+
+// Updated trainDocumentClassifier function
+export async function trainDocumentClassifier({
+  modelName,
+  files,
+  testSplit = 0.1,
+}: TrainDocumentClassifierParams): Promise<any> {
+  const accessToken = getAccessToken();
+
+  try {
+    // Step 1: Create CSV from documents
+    const csvResponse = await createClassificationCSV(files);
+    const { csv_content, categories } = csvResponse.data;
+
+    // Step 2: Prepare training data
+    const formData = new FormData();
+
+    // Create a Blob from the CSV content and add it to FormData
+    const csvBlob = new Blob([csv_content], { type: 'text/csv' });
+    formData.append('files', new File([csvBlob], 'document_classification.csv', { type: 'text/csv' }));
+
+    // Prepare file info
+    const fileInfo = {
+      supervised_files: [{
+        filename: 'document_classification.csv',
+        content_type: 'text/csv',
+        path: 'document_classification.csv',
+        location: 'local'
+      }],
+      test_files: []
+    };
+    formData.append('file_info', JSON.stringify(fileInfo));
+
+    // Model options - updated structure
+    const modelOptions = {
+      model_type: 'udt',
+      udt_options: {
+        udt_sub_type: 'document', 
+        text_column: 'text',
+        label_column: 'label',
+        n_target_classes: categories.length,
+      },
+      train_options: {
+        test_split: testSplit,
+      }
+    };
+    formData.append('model_options', JSON.stringify(modelOptions));
+
+    // Job options
+    const jobOptions = {
+      allocation_cores: 2,
+      allocation_memory: 16000
+    };
+    formData.append('job_options', JSON.stringify(jobOptions));
+
+    // Step 3: Train the model
+    const params = new URLSearchParams({ model_name: modelName });
+    const response = await axios.post(
+      `${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    if (response.data?.status === 'failed') {
+      throw new Error(response.data.message || 'Failed to train model');
+    }
+
+    return response.data;
+
+  } catch (error) {
+    console.error('Training error:', error);
+    if (axios.isAxiosError(error) && error.response?.data) {
+      throw new Error(
+        error.response.data.message || 'Failed to train document classification model'
+      );
+    }
+    throw error instanceof Error ? error : new Error('Failed to train document classification model');
   }
 }
 

@@ -118,9 +118,10 @@ func (opts *NlpTextDatagenOptions) GetModelOptions() interface{} {
 }
 
 type DatagenConfig struct {
-	ModelId        string `json:"model_id"`
-	ModelBazaarDir string `json:"model_bazaar_dir"`
-	StorageDir     string `json:"storage_dir"`
+	ModelId        string  `json:"model_id"`
+	BaseModelId    *string `json:"base_model_id"`
+	ModelBazaarDir string  `json:"model_bazaar_dir"`
+	StorageDir     string  `json:"storage_dir"`
 
 	ModelBazaarEndpoint string `json:"model_bazaar_endpoint"`
 

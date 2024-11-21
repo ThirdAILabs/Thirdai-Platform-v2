@@ -206,11 +206,14 @@ class NlpTextDatagenOptions(BaseModel):
     user_prompts: Optional[List[str]] = None
     vocab_per_sentence: int = 4
 
+    class Config:
+        protected_namespaces = ()
+
 
 class NlpTokenDatagenOptions(BaseModel):
     model_type: Literal[ModelType.NLP_TOKEN] = ModelType.NLP_TOKEN
 
-    tags: Optional[List[LabelEntity]]
+    tags: List[LabelEntity]
     num_sentences_to_generate: int = 1_000
     num_samples_per_tag: Optional[int] = None
 
@@ -220,23 +223,13 @@ class NlpTokenDatagenOptions(BaseModel):
 
     load_from_storage: bool = False
 
-    @model_validator(mode="after")
-    def deduplicate_tags(cls, values):
-        tag_map = {}
-        for tag in values.tags:
-            key = tag.name
-            if key in tag_map:
-                tag_map[key].examples = list(
-                    set(tag_map[key].examples) | set(tag.examples)
-                )
-            else:
-                tag_map[key] = tag
-        values.tags = list(tag_map.values())
-        return values
+    class Config:
+        protected_namespaces = ()
 
 
 class DatagenConfig(BaseModel):
     model_id: str
+    base_model_id: Optional[str] = None
     model_bazaar_dir: str
     storage_dir: str
     model_bazaar_endpoint: str

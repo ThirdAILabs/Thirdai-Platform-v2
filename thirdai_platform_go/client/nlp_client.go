@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"thirdai_platform/model_bazaar/services"
 )
 
 type NlpTokenClient struct {
@@ -44,6 +45,78 @@ func (c *NlpTokenClient) Predict(text string, topk int) (NlpTokenPredictions, er
 	}
 
 	return res.Data.PredictionResults, nil
+}
+
+func (c *NlpTokenClient) AddSample(tokens, tags []string) error {
+	params := map[string][]string{"tokens": tokens, "tags": tags}
+
+	body, err := json.Marshal(params)
+	if err != nil {
+		return fmt.Errorf("error encoding request params: %v", err)
+	}
+
+	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/insert_sample", c.modelId))
+	if err != nil {
+		return fmt.Errorf("error formatting url: %w", err)
+	}
+
+	_, err = post[noBody](u, body, c.authToken)
+	return err
+}
+
+type newLabel struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Examples    []string `json:"examples"`
+}
+
+func (c *NlpTokenClient) AddLabel(label, description string, examples []string) error {
+	params := map[string][]newLabel{
+		"tags": {{Name: label, Description: description, Examples: examples}},
+	}
+
+	body, err := json.Marshal(params)
+	if err != nil {
+		return fmt.Errorf("error encoding request params: %v", err)
+	}
+
+	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/add_labels", c.modelId))
+	if err != nil {
+		return fmt.Errorf("error formatting url: %w", err)
+	}
+
+	_, err = post[noBody](u, body, c.authToken)
+	return err
+}
+
+func (c *NlpTokenClient) Retrain(name string) (*NlpTokenClient, error) {
+	params := services.NlpTokenRetrainRequest{
+		ModelName:   name,
+		BaseModelId: c.modelId,
+	}
+
+	body, err := json.Marshal(params)
+	if err != nil {
+		return nil, fmt.Errorf("error encoding request: %w", err)
+	}
+
+	u, err := url.JoinPath(c.baseUrl, "/api/v2/train/nlp-token-retrain")
+	if err != nil {
+		return nil, fmt.Errorf("error formatting url: %w", err)
+	}
+
+	res, err := post[map[string]string](u, body, c.authToken)
+	if err != nil {
+		return nil, err
+	}
+
+	return &NlpTokenClient{
+		ModelClient{
+			baseUrl:   c.baseUrl,
+			authToken: c.authToken,
+			modelId:   res["model_id"],
+		},
+	}, nil
 }
 
 type NlpTextClient struct {

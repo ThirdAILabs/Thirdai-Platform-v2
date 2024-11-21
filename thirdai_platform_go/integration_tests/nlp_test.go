@@ -136,7 +136,7 @@ func TestNlpTextDatagen(t *testing.T) {
 	client := getClient(t)
 
 	model, err := client.TrainNlpTextDatagen(
-		randomName("nlp-token"),
+		randomName("nlp-text"),
 		"i want to determine if text has a postive or negative sentiment",
 		config.NlpTextDatagenOptions{
 			Labels: []config.LabelEntity{
@@ -173,6 +173,77 @@ func TestNlpTextDatagen(t *testing.T) {
 	}
 
 	_, err = model.Predict("i really like to eat apples", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNlpTokenRetrain(t *testing.T) {
+	client := getClient(t)
+
+	model, err := client.TrainNlpToken(
+		randomName("nlp-token"),
+		[]string{"EMAIL", "NAME"},
+		[]config.FileInfo{{Path: "./data/ner.csv", Location: "local"}},
+		config.NlpTrainOptions{Epochs: 10},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = model.AwaitTrain(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = model.Deploy(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		err := model.Undeploy()
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	err = model.AwaitDeploy(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = model.Predict("jonas is my name", 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = model.AddSample(
+		[]string{"jane", "and", "rick", "are", "friends"},
+		[]string{"NAME", "O", "NAME", "O", "O"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = model.AddLabel("PHONE", "a phone number", []string{"123-459-1049"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = model.AddSample(
+		[]string{"call me at 309-248-1094"},
+		[]string{"O", "O", "O", "PHONE"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	newModel, err := model.Retrain(randomName("nlp-token-retrain"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = newModel.AwaitTrain(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}

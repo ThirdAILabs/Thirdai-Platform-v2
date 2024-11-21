@@ -271,8 +271,9 @@ class TextClassificationModel(ClassificationModel):
     def get_latency(self, model) -> float:
         self.logger.info("Measuring latency of the UDT instance.")
 
+        text_col = model.text_dataset_config().text_column
         start_time = time.time()
-        model.predict({self.txt_cls_vars.text_column: "Checking for latency"}, top_k=1)
+        model.predict({text_col: "Checking for latency"}, top_k=1)
         latency = time.time() - start_time
 
         self.logger.info(f"Latency measured: {latency} seconds.")
@@ -389,13 +390,12 @@ class TokenClassificationModel(ClassificationModel):
 
         return model
 
+    def data_storage_path(self, model_id: str) -> str:
+        return Path(self.config.model_bazaar_dir) / "data" / str(model_id)
+
     def copy_data_storage(self, old_model_id: str, new_model_id: str):
-        old_storage_dir = (
-            Path(self.config.model_bazaar_dir) / "data" / str(old_model_id)
-        )
-        new_storage_dir = (
-            Path(self.config.model_bazaar_dir) / "data" / str(new_model_id)
-        )
+        old_storage_dir = self.data_storage_path(old_model_id)
+        new_storage_dir = self.data_storage_path(new_model_id)
 
         os.makedirs(new_storage_dir, exist_ok=True)
         if not os.path.exists(old_storage_dir / "data_storage.db"):
@@ -413,8 +413,9 @@ class TokenClassificationModel(ClassificationModel):
         data_storage.rollback_metadata("tags_and_status")
 
     def load_model(self, model_id, base_model_id):
-        self.copy_data_storage(old_model_id=base_model_id, new_model_id=model_id)
-        self.remove_unused_samples(new_model_id=model_id)
+        if not os.path.exists(self.data_storage_path(model_id)):
+            self.copy_data_storage(old_model_id=base_model_id, new_model_id=model_id)
+            self.remove_unused_samples(new_model_id=model_id)
         return bolt.UniversalDeepTransformer.load(str(self.get_udt_path(base_model_id)))
 
     def load_storage(self):
@@ -508,7 +509,9 @@ class TokenClassificationModel(ClassificationModel):
 
             source_column, target_column = model.source_target_columns()
 
-            balancing_samples_path = self.find_and_save_balancing_samples()
+            balancing_samples_path = self.find_and_save_balancing_samples(
+                source_column=source_column, target_column=target_column
+            )
 
             # insert samples into data storage for later use
             self.insert_samples_in_storage(
@@ -768,7 +771,7 @@ class TokenClassificationModel(ClassificationModel):
             f"Number of samples in storage after insertion: {num_samples_in_storage}"
         )
 
-    def find_and_save_balancing_samples(self):
+    def find_and_save_balancing_samples(self, source_column, target_column):
         self.logger.info("Finding balancing samples for training.")
         user_provided_samples = self.data_storage.retrieve_samples(
             name="ner", num_samples=None, user_provided=True
@@ -783,12 +786,8 @@ class TokenClassificationModel(ClassificationModel):
         for user_provided_sample in user_provided_samples:
             samples.append(
                 {
-                    self.tkn_cls_vars.source_column: " ".join(
-                        user_provided_sample.data.tokens
-                    ),
-                    self.tkn_cls_vars.target_column: " ".join(
-                        user_provided_sample.data.tags
-                    ),
+                    source_column: " ".join(user_provided_sample.data.tokens),
+                    target_column: " ".join(user_provided_sample.data.tags),
                     "user_provided": True,
                 }
             )
@@ -801,8 +800,8 @@ class TokenClassificationModel(ClassificationModel):
         for sample in non_user_provided_samples[: self._num_balancing_samples]:
             samples.append(
                 {
-                    self.tkn_cls_vars.source_column: " ".join(sample.data.tokens),
-                    self.tkn_cls_vars.target_column: " ".join(sample.data.tags),
+                    source_column: " ".join(sample.data.tokens),
+                    target_column: " ".join(sample.data.tags),
                     "user_provided": False,
                 }
             )

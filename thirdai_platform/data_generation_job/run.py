@@ -73,9 +73,9 @@ def main():
 
         dataset_config = factory.generate_data(
             task_prompt=config.task_prompt,
-            tags=[
-                tag for tag in task_opts.tags if find_common_pattern(tag.name) is None
-            ],
+            tags=(
+                [tag for tag in task_opts.tags if find_common_pattern(tag.name) is None]
+            ),
             num_sentences_to_generate=task_opts.num_sentences_to_generate,
             num_samples_per_tag=task_opts.num_samples_per_tag,
             samples=task_opts.samples,

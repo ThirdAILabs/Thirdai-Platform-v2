@@ -263,6 +263,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 
 	datagenConfig := config.DatagenConfig{
 		ModelId:             modelId,
+		BaseModelId:         params.BaseModelId,
 		ModelBazaarDir:      s.storage.Location(),
 		StorageDir:          storageDir,
 		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
@@ -375,6 +376,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 	numSamplesPerTag := 100
 	datagenConfig := config.DatagenConfig{
 		ModelId:             modelId,
+		BaseModelId:         &params.BaseModelId,
 		ModelBazaarDir:      s.storage.Location(),
 		StorageDir:          storageDir,
 		ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
@@ -383,7 +385,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 		TestSize:            params.TestSize,
 		TaskOptions: config.NlpTokenDatagenOptions{
 			ModelType:              schema.NlpTokenModel,
-			Tags:                   nil,
+			Tags:                   []config.LabelEntity{},
 			NumSentencesToGenerate: 1000,
 			NumSamplesPerTag:       &numSamplesPerTag,
 			Samples:                nil,

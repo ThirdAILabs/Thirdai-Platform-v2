@@ -1,5 +1,7 @@
+import os
 import random
 import re
+import shutil
 from collections import defaultdict
 from logging import Logger
 from pathlib import Path
@@ -39,19 +41,17 @@ def tags_in_storage(data_storage: storage.DataStorage) -> List[LabelEntity]:
 
 def retrieve_ner_samples_for_generation(
     data_storage: storage.DataStorage,
-) -> List[data_types.DataSample]:
+) -> List[NERSample]:
     # retrieve all the samples
     samples: List[data_types.DataSample] = data_storage.retrieve_samples(
         name="ner", num_samples=None, user_provided=True
     )
     # only use the samples that we did not generate synthetic data for
-    token_classification_samples = [
-        sample.data
+    return [
+        NERSample(tokens=sample.data.tokens, tags=sample.data.tags)
         for sample in samples
         if sample.status == data_types.SampleStatus.untrained
     ]
-
-    return token_classification_samples
 
 
 class TokenDataFactory(DataFactory):
@@ -68,6 +68,36 @@ class TokenDataFactory(DataFactory):
             for method in dir(provider)
             if not method.startswith("_")
         ]
+
+        if self.config.base_model_id:
+            if not os.path.exists(self.data_storage_path(self.config.model_id)):
+                self.copy_data_storage(
+                    old_model_id=self.config.base_model_id,
+                    new_model_id=self.config.model_id,
+                )
+                self.remove_unused_samples(self.config.model_id)
+
+    def data_storage_path(self, model_id: str) -> str:
+        return Path(self.config.model_bazaar_dir) / "data" / str(model_id)
+
+    def copy_data_storage(self, old_model_id: str, new_model_id: str):
+        old_storage_dir = self.data_storage_path(old_model_id)
+        new_storage_dir = self.data_storage_path(new_model_id)
+
+        os.makedirs(new_storage_dir, exist_ok=True)
+        if not os.path.exists(old_storage_dir / "data_storage.db"):
+            raise ValueError("Base model missing sample storage")
+
+        shutil.copy(old_storage_dir / "data_storage.db", new_storage_dir)
+
+    def remove_unused_samples(self, model_id: str):
+        # remove unused samples from the old storage and rollback metadata to be in a consistent state
+        storage_dir = Path(self.config.model_bazaar_dir) / "data" / str(model_id)
+        data_storage = storage.DataStorage(
+            connector=storage.SQLiteConnector(db_path=storage_dir / "data_storage.db")
+        )
+        data_storage.remove_untrained_samples("ner")
+        data_storage.rollback_metadata("tags_and_status")
 
     # Function to generate the tag_values by faker library
     def get_tag_values_from_faker(self, tag: str, num_samples: int):

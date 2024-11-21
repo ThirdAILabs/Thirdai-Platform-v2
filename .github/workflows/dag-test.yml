@@ -146,7 +146,7 @@ jobs:
         echo "ADMIN_MAIL=admin@mail.com" >> $GITHUB_WORKSPACE/.env
         echo "ADMIN_PASSWORD=password" >> $GITHUB_WORKSPACE/.env
         echo "PLATFORM=local" >> $GITHUB_WORKSPACE/.env
-        echo "TEST_ENVIRONMENT=True" >> $GITHUB_WORKSPACE/.env
+        echo "AIRGAPPED=True" >> $GITHUB_WORKSPACE/.env
         echo "DATABASE_URI=postgresql://postgres:password@localhost:5432/model_bazaar" >> $GITHUB_WORKSPACE/.env
         echo "NOMAD_ENDPOINT=http://localhost:4646/" >> $GITHUB_WORKSPACE/.env
         echo "PUBLIC_MODEL_BAZAAR_ENDPOINT=http://localhost:80/" >> $GITHUB_WORKSPACE/.env

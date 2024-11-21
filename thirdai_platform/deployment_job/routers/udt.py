@@ -212,8 +212,6 @@ class UDTRouterTextClassification(UDTBaseRouter):
         logger.info(f"Initializing Text Classification model of subtype: {subtype}")
         if subtype == UDTSubType.text:
             return TextClassificationModel(config=config, logger=logger)
-        elif subtype == UDTSubType.doc:
-            return TextClassificationModel(config=config, logger=logger)
         else:
             error_message = (
                 f"Unsupported UDT subtype '{subtype}' for Text Classification."

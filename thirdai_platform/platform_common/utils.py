@@ -1,7 +1,7 @@
 import json
 import os
 import shutil
-from typing import Dict
+from typing import Dict, Optional
 
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
@@ -54,6 +54,8 @@ def get_section(docs: str, header: str) -> str:
     return "Documentation not found."
 
 
-def disk_usage(path: str = model_bazaar_path()):
+def disk_usage(path: Optional[str] = None):
+    if path is None:
+        path = model_bazaar_path()
     disk_stat = shutil.disk_usage(path)
     return {"total": disk_stat.total, "used": disk_stat.used, "free": disk_stat.free}

@@ -471,17 +471,22 @@ export async function trainDocumentClassifier({
 
     // Create a Blob from the CSV content and add it to FormData
     const csvBlob = new Blob([csv_content], { type: 'text/csv' });
-    formData.append('files', new File([csvBlob], 'document_classification.csv', { type: 'text/csv' }));
+    formData.append(
+      'files',
+      new File([csvBlob], 'document_classification.csv', { type: 'text/csv' })
+    );
 
     // Prepare file info
     const fileInfo = {
-      supervised_files: [{
-        filename: 'document_classification.csv',
-        content_type: 'text/csv',
-        path: 'document_classification.csv',
-        location: 'local'
-      }],
-      test_files: []
+      supervised_files: [
+        {
+          filename: 'document_classification.csv',
+          content_type: 'text/csv',
+          path: 'document_classification.csv',
+          location: 'local',
+        },
+      ],
+      test_files: [],
     };
     formData.append('file_info', JSON.stringify(fileInfo));
 
@@ -489,21 +494,21 @@ export async function trainDocumentClassifier({
     const modelOptions = {
       model_type: 'udt',
       udt_options: {
-        udt_sub_type: 'document', 
+        udt_sub_type: 'document',
         text_column: 'text',
         label_column: 'label',
         n_target_classes: categories.length,
       },
       train_options: {
         test_split: testSplit,
-      }
+      },
     };
     formData.append('model_options', JSON.stringify(modelOptions));
 
     // Job options
     const jobOptions = {
       allocation_cores: 2,
-      allocation_memory: 16000
+      allocation_memory: 16000,
     };
     formData.append('job_options', JSON.stringify(jobOptions));
 
@@ -525,7 +530,6 @@ export async function trainDocumentClassifier({
     }
 
     return response.data;
-
   } catch (error) {
     console.error('Training error:', error);
     if (axios.isAxiosError(error) && error.response?.data) {
@@ -533,7 +537,9 @@ export async function trainDocumentClassifier({
         error.response.data.message || 'Failed to train document classification model'
       );
     }
-    throw error instanceof Error ? error : new Error('Failed to train document classification model');
+    throw error instanceof Error
+      ? error
+      : new Error('Failed to train document classification model');
   }
 }
 
@@ -602,10 +608,10 @@ export function trainTextClassifierWithCSV({
     model_type: 'udt',
     udt_options: {
       udt_sub_type: 'text',
-      text_column: 'text',          // Column containing the text
-      label_column: 'label',        // Column containing the label
+      text_column: 'text', // Column containing the text
+      label_column: 'label', // Column containing the label
       n_target_classes: labels.length, // Number of unique labels
-      target_labels: labels,        // Array of label names
+      target_labels: labels, // Array of label names
     },
     train_options: {
       test_split: testSplit,
@@ -638,7 +644,8 @@ export function trainTextClassifierWithCSV({
           if (axiosError.response && axiosError.response.data) {
             reject(
               new Error(
-                (axiosError.response.data as any).detail || 'Failed to train text classification model'
+                (axiosError.response.data as any).detail ||
+                  'Failed to train text classification model'
               )
             );
           } else {
@@ -769,7 +776,8 @@ export function trainTokenClassifierWithCSV({
           if (axiosError.response && axiosError.response.data) {
             reject(
               new Error(
-                (axiosError.response.data as any).detail || 'Failed to train token classification model'
+                (axiosError.response.data as any).detail ||
+                  'Failed to train token classification model'
               )
             );
           } else {

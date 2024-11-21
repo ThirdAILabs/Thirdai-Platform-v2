@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { 
-  Box, 
-  Button, 
-  Typography, 
-  Alert, 
+import {
+  Box,
+  Button,
+  Typography,
+  Alert,
   Paper,
   CircularProgress,
   Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
@@ -46,18 +46,17 @@ const TokenTypeDialog = ({ open, onClose, onConfirm, tokenTypes }: TokenTypeDial
       </Box>
     </DialogContent>
     <DialogActions>
-      <Button onClick={onClose} color="inherit">Cancel</Button>
-      <Button onClick={onConfirm} variant="contained">Confirm & Train</Button>
+      <Button onClick={onClose} color="inherit">
+        Cancel
+      </Button>
+      <Button onClick={onConfirm} variant="contained">
+        Confirm & Train
+      </Button>
     </DialogActions>
   </Dialog>
 );
 
-const CSVUpload = ({ 
-  modelName, 
-  onSuccess, 
-  onError,
-  workflowNames = []
-}: CSVUploadProps) => {
+const CSVUpload = ({ modelName, onSuccess, onError, workflowNames = [] }: CSVUploadProps) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
@@ -93,7 +92,7 @@ const CSVUpload = ({
   const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     if (file.type !== 'text/csv') {
       setError('Please upload a CSV file');
       setSelectedFile(null);
@@ -113,7 +112,7 @@ const CSVUpload = ({
 
     try {
       const validationResult = await validateTokenClassifierCSV(file);
-      
+
       if (!validationResult.valid) {
         setError(validationResult.message);
         setSelectedFile(null);
@@ -140,21 +139,21 @@ const CSVUpload = ({
       setError('Please select a CSV file first');
       return;
     }
-  
+
     if (!validateModelName(modelName)) {
       setError('Please enter a valid model name');
       return;
     }
-  
+
     if (!detectedLabels.length) {
       setError('No valid token types detected');
       return;
     }
-  
+
     setIsUploading(true);
     setError('');
     setSuccess(false);
-  
+
     try {
       const response = await trainTokenClassifierWithCSV({
         model_name: modelName,
@@ -162,7 +161,7 @@ const CSVUpload = ({
         labels: detectedLabels,
         test_split: 0.1,
       });
-  
+
       if (response.status === 'success') {
         setSuccess(true);
         onSuccess?.();
@@ -170,7 +169,8 @@ const CSVUpload = ({
         throw new Error(response.message || 'Failed to train model');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred while training the model';
+      const errorMessage =
+        error instanceof Error ? error.message : 'An error occurred while training the model';
       setError(errorMessage);
       onError?.(errorMessage);
     } finally {
@@ -189,7 +189,7 @@ const CSVUpload = ({
             <HelpOutlineIcon color="action" fontSize="small" />
           </Tooltip>
         </Box>
-        
+
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           CSV File Requirements:
         </Typography>
@@ -209,8 +209,8 @@ const CSVUpload = ({
         </Box>
       </Box>
 
-      <Box 
-        sx={{ 
+      <Box
+        sx={{
           border: '2px dashed',
           borderColor: 'divider',
           borderRadius: 1,
@@ -220,7 +220,7 @@ const CSVUpload = ({
           mb: 3,
           '&:hover': {
             borderColor: 'primary.main',
-          }
+          },
         }}
         onClick={() => document.getElementById('file-input')?.click()}
       >

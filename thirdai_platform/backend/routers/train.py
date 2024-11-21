@@ -1091,10 +1091,12 @@ def train_udt(
         },
     )
 
+
 class CSVValidationResponse(BaseModel):
     valid: bool
     message: str
     labels: List[str] = []
+
 
 @train_router.post("/validate-text-classification-csv")
 async def validate_text_classification_csv(
@@ -1144,6 +1146,7 @@ async def validate_text_classification_csv(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 def extract_labels_from_csv(file: UploadFile) -> Set[str]:
     """Extract unique labels from the target column of the CSV."""
     # Read CSV content
@@ -1157,6 +1160,7 @@ def extract_labels_from_csv(file: UploadFile) -> Set[str]:
         tags = row.split()
         all_tags.update(set(tags) - {"O"})  # Exclude the 'O' tag
     return all_tags
+
 
 def validate_csv_format(file: UploadFile) -> tuple[bool, str, set[str] | None]:
     """
@@ -1224,6 +1228,7 @@ def validate_csv_format(file: UploadFile) -> tuple[bool, str, set[str] | None]:
     except Exception as e:
         return False, f"Error validating CSV: {str(e)}", None
 
+
 @train_router.post("/validate-token-classifier-csv")
 async def validate_token_classifier_csv(
     file: UploadFile = File(...),
@@ -1266,11 +1271,13 @@ async def validate_token_classifier_csv(
             data={"valid": False, "details": str(err)},
         )
 
+
 class FolderValidationResponse(BaseModel):
     valid: bool
     message: str
     categories: List[str] = []
     file_counts: dict = {}
+
 
 @train_router.post("/validate-document-classification-folder")
 async def validate_document_classification_folder(
@@ -1346,6 +1353,7 @@ def cap_text_length(text: str, word_limit: int = 1000) -> str:
         return text
     return " ".join(words[:word_limit])
 
+
 async def create_classification_csv(
     temp_dir: str, files: List[UploadFile], word_limit: int = 1000
 ) -> tuple[str, List[str]]:
@@ -1403,10 +1411,12 @@ async def create_classification_csv(
     df.to_csv(csv_path, index=False)
     return csv_path, list(categories)
 
+
 class CSVCreationResponse(BaseModel):
     status: str
     message: str
     data: dict = {}
+
 
 @train_router.post("/create-classification-csv", response_model=CSVCreationResponse)
 async def create_classification_csv_endpoint(
@@ -1424,13 +1434,11 @@ async def create_classification_csv_endpoint(
             try:
                 # Create CSV and get categories
                 csv_path, categories = await create_classification_csv(
-                    temp_dir=temp_dir,
-                    files=files,
-                    word_limit=word_limit
+                    temp_dir=temp_dir, files=files, word_limit=word_limit
                 )
-                
+
                 # Read the CSV content
-                with open(csv_path, 'r') as f:
+                with open(csv_path, "r") as f:
                     csv_content = f.read()
 
                 # Return the CSV content and categories
@@ -1440,15 +1448,14 @@ async def create_classification_csv_endpoint(
                     data={
                         "csv_content": csv_content,
                         "categories": categories,
-                        "n_categories": len(categories)
-                    }
+                        "n_categories": len(categories),
+                    },
                 )
 
             except Exception as e:
                 logging.error(f"Error in create_classification_csv: {str(e)}")
                 raise HTTPException(
-                    status_code=400,
-                    detail=f"Error creating CSV: {str(e)}"
+                    status_code=400, detail=f"Error creating CSV: {str(e)}"
                 )
 
     except Exception as e:
@@ -1456,7 +1463,7 @@ async def create_classification_csv_endpoint(
         return CSVCreationResponse(
             status="failed",
             message=f"Failed to create classification CSV: {str(e)}",
-            data={}
+            data={},
         )
 
 

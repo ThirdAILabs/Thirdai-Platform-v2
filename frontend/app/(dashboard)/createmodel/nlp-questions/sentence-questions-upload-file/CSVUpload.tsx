@@ -56,11 +56,11 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
       setError('No valid labels detected');
       return;
     }
-  
+
     setIsUploading(true);
     setError('');
     setSuccess(false);
-  
+
     try {
       const response = await trainTextClassifierWithCSV({
         modelName: modelName,
@@ -68,7 +68,7 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
         labels: detectedLabels,
         testSplit: 0.1,
       });
-  
+
       if (response.status === 'success') {
         setSuccess(true);
         onSuccess?.();
@@ -76,7 +76,8 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
         throw new Error(response.message || 'Failed to train model');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred while training the model';
+      const errorMessage =
+        error instanceof Error ? error.message : 'An error occurred while training the model';
       setError(errorMessage);
       onError?.(errorMessage);
     } finally {

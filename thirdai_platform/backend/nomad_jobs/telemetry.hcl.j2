@@ -33,6 +33,10 @@ job "telemetry" {
       port "grafana-http" {
         to = 3000
       }
+
+      port "vicky-logs-http" {
+        to = 9428
+      }
     }
 
     task "victoriametrics" {
@@ -64,6 +68,42 @@ job "telemetry" {
           "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
           "--promscrape.config={{ nomad_monitoring_dir }}/node_discovery/prometheus.yaml",
           "--http.pathPrefix=/victoriametrics"
+        ]
+        {% if platform == "local" -%}
+        extra_hosts = ["host.docker.internal:host-gateway"]
+        {%- endif %}
+        volumes = [
+          "{{ share_dir }}:/model_bazaar"
+        ]
+      }
+      resources {
+        cpu    = 256
+        memory = 600
+      }
+    }
+
+    task "victorialogs" {
+      driver = "docker"
+
+      service {
+        name     = "vicky-logs"
+        port     = "vicky-logs-http"
+        provider = "nomad"
+        tags = [
+          "traefik.enable=true",
+          "traefik.http.routers.vicky-logs-http.rule=PathPrefix(`/victorialogs`)",
+          "traefik.http.routers.vicky-logs-http.priority=10"
+        ]
+      }
+
+      config {
+        image = "docker.io/victoriametrics/victoria-logs:latest"
+        ports = ["vicky-logs-http"]
+        args = [
+          "--storageDataPath={{ nomad_monitoring_dir }}/victorialogs",
+          "--retentionPeriod=30d",
+          "--httpListenAddr=:${NOMAD_PORT_vicky_logs_http}",
+          "--http.pathPrefix=/victorialogs"
         ]
         {% if platform == "local" -%}
         extra_hosts = ["host.docker.internal:host-gateway"]

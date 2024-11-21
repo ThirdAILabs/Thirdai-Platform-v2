@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument("--email", type=str, default="david@thirdai.com")
     parser.add_argument("--password", type=str, default="password")
     parser.add_argument("--deployment_id", type=str)
-    parser.add_argument("--doc_size_mb", type=int, choices=[1, 100, 500])
+    parser.add_argument("--doc_size_mb", type=int, choices=[5, 100, 500], default=1)
     args = parser.parse_args()
     return args
 
@@ -40,15 +40,14 @@ if not args.deployment_id:
 
     doc_dir = "/home/david/intuit_csvs"
 
-
-    if args.doc_size_mb == 1:
+    if args.doc_size_mb == 5:
         files = [os.path.join(doc_dir, "2024_KYI_PER.csv")]
     elif args.doc_size_mb == 100:
         files = [
             os.path.join(doc_dir, f) for f in os.listdir(doc_dir) if os.path.isfile(os.path.join(doc_dir, f))
         ]
     elif args.doc_size_mb == 500:
-        doc_dir = "/home/david/intuit_csvs_500mb"
+        doc_dir = "/home/david/realistic_intuit_dataset"
         files = [
             os.path.join(doc_dir, f)  for f in os.listdir(doc_dir) if os.path.isfile(os.path.join(doc_dir, f))
         ]
@@ -72,11 +71,7 @@ if not args.deployment_id:
 else: 
     deployment_id = args.deployment_id
 
-
-# deployment_id = "c9f8c89c-1f48-4d50-b7f2-53ffd88be809"
-deployment_id = "47c9befd-9428-4ceb-bd62-28fa23e2c712" # 100MB deployment
-# deployment_id = "23abd0bd-2fc7-4a7a-9f6b-c1e35c2f14fc" # 1GB deployment
-# deployment_id = "d8db4557-aaf8-4b4f-9dcf-1ff487f383e7" # 500MB deployment
+# exit()
 
 folder = os.path.dirname(__file__)
 script_path = os.path.join(folder, "stress_test_deployment.py")
@@ -102,17 +97,21 @@ def run_stress_test_with_qps(qps, constrained=False):
         shell=True,
     )
 
-    output_lines = result.stdout.splitlines()[-30:]
+    output_lines = result.stdout.splitlines()[-50:]
     print(f"QPS: {qps} constrained: {constrained}")
     for line in output_lines:
         print(line)
     print("\n\n\n")
     time.sleep(3)
 
-# run_stress_test_with_qps(10, constrained=False)
-# run_stress_test_with_qps(50, constrained=False)
-# run_stress_test_with_qps(100, constrained=False)
+run_stress_test_with_qps(10, constrained=False)
+run_stress_test_with_qps(50, constrained=False)
+run_stress_test_with_qps(100, constrained=False)
 
-run_stress_test_with_qps(25, constrained=True)
-# run_stress_test_with_qps(50, constrained=True)
-# run_stress_test_with_qps(100, constrained=True)
+run_stress_test_with_qps(10, constrained=True)
+run_stress_test_with_qps(50, constrained=True)
+run_stress_test_with_qps(100, constrained=True)
+
+# de907d54-833f-45a8-afcc-4da33ddfc681 1 MB
+# 8a77f33e-9dcf-49ed-896e-27bf1b8be6e6 100 MB
+# 7bd852da-dec5-476d-ae0b-b8424034f59d 500 MB

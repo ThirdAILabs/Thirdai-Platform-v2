@@ -424,6 +424,7 @@ class NDBV2Model(NDBModel):
         }
 
         if self.config.autoscaling_enabled:
+            # print(self.db.chunk_store.metadata_df.columns)
             results = self.db.search(
                 query=query, top_k=top_k, constraints=constraints, rerank=rerank
             )

@@ -51,9 +51,12 @@ class NeuralDBV2(Model):
             self.logger.info("Creating new NDBv2 model")
             if self.ndb_options.on_disk:
                 save_path = self.ndb_save_path()
+                self.db = ndbv2.NeuralDB(save_path=save_path, splade=splade)
             else:
-                save_path = None
-            self.db = ndbv2.NeuralDB(save_path=save_path, splade=splade)
+                from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
+                from thirdai.neural_db_v2.retrievers import FinetunableRetriever
+                import uuid
+                self.db = ndbv2.NeuralDB(chunk_store=PandasChunkStore(), retriever=FinetunableRetriever(save_path=f"{uuid.uuid4()}.ndb"), splade=splade)
 
     def ndb_save_path(self):
         return os.path.join(self.model_dir, "model.ndb")

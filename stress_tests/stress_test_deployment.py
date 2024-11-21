@@ -191,12 +191,17 @@ class NeuralDBLoadTest(TaskSet):
             json={
                 "query": query, 
                 "top_k": 5, 
-                "constraints": {"Tax Year": {"constraint_type": "EqualTo", "value": "2024"}},
+                "constraints": {
+                    "Tax Year": {"constraint_type": "EqualTo", "value": 2024},
+                    # "Formset": {"constraint_type": "EqualTo", "value": "FDI"},
+                    # "Form Id": {"constraint_type": "AnyOf", "values": ["KYTCS", "HNGI", "ZSCA", "WPASSIVE", "something", "other thing", "this", "A KEY", "ANOTHER KEY", "HAHAHA"]}
+                },
                 # "constraints": {"Field FullName": {"constraint_type": "EqualTo", "value": "CUT1"}}
             },
             headers=auth_header,
             timeout=60,
         )
+        # print(response.json())
 
         log_request_error(response)
 

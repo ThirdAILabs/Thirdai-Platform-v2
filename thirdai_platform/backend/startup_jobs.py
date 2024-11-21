@@ -299,6 +299,9 @@ async def restart_telemetry_jobs():
         registry=os.getenv("DOCKER_REGISTRY"),
         docker_username=os.getenv("DOCKER_USERNAME"),
         docker_password=os.getenv("DOCKER_PASSWORD"),
+        model_bazaar_private_host=get_hostname_from_url(
+            os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT")
+        ),
     )
     if response.status_code != 200:
         raise Exception(f"{response.text}")

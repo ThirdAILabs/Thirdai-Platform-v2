@@ -1,4 +1,4 @@
-ndbimport os
+import os
 import subprocess
 
 

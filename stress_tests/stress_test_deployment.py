@@ -49,30 +49,30 @@ def parse_args():
     parser.add_argument("--docs_per_insertion", type=int, default=3)
     parser.add_argument(
         "--min_wait",
-        type=int,
+        type=float,
         default=10,
         help="Minimum wait time between tasks in seconds",
     )
     parser.add_argument(
         "--max_wait",
-        type=int,
+        type=float,
         default=20,
         help="Maximum wait time between tasks in seconds",
     )
-    parser.add_argument("--predict_weight", type=int, default=10)
-    parser.add_argument("--constrained_search_weight", type=int, default=1)
-    parser.add_argument("--insert_weight", type=int, default=5)
-    parser.add_argument("--delete_weight", type=int, default=2)
+    parser.add_argument("--predict_weight", type=int, default=0)
+    parser.add_argument("--constrained_search_weight", type=int, default=0)
+    parser.add_argument("--insert_weight", type=int, default=0)
+    parser.add_argument("--delete_weight", type=int, default=0)
     parser.add_argument("--upvote_weight", type=int, default=0)
     parser.add_argument("--associate_weight", type=int, default=0)
-    parser.add_argument("--sources_weight", type=int, default=1)
+    parser.add_argument("--sources_weight", type=int, default=0)
     parser.add_argument("--save_weight", type=int, default=0)
-    parser.add_argument("--implicit_feedback_weight", type=int, default=5)
+    parser.add_argument("--implicit_feedback_weight", type=int, default=0)
 
     # Generation is a separate test
     parser.add_argument("--generation", action="store_true")
-    parser.add_argument("--chat_weight", type=int, default=1)
-    parser.add_argument("--generate_weight", type=int, default=1)
+    parser.add_argument("--chat_weight", type=int, default=0)
+    parser.add_argument("--generate_weight", type=int, default=0)
     parser.add_argument("--on_prem_llm", action="store_true")
     parser.add_argument("--on_prem_autoscaling", action="store_true")
     parser.add_argument("--on_prem_cores", type=int, default=8)
@@ -123,6 +123,7 @@ def route(name):
 
 def log_request_error(response):
     if response.status_code != 200:
+        return
         print(response.text)
 
 
@@ -168,36 +169,36 @@ possible_docs = [
 
 
 class NeuralDBLoadTest(TaskSet):
-    # @task(args.predict_weight)
-    # def test_predict(self):
-    #     query = random_query()
+    @task(args.predict_weight)
+    def test_predict(self):
+        query = random_query()
 
-    #     response = self.client.post(
-    #         route("search"),
-    #         json={"query": query, "top_k": 5},
-    #         headers=auth_header,
-    #         timeout=60,
-    #     )
+        response = self.client.post(
+            route("search"),
+            json={"query": query, "top_k": 5},
+            headers=auth_header,
+            timeout=60,
+        )
 
-    #     log_request_error(response)
+        log_request_error(response)
     
-    # @task(args.constrained_search_weight)
-    # def test_constrained_search(self):
-    #     query = random_query()
+    @task(args.constrained_search_weight)
+    def test_constrained_search(self):
+        query = random_query()
 
-    #     response = self.client.post(
-    #         route("search"),
-    #         json={
-    #             "query": query, 
-    #             "top_k": 5, 
-    #             "constraints": {"Tax Year": {"constraint_type": "EqualTo", "value": "2024"}},
-    #             # "constraints": {"Field FullName": {"constraint_type": "EqualTo", "value": "CUT1"}}
-    #         },
-    #         headers=auth_header,
-    #         timeout=60,
-    #     )
+        response = self.client.post(
+            route("search"),
+            json={
+                "query": query, 
+                "top_k": 5, 
+                "constraints": {"Tax Year": {"constraint_type": "EqualTo", "value": "2024"}},
+                # "constraints": {"Field FullName": {"constraint_type": "EqualTo", "value": "CUT1"}}
+            },
+            headers=auth_header,
+            timeout=60,
+        )
 
-    #     log_request_error(response)
+        log_request_error(response)
 
     @task(args.insert_weight)
     def test_insert(self):
@@ -226,116 +227,116 @@ class NeuralDBLoadTest(TaskSet):
 
         log_request_error(response)
 
-    # @task(args.delete_weight)
-    # def test_delete(self):
-    #     response = self.client.get(route("sources"), headers=auth_header)
+    @task(args.delete_weight)
+    def test_delete(self):
+        response = self.client.get(route("sources"), headers=auth_header)
 
-    #     # sources = random.sample(possible_docs, min(args.docs_per_insertion * 5, len(possible_docs)))
-    #     valid_sources = set(doc["path"].split("/")[-1] for doc in possible_docs)
+        # sources = random.sample(possible_docs, min(args.docs_per_insertion * 5, len(possible_docs)))
+        valid_sources = set(doc["path"].split("/")[-1] for doc in possible_docs)
 
-    #     if response.ok and response.json() and response.json()["data"]:
-    #         for source in response.json()["data"]:
-    #             if source["source"].split("/")[-1] in valid_sources:
-    #                 source_id = source["source_id"]
+        if response.ok and response.json() and response.json()["data"]:
+            for source in response.json()["data"]:
+                if source["source"].split("/")[-1] in valid_sources:
+                    source_id = source["source_id"]
 
-    #                 response = self.client.post(
-    #                     route("delete"),
-    #                     json={"source_ids": [source_id]},
-    #                     headers=auth_header,
-    #                 )
+                    response = self.client.post(
+                        route("delete"),
+                        json={"source_ids": [source_id]},
+                        headers=auth_header,
+                    )
 
-    #                 log_request_error(response)
+                    log_request_error(response)
 
-    # @task(args.upvote_weight)
-    # def test_upvote(self):
-    #     query = random_query()
+    @task(args.upvote_weight)
+    def test_upvote(self):
+        query = random_query()
 
-    #     response = self.client.post(
-    #         route("search"),
-    #         json={"query": query, "top_k": 5},
-    #         headers=auth_header,
-    #         timeout=60,
-    #     )
+        response = self.client.post(
+            route("search"),
+            json={"query": query, "top_k": 5},
+            headers=auth_header,
+            timeout=60,
+        )
 
-    #     log_request_error(response)
+        log_request_error(response)
 
-    #     if response.ok and response.json() and response.json()["data"]["references"]:
-    #         last_ref = response.json()["data"]["references"][-1]
-    #         text_id_pairs = [
-    #             {
-    #                 "query_text": query,
-    #                 "reference_id": last_ref["id"],
-    #                 "reference_text": last_ref["text"],
-    #             }
-    #         ]
+        if response.ok and response.json() and response.json()["data"]["references"]:
+            last_ref = response.json()["data"]["references"][-1]
+            text_id_pairs = [
+                {
+                    "query_text": query,
+                    "reference_id": last_ref["id"],
+                    "reference_text": last_ref["text"],
+                }
+            ]
 
-    #         response = self.client.post(
-    #             route("upvote"),
-    #             json={"text_id_pairs": text_id_pairs},
-    #             headers=auth_header,
-    #         )
+            response = self.client.post(
+                route("upvote"),
+                json={"text_id_pairs": text_id_pairs},
+                headers=auth_header,
+            )
 
-    #         log_request_error(response)
+            log_request_error(response)
 
-    # @task(args.associate_weight)
-    # def test_associate(self):
-    #     query1 = random_query()
-    #     query2 = random_query()
-    #     text_pairs = [{"source": query1, "target": query2}]
-    #     response = self.client.post(
-    #         route("associate"),
-    #         json={"text_pairs": text_pairs},
-    #         headers=auth_header,
-    #     )
+    @task(args.associate_weight)
+    def test_associate(self):
+        query1 = random_query()
+        query2 = random_query()
+        text_pairs = [{"source": query1, "target": query2}]
+        response = self.client.post(
+            route("associate"),
+            json={"text_pairs": text_pairs},
+            headers=auth_header,
+        )
 
-    #     log_request_error(response)
+        log_request_error(response)
 
-    # @task(args.sources_weight)
-    # def test_sources(self):
-    #     response = self.client.get(route("sources"), headers=auth_header)
-    #     log_request_error(response)
+    @task(args.sources_weight)
+    def test_sources(self):
+        response = self.client.get(route("sources"), headers=auth_header)
+        log_request_error(response)
 
-    # @task(args.implicit_feedback_weight)
-    # def test_implicit_feedback(self):
-    #     query = random_query()
+    @task(args.implicit_feedback_weight)
+    def test_implicit_feedback(self):
+        query = random_query()
 
-    #     response = self.client.post(
-    #         route("search"),
-    #         json={"query": query, "top_k": 5},
-    #         headers=auth_header,
-    #         timeout=60,
-    #     )
+        response = self.client.post(
+            route("search"),
+            json={"query": query, "top_k": 5},
+            headers=auth_header,
+            timeout=60,
+        )
 
-    #     log_request_error(response)
+        log_request_error(response)
 
-    #     if response.ok and response.json() and response.json()["data"]["references"]:
-    #         ref_id = response.json()["data"]["references"][-1]["id"]
-    #         feedback = {
-    #             "query_text": query,
-    #             "reference_id": ref_id,
-    #             "event_desc": "reference click",
-    #         }
+        if response.ok and response.json() and response.json()["data"]["references"]:
+            ref_id = response.json()["data"]["references"][-1]["id"]
+            feedback = {
+                "query_text": query,
+                "reference_id": ref_id,
+                "event_desc": "reference click",
+            }
 
-    #         response = self.client.post(
-    #             route("implicit-feedback"), json=feedback, headers=auth_header
-    #         )
-    #         log_request_error(response)
+            response = self.client.post(
+                route("implicit-feedback"), json=feedback, headers=auth_header
+            )
+            log_request_error(response)
 
-    # @task(args.save_weight)
-    # def test_save(self):
-    #     model_name = str(uuid.uuid4())
-    #     print(model_name)
-    #     res = self.client.post(
-    #         route("save"),
-    #         json={"override": False, "model_name": model_name},
-    #         headers=auth_header,
-    #     )
+    @task(args.save_weight)
+    def test_save(self):
+        model_name = str(uuid.uuid4())
+        print(model_name)
+        res = self.client.post(
+            route("save"),
+            json={"override": False, "model_name": model_name},
+            headers=auth_header,
+        )
 
-    #     self.client.post(
-    #         "/api/model/delete",
-    #         params={"model_identifier": f"{username}/{model_name}"},
-    #         headers=auth_header,
-    #     )
+        self.client.post(
+            "/api/model/delete",
+            params={"model_identifier": f"{username}/{model_name}"},
+            headers=auth_header,
+        )
 
 
 class GenerationLoadTest(TaskSet):

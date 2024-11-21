@@ -703,7 +703,6 @@ def add_user_by_global_admin(
                 username=body.username,
                 email=body.email,
                 verified=True,
-                keycloak_user_id=keycloak_user_id,
             )
             session.add(new_user)
             session.commit()

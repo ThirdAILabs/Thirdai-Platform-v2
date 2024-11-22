@@ -71,8 +71,7 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
 
     logger.debug(
-        code=LogCode.HTTP_REQUEST,
-        message=f"Request: {request.method}; URl: {request.url} - {response.status_code}",
+        f"Request: {request.method}; URl: {request.url} - {response.status_code}",
     )
 
     return response
@@ -82,10 +81,7 @@ async def log_requests(request: Request, call_next):
 async def global_exception_handler(request: Request, exc: Exception):
     # Log the traceback
     error_trace = traceback.format_exc()
-    logger.error(
-        code=LogCode.HTTP_REQUEST,
-        message=f"Exception occurred: {error_trace}",
-    )
+    logger.error(f"Exception occurred: {error_trace}", code=LogCode.MODEL_INIT)
 
     # Return the exact exception message in the response
     return JSONResponse(
@@ -96,26 +92,27 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 if config.model_options.model_type == ModelType.NDB:
     backend_router_factory = NDBRouter
+    logger.info("Initializing NDB router", code=LogCode.MODEL_INIT)
 elif config.model_options.model_type == ModelType.UDT:
     if config.model_options.udt_sub_type == UDTSubType.token:
         backend_router_factory = UDTRouterTokenClassification
+        logger.info(
+            "Initializing UDT Token Classification router", code=LogCode.MODEL_INIT
+        )
     elif config.model_options.udt_sub_type == UDTSubType.text:
         backend_router_factory = UDTRouterTextClassification
+        logger.info(
+            "Initializing UDT Text Classification router", code=LogCode.MODEL_INIT
+        )
     else:
         error_message = f"Unsupported UDT Type '{config.model_options.udt_sub_type}'."
-        logger.error(
-            code=LogCode.PYDANTIC_VALIDATION,
-            message=error_message,
-        )
+        logger.error(error_message, code=LogCode.MODEL_INIT)
         raise ValueError(error_message)
 elif config.model_options.model_type == ModelType.ENTERPRISE_SEARCH:
     backend_router_factory = EnterpriseSearchRouter
 else:
     error_message = f"Unsupported ModelType '{config.model_options.model_type}'."
-    logger.error(
-        code=LogCode.PYDANTIC_VALIDATION,
-        message=error_message,
-    )
+    logger.error(error_message, code=LogCode.MODEL_INIT)
     raise ValueError(error_message)
 
 
@@ -128,16 +125,15 @@ for attempt in range(1, max_retries + 1):
     try:
         backend_router = backend_router_factory(config, reporter, logger)
         logger.info(
-            code=LogCode.DEPLOYMENT_INIT,
-            message=f"Successfully initialized backend router: {backend_router_factory.__name__}",
+            f"Successfully initialized backend router: {backend_router_factory.__name__}",
+            code=LogCode.MODEL_INIT,
         )
         break  # Exit the loop if model loading is successful
     except Exception as err:
         if attempt < max_retries:
             time.sleep(retry_delay)
             logger.info(
-                code=LogCode.DEPLOYMENT_INIT,
-                message="Retrying backend router initialization",
+                "Retrying backend router initialization", code=LogCode.MODEL_INIT
             )
         else:
             error_message = (
@@ -146,10 +142,7 @@ for attempt in range(1, max_retries + 1):
             reporter.update_deploy_status(
                 config.model_id, "failed", message=error_message
             )
-            logger.critical(
-                code=LogCode.DEPLOYMENT_INIT,
-                message=error_message,
-            )
+            logger.critical(error_message, code=LogCode.MODEL_INIT)
             raise  # Optionally re-raise the exception if you want the application to stop
 
 
@@ -160,10 +153,7 @@ app.mount("/metrics", make_asgi_app())
 
 @app.exception_handler(404)
 async def custom_404_handler(request: Request, exc: Any) -> JSONResponse:
-    logger.warning(
-        code=LogCode.HTTP_REQUEST,
-        message=f"404 Not Found: {request.url.path}",
-    )
+    logger.warning(f"404 Not Found: {request.url.path}", code=LogCode.MODEL_INIT)
     return JSONResponse(
         status_code=404,
         content={"message": f"Request path '{request.url.path}' doesn't exist"},
@@ -186,10 +176,7 @@ async def startup_event() -> None:
     except Exception as e:
         error_message = f"Startup event failed with error: {e}"
         reporter.update_deploy_status(config.model_id, "failed", message=error_message)
-        logger.critical(
-            code=LogCode.DEPLOYMENT_INIT,
-            message=error_message,
-        )
+        logger.critical(error_message, code=LogCode.MODEL_INIT)
         raise e  # Re-raise the exception to propagate it to the main block
 
 
@@ -198,8 +185,5 @@ if __name__ == "__main__":
         uvicorn.run(app, host="localhost", port=8000, log_level="info")
     except Exception as e:
         error_message = f"Uvicorn failed to start: {e}"
-        logger.critical(
-            code=LogCode.DEPLOYMENT_INIT,
-            message=error_message,
-        )
+        logger.critical(error_message, code=LogCode.MODEL_INIT)
         reporter.update_deploy_status(config.model_id, "failed", message=error_message)

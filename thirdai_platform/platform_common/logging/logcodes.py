@@ -28,10 +28,7 @@ class LogCode(str, Enum):
     # Chat (CHAT*)
     CHAT = "CHAT"
 
-    # NDB (NDB*)
+    # NDB Specific Operations
     MODEL_INSERT = "MODEL_INSERT"
     MODEL_DELETE = "MODEL_DELETE"
     MODEL_RLHF = "MODEL_RLHF"
-
-    # HTTP Requests (HTTP_REQUEST*)
-    HTTP_REQUEST = "HTTP_REQUEST"

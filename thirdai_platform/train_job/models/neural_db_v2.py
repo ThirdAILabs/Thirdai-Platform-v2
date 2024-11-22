@@ -52,10 +52,7 @@ class NeuralDBV2(Model):
             )
             self.db = ndbv2.NeuralDB.load(self.ndb_save_path())
         else:
-            self.logger.info(
-                "Creating new NDBv2 model",
-                code=LogCode.MODEL_INIT,
-            )
+            self.logger.info("Creating new NDBv2 model", code=LogCode.MODEL_INIT)
             if self.ndb_options.on_disk:
                 save_path = self.ndb_save_path()
             else:
@@ -195,8 +192,7 @@ class NeuralDBV2(Model):
                         )
                     except Exception as e:
                         self.logger.error(
-                            f"Failed to upvote with error {e}",
-                            code=LogCode.MODEL_RLHF,
+                            f"Failed to upvote with error {e}", code=LogCode.MODEL_RLHF
                         )
                         continue
                 elif feedback.event.action == ActionType.associate:
@@ -314,8 +310,7 @@ class NeuralDBV2(Model):
         Evaluate the NeuralDB. Not implemented.
         """
         self.logger.warning(
-            "Evaluation method called. Not implemented.",
-            code=LogCode.MODEL_EVAL,
+            "Evaluation method called. Not implemented.", code=LogCode.MODEL_EVAL
         )
 
     def save(self):
@@ -323,13 +318,11 @@ class NeuralDBV2(Model):
             if not self.ndb_options.on_disk:
                 self.db.save(self.ndb_save_path())
                 self.logger.info(
-                    f"Model saved to {self.ndb_save_path()}",
-                    code=LogCode.MODEL_SAVE,
+                    f"Model saved to {self.ndb_save_path()}", code=LogCode.MODEL_SAVE
                 )
         except Exception as e:
             self.logger.error(
-                f"Failed to save model with error {e}",
-                code=LogCode.MODEL_SAVE,
+                f"Failed to save model with error {e}", code=LogCode.MODEL_SAVE
             )
             raise e
 

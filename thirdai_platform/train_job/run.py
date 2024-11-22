@@ -32,22 +32,22 @@ def get_model(config: TrainConfig, reporter: Reporter, logger: TrainingLogger):
     model_type = config.model_options.model_type
 
     if model_type == ModelType.NDB:
-        logger.info(message="Creating NDB model", code=LogCode.MODEL_INIT)
+        logger.info("Creating NDB model", code=LogCode.MODEL_INIT)
         return NeuralDBV2(config, reporter, logger)
     elif model_type == ModelType.UDT:
         udt_type = config.model_options.udt_options.udt_sub_type
-        logger.info(message=f"UDT type: {udt_type}", code=LogCode.MODEL_INIT)
+        logger.info(f"UDT type: {udt_type}", code=LogCode.MODEL_INIT)
         if udt_type == UDTSubType.text:
             return TextClassificationModel(config, reporter, logger)
         elif udt_type == UDTSubType.token:
             return TokenClassificationModel(config, reporter, logger)
         else:
             message = f"Unsupported UDT subtype '{udt_type.value}'"
-            logger.error(code=LogCode.MODEL_INIT, message=message)
+            logger.error(message, code=LogCode.MODEL_INIT)
             raise ValueError(message)
 
     message = f"Unsupported model type {model_type.value}"
-    logger.error(code=LogCode.MODEL_INIT, message=message)
+    logger.error(message, code=LogCode.MODEL_INIT)
     raise ValueError(message)
 
 
@@ -83,12 +83,8 @@ def main():
         model.train()
     except Exception as error:
         message = f"Training failed with error: '{error}'"
-        logger.error(message=message, code=LogCode.MODEL_TRAIN)
-        reporter.report_status(
-            config.model_id,
-            status="failed",
-            message=message,
-        )
+        logger.error(message, code=LogCode.MODEL_TRAIN)
+        reporter.report_status(config.model_id, status="failed", message=message)
         raise error
 
 

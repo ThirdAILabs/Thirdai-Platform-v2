@@ -268,8 +268,7 @@ class TextClassificationModel(ClassificationModel):
             for train_file in train_files:
                 try:
                     self.logger.info(
-                        f"Training on file: {train_file}",
-                        code=LogCode.MODEL_TRAIN,
+                        f"Training on file: {train_file}", code=LogCode.MODEL_TRAIN
                     )
                     model.train(
                         train_file,
@@ -803,8 +802,7 @@ class TokenClassificationModel(ClassificationModel):
 
         except Exception as e:
             self.logger.error(
-                f"Failed to save train report with error {e}",
-                code=LogCode.MODEL_TRAIN,
+                f"Failed to save train report with error {e}", code=LogCode.MODEL_TRAIN
             )
 
     def insert_samples_in_storage(
@@ -909,8 +907,7 @@ class TokenClassificationModel(ClassificationModel):
                 return self._balancing_samples_path
 
             self.logger.info(
-                "No balancing samples found.",
-                code=LogCode.NLP_TOKEN_BALANCING_SAMPLES,
+                "No balancing samples found.", code=LogCode.NLP_TOKEN_BALANCING_SAMPLES
             )
             return None
 

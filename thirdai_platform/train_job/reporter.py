@@ -47,31 +47,19 @@ class HttpReporter(Reporter):
 
         url = urljoin(self._api, suffix)
 
-        self.logger.info(
-            message=f"Making {method.upper()} request to {url}",
-        )
-        self.logger.debug(
-            message=f"Request headers: {kwargs.get('headers')}",
-        )
+        self.logger.info(f"Making {method.upper()} request to {url}")
+        self.logger.debug(f"Request headers: {kwargs.get('headers')}")
         if "json" in kwargs:
-            self.logger.debug(
-                message=f"Request JSON payload: {kwargs['json']}",
-            )
+            self.logger.debug(f"Request JSON payload: {kwargs['json']}")
         if "params" in kwargs:
-            self.logger.debug(
-                message=f"Request query parameters: {kwargs['params']}",
-            )
+            self.logger.debug(f"Request query parameters: {kwargs['params']}")
         try:
             response = requests.request(method, url, *args, **kwargs)
             response.raise_for_status()
-            self.logger.debug(
-                message=f"Response content: {response.json()}",
-            )
+            self.logger.debug(f"Response content: {response.json()}")
             return response.json()
         except requests.exceptions.RequestException as exception:
-            self.logger.error(
-                message=f"Request to {url} failed with error: {exception}",
-            )
+            self.logger.error(f"Request to {url} failed with error: {exception}")
             raise exception
 
     def report_complete(self, model_id: str, metadata: Dict[str, str]):

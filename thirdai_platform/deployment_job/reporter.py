@@ -1,13 +1,12 @@
-from logging import Logger
 from typing import Optional
 from urllib.parse import urljoin
 
 import requests
-from platform_common.logging import LogCode
+from platform_common.logging import DeploymentLogger
 
 
 class Reporter:
-    def __init__(self, api_url: str, logger: Logger):
+    def __init__(self, api_url: str, logger: DeploymentLogger):
         """
         Initializes the Reporter instance with the API URL.
 
@@ -44,29 +43,21 @@ class Reporter:
         url = urljoin(self._api, suffix)
 
         self.logger.info(
-            code=LogCode.HTTP_REQUEST,
-            message=f"Making {method.upper()} request to {url} with args: {args}, kwargs: {kwargs}",
+            f"Making {method.upper()} request to {url} with args: {args}, kwargs: {kwargs}"
         )
         try:
             response = requests.request(method, url, *args, **kwargs)
             response.raise_for_status()
             content = response.json()
-            self.logger.info(
-                code=LogCode.HTTP_REQUEST,
-                message=f"Response from {url}: {content}",
-            )
+            self.logger.info(f"Response from {url}: {content}")
             return content
         except requests.exceptions.HTTPError as http_err:
             self.logger.error(
-                code=LogCode.HTTP_REQUEST,
-                message=f"HTTPError for {method.upper()} request to {url}: {http_err}, Response: {response.text}",
+                f"HTTPError for {method.upper()} request to {url}: {http_err}, Response: {response.text}"
             )
             raise
         except Exception as e:
-            self.logger.error(
-                code=LogCode.HTTP_REQUEST,
-                message=f"Error during {method.upper()} request to {url}: {e}",
-            )
+            self.logger.error(f"Error during {method.upper()} request to {url}: {e}")
             raise
 
     def save_model(

@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@mui/material';
-import { fetchAllUsers, deleteUserAccount, promoteUserToGlobalAdmin, verifyUser } from '@/lib/backend';
+import {
+  fetchAllUsers,
+  deleteUserAccount,
+  promoteUserToGlobalAdmin,
+  verifyUser,
+} from '@/lib/backend';
 import { UserContext } from '../../user_wrapper';
 import { getUsers, User } from '@/utils/apiRequests';
 import UserCreationForm from './UserCreationForm';

@@ -62,7 +62,6 @@ def create_ndbv2_model(tmp_dir: str, on_disk: bool):
 
     db.save(os.path.join(tmp_dir, "models", f"{MODEL_ID}", "model.ndb"))
 
-    del db
     shutil.rmtree(random_path)
 
 

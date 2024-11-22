@@ -21,7 +21,6 @@ export function User() {
     process.env.NEXT_PUBLIC_IDENTITY_PROVIDER &&
     process.env.NEXT_PUBLIC_IDENTITY_PROVIDER.toLowerCase().includes('keycloak');
 
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -50,9 +49,7 @@ export function User() {
         ) : (
           <DropdownMenuItem>
             return (
-            <Link href={isKeycloakProvider ? '/login-keycloak' : '/login-email'}>
-              Sign In
-            </Link>
+            <Link href={isKeycloakProvider ? '/login-keycloak' : '/login-email'}>Sign In</Link>
             );
           </DropdownMenuItem>
         )}

@@ -4,7 +4,7 @@
  * This API handle the logout process for user. Here are the steps:
  *
  * 1. **Retrieve Token**:
- *    - Use `getToken` from `next-auth/jwt` to get the JWT from request. In production, it 
+ *    - Use `getToken` from `next-auth/jwt` to get the JWT from request. In production, it
  *      just works with https, since it looks for secure cookies.
  *    - Make sure token is present, else send error "No session present".
  *

@@ -82,7 +82,7 @@ export default function Users() {
               <Button onClick={() => deleteUser(user.name)} variant="contained" color="error">
                 Delete user
               </Button>
-              {user.role === 'Global Admin' && (
+              {user.role !== 'Global Admin' && (
                 <Button
                   onClick={() => handlePromotion(user.name)}
                   variant="contained"

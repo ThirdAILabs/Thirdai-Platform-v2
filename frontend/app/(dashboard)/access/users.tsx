@@ -122,9 +122,6 @@ export default function Users() {
           )}
           {isGlobalAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '30%' }}>
-              <Button onClick={() => deleteUser(user.name)} variant="contained" color="error">
-                Delete user
-              </Button>
               {user.role !== 'Global Admin' && (
                 <Button
                   onClick={() => handlePromotion(user.name)}

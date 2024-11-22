@@ -21,7 +21,7 @@ try:
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse
     from licensing.verify import verify_license
-    from platform_common.logging import DeploymentLogger, LogCode, setup_logger
+    from platform_common.logging import DeploymentLogger, LogCode
     from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
     from platform_common.pydantic_models.training import ModelType
     from prometheus_client import make_asgi_app
@@ -46,6 +46,7 @@ logger = DeploymentLogger(
     model_type=config.model_options.model_type,
     user_id=config.user_id,
     service_type="deployment",
+    level="DEBUG",
 )
 
 reporter = Reporter(config.model_bazaar_endpoint, logger)
@@ -71,8 +72,9 @@ app.add_middleware(
 async def log_requests(request: Request, call_next):
     response = await call_next(request)
 
-    logger.info(
-        f"Request: {request.method}; URl: {request.url} - {response.status_code}"
+    logger.debug(
+        code=LogCode.HTTP_REQUEST,
+        message=f"Request: {request.method}; URl: {request.url} - {response.status_code}",
     )
 
     return response
@@ -82,7 +84,10 @@ async def log_requests(request: Request, call_next):
 async def global_exception_handler(request: Request, exc: Exception):
     # Log the traceback
     error_trace = traceback.format_exc()
-    logger.error(f"Exception occurred: {error_trace}")
+    logger.error(
+        code=LogCode.HTTP_REQUEST,
+        message=f"Exception occurred: {error_trace}",
+    )
 
     # Return the exact exception message in the response
     return JSONResponse(
@@ -100,13 +105,19 @@ elif config.model_options.model_type == ModelType.UDT:
         backend_router_factory = UDTRouterTextClassification
     else:
         error_message = f"Unsupported UDT Type '{config.model_options.udt_sub_type}'."
-        logger.error(error_message)
+        logger.error(
+            code=LogCode.PYDANTIC_VALIDATION,
+            message=error_message,
+        )
         raise ValueError(error_message)
 elif config.model_options.model_type == ModelType.ENTERPRISE_SEARCH:
     backend_router_factory = EnterpriseSearchRouter
 else:
     error_message = f"Unsupported ModelType '{config.model_options.model_type}'."
-    logger.error(error_message)
+    logger.error(
+        code=LogCode.PYDANTIC_VALIDATION,
+        message=error_message,
+    )
     raise ValueError(error_message)
 
 
@@ -119,14 +130,17 @@ for attempt in range(1, max_retries + 1):
     try:
         backend_router = backend_router_factory(config, reporter, logger)
         logger.info(
-            f"Successfully initialized backend router: {backend_router_factory.__name__}"
+            code=LogCode.DEPLOYMENT_INIT,
+            message=f"Successfully initialized backend router: {backend_router_factory.__name__}",
         )
         break  # Exit the loop if model loading is successful
     except Exception as err:
-        logger.error(f"Attempt {attempt} failed to initialize backend router: {err}")
         if attempt < max_retries:
             time.sleep(retry_delay)
-            logger.info("Retrying backend router initialization")
+            logger.info(
+                code=LogCode.DEPLOYMENT_INIT,
+                message="Retrying backend router initialization",
+            )
         else:
             error_message = (
                 f"Deployment failed after {attempt} attempts with error: {err}"
@@ -134,7 +148,10 @@ for attempt in range(1, max_retries + 1):
             reporter.update_deploy_status(
                 config.model_id, "failed", message=error_message
             )
-            logger.critical(error_message)
+            logger.critical(
+                code=LogCode.DEPLOYMENT_INIT,
+                message=error_message,
+            )
             raise  # Optionally re-raise the exception if you want the application to stop
 
 
@@ -145,7 +162,10 @@ app.mount("/metrics", make_asgi_app())
 
 @app.exception_handler(404)
 async def custom_404_handler(request: Request, exc: Any) -> JSONResponse:
-    logger.warning(f"404 Not Found: {request.url.path}")
+    logger.warning(
+        code=LogCode.HTTP_REQUEST,
+        message=f"404 Not Found: {request.url.path}",
+    )
     return JSONResponse(
         status_code=404,
         content={"message": f"Request path '{request.url.path}' doesn't exist"},
@@ -168,7 +188,10 @@ async def startup_event() -> None:
     except Exception as e:
         error_message = f"Startup event failed with error: {e}"
         reporter.update_deploy_status(config.model_id, "failed", message=error_message)
-        logger.critical(error_message)
+        logger.critical(
+            code=LogCode.DEPLOYMENT_INIT,
+            message=error_message,
+        )
         raise e  # Re-raise the exception to propagate it to the main block
 
 
@@ -177,5 +200,8 @@ if __name__ == "__main__":
         uvicorn.run(app, host="localhost", port=8000, log_level="info")
     except Exception as e:
         error_message = f"Uvicorn failed to start: {e}"
-        logger.critical(error_message)
+        logger.critical(
+            code=LogCode.DEPLOYMENT_INIT,
+            message=error_message,
+        )
         reporter.update_deploy_status(config.model_id, "failed", message=error_message)

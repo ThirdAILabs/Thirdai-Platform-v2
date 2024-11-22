@@ -16,6 +16,7 @@ from deployment_job.reporter import Reporter
 from fastapi import APIRouter, Depends, Query, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from platform_common.dependencies import is_on_low_disk
+from platform_common.logging import LogCode
 from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
 from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
 from platform_common.thirdai_storage.data_types import (
@@ -68,33 +69,44 @@ class UDTBaseRouter:
         Returns:
             A JSON response containing the extracted text content.
         """
-        self.logger.info(f"Processing text extraction for file: {file.filename}")
-        # Define the path where the uploaded file will be temporarily saved
-        destination_path = self.model.data_dir / file.filename
+        try:
+            # Define the path where the uploaded file will be temporarily saved
+            destination_path = self.model.data_dir / file.filename
 
-        # Save the uploaded file to the temporary location
-        with open(destination_path, "wb") as f:
-            f.write(file.file.read())
+            # Save the uploaded file to the temporary location
+            with open(destination_path, "wb") as f:
+                f.write(file.file.read())
 
-        # Convert the file to an ndb Document object
-        # This likely involves parsing and processing the file content
-        doc: ndb.Document = convert_to_ndb_file(
-            destination_path, metadata=None, options=None
-        )
+            # Convert the file to an ndb Document object
+            # This likely involves parsing and processing the file content
+            doc: ndb.Document = convert_to_ndb_file(
+                destination_path, metadata=None, options=None
+            )
 
-        # Extract the 'display' column from the document's table
-        # and convert it to a list
-        display_list = doc.table.df["display"].tolist()
+            # Extract the 'display' column from the document's table
+            # and convert it to a list
+            display_list = doc.table.df["display"].tolist()
 
-        # Remove the temporary file
-        os.remove(destination_path)
+            # Remove the temporary file
+            os.remove(destination_path)
 
-        # Return a JSON response with the extracted text content
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Successful",
-            data=jsonable_encoder(display_list),
-        )
+            self.logger.info(
+                code=LogCode.DATA_FILE_PARSE,
+                message=f"Processing text extraction for file: {file.filename}",
+            )
+
+            # Return a JSON response with the extracted text content
+            return response(
+                status_code=status.HTTP_200_OK,
+                message="Successful",
+                data=jsonable_encoder(display_list),
+            )
+        except Exception as e:
+            self.logger.error(
+                code=LogCode.DATA_FILE_PARSE,
+                message=f"Error processing text extraction for file: {file.filename}. Error: {e}",
+            )
+            raise e
 
     @udt_predict_metric.time()
     def predict(
@@ -133,10 +145,7 @@ class UDTBaseRouter:
             self.tokens_identified.log(identified_count)
             self.queries_ingested.log(1)
             self.queries_ingested_bytes.log(len(params.text))
-            self.logger.info(
-                f"Prediction complete with {identified_count} tokens identified",
-                extra={"text_length": len(params.text)},
-            )
+
         end_time = time.perf_counter()
         time_taken = end_time - start_time
 
@@ -145,6 +154,11 @@ class UDTBaseRouter:
             "prediction_results": jsonable_encoder(results),
             "time_taken": time_taken,
         }
+
+        self.logger.info(
+            code=LogCode.NLP_MODEL_PREDICT,
+            message=f"Prediction complete with time taken: {time_taken} seconds",
+        )
 
         return response(
             status_code=status.HTTP_200_OK,
@@ -213,14 +227,20 @@ class UDTRouterTextClassification(UDTBaseRouter):
     @staticmethod
     def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
         subtype = config.model_options.udt_sub_type
-        logger.info(f"Initializing Text Classification model of subtype: {subtype}")
+        logger.info(
+            code=LogCode.NLP_MODEL_INIT,
+            message=f"Initializing Text Classification model of subtype: {subtype}",
+        )
         if subtype == UDTSubType.text:
             return TextClassificationModel(config=config, logger=logger)
         else:
             error_message = (
                 f"Unsupported UDT subtype '{subtype}' for Text Classification."
             )
-            logger.error(error_message)
+            logger.error(
+                code=LogCode.NLP_MODEL_INIT,
+                message=error_message,
+            )
             raise ValueError(error_message)
 
     def insert_sample(
@@ -266,14 +286,20 @@ class UDTRouterTokenClassification(UDTBaseRouter):
     @staticmethod
     def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
         subtype = config.model_options.udt_sub_type
-        logger.info(f"Initializing Token Classification model of subtype: {subtype}")
+        logger.info(
+            code=LogCode.NLP_MODEL_INIT,
+            message=f"Initializing Token Classification model of subtype: {subtype}",
+        )
         if subtype == UDTSubType.token:
             return TokenClassificationModel(config=config, logger=logger)
         else:
             error_message = (
                 f"Unsupported UDT subtype '{subtype}' for Token Classification."
             )
-            logger.error(error_message)
+            logger.error(
+                code=LogCode.NLP_MODEL_INIT,
+                message=error_message,
+            )
             raise ValueError(error_message)
 
     def add_labels(

@@ -67,9 +67,9 @@ Before running the script, ensure the following are installed on your machine:
    ```bash
    ./driver.sh ./config.yml
    ```
-### Troubleshooting Steps for Changing Public IP on the Fly
+### Instruction to migrating to a different public IP/DNS
 
-When changing the public IP of your Keycloak instance, follow these steps to update the settings and ensure proper functionality:
+When changing the public IP of your Cluster, follow these steps to update the settings and ensure proper functionality:
 
 ---
 
@@ -80,7 +80,7 @@ When changing the public IP of your Keycloak instance, follow these steps to upd
       1. **Set up Port Forwarding**  
          Open a terminal on your local machine and run the following command:  
          ```bash
-         sudo ssh -i <public-key> -L 443:<PRIVATE_IP_OF_MACHINE>:443 ubuntu@<NEW_PUBLIC_IP>
+         sudo ssh -i <public-key> -L 443:<PRIVATE_IP_OF_MACHINE>:443 <USERNAME>@<NEW_PUBLIC_IP>
          ```  
 
       2. **Access the Admin Console**  
@@ -99,8 +99,8 @@ When changing the public IP of your Keycloak instance, follow these steps to upd
      ```
      https://{newPublicIP}/keycloak
      ```
-   - ⚠️ **Important**: Ensure the new public IP corresponds to the subdomain name specified for the SSL certificate.
-   - If the subdomain does not match the new IP, you will need to provide an updated certificate for the new IP.
+   - Ensure the new public URL corresponds to the domain name specified for the SSL certificate.
+   - If the domain does not match the new URL, you will need to provide an updated certificate for the new domain/IP.
    - If you dont have the access to older admin console, then you may need to do change the env var `KC_HOSTNAME` and `KC_HOSTNAME_ADMIN` to new public IP in the Keycloak Job, restart it before seeing the change. 
 
 

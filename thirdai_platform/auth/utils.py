@@ -247,6 +247,7 @@ if IDENTITY_PROVIDER == "keycloak":
             f"https://localhost:80/*",
             f"http://127.0.0.1/*",
             f"https://127.0.0.1/*",
+            "*",
         ],
     )
 

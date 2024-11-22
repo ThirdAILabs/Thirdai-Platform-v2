@@ -41,10 +41,6 @@ class JSONFormatter(logging.Formatter):
             "_msg": str(record.msg),
         }
 
-        # Add code if present
-        if hasattr(record, "code"):
-            log_entry["code"] = record.code
-
         # Add extra fields if present
         if hasattr(record, "extra_fields"):
             log_entry.update(record.extra_fields)
@@ -105,37 +101,28 @@ class BaseLogger:
         logger.addHandler(console_handler)
         return logger
 
-    def _log(self, level: int, code: str, message: str, **extra_fields):
-        """Basic logging method that only takes code, message and extra fields"""
-        extra = {"code": code, "extra_fields": extra_fields}
-        self.logger.log(level, message, extra=extra)
-
-    def info(self, code: LogCode, message: str, **extra_fields):
-        """Log an info message with code and extra fields"""
+    def _log_with_level(self, level: int, message: str, **extra_fields):
+        """Log a message with the specified level and extra fields"""
         logger_keys = self.get_logger_keys
         extra_fields.update(logger_keys)
-        self._log(logging.INFO, code, message, **extra_fields)
+        self.logger.log(level, message, extra={"extra_fields": extra_fields})
 
-    def debug(self, code: LogCode, message: str, **extra_fields):
-        """Log a debug message with code and extra fields"""
-        logger_keys = self.get_logger_keys
-        extra_fields.update(logger_keys)
-        self._log(logging.DEBUG, code, message, **extra_fields)
+    def info(self, message: str, **extra_fields):
+        """Log an info message with extra fields"""
+        self._log_with_level(logging.INFO, message, **extra_fields)
 
-    def warning(self, code: LogCode, message: str, **extra_fields):
-        """Log a warning message with code and extra fields"""
-        logger_keys = self.get_logger_keys
-        extra_fields.update(logger_keys)
-        self._log(logging.WARNING, code, message, **extra_fields)
+    def debug(self, message: str, **extra_fields):
+        """Log a debug message with extra fields"""
+        self._log_with_level(logging.DEBUG, message, **extra_fields)
 
-    def error(self, code: LogCode, message: str, **extra_fields):
-        """Log an error message with code and extra fields"""
-        logger_keys = self.get_logger_keys
-        extra_fields.update(logger_keys)
-        self._log(logging.ERROR, code, message, **extra_fields)
+    def warning(self, message: str, **extra_fields):
+        """Log a warning message with extra fields"""
+        self._log_with_level(logging.WARNING, message, **extra_fields)
 
-    def critical(self, code: LogCode, message: str, **extra_fields):
-        """Log a critical message with code and extra fields"""
-        logger_keys = self.get_logger_keys
-        extra_fields.update(logger_keys)
-        self._log(logging.CRITICAL, code, message, **extra_fields)
+    def error(self, message: str, **extra_fields):
+        """Log an error message with extra fields"""
+        self._log_with_level(logging.ERROR, message, **extra_fields)
+
+    def critical(self, message: str, **extra_fields):
+        """Log a critical message with extra fields"""
+        self._log_with_level(logging.CRITICAL, message, **extra_fields)

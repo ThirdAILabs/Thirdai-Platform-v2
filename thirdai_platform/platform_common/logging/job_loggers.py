@@ -14,7 +14,7 @@ class DeploymentLogger(BaseLogger):
         model_type: str,
         user_id: str,
         service_type: str = "deployment",
-        level: int = logging.INFO,
+        level: int = logging.DEBUG,
     ):
         super().__init__(log_dir, log_prefix, service_type, level)
         self.model_id = model_id

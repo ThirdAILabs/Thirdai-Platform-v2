@@ -45,8 +45,6 @@ logger = DeploymentLogger(
     model_id=config.model_id,
     model_type=config.model_options.model_type,
     user_id=config.user_id,
-    service_type="deployment",
-    level="DEBUG",
 )
 
 reporter = Reporter(config.model_bazaar_endpoint, logger)

@@ -57,15 +57,16 @@ class NeuralDBV2(Model):
                 # For the in memory model we create the chunk store in memory
                 # but the retriever is still on disk. The reason for this is
                 # because it's a good tradeoff between construction/inference time
-                # and RAM. We'll get most of the speed gains but at around half 
-                # the RAM usage per model. We could have two flags for 
+                # and RAM. We'll get most of the speed gains but at around half
+                # the RAM usage per model. We could have two flags for
                 # on_disk_chunk_store and on_disk_retriever but that would conflict
-                # with the existing on disk flag and expose confusing internals to users. 
+                # with the existing on disk flag and expose confusing internals to users.
                 self.db = ndbv2.NeuralDB(
-                    chunk_store=PandasChunkStore(), 
-                    retriever=FinetunableRetriever(self.retriever_save_path())
+                    chunk_store=PandasChunkStore(),
+                    retriever=FinetunableRetriever(self.retriever_save_path()),
+                    splade=splade,
                 )
-    
+
     def retriever_save_path(self):
         return os.path.join(self.model_dir, "train_retriever")
 

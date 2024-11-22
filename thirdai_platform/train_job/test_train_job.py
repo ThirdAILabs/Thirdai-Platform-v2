@@ -172,6 +172,7 @@ def feedback_train_file():
 def test_ndbv2_train(feedback_train_file, on_disk):
     db_path = run_ndb_train_job(
         extra_supervised_files=[FileInfo(path=feedback_train_file, location="local")],
+        on_disk=on_disk,
     )
 
     db = ndbv2.NeuralDB.load(db_path)

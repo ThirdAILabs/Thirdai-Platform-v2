@@ -10,11 +10,6 @@ http:
       priority: 1
       service: "frontend-service"
 
-    keycloak-http:
-      rule: "PathPrefix(`/keycloak`)"
-      priority: 10
-      service: "keycloak-service"
-
   services:
     modelbazaar-service:
       loadBalancer:
@@ -25,8 +20,3 @@ http:
       loadBalancer:
         servers:
           - url: "http://localhost:3006"
-
-    keycloak-service:
-      loadBalancer:
-        servers:
-          - url: "http://localhost:8180"

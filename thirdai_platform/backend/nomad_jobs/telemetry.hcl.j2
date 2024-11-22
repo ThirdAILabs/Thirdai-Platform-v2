@@ -180,7 +180,7 @@ datasources:
     {% if platform == "local" -%}
     url: http://host.docker.internal/victoriametrics
     {%- else -%}
-    {% raw %}{{ range nomadService "vicky-web" }}url: http://{{ .Address }}/victoriametrics{{ end }}{% endraw %}
+    url: http://{{ model_bazaar_private_host }}/victoriametrics
     {%- endif %}
     isDefault: true
     editable: false

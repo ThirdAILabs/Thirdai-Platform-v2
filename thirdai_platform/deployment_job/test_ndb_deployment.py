@@ -35,6 +35,8 @@ def doc_dir():
 @pytest.fixture(scope="function")
 def tmp_dir():
     path = "./tmp"
+    os.environ["SHARE_DIR"] = path
+    os.makedirs(path, exist_ok=True)
     yield path
     shutil.rmtree(path)
 

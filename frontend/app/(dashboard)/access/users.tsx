@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@mui/material';
-import { fetchAllUsers, deleteUserAccount, verifyUser } from '@/lib/backend';
+import { fetchAllUsers, deleteUserAccount, promoteUserToGlobalAdmin, verifyUser } from '@/lib/backend';
 import { UserContext } from '../../user_wrapper';
 import { getUsers, User } from '@/utils/apiRequests';
 import UserCreationForm from './UserCreationForm';
@@ -48,6 +48,26 @@ export default function Users() {
     }
   };
 
+  const handlePromotion = async (userName: string) => {
+    try {
+      const user = users.find((u) => u.name === userName);
+      if (!user) {
+        console.error('User not found');
+        return;
+      }
+
+      const isConfirmed = window.confirm(
+        `Are you sure you want to promote the "${userName}" to Global Admin?`
+      );
+      if (!isConfirmed) return;
+
+      await promoteUserToGlobalAdmin(user.email);
+      await getUsers();
+    } catch (error) {
+      console.error('Failed to promote user', error);
+      alert('Failed to promote user: ' + error);
+    }
+  };
   return (
     <div className="mb-12">
       {isGlobalAdmin && <UserCreationForm onUserCreated={getUsersData} />}
@@ -92,6 +112,25 @@ export default function Users() {
               </div>
             )}
           </div>
+          {user.ownedModels.length > 0 && (
+            <div className="text-gray-700">Owned Models: {user.ownedModels.join(', ')}</div>
+          )}
+          {isGlobalAdmin && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '30%' }}>
+              <Button onClick={() => deleteUser(user.name)} variant="contained" color="error">
+                Delete user
+              </Button>
+              {user.role !== 'Global Admin' && (
+                <Button
+                  onClick={() => handlePromotion(user.name)}
+                  variant="contained"
+                  color="success"
+                >
+                  Promote user to Global Admin
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       ))}
     </div>

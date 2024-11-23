@@ -126,6 +126,35 @@ func doDelete(ndb *client.NdbClient, t *testing.T) {
 	}
 }
 
+func checkSave(ndb *client.NdbClient, t *testing.T) {
+	newNdb, err := ndb.Save(randomName("saved-ndb"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = newNdb.AwaitTrain(30 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = newNdb.Deploy(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		err := newNdb.Undeploy()
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	err = newNdb.AwaitDeploy(100 * time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	checkQuery(newNdb, t)
+}
+
 func createAndDeployNdb(t *testing.T, autoscaling bool) *client.NdbClient {
 	client := getClient(t)
 
@@ -185,6 +214,8 @@ func TestNdbDevMode(t *testing.T) {
 
 	doDelete(ndb, t)
 	checkSources(ndb, t, []string{"articles.csv", "articles.csv", "four_english_words.docx"})
+
+	checkSave(ndb, t)
 }
 
 func TestNdbProdMode(t *testing.T) {
@@ -486,5 +517,4 @@ func TestTrainErrorHandling(t *testing.T) {
 	if !strings.Contains(logs[0].Stderr, errorMsg) {
 		t.Fatal("error not found in logs")
 	}
-
 }

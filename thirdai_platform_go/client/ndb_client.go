@@ -224,6 +224,43 @@ func (c *NdbClient) Retrain(newModelName string) (*NdbClient, error) {
 	}, nil
 }
 
+type saveRequest struct {
+	Override  bool   `json:"override"`
+	ModelName string `json:"model_name"`
+}
+
+type saveReponse struct {
+	Data struct {
+		NewModelId string `json:"new_model_id"`
+	} `json:"data"`
+}
+
+func (c *NdbClient) Save(newModelName string) (*NdbClient, error) {
+	params := saveRequest{Override: false, ModelName: newModelName}
+	body, err := json.Marshal(params)
+	if err != nil {
+		return nil, fmt.Errorf("error encoding request: %w", err)
+	}
+
+	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/save", c.modelId))
+	if err != nil {
+		return nil, fmt.Errorf("error formatting url: %w", err)
+	}
+
+	res, err := post[saveReponse](u, body, c.authToken)
+	if err != nil {
+		return nil, err
+	}
+
+	return &NdbClient{
+		ModelClient{
+			baseUrl:   c.baseUrl,
+			authToken: c.authToken,
+			modelId:   res.Data.NewModelId,
+		},
+	}, nil
+}
+
 func (c *NdbClient) ClientForDeployment(name string) *NdbClient {
 	return &NdbClient{ModelClient{
 		baseUrl:   c.baseUrl,

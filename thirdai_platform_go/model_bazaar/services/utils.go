@@ -12,6 +12,7 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -368,4 +369,19 @@ func checkForDuplicateModel(db *gorm.DB, modelName, userId string) error {
 		return fmt.Errorf("a model with name %v already exists for user %v", modelName, userId)
 	}
 	return nil
+}
+
+func createModel(modelId, modelName, modelType string, baseModelId *string, userId string) schema.Model {
+	return schema.Model{
+		Id:                modelId,
+		Name:              modelName,
+		Type:              modelType,
+		PublishedDate:     time.Now(),
+		TrainStatus:       schema.NotStarted,
+		DeployStatus:      schema.NotStarted,
+		Access:            schema.Private,
+		DefaultPermission: schema.ReadPerm,
+		BaseModelId:       baseModelId,
+		UserId:            userId,
+	}
 }

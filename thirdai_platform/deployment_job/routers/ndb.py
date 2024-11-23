@@ -24,7 +24,6 @@ from deployment_job.pydantic_models.inputs import (
 )
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
-from deployment_job.utils import validate_name
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -568,30 +567,20 @@ class NDBRouter:
         ```
         """
         model_id = self.config.model_id
+        update_token = None
         if not input.override:
-            model_id = str(uuid.uuid4())
             if not input.model_name:
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     message="Model name is required for new model.",
                 )
-
-            try:
-                validate_name(input.model_name)
-            except Exception:
-                return response(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Name must only contain alphanumeric characters, underscores (_), and hyphens (-).",
-                )
-
-            is_model_present = self.reporter.check_model_present(
-                token, input.model_name
+            res = self.reporter.save_model(
+                access_token=token,
+                base_model_id=self.config.model_id,
+                model_name=input.model_name,
             )
-            if is_model_present:
-                return response(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    message="Model name already exists, choose another one.",
-                )
+            model_id = res["model_id"]
+            update_token = res["update_token"]
         else:
             override_permission = Permissions.check_permission(
                 token=token, permission_type="owner"
@@ -602,7 +591,9 @@ class NDBRouter:
                     message="You don't have permissions to override this model.",
                 )
 
-        background_tasks.add_task(self._perform_save, model_id, token, input.override)
+        background_tasks.add_task(
+            self._perform_save, model_id, update_token, input.override
+        )
 
         return response(
             status_code=status.HTTP_200_OK,
@@ -614,13 +605,7 @@ class NDBRouter:
         try:
             self.model.save(model_id=model_id)
             if not override:
-                self.reporter.save_model(
-                    access_token=token,
-                    model_id=model_id,
-                    base_model_id=self.config.model_id,
-                    model_name=model_id,
-                    metadata={"thirdai_version": str(thirdai.__version__)},
-                )
+                self.reporter.save_complete(token)
             self.logger.info("Successfully saved the model in the background.")
         except Exception as err:
             self.logger.error(f"Error in background save: {traceback.format_exc()}")

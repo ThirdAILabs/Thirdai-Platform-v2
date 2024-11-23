@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -48,6 +49,8 @@ func (s *DeployService) Routes() chi.Router {
 
 			r.Get("/status", s.GetStatus)
 			r.Get("/logs", s.Logs)
+
+			r.Post("/save", s.SaveDeployed)
 		})
 
 	})
@@ -264,4 +267,75 @@ func (s *DeployService) Logs(w http.ResponseWriter, r *http.Request) {
 
 func (s *DeployService) JobLog(w http.ResponseWriter, r *http.Request) {
 	jobLogHandler(w, r, s.db, "deploy")
+}
+
+type saveDeployedRequest struct {
+	ModelName string `json:"model_name"`
+}
+
+func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
+	userId, err := auth.UserIdFromContext(r)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error retrieving user id from request: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	var params saveDeployedRequest
+	if !parseRequestBody(w, r, &params) {
+		return
+	}
+
+	newModelId := uuid.New().String()
+
+	err = s.db.Transaction(func(txn *gorm.DB) error {
+		baseModel, err := schema.GetModel(chi.URLParam(r, "model_id"), txn, true, true, false)
+		if err != nil {
+			return err
+		}
+
+		err = checkForDuplicateModel(txn, params.ModelName, userId)
+		if err != nil {
+			slog.Info("unable to save deployed model: duplicate model name", "base_model_id", baseModel.Id, "model_name", params.ModelName)
+			return err
+		}
+
+		model := createModel(newModelId, params.ModelName, baseModel.Type, &baseModel.Id, userId)
+
+		model.Attributes = make([]schema.ModelAttribute, 0, len(baseModel.Attributes))
+		for _, attr := range baseModel.Attributes {
+			model.Attributes = append(model.Attributes, schema.ModelAttribute{
+				ModelId: newModelId,
+				Key:     attr.Key,
+				Value:   attr.Value,
+			})
+		}
+
+		model.Dependencies = make([]schema.ModelDependency, 0, len(baseModel.Dependencies))
+		for _, dep := range baseModel.Dependencies {
+			model.Dependencies = append(model.Dependencies, schema.ModelDependency{
+				ModelId:      newModelId,
+				DependencyId: dep.DependencyId,
+			})
+		}
+
+		result := txn.Create(&model)
+		if result.Error != nil {
+			return schema.NewDbError("creating model entry for saving", result.Error)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error saving new deployed model: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	updateToken, err := s.jobAuth.CreateToken("model_id", newModelId, time.Hour)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error creating job token: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	writeJsonResponse(w, map[string]string{"model_id": newModelId, "update_token": updateToken})
 }

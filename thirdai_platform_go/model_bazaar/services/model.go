@@ -60,8 +60,6 @@ func (s *ModelService) Routes() chi.Router {
 		r.Use(s.userAuth.Authenticator())
 
 		r.Get("/list", s.List)
-
-		r.Post("/save-deployed", s.SaveDeployed)
 		r.Post("/upload", s.UploadStart)
 	})
 
@@ -321,10 +319,6 @@ func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeSuccess(w)
-}
-
-func (s *ModelService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
-
 }
 
 type UploadStartRequest struct {

@@ -73,21 +73,6 @@ func (s *TrainService) Routes() chi.Router {
 	return r
 }
 
-func createModel(modelId, modelName, modelType string, baseModelId *string, userId string) schema.Model {
-	return schema.Model{
-		Id:                modelId,
-		Name:              modelName,
-		Type:              modelType,
-		PublishedDate:     time.Now(),
-		TrainStatus:       schema.NotStarted,
-		DeployStatus:      schema.NotStarted,
-		Access:            schema.Private,
-		DefaultPermission: schema.ReadPerm,
-		BaseModelId:       baseModelId,
-		UserId:            userId,
-	}
-}
-
 type basicTrainArgs struct {
 	modelName    string
 	modelType    string

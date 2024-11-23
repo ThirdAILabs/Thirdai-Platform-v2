@@ -1,8 +1,6 @@
 package tests
 
 import (
-	"encoding/json"
-	"path/filepath"
 	"testing"
 	"time"
 )
@@ -20,19 +18,7 @@ func TestDeploy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	trainConfig, err := env.storage.Read(filepath.Join("models", model, "train_config.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer trainConfig.Close()
-
-	var params map[string]interface{}
-	err = json.NewDecoder(trainConfig).Decode(&params)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	token := params["job_auth_token"].(string)
+	token := getJobAuthToken(env, t, model)
 
 	_, err = postWithToken[NoBody](&client, "/train/update-status", []byte(`{"status": "complete"}`), token)
 	if err != nil {

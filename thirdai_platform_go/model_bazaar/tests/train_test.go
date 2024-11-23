@@ -8,7 +8,9 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"thirdai_platform/model_bazaar/storage"
 	"time"
 )
 
@@ -150,5 +152,51 @@ func TestFileUpload(t *testing.T) {
 			t.Fatal("invalid file contents")
 		}
 	}
+}
 
+func TestTrainReport(t *testing.T) {
+	env := setupTestEnv(t)
+
+	client, err := env.newUser("abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	model, err := client.trainNdb("xyz")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	token := getJobAuthToken(env, t, model)
+
+	_, err = postWithToken[NoBody](&client, "/train/update-status", []byte(`{"status": "complete"}`), token)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = env.storage.Write(filepath.Join(storage.ModelPath(model), "train_reports", "1.json"), strings.NewReader(`"the first report"`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := client.trainReport(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.(string) != "the first report" {
+		t.Fatal("invalid report data")
+	}
+
+	err = env.storage.Write(filepath.Join(storage.ModelPath(model), "train_reports", "1.json"), strings.NewReader(`"the second report"`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report, err = client.trainReport(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.(string) != "the second report" {
+		t.Fatal("invalid report data")
+	}
 }

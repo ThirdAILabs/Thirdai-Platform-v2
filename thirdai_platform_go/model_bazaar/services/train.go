@@ -1,6 +1,7 @@
 package services
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -8,6 +9,8 @@ import (
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/licensing"
@@ -63,6 +66,7 @@ func (s *TrainService) Routes() chi.Router {
 		r.Use(auth.ModelPermissionOnly(s.db, auth.ReadPermission))
 
 		r.Get("/status", s.GetStatus)
+		r.Get("/report", s.TrainReport)
 		r.Get("/logs", s.Logs)
 	})
 
@@ -294,4 +298,63 @@ func (s *TrainService) Logs(w http.ResponseWriter, r *http.Request) {
 
 func (s *TrainService) JobLog(w http.ResponseWriter, r *http.Request) {
 	jobLogHandler(w, r, s.db, "train")
+}
+
+func (s *TrainService) TrainReport(w http.ResponseWriter, r *http.Request) {
+	model, err := schema.GetModel(chi.URLParam(r, "model_id"), s.db, false, false, false)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error retrieving model info: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if model.TrainStatus != schema.Complete {
+		http.Error(w, fmt.Sprintf("unable to retrieve train report, model %v has status %v", model.Id, model.TrainStatus), http.StatusBadRequest)
+		return
+	}
+
+	reportDir := filepath.Join(storage.ModelPath(model.Id), "train_reports")
+
+	reports, err := s.storage.List(reportDir)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("unable to locate train reports: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if len(reports) == 0 {
+		http.Error(w, fmt.Sprintf("no train reports found for model %v", model.Id), http.StatusBadRequest)
+		return
+	}
+
+	mostRecent := -1
+	for _, report := range reports {
+		timestamp, err := strconv.Atoi(strings.TrimSuffix(report, filepath.Ext(report)))
+		if err != nil {
+			slog.Error("unable to parse train report", "report", report, "error", err)
+			continue
+		}
+		if timestamp > mostRecent {
+			mostRecent = timestamp
+		}
+	}
+
+	if mostRecent <= 0 {
+		http.Error(w, fmt.Sprintf("no train reports found for model %v", model.Id), http.StatusBadRequest)
+		return
+	}
+
+	reportData, err := s.storage.Read(filepath.Join(reportDir, fmt.Sprintf("%d.json", mostRecent)))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error reading report file: %v", err), http.StatusBadRequest)
+		return
+	}
+	defer reportData.Close()
+
+	var report interface{}
+	err = json.NewDecoder(reportData).Decode(&report)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error parsing report: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	writeJsonResponse(w, report)
 }

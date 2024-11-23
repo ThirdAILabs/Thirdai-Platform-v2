@@ -1,7 +1,10 @@
 package tests
 
 import (
+	"encoding/json"
+	"path/filepath"
 	"slices"
+	"testing"
 	"thirdai_platform/model_bazaar/services"
 )
 
@@ -63,4 +66,20 @@ func sortUserList(users []services.UserInfo) {
 		}
 		return 1
 	})
+}
+
+func getJobAuthToken(env *testEnv, t *testing.T, model string) string {
+	trainConfig, err := env.storage.Read(filepath.Join("models", model, "train_config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer trainConfig.Close()
+
+	var params map[string]interface{}
+	err = json.NewDecoder(trainConfig).Decode(&params)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return params["job_auth_token"].(string)
 }

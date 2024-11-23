@@ -28,7 +28,7 @@ const (
 	adminPassword = "admin_password123"
 )
 
-func setupTestEnv(t *testing.T) testEnv {
+func setupTestEnv(t *testing.T) *testEnv {
 	db, err := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +65,7 @@ func setupTestEnv(t *testing.T) testEnv {
 
 	modelBazaar.InitAdmin(adminUsername, adminEmail, adminPassword)
 
-	return testEnv{modelBazaar: modelBazaar, api: modelBazaar.Routes(), storage: store, nomad: nomadStub}
+	return &testEnv{modelBazaar: modelBazaar, api: modelBazaar.Routes(), storage: store, nomad: nomadStub}
 }
 
 func (t *testEnv) newClient() client {

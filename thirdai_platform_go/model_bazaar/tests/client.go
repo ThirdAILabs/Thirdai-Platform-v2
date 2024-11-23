@@ -424,3 +424,7 @@ func (c *client) deploy(modelId string) error {
 func (c *client) undeploy(modelId string) error {
 	return deleteReq(c, fmt.Sprintf("/deploy/%v", modelId))
 }
+
+func (c *client) trainReport(modelId string) (interface{}, error) {
+	return get[interface{}](c, fmt.Sprintf("/train/%v/report", modelId))
+}

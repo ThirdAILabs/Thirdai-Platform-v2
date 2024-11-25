@@ -365,3 +365,7 @@ class NDBModel(Model):
             return self.chat_instances[provider]
         else:
             raise ValueError(f"No chat instance available for provider: {provider}")
+
+    def cleanup(self):
+        if self.config.autoscaling_enabled:
+            shutil.rmtree(self.ndb_host_save_path, ignore_errors=True)

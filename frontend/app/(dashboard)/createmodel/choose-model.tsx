@@ -5,7 +5,14 @@ import EnterpriseSearchQuestions from './rag-questions/enterprise-search-questio
 import ChatbotQuestions from './rag-questions/chatbot-questions';
 import NLPQuestions from './nlp-questions/nlp-questions';
 import { fetchWorkflows, Workflow } from '@/lib/backend';
-import { FormControl, InputLabel, Select, MenuItem, Typography, Box, Divider } from '@mui/material';
+import { 
+  Typography, 
+  Box, 
+  Divider, 
+  Select, 
+  MenuItem, 
+  FormControl,
+} from '@mui/material';
 
 const USE_CASES = [
   {
@@ -16,8 +23,7 @@ const USE_CASES = [
   {
     name: 'Chatbot',
     value: 'chatbot',
-    description:
-      'Create an AI assistant that can engage in conversations and answer questions using your data',
+    description: 'Create an AI assistant that can engage in conversations and answer questions using your data',
   },
   {
     name: 'NLP / Text Analytics',
@@ -56,22 +62,44 @@ export default function ChooseProblem() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Box className="flex flex-col gap-8">
       <Box>
-        <Typography variant="h6" sx={{ mb: 1 }}>
-          Use case
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="h6" className="mb-2">Use case</Typography>
+        <Typography variant="body2" className="text-gray-500 mb-4">
           Please select the app type based on your use case.
         </Typography>
 
         <FormControl fullWidth>
-          <InputLabel>Select a use case</InputLabel>
-          <Select value={modelType} label="Select a use case" onChange={handleChange}>
+          <Select
+            value={modelType}
+            onChange={handleChange}
+            displayEmpty
+            sx={{
+              '& .MuiSelect-select': {
+                padding: '16px',
+              },
+              '& .MuiListSubheader-root': {
+                lineHeight: '1.2',
+                padding: '16px',
+              },
+              '& .MuiMenuItem-root': {
+                padding: '16px',
+              },
+            }}
+            renderValue={(selected) => {
+              if (!selected) {
+                return <Typography color="text.secondary">Select a use case</Typography>;
+              }
+              const selectedCase = USE_CASES.find(useCase => useCase.value === selected);
+              return selectedCase?.name;
+            }}
+          >
             {USE_CASES.map((useCase) => (
-              <MenuItem key={useCase.value} value={useCase.value} sx={{ py: 2 }}>
+              <MenuItem key={useCase.value} value={useCase.value}>
                 <Box>
-                  <Typography variant="subtitle1">{useCase.name}</Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                    {useCase.name}
+                  </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {useCase.description}
                   </Typography>
@@ -83,12 +111,14 @@ export default function ChooseProblem() {
       </Box>
 
       {modelType && (
-        <Box sx={{ width: '100%' }}>
-          <Divider sx={{ mb: 3 }} />
+        <Box className="w-full">
+          <Divider className="mb-6" />
           {modelType === 'chatbot' && (
             <ChatbotQuestions models={privateModels} workflowNames={workflowNames} />
           )}
-          {modelType === 'nlp-text-analytics' && <NLPQuestions workflowNames={workflowNames} />}
+          {modelType === 'nlp-text-analytics' && (
+            <NLPQuestions workflowNames={workflowNames} />
+          )}
           {modelType === 'enterprise-search' && (
             <EnterpriseSearchQuestions models={privateModels} workflowNames={workflowNames} />
           )}

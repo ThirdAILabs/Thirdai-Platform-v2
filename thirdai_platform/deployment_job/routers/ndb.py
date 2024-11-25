@@ -38,7 +38,7 @@ from fastapi.responses import StreamingResponse
 from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files, get_cloud_client
 from platform_common.logging import LogCode
-from platform_common.logging.job_loggers import DeploymentLogger
+from platform_common.logging.job_loggers import JobLogger
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
@@ -69,9 +69,7 @@ ndb_top_k_selections = [
 
 
 class NDBRouter:
-    def __init__(
-        self, config: DeploymentConfig, reporter: Reporter, logger: DeploymentLogger
-    ):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: JobLogger):
         self.config = config
         self.reporter = reporter
         self.logger = logger
@@ -120,7 +118,7 @@ class NDBRouter:
         )
 
     @staticmethod
-    def get_model(config: DeploymentConfig, logger: DeploymentLogger) -> NDBModel:
+    def get_model(config: DeploymentConfig, logger: JobLogger) -> NDBModel:
         return NDBModel(
             config=config, logger=logger, write_mode=not config.autoscaling_enabled
         )

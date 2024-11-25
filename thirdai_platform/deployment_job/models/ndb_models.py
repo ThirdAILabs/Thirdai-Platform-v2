@@ -20,7 +20,7 @@ from deployment_job.models.model import Model
 from deployment_job.pydantic_models import inputs
 from fastapi import HTTPException, status
 from platform_common.file_handler import FileInfo, expand_cloud_buckets_and_directories
-from platform_common.logging import DeploymentLogger, LogCode
+from platform_common.logging import JobLogger, LogCode
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.core.types import Chunk
@@ -30,7 +30,7 @@ class NDBModel(Model):
     def __init__(
         self,
         config: DeploymentConfig,
-        logger: DeploymentLogger,
+        logger: JobLogger,
         write_mode: bool = False,
     ):
         super().__init__(config=config, logger=logger)

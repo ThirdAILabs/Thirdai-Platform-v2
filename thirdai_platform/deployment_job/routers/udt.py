@@ -15,7 +15,7 @@ from deployment_job.reporter import Reporter
 from fastapi import APIRouter, Depends, Query, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from platform_common.dependencies import is_on_low_disk
-from platform_common.logging import DeploymentLogger, LogCode
+from platform_common.logging import JobLogger, LogCode
 from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
 from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
 from platform_common.thirdai_storage.data_types import (
@@ -36,9 +36,7 @@ udt_query_length = Summary("udt_query_length", "Distribution of query lengths")
 
 
 class UDTBaseRouter:
-    def __init__(
-        self, config: DeploymentConfig, reporter: Reporter, logger: DeploymentLogger
-    ):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: JobLogger):
         self.model: ClassificationModel = self.get_model(config, logger)
         self.logger = logger
 
@@ -54,9 +52,7 @@ class UDTBaseRouter:
         self.router.add_api_route("/get-text", self.get_text, methods=["POST"])
 
     @staticmethod
-    def get_model(
-        config: DeploymentConfig, logger: DeploymentLogger
-    ) -> ClassificationModel:
+    def get_model(config: DeploymentConfig, logger: JobLogger) -> ClassificationModel:
         raise NotImplementedError("Subclasses should implement this method")
 
     def get_text(
@@ -216,9 +212,7 @@ class UDTBaseRouter:
 
 
 class UDTRouterTextClassification(UDTBaseRouter):
-    def __init__(
-        self, config: DeploymentConfig, reporter: Reporter, logger: DeploymentLogger
-    ):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: JobLogger):
         super().__init__(config, reporter, logger)
         # Add routes specific to text classification
         self.router.add_api_route(
@@ -232,9 +226,7 @@ class UDTRouterTextClassification(UDTBaseRouter):
         )
 
     @staticmethod
-    def get_model(
-        config: DeploymentConfig, logger: DeploymentLogger
-    ) -> ClassificationModel:
+    def get_model(config: DeploymentConfig, logger: JobLogger) -> ClassificationModel:
         subtype = config.model_options.udt_sub_type
         logger.info(
             f"Initializing Text Classification model of subtype: {subtype}",
@@ -273,9 +265,7 @@ class UDTRouterTextClassification(UDTBaseRouter):
 
 
 class UDTRouterTokenClassification(UDTBaseRouter):
-    def __init__(
-        self, config: DeploymentConfig, reporter: Reporter, logger: DeploymentLogger
-    ):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: JobLogger):
         super().__init__(config, reporter, logger)
         # The following routes are only applicable for token classification models
         # TODO(Shubh): Make different routers for text and token classification models
@@ -292,9 +282,7 @@ class UDTRouterTokenClassification(UDTBaseRouter):
         )
 
     @staticmethod
-    def get_model(
-        config: DeploymentConfig, logger: DeploymentLogger
-    ) -> ClassificationModel:
+    def get_model(config: DeploymentConfig, logger: JobLogger) -> ClassificationModel:
         subtype = config.model_options.udt_sub_type
         logger.info(
             f"Initializing Token Classification model of subtype: {subtype}",

@@ -3,7 +3,7 @@ from typing import Dict, Optional
 from urllib.parse import urljoin
 
 import requests
-from platform_common.logging import TrainingLogger
+from platform_common.logging import JobLogger
 
 
 class Reporter(ABC):
@@ -21,7 +21,7 @@ class Reporter(ABC):
 
 
 class HttpReporter(Reporter):
-    def __init__(self, api_url: str, logger: TrainingLogger):
+    def __init__(self, api_url: str, logger: JobLogger):
         """
         Initialize the Reporter with the given API URL.
         """

@@ -1,7 +1,7 @@
 from abc import ABC
 from pathlib import Path
 
-from platform_common.logging import DeploymentLogger
+from platform_common.logging import JobLogger
 from platform_common.logging.logcodes import LogCode
 from platform_common.pydantic_models.deployment import DeploymentConfig
 
@@ -13,7 +13,7 @@ class Model(ABC):
     Abstract base class for all models.
     """
 
-    def __init__(self, config: DeploymentConfig, logger: DeploymentLogger) -> None:
+    def __init__(self, config: DeploymentConfig, logger: JobLogger) -> None:
         """
         Initializes model directories and reporter.
         """

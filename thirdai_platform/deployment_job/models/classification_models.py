@@ -8,7 +8,7 @@ from deployment_job.pydantic_models.inputs import (
     SearchResultsTokenClassification,
 )
 from fastapi import HTTPException, status
-from platform_common.logging import DeploymentLogger
+from platform_common.logging import JobLogger
 from platform_common.logging.logcodes import LogCode
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
@@ -28,7 +28,7 @@ from thirdai import bolt
 
 
 class ClassificationModel(Model):
-    def __init__(self, config: DeploymentConfig, logger: DeploymentLogger):
+    def __init__(self, config: DeploymentConfig, logger: JobLogger):
         super().__init__(config=config, logger=logger)
         self.model: bolt.UniversalDeepTransformer = self.load()
 
@@ -51,7 +51,7 @@ class ClassificationModel(Model):
 
 
 class TextClassificationModel(ClassificationModel):
-    def __init__(self, config: DeploymentConfig, logger: DeploymentLogger):
+    def __init__(self, config: DeploymentConfig, logger: JobLogger):
         super().__init__(config=config, logger=logger)
         self.num_classes = self.model.predict({"text": "test"}).shape[-1]
         self.logger.info(
@@ -164,7 +164,7 @@ class TextClassificationModel(ClassificationModel):
 
 
 class TokenClassificationModel(ClassificationModel):
-    def __init__(self, config: DeploymentConfig, logger: DeploymentLogger):
+    def __init__(self, config: DeploymentConfig, logger: JobLogger):
         super().__init__(config=config, logger=logger)
         self.load_storage()
 

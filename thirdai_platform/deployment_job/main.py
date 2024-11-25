@@ -21,7 +21,7 @@ try:
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse
     from licensing.verify import verify_license
-    from platform_common.logging import DeploymentLogger, LogCode
+    from platform_common.logging import JobLogger, LogCode
     from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
     from platform_common.pydantic_models.training import ModelType
     from prometheus_client import make_asgi_app
@@ -39,9 +39,10 @@ config: DeploymentConfig = load_config()
 
 log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
 
-logger = DeploymentLogger(
+logger = JobLogger(
     log_dir=log_dir,
     log_prefix="deployment",
+    service_type="deployment",
     model_id=config.model_id,
     model_type=config.model_options.model_type,
     user_id=config.user_id,

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 import thirdai
-from platform_common.logging import TrainingLogger
+from platform_common.logging import JobLogger
 from platform_common.pydantic_models.training import TrainConfig
 from train_job.reporter import Reporter
 
@@ -15,7 +15,7 @@ class Model(ABC):
 
     report_failure_method = "report_status"
 
-    def __init__(self, config: TrainConfig, reporter: Reporter, logger: TrainingLogger):
+    def __init__(self, config: TrainConfig, reporter: Reporter, logger: JobLogger):
         """
         Initialize the model with general and training options, create necessary
         directories, and set up a reporter for status updates.

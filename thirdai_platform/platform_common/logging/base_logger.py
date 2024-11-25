@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Dict, List, Union
 
 from colorlog import ColoredFormatter
-from platform_common.logging.logcodes import LogCode
 
 """
 Similar to Loki, VictoriaLogs supports full-text search over the logs. Since, the number of logs can be very large,
@@ -14,7 +13,7 @@ it also supports assigning (key,value) pairs to the logs which can be used for f
 To make search efficient and more customizable, it also supports marking certain fields as "stream fields".
 Searching over stream fields is significantly faster than doing a full text search or simple key-value pair search.
 
-BaseLogger and all its derived classes should have two methods:
+WrappedLogger and all its derived classes should have two methods:
 1. get_logger_keys: Returns a dictionary of key,value pairs enabling searching over logs.
 2. stream_fields: Returns a list of fields which should be marked as stream fields in VictoriaLogs.
 
@@ -48,8 +47,16 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(log_entry)
 
 
-class BaseLogger:
-    """Base class for all loggers"""
+class WrappedLogger:
+    """
+    A different approach from Python's Logger to make adding extra fields while logging easier.
+
+    ex :
+    Python's Logger : logger.info("Hello Shubh", extra={"code": LogCode.CHAT})
+    WrappedLogger : logger.info("Hello Shubh", code=LogCode.CHAT)
+
+    Also stores extra fields added to log records which can be used for filtering logs.
+    """
 
     def __init__(
         self,
@@ -78,6 +85,8 @@ class BaseLogger:
 
         logger = logging.getLogger(service_type)
         logger.setLevel(level)
+
+        # clear any existing handlers
         logger.handlers = []
 
         file_handler = logging.FileHandler(logger_file_path, mode="a+")

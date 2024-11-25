@@ -129,8 +129,8 @@ async def restart_thirdai_platform_frontend():
         docker_password=os.getenv("DOCKER_PASSWORD"),
         image_name=os.getenv("FRONTEND_IMAGE_NAME"),
         identity_provider=os.getenv("IDENTITY_PROVIDER", "postgres"),
-        model_bazaar_public_hostname=get_hostname_from_url(
-            os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT")
+        keycloak_server_hostname=get_hostname_from_url(
+            os.getenv("KEYCLOAK_SERVER_URL")
         ),
         use_ssl_in_login=os.getenv("USE_SSL_IN_LOGIN", "False").lower(),
         share_dir=os.getenv("SHARE_DIR"),
@@ -228,6 +228,13 @@ def create_promfile(promfile_path: str):
                 "job_name": "deployment-jobs",
                 "metrics_path": "/metrics",
                 "http_sd_configs": [{"url": deployment_targets_endpoint}],
+                "relabel_configs": [
+                    {
+                        "source_labels": ["model_id"],
+                        "target_label": "workload",
+                        "replacement": "deployment-${1}",
+                    }
+                ],
             },
         ],
     }
@@ -299,6 +306,9 @@ async def restart_telemetry_jobs():
         registry=os.getenv("DOCKER_REGISTRY"),
         docker_username=os.getenv("DOCKER_USERNAME"),
         docker_password=os.getenv("DOCKER_PASSWORD"),
+        model_bazaar_private_host=get_hostname_from_url(
+            os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT")
+        ),
     )
     if response.status_code != 200:
         raise Exception(f"{response.text}")

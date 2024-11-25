@@ -54,6 +54,11 @@ interface WarningState {
   messages: string[];
 }
 
+interface WarningState {
+  type: 'training' | 'deployment';
+  messages: string[];
+}
+
 export function WorkFlow({
   workflow,
   Workflows,

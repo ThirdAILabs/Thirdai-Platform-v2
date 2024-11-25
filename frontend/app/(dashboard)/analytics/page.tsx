@@ -5,6 +5,7 @@ import UpdateButton from './updateButton';
 import ModelUpdate from './ModelUpdate';
 import UpdateButtonNDB from './updateButtonNDB';
 import UsageStats from './usageStats';
+import UsageStatsUDT from './usageStatsUDT';
 import { UsageDurationChart, UsageFrequencyChart, ReformulatedQueriesChart } from './charts';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -94,26 +95,16 @@ function AnalyticsContent() {
       <div className="container mx-auto px-4 py-8">
         {modelName && deploymentUrl && (
           <>
-            {/* <div className="mb-6">
-              <LatencyMetrics 
+            <UsageStatsUDT />
+            <div className="mt-6">
+              <ModelUpdate
+                username={username}
+                modelName={modelName}
                 deploymentUrl={deploymentUrl}
-                performanceData={{
-                  avg_time_per_sample: 0.0009167316736653447,
-                  avg_time_per_token: 3.946547476463791e-05,
-                  throughput: 25338.60306923321,
-                  total_time: 9.167316736653447,
-                  total_tokens: 232287,
-                  total_samples: 10000
-                }}
+                workflowNames={workflowNames}
+                deployStatus={deployStatus}
               />
-            </div> */}
-            <ModelUpdate
-              username={username}
-              modelName={modelName}
-              deploymentUrl={deploymentUrl}
-              workflowNames={workflowNames}
-              deployStatus={deployStatus}
-            />
+            </div>
           </>
         )}
       </div>

@@ -98,6 +98,7 @@ job "telemetry" {
         GF_SERVER_HTTP_PORT   = "${NOMAD_PORT_http}"
         GF_PATHS_PROVISIONING = "/local/grafana/provisioning"
         GF_PATHS_DATA = "{{ nomad_monitoring_dir }}/grafana"
+        GF_SECURITY_ALLOW_EMBEDDING=true
       }
 
       config {

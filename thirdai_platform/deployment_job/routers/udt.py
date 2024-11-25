@@ -32,6 +32,8 @@ from throughput import Throughput
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
+udt_query_length = Summary("udt_query_length", "Distribution of query lengths")
+
 
 class UDTBaseRouter:
     def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
@@ -122,6 +124,9 @@ class UDTBaseRouter:
         ```
         """
         start_time = time.perf_counter()
+
+        text_length = len(params.text.split())
+        udt_query_length.observe(text_length)
 
         results = self.model.predict(**params.model_dump())
 

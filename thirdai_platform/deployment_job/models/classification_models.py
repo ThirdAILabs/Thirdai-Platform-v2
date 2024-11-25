@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from logging import Logger
 from pathlib import Path
 from typing import List, Optional
 
@@ -9,6 +8,7 @@ from deployment_job.pydantic_models.inputs import (
     SearchResultsTokenClassification,
 )
 from fastapi import HTTPException, status
+from platform_common.logging import DeploymentLogger
 from platform_common.logging.logcodes import LogCode
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
@@ -28,7 +28,7 @@ from thirdai import bolt
 
 
 class ClassificationModel(Model):
-    def __init__(self, config: DeploymentConfig, logger: Logger):
+    def __init__(self, config: DeploymentConfig, logger: DeploymentLogger):
         super().__init__(config=config, logger=logger)
         self.model: bolt.UniversalDeepTransformer = self.load()
 
@@ -51,12 +51,12 @@ class ClassificationModel(Model):
 
 
 class TextClassificationModel(ClassificationModel):
-    def __init__(self, config: DeploymentConfig, logger: Logger):
+    def __init__(self, config: DeploymentConfig, logger: DeploymentLogger):
         super().__init__(config=config, logger=logger)
         self.num_classes = self.model.predict({"text": "test"}).shape[-1]
-        self.logger.debug(
-            code=LogCode.NLP_MODEL_INIT,
-            message=f"TextClassificationModel initialized with {self.num_classes} classes",
+        self.logger.info(
+            f"TextClassificationModel initialized with {self.num_classes} classes",
+            code=LogCode.MODEL_INIT,
         )
         self.load_storage()
 
@@ -70,9 +70,9 @@ class TextClassificationModel(ClassificationModel):
 
         try:
             if not data_storage_path.exists():
-                self.logger.debug(
-                    code=LogCode.DATA_STORAGE_CREATE,
-                    message="Data storage path does not exist, creating it",
+                self.logger.info(
+                    "Data storage path does not exist, creating it",
+                    code=LogCode.DATA_STORAGE,
                 )
 
                 data_storage_path.parent.mkdir(parents=True, exist_ok=True)
@@ -101,14 +101,14 @@ class TextClassificationModel(ClassificationModel):
                 self.data_storage = DataStorage(
                     connector=SQLiteConnector(db_path=data_storage_path)
                 )
-            self.logger.debug(
-                code=LogCode.DATA_STORAGE_CREATE,
-                message=f"Data storage loaded from {data_storage_path}",
+            self.logger.info(
+                f"Loaded data storage from {data_storage_path}",
+                code=LogCode.DATA_STORAGE,
             )
         except Exception as e:
             self.logger.error(
-                code=LogCode.DATA_STORAGE_CREATE,
-                message=f"Error loading data storage: {e} for the model {self.config.model_id}",
+                f"Error loading data storage: {e} for the model {self.config.model_id}",
+                code=LogCode.DATA_STORAGE,
             )
             raise e
 
@@ -126,10 +126,7 @@ class TextClassificationModel(ClassificationModel):
                 predicted_classes=predicted_classes,
             )
         except Exception as e:
-            self.logger.error(
-                code=LogCode.NLP_MODEL_PREDICT,
-                message=f"Error predicting: {e}",
-            )
+            self.logger.error(f"Error predicting: {e}", code=LogCode.MODEL_PREDICT)
             raise e
 
     def insert_sample(self, sample: TextClassificationData):
@@ -143,15 +140,9 @@ class TextClassificationModel(ClassificationModel):
             self.data_storage.insert_samples(
                 samples=[text_sample], override_buffer_limit=True
             )
-            self.logger.debug(
-                code=LogCode.DATA_STORAGE_INSERT,
-                message=f"Sample inserted into data storage",
-            )
+            self.logger.debug(f"Sample inserted into data storage")
         except Exception as e:
-            self.logger.error(
-                code=LogCode.DATA_STORAGE_INSERT,
-                message=f"Error inserting sample: {e}",
-            )
+            self.logger.error(f"Error inserting sample: {e}", code=LogCode.DATA_STORAGE)
             raise e
 
     def get_recent_samples(self, num_samples: int = 5) -> List[TextClassificationData]:
@@ -162,20 +153,18 @@ class TextClassificationModel(ClassificationModel):
                 user_provided=True,  # Assuming we want user-provided samples
             )
             self.logger.debug(
-                code=LogCode.DATA_STORAGE_RETRIEVE,
-                message=f"Retrieved {len(recent_samples)} samples from data storage",
+                f"Retrieved {len(recent_samples)} samples from data storage"
             )
             return [sample.data for sample in recent_samples]
         except Exception as e:
             self.logger.error(
-                code=LogCode.DATA_STORAGE_RETRIEVE,
-                message=f"Error retrieving samples: {e}",
+                f"Error retrieving samples: {e}", code=LogCode.DATA_STORAGE
             )
             raise e
 
 
 class TokenClassificationModel(ClassificationModel):
-    def __init__(self, config: DeploymentConfig, logger: Logger):
+    def __init__(self, config: DeploymentConfig, logger: DeploymentLogger):
         super().__init__(config=config, logger=logger)
         self.load_storage()
 
@@ -189,9 +178,9 @@ class TokenClassificationModel(ClassificationModel):
 
         try:
             if not data_storage_path.exists():
-                self.logger.debug(
-                    code=LogCode.DATA_STORAGE_CREATE,
-                    message="Data storage path does not exist, creating it",
+                self.logger.info(
+                    "Data storage path does not exist, creating it",
+                    code=LogCode.DATA_STORAGE,
                 )
 
                 data_storage_path.parent.mkdir(parents=True, exist_ok=True)
@@ -215,9 +204,9 @@ class TokenClassificationModel(ClassificationModel):
                         status=MetadataStatus.unchanged,
                     )
                 )
-                self.logger.debug(
-                    code=LogCode.DATA_STORAGE_CREATE,
-                    message=f"Data storage created at {data_storage_path}",
+                self.logger.info(
+                    f"Loading data storage from {data_storage_path}",
+                    code=LogCode.DATA_STORAGE,
                 )
 
             else:
@@ -226,8 +215,8 @@ class TokenClassificationModel(ClassificationModel):
                 )
         except Exception as e:
             self.logger.error(
-                code=LogCode.DATA_STORAGE_CREATE,
-                message=f"Error loading data storage: {e} for the model {self.config.model_id}",
+                f"Error loading data storage: {e} for the model {self.config.model_id}",
+                code=LogCode.DATA_STORAGE,
             )
             raise e
 
@@ -254,10 +243,7 @@ class TokenClassificationModel(ClassificationModel):
                 predicted_tags=predictions,
             )
         except Exception as e:
-            self.logger.error(
-                code=LogCode.NLP_MODEL_PREDICT,
-                message=f"Error predicting: {e}",
-            )
+            self.logger.error(f"Error predicting: {e}", code=LogCode.MODEL_PREDICT)
             raise e
 
     @property
@@ -281,14 +267,10 @@ class TokenClassificationModel(ClassificationModel):
                 tag_metadata.add_tag(label)
             # update the metadata entry in the DB
             self.update_tag_metadata(tag_metadata, MetadataStatus.updated)
-            self.logger.debug(
-                code=LogCode.DATA_STORAGE_UPDATE,
-                message=f"Tag metadata updated",
-            )
+            self.logger.info(f"Tag metadata updated", code=LogCode.DATA_STORAGE)
         except Exception as e:
             self.logger.error(
-                code=LogCode.DATA_STORAGE_UPDATE,
-                message=f"Error updating tag metadata: {e}",
+                f"Error updating tag metadata: {e}", code=LogCode.DATA_STORAGE
             )
             raise e
 
@@ -303,15 +285,11 @@ class TokenClassificationModel(ClassificationModel):
             self.data_storage.insert_samples(
                 samples=[token_tag_sample], override_reservoir_limit=True
             )
-            self.logger.debug(
-                code=LogCode.DATA_STORAGE_INSERT,
-                message=f"Sample inserted into data storage",
+            self.logger.info(
+                f"Sample inserted into data storage", code=LogCode.DATA_STORAGE
             )
         except Exception as e:
-            self.logger.error(
-                code=LogCode.DATA_STORAGE_INSERT,
-                message=f"Error inserting sample: {e}",
-            )
+            self.logger.error(f"Error inserting sample: {e}", code=LogCode.DATA_STORAGE)
             raise e
 
     def get_recent_samples(self, num_samples: int = 5) -> List[TokenClassificationData]:
@@ -332,14 +310,12 @@ class TokenClassificationModel(ClassificationModel):
                 user_provided=True,  # Assuming we want user-provided samples
             )
             self.logger.debug(
-                code=LogCode.DATA_STORAGE_RETRIEVE,
-                message=f"Retrieved {len(recent_samples)} samples from data storage",
+                f"Retrieved {len(recent_samples)} samples from data storage",
             )
             # Return the TokenClassificationData objects directly
             return [sample.data for sample in recent_samples]
         except Exception as e:
             self.logger.error(
-                code=LogCode.DATA_STORAGE_RETRIEVE,
-                message=f"Error retrieving samples: {e}",
+                f"Error retrieving samples: {e}", code=LogCode.DATA_STORAGE
             )
             raise e

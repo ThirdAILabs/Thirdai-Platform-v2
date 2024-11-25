@@ -3,7 +3,6 @@ Defines NDB model classes for the application.
 """
 
 import ast
-import logging
 import os
 import shutil
 import tempfile
@@ -21,7 +20,7 @@ from deployment_job.models.model import Model
 from deployment_job.pydantic_models import inputs
 from fastapi import HTTPException, status
 from platform_common.file_handler import FileInfo, expand_cloud_buckets_and_directories
-from platform_common.logging import LogCode
+from platform_common.logging import DeploymentLogger, LogCode
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.core.types import Chunk
@@ -29,7 +28,10 @@ from thirdai.neural_db_v2.core.types import Chunk
 
 class NDBModel(Model):
     def __init__(
-        self, config: DeploymentConfig, logger: logging.Logger, write_mode: bool = False
+        self,
+        config: DeploymentConfig,
+        logger: DeploymentLogger,
+        write_mode: bool = False,
     ):
         super().__init__(config=config, logger=logger)
 
@@ -251,15 +253,15 @@ class NDBModel(Model):
             loaded_db = ndbv2.NeuralDB.load(
                 self.ndb_save_path(), read_only=not write_mode
             )
-            self.logger.debug(
-                code=LogCode.NDB_LOAD,
-                message=f"Loaded NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}",
+            self.logger.info(
+                f"Loaded NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}",
+                code=LogCode.MODEL_LOAD,
             )
             return loaded_db
         except Exception as e:
             self.logger.error(
-                code=LogCode.NDB_LOAD,
-                message=f"Failed to load NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}",
+                f"Failed to load NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}",
+                code=LogCode.MODEL_LOAD,
             )
             raise e
 
@@ -275,8 +277,7 @@ class NDBModel(Model):
                     backup_id = str(uuid.uuid4())
                     backup_path = self.get_ndb_path(backup_id)
                     self.logger.debug(
-                        code=LogCode.NDB_SAVE,
-                        message=f"Creating backup: {backup_id}",
+                        f"Creating backup: {backup_id}", code=LogCode.MODEL_SAVE
                     )
                     shutil.copytree(model_path, backup_path)
 
@@ -284,23 +285,20 @@ class NDBModel(Model):
                     shutil.rmtree(model_path)
 
                 self.logger.debug(
-                    code=LogCode.NDB_SAVE,
-                    message=f"Moving temp model to {model_path}",
+                    f"Moving temp model to {model_path}", code=LogCode.MODEL_SAVE
                 )
                 shutil.move(temp_model_path, model_path)
 
                 if model_path.exists() and backup_path is not None:
                     shutil.rmtree(backup_path.parent)
 
-                self.logger.debug(
-                    code=LogCode.NDB_SAVE,
-                    message=f"Saved NDBv2 model to {model_path}",
+                self.logger.info(
+                    f"Saved NDBv2 model to {model_path}", code=LogCode.MODEL_SAVE
                 )
 
         except Exception as err:
             self.logger.error(
-                code=LogCode.NDB_SAVE,
-                message=f"Failed while saving with error: {err}",
+                f"Failed while saving with error: {err}", code=LogCode.MODEL_SAVE
             )
             traceback.print_exc()
 
@@ -326,9 +324,9 @@ class NDBModel(Model):
         with self.chat_instance_lock:
             if provider in self.chat_instances and self.chat_instances[provider]:
                 # Chat instance for this provider already exists, do not recreate
-                self.logger.debug(
-                    code=LogCode.CHAT_INIT,
-                    message=f"Chat instance for provider '{provider}' is already set.",
+                self.logger.info(
+                    f"Chat instance for provider '{provider}' is already set.",
+                    code=LogCode.CHAT,
                 )
                 return
             try:
@@ -357,14 +355,13 @@ class NDBModel(Model):
                     base_url=self.config.model_bazaar_endpoint,
                     **kwargs,
                 )
-                self.logger.debug(
-                    code=LogCode.CHAT_INIT,
-                    message=f"Chat instance set for provider '{provider}'",
+                self.logger.info(
+                    f"Chat instance set for provider '{provider}'", code=LogCode.CHAT
                 )
             except Exception:
                 self.logger.error(
-                    code=LogCode.CHAT_INIT,
-                    message=f"Error setting chat instance for provider '{provider}': {traceback.format_exc()}",
+                    f"Error setting chat instance for provider '{provider}': {traceback.format_exc()}",
+                    code=LogCode.CHAT,
                 )
                 traceback.print_exc()
                 self.chat_instances[provider] = None

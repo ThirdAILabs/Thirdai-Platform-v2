@@ -32,7 +32,8 @@ import {
 } from '@/utils/fileParsingUtils';
 // import TimerIcon from '@mui/icons-material/Timer';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
-
+import XMLRenderer from './xmlRenderer';
+import { SignalCellularNoSimOutlined } from '@mui/icons-material';
 interface Token {
   text: string;
   tag: string;
@@ -60,6 +61,21 @@ interface TagSelectorProps {
   onSelect: (tag: string) => void;
   onNewLabel: (newLabel: string) => Promise<void>;
   currentTag: string;
+}
+
+interface xmlPrediction {
+  label: string;
+  location: {
+    char_span: {
+      start: number;
+      end: number;
+    };
+    xpath_location: {
+      xpath: string;
+      attribute: string | null;
+    };
+    value: string;
+  };
 }
 
 const SELECTING_COLOR = '#EFEFEF';
@@ -231,8 +247,40 @@ function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSel
   );
 }
 
+const formatXML = (xml: string): string => {
+  let formatted = '';
+  let indent = 0;
+  const tab = '  '; // 2 spaces for indentation
+  const tokens = xml.trim().split(/(<\/?[^>]+>)/g);
+
+  tokens.forEach((token) => {
+    if (!token.trim()) return; // Skip empty tokens
+
+    // Check if it's a closing tag
+    if (token.startsWith('</')) {
+      indent--;
+      formatted += tab.repeat(Math.max(0, indent)) + token + '\n';
+    }
+    // Check if it's an opening tag
+    else if (token.startsWith('<') && !token.startsWith('<?') && !token.endsWith('/>')) {
+      formatted += tab.repeat(indent) + token + '\n';
+      indent++;
+    }
+    // Self-closing tag
+    else if (token.startsWith('<') && token.endsWith('/>')) {
+      formatted += tab.repeat(indent) + token + '\n';
+    }
+    // Text content
+    else if (token.trim()) {
+      formatted += tab.repeat(indent) + token.trim() + '\n';
+    }
+  });
+
+  return formatted.trim();
+};
+
 export default function Interact() {
-  const { predict, insertSample, addLabel, getLabels, getTextFromFile } =
+  const { predict, predictXml, insertSample, addLabel, getLabels, getTextFromFile } =
     useTokenClassificationEndpoints();
 
   const [inputText, setInputText] = useState<string>('');
@@ -242,13 +290,15 @@ export default function Interact() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [showHighlightedOnly, setShowHighlightedOnly] = useState(false);
-
   const [mouseDownIndex, setMouseDownIndex] = useState<number | null>(null);
   const [mouseUpIndex, setMouseUpIndex] = useState<number | null>(null);
   const [selecting, setSelecting] = useState<boolean>(false);
   const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(null);
   const [selectedRange, setSelectedRange] = useState<[number, number] | null>(null);
   const [processingTime, setProcessingTime] = useState<number | undefined>();
+  const [logType, setLogType] = useState<string | undefined>();
+  const [xmlAnnotations, setXmlAnnotations] = useState<xmlPrediction[]>([]);
+  const [xmlQueryText, setXmlQueryText] = useState<string | undefined>('');
   const startIndex =
     mouseDownIndex !== null && mouseUpIndex !== null
       ? Math.min(mouseDownIndex, mouseUpIndex)
@@ -355,16 +405,19 @@ export default function Interact() {
 
     setTagColors((existingColors) => {
       const colors = { ...existingColors };
-      const newTags = Array.from(new Set(tags.flatMap((tokenTags) => tokenTags))).filter(
-        (tag) => !existingColors[tag] && tag !== 'O'
-      );
-      newTags.forEach((tag, index) => {
-        const i = Object.keys(existingColors).length + index;
-        colors[tag] = {
-          text: pastels[i % pastels.length],
-          tag: darkers[i % darkers.length],
-        };
-      });
+      //Anand TODO: this if tag is only for temporary basis, need to be removed before merging.
+      if (tags) {
+        const newTags = Array.from(new Set(tags.flatMap((tokenTags) => tokenTags))).filter(
+          (tag) => !existingColors[tag] && tag !== 'O'
+        );
+        newTags.forEach((tag, index) => {
+          const i = Object.keys(existingColors).length + index;
+          colors[tag] = {
+            text: pastels[i % pastels.length],
+            tag: darkers[i % darkers.length],
+          };
+        });
+      }
       return colors;
     });
   };
@@ -380,15 +433,23 @@ export default function Interact() {
       const result = await predict(text);
       updateTagColors(result.prediction_results.predicted_tags);
       setProcessingTime(result.time_taken);
-      setAnnotations(
-        _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(
-          ([text, tag]) => ({
-            text: text as string,
-            tag: (tag as string[])[0],
-          })
-        )
-      );
-
+      setLogType(result.prediction_results.log_type);
+      if (result.prediction_results.log_type === "unstructured") {
+        setAnnotations(
+          _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(
+            ([text, tag]) => ({
+              text: text as string,
+              tag: (tag as string[])[0],
+            })
+          )
+        );
+      }
+      else {
+        setAnnotations([{ text: "this is", tag: "hue" }]);
+        const result = await predictXml(formatXML(text));
+        setXmlQueryText(result.prediction_results.query_text);
+        setXmlAnnotations(result.prediction_results.predictions)
+      }
       if (!isFileUpload) {
         setParsedData({ type: 'other', content: text });
       }
@@ -779,6 +840,9 @@ export default function Interact() {
     const words = content.split(/\s+/);
     let currentIndex = 0;
 
+    if (logType === "xml" && xmlQueryText) {
+      return (<XMLRenderer xmlContent={xmlQueryText} predictions={xmlAnnotations} />)
+    }
     return words
       .map((word, wordIndex) => {
         const tokenIndex = annotations.findIndex(

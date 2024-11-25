@@ -1118,15 +1118,37 @@ export function useRecentSamples({
 }
 
 export interface TokenClassificationResult {
+  log_type: string;
   query_text: string;
   tokens: string[];
   predicted_tags: string[][];
+}
+export interface TokenClassificationResultXml {
+  log_type: string;
+  query_text: string;
+  predictions: Array<{
+    label: string;
+    location: {
+      char_span: {
+        start: number;
+        end: number;
+      };
+      xpath_location: {
+        xpath: string;
+        attribute: string | null;
+      };
+      value: string;
+    };
+  }>;
 }
 export interface PredictionResponse {
   prediction_results: TokenClassificationResult;
   time_taken: number;
 }
-
+export interface PredictionResponseXml {
+  prediction_results: TokenClassificationResultXml;
+  time_taken: number;
+}
 export interface InsertSamplePayload {
   tokens: string[];
   tags: string[];
@@ -1182,7 +1204,21 @@ export function useTokenClassificationEndpoints() {
       throw new Error('Failed to predict tokens');
     }
   };
-
+  const predictXml = async (query: string): Promise<PredictionResponseXml> => {
+    // Set the default authorization header for axios
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      const response = await axios.post(`${deploymentUrl}/predict`, {
+        text: query,
+        top_k: 1,
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error predicting tokens:', error);
+      alert('Error predicting tokens:' + error);
+      throw new Error('Failed to predict tokens');
+    }
+  };
   const formatTime = (timeSeconds: number) => {
     const timeMinutes = Math.floor(timeSeconds / 60);
     const timeHours = Math.floor(timeMinutes / 60);
@@ -1319,6 +1355,7 @@ export function useTokenClassificationEndpoints() {
   return {
     workflowName,
     predict,
+    predictXml,
     insertSample,
     addLabel,
     getLabels,

@@ -43,6 +43,8 @@
     "drizzle-zod": "^0.5.1",
     "framer-motion": "^11.8.0",
     "fuse.js": "^7.0.0",
+    "highlight.js": "^11.10.0",
+    "hljs": "link:react-syntax-highlighter/dist/cjs/styles/hljs",
     "i": "^0.3.7",
     "lodash": "^4.17.21",
     "lucide-react": "^0.400.0",
@@ -62,6 +64,7 @@
     "react-icons": "^5.3.0",
     "react-markdown": "^9.0.1",
     "react-pdf": "^7.5.1",
+    "react-syntax-highlighter": "^15.6.1",
     "recharts": "^2.13.2",
     "server-only": "^0.0.1",
     "sharp": "^0.33.5",
@@ -74,6 +77,7 @@
     "typescript": "5.5.3",
     "uuid": "^10.0.0",
     "xlsx": "^0.18.5",
+    "xml": "link:react-syntax-highlighter/dist/cjs/languages/xml",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -82,6 +86,7 @@
     "@types/papaparse": "^5.3.14",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "@types/recharts": "^1.8.29",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.5",

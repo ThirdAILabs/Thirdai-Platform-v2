@@ -285,9 +285,7 @@ class TokenClassificationModel(ClassificationModel):
             self.data_storage.insert_samples(
                 samples=[token_tag_sample], override_reservoir_limit=True
             )
-            self.logger.info(
-                f"Sample inserted into data storage", code=LogCode.DATA_STORAGE
-            )
+            self.logger.debug(f"Sample inserted into data storage")
         except Exception as e:
             self.logger.error(f"Error inserting sample: {e}", code=LogCode.DATA_STORAGE)
             raise e
@@ -310,7 +308,7 @@ class TokenClassificationModel(ClassificationModel):
                 user_provided=True,  # Assuming we want user-provided samples
             )
             self.logger.debug(
-                f"Retrieved {len(recent_samples)} samples from data storage",
+                f"Retrieved {len(recent_samples)} samples from data storage"
             )
             # Return the TokenClassificationData objects directly
             return [sample.data for sample in recent_samples]

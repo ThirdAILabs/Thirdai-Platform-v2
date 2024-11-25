@@ -263,8 +263,7 @@ class NDBRouter:
             try:
                 self.model.insert(documents=documents)
                 self.logger.info(
-                    "Document insertion applied successfully",
-                    code=LogCode.MODEL_INSERT,
+                    "Document insertion applied successfully", code=LogCode.MODEL_INSERT
                 )
                 return response(
                     status_code=status.HTTP_200_OK,
@@ -272,8 +271,7 @@ class NDBRouter:
                 )
             except Exception as e:
                 self.logger.error(
-                    f"Error inserting documents: {e}",
-                    code=LogCode.MODEL_INSERT,
+                    f"Error inserting documents: {e}", code=LogCode.MODEL_INSERT
                 )
                 return response(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

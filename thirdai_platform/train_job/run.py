@@ -62,18 +62,17 @@ def load_config():
 
 
 def main():
+    config: TrainConfig = load_config()
+    log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
+
+    logger = TrainingLogger(
+        log_dir=log_dir,
+        log_prefix="train",
+        model_id=config.model_id,
+        model_type=config.model_options.model_type,
+        user_id=config.user_id,
+    )
     try:
-        config: TrainConfig = load_config()
-        log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
-
-        logger = TrainingLogger(
-            log_dir=log_dir,
-            log_prefix="train",
-            model_id=config.model_id,
-            model_type=config.model_options.model_type,
-            user_id=config.user_id,
-        )
-
         reporter = HttpReporter(config.model_bazaar_endpoint, logger)
 
         verify_license.activate_thirdai_license(config.license_key)

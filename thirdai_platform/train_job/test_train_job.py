@@ -88,6 +88,7 @@ def run_ndb_train_job(extra_supervised_files=[]):
     ).hash
 
     config = TrainConfig(
+        user_id="user_123",
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
         model_bazaar_endpoint="",
@@ -183,6 +184,7 @@ def test_udt_text_train():
 
     os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
+        user_id="user_123",
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
         model_bazaar_endpoint="",
@@ -231,6 +233,7 @@ def test_udt_token_train(test_split):
 
     os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
+        user_id="user_123",
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
         model_bazaar_endpoint="",
@@ -306,6 +309,7 @@ def test_udt_token_train_with_balancing(dummy_ner_file):
     verify_license.verify_and_activate(THIRDAI_LICENSE)
 
     config = TrainConfig(
+        user_id="user_123",
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
         model_bazaar_endpoint="",

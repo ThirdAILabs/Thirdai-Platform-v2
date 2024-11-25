@@ -1,11 +1,13 @@
+from typing import Optional
+
 from fastapi import HTTPException, status
 
 from .utils import disk_usage
 
 
-def is_on_low_disk(threshold: float = 0.8):
+def is_on_low_disk(threshold: float = 0.8, path: Optional[str] = None):
     def func(size: int = 0):
-        disk_stats = disk_usage()
+        disk_stats = disk_usage(path=path)
 
         disk_use = (disk_stats["used"] + size) / disk_stats["total"]
         if disk_use > threshold:

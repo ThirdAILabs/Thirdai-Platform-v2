@@ -1525,6 +1525,7 @@ interface UserResponse {
   id: string;
   teams: UserTeamInfo[];
   username: string;
+  verified: boolean;
 }
 
 interface TeamResponse {
@@ -1581,6 +1582,16 @@ export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
         reject(err);
       });
   });
+}
+
+export async function verifyUser(email: string): Promise<void> {
+  const accessToken = getAccessToken();
+
+  return axios.post(
+    `${thirdaiPlatformBaseUrl}/api/user/verify-user`,
+    { email },
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
 }
 
 // MODEL //
@@ -1782,6 +1793,56 @@ export async function deleteUserAccount(email: string): Promise<void> {
       .catch((err) => {
         console.error('Error deleting user:', err);
         alert('Error deleting user:' + err);
+        reject(err);
+      });
+  });
+}
+
+export interface AddUserPayload {
+  username: string;
+  email: string;
+  password: string;
+}
+
+export interface AddUserResponse {
+  message: string;
+  data?: {
+    user_id: string;
+    email: string;
+  };
+}
+
+export async function addUser(userData: AddUserPayload): Promise<AddUserResponse> {
+  const accessToken = getAccessToken();
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post<AddUserResponse>(`${thirdaiPlatformBaseUrl}/api/user/add-user`, userData, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      .then((response) => {
+        resolve(response.data);
+      })
+      .catch((err) => {
+        console.error('Error adding user:', err);
+        reject(err);
+      });
+  });
+}
+
+export async function promoteUserToGlobalAdmin(email: string): Promise<void> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/user/add-global-admin`, { email: email })
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.error('Error promoting user:', err);
+        alert('Error promoting user:' + err);
         reject(err);
       });
   });

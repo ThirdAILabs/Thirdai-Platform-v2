@@ -951,7 +951,7 @@ function sentenceClassifierDatagenForm(examples: SentenceClassificationExample[]
     description: example.description,
   }));
 
-  const numSentences = 10_000;
+  const numSentences = 1000;
   return {
     sub_type: 'text',
     samples_per_label: Math.max(Math.ceil(numSentences / labels.length), 50),

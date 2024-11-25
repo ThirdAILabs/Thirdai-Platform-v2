@@ -280,7 +280,7 @@ class NeuralDBV2(Model):
     def save(self):
         if not self.ndb_options.on_disk:
             self.db.save(self.ndb_save_path())
-            os.remove(self.retriever_save_path())
+            shutil.rmtree(self.retriever_save_path())
 
     def get_latency(self) -> float:
         self.logger.info("Measuring latency of the NeuralDBv2 instance.")

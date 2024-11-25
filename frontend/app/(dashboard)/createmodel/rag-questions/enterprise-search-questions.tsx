@@ -524,8 +524,12 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
 
       {/* Step Controls - only show if not on Knowledge Base step or LLM not chosen yet */}
       {!(currentStep === 1 && ssModelId) && (
-        <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between' }}>
-          {currentStep > 0 && <Button onClick={handlePrevious}>Previous</Button>}
+        <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'flex-end' }}>
+          {currentStep > 0 && (
+            <Button onClick={handlePrevious} sx={{ mr: 2 }}>
+              Previous
+            </Button>
+          )}
 
           {currentStep < steps.length - 1 ? (
             <Button

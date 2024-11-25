@@ -7,7 +7,7 @@ import pytest
 from deployment_job.permissions import Permissions
 from fastapi.testclient import TestClient
 from licensing.verify import verify_license
-from platform_common.logging import get_default_logger
+from platform_common.logging import JobLogger
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     NDBDeploymentOptions,
@@ -22,7 +22,14 @@ THIRDAI_LICENSE = os.path.join(
 )
 
 
-logger = get_default_logger()
+logger = JobLogger(
+    log_dir="./tmp",
+    log_prefix="deployment",
+    service_type="deployment",
+    model_id="model-123",
+    model_type="ndb",
+    user_id="user-123",
+)
 
 
 def doc_dir():

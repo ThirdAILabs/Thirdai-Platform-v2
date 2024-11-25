@@ -5,7 +5,7 @@ from typing import Dict
 import pandas as pd
 import pytest
 from licensing.verify import verify_license
-from platform_common.logging import get_default_logger
+from platform_common.logging import JobLogger
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
     FeedbackLog,
@@ -53,7 +53,14 @@ THIRDAI_LICENSE = os.path.join(
     os.path.dirname(__file__), "../tests/ndb_enterprise_license.json"
 )
 
-default_logger = get_default_logger()
+logger = JobLogger(
+    log_dir="./model_bazaar_tmp",
+    log_prefix="train",
+    service_type="train",
+    model_id="model-123",
+    model_type="ndb",
+    user_id="user-123",
+)
 
 
 def file_dir():
@@ -134,7 +141,7 @@ def run_ndb_train_job(extra_supervised_files=[]):
         job_options=JobOptions(),
     )
 
-    model = get_model(config, DummyReporter(), default_logger)
+    model = get_model(config, DummyReporter(), logger)
 
     model.train()
 
@@ -218,7 +225,7 @@ def test_udt_text_train():
         job_options=JobOptions(),
     )
 
-    model = get_model(config, DummyReporter(), default_logger)
+    model = get_model(config, DummyReporter(), logger)
 
     model.train()
 
@@ -292,7 +299,7 @@ def test_udt_token_train(test_split):
         ),
     )
 
-    model = get_model(config, DummyReporter(), default_logger)
+    model = get_model(config, DummyReporter(), logger)
 
     model.train()
 
@@ -343,7 +350,7 @@ def test_udt_token_train_with_balancing(dummy_ner_file):
         ),
     )
 
-    model: TokenClassificationModel = get_model(config, DummyReporter(), default_logger)
+    model: TokenClassificationModel = get_model(config, DummyReporter(), logger)
     assert (
         model.find_and_save_balancing_samples() is None
     ), "No Balancing Samples without training"

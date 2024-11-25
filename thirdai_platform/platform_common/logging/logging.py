@@ -44,17 +44,3 @@ def setup_logger(log_dir: Path, log_prefix: str, level=logging.INFO):
         datefmt=date_format,
         handlers=[file_handler, console_handler],
     )
-
-
-def get_default_logger():
-    """Set up and return a default logger."""
-    logger = logging.getLogger("default-logger")
-    if not logger.hasHandlers():
-        handler = logging.StreamHandler()
-        formatter = logging.Formatter(
-            "%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-        )
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        logger.setLevel(logging.DEBUG)
-    return logger

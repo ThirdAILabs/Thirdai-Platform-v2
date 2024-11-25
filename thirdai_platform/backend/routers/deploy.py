@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import traceback
+import uuid
 from collections import defaultdict
 from pathlib import Path
 from typing import Annotated, Optional, Union
@@ -234,11 +235,17 @@ async def deploy_single_model(
             detail=f"Unsupported model type '{model.type}'.",
         )
 
+    host_dir_uuid = str(uuid.uuid4())
     config = DeploymentConfig(
         model_id=str(model.id),
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
         model_bazaar_dir=(
             os.getenv("SHARE_DIR", None) if platform == "local" else "/model_bazaar"
+        ),
+        host_dir=(
+            os.path.join(os.getenv("SHARE_DIR", None), host_dir_uuid)
+            if platform == "local"
+            else os.path.join("/thirdai_platform", "host_dir", host_dir_uuid)
         ),
         license_key=license_info["boltLicenseKey"],
         autoscaling_enabled=autoscaling_enabled,
@@ -525,15 +532,19 @@ def get_feedback(
 
 @deploy_router.get("/status", dependencies=[Depends(verify_model_read_access)])
 def deployment_status(
-    model_identifier: str,
+    model_identifier: Optional[str] = None,
+    model_id: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     """
     Get the status of a deployment.
 
     Parameters:
-    - model_identifier: The identifier of the model.
+    - model_identifier: The identifier of the model (optional).
+    - model_id: The ID of the model (optional).
     - session: The database session (dependency).
+
+    Exactly one of model_identifier or model_id must be supplied.
 
     Example Usage:
     ```json
@@ -542,8 +553,28 @@ def deployment_status(
     }
     ```
     """
+
+    if not (
+        (model_identifier and model_id is None)
+        or (model_id and model_identifier is None)
+    ):
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Must provide exactly one of model_identifier or model_id.",
+        )
+
     try:
-        model: schema.Model = get_model_from_identifier(model_identifier, session)
+        if model_identifier:
+            model: schema.Model = get_model_from_identifier(model_identifier, session)
+        elif model_id:
+            model: schema.Model = (
+                session.query(schema.Model).filter(schema.Model.id == model_id).first()
+            )
+            if not model:
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message=f"No model with id {model_id}.",
+                )
     except Exception as error:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,

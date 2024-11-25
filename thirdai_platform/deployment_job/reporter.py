@@ -145,6 +145,22 @@ class Reporter:
             },
         )
 
+    def get_deploy_status(self, model_id: str) -> str:
+        """
+        Gets the deployment status.
+
+        Args:
+            model_id (str): The ID of the model.
+        """
+        content = self._request(
+            "get",
+            "api/deploy/status",
+            params={
+                "model_id": model_id,
+            },
+        )
+        return content["data"]["deploy_status"]
+
     def log(
         self,
         action: str,

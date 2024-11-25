@@ -39,6 +39,14 @@ azure:
         password: 6DSwbtoUZpFEsAEdV6bL9VpVK+8qJoRcn8li7VRgAz+ACRDNRKRx
         username: thirdaiplatform-push-mshift
       version: 0.0.12
+    ner-upload:
+      pull_credentials:
+        password: smPJdoL77d94iTueQPbXszB+MCDaxL3gTyYbcBG95++ACRBbOpLP
+        username: thirdaiplatform-pull-ner-upload
+      push_credentials:
+        password: dH9fGVekynLIug4usQOrCdUjJipBuxlCTwOGNyGb43+ACRBMND1X
+        username: thirdaiplatform-push-ner-upload
+      version: 0.0.1
     node-discovery:
       pull_credentials:
         password: axmgUWuDvRlAMdEnB8xydKqFEtrAGtm2WuOWEU0KEb+ACRBKSjGY

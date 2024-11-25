@@ -1,5 +1,6 @@
 import os
 import shutil
+from pathlib import Path
 from typing import Dict
 
 import pandas as pd
@@ -54,7 +55,7 @@ THIRDAI_LICENSE = os.path.join(
 )
 
 logger = JobLogger(
-    log_dir="./model_bazaar_tmp",
+    log_dir=Path("./model_bazaar_tmp"),
     log_prefix="train",
     service_type="train",
     model_id="model-123",

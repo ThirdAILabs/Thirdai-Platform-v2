@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -23,7 +24,7 @@ THIRDAI_LICENSE = os.path.join(
 
 
 logger = JobLogger(
-    log_dir="./tmp",
+    log_dir=Path("./tmp"),
     log_prefix="deployment",
     service_type="deployment",
     model_id="model-123",

@@ -25,11 +25,12 @@ class JobLogger(WrappedLogger):
     def get_logger_keys(self) -> Dict[str, Union[str, int]]:
         return {
             "model_id": self.model_id,
-            "user_id": self.user_id,
             "model_type": self.model_type,
+            "user_id": self.user_id,
         }
 
     @property
     def stream_fields(self) -> List[str]:
-        # skipping user_id because a large number of users can access the same deployment
-        return ["model_id", "model_type"]
+        # not using user_id as it can have high cardinality
+        # one to one mapping from model_id to model_type hence, we don't need model_type
+        return ["model_id", "service_type"]

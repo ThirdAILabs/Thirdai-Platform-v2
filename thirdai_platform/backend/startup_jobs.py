@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
-import requests
+pass
 import yaml
 from auth.utils import get_hostname_from_url
 from backend.utils import (
@@ -184,21 +184,22 @@ async def restart_llm_cache_job():
 def create_promfile(promfile_path: str):
     platform = get_platform()
     model_bazaar_endpoint = os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT")
+    node_list_filepath = os.path.join(
+        model_bazaar_path(), "nomad-monitoring", "nomad_nodes.yaml"
+    )
+
     if platform == "local":
-        targets = ["host.docker.internal:4646"]
+        # create the local nomad_nodes.yaml file
+        with open(node_list_filepath, "w") as fp:
+            yaml.dump([{"targets": ["host.docker.internal:4646"]}], fp, sort_keys=False)
 
         deployment_targets_endpoint = (
             "http://host.docker.internal:80/api/telemetry/deployment-services"
         )
     else:
-        nomad_url = f"{model_bazaar_endpoint.rstrip('/')}:4646/v1/nodes"
-
-        # Fetch the node data from Nomad
-        headers = {"X-Nomad-Token": os.getenv("MANAGEMENT_TOKEN")}
-        response = requests.get(nomad_url, headers=headers)
-        nodes = response.json()
-
-        targets = [f"{node['Address']}:4646" for node in nodes]
+        """
+        nomad_nodes.yaml: would be created by ansible installation script in dockerized environment
+        """
 
         deployment_targets_endpoint = (
             f"{model_bazaar_endpoint.rstrip('/')}/api/telemetry/deployment-services"
@@ -214,13 +215,15 @@ def create_promfile(promfile_path: str):
             {
                 "job_name": "nomad-agent",
                 "metrics_path": "/v1/metrics?format=prometheus",
-                "static_configs": [{"targets": targets, "labels": {"role": "agent"}}],
+                "file_sd_configs": [
+                    {"files": ["/model_bazaar/nomad-monitoring/nomad_nodes.yaml"]}
+                ],
                 "relabel_configs": [
                     {
                         "source_labels": ["__address__"],
                         "regex": "([^:]+):.+",
                         "target_label": "hostname",
-                        "replacement": "nomad-agent-$1",
+                        "replacement": "nomad-agent-${1}",
                     }
                 ],
             },
@@ -243,7 +246,12 @@ def create_promfile(promfile_path: str):
         yaml.dump(prometheus_config, file, sort_keys=False)
 
     logging.info(f"Prometheus configuration has been written to {promfile_path}")
-    return targets
+
+    # returning the nodes running nomad
+    with open(node_list_filepath, "r") as file:
+        targets = yaml.safe_load(file)
+
+    return targets[0]["targets"]
 
 
 def get_grafana_db_uri():

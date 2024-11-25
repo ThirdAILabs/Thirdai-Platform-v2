@@ -81,7 +81,7 @@ def dummy_ner_file():
 
 @pytest.fixture(autouse=True, scope="function")
 def create_tmp_model_bazaar_dir():
-    os.makedirs(MODEL_BAZAAR_DIR)
+    os.makedirs(MODEL_BAZAAR_DIR, exist_ok=True)
     yield
     shutil.rmtree(MODEL_BAZAAR_DIR)
 

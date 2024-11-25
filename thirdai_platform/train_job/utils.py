@@ -8,6 +8,8 @@ from typing import List
 from platform_common.pydantic_models.training import FileInfo, FileLocation
 from thirdai import neural_db as ndb
 
+platform_logger = logging.getLogger("platform_backend")
+
 GB_1 = 1024 * 1024 * 1024  # Define 1 GB in bytes
 
 
@@ -41,7 +43,7 @@ def check_disk(db, model_bazaar_dir: str, files: List[FileInfo]):
 
     if available_nfs_storage < approx_ndb_size:
         critical_message = f"Available NFS storage : {available_nfs_storage/GB_1} GB is less than approx model size : {approx_ndb_size/GB_1} GB."
-        logging.critical(critical_message)
+        platform_logger.critical(critical_message)
         raise Exception(critical_message)
 
 

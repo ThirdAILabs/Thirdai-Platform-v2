@@ -7,8 +7,6 @@ import shutil
 from collections import defaultdict, deque
 from functools import wraps
 from pathlib import Path
-
-pass
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
@@ -23,6 +21,8 @@ from platform_common.pydantic_models.training import LabelEntity
 from platform_common.thirdai_storage import data_types, storage
 from platform_common.utils import model_bazaar_path
 from sqlalchemy.orm import Session
+
+platform_logger = logging.getLogger("platform_backend")
 
 
 def hash_password(password: str):
@@ -197,7 +197,7 @@ def get_high_level_model_info(result: schema.Model):
                 try:
                     metadata.train = json.loads(metadata.train)
                 except json.JSONDecodeError as e:
-                    logging.error(f"Error decoding JSON for train: {e}")
+                    platform_logger.error(f"Error decoding JSON for train: {e}")
                     metadata.train = {}
             info.update(metadata.train)
         if metadata.general:
@@ -206,7 +206,7 @@ def get_high_level_model_info(result: schema.Model):
                 try:
                     metadata.general = json.loads(metadata.general)
                 except json.JSONDecodeError as e:
-                    logging.error(f"Error decoding JSON for general: {e}")
+                    platform_logger.error(f"Error decoding JSON for general: {e}")
                     metadata.general = {}
             info.update(metadata.general)
 
@@ -417,9 +417,9 @@ def delete_nomad_job(job_id, nomad_endpoint):
     response = requests.delete(job_url, headers=headers)
 
     if response.status_code == 200:
-        logging.info(f"Job {job_id} stopped successfully")
+        platform_logger.info(f"Job {job_id} stopped successfully")
     else:
-        logging.error(
+        platform_logger.error(
             f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
         )
 
@@ -525,7 +525,7 @@ def get_platform():
     platform = os.getenv("PLATFORM", "docker")
     options = ["docker", "local"]
     if platform not in options:
-        logging.warning(
+        platform_logger.warning(
             f"Invalid platform identifier '{platform}'. Options: {options}. Defaulting to docker."
         )
     return platform
@@ -666,7 +666,7 @@ def handle_exceptions(func):
         except Exception as e:
             class_name = args[0].__class__.__name__ if args else "UnknownClass"
             method_name = func.__name__
-            logging.error(
+            platform_logger.error(
                 f"Error in class '{class_name}', method '{method_name}' "
                 f"with arguments {args[1:]}, and keyword arguments {kwargs}. "
                 f"Error: {str(e)}"

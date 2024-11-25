@@ -9,6 +9,8 @@ from fastapi import Response
 from platform_common.file_handler import FileInfo, FileLocation, download_file
 from thirdai import neural_db_v2 as ndbv2
 
+platform_logger = logging.getLogger("platform_backend")
+
 
 def convert_to_ndb_doc(
     resource_path: str,
@@ -32,7 +34,7 @@ def convert_to_ndb_doc(
                     (pdf_title + " " + filename_as_keywords + " ") * keyword_weight,
                 )
             except Exception as e:
-                logging.error(
+                platform_logger.error(
                     f"Could not parse pdftitle for pdf: {resource_path}. Error: {e}"
                 )
 
@@ -75,7 +77,7 @@ def convert_to_ndb_doc(
             doc_id=doc_id,
         )
     else:
-        logging.warning("{ext} Document type isn't supported yet.")
+        platform_logger.warning("{ext} Document type isn't supported yet.")
         return None
 
 

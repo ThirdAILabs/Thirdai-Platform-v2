@@ -12,6 +12,8 @@ from botocore.exceptions import ClientError
 from fastapi import HTTPException, UploadFile, status
 from platform_common.pydantic_models.training import FileInfo, FileLocation
 
+platform_logger = logging.getLogger("platform_backend")
+
 
 def download_local_file(file_info: FileInfo, upload_file: UploadFile, dest_dir: str):
     assert os.path.basename(file_info.path) == upload_file.filename
@@ -152,7 +154,7 @@ def handle_exceptions(func):
         except Exception as e:
             class_name = args[0].__class__.__name__ if args else "UnknownClass"
             method_name = func.__name__
-            logging.error(
+            platform_logger.error(
                 f"Error in class '{class_name}', method '{method_name}' "
                 f"with arguments {args[1:]}, and keyword arguments {kwargs}. "
                 f"Error: {str(e)}"
@@ -256,7 +258,7 @@ class S3StorageHandler(CloudStorageHandler):
     def create_bucket_if_not_exists(self, bucket_name: str):
         try:
             self.s3_client.head_bucket(Bucket=bucket_name)
-            logging.warning(f"Bucket {bucket_name} already exists.")
+            platform_logger.warning(f"Bucket {bucket_name} already exists.")
         except ClientError as e:
             error_code = int(e.response["Error"]["Code"])
             if error_code == 404:
@@ -264,10 +266,10 @@ class S3StorageHandler(CloudStorageHandler):
                     self.s3_client.create_bucket(
                         Bucket=bucket_name,
                     )
-                    logging.info(f"Bucket {bucket_name} created successfully.")
+                    platform_logger.info(f"Bucket {bucket_name} created successfully.")
                 except ClientError as e:
                     if e.response["Error"]["Code"] == "BucketAlreadyExists":
-                        logging.warning(
+                        platform_logger.warning(
                             f"Bucket {bucket_name} already exists globally."
                         )
                     elif e.response["Error"]["Code"] == "AccessDenied":
@@ -369,7 +371,7 @@ class S3StorageHandler(CloudStorageHandler):
                 ExpiresIn=expiry_mins * 60,
             )
         except ClientError as e:
-            logging.error(f"Failed to generate presigned URL: {e}")
+            platform_logger.error(f"Failed to generate presigned URL: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to generate presigned URL: {str(e)}",
@@ -436,9 +438,9 @@ class AzureStorageHandler(CloudStorageHandler):
         container_client = self.container_client(bucket_name=bucket_name)
         if not container_client.exists():
             container_client.create_container()
-            logging.info(f"Container {bucket_name} created successfully.")
+            platform_logger.info(f"Container {bucket_name} created successfully.")
         else:
-            logging.warning(f"Container {bucket_name} already exists.")
+            platform_logger.warning(f"Container {bucket_name} already exists.")
 
     @handle_exceptions
     def upload_file(self, source_path: str, bucket_name: str, dest_path: str):
@@ -576,10 +578,10 @@ class GCPStorageHandler(CloudStorageHandler):
     def create_bucket_if_not_exists(self, bucket_name: str):
         bucket = self._client.lookup_bucket(bucket_name)
         if bucket:
-            logging.info(f"Bucket {bucket_name} already exists.")
+            platform_logger.info(f"Bucket {bucket_name} already exists.")
         else:
             self._client.create_bucket(bucket_name)
-            logging.warning(f"Bucket {bucket_name} created successfully.")
+            platform_logger.warning(f"Bucket {bucket_name} created successfully.")
 
     @handle_exceptions
     def full_path(self, bucket_name: str, source_path: str):
@@ -668,7 +670,7 @@ class GCPStorageHandler(CloudStorageHandler):
                 method="GET",
             )
         except Exception as e:
-            logging.error(f"Failed to generate signed URL: {e}")
+            platform_logger.error(f"Failed to generate signed URL: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to generate signed URL: {str(e)}",
@@ -734,7 +736,7 @@ def download_file(doc: FileInfo, tmp_dir: str):
         try:
             s3_client.download_file(bucket_name, prefix, local_file_path)
         except Exception as error:
-            logging.error(
+            platform_logger.error(
                 f"There was an error downloading the file from S3: {error}. {doc.path}"
             )
             return None
@@ -747,7 +749,7 @@ def download_file(doc: FileInfo, tmp_dir: str):
         try:
             azure_client.download_file(container_name, blob_name, local_file_path)
         except Exception as error:
-            logging.error(
+            platform_logger.error(
                 f"There was an error downloading the file from Azure: {error}. {doc.path}"
             )
             return None
@@ -760,7 +762,7 @@ def download_file(doc: FileInfo, tmp_dir: str):
         try:
             gcp_client.download_file(bucket_name, blob_name, local_file_path)
         except Exception as error:
-            logging.error(
+            platform_logger.error(
                 f"There was an error downloading the file from GCP: {error}. {doc.path}"
             )
             return None
@@ -784,7 +786,7 @@ def get_local_file_infos(files: List[FileInfo], tmp_dir: str):
                     )
                 )
             else:
-                logging.error(f"Failed to download cloud file: {file.path}")
+                platform_logger.error(f"Failed to download cloud file: {file.path}")
         else:
             # Local files can be used as-is
             local_file_infos.append(file)

@@ -1,4 +1,4 @@
-import logging
+pass
 import traceback
 from pathlib import Path
 
@@ -31,8 +31,7 @@ app.add_middleware(
 model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
 log_dir: Path = Path(model_bazaar_dir) / "logs"
 
-setup_logger(log_dir=log_dir, log_prefix="llm_generation")
-logger = logging.getLogger("llm_generation")
+logger = setup_logger(log_dir=log_dir, log_prefix="llm_generation")
 
 
 @app.middleware("http")

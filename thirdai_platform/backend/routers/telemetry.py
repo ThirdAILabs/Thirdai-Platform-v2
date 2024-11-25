@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from platform_common.utils import response
 
 telemetry_router = APIRouter()
+platform_logger = logging.getLogger("platform_backend")
 
 
 # TODO(Nicholas): how can we handle authentication for this endpoint
@@ -19,7 +20,7 @@ def deployment_services():
     services_res = list_services(nomad_endpoint)
 
     if services_res.status_code != 200:
-        logging.error(f"Unable to retrieve list of services from nomad")
+        platform_logger.error(f"Unable to retrieve list of services from nomad")
         # TODO(Nicholas): Should this just return an empty list to avoid causing
         # errors for downstream metric scrapper?
         return response(
@@ -36,7 +37,7 @@ def deployment_services():
         if service_name.startswith("deployment"):
             service_info_res = get_service_info(nomad_endpoint, service_name)
             if service_info_res.status_code != 200:
-                logging.error(
+                platform_logger.error(
                     f"Unable to retrieve info for service {service_name}",
                 )
                 continue

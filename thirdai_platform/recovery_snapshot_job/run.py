@@ -1,5 +1,6 @@
 import datetime
-import logging
+
+pass
 import os
 import subprocess
 import zipfile
@@ -28,9 +29,7 @@ model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
 
 log_dir: Path = Path(model_bazaar_dir) / "logs"
 
-setup_logger(log_dir=log_dir, log_prefix="recovery_snapshot")
-
-logger = logging.getLogger("recovery_snapshot")
+logger = setup_logger(log_dir=log_dir, log_prefix="recovery_snapshot")
 
 
 def get_cloud_storage_handler(config: BackupConfig):

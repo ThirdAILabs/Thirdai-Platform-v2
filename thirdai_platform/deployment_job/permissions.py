@@ -8,6 +8,8 @@ import fastapi
 import requests
 from fastapi import status
 
+deployment_logger = logging.getLogger("deployment")
+
 CREDENTIALS_EXCEPTION = fastapi.HTTPException(
     status_code=fastapi.status.HTTP_401_UNAUTHORIZED,
     detail="Invalid access token.",
@@ -99,7 +101,7 @@ class Permissions:
                 "override": False,
             }
         elif response.status_code != status.HTTP_200_OK:
-            logging.info(response.text)
+            deployment_logger.info(response.text)
             return {
                 "read": False,
                 "write": False,

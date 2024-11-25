@@ -6,6 +6,8 @@ from sendgrid.helpers.mail import Mail
 
 # mailer which can be used to send mails from our webserver.
 
+platform_logger = logging.getLogger("platform_backend")
+
 
 def mailer(to, subject, body, cc_emails=None):
     from_email = "ThirdAI <platform@thirdai.com>"
@@ -23,8 +25,8 @@ def mailer(to, subject, body, cc_emails=None):
         sg = SendGridAPIClient(sendgrid_key)
         response = sg.send(message)
         if response.status_code != 200:
-            logging.error(f"Failed to send the mail: {response.body}")
+            platform_logger.error(f"Failed to send the mail: {response.body}")
 
     except Exception as e:
-        logging.error(e)
+        platform_logger.error(e)
         raise e

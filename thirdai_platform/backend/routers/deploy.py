@@ -46,6 +46,7 @@ from platform_common.utils import disk_usage, model_bazaar_path, response
 from sqlalchemy.orm import Session
 
 deploy_router = APIRouter()
+platform_logger = logging.getLogger("platform_backend")
 
 
 def model_read_write_permissions(
@@ -278,7 +279,7 @@ async def deploy_single_model(
     except Exception as err:
         model.deploy_status = schema.Status.failed
         session.commit()
-        logging.error(traceback.format_exc())
+        platform_logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(err),
@@ -704,7 +705,7 @@ def undeploy_model(
         session.commit()
 
     except Exception as err:
-        logging.error(str(err))
+        platform_logger.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),

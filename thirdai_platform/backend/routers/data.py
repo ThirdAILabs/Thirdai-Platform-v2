@@ -25,6 +25,8 @@ docs_file = root_folder.joinpath("../../docs/data_endpoints.txt")
 with open(docs_file) as f:
     docs = f.read()
 
+platform_logger = logging.getLogger("platform_backend")
+
 
 # Utility function to validate and process generation jobs (for both text and token generation)
 def validate_and_generate_data(
@@ -42,10 +44,10 @@ def validate_and_generate_data(
 
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
-            logging.info(f"Extra options for job: {extra_options}")
+            platform_logger.info(f"Extra options for job: {extra_options}")
     except ValidationError as e:
         message = f"Invalid option format\nDetails: {str(e)}"
-        logging.error(message)
+        platform_logger.error(message)
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=message,
@@ -188,7 +190,7 @@ def find_datasets(
         )
 
     except Exception as e:
-        logging.error(traceback.print_exc())
+        platform_logger.error(traceback.print_exc())
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=f"Unable to find a suitable dataset: {e}",

@@ -17,6 +17,8 @@ from langchain_core.runnables import RunnableBranch, RunnablePassthrough
 from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
 
+deployment_logger = logging.getLogger("deployment")
+
 
 class ChatInterface(ABC):
     def __init__(
@@ -105,7 +107,7 @@ class ChatInterface(ABC):
                 )
             return chat_history
         except Exception as err:
-            logging.error(
+            deployment_logger.error(
                 "Error connecting to sql database to store chat history: " + err
             )
             raise HTTPException(

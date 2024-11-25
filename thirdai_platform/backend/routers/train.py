@@ -62,6 +62,7 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 train_router = APIRouter()
+platform_logger = logging.getLogger("platform_backend")
 
 
 def get_base_model(base_model_identifier: str, user: schema.User, session: Session):
@@ -93,7 +94,7 @@ def train_ndb(
         model_options = NDBOptions.model_validate_json(model_options)
         data = NDBData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
-        logging.info(f"Extra options for training: {model_options}")
+        platform_logger.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -220,7 +221,7 @@ def train_ndb(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logging.error(str(err))
+        platform_logger.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -391,7 +392,7 @@ def retrain_ndb(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logging.error(str(err))
+        platform_logger.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -425,7 +426,7 @@ def nlp_datagen(
         datagen_options = DatagenOptions.model_validate_json(datagen_options)
         datagen_job_options = JobOptions.model_validate_json(datagen_job_options)
         train_job_options = JobOptions.model_validate_json(train_job_options)
-        logging.info(f"Datagen options: {datagen_options}")
+        platform_logger.info(f"Datagen options: {datagen_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -536,7 +537,7 @@ def nlp_datagen(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logging.error(str(err))
+        platform_logger.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -565,7 +566,7 @@ def datagen_callback(
     try:
         model_options = UDTOptions.model_validate_json(model_options)
         data = UDTData.model_validate_json(file_info)
-        logging.info(f"Extra options for training: {model_options}")
+        platform_logger.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -658,7 +659,7 @@ def datagen_callback(
             model.train_status = schema.Status.failed
         session.commit()
 
-        logging.error(str(err))
+        platform_logger.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -803,7 +804,7 @@ def retrain_udt(
 
     try:
         if verify_llm_access(llm_provider, api_key=os.getenv("GENAI_KEY")):
-            logging.info("LLM access verified, generating data for training")
+            platform_logger.info("LLM access verified, generating data for training")
 
             config_path = config.save_train_config()
 
@@ -815,7 +816,9 @@ def retrain_udt(
                 job_options=JobOptions(),
             )
         else:
-            logging.info("No LLM access, training only on user provided samples")
+            platform_logger.info(
+                "No LLM access, training only on user provided samples"
+            )
 
             if nomad_job_exists(
                 model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")
@@ -835,7 +838,7 @@ def retrain_udt(
 
             config_path = config.save_train_config()
 
-            logging.info("Triggered nomad job for training.")
+            platform_logger.info("Triggered nomad job for training.")
 
             submit_nomad_job(
                 str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
@@ -870,7 +873,7 @@ def retrain_udt(
     except Exception as err:
         model.train_status = schema.Status.failed
         session.commit()
-        logging.error(str(err))
+        platform_logger.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -903,7 +906,7 @@ def train_udt(
         model_options = UDTOptions.model_validate_json(model_options)
         data = UDTData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
-        logging.info(f"Extra options for training: {model_options}")
+        platform_logger.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1013,7 +1016,7 @@ def train_udt(
         except Exception as err:
             new_model.train_status = schema.Status.failed
             msg = "Unable to start training job. Encountered error loading data from specified base model."
-            logging.error(f"error copying storage from ner base model: {err}")
+            platform_logger.error(f"error copying storage from ner base model: {err}")
             session.add(
                 schema.JobError(
                     model_id=new_model.id,
@@ -1071,7 +1074,7 @@ def train_udt(
             )
         )
         session.commit()
-        logging.error(str(err))
+        platform_logger.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),

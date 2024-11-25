@@ -10,6 +10,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from thirdai import licensing
 
+platform_logger = logging.getLogger("platform_backend")
 TASK_RUNNER_TOKEN = os.getenv("TASK_RUNNER_TOKEN")
 
 
@@ -70,13 +71,13 @@ def valid_job_allocation(license_info, nomad_server_url, new_job_cpu_mhz=0):
 
 def activate_thirdai_license(thirdai_license):
     if thirdai_license.startswith("file "):
-        logging.info("activating file based license")
+        platform_logger.info("activating file based license")
         license_data = thirdai_license[len("file ") :]
         with open("./thirdai.license", "wb") as f:
             f.write(base64.b64decode(license_data))
         licensing.set_path("./thirdai.license")
     else:
-        logging.info("activating key based license")
+        platform_logger.info("activating key based license")
         licensing.activate(thirdai_license)
 
 

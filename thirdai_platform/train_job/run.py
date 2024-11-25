@@ -68,9 +68,7 @@ def main():
 
         log_dir: Path = Path(config.model_bazaar_dir) / "logs" / config.model_id
 
-        setup_logger(log_dir=log_dir, log_prefix="train")
-
-        logger = logging.getLogger("train")
+        logger = setup_logger(log_dir=log_dir, log_prefix="train")
 
         reporter = HttpReporter(config.model_bazaar_endpoint, logger)
 

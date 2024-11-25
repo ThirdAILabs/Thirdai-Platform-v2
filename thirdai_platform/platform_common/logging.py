@@ -26,6 +26,9 @@ def setup_logger(
     file_handler = logging.FileHandler(logger_file_path, mode="a+")
     file_handler.setFormatter(file_formatter)
 
+    # Add handlers to the logger
+    logger.addHandler(file_handler)
+
     if add_stream_handler:
         # Colored Formatter for console output
         colored_formatter = ColoredFormatter(
@@ -45,9 +48,6 @@ def setup_logger(
         console_handler.setFormatter(colored_formatter)
 
         logger.addHandler(console_handler)
-
-    # Add handlers to the logger
-    logger.addHandler(file_handler)
 
     # To avoid duplicate logs by disabling propagation
     logger.propagate = False

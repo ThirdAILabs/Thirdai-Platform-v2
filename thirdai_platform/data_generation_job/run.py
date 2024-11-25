@@ -1,5 +1,6 @@
 import json
-import logging
+
+pass
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -17,9 +18,7 @@ log_dir: Path = (
     / general_variables.data_id
 )
 
-setup_logger(log_dir=log_dir, log_prefix="data_generation")
-
-logger = logging.getLogger("data_generation")
+logger = setup_logger(log_dir=log_dir, log_prefix="data_generation")
 
 
 def launch_train_job(dataset_config: dict, udt_options: dict):

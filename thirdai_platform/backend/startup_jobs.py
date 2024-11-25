@@ -21,6 +21,8 @@ from fastapi import status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
 from platform_common.utils import model_bazaar_path, response
 
+platform_logger = logging.getLogger("platform_backend")
+
 GENERATE_JOB_ID = "llm-generation"
 THIRDAI_PLATFORM_FRONTEND_ID = "thirdai-platform-frontend"
 LLM_CACHE_JOB_ID = "llm-cache"
@@ -242,7 +244,9 @@ def create_promfile(promfile_path: str):
     with open(promfile_path, "w") as file:
         yaml.dump(prometheus_config, file, sort_keys=False)
 
-    logging.info(f"Prometheus configuration has been written to {promfile_path}")
+    platform_logger.info(
+        f"Prometheus configuration has been written to {promfile_path}"
+    )
     return targets
 
 

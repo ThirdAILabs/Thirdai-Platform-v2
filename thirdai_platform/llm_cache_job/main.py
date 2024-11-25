@@ -1,4 +1,4 @@
-import logging
+pass
 import os
 import traceback
 from pathlib import Path
@@ -29,9 +29,7 @@ verify_license.activate_thirdai_license(license_key)
 
 log_dir: Path = Path(model_bazaar_dir) / "logs"
 
-setup_logger(log_dir=log_dir, log_prefix="llm-cache")
-
-logger = logging.getLogger("llm-cache")
+logger = setup_logger(log_dir=log_dir, log_prefix="llm-cache")
 
 permissions = Permissions()
 

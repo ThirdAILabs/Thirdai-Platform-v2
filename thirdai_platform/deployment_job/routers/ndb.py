@@ -1,7 +1,6 @@
 import io
 import traceback
 import uuid
-from logging import Logger
 from pathlib import Path
 from typing import AsyncGenerator, List
 
@@ -39,6 +38,7 @@ from fastapi.responses import StreamingResponse
 from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files, get_cloud_client
 from platform_common.logging import LogCode
+from platform_common.logging.job_loggers import DeploymentLogger
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
@@ -69,7 +69,9 @@ ndb_top_k_selections = [
 
 
 class NDBRouter:
-    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
+    def __init__(
+        self, config: DeploymentConfig, reporter: Reporter, logger: DeploymentLogger
+    ):
         self.config = config
         self.reporter = reporter
         self.logger = logger
@@ -118,7 +120,7 @@ class NDBRouter:
         )
 
     @staticmethod
-    def get_model(config: DeploymentConfig, logger: Logger) -> NDBModel:
+    def get_model(config: DeploymentConfig, logger: DeploymentLogger) -> NDBModel:
         return NDBModel(
             config=config, logger=logger, write_mode=not config.autoscaling_enabled
         )
@@ -237,10 +239,7 @@ class NDBRouter:
 
         if total_filesize > (max_filesize_mb * 1024 * 1024):
             message = f"Size of uploaded files exceeds maximum of {max_filesize_mb}Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size."
-            self.logger.error(
-                code=LogCode.DATA_FILE_INVALID,
-                message=message,
-            )
+            self.logger.error(message, code=LogCode.FILE_VALIDATION)
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message=message,
@@ -255,8 +254,8 @@ class NDBRouter:
         if self.config.autoscaling_enabled:
             self.insertion_logger.log(InsertLog(documents=documents))
             self.logger.info(
-                code=LogCode.NDB_INSERT,
-                message="Document insertion logged for autoscaling deployment",
+                "Document insertion logged for autoscaling deployment",
+                code=LogCode.MODEL_INSERT,
             )
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
@@ -266,8 +265,8 @@ class NDBRouter:
             try:
                 self.model.insert(documents=documents)
                 self.logger.info(
-                    code=LogCode.NDB_INSERT,
-                    message="Document insertion applied successfully",
+                    "Document insertion applied successfully",
+                    code=LogCode.MODEL_INSERT,
                 )
                 return response(
                     status_code=status.HTTP_200_OK,
@@ -275,8 +274,8 @@ class NDBRouter:
                 )
             except Exception as e:
                 self.logger.error(
-                    code=LogCode.NDB_INSERT,
-                    message=f"Error inserting documents: {e}",
+                    f"Error inserting documents: {e}",
+                    code=LogCode.MODEL_INSERT,
                 )
                 return response(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -310,8 +309,7 @@ class NDBRouter:
         if self.config.autoscaling_enabled:
             self.deletion_logger.log(DeleteLog(doc_ids=input.source_ids))
             self.logger.info(
-                code=LogCode.NDB_DELETE,
-                message="Deletion logged for autoscaling deployment",
+                "Deletion logged for autoscaling deployment", code=LogCode.MODEL_DELETE
             )
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
@@ -320,10 +318,7 @@ class NDBRouter:
         else:
             if len(input.source_ids) > 5:
                 message = f"Number of deletions exceeds the maximum {input.source_ids} that can be processed synchronously in an active deployment."
-                self.logger.error(
-                    code=LogCode.DEPLOYMENT_BAD_REQUEST,
-                    message=message,
-                )
+                self.logger.error(message, code=LogCode.MODEL_DELETE)
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     message=message,
@@ -331,8 +326,7 @@ class NDBRouter:
             try:
                 self.model.delete(input.source_ids)
                 self.logger.info(
-                    code=LogCode.NDB_DELETE,
-                    message="Document deletion applied successfully",
+                    "Document deletion applied successfully", code=LogCode.MODEL_DELETE
                 )
                 return response(
                     status_code=status.HTTP_200_OK,
@@ -340,8 +334,7 @@ class NDBRouter:
                 )
             except Exception as e:
                 self.logger.error(
-                    code=LogCode.NDB_DELETE,
-                    message=f"Error deleting documents: {e}",
+                    f"Error deleting documents: {e}", code=LogCode.MODEL_DELETE
                 )
                 return response(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -393,42 +386,26 @@ class NDBRouter:
 
         if prod_mode:
             message = "Upvote logged successfully."
-            self.logger.info(
-                code=LogCode.NDB_UPVOTE,
-                message=message,
-            )
-            return response(
-                status_code=status.HTTP_202_ACCEPTED,
-                message=message,
-            )
+            self.logger.info(message, code=LogCode.MODEL_RLHF)
+            return response(status_code=status.HTTP_202_ACCEPTED, message=message)
         else:
             if len(input.text_id_pairs) > 100:
                 message = f"Number of upvote samples exceeds the maximum {input.text_id_pairs} that can be processed synchronously in an active deployment."
-                self.logger.error(
-                    code=LogCode.NDB_UPVOTE,
-                    message=message,
-                )
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
                 return response(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    message=message,
+                    status_code=status.HTTP_400_BAD_REQUEST, message=message
                 )
             try:
                 message = "Upvote applied successfully."
                 self.model.upvote(input.text_id_pairs)
-                self.logger.info(
-                    code=LogCode.NDB_UPVOTE,
-                    message=message,
-                )
+                self.logger.info(message, code=LogCode.MODEL_RLHF)
                 return response(
                     status_code=status.HTTP_200_OK,
                     message=message,
                 )
             except Exception as e:
                 message = f"Error applying upvote: {e}"
-                self.logger.error(
-                    code=LogCode.NDB_UPVOTE,
-                    message=message,
-                )
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
                 return response(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     message=message,
@@ -477,10 +454,7 @@ class NDBRouter:
 
         if prod_mode:
             message = "Associate logged successfully."
-            self.logger.info(
-                code=LogCode.NDB_ASSOCIATE,
-                message=message,
-            )
+            self.logger.info(message, code=LogCode.MODEL_RLHF)
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
                 message=message,
@@ -488,30 +462,21 @@ class NDBRouter:
         else:
             if len(input.text_pairs) > 100:
                 message = f"Number of association samples exceeds the maximum {input.text_pairs} that can be processed synchronously in an active deployment."
-                self.logger.error(
-                    code=LogCode.NDB_ASSOCIATE,
-                    message=message,
-                )
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     message=message,
                 )
             try:
                 self.model.associate(input.text_pairs)
-                self.logger.info(
-                    code=LogCode.NDB_ASSOCIATE,
-                    message=message,
-                )
+                self.logger.info(message, code=LogCode.MODEL_RLHF)
                 return response(
                     status_code=status.HTTP_200_OK,
                     message=message,
                 )
             except Exception as e:
                 message = f"Error applying association: {e}"
-                self.logger.error(
-                    code=LogCode.NDB_ASSOCIATE,
-                    message=message,
-                )
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
                 return response(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     message=message,
@@ -706,10 +671,7 @@ class NDBRouter:
         background_tasks.add_task(self._perform_save, model_id, token, input.override)
 
         message = "Save operation initiated in the background."
-        self.logger.info(
-            code=LogCode.NDB_SAVE,
-            message=message,
-        )
+        self.logger.info(message, code=LogCode.MODEL_SAVE)
         return response(
             status_code=status.HTTP_202_ACCEPTED,
             message=message,
@@ -729,8 +691,8 @@ class NDBRouter:
                 )
         except Exception as err:
             self.logger.error(
-                code=LogCode.NDB_SAVE,
-                message=f"Error in background save: {traceback.format_exc()}",
+                f"Error in background save: {traceback.format_exc()}",
+                code=LogCode.MODEL_SAVE,
             )
 
     def highlighted_pdf(

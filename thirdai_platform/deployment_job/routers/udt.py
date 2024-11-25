@@ -1,6 +1,5 @@
 import os
 import time
-from logging import Logger
 
 from deployment_job.models.classification_models import (
     ClassificationModel,
@@ -16,7 +15,7 @@ from deployment_job.reporter import Reporter
 from fastapi import APIRouter, Depends, Query, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from platform_common.dependencies import is_on_low_disk
-from platform_common.logging import LogCode
+from platform_common.logging import DeploymentLogger, LogCode
 from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
 from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
 from platform_common.thirdai_storage.data_types import (
@@ -35,7 +34,9 @@ udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
 
 class UDTBaseRouter:
-    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
+    def __init__(
+        self, config: DeploymentConfig, reporter: Reporter, logger: DeploymentLogger
+    ):
         self.model: ClassificationModel = self.get_model(config, logger)
         self.logger = logger
 
@@ -51,7 +52,9 @@ class UDTBaseRouter:
         self.router.add_api_route("/get-text", self.get_text, methods=["POST"])
 
     @staticmethod
-    def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
+    def get_model(
+        config: DeploymentConfig, logger: DeploymentLogger
+    ) -> ClassificationModel:
         raise NotImplementedError("Subclasses should implement this method")
 
     def get_text(
@@ -91,8 +94,8 @@ class UDTBaseRouter:
             os.remove(destination_path)
 
             self.logger.info(
-                code=LogCode.DATA_FILE_PARSE,
-                message=f"Processing text extraction for file: {file.filename}",
+                f"Processing text extraction for file: {file.filename}",
+                code=LogCode.FILE_VALIDATION,
             )
 
             # Return a JSON response with the extracted text content
@@ -103,8 +106,8 @@ class UDTBaseRouter:
             )
         except Exception as e:
             self.logger.error(
-                code=LogCode.DATA_FILE_PARSE,
-                message=f"Error processing text extraction for file: {file.filename}. Error: {e}",
+                f"Error processing text extraction for file: {file.filename}. Error: {e}",
+                code=LogCode.FILE_VALIDATION,
             )
             raise e
 
@@ -155,10 +158,7 @@ class UDTBaseRouter:
             "time_taken": time_taken,
         }
 
-        self.logger.info(
-            code=LogCode.NLP_MODEL_PREDICT,
-            message=f"Prediction complete with time taken: {time_taken} seconds",
-        )
+        self.logger.debug(f"Prediction complete with time taken: {time_taken} seconds")
 
         return response(
             status_code=status.HTTP_200_OK,
@@ -211,7 +211,9 @@ class UDTBaseRouter:
 
 
 class UDTRouterTextClassification(UDTBaseRouter):
-    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
+    def __init__(
+        self, config: DeploymentConfig, reporter: Reporter, logger: DeploymentLogger
+    ):
         super().__init__(config, reporter, logger)
         # Add routes specific to text classification
         self.router.add_api_route(
@@ -225,11 +227,13 @@ class UDTRouterTextClassification(UDTBaseRouter):
         )
 
     @staticmethod
-    def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
+    def get_model(
+        config: DeploymentConfig, logger: DeploymentLogger
+    ) -> ClassificationModel:
         subtype = config.model_options.udt_sub_type
         logger.info(
-            code=LogCode.NLP_MODEL_INIT,
-            message=f"Initializing Text Classification model of subtype: {subtype}",
+            f"Initializing Text Classification model of subtype: {subtype}",
+            code=LogCode.MODEL_INIT,
         )
         if subtype == UDTSubType.text:
             return TextClassificationModel(config=config, logger=logger)
@@ -237,10 +241,7 @@ class UDTRouterTextClassification(UDTBaseRouter):
             error_message = (
                 f"Unsupported UDT subtype '{subtype}' for Text Classification."
             )
-            logger.error(
-                code=LogCode.NLP_MODEL_INIT,
-                message=error_message,
-            )
+            logger.error(error_message, code=LogCode.MODEL_INIT)
             raise ValueError(error_message)
 
     def insert_sample(
@@ -267,7 +268,9 @@ class UDTRouterTextClassification(UDTBaseRouter):
 
 
 class UDTRouterTokenClassification(UDTBaseRouter):
-    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
+    def __init__(
+        self, config: DeploymentConfig, reporter: Reporter, logger: DeploymentLogger
+    ):
         super().__init__(config, reporter, logger)
         # The following routes are only applicable for token classification models
         # TODO(Shubh): Make different routers for text and token classification models
@@ -284,11 +287,13 @@ class UDTRouterTokenClassification(UDTBaseRouter):
         )
 
     @staticmethod
-    def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
+    def get_model(
+        config: DeploymentConfig, logger: DeploymentLogger
+    ) -> ClassificationModel:
         subtype = config.model_options.udt_sub_type
         logger.info(
-            code=LogCode.NLP_MODEL_INIT,
-            message=f"Initializing Token Classification model of subtype: {subtype}",
+            f"Initializing Token Classification model of subtype: {subtype}",
+            code=LogCode.MODEL_INIT,
         )
         if subtype == UDTSubType.token:
             return TokenClassificationModel(config=config, logger=logger)
@@ -296,10 +301,7 @@ class UDTRouterTokenClassification(UDTBaseRouter):
             error_message = (
                 f"Unsupported UDT subtype '{subtype}' for Token Classification."
             )
-            logger.error(
-                code=LogCode.NLP_MODEL_INIT,
-                message=error_message,
-            )
+            logger.error(error_message, code=LogCode.MODEL_INIT)
             raise ValueError(error_message)
 
     def add_labels(

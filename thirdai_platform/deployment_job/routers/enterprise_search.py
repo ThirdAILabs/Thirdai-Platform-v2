@@ -27,8 +27,8 @@ class EnterpriseSearchRouter:
             self.config.model_options.retrieval_id + "/",
         )
         self.logger.info(
-            code=LogCode.DEPLOYMENT_INFO,
-            message=f"Retrieval endpoint set to {self.retrieval_endpoint}",
+            f"Retrieval endpoint set to {self.retrieval_endpoint}",
+            code=LogCode.MODEL_INFO,
         )
 
         if self.config.model_options.guardrail_id:
@@ -37,14 +37,14 @@ class EnterpriseSearchRouter:
                 model_bazaar_endpoint=self.config.model_bazaar_endpoint,
             )
             self.logger.info(
-                code=LogCode.GUARDRAILS_INIT,
-                message=f"Guardrail initialized with ID {self.config.model_options.guardrail_id}",
+                f"Guardrail initialized with ID {self.config.model_options.guardrail_id}",
+                code=LogCode.GUARDRAILS,
             )
         else:
             self.guardrail = None
             self.logger.info(
-                code=LogCode.GUARDRAILS_INIT,
-                message="No guardrail configuration found for this model",
+                "No guardrail configuration found for this model",
+                code=LogCode.GUARDRAILS,
             )
 
         self.router = APIRouter()
@@ -66,8 +66,8 @@ class EnterpriseSearchRouter:
         )
         if res.status_code != status.HTTP_200_OK:
             self.logger.error(
-                code=LogCode.HTTP_REQUEST_ERROR,
-                message=f"Failed retrieval request with status code {res.status_code}. Response: {res.text}",
+                f"Failed retrieval request with status code {res.status_code}. Response: {res.text}",
+                code=LogCode.MODEL_PREDICT,
             )
             return response(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -88,11 +88,7 @@ class EnterpriseSearchRouter:
                     text=ref.text, access_token=token, label_map=label_map
                 )
             results.pii_entities = label_map.get_entities()
-            self.logger.info(
-                code=LogCode.GUARDRAILS_INFO,
-                message="Redacted PII from search results",
-                extra={"pii_entities": results.pii_entities},
-            )
+            self.logger.debug("Redacted PII from search results")
 
         return response(
             status_code=status.HTTP_200_OK,
@@ -107,11 +103,7 @@ class EnterpriseSearchRouter:
     ):
         if self.guardrail:
             unredacted_text = self.guardrail.unredact_pii(args.text, args.pii_entities)
-            self.logger.info(
-                code=LogCode.GUARDRAILS_INFO,
-                message="Unredacted text successfully",
-                extra={"unredacted_text": unredacted_text},
-            )
+            self.logger.debug("Unredacted text successfully")
             return response(
                 status_code=status.HTTP_200_OK,
                 message="Successful",
@@ -119,10 +111,7 @@ class EnterpriseSearchRouter:
             )
         else:
             message = "Cannot unredact text since this model was not configured with guardrails."
-            self.logger.error(
-                code=LogCode.GUARDRAILS_INFO,
-                message=message,
-            )
+            self.logger.error(message, code=LogCode.GUARDRAILS)
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 message=message,

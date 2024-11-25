@@ -26,7 +26,6 @@ def create_realm(keycloak_admin, realm_name: str):
         "registrationAllowed": True,  # Allow user self-registration.
         "resetPasswordAllowed": True,  # Allow users to reset their password.
         "accessTokenLifespan": 1500,  # Access token lifespan for this realm, It is recommended for this value to be shorter than the SSO session idle timeout: 30 minutes
-        "displayNameHtml": "",
     }
 
     current_realms = [
@@ -240,6 +239,7 @@ if IDENTITY_PROVIDER == "keycloak":
         realm_representation["accountTheme"] = "custom-theme"
         realm_representation["adminTheme"] = "custom-theme"
         realm_representation["emailTheme"] = "custom-theme"
+        realm_representation["displayNameHtml"] = " "
 
         keycloak_admin.update_realm(new_realm_name, realm_representation)
 

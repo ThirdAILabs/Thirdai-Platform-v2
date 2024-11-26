@@ -124,7 +124,10 @@ class NDBModel(Model):
             ]
 
             delete_docs_and_remove_files(
-                db=self.db, doc_ids=upsert_doc_ids, keep_latest_version=True
+                db=self.db,
+                doc_ids=upsert_doc_ids,
+                full_documents_path=self.doc_save_path(),
+                keep_latest_version=True,
             )
 
         return [
@@ -154,7 +157,10 @@ class NDBModel(Model):
     def delete(self, source_ids: List[str], **kwargs: Any) -> None:
         with self.db_lock:
             delete_docs_and_remove_files(
-                db=self.db, doc_ids=source_ids, keep_latest_version=False
+                db=self.db,
+                doc_ids=source_ids,
+                full_documents_path=self.doc_save_path(),
+                keep_latest_version=False,
             )
 
     def sources(self) -> List[Dict[str, str]]:

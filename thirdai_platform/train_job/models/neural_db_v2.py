@@ -155,7 +155,10 @@ class NeuralDBV2(Model):
             f"Found {len(upsert_doc_ids)} docs to upsert, removing old versions"
         )
         delete_docs_and_remove_files(
-            db=self.db, doc_ids=upsert_doc_ids, keep_latest_version=True
+            db=self.db,
+            doc_ids=upsert_doc_ids,
+            full_documents_path=self.doc_save_path(),
+            keep_latest_version=True,
         )
 
         total_chunks = self.db.retriever.retriever.size()
@@ -251,6 +254,7 @@ class NeuralDBV2(Model):
             delete_docs_and_remove_files(
                 db=self.db,
                 doc_ids=self.config.data.deletions,
+                full_documents_path=self.doc_save_path(),
                 keep_latest_version=False,
             )
             self.logger.info(f"Deleted {len(self.config.data.deletions)} docs.")

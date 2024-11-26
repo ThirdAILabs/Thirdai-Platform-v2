@@ -5,7 +5,10 @@ from thirdai import neural_db_v2 as ndb
 
 
 def delete_docs_and_remove_files(
-    db: ndb.NeuralDB, doc_ids: List[str], keep_latest_version: bool = False
+    db: ndb.NeuralDB,
+    doc_ids: List[str],
+    full_documents_path: str,
+    keep_latest_version: bool = False,
 ):
     deleted_filenames = set([])
     for doc_id in doc_ids:
@@ -15,4 +18,4 @@ def delete_docs_and_remove_files(
         deleted_filenames.update([chunk.document for chunk in deleted_chunks])
 
     for deleted_filename in deleted_filenames:
-        os.remove(deleted_filename)
+        os.remove(os.path.join(full_documents_path, deleted_filename))

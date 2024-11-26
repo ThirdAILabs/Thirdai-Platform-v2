@@ -98,6 +98,10 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
   };
 
   const handlePrevious = () => {
+    // When go back from LLM step to Knowledgebase, hide LLM step
+    if (currentStep == 2) {
+      setShowLLMStep(false);
+    }
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     }
@@ -163,6 +167,17 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
     if (ssModel) {
       setSsModelId(ssModel.model_id);
     }
+  };
+
+  // Function to check if a valid knowledge base is selected
+  const isValidKnowledgeBaseSelected = () => {
+    if (ifUseExistingSS === 'Yes') {
+      return Boolean(ssIdentifier && ssModelId); // Must have both identifier and model ID
+    }
+    if (ifUseExistingSS === 'No') {
+      return createdSS && ssModelId; // Must have created a new SS and have model ID
+    }
+    return false;
   };
 
   const handleGrIdentifier = (grID: string) => {
@@ -272,7 +287,7 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
             </>
           )}
 
-          {ssModelId && (
+          {isValidKnowledgeBaseSelected() && (
             <div className="mt-8">
               <CardDescription>
                 Would you like to add an LLM to your enterprise search?

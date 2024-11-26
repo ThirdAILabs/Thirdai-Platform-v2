@@ -110,28 +110,28 @@ class WrappedLogger:
         logger.addHandler(console_handler)
         return logger
 
-    def _log_with_level(self, level: int, message: str, **extra_fields):
+    def _log_with_level(self, level: int, msg: str, **extra_fields):
         """Log a message with the specified level and extra fields"""
         logger_keys = self.get_logger_keys
         extra_fields.update(logger_keys)
-        self.logger.log(level, message, extra={"extra_fields": extra_fields})
+        self.logger.log(level, msg, extra={"extra_fields": extra_fields})
 
-    def info(self, message: str, **extra_fields):
+    def info(self, msg: str, **extra_fields):
         """Log an info message with extra fields"""
-        self._log_with_level(logging.INFO, message, **extra_fields)
+        self._log_with_level(logging.INFO, msg, **extra_fields)
 
-    def debug(self, message: str, **extra_fields):
+    def debug(self, msg: str, **extra_fields):
         """Log a debug message with extra fields"""
-        self._log_with_level(logging.DEBUG, message, **extra_fields)
+        self._log_with_level(logging.DEBUG, msg, **extra_fields)
 
-    def warning(self, message: str, **extra_fields):
+    def warning(self, msg: str, **extra_fields):
         """Log a warning message with extra fields"""
-        self._log_with_level(logging.WARNING, message, **extra_fields)
+        self._log_with_level(logging.WARNING, msg, **extra_fields)
 
-    def error(self, message: str, **extra_fields):
+    def error(self, msg: str, **extra_fields):
         """Log an error message with extra fields"""
-        self._log_with_level(logging.ERROR, message, **extra_fields)
+        self._log_with_level(logging.ERROR, msg, **extra_fields)
 
-    def critical(self, message: str, **extra_fields):
+    def critical(self, msg: str, **extra_fields):
         """Log a critical message with extra fields"""
-        self._log_with_level(logging.CRITICAL, message, **extra_fields)
+        self._log_with_level(logging.CRITICAL, msg, **extra_fields)

@@ -5,14 +5,7 @@ import EnterpriseSearchQuestions from './rag-questions/enterprise-search-questio
 import ChatbotQuestions from './rag-questions/chatbot-questions';
 import NLPQuestions from './nlp-questions/nlp-questions';
 import { fetchWorkflows, Workflow } from '@/lib/backend';
-import { 
-  Typography, 
-  Box, 
-  Divider, 
-  Select, 
-  MenuItem, 
-  FormControl,
-} from '@mui/material';
+import { Typography, Box, Divider, Select, MenuItem, FormControl } from '@mui/material';
 
 const USE_CASES = [
   {
@@ -23,7 +16,8 @@ const USE_CASES = [
   {
     name: 'Chatbot',
     value: 'chatbot',
-    description: 'Create an AI assistant that can engage in conversations and answer questions using your data',
+    description:
+      'Create an AI assistant that can engage in conversations and answer questions using your data',
   },
   {
     name: 'NLP / Text Analytics',
@@ -64,7 +58,9 @@ export default function ChooseProblem() {
   return (
     <Box className="flex flex-col gap-8">
       <Box>
-        <Typography variant="h6" className="mb-2">Use case</Typography>
+        <Typography variant="h6" className="mb-2">
+          Use case
+        </Typography>
         <Typography variant="body2" className="text-gray-500 mb-4">
           Please select the app type based on your use case.
         </Typography>
@@ -90,7 +86,7 @@ export default function ChooseProblem() {
               if (!selected) {
                 return <Typography color="text.secondary">Select a use case</Typography>;
               }
-              const selectedCase = USE_CASES.find(useCase => useCase.value === selected);
+              const selectedCase = USE_CASES.find((useCase) => useCase.value === selected);
               return selectedCase?.name;
             }}
           >
@@ -116,9 +112,7 @@ export default function ChooseProblem() {
           {modelType === 'chatbot' && (
             <ChatbotQuestions models={privateModels} workflowNames={workflowNames} />
           )}
-          {modelType === 'nlp-text-analytics' && (
-            <NLPQuestions workflowNames={workflowNames} />
-          )}
+          {modelType === 'nlp-text-analytics' && <NLPQuestions workflowNames={workflowNames} />}
           {modelType === 'enterprise-search' && (
             <EnterpriseSearchQuestions models={privateModels} workflowNames={workflowNames} />
           )}

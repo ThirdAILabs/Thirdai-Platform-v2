@@ -32,9 +32,8 @@ import {
 } from '@/utils/fileParsingUtils';
 // import TimerIcon from '@mui/icons-material/Timer';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
-import XMLRenderer from './xmlRenderer';
-import { SignalCellularNoSimOutlined } from '@mui/icons-material';
-import XMLViewer from 'react-xml-viewer'
+// import XMLRenderer from './xmlRenderer';
+import { parseXML, XMLRenderer, clean } from './xml';
 interface Token {
   text: string;
   tag: string;
@@ -300,6 +299,7 @@ export default function Interact() {
   const [logType, setLogType] = useState<string | undefined>();
   const [xmlAnnotations, setXmlAnnotations] = useState<xmlPrediction[]>([]);
   const [xmlQueryText, setXmlQueryText] = useState<string | undefined>('');
+  const [xmlObj, setXmlObj] = useState<Record<string, any>>({});
   const startIndex =
     mouseDownIndex !== null && mouseUpIndex !== null
       ? Math.min(mouseDownIndex, mouseUpIndex)
@@ -446,8 +446,9 @@ export default function Interact() {
         );
       }
       else {
+        console.log("hue hue I am here.")
         setAnnotations([{ text: "this is", tag: "hue" }]);
-        const result = await predictXml(formatXML(text));
+        const result = await predictXml(clean(text));
         setXmlQueryText(result.prediction_results.query_text);
         setXmlAnnotations(result.prediction_results.predictions)
       }
@@ -842,7 +843,15 @@ export default function Interact() {
     let currentIndex = 0;
 
     if (logType === "xml" && xmlQueryText) {
-      return (<XMLRenderer xmlText={xmlQueryText} predictions={xmlAnnotations} />)
+      // return (<XMLRenderer xmlText={xmlQueryText} predictions={xmlAnnotations} />)
+      const cleanXml = clean(xmlQueryText);
+      const parsedXml = parseXML(cleanXml);
+      return <XMLRenderer
+        data={parsedXml}
+        path={[]}
+        choices={allLabels}
+        predictions={xmlAnnotations}
+      />
     }
     return words
       .map((word, wordIndex) => {

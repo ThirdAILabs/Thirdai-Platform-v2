@@ -567,9 +567,7 @@ def deployment_status(
         if model_identifier:
             model: schema.Model = get_model_from_identifier(model_identifier, session)
         elif model_id:
-            model: schema.Model = (
-                session.query(schema.Model).get(model_id)
-            )
+            model: schema.Model = session.query(schema.Model).get(model_id)
             if not model:
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,

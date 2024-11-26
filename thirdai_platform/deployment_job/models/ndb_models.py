@@ -110,10 +110,9 @@ class NDBModel(Model):
 
         for i, doc in enumerate(ndb_docs):
             if not doc:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Unable to parse {documents[i].path}. Unsupported file type.",
-                )
+                msg = f"Unable to parse {documents[i].path}. Unsupported file type."
+                self.logger.error(msg, code=LogCode.FILE_VALIDATION)
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
 
         with self.db_lock:
             self.db.insert(ndb_docs)

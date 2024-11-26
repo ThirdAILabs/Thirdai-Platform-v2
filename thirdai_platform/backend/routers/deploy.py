@@ -568,7 +568,7 @@ def deployment_status(
             model: schema.Model = get_model_from_identifier(model_identifier, session)
         elif model_id:
             model: schema.Model = (
-                session.query(schema.Model).filter(schema.Model.id == model_id).first()
+                session.query(schema.Model).get(model_id)
             )
             if not model:
                 return response(

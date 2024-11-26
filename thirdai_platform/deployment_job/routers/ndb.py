@@ -840,3 +840,5 @@ class NDBRouter:
             finally:
                 with self.task_lock:
                     self.task_queue.task_done()
+    def shutdown(self):
+        self.model.cleanup()

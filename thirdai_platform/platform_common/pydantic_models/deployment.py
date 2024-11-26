@@ -38,6 +38,7 @@ class DeploymentConfig(BaseModel):
     model_id: str
     model_bazaar_endpoint: str
     model_bazaar_dir: str
+    host_dir: str
     license_key: str
 
     autoscaling_enabled: bool = False

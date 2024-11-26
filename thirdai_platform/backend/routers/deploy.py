@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import traceback
+import uuid
 from collections import defaultdict
 from pathlib import Path
 from typing import Annotated, Optional, Union
@@ -234,11 +235,17 @@ async def deploy_single_model(
             detail=f"Unsupported model type '{model.type}'.",
         )
 
+    host_dir_uuid = str(uuid.uuid4())
     config = DeploymentConfig(
         model_id=str(model.id),
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
         model_bazaar_dir=(
             os.getenv("SHARE_DIR", None) if platform == "local" else "/model_bazaar"
+        ),
+        host_dir=(
+            os.path.join(os.getenv("SHARE_DIR", None), host_dir_uuid)
+            if platform == "local"
+            else os.path.join("/thirdai_platform", "host_dir", host_dir_uuid)
         ),
         license_key=license_info["boltLicenseKey"],
         autoscaling_enabled=autoscaling_enabled,
@@ -544,6 +551,56 @@ def deployment_status(
     """
     try:
         model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    deploy_status, reasons = get_model_status(model, train_status=False)
+    warnings, errors = get_warnings_and_errors(session, model, job_type="deploy")
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the deployment status",
+        data={
+            "deploy_status": deploy_status,
+            "messages": reasons,
+            "warnings": warnings,
+            "errors": errors,
+            "model_id": str(model.id),
+        },
+    )
+
+
+@deploy_router.get("/internal-status")
+def internal_deployment_status(
+    model_id: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Get the status of a deployment.
+
+    Parameters:
+    - model_id: The ID of the model (optional).
+    - session: The database session (dependency).
+
+    Exactly one of model_identifier or model_id must be supplied.
+
+    Example Usage:
+    ```json
+    {
+        "model_id": "asdfasdf-adsf-asdf-asdfasdf"
+    }
+    ```
+    """
+
+    try:
+        model: schema.Model = session.query(schema.Model).get(model_id)
+        if not model:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"No model with id {model_id}.",
+            )
     except Exception as error:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,

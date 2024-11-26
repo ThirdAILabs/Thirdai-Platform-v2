@@ -19,6 +19,7 @@ import thirdai.neural_db_v2.chunk_stores.constraints as ndbv2_constraints
 from deployment_job.chat import llm_providers
 from deployment_job.models.model import Model
 from deployment_job.pydantic_models import inputs
+from deployment_job.utils import acquire_file_lock, release_file_lock
 from fastapi import HTTPException, status
 from platform_common.file_handler import FileInfo, expand_cloud_buckets_and_directories
 from platform_common.pydantic_models.deployment import DeploymentConfig
@@ -48,6 +49,9 @@ class NDBModel(Model):
 
     def ndb_save_path(self):
         return os.path.join(self.model_dir, "model.ndb")
+
+    def ndb_host_save_path(self):
+        return os.path.join(self.host_model_dir, "model.ndb")
 
     def doc_save_path(self):
         return os.path.join(self.ndb_save_path(), "documents")
@@ -249,7 +253,23 @@ class NDBModel(Model):
         self.logger.info(
             f"Loading NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}"
         )
-        return ndbv2.NeuralDB.load(self.ndb_save_path(), read_only=not write_mode)
+
+        if write_mode:
+            return ndbv2.NeuralDB.load(self.ndb_save_path(), read_only=not write_mode)
+        else:
+            lockfile = os.path.join(self.host_model_dir, "ndb.lock")
+            lock = acquire_file_lock(lockfile)
+            try:
+                if not os.path.exists(self.ndb_host_save_path()):
+                    shutil.copytree(self.ndb_save_path(), self.ndb_host_save_path())
+                else:
+                    pass
+            finally:
+                release_file_lock(lock)
+
+            return ndbv2.NeuralDB.load(
+                self.ndb_host_save_path(), read_only=not write_mode
+            )
 
     def save(self, model_id: str, **kwargs) -> None:
         model_path = self.get_ndb_path(model_id)
@@ -344,3 +364,7 @@ class NDBModel(Model):
             return self.chat_instances[provider]
         else:
             raise ValueError(f"No chat instance available for provider: {provider}")
+
+    def cleanup(self):
+        if self.config.autoscaling_enabled:
+            shutil.rmtree(self.ndb_host_save_path, ignore_errors=True)

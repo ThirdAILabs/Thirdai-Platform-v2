@@ -69,6 +69,7 @@ def create_config(tmp_dir: str, autoscaling: bool):
         model_id=f"{MODEL_ID}",
         model_bazaar_endpoint="",
         model_bazaar_dir=tmp_dir,
+        host_dir=tmp_dir,
         license_key=license_info["boltLicenseKey"],
         autoscaling_enabled=autoscaling,
         model_options=NDBDeploymentOptions(),

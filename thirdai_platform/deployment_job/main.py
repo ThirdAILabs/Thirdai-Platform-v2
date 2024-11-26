@@ -167,6 +167,14 @@ async def startup_event() -> None:
         raise e  # Re-raise the exception to propagate it to the main block
 
 
+@app.on_event("shutdown")
+async def shutdown_event():
+    if isinstance(backend_router_factory, NDBRouter):
+        deployment_status = reporter.get_deploy_status(config.model_id)
+        if deployment_status == "stopped":
+            backend_router_factory.shutdown()
+
+
 if __name__ == "__main__":
     try:
         uvicorn.run(app, host="localhost", port=8000, log_level="info")

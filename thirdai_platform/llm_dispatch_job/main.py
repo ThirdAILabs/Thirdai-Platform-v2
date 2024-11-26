@@ -9,8 +9,6 @@ from typing import Annotated
 from urllib.parse import urljoin
 
 import requests
-
-pass
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse

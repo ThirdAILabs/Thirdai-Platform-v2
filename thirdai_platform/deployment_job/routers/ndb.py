@@ -14,7 +14,7 @@ from deployment_job.pydantic_models.inputs import NDBSearchParams
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
 from deployment_job.utils import propagate_error, validate_name
-from fastapi import APIRouter, Depends, Form, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from platform_common.file_handler import download_local_files

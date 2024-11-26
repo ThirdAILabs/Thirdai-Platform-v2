@@ -1,4 +1,3 @@
-pass
 from urllib.parse import urljoin
 
 from deployment_job.chat.chat_interface import ChatInterface
@@ -61,6 +60,11 @@ class OnPremChat(ChatInterface):
     async def stream_chat(
         self, user_input: str, session_id: str, access_token: str = None, **kwargs
     ):
+        # Since Llama.cpp supports an openai compatible api we use the ChatOpenAI
+        # object for the client. We pass the access_token as the key since its
+        # not openai we're communicating with but the on prem server. The
+        # ChatOpenAI object just takes the key you pass in and creates the
+        # appropriate Authorization Bearer header.
         llm = lambda: ChatOpenAI(
             base_url=urljoin(self.base_url, "on-prem-llm"),
             openai_api_key=access_token,

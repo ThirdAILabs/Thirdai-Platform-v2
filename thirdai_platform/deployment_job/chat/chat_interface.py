@@ -11,7 +11,6 @@ from langchain_core.messages import AIMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableBranch, RunnablePassthrough
-
 from thirdai import neural_db as ndb
 from thirdai import neural_db_v2 as ndbv2
 

@@ -155,15 +155,13 @@ def main(args):
     try:
         model_object = client.train(
             model_name,
-            unsupervised_docs=config.docs_s3_uris,
+            unsupervised_docs=unsupervised_files,
             model_options={"ndb_options": {"ndb_sub_type": "v2"}},
             supervised_docs=[],
-            doc_type="s3",
+            doc_type="local",
         )
 
-        ndb_client = client.deploy(
-            model_identifier, autoscaling_enabled=args.autoscaling_enabled
-        )
+        ndb_client = client.deploy(model_identifier, autoscaling_enabled=False)
 
         check_nomad_job_status(ndb_client.model_id)
 

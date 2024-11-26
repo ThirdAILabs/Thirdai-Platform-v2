@@ -9,6 +9,7 @@ from typing import List
 import thirdai
 from platform_common.file_handler import expand_cloud_buckets_and_directories
 from platform_common.ndb.ndbv2_parser import parse_doc
+from platform_common.ndb.utils import delete_docs_and_remove_files
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
 from platform_common.pydantic_models.training import FileInfo, NDBOptions, TrainConfig
 from thirdai import neural_db_v2 as ndbv2
@@ -153,8 +154,9 @@ class NeuralDBV2(Model):
         self.logger.info(
             f"Found {len(upsert_doc_ids)} docs to upsert, removing old versions"
         )
-        for doc_id in upsert_doc_ids:
-            self.db.delete_doc(doc_id=doc_id, keep_latest_version=True)
+        delete_docs_and_remove_files(
+            db=self.db, doc_ids=upsert_doc_ids, keep_latest_version=True
+        )
 
         total_chunks = self.db.retriever.retriever.size()
         self.logger.info(f"After removing old doc versions total_chunks={total_chunks}")
@@ -246,8 +248,11 @@ class NeuralDBV2(Model):
         self.logger.info(f"Total training time: {train_time} seconds")
 
         if self.config.data.deletions:
-            for doc_id in self.config.data.deletions:
-                self.db.delete_doc(doc_id=doc_id)
+            delete_docs_and_remove_files(
+                db=self.db,
+                doc_ids=self.config.data.deletions,
+                keep_latest_version=False,
+            )
             self.logger.info(f"Deleted {len(self.config.data.deletions)} docs.")
 
         self.save()

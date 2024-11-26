@@ -36,6 +36,7 @@ from fastapi import (
 )
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
+from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files, get_cloud_client
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.feedback_logs import (
@@ -80,7 +81,12 @@ class NDBRouter:
 
         self.router = APIRouter()
         self.router.add_api_route("/search", self.search, methods=["POST"])
-        self.router.add_api_route("/insert", self.insert, methods=["POST"])
+        self.router.add_api_route(
+            "/insert",
+            self.insert,
+            methods=["POST"],
+            dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
+        )
         self.router.add_api_route("/delete", self.delete, methods=["POST"])
         self.router.add_api_route("/upvote", self.upvote, methods=["POST"])
         self.router.add_api_route("/associate", self.associate, methods=["POST"])
@@ -95,7 +101,12 @@ class NDBRouter:
         )
         self.router.add_api_route("/chat", self.chat, methods=["POST"])
         self.router.add_api_route("/sources", self.get_sources, methods=["GET"])
-        self.router.add_api_route("/save", self.save, methods=["POST"])
+        self.router.add_api_route(
+            "/save",
+            self.save,
+            methods=["POST"],
+            dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
+        )
         self.router.add_api_route(
             "/highlighted-pdf", self.highlighted_pdf, methods=["GET"]
         )

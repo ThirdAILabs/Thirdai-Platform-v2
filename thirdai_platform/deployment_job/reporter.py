@@ -154,7 +154,7 @@ class Reporter:
         """
         content = self._request(
             "get",
-            "api/deploy/status",
+            "api/deploy/internal-status",
             params={
                 "model_id": model_id,
             },

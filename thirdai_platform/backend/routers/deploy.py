@@ -532,19 +532,15 @@ def get_feedback(
 
 @deploy_router.get("/status", dependencies=[Depends(verify_model_read_access)])
 def deployment_status(
-    model_identifier: Optional[str] = None,
-    model_id: Optional[str] = None,
+    model_identifier: str,
     session: Session = Depends(get_session),
 ):
     """
     Get the status of a deployment.
 
     Parameters:
-    - model_identifier: The identifier of the model (optional).
-    - model_id: The ID of the model (optional).
+    - model_identifier: The identifier of the model.
     - session: The database session (dependency).
-
-    Exactly one of model_identifier or model_id must be supplied.
 
     Example Usage:
     ```json
@@ -553,26 +549,58 @@ def deployment_status(
     }
     ```
     """
-
-    if not (
-        (model_identifier and model_id is None)
-        or (model_id and model_identifier is None)
-    ):
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Must provide exactly one of model_identifier or model_id.",
+            message=str(error),
         )
 
+    deploy_status, reasons = get_model_status(model, train_status=False)
+    warnings, errors = get_warnings_and_errors(session, model, job_type="deploy")
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the deployment status",
+        data={
+            "deploy_status": deploy_status,
+            "messages": reasons,
+            "warnings": warnings,
+            "errors": errors,
+            "model_id": str(model.id),
+        },
+    )
+
+
+@deploy_router.get("/internal-status")
+def internal_deployment_status(
+    model_id: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Get the status of a deployment.
+
+    Parameters:
+    - model_id: The ID of the model (optional).
+    - session: The database session (dependency).
+
+    Exactly one of model_identifier or model_id must be supplied.
+
+    Example Usage:
+    ```json
+    {
+        "model_id": "asdfasdf-adsf-asdf-asdfasdf"
+    }
+    ```
+    """
+
     try:
-        if model_identifier:
-            model: schema.Model = get_model_from_identifier(model_identifier, session)
-        elif model_id:
-            model: schema.Model = session.query(schema.Model).get(model_id)
-            if not model:
-                return response(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    message=f"No model with id {model_id}.",
-                )
+        model: schema.Model = session.query(schema.Model).get(model_id)
+        if not model:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"No model with id {model_id}.",
+            )
     except Exception as error:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,

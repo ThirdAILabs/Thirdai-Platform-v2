@@ -8,7 +8,6 @@ try:
     from pathlib import Path
     from typing import Any
 
-    import thirdai
     import uvicorn
     from deployment_job.permissions import Permissions
     from deployment_job.reporter import Reporter
@@ -61,6 +60,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):

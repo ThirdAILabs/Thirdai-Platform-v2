@@ -4,7 +4,6 @@ import tempfile
 from pathlib import Path
 from typing import Any, Iterable, List, Optional, Union
 
-import thirdai
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStore

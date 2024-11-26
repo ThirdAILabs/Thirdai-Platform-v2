@@ -118,6 +118,48 @@ job "telemetry" {
       }
     }
 
+    task "vector" {
+      driver = "docker"
+
+      lifecycle {
+        hook = "poststart"
+        sidecar = true
+      }
+
+      depends_on = ["victorialogs"]
+
+      env {
+        SHARE_DIR = "{{ share_dir }}"
+        {% if platform == "local" -%}
+        PRIVATE_MODEL_BAZAAR_ENDPOINT = "http://host.docker.internal/"
+        {%- else -%}
+        PRIVATE_MODEL_BAZAAR_ENDPOINT = "http://{{ model_bazaar_private_host }}/"
+        {%- endif %}
+      }
+
+      config {
+        image = "timberio/vector:nightly-distroless-libc"
+
+        volumes = [
+          "{{ share_dir }}:/model_bazaar",
+          "local/vector-config.yaml:/etc/vector/vector.yaml"
+        ]
+
+        # Vector needs to run as root to access log files
+        privileged = true
+      }
+
+      template {
+        data = file("vector-config-jobs.yaml")
+        destination = "local/vector-config.yaml"
+      }
+
+      resources {
+        cpu    = 256
+        memory = 300
+      }
+    }
+
     task "grafana" {
       lifecycle {
         hook = "poststart"

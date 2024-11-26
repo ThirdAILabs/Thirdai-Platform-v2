@@ -273,7 +273,6 @@ def create_promfile(promfile_path: str):
             for client_nodes in data:
                 node_private_ips.extend(client_nodes["targets"])
 
-    print(f"{node_private_ips = }")
     return node_private_ips
 
 

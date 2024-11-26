@@ -240,7 +240,7 @@ if IDENTITY_PROVIDER == "keycloak":
         realm_representation["adminTheme"] = "custom-theme"
         realm_representation["emailTheme"] = "custom-theme"
         realm_representation["displayName"] = thirdai_realm
-        realm_representation["displayNameHtml"] = " "  # For showing up nothing
+        realm_representation["displayNameHtml"] = "<div class='kc-logo-text'><span>Keycloak</span></div>"
 
         keycloak_admin.update_realm(new_realm_name, realm_representation)
 

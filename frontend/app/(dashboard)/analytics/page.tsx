@@ -2,13 +2,17 @@
 import RecentSamples from './samples';
 import RecentFeedbacks from './recentFeedbacks';
 import UpdateButton from './updateButton';
+import ModelUpdate from './ModelUpdate';
 import UpdateButtonNDB from './updateButtonNDB';
 import UsageStats from './usageStats';
+import UsageStatsUDT from './usageStatsUDT';
 import { UsageDurationChart, UsageFrequencyChart, ReformulatedQueriesChart } from './charts';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getWorkflowDetails, deploymentBaseUrl } from '@/lib/backend';
 import _ from 'lodash';
+import { Workflow, fetchWorkflows } from '@/lib/backend';
+import LatencyMetrics from './LatencyMetrics'; // Add this import
 
 function AnalyticsContent() {
   const [isClient, setIsClient] = useState(false);
@@ -18,6 +22,7 @@ function AnalyticsContent() {
   const [modelName, setModelName] = useState<string>('');
   const [username, setUsername] = useState<string>('');
   const [workflowtype, setWorkflowType] = useState<string>('');
+  const [deployStatus, setDeployStatus] = useState<string>('not_started');
 
   useEffect(() => {
     setIsClient(true);
@@ -29,6 +34,10 @@ function AnalyticsContent() {
 
           console.log('workflowDetails', workflowDetails);
           setWorkflowType(workflowDetails.data.type);
+
+          // Set deploy status
+          setDeployStatus(workflowDetails.data.deploy_status);
+
           if (
             workflowDetails.data.type === 'enterprise-search' &&
             workflowDetails.data.dependencies?.length > 0
@@ -56,14 +65,48 @@ function AnalyticsContent() {
     init();
   }, [workflowid]);
 
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+
+  useEffect(() => {
+    async function getWorkflows() {
+      try {
+        const fetchedWorkflows = await fetchWorkflows();
+        console.log('workflows', fetchedWorkflows);
+        setWorkflows(fetchedWorkflows);
+      } catch (err) {
+        if (err instanceof Error) {
+          console.log(err.message);
+        } else {
+          console.log('An unknown error occurred');
+        }
+      }
+    }
+
+    getWorkflows();
+  }, []);
+
+  const workflowNames = workflows.map((workflow) => workflow.model_name);
+
   if (!isClient) {
     return null; // Return null on the first render to avoid hydration mismatch
   }
   if (workflowtype == 'udt')
     return (
       <div className="container mx-auto px-4 py-8">
-        {deploymentUrl && <RecentSamples deploymentUrl={deploymentUrl} />}
-        {modelName && <UpdateButton modelName={modelName} />}
+        {modelName && deploymentUrl && (
+          <>
+            <UsageStatsUDT />
+            <div className="mt-6">
+              <ModelUpdate
+                username={username}
+                modelName={modelName}
+                deploymentUrl={deploymentUrl}
+                workflowNames={workflowNames}
+                deployStatus={deployStatus}
+              />
+            </div>
+          </>
+        )}
       </div>
     );
   else if (workflowtype == 'ndb' || workflowtype == 'enterprise-search') {

@@ -8,6 +8,7 @@ import thirdai
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStore
+from licensing.verify import verify_license
 
 
 class NeuralDBV2VectorStore(VectorStore):
@@ -38,17 +39,11 @@ class NeuralDBV2VectorStore(VectorStore):
     @staticmethod
     def _verify_thirdai_library(thirdai_key: Optional[str] = None):  # type: ignore[no-untyped-def]
         try:
-
             importlib.util.find_spec("thirdai.neural_db_v2")
 
-            thirdai_key = thirdai_key or os.getenv("THIRDAI_KEY")
-            if thirdai_key == "file_license":
-                thirdai.licensing.set_path(
-                    os.path.join(config.model_bazaar_dir, "license/license.serialized")
-                )
-            else:
-                thirdai.licensing.activate(thirdai_key)
-
+            verify_license.activate_thirdai_license(
+                thirdai_key or os.getenv("THIRDAI_KEY")
+            )
         except ImportError:
             raise ImportError(
                 "Could not import thirdai python package and neuraldb dependencies. "

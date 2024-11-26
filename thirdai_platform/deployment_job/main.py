@@ -4,6 +4,7 @@ try:
     import os
     import sys
     import time
+    import traceback
     from pathlib import Path
     from typing import Any
 
@@ -13,12 +14,16 @@ try:
     from deployment_job.reporter import Reporter
     from deployment_job.routers.enterprise_search import EnterpriseSearchRouter
     from deployment_job.routers.ndb import NDBRouter
-    from deployment_job.routers.udt import UDTRouter
+    from deployment_job.routers.udt import (
+        UDTRouterTextClassification,
+        UDTRouterTokenClassification,
+    )
     from fastapi import FastAPI, Request
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse
+    from licensing.verify import verify_license
     from platform_common.logging import setup_logger
-    from platform_common.pydantic_models.deployment import DeploymentConfig
+    from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
     from platform_common.pydantic_models.training import ModelType
     from prometheus_client import make_asgi_app
 except ImportError as e:
@@ -41,12 +46,7 @@ logger = logging.getLogger("deployment")
 
 reporter = Reporter(config.model_bazaar_endpoint, logger)
 
-if config.license_key == "file_license":
-    thirdai.licensing.set_path(
-        os.path.join(config.model_bazaar_dir, "license/license.serialized")
-    )
-else:
-    thirdai.licensing.activate(config.license_key)
+verify_license.activate_thirdai_license(config.license_key)
 
 Permissions.init(
     model_bazaar_endpoint=config.model_bazaar_endpoint, model_id=config.model_id
@@ -73,10 +73,30 @@ async def log_requests(request: Request, call_next):
     return response
 
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # Log the traceback
+    error_trace = traceback.format_exc()
+    logger.error(f"Exception occurred: {error_trace}")
+
+    # Return the exact exception message in the response
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+    )
+
+
 if config.model_options.model_type == ModelType.NDB:
     backend_router_factory = NDBRouter
 elif config.model_options.model_type == ModelType.UDT:
-    backend_router_factory = UDTRouter
+    if config.model_options.udt_sub_type == UDTSubType.token:
+        backend_router_factory = UDTRouterTokenClassification
+    elif config.model_options.udt_sub_type == UDTSubType.text:
+        backend_router_factory = UDTRouterTextClassification
+    else:
+        error_message = f"Unsupported UDT Type '{config.model_options.udt_sub_type}'."
+        logger.error(error_message)
+        raise ValueError(error_message)
 elif config.model_options.model_type == ModelType.ENTERPRISE_SEARCH:
     backend_router_factory = EnterpriseSearchRouter
 else:

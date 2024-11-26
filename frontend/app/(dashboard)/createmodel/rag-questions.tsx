@@ -277,7 +277,6 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
               {createdSS ? (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
                   <div className="flex items-center justify-center space-x-3">
-                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-600"></div>
                     <span className="text-lg font-medium text-blue-800">Knowledge base queued</span>
                   </div>
                   <div className="mt-2 text-sm text-blue-600 text-center">

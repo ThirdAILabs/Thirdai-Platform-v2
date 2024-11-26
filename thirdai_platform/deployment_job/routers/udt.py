@@ -15,11 +15,13 @@ from deployment_job.pydantic_models.inputs import (
 from deployment_job.reporter import Reporter
 from fastapi import APIRouter, Depends, Query, UploadFile, status
 from fastapi.encoders import jsonable_encoder
+from platform_common.dependencies import is_on_low_disk
 from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
 from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
 from platform_common.thirdai_storage.data_types import (
     LabelCollection,
     LabelStatus,
+    TextClassificationData,
     TokenClassificationData,
 )
 from platform_common.utils import response
@@ -30,10 +32,12 @@ from throughput import Throughput
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
+udt_query_length = Summary("udt_query_length", "Distribution of query lengths")
 
-class UDTRouter:
+
+class UDTBaseRouter:
     def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
-        self.model: ClassificationModel = UDTRouter.get_model(config, logger)
+        self.model: ClassificationModel = self.get_model(config, logger)
         self.logger = logger
 
         # TODO(Nicholas): move these metrics to prometheus
@@ -47,30 +51,9 @@ class UDTRouter:
         self.router.add_api_route("/stats", self.stats, methods=["GET"])
         self.router.add_api_route("/get-text", self.get_text, methods=["POST"])
 
-        # The following routes are only applicable for token classification models
-        # TODO(Shubh) : Make different routers for text and token classification models
-        if self.model.config.model_options.udt_sub_type == UDTSubType.token:
-            self.router.add_api_route("/add_labels", self.add_labels, methods=["POST"])
-            self.router.add_api_route(
-                "/insert_sample", self.insert_sample, methods=["POST"]
-            )
-            self.router.add_api_route("/get_labels", self.get_labels, methods=["GET"])
-            self.router.add_api_route(
-                "/get_recent_samples", self.get_recent_samples, methods=["GET"]
-            )
-
     @staticmethod
     def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
-        subtype = config.model_options.udt_sub_type
-        logger.info(f"Initializing model of subtype: {subtype}")
-        if subtype == UDTSubType.text:
-            return TextClassificationModel(config=config, logger=logger)
-        elif subtype == UDTSubType.token:
-            return TokenClassificationModel(config=config, logger=logger)
-        else:
-            error_message = f"Unsupported UDT subtype '{subtype}'."
-            logger.error(error_message)
-            raise ValueError(error_message)
+        raise NotImplementedError("Subclasses should implement this method")
 
     def get_text(
         self,
@@ -140,6 +123,11 @@ class UDTRouter:
         }
         ```
         """
+        start_time = time.perf_counter()
+
+        text_length = len(params.text.split())
+        udt_query_length.observe(text_length)
+
         results = self.model.predict(**params.model_dump())
 
         # TODO(pratik/geordie/yash): Add logging for search results text classification
@@ -154,11 +142,19 @@ class UDTRouter:
                 f"Prediction complete with {identified_count} tokens identified",
                 extra={"text_length": len(params.text)},
             )
+        end_time = time.perf_counter()
+        time_taken = end_time - start_time
+
+        # Add time_taken to the response data
+        response_data = {
+            "prediction_results": jsonable_encoder(results),
+            "time_taken": time_taken,
+        }
 
         return response(
             status_code=status.HTTP_200_OK,
             message="Successful",
-            data=jsonable_encoder(results),
+            data=response_data,
         )
 
     def stats(self, token=Depends(Permissions.verify_permission("read"))):
@@ -203,6 +199,87 @@ class UDTRouter:
                 "uptime": int(time.time() - self.start_time),
             },
         )
+
+
+class UDTRouterTextClassification(UDTBaseRouter):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
+        super().__init__(config, reporter, logger)
+        # Add routes specific to text classification
+        self.router.add_api_route(
+            "/insert_sample",
+            self.insert_sample,
+            methods=["POST"],
+            dependencies=[Depends(is_on_low_disk(path=config.model_bazaar_dir))],
+        )
+        self.router.add_api_route(
+            "/get_recent_samples", self.get_recent_samples, methods=["GET"]
+        )
+
+    @staticmethod
+    def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
+        subtype = config.model_options.udt_sub_type
+        logger.info(f"Initializing Text Classification model of subtype: {subtype}")
+        if subtype == UDTSubType.text:
+            return TextClassificationModel(config=config, logger=logger)
+        else:
+            error_message = (
+                f"Unsupported UDT subtype '{subtype}' for Text Classification."
+            )
+            logger.error(error_message)
+            raise ValueError(error_message)
+
+    def insert_sample(
+        self,
+        sample: TextClassificationData,
+        token=Depends(Permissions.verify_permission("write")),
+    ):
+        self.model.insert_sample(sample)
+        return response(status_code=status.HTTP_200_OK, message="Successful")
+
+    def get_recent_samples(
+        self,
+        num_samples: int = Query(
+            default=5, ge=1, le=100, description="Number of recent samples to retrieve"
+        ),
+        token: str = Depends(Permissions.verify_permission("read")),
+    ):
+        recent_samples = self.model.get_recent_samples(num_samples=num_samples)
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successful",
+            data=jsonable_encoder(recent_samples),
+        )
+
+
+class UDTRouterTokenClassification(UDTBaseRouter):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
+        super().__init__(config, reporter, logger)
+        # The following routes are only applicable for token classification models
+        # TODO(Shubh): Make different routers for text and token classification models
+        self.router.add_api_route("/add_labels", self.add_labels, methods=["POST"])
+        self.router.add_api_route(
+            "/insert_sample",
+            self.insert_sample,
+            methods=["POST"],
+            dependencies=[Depends(is_on_low_disk(path=config.model_bazaar_dir))],
+        )
+        self.router.add_api_route("/get_labels", self.get_labels, methods=["GET"])
+        self.router.add_api_route(
+            "/get_recent_samples", self.get_recent_samples, methods=["GET"]
+        )
+
+    @staticmethod
+    def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
+        subtype = config.model_options.udt_sub_type
+        logger.info(f"Initializing Token Classification model of subtype: {subtype}")
+        if subtype == UDTSubType.token:
+            return TokenClassificationModel(config=config, logger=logger)
+        else:
+            error_message = (
+                f"Unsupported UDT subtype '{subtype}' for Token Classification."
+            )
+            logger.error(error_message)
+            raise ValueError(error_message)
 
     def add_labels(
         self,

@@ -10,7 +10,7 @@ from typing import AsyncGenerator, List
 import fitz
 import jwt
 import thirdai
-from deployment_job.models.ndb_models import NDBModel, NDBV1Model, NDBV2Model
+from deployment_job.models.ndb_models import NDBModel
 from deployment_job.permissions import Permissions
 from deployment_job.pydantic_models.inputs import (
     AssociateInput,
@@ -27,11 +27,20 @@ from deployment_job.pydantic_models.inputs import (
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
 from deployment_job.utils import now, validate_name
-from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Form,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
+from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files, get_cloud_client
-from platform_common.pydantic_models.deployment import DeploymentConfig, NDBSubType
+from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
     DeleteLog,
@@ -74,7 +83,12 @@ class NDBRouter:
 
         self.router = APIRouter()
         self.router.add_api_route("/search", self.search, methods=["POST"])
-        self.router.add_api_route("/insert", self.insert, methods=["POST"])
+        self.router.add_api_route(
+            "/insert",
+            self.insert,
+            methods=["POST"],
+            dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
+        )
         self.router.add_api_route("/delete", self.delete, methods=["POST"])
         self.router.add_api_route("/tasks", self.tasks, methods=["GET"])
         self.router.add_api_route("/upvote", self.upvote, methods=["POST"])
@@ -90,7 +104,12 @@ class NDBRouter:
         )
         self.router.add_api_route("/chat", self.chat, methods=["POST"])
         self.router.add_api_route("/sources", self.get_sources, methods=["GET"])
-        self.router.add_api_route("/save", self.save, methods=["POST"])
+        self.router.add_api_route(
+            "/save",
+            self.save,
+            methods=["POST"],
+            dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
+        )
         self.router.add_api_route(
             "/highlighted-pdf", self.highlighted_pdf, methods=["GET"]
         )
@@ -108,20 +127,10 @@ class NDBRouter:
 
     @staticmethod
     def get_model(config: DeploymentConfig, logger: Logger) -> NDBModel:
-        subtype = config.model_options.ndb_sub_type
-        logger.info(f"Initializing model subtype: {subtype}")
-        if subtype == NDBSubType.v1:
-            return NDBV1Model(
-                config=config, logger=logger, write_mode=not config.autoscaling_enabled
-            )
-        elif subtype == NDBSubType.v2:
-            return NDBV2Model(
-                config=config, logger=logger, write_mode=not config.autoscaling_enabled
-            )
-        else:
-            error_message = f"Unsupported NDB subtype '{subtype}'."
-            logger.error(error_message)
-            raise ValueError(error_message)
+        logger.info(f"Initializing ndb model")
+        return NDBModel(
+            config=config, logger=logger, write_mode=not config.autoscaling_enabled
+        )
 
     @ndb_query_metric.time()
     def search(
@@ -625,6 +634,7 @@ class NDBRouter:
     def save(
         self,
         input: SaveModel,
+        background_tasks: BackgroundTasks,
         token: str = Depends(Permissions.verify_permission("read")),
     ):
         """
@@ -679,27 +689,29 @@ class NDBRouter:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     message="You don't have permissions to override this model.",
                 )
+
+        background_tasks.add_task(self._perform_save, model_id, token, input.override)
+
+        return response(
+            status_code=status.HTTP_202_ACCEPTED,
+            message="Save operation initiated in the background.",
+            data={"new_model_id": model_id if not input.override else None},
+        )
+
+    def _perform_save(self, model_id: str, token: str, override: bool):
         try:
             self.model.save(model_id=model_id)
-            if not input.override:
+            if not override:
                 self.reporter.save_model(
                     access_token=token,
                     model_id=model_id,
                     base_model_id=self.config.model_id,
-                    model_name=input.model_name,
+                    model_name=model_id,
                     metadata={"thirdai_version": str(thirdai.__version__)},
                 )
+            self.logger.info("Successfully saved the model in the background.")
         except Exception as err:
-            self.logger.error(traceback.print_exc())
-            return response(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
-            )
-
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Successfully saved the model.",
-            data={"new_model_id": model_id if not input.override else None},
-        )
+            self.logger.error(f"Error in background save: {traceback.format_exc()}")
 
     def highlighted_pdf(
         self, reference_id: int, token=Depends(Permissions.verify_permission("read"))

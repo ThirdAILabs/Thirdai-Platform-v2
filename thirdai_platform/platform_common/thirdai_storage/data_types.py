@@ -4,7 +4,7 @@ from enum import Enum
 from typing import ClassVar, Dict, List, Union
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 """
 These datatypes are helper objects for storing data into a persistent storage 
@@ -74,6 +74,18 @@ class TokenClassificationData(SerializableBaseModel):
     datatype: ClassVar[str] = "token_classification"
     tokens: List[str]
     tags: List[str]
+
+    @model_validator(mode="after")
+    def remove_empty_tokens(cls, values):
+        clean_tokens = []
+        clean_tags = []
+        for token, tag in zip(values.tokens, values.tags):
+            if token.strip() != "":
+                clean_tokens.append(token)
+                clean_tags.append(tag)
+        values.tokens = clean_tokens
+        values.tags = clean_tags
+        return values
 
 
 class DataSample(BaseModel):

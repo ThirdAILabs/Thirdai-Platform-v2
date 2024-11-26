@@ -3,9 +3,9 @@ from collections import defaultdict
 from typing import Dict, List
 from urllib.parse import urljoin
 
-import requests
 from deployment_job.pydantic_models.inputs import PiiEntity
 from fastapi import HTTPException, status
+from requests import Session
 
 
 def max_overlap(a: str, b: str) -> int:
@@ -70,10 +70,11 @@ class LabelMap:
 
 class Guardrail:
     def __init__(self, guardrail_model_id: str, model_bazaar_endpoint: str):
+        self.session = Session()
         self.endpoint = urljoin(model_bazaar_endpoint, f"{guardrail_model_id}/predict")
 
     def query_pii_model(self, text: str, access_token: str):
-        res = requests.post(
+        res = self.session.post(
             self.endpoint,
             headers={
                 "User-Agent": "NDB Deployment job",
@@ -88,7 +89,7 @@ class Guardrail:
                 detail=f"Unable to access guardrail model: error {res.status_code}",
             )
 
-        return res.json()["data"]
+        return res.json()["data"]["prediction_results"]
 
     def redact_pii(self, text: str, access_token: str, label_map: LabelMap):
         data = self.query_pii_model(text=text, access_token=access_token)

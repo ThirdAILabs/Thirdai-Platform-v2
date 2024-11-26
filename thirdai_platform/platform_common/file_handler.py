@@ -11,8 +11,7 @@ from botocore import UNSIGNED
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from fastapi import HTTPException, UploadFile, status
-
-from .pydantic_models.training import FileInfo, FileLocation
+from platform_common.pydantic_models.training import FileInfo, FileLocation
 
 
 def download_local_file(file_info: FileInfo, upload_file: UploadFile, dest_dir: str):
@@ -721,3 +720,75 @@ def get_cloud_client(provider: str):
         raise ValueError(
             f"Currently supports s3,azure and gcp, but received {provider}"
         )
+
+
+def download_file(doc: FileInfo, tmp_dir: str):
+    """
+    General method to download a file from S3, Azure, or GCP to a temporary directory.
+    """
+    local_file_path = None
+
+    if doc.location == FileLocation.s3:
+        s3_client = get_cloud_client(provider="s3")
+        bucket_name, prefix = doc.parse_s3_url()
+        local_file_path = os.path.join(tmp_dir, os.path.basename(prefix))
+
+        try:
+            s3_client.download_file(bucket_name, prefix, local_file_path)
+        except Exception as error:
+            logging.error(
+                f"There was an error downloading the file from S3: {error}. {doc.path}"
+            )
+            return None
+
+    elif doc.location == FileLocation.azure:
+        azure_client = get_cloud_client(provider="azure")
+        container_name, blob_name = doc.parse_azure_url()
+        local_file_path = os.path.join(tmp_dir, os.path.basename(blob_name))
+
+        try:
+            azure_client.download_file(container_name, blob_name, local_file_path)
+        except Exception as error:
+            logging.error(
+                f"There was an error downloading the file from Azure: {error}. {doc.path}"
+            )
+            return None
+
+    elif doc.location == FileLocation.gcp:
+        gcp_client = get_cloud_client(provider="gcp")
+        bucket_name, blob_name = doc.parse_gcp_url()
+        local_file_path = os.path.join(tmp_dir, os.path.basename(blob_name))
+
+        try:
+            gcp_client.download_file(bucket_name, blob_name, local_file_path)
+        except Exception as error:
+            logging.error(
+                f"There was an error downloading the file from GCP: {error}. {doc.path}"
+            )
+            return None
+
+    return local_file_path
+
+
+def get_local_file_infos(files: List[FileInfo], tmp_dir: str):
+    local_file_infos = []
+    for file in files:
+        if file.location in {FileLocation.s3, FileLocation.azure, FileLocation.gcp}:
+            # Download the cloud file to the temporary directory
+            local_file_path = download_file(file, tmp_dir)
+            if local_file_path:
+                local_file_infos.append(
+                    FileInfo(
+                        path=local_file_path,
+                        metadata=file.metadata,
+                        options=file.options,
+                        location=FileLocation.local,
+                    )
+                )
+            else:
+                logging.error(f"Failed to download cloud file: {file.path}")
+        else:
+            # Local files can be used as-is
+            local_file_infos.append(file)
+
+    return local_file_infos

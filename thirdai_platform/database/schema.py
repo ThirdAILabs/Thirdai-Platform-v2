@@ -231,6 +231,9 @@ class Model(SQLDeclarativeBase):
     def get_train_job_name(self):
         return f"train-{self.id}-{self.type}-{self.sub_type}"
 
+    def get_datagen_job_name(self):
+        return f"GenerateData-{self.id}"
+
     def get_deployment_name(self):
         return f"deployment-{self.id}"
 
@@ -387,8 +390,13 @@ class Catalog(SQLDeclarativeBase):
     target_labels = Column(ARRAY(String), nullable=False)
 
 
-class JobError(SQLDeclarativeBase):
-    __tablename__ = "job_errors"
+class Level(str, enum.Enum):
+    warning = "warning"
+    error = "error"
+
+
+class JobMessage(SQLDeclarativeBase):
+    __tablename__ = "job_messages"
 
     id = Column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
@@ -401,5 +409,5 @@ class JobError(SQLDeclarativeBase):
         DateTime, nullable=False, default=lambda: datetime.utcnow().isoformat()
     )
     job_type = Column(String(100), nullable=False)
-    status = Column(ENUM(Status), nullable=False)
+    level = Column(ENUM(Level), nullable=False)
     message = Column(String)

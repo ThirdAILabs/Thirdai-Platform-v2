@@ -174,4 +174,3 @@ class Reporter:
             },
             headers=self.auth_header(access_token=access_token),
         )
-        print(content)

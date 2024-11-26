@@ -18,7 +18,7 @@ def setup_env():
     os.environ["ADMIN_USERNAME"] = "admin"
     os.environ["ADMIN_MAIL"] = "admin@mail.com"
     os.environ["ADMIN_PASSWORD"] = "password"
-    os.environ["TEST_ENVIRONMENT"] = "True"
+    os.environ["AIRGAPPED"] = "True"
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -48,9 +48,8 @@ def initialize_database():
 @pytest.fixture(autouse=True, scope="session")
 def create_test_directory():
     test_dir = ".test_data"
-    os.makedirs(test_dir, exist_ok=True)
-
     os.environ["SHARE_DIR"] = os.path.join(test_dir, "share_dir")
+    os.makedirs(os.environ["SHARE_DIR"], exist_ok=True)
 
     yield
 

@@ -1,0 +1,2 @@
+NER_TARGET_COLUMN = "target"
+NER_SOURCE_COLUMN = "source"

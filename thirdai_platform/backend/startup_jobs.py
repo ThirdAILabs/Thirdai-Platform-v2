@@ -13,14 +13,13 @@ from backend.utils import (
     get_platform,
     get_python_path,
     get_root_absolute_path,
-    model_bazaar_path,
     nomad_job_exists,
     submit_nomad_job,
     thirdai_platform_dir,
 )
 from fastapi import status
 from licensing.verify.verify_license import valid_job_allocation, verify_license
-from platform_common.utils import response
+from platform_common.utils import model_bazaar_path, response
 
 GENERATE_JOB_ID = "llm-generation"
 THIRDAI_PLATFORM_FRONTEND_ID = "thirdai-platform-frontend"
@@ -130,8 +129,8 @@ async def restart_thirdai_platform_frontend():
         docker_password=os.getenv("DOCKER_PASSWORD"),
         image_name=os.getenv("FRONTEND_IMAGE_NAME"),
         identity_provider=os.getenv("IDENTITY_PROVIDER", "postgres"),
-        model_bazaar_public_hostname=get_hostname_from_url(
-            os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT")
+        keycloak_server_hostname=get_hostname_from_url(
+            os.getenv("KEYCLOAK_SERVER_URL")
         ),
         use_ssl_in_login=os.getenv("USE_SSL_IN_LOGIN", "False").lower(),
         share_dir=os.getenv("SHARE_DIR"),
@@ -230,6 +229,13 @@ def create_promfile(promfile_path: str):
                 "job_name": "deployment-jobs",
                 "metrics_path": "/metrics",
                 "http_sd_configs": [{"url": deployment_targets_endpoint}],
+                "relabel_configs": [
+                    {
+                        "source_labels": ["model_id"],
+                        "target_label": "workload",
+                        "replacement": "deployment-${1}",
+                    }
+                ],
             },
         ],
     }
@@ -274,18 +280,16 @@ async def restart_telemetry_jobs():
     cwd = Path(os.getcwd())
     platform = get_platform()
     share_dir = os.getenv("SHARE_DIR")
-    # Copying the telemetry dashboards if running on local
-    if platform == "local":
-        shutil.copytree(
-            str(cwd / "telemetry_dashboards"),
-            os.path.join(share_dir, "nomad-monitoring", "telemetry_dashboards"),
-            dirs_exist_ok=True,
-        )
-        promfile_path = os.path.join(
-            share_dir, "nomad-monitoring/node_discovery/prometheus.yaml"
-        )
-    else:
-        promfile_path = "/model_bazaar/nomad-monitoring/node_discovery/prometheus.yaml"
+
+    # Copying the grafana dashboards
+    shutil.copytree(
+        str(cwd / "grafana_dashboards"),
+        os.path.join(model_bazaar_path(), "nomad-monitoring", "grafana_dashboards"),
+        dirs_exist_ok=True,
+    )
+    promfile_path = os.path.join(
+        model_bazaar_path(), "nomad-monitoring", "node_discovery", "prometheus.yaml"
+    )
 
     # Creating prometheus config file
     targets = create_promfile(promfile_path)
@@ -303,6 +307,9 @@ async def restart_telemetry_jobs():
         registry=os.getenv("DOCKER_REGISTRY"),
         docker_username=os.getenv("DOCKER_USERNAME"),
         docker_password=os.getenv("DOCKER_PASSWORD"),
+        model_bazaar_private_host=get_hostname_from_url(
+            os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT")
+        ),
     )
     if response.status_code != 200:
         raise Exception(f"{response.text}")

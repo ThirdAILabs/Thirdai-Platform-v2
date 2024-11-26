@@ -1,150 +1,122 @@
-// import React from 'react';
-
-// interface XMLRendererProps {
-//     xmlContent: string;
-// }
-
-// const XMLRenderer = ({ xmlContent }: XMLRendererProps) => {
-//     const formatXML = (xml: string): string => {
-//         let formatted = '';
-//         let indent = 0;
-//         const tab = '  '; // 2 spaces for indentation
-//         const tokens = xml.trim().split(/(<\/?[^>]+>)/g);
-
-//         tokens.forEach((token) => {
-//             if (!token.trim()) return; // Skip empty tokens
-
-//             // Check if it's a closing tag
-//             if (token.startsWith('</')) {
-//                 indent--;
-//                 formatted += tab.repeat(Math.max(0, indent)) + token + '\n';
-//             }
-//             // Check if it's an opening tag
-//             else if (token.startsWith('<') && !token.startsWith('<?') && !token.endsWith('/>')) {
-//                 formatted += tab.repeat(indent) + token + '\n';
-//                 indent++;
-//             }
-//             // Self-closing tag
-//             else if (token.startsWith('<') && token.endsWith('/>')) {
-//                 formatted += tab.repeat(indent) + token + '\n';
-//             }
-//             // Text content
-//             else if (token.trim()) {
-//                 formatted += tab.repeat(indent) + token.trim() + '\n';
-//             }
-//         });
-
-//         return formatted.trim();
-//     };
-
-//     const highlightXML = (formattedXML: string): string => {
-//         return formattedXML
-//             .replace(/&/g, '&amp;')
-//             .replace(/</g, '&lt;')
-//             .replace(/>/g, '&gt;')
-//             // Highlight tag names
-//             .replace(/&lt;(\/?[\w:-]+)/g, '&lt;<span class="text-blue-500">$1</span>')
-//             // Highlight attributes
-//             .replace(/(\s+[\w:-]+)=/g, '<span class="text-purple-400">$1</span><span class="text-yellow-500">=</span>')
-//             // Highlight attribute values
-//             .replace(/="([^"]*?)"/g, '="<span class="text-green-500">$1</span>"')
-//             // Highlight comments
-//             .replace(/&lt;!--[\s\S]*?--&gt;/g, '<span class="text-gray-500">$&</span>');
-//     };
-
-//     return (
-//         <div className="w-full max-w-4xl">
-//             <pre className="p-4 rounded-lg overflow-x-auto">
-//                 <code
-//                     className="text-black block font-mono text-sm leading-6 whitespace-pre"
-//                     dangerouslySetInnerHTML={{
-//                         __html: highlightXML(formatXML(xmlContent))
-//                     }}
-//                 />
-//             </pre>
-//         </div>
-//     );
-// };
-
-// export default XMLRenderer;
-
-
 import React from 'react';
+import XMLViewer from 'react-xml-viewer';
 
-interface XMLRendererProps {
-    xmlContent: string;
-    predictions: Array<{
-        label: string;
-        location: {
-            char_span: {
-                start: number;
-                end: number;
-            };
-            xpath_location: {
-                xpath: string;
-                attribute: string | null;
-            };
-            value: string;
-        };
-    }>;
+interface CharSpan {
+    start: number;
+    end: number;
 }
 
-const XMLRenderer = ({ xmlContent, predictions }: XMLRendererProps) => {
+interface XPathLocation {
+    xpath: string;
+    attribute: string | null;
+}
 
+interface Location {
+    char_span: CharSpan;
+    xpath_location: XPathLocation;
+    value: string;
+}
 
-    const highlightXML = (formattedXML: string): string => {
-        let highlightedXML = '';
-        let currentIndex = 0;
+interface Prediction {
+    label: string;
+    location: Location;
+}
 
-        // predictions.sort((a, b) => a.location.char_span.start - b.location.char_span.start);
+interface XMLHighlighterProps {
+    xmlText: string;
+    predictions: Prediction[];
+}
 
-        predictions.forEach((prediction) => {
+interface Theme {
+    tagColor: string;
+    textColor: string;
+    attributeKeyColor: string;
+    attributeValueColor: string;
+    separatorColor: string;
+    commentColor: string;
+    cdataColor: string;
+    fontFamily: string;
+}
+
+const XMLRenderer: React.FC<XMLHighlighterProps> = ({ xmlText, predictions }) => {
+    // Preprocess the XML to wrap highlights
+    const preprocessXML = (text: string): string => {
+        const sortedPredictions = [...predictions].sort(
+            (a, b) => a.location.char_span.start - b.location.char_span.start
+        );
+
+        let processedText = "";
+        let lastIndex = 0;
+
+        sortedPredictions.forEach((prediction) => {
             const { start, end } = prediction.location.char_span;
-            const value = prediction.location.value;
             const label = prediction.label;
-            console.log("start and end index -> ", start, " ", end);
-            // Add content before the prediction span
-            highlightedXML += formattedXML.substring(currentIndex, start)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
 
-            // Validate and highlight the span
-            const spanText = formattedXML.substring(start, end);
-            console.log("spanText, -> ", spanText);
-            if (spanText === value) {
-                highlightedXML += `
-          <span class="bg-yellow-200 relative">
-            ${spanText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-            <span class="absolute text-xs text-red-500 top-0 right-0">${label}</span>
-          </span>
-        `;
-            } else {
-                highlightedXML += spanText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            // Append unmodified text before the highlight
+            if (start > lastIndex) {
+                processedText += text.slice(lastIndex, start);
             }
 
-            currentIndex = end;
+            // Append the highlighted text
+            const textToHighlight = text.slice(start, end);
+            processedText += `<span style="background-color: yellow;">${textToHighlight}</span>` +
+                `<span style="background-color: red; color: white; padding: 2px; border-radius: 3px; margin-left: 4px;">${label}</span>`;
+
+            lastIndex = end;
         });
 
-        // Add remaining content
-        highlightedXML += formattedXML.substring(currentIndex)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
+        // Append remaining unmodified text
+        if (lastIndex < text.length) {
+            processedText += text.slice(lastIndex);
+        }
 
-        return highlightedXML;
+        return processedText;
+    };
+
+    // Apply preprocessing to XML
+    const highlightedXML = preprocessXML(xmlText);
+    // Custom theme for XMLViewer
+    const customTheme: Theme = {
+        tagColor: '#000bd4',
+        textColor: '#000000',
+        attributeKeyColor: '#2a7ab0',
+        attributeValueColor: '#008000',
+        separatorColor: '#333',
+        commentColor: '#aaa',
+        cdataColor: '#1d781d',
+        fontFamily: 'monospace',
     };
 
     return (
-        <div className="w-full max-w-4xl">
-            <pre className="p-4 rounded-lg overflow-x-auto">
-                <code
-                    className="text-black block font-mono text-sm leading-6 whitespace-pre"
-                    dangerouslySetInnerHTML={{
-                        __html: highlightXML(xmlContent)
+        <div className="w-full">
+            <div className="font-mono text-sm whitespace-pre-wrap">
+                <XMLViewer
+                    xml={highlightedXML} // Keep the original XML for the viewer
+                    theme={{
+                        ...customTheme,
                     }}
+                    indentSize={2}
+                    collapsible={true}
                 />
-            </pre>
+            </div>
+
+            {/* Higlighted text */}
+            <div className="mt-4 p-4 border rounded">
+                <h3 className="font-medium mb-2">Highlighted text only:</h3>
+                <div className="flex flex-col gap-2">
+                    {predictions.map(prediction => (
+                        <div key={prediction.location.char_span.start} className="flex items-center">
+                            <span
+                                className="rounded px-2 ml-2"
+                                style={{ backgroundColor: "#fff59d" }}
+                            >
+                                {prediction.location.value}
+                            </span>
+                            <span className='text-red-500'>{prediction.label}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
     );
 };

@@ -34,6 +34,7 @@ import {
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 import XMLRenderer from './xmlRenderer';
 import { SignalCellularNoSimOutlined } from '@mui/icons-material';
+import XMLViewer from 'react-xml-viewer'
 interface Token {
   text: string;
   tag: string;
@@ -841,7 +842,7 @@ export default function Interact() {
     let currentIndex = 0;
 
     if (logType === "xml" && xmlQueryText) {
-      return (<XMLRenderer xmlContent={xmlQueryText} predictions={xmlAnnotations} />)
+      return (<XMLRenderer xmlText={xmlQueryText} predictions={xmlAnnotations} />)
     }
     return words
       .map((word, wordIndex) => {

@@ -127,7 +127,6 @@ job "telemetry" {
       }
 
       env {
-        SHARE_DIR = "{{ share_dir }}"
         {% if platform == "local" -%}
         PRIVATE_MODEL_BAZAAR_ENDPOINT = "http://host.docker.internal/"
         {%- else -%}

@@ -184,21 +184,34 @@ async def restart_llm_cache_job():
 def create_promfile(promfile_path: str):
     platform = get_platform()
     model_bazaar_endpoint = os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT")
-    node_list_filepath = os.path.join(
-        model_bazaar_path(), "nomad-monitoring", "nomad_nodes.yaml"
+    nomad_nodes_dir = os.path.join(
+        model_bazaar_path(), "nomad-monitoring", "nomad_nodes"
     )
+    os.makedirs(nomad_nodes_dir, exist_ok=True)
+
+    server_node_file = os.path.join(nomad_nodes_dir, "server.yaml")
+    client_node_file = os.path.join(nomad_nodes_dir, "client.yaml")
 
     if platform == "local":
         # create the local nomad_nodes.yaml file
-        with open(node_list_filepath, "w") as fp:
-            yaml.dump([{"targets": ["host.docker.internal:4646"]}], fp, sort_keys=False)
+        with open(server_node_file, "w") as fp:
+            yaml.dump(
+                [
+                    {
+                        "targets": ["host.docker.internal:4646"],
+                        "labels": {"nomad_node": "server"},
+                    }
+                ],
+                fp,
+                sort_keys=False,
+            )
 
         deployment_targets_endpoint = (
             "http://host.docker.internal:80/api/telemetry/deployment-services"
         )
     else:
         """
-        nomad_nodes.yaml: would be created by ansible installation script in dockerized environment
+        nomad_nodes: would be created by ansible installation script in dockerized environment
         """
 
         deployment_targets_endpoint = (
@@ -216,7 +229,7 @@ def create_promfile(promfile_path: str):
                 "job_name": "nomad-agent",
                 "metrics_path": "/v1/metrics?format=prometheus",
                 "file_sd_configs": [
-                    {"files": ["/model_bazaar/nomad-monitoring/nomad_nodes.yaml"]}
+                    {"files": ["/model_bazaar/nomad-monitoring/nomad_nodes/*.yaml"]}
                 ],
                 "relabel_configs": [
                     {
@@ -248,10 +261,20 @@ def create_promfile(promfile_path: str):
     logging.info(f"Prometheus configuration has been written to {promfile_path}")
 
     # returning the nodes running nomad
-    with open(node_list_filepath, "r") as file:
-        targets = yaml.safe_load(file)
+    node_private_ips = []
+    with open(server_node_file, "r") as file:
+        data = yaml.safe_load(file)
+        for server_nodes in data:
+            node_private_ips.extend(server_nodes["targets"])
 
-    return targets[0]["targets"]
+    if os.path.exists(client_node_file):
+        with open(client_node_file, "r") as file:
+            data = yaml.safe_load(file)
+            for client_nodes in data:
+                node_private_ips.extend(client_nodes["targets"])
+
+    print(f"{node_private_ips = }")
+    return node_private_ips
 
 
 def get_grafana_db_uri():

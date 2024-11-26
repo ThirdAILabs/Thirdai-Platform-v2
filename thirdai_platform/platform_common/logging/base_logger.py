@@ -93,7 +93,7 @@ class WrappedLogger:
         file_handler.setFormatter(JSONFormatter())
 
         console_formatter = ColoredFormatter(
-            "%(log_color)s%(asctime)s - %(levelname)s - %(message)s",
+            "%(log_color)s%(asctime)s - %(levelname)s - %(msg)s",
             datefmt="%Y-%m-%d %H:%M:%S",
             log_colors={
                 "DEBUG": "cyan",

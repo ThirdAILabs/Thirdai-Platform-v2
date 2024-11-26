@@ -227,6 +227,25 @@ if IDENTITY_PROVIDER == "keycloak":
         new_realm_name
     )  # Change the active realm in Keycloak.
 
+    # Update realm to use custom-theme
+    server_info = keycloak_admin.get_server_info()
+    login_themes = server_info["themes"]["login"]
+    theme_names = [theme["name"] for theme in login_themes]
+
+    if "custom-theme" in theme_names:
+        realm_representation = keycloak_admin.get_realm(new_realm_name)
+
+        realm_representation["loginTheme"] = "custom-theme"
+        realm_representation["accountTheme"] = "custom-theme"
+        realm_representation["adminTheme"] = "custom-theme"
+        realm_representation["emailTheme"] = "custom-theme"
+        realm_representation["displayName"] = thirdai_realm
+        realm_representation["displayNameHtml"] = (
+            "<div class='kc-logo-text'><span>Keycloak</span></div>"
+        )
+
+        keycloak_admin.update_realm(new_realm_name, realm_representation)
+
     create_client(
         keycloak_admin=keycloak_admin,
         client_name=client_name,

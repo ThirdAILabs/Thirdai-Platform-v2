@@ -7,7 +7,7 @@ azure:
       push_credentials:
         password: x61PnuEIsKRndw+ne3VzxV/xTU9LU5ui5CdWRNmtUZ+ACRBfiDtU
         username: thirdaiplatform-push-airgapped
-      version: 0.0.11
+      version: 0.0.14
     daily-update:
       pull_credentials:
         password: xDHBncnAPPXcsodP6AqAo8kEDxNoOR5X8r5krtaZp++ACRAwcL6j

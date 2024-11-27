@@ -352,7 +352,7 @@ async def deploy_model(
                 deployment_name=deployment_name if dependency.id == model.id else None,
                 memory=memory,
                 autoscaling_enabled=autoscaling_enabled,
-                autoscaler_max_count=autoscaler_max_count,
+                autoscaler_max_count=autoscaler_max_count if autoscaling_enabled else 1,
                 genai_key=genai_key,
                 session=session,
                 user=user,

@@ -303,7 +303,7 @@ async def deploy_model(
     deployment_name: Optional[str] = None,
     memory: Optional[int] = None,
     autoscaling_enabled: bool = False,
-    autoscaler_max_count: int = 1,
+    autoscaler_max_count: int = int(os.getenv("AUTOSCALER_MAX_COUNT", "1")),
     genai_key: Optional[str] = None,
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),

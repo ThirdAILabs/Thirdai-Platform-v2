@@ -449,6 +449,7 @@ export default function Interact() {
         console.log("hue hue I am here.")
         setAnnotations([{ text: "this is", tag: "hue" }]);
         const result = await predictXml(clean(text));
+        // const result = await predictXml(formatXML(text));
         setXmlQueryText(result.prediction_results.query_text);
         setXmlAnnotations(result.prediction_results.predictions)
       }

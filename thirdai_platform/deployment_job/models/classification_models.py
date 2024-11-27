@@ -192,6 +192,7 @@ class TokenClassificationModel(ClassificationModel):
         model_predictions = self.model.predict(
             log.inference_sample, top_k=1, as_unicode=True
         )
+        print(log.inference_sample)
 
         try:
             result = log.process_prediction(model_predictions)

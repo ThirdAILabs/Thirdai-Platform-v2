@@ -29,6 +29,22 @@ export const SPACE = '5px';
 //   text: string;
 // }
 
+function convertPathToXPath(pathArray: (string | number)[]): string {
+  // Remove the last numeric index if present
+  const pathSegments = pathArray.slice(0, -1);
+
+  // Convert path segments to XPath format
+  const xpathSegments = pathSegments.map(segment =>
+    typeof segment === 'string' ? segment : ''
+  );
+
+  // Construct the XPath
+  // Note: This is a basic conversion and may need customization
+  // depending on your specific XML/HTML structure
+  const xpath = '/' + xpathSegments.join('/');
+
+  return xpath;
+}
 function replaceWhitespaceWithSpace(text: string): string {
   // Replace all whitespace characters with a single space
   return text.replace(/\s+/g, ' ').trim();
@@ -333,6 +349,8 @@ function XMLAttributeRenderer({
   predictions,
   // onFeedback
 }: XMLAttributeRendererProps) {
+  console.log("Paht in Attribute: ", path);
+  console.log("XPaht in Attribute: ", convertPathToXPath(path));
   const key = attr.substring(ATTRIBUTE_PREFIX.length);
   let dataString = JSON.stringify(data);
   dataString = dataString.substring(1, dataString.length - 1);
@@ -368,6 +386,9 @@ function XMLValueRenderer({
   predictions,
   // onFeedback
 }: XMLValueRendererProps) {
+  console.log("Paht in Value: ", path);
+  console.log("XPaht in Value: ", convertPathToXPath(path));
+
   const [start, setStart] = useState<number | null>(null);
   const [end, setEnd] = useState<number | null>(null);
   const [range, setRange] = useState<[number, number] | null>(null);
@@ -516,6 +537,7 @@ function XMLObjectRenderer({
   predictions
   // onFeedback
 }: XMLObjectRendererProps) {
+  console.log("Paht in ObjectRenderer: ", path);
   const attrs = Object.keys(data).filter((key) =>
     key.startsWith(ATTRIBUTE_PREFIX)
   );

@@ -100,11 +100,16 @@ class XMLTokenClassificationLog(LogType):
 
             assert end_pos <= details["end"] - details["start"]
 
-            char_span = CharSpan(
+            global_char_span = CharSpan(
                 start=details["start"] + start_pos,
                 end=details["start"] + end_pos,
             )
-            return char_span, c
+
+            local_char_span = CharSpan(
+                start=start_pos,
+                end=end_pos,
+            )
+            return global_char_span, local_char_span, c
 
         else:
             raise ValueError(f"No charspan found for {xpath} and {attr}")
@@ -129,12 +134,13 @@ class XMLTokenClassificationLog(LogType):
             merged_tokens = " ".join(tokens[min_index : max_index + 1])
 
             xpath_location = XPathLocation(xpath=xpath, attribute=attr)
-            char_span, value_in_xml = self.find_charspan_in_xml(
+            global_char_span, local_char_span, value_in_xml = self.find_charspan_in_xml(
                 xpath, attr, merged_tokens
             )
 
             location = XMLLocation(
-                char_span=char_span,
+                global_char_span=global_char_span,
+                local_char_span=local_char_span,
                 xpath_location=xpath_location,
                 value=value_in_xml,
             )

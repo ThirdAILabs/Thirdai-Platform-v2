@@ -14,7 +14,8 @@ class CharSpan(BaseModel):
 
 
 class XMLLocation(BaseModel):
-    char_span: CharSpan
+    global_char_span: CharSpan
+    local_char_span: CharSpan
     xpath_location: XPathLocation
     value: str
 

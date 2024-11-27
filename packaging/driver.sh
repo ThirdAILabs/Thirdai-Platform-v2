@@ -55,12 +55,15 @@ install_ansible
 VERBOSE=0  # Default: No verbose mode
 PLATFORM_IMAGE_BRANCH="release-test-main"  # Default value if not provided
 CLEANUP=0  # Flag for cleanup mode
-
+ONBOARD_CLIENTS=0  # Flag for onboard_clients mode
+NEW_CLIENT_CONFIG_PATH=""   # Declare globally, default empty
+    
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -v|--verbose) VERBOSE=1 ;;   # Enable verbose mode if -v or --verbose is passed
         -b|--branch) PLATFORM_IMAGE_BRANCH="$2"; shift ;;  # Capture platform_image_branch if provided
         --cleanup) CLEANUP=1 ;;  # Enable cleanup mode if --cleanup is passed
+        --onboard_clients) ONBOARD_CLIENTS=1 ;;  # Enable onboard_clients if --onboard_clients is passed
         *) CONFIG_PATH=$(realpath "$1") ;;  # Treat the first argument as the config path
     esac
     shift
@@ -77,8 +80,25 @@ if [ ! -f "$CONFIG_PATH" ]; then
     echo "Config file not found at $CONFIG_PATH"
     exit 1
 fi
-
 echo "Using config file at $CONFIG_PATH"
+
+if [ "$ONBOARD_CLIENTS" -eq 1 ]; then
+    read -p "Enter the location to the new client config file (e.g., /path/to/new_client_config.yml): " NEW_CLIENT_CONFIG_PATH
+
+    # Check if a valid path was provided
+    if [ -z "$NEW_CLIENT_CONFIG_PATH" ]; then
+        echo "Error: No file location provided for new client configuration."
+        exit 1
+    fi
+
+    # Check if config file exists
+    if [ ! -f "$NEW_CLIENT_CONFIG_PATH" ]; then
+        echo "New client config file not found at $NEW_CLIENT_CONFIG_PATH"
+        exit 1
+    fi
+
+    echo "Using new client config file at $NEW_CLIENT_CONFIG_PATH"
+fi
 
 # Model path
 GENERATIVE_MODEL_FOLDER="gen-ai-models/"
@@ -115,6 +135,13 @@ if [ "$CLEANUP" -eq 1 ]; then
         ansible-playbook playbooks/test_cleanup.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH" -vvvv
     else
         ansible-playbook playbooks/test_cleanup.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH"
+    fi
+elif [ "$ONBOARD_CLIENTS" -eq 1 ]; then
+    echo "Running onboarding playbook..."
+    if [ "$VERBOSE" -eq 1 ]; then
+        ansible-playbook playbooks/onboard_clients.yml --extra-vars "config_path=$CONFIG_PATH new_client_config_path=$NEW_CLIENT_CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH" -vvvv
+    else
+        ansible-playbook playbooks/onboard_clients.yml --extra-vars "config_path=$CONFIG_PATH new_client_config_path=$NEW_CLIENT_CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH"
     fi
 else
     echo "Running deployment playbook..."

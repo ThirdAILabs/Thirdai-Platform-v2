@@ -246,25 +246,6 @@ def create_promfile(promfile_path: str):
     return targets
 
 
-def get_grafana_db_uri():
-    parsed_result = urlparse(os.getenv("DATABASE_URI"))
-    db_type, username, password, hostname, port = (
-        parsed_result.scheme,
-        parsed_result.username,
-        parsed_result.password,
-        parsed_result.hostname,
-        parsed_result.port,
-    )
-
-    platform = get_platform()
-    if db_type == "postgresql":
-        db_type = "postgres"  # Either mysql, postgres or sqlite3
-    if platform == "local":
-        hostname = "host.docker.internal"
-
-    return f"{db_type}://{username}:{password}@{hostname}:{port}/grafana"
-
-
 async def restart_telemetry_jobs():
     """
     Restart the telemetry jobs.
@@ -299,7 +280,7 @@ async def restart_telemetry_jobs():
         platform=platform,
         share_dir=share_dir,
         target_count=str(len(targets)),
-        grafana_db_url=get_grafana_db_uri(),
+        grafana_db_url=os.getenv("GRAFNA_DB_URL"),
         admin_username=os.getenv("ADMIN_USERNAME"),
         admin_password=os.getenv("ADMIN_PASSWORD"),
         admin_mail=os.getenv("ADMIN_MAIL"),

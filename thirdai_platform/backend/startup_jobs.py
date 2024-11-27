@@ -280,7 +280,7 @@ async def restart_telemetry_jobs():
         platform=platform,
         share_dir=share_dir,
         target_count=str(len(targets)),
-        grafana_db_url=os.getenv("GRAFNA_DB_URL"),
+        grafana_db_url=os.getenv("GRAFANA_DB_URL"),
         admin_username=os.getenv("ADMIN_USERNAME"),
         admin_password=os.getenv("ADMIN_PASSWORD"),
         admin_mail=os.getenv("ADMIN_MAIL"),

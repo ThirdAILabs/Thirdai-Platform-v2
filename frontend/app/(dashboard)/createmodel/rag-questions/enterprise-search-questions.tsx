@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Workflow } from '@/lib/backend';
 import { CardDescription } from '@/components/ui/card';
-import { Button, TextField } from '@mui/material';
+import { Button, TextField, Typography, Stepper, Step, StepLabel, Box } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import DropdownMenu from '@/components/ui/dropDownMenu';
 import { create_enterprise_search_workflow, EnterpriseSearchOptions } from '@/lib/backend';
@@ -489,50 +489,39 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
       ))}
     </div>
   );
+  const [skipped, setSkipped] = React.useState(new Set<number>());
+  const isStepOptional = (stepTitle: string) => {
+    return stepTitle === 'LLM';
+  };
 
+  const isStepSkipped = (step: number) => {
+    return skipped.has(step);
+  };
   return (
     <div>
-      <div
-        className="mb-4"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'flex-start',
-          rowGap: '15px',
-          columnGap: '15px',
-        }}
-      >
-        {steps.map((step, index) => {
-          // Show all completed steps, current step, and LLM step if opted in
-          const shouldShow =
-            index <= Math.max(...completedSteps, currentStep) || (index === 2 && showLLMStep);
-
-          if (!shouldShow) return null;
-
-          return (
-            <Button
-              key={index}
-              variant={index === currentStep ? 'contained' : 'outlined'}
-              onClick={() => handleStepClick(index)}
-              style={{
-                marginBottom: '10px',
-                minWidth: '140px',
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                textTransform: 'none',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                padding: '0 16px',
-              }}
-            >
-              {step.title}
-            </Button>
-          );
-        })}
-      </div>
+      <Box sx={{ width: '100%' }}>
+        <Stepper activeStep={currentStep}>
+          {steps.map((step, index) => {
+            const stepProps: { completed?: boolean } = {};
+            const labelProps: {
+              optional?: React.ReactNode;
+            } = {};
+            if (isStepOptional(step.title)) {
+              labelProps.optional = (
+                <Typography variant="caption">Optional</Typography>
+              );
+            }
+            if (isStepSkipped(index)) {
+              stepProps.completed = false;
+            }
+            return (
+              <Step key={step.title} {...stepProps}>
+                <StepLabel {...labelProps}>{step.title}</StepLabel>
+              </Step>
+            );
+          })}
+        </Stepper>
+      </Box>
 
       {/* Step Content */}
       <div>{steps[currentStep].content}</div>

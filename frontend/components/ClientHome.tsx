@@ -1,38 +1,41 @@
-// components/ClientHome.tsx
 'use client';
 
-import { useContext } from 'react';
-import { useEffect } from 'react';
-import Login from '@/components/Login';
-import { userEmailLoginWithAccessToken } from '@/lib/backend';
+import { useEffect, useContext, useState } from 'react';
+import { useSession, signIn } from 'next-auth/react';
 import { UserContext } from '../app/user_wrapper';
-import { Session } from 'next-auth';
+import { userEmailLoginWithAccessToken } from '@/lib/backend';
+import { useRouter } from 'next/navigation';
 
-interface ClientHomeProps {
-  session: Session | null; // Session type from next-auth
-  accessToken: string | null | undefined; // accessToken is a string
-}
-
-export default function ClientHome({ session, accessToken }: ClientHomeProps) {
+export default function ClientHome() {
+  const { data: session, status } = useSession();
   const { setAccessToken } = useContext(UserContext);
+  const [backendLoginAttempted, setBackendLoginAttempted] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    if (accessToken) {
-      userEmailLoginWithAccessToken(accessToken, setAccessToken)
-        .then(() => {
-          if (session) {
-            window.location.href = '/';
-          }
-        })
-        .catch((error) => {
-          console.error('Failed to log in with email using the access token:', error);
-        });
+    if (status === 'loading') {
+      return;
     }
-  }, [accessToken]);
 
-  return (
-    <div className="flex flex-col space-y-3 justify-center items-center h-screen">
-      {!session && <Login />}
-    </div>
-  );
+    if (status === 'unauthenticated') {
+      signIn('keycloak', { callbackUrl: '/' });
+    }
+
+    if (status === 'authenticated' && !backendLoginAttempted) {
+      setBackendLoginAttempted(true);
+      if (session?.accessToken) {
+        userEmailLoginWithAccessToken(session.accessToken, setAccessToken)
+          .then(() => {
+            router.replace('/');
+          })
+          .catch((error) => {
+            console.error('Failed to fetch user data:', error);
+          });
+      } else {
+        console.error('No access token found in session');
+      }
+    }
+  }, [status, session, backendLoginAttempted, router]);
+
+  return null;
 }

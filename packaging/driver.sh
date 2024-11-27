@@ -83,7 +83,7 @@ fi
 echo "Using config file at $CONFIG_PATH"
 
 if [ "$ONBOARD_CLIENTS" -eq 1 ]; then
-    read -p "Enter the location to the new client config file (e.g., /path/to/new_client_config.yml): " NEW_CLIENT_CONFIG_PATH
+    read -p "Enter the absolute path to the new client config file (e.g., /path/to/new_client_config.yml): " NEW_CLIENT_CONFIG_PATH
 
     # Check if a valid path was provided
     if [ -z "$NEW_CLIENT_CONFIG_PATH" ]; then

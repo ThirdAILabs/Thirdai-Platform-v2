@@ -12,6 +12,8 @@ from platform_common.ndb.ndbv2_parser import parse_doc
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
 from platform_common.pydantic_models.training import FileInfo, NDBOptions, TrainConfig
 from thirdai import neural_db_v2 as ndbv2
+from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
+from thirdai.neural_db_v2.retrievers import FinetunableRetriever
 from train_job.models.model import Model
 from train_job.reporter import Reporter
 from train_job.utils import check_disk, get_directory_size
@@ -50,10 +52,23 @@ class NeuralDBV2(Model):
         else:
             self.logger.info("Creating new NDBv2 model")
             if self.ndb_options.on_disk:
-                save_path = self.ndb_save_path()
+                self.db = ndbv2.NeuralDB(save_path=self.ndb_save_path(), splade=splade)
             else:
-                save_path = None
-            self.db = ndbv2.NeuralDB(save_path=save_path, splade=splade)
+                # For the in memory model we create the chunk store in memory
+                # but the retriever is still on disk. The reason for this is
+                # because it's a good tradeoff between construction/inference time
+                # and RAM. We'll get most of the speed gains but at around half
+                # the RAM usage per model. We could have two flags for
+                # on_disk_chunk_store and on_disk_retriever but that would conflict
+                # with the existing on disk flag and expose confusing internals to users.
+                self.db = ndbv2.NeuralDB(
+                    chunk_store=PandasChunkStore(),
+                    retriever=FinetunableRetriever(self.retriever_save_path()),
+                    splade=splade,
+                )
+
+    def retriever_save_path(self):
+        return os.path.join(self.model_dir, "train_retriever")
 
     def ndb_save_path(self):
         return os.path.join(self.model_dir, "model.ndb")
@@ -265,6 +280,7 @@ class NeuralDBV2(Model):
     def save(self):
         if not self.ndb_options.on_disk:
             self.db.save(self.ndb_save_path())
+            shutil.rmtree(self.retriever_save_path())
 
     def get_latency(self) -> float:
         self.logger.info("Measuring latency of the NeuralDBv2 instance.")

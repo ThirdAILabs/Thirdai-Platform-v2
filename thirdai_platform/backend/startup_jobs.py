@@ -4,8 +4,6 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-pass
-
 import yaml
 from auth.utils import get_hostname_from_url
 from backend.utils import (

@@ -63,7 +63,8 @@ job "telemetry" {
           "--retentionPeriod=10d",
           "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
           "--promscrape.config={{ nomad_monitoring_dir }}/node_discovery/prometheus.yaml",
-          "--http.pathPrefix=/victoriametrics"
+          "--http.pathPrefix=/victoriametrics",
+          "--promscrape.fileSDCheckInterval=5s"
         ]
         {% if platform == "local" -%}
         extra_hosts = ["host.docker.internal:host-gateway"]

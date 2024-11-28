@@ -47,7 +47,8 @@ def test_xml_logtype_end_to_end():
         {
             "label": "FIRST_NAME",
             "location": {
-                "char_span": {"start": 54, "end": 59},
+                "global_char_span": {"start": 54, "end": 59},
+                "local_char_span": {"start": 7, "end": 12},
                 "xpath_location": {
                     "xpath": "/Event/System[1]/Data[@name='first_name']",
                     "attribute": None,
@@ -58,7 +59,8 @@ def test_xml_logtype_end_to_end():
         {
             "label": "LAST_NAME",
             "location": {
-                "char_span": {"start": 106, "end": 111},
+                "global_char_span": {"start": 106, "end": 111},
+                "local_char_span": {"start": 7, "end": 12},
                 "xpath_location": {
                     "xpath": "/Event/System[1]/Data[@name='last_name']",
                     "attribute": None,
@@ -69,7 +71,8 @@ def test_xml_logtype_end_to_end():
         {
             "label": "COMPANY",
             "location": {
-                "char_span": {"start": 163, "end": 175},
+                "global_char_span": {"start": 163, "end": 175},
+                "local_char_span": {"start": 16, "end": 28},
                 "xpath_location": {"xpath": "/Event/Message[1]", "attribute": None},
                 "value": "ThirdAI Corp",
             },
@@ -80,7 +83,12 @@ def test_xml_logtype_end_to_end():
     for pred, actual_pred in zip(predictions.predictions, actual_predictions):
         assert pred.label == actual_pred["label"]
         assert (
-            pred.location.char_span.model_dump() == actual_pred["location"]["char_span"]
+            pred.location.global_char_span.model_dump()
+            == actual_pred["location"]["global_char_span"]
+        )
+        assert (
+            pred.location.local_char_span.model_dump()
+            == actual_pred["location"]["local_char_span"]
         )
         assert (
             pred.location.xpath_location.model_dump()

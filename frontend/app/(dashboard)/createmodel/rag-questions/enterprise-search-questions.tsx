@@ -504,9 +504,7 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
               optional?: React.ReactNode;
             } = {};
             if (isStepOptional(step.title)) {
-              labelProps.optional = (
-                <Typography variant="caption">Optional</Typography>
-              );
+              labelProps.optional = <Typography variant="caption">Optional</Typography>;
             }
             return (
               <Step key={step.title} {...stepProps}>

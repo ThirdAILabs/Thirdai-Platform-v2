@@ -65,6 +65,15 @@ func ValueFromContext(r *http.Request, key string) (string, error) {
 }
 
 func UserIdFromContext(r *http.Request) (string, error) {
+	userId := r.Context().Value("user_id")
+	if userId != nil {
+		userIdStr, ok := userId.(string)
+		if !ok {
+			return "", fmt.Errorf("invalid value for user_id, expected string")
+		}
+		return userIdStr, nil
+	}
+
 	return ValueFromContext(r, userIdKey)
 }
 

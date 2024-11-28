@@ -146,6 +146,10 @@ func (c *client) login(login loginInfo) error {
 	return nil
 }
 
+func (c *client) deleteUser(userId string) error {
+	return deleteReq(c, fmt.Sprintf("/user/%v", userId))
+}
+
 func (c *client) promoteAdmin(userId string) error {
 	_, err := post[NoBody](c, fmt.Sprintf("/user/%v/admin", userId), nil)
 	return err

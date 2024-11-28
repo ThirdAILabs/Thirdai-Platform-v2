@@ -39,6 +39,8 @@ func (s *UserService) Routes() chi.Router {
 		r.Use(s.userAuth.Authenticator())
 		r.Use(auth.AdminOnly(s.db))
 
+		r.Delete("/{user_id}", s.DeleteUser)
+
 		r.Post("/{user_id}/admin", s.PromoteAdmin)
 		r.Delete("/{user_id}/admin", s.DemoteAdmin)
 	})
@@ -153,6 +155,45 @@ func (s *UserService) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	res := loginResponse{UserId: user.Id, AccessToken: token}
 	utils.WriteJsonResponse(w, res)
+}
+
+func (s *UserService) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	userId := chi.URLParam(r, "user_id")
+
+	err := s.db.Transaction(func(txn *gorm.DB) error {
+		deleteResult := txn.Where("user_id  = ?", userId).Where("access = ?", schema.Private).Delete(&schema.Model{})
+		if deleteResult.Error != nil {
+			return schema.NewDbError("deleting user private models", deleteResult.Error)
+		}
+
+		var admin schema.User
+		adminResult := txn.Where("is_admin = ?", true).First(&admin)
+		if adminResult.Error != nil {
+			return schema.NewDbError("finding admin user", adminResult.Error)
+		}
+
+		updateResult := txn.Model(&schema.Model{}).
+			Where("user_id = ?", userId).
+			Where("access IN ?", []string{schema.Protected, schema.Public}).
+			Update("user_id", admin.Id)
+		if updateResult.Error != nil {
+			return schema.NewDbError("updating owner of user protected/public models", updateResult.Error)
+		}
+
+		deleteUserResult := txn.Delete(&schema.User{Id: userId})
+		if deleteUserResult.Error != nil {
+			return schema.NewDbError("deleting user", deleteUserResult.Error)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error deleting user %v: %v", userId, err), http.StatusBadRequest)
+		return
+	}
+
+	utils.WriteSuccess(w)
 }
 
 func (s *UserService) PromoteAdmin(w http.ResponseWriter, r *http.Request) {

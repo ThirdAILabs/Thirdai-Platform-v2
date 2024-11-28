@@ -243,3 +243,93 @@ func TestPromoteDemoteAdmin(t *testing.T) {
 	checkAdminStatus(user1, t, false)
 	checkAdminStatus(user2, t, true)
 }
+
+func TestDeleteUser(t *testing.T) {
+	env := setupTestEnv(t)
+
+	admin, err := env.adminClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	user, err := env.newUser("abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m1, err := user.trainNdb("m1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m2, err := user.trainNdb("m2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m3, err := user.trainNdb("m3")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = user.updateAccess(m1, "public")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = user.updateAccess(m2, "protected")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	users, err := admin.listUsers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sortUserList(users)
+	if len(users) != 2 || users[0].Id != user.userId || users[1].Id != admin.userId {
+		t.Fatal("invalid users")
+	}
+
+	models, err := admin.listModels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sortModelList(models)
+	if len(models) != 3 || models[0].ModelId != m1 || models[1].ModelId != m2 || models[2].ModelId != m3 {
+		t.Fatal("invalid models")
+	}
+	for _, m := range models {
+		if m.Username != "abc" {
+			t.Fatal("invalid model owner")
+		}
+	}
+
+	err = admin.deleteUser(user.userId)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	users, err = admin.listUsers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sortUserList(users)
+	if len(users) != 1 || users[0].Id != admin.userId {
+		t.Fatal("invalid users")
+	}
+
+	models, err = admin.listModels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sortModelList(models)
+	if len(models) != 2 || models[0].ModelId != m1 || models[1].ModelId != m2 {
+		t.Fatal("invalid models")
+	}
+	for _, m := range models {
+		if m.Username != "admin123" {
+			t.Fatal("invalid model owner")
+		}
+	}
+}

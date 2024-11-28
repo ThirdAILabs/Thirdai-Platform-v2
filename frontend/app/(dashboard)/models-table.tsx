@@ -2,14 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { TableHead, TableRow, TableHeader, TableBody, Table } from '@/components/ui/table';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { WorkFlow } from './workflow';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -18,7 +11,7 @@ import { fetchWorkflows, Workflow } from '@/lib/backend';
 
 export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: number }) {
   // Hardcode the model display
-  let modelsPerPage = 5;
+  let modelsPerPage = 10;
 
   const [currentPage, setCurrentPage] = useState(Math.ceil(offset / modelsPerPage) + 1);
 
@@ -78,7 +71,8 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-center">Name</TableHead>
+              <TableHead></TableHead>
+              <TableHead className="text-left">Name</TableHead>
               <TableHead className="text-center">Status</TableHead>
               <TableHead className="hidden md:table-cell text-center">Type</TableHead>
               <TableHead className="hidden md:table-cell text-center">Published on</TableHead>
@@ -89,11 +83,15 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayedWorkflows
-              .sort((a, b) => a.model_name.localeCompare(b.model_name)) // Sort by name alphabetically
-              .map((workflow, index) => (
-                <WorkFlow key={index + 200} workflow={workflow} />
-              ))}
+            {displayedWorkflows.map((workflow) => (
+              <WorkFlow
+                key={workflow.model_id}
+                workflow={workflow}
+                Workflows={workflows}
+                allowActions={true}
+                level={0}
+              />
+            ))}
           </TableBody>
         </Table>
       </CardContent>

@@ -4,9 +4,9 @@ import shutil
 from unittest.mock import patch
 
 import pytest
-import thirdai
 from deployment_job.permissions import Permissions
 from fastapi.testclient import TestClient
+from licensing.verify import verify_license
 from platform_common.logging import get_default_logger
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
@@ -15,7 +15,11 @@ from platform_common.pydantic_models.deployment import (
 from thirdai import neural_db_v2 as ndbv2
 
 MODEL_ID = "xyz"
-LICENSE_KEY = "236C00-47457C-4641C5-52E3BB-3D1F34-V3"
+
+THIRDAI_LICENSE = os.path.join(
+    os.path.dirname(__file__), "../tests/ndb_enterprise_license.json"
+)
+
 
 logger = get_default_logger()
 
@@ -30,12 +34,14 @@ def doc_dir():
 @pytest.fixture(scope="function")
 def tmp_dir():
     path = "./tmp"
+    os.environ["SHARE_DIR"] = path
+    os.makedirs(path, exist_ok=True)
     yield path
     shutil.rmtree(path)
 
 
 def create_ndbv2_model(tmp_dir):
-    thirdai.licensing.activate(LICENSE_KEY)
+    verify_license.verify_and_activate(THIRDAI_LICENSE)
 
     db = ndbv2.NeuralDB()
 
@@ -57,11 +63,13 @@ def mock_check_permission(token: str, permission_type: str = "read"):
 def create_config(tmp_dir: str, autoscaling: bool):
     create_ndbv2_model(tmp_dir)
 
+    license_info = verify_license.verify_license(THIRDAI_LICENSE)
+
     return DeploymentConfig(
         model_id=f"{MODEL_ID}",
         model_bazaar_endpoint="",
         model_bazaar_dir=tmp_dir,
-        license_key=LICENSE_KEY,
+        license_key=license_info["boltLicenseKey"],
         autoscaling_enabled=autoscaling,
         model_options=NDBDeploymentOptions(),
     )

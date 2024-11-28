@@ -168,4 +168,6 @@ data/
 *.db
 
 **/ndb_enterprise_license.json
+*.license
+
 **/config.json

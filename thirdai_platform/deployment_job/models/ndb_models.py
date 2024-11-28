@@ -261,6 +261,9 @@ class NDBModel(Model):
             lock = acquire_file_lock(lockfile)
             try:
                 if not os.path.exists(self.ndb_host_save_path()):
+                    self.logger.info(
+                        f"Creating a local ndb copy at {self.ndb_host_save_path()}"
+                    )
                     shutil.copytree(self.ndb_save_path(), self.ndb_host_save_path())
                 else:
                     pass
@@ -367,4 +370,5 @@ class NDBModel(Model):
 
     def cleanup(self):
         if self.config.autoscaling_enabled:
-            shutil.rmtree(self.ndb_host_save_path, ignore_errors=True)
+            self.logger.info(f"Cleaning up local ndb")
+            shutil.rmtree(self.ndb_host_save_path(), ignore_errors=True)

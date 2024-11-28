@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/schema"
+	"thirdai_platform/model_bazaar/utils"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -97,7 +98,7 @@ func (s *UserService) CreateUser(username, email, password string, admin bool, e
 
 func (s *UserService) Signup(w http.ResponseWriter, r *http.Request) {
 	var params signupRequest
-	if !parseRequestBody(w, r, &params) {
+	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
@@ -108,7 +109,7 @@ func (s *UserService) Signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := signupResponse{UserId: newUser.Id}
-	writeJsonResponse(w, res)
+	utils.WriteJsonResponse(w, res)
 }
 
 type loginRequest struct {
@@ -123,7 +124,7 @@ type loginResponse struct {
 
 func (s *UserService) Login(w http.ResponseWriter, r *http.Request) {
 	var params loginRequest
-	if !parseRequestBody(w, r, &params) {
+	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
@@ -151,7 +152,7 @@ func (s *UserService) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res := loginResponse{UserId: user.Id, AccessToken: token}
-	writeJsonResponse(w, res)
+	utils.WriteJsonResponse(w, res)
 }
 
 func (s *UserService) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
@@ -178,7 +179,7 @@ func (s *UserService) PromoteAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 func (s *UserService) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
@@ -215,7 +216,7 @@ func (s *UserService) DemoteAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 type UserTeamInfo struct {
@@ -287,7 +288,7 @@ func (s *UserService) List(w http.ResponseWriter, r *http.Request) {
 	for _, u := range users {
 		infos = append(infos, convertToUserInfo(&u))
 	}
-	writeJsonResponse(w, infos)
+	utils.WriteJsonResponse(w, infos)
 }
 
 func (s *UserService) Info(w http.ResponseWriter, r *http.Request) {
@@ -303,5 +304,5 @@ func (s *UserService) Info(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info := convertToUserInfo(&user)
-	writeJsonResponse(w, info)
+	utils.WriteJsonResponse(w, info)
 }

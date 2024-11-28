@@ -12,6 +12,7 @@ import (
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
+	"thirdai_platform/model_bazaar/utils"
 )
 
 type NdbTrainRequest struct {
@@ -47,7 +48,7 @@ func (opts *NdbTrainRequest) validate() error {
 
 func (s *TrainService) TrainNdb(w http.ResponseWriter, r *http.Request) {
 	var options NdbTrainRequest
-	if !parseRequestBody(w, r, &options) {
+	if !utils.ParseRequestBody(w, r, &options) {
 		return
 	}
 
@@ -163,7 +164,7 @@ func (opts *NdbRetrainRequest) validate() error {
 
 func (s *TrainService) NdbRetrain(w http.ResponseWriter, r *http.Request) {
 	var options NdbRetrainRequest
-	if !parseRequestBody(w, r, &options) {
+	if !utils.ParseRequestBody(w, r, &options) {
 		return
 	}
 

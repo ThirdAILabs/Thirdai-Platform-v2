@@ -11,6 +11,7 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
+	"thirdai_platform/model_bazaar/utils"
 	"time"
 
 	"github.com/google/uuid"
@@ -52,7 +53,7 @@ func (opts *NlpTokenTrainRequest) validate() error {
 
 func (s *TrainService) TrainNlpToken(w http.ResponseWriter, r *http.Request) {
 	var options NlpTokenTrainRequest
-	if !parseRequestBody(w, r, &options) {
+	if !utils.ParseRequestBody(w, r, &options) {
 		return
 	}
 
@@ -108,7 +109,7 @@ func (opts *NlpTextTrainRequest) validate() error {
 
 func (s *TrainService) TrainNlpText(w http.ResponseWriter, r *http.Request) {
 	var options NlpTextTrainRequest
-	if !parseRequestBody(w, r, &options) {
+	if !utils.ParseRequestBody(w, r, &options) {
 		return
 	}
 
@@ -203,7 +204,7 @@ func (opts *NlpTrainDatagenRequest) validate() error {
 
 func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 	var params NlpTrainDatagenRequest
-	if !parseRequestBody(w, r, &params) {
+	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
@@ -279,7 +280,7 @@ func (s *TrainService) TrainNlpDatagen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJsonResponse(w, map[string]string{"model_id": modelId})
+	utils.WriteJsonResponse(w, map[string]string{"model_id": modelId})
 
 	slog.Info("started datagen training successfully", "model_type", params.modelType(), "model_id", modelId, "model_name", params.ModelName)
 }
@@ -322,7 +323,7 @@ func (opts *NlpTokenRetrainRequest) validate() error {
 
 func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 	var params NlpTokenRetrainRequest
-	if !parseRequestBody(w, r, &params) {
+	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
@@ -400,7 +401,7 @@ func (s *TrainService) NlpTokenRetrain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJsonResponse(w, map[string]string{"model_id": modelId})
+	utils.WriteJsonResponse(w, map[string]string{"model_id": modelId})
 
 	slog.Info("started datagen retraining successfully", "model_type", schema.NlpTokenModel, "model_id", modelId, "model_name", params.ModelName)
 }

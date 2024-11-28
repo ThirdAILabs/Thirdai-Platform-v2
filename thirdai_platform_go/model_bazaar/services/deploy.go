@@ -11,6 +11,7 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
+	"thirdai_platform/model_bazaar/utils"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -183,7 +184,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 	modelId := chi.URLParam(r, "model_id")
 
 	var params startRequest
-	if !parseRequestBody(w, r, &params) {
+	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
@@ -208,7 +209,7 @@ func (s *DeployService) Start(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
@@ -250,7 +251,7 @@ func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("model stopped successfully", "model_id", modelId)
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 func (s *DeployService) GetStatus(w http.ResponseWriter, r *http.Request) {
@@ -281,7 +282,7 @@ func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var params saveDeployedRequest
-	if !parseRequestBody(w, r, &params) {
+	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
@@ -337,5 +338,5 @@ func (s *DeployService) SaveDeployed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJsonResponse(w, map[string]string{"model_id": newModelId, "update_token": updateToken})
+	utils.WriteJsonResponse(w, map[string]string{"model_id": newModelId, "update_token": updateToken})
 }

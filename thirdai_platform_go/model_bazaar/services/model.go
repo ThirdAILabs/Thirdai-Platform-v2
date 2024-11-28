@@ -12,6 +12,7 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
+	"thirdai_platform/model_bazaar/utils"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -154,7 +155,7 @@ func (s *ModelService) Info(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJsonResponse(w, info)
+	utils.WriteJsonResponse(w, info)
 }
 
 func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
@@ -202,7 +203,7 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 		infos = append(infos, info)
 	}
 
-	writeJsonResponse(w, infos)
+	utils.WriteJsonResponse(w, infos)
 }
 
 type ModelPermissions struct {
@@ -239,7 +240,7 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 		Owner: permission >= auth.OwnerPermission,
 		Exp:   token.Expiration(),
 	}
-	writeJsonResponse(w, res)
+	utils.WriteJsonResponse(w, res)
 }
 
 func countTrainingChildModels(db *gorm.DB, modelId string) (int64, error) {
@@ -318,7 +319,7 @@ func (s *ModelService) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 type UploadStartRequest struct {
@@ -328,7 +329,7 @@ type UploadStartRequest struct {
 
 func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 	var params UploadStartRequest
-	if !parseRequestBody(w, r, &params) {
+	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
@@ -380,7 +381,7 @@ func (s *ModelService) UploadStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJsonResponse(w, map[string]string{"token": uploadToken})
+	utils.WriteJsonResponse(w, map[string]string{"token": uploadToken})
 }
 
 func (s *ModelService) UploadChunk(w http.ResponseWriter, r *http.Request) {
@@ -404,7 +405,7 @@ func (s *ModelService) UploadChunk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 func modelExtension(modelType string) string {
@@ -481,7 +482,7 @@ func (s *ModelService) UploadCommit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJsonResponse(w, map[string]string{"model_id": model.Id})
+	utils.WriteJsonResponse(w, map[string]string{"model_id": model.Id})
 }
 
 func (s *ModelService) Download(w http.ResponseWriter, r *http.Request) {
@@ -551,7 +552,7 @@ func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
 	modelId := chi.URLParam(r, "model_id")
 
 	var params updateAccessRequest
-	if !parseRequestBody(w, r, &params) {
+	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
@@ -571,7 +572,7 @@ func (s *ModelService) UpdateAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 type updateDefaultPermissionRequest struct {
@@ -582,7 +583,7 @@ func (s *ModelService) UpdateDefaultPermission(w http.ResponseWriter, r *http.Re
 	modelId := chi.URLParam(r, "model_id")
 
 	var params updateDefaultPermissionRequest
-	if !parseRequestBody(w, r, &params) {
+	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
@@ -602,5 +603,5 @@ func (s *ModelService) UpdateDefaultPermission(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }

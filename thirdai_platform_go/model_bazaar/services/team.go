@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/schema"
+	"thirdai_platform/model_bazaar/utils"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -60,7 +61,7 @@ type createTeamRequest struct {
 
 func (s *TeamService) CreateTeam(w http.ResponseWriter, r *http.Request) {
 	var params createTeamRequest
-	if !parseRequestBody(w, r, &params) {
+	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
@@ -93,7 +94,7 @@ func (s *TeamService) CreateTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJsonResponse(w, map[string]string{"team_id": newTeam.Id})
+	utils.WriteJsonResponse(w, map[string]string{"team_id": newTeam.Id})
 }
 
 func (s *TeamService) DeleteTeam(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +129,7 @@ func (s *TeamService) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 func (s *TeamService) AddUserToTeam(w http.ResponseWriter, r *http.Request) {
@@ -166,7 +167,7 @@ func (s *TeamService) AddUserToTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request) {
@@ -207,7 +208,7 @@ func (s *TeamService) RemoveUserFromTeam(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 func (s *TeamService) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
@@ -254,7 +255,7 @@ func (s *TeamService) AddModelToTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 func (s *TeamService) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request) {
@@ -290,7 +291,7 @@ func (s *TeamService) RemoveModelFromTeam(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 func (s *TeamService) AddTeamAdmin(w http.ResponseWriter, r *http.Request) {
@@ -326,7 +327,7 @@ func (s *TeamService) AddTeamAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 func (s *TeamService) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
@@ -362,7 +363,7 @@ func (s *TeamService) RemoveTeamAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 type TeamInfo struct {
@@ -405,7 +406,7 @@ func (s *TeamService) List(w http.ResponseWriter, r *http.Request) {
 		infos = append(infos, TeamInfo{Id: team.Id, Name: team.Name})
 	}
 
-	writeJsonResponse(w, infos)
+	utils.WriteJsonResponse(w, infos)
 }
 
 type TeamUserInfo struct {
@@ -446,7 +447,7 @@ func (s *TeamService) TeamUsers(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	writeJsonResponse(w, infos)
+	utils.WriteJsonResponse(w, infos)
 }
 
 func (s *TeamService) TeamModels(w http.ResponseWriter, r *http.Request) {
@@ -484,5 +485,5 @@ func (s *TeamService) TeamModels(w http.ResponseWriter, r *http.Request) {
 		infos = append(infos, info)
 	}
 
-	writeJsonResponse(w, infos)
+	utils.WriteJsonResponse(w, infos)
 }

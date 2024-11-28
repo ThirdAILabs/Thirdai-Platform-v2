@@ -17,6 +17,7 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
+	"thirdai_platform/model_bazaar/utils"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -148,7 +149,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 
 	slog.Info("started training succesfully", "model_type", args.modelType, "model_id", model.Id, "model_name", args.modelName)
 
-	writeJsonResponse(w, map[string]string{"model_id": model.Id})
+	utils.WriteJsonResponse(w, map[string]string{"model_id": model.Id})
 }
 
 func (s *TrainService) saveModelAndStartJob(model schema.Model, job nomad.Job) error {
@@ -266,7 +267,7 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 	// in the future once this is standardized it will not be needed
 	artifactDir = filepath.Join(s.storage.Location(), artifactDir)
 
-	writeJsonResponse(w, map[string]string{"artifact_path": artifactDir})
+	utils.WriteJsonResponse(w, map[string]string{"artifact_path": artifactDir})
 }
 
 func (s *TrainService) GetStatus(w http.ResponseWriter, r *http.Request) {
@@ -341,5 +342,5 @@ func (s *TrainService) TrainReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJsonResponse(w, report)
+	utils.WriteJsonResponse(w, report)
 }

@@ -12,37 +12,13 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/storage"
+	"thirdai_platform/model_bazaar/utils"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
-
-func parseRequestBody(w http.ResponseWriter, r *http.Request, dest interface{}) bool {
-	dec := json.NewDecoder(r.Body)
-	err := dec.Decode(dest)
-	if err != nil {
-		slog.Error("error parsing request body", "error", err)
-		http.Error(w, fmt.Sprintf("error parsing request body: %v", err), http.StatusBadRequest)
-		return false
-	}
-	return true
-}
-
-func writeJsonResponse(w http.ResponseWriter, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(w).Encode(data)
-	if err != nil {
-		slog.Error("error serializing response body", "error", err)
-		http.Error(w, fmt.Sprintf("error serializing response body: %v", err), http.StatusInternalServerError)
-	}
-}
-
-func writeSuccess(w http.ResponseWriter) {
-	writeJsonResponse(w, struct{}{})
-}
 
 func listModelDependencies(modelId string, db *gorm.DB) ([]schema.Model, error) {
 	visited := map[string]struct{}{}
@@ -215,7 +191,7 @@ func getStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job s
 
 	slog.Info("got status for model successfully", "job", job, "model_id", modelId, "status", res.Status)
 
-	writeJsonResponse(w, res)
+	utils.WriteJsonResponse(w, res)
 }
 
 type updateStatusRequest struct {
@@ -231,7 +207,7 @@ func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, jo
 	}
 
 	var params updateStatusRequest
-	if !parseRequestBody(w, r, &params) {
+	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
@@ -266,7 +242,7 @@ func updateStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, jo
 
 	slog.Info("updated status for model successfully", "job", job, "status", params.Status, "model_id", modelId)
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 type jobLogRequest struct {
@@ -282,7 +258,7 @@ func jobLogHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job stri
 	}
 
 	var params jobLogRequest
-	if !parseRequestBody(w, r, &params) {
+	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
@@ -299,7 +275,7 @@ func jobLogHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job stri
 		return
 	}
 
-	writeSuccess(w)
+	utils.WriteSuccess(w)
 }
 
 func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad.NomadClient, job string) {
@@ -324,7 +300,7 @@ func getLogsHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, c nomad
 		return
 	}
 
-	writeJsonResponse(w, logs)
+	utils.WriteJsonResponse(w, logs)
 }
 
 func saveConfig(modelId string, jobType string, config interface{}, store storage.Storage) (string, error) {

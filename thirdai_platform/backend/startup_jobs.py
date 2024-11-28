@@ -193,7 +193,7 @@ def create_promfile(promfile_path: str):
     client_node_file = os.path.join(nomad_nodes_dir, "client.yaml")
 
     if platform == "local":
-        # create the local nomad_nodes.yaml file
+        # create the local server.yaml file
         with open(server_node_file, "w") as fp:
             yaml.dump(
                 [

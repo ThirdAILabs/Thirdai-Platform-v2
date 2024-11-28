@@ -3,7 +3,8 @@ import os
 import shutil
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urlparse
+
+pass
 
 import requests
 import yaml
@@ -246,26 +247,6 @@ def create_promfile(promfile_path: str):
     return targets
 
 
-def get_grafana_db_uri():
-    parsed_result = urlparse(os.getenv("GRAFANA_DB_URI"))
-    db_type, username, password, hostname, port, database = (
-        parsed_result.scheme,
-        parsed_result.username,
-        parsed_result.password,
-        parsed_result.hostname,
-        parsed_result.port,
-        parsed_result.database,
-    )
-
-    platform = get_platform()
-    if db_type == "postgresql":
-        db_type = "postgres"  # Either mysql, postgres or sqlite3
-    if platform == "local":
-        hostname = "host.docker.internal"
-
-    return f"{db_type}://{username}:{password}@{hostname}:{port}/{database}"
-
-
 async def restart_telemetry_jobs():
     """
     Restart the telemetry jobs.
@@ -300,15 +281,17 @@ async def restart_telemetry_jobs():
         platform=platform,
         share_dir=share_dir,
         target_count=str(len(targets)),
-        grafana_db_url=get_grafana_db_uri(),
+        grafana_db_url=os.getenv("GRAFANA_DB_URL"),
         admin_username=os.getenv("ADMIN_USERNAME"),
         admin_password=os.getenv("ADMIN_PASSWORD"),
         admin_mail=os.getenv("ADMIN_MAIL"),
         registry=os.getenv("DOCKER_REGISTRY"),
         docker_username=os.getenv("DOCKER_USERNAME"),
         docker_password=os.getenv("DOCKER_PASSWORD"),
-        model_bazaar_private_host=get_hostname_from_url(
-            os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT")
+        prometheus_data_source=(
+            "host.docker.internal"
+            if platform == "local"
+            else get_hostname_from_url(os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"))
         ),
     )
     if response.status_code != 200:

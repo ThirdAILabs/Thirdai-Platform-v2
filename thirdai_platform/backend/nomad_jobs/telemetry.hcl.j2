@@ -138,11 +138,7 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
-    {% if platform == "local" -%}
-    url: http://host.docker.internal/victoriametrics
-    {%- else -%}
-    url: http://{{ model_bazaar_private_host }}/victoriametrics
-    {%- endif %}
+    url: http://{{ prometheus_data_source }}/victoriametrics
     isDefault: true
     editable: false
 EOF

@@ -8,6 +8,7 @@ import os
 import shutil
 import tempfile
 import traceback
+import json
 import uuid
 from pathlib import Path
 from threading import Lock
@@ -254,7 +255,11 @@ class NDBModel(Model):
             f"Loading NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}"
         )
 
-        if write_mode:
+        with open(ndbv2.NeuralDB.metadata_path(self.ndb_save_path()), "r") as f:
+            ndb_save_metadata = json.load(f)
+        chunk_store_name = ndb_save_metadata["chunk_store_name"]
+
+        if write_mode or chunk_store_name == "PandasChunkStore":
             return ndbv2.NeuralDB.load(self.ndb_save_path(), read_only=not write_mode)
         else:
             lockfile = os.path.join(self.host_model_dir, "ndb.lock")

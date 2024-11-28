@@ -2,6 +2,7 @@ import multiprocessing as mp
 import os
 import shutil
 import time
+import json
 from collections import defaultdict
 from logging import Logger
 from typing import List
@@ -278,9 +279,30 @@ class NeuralDBV2(Model):
         self.logger.warning("Evaluation method called. Not implemented.")
 
     def save(self):
-        if not self.ndb_options.on_disk:
+        
+        if self.config.base_model_id:
+            with open(ndbv2.NeuralDB.metadata_path(self.ndb_save_path()), "r") as f:
+                ndb_save_metadata = json.load(f)
+            chunk_store_name = ndb_save_metadata["chunk_store_name"]
+            if chunk_store_name == "PandasChunkStore":
+                os.remove(self.db.chunk_store_path(self.ndb_save_path()))
+                self.db.chunk_store.save(self.db.chunk_store_path(self.ndb_save_path()))
+        elif not self.ndb_options.on_disk:
             self.db.save(self.ndb_save_path())
-            shutil.rmtree(self.retriever_save_path())
+
+            delay = 2
+            retries = 5
+            for attempt in range(retries):
+                try:
+                    shutil.rmtree(self.retriever_save_path())
+                    return
+                except OSError as e:
+                    if attempt < retries - 1:
+                        self.logger.info(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay} seconds...")
+                        time.sleep(delay)
+                    else:
+                        self.logger.info(f"Failed to delete '{self.retriever_save_path()}' after {retries} attempts. Continuing without deleting temp retriever.")
+                        
 
     def get_latency(self) -> float:
         self.logger.info("Measuring latency of the NeuralDBv2 instance.")

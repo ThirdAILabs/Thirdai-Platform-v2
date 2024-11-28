@@ -489,14 +489,11 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
       ))}
     </div>
   );
-  const [skipped, setSkipped] = React.useState(new Set<number>());
+
   const isStepOptional = (stepTitle: string) => {
     return stepTitle === 'LLM';
   };
 
-  const isStepSkipped = (step: number) => {
-    return skipped.has(step);
-  };
   return (
     <div>
       <Box sx={{ width: '100%' }}>
@@ -510,9 +507,6 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
               labelProps.optional = (
                 <Typography variant="caption">Optional</Typography>
               );
-            }
-            if (isStepSkipped(index)) {
-              stepProps.completed = false;
             }
             return (
               <Step key={step.title} {...stepProps}>

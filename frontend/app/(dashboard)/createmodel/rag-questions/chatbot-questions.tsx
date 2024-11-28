@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Workflow } from '@/lib/backend';
 import { CardDescription } from '@/components/ui/card';
-import { Button, TextField } from '@mui/material';
+import { Button, TextField, Stepper, Step, StepLabel, Box } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import DropdownMenu from '@/components/ui/dropDownMenu';
@@ -531,39 +531,21 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
           columnGap: '15px',
         }}
       >
-        {steps.map((step, index) => {
-          // Only show steps that are completed or the next available step
-          const isAvailable =
-            completedSteps.includes(index) ||
-            index === Math.min(currentStep, completedSteps.length);
-          if (!isAvailable && index > 0) return null;
-
-          return (
-            <Button
-              key={index}
-              variant={index === currentStep ? 'contained' : 'outlined'}
-              onClick={() => handleStepClick(index)}
-              style={{
-                marginBottom: '10px',
-                minWidth: '140px',
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                textTransform: 'none',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                padding: '0 16px',
-                opacity: isAvailable ? 1 : 0.5,
-                cursor: isAvailable ? 'pointer' : 'not-allowed',
-              }}
-              disabled={!isAvailable}
-            >
-              {step.title}
-            </Button>
-          );
-        })}
+        <Box sx={{ width: '100%' }}>
+          <Stepper activeStep={currentStep}>
+            {steps.map((step, index) => {
+              const stepProps: { completed?: boolean } = {};
+              const labelProps: {
+                optional?: React.ReactNode;
+              } = {};
+              return (
+                <Step key={step.title} {...stepProps}>
+                  <StepLabel {...labelProps}>{step.title}</StepLabel>
+                </Step>
+              );
+            })}
+          </Stepper>
+        </Box>
       </div>
 
       {/* Step Content */}

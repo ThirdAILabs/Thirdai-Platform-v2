@@ -300,10 +300,11 @@ class NeuralDBV2(Model):
             check_disk(self.db, self.config.model_bazaar_dir, supervised_files)
             successfully_trained_files = self.supervised_train(supervised_files)
 
-        if successfully_indexed_files == 0 and successfully_trained_files == 0:
-            msg = "The number of documents indexed and trained is 0. Marking training as failed."
-            self.logger.error(msg, code=LogCode.MODEL_TRAIN)
-            raise ValueError(msg)
+        if len(unsupervised_files) > 0 or len(supervised_files) > 0:
+            if successfully_indexed_files == 0 and successfully_trained_files == 0:
+                msg = "The number of documents indexed and trained is 0. Marking training as failed."
+                self.logger.error(msg, code=LogCode.MODEL_TRAIN)
+                raise ValueError(msg)
 
         train_time = time.time() - start_time
         self.logger.debug(f"Total training time: {train_time} seconds")

@@ -338,6 +338,9 @@ async def restart_telemetry_jobs():
         model_bazaar_private_host=get_hostname_from_url(
             os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT")
         ),
+        vector_config_path=str(
+            cwd / "backend" / "nomad_jobs" / "vector-config-jobs.yaml"
+        ),
     )
     if response.status_code != 200:
         raise Exception(f"{response.text}")

@@ -28,12 +28,9 @@ class FileOperations:
         """
         try:
             if os.path.isfile(src):
-                # Copy the file
                 shutil.copy2(src, dst)
-                # Sync and clear cache for the destination file
                 self._sync_and_clear_cache(dst)
             elif os.path.isdir(src):
-                # Copy the directory
                 if not os.path.exists(dst):
                     os.makedirs(dst)
                 for root, dirs, files in os.walk(src):
@@ -45,7 +42,6 @@ class FileOperations:
                         src_file = os.path.join(root, file)
                         dst_file = os.path.join(dest_dir, file)
                         shutil.copy2(src_file, dst_file)
-                        # Sync and clear cache for the destination file
                         self._sync_and_clear_cache(dst_file)
             else:
                 print(f"Source {src} does not exist.")
@@ -59,12 +55,9 @@ class FileOperations:
         """
         try:
             if os.path.isfile(path):
-                # Sync and clear cache for the file
                 self._sync_and_clear_cache(path)
-                # Delete the file
                 os.remove(path)
             elif os.path.isdir(path):
-                # Recursively sync and clear cache for all files in the directory
                 for root, dirs, files in os.walk(path, topdown=False):
                     for file in files:
                         file_path = os.path.join(root, file)
@@ -73,7 +66,6 @@ class FileOperations:
                     for dir in dirs:
                         dir_path = os.path.join(root, dir)
                         os.rmdir(dir_path)
-                # Delete the top-level directory
                 os.rmdir(path)
             else:
                 print(f"Path {path} does not exist.")
@@ -88,10 +80,8 @@ class FileOperations:
         try:
             if os.path.exists(src):
                 if os.path.isfile(src):
-                    # Sync and clear cache for the source file
                     self._sync_and_clear_cache(src)
                 elif os.path.isdir(src):
-                    # Recursively sync and clear cache for all files in the source directory
                     for root, dirs, files in os.walk(src):
                         for file in files:
                             file_path = os.path.join(root, file)
@@ -100,10 +90,8 @@ class FileOperations:
                     print(f"Source {src} is neither a file nor a directory.")
                     return
 
-                # Move the file or directory
                 shutil.move(src, dst)
 
-                # Sync and clear cache for the destination
                 if os.path.isfile(dst):
                     self._sync_and_clear_cache(dst)
                 elif os.path.isdir(dst):
@@ -123,10 +111,8 @@ class FileOperations:
         """
         try:
             if os.path.isfile(path):
-                # Clear cache for the file
                 self._sync_and_clear_cache(path)
             elif os.path.isdir(path):
-                # Recursively clear cache for all files in the directory
                 for root, dirs, files in os.walk(path):
                     for file in files:
                         file_path = os.path.join(root, file)

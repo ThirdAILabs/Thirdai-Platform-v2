@@ -29,22 +29,6 @@ export const SPACE = '5px';
 //   text: string;
 // }
 
-function convertPathToXPath(pathArray: (string | number)[]): string {
-  // Remove the last numeric index if present
-  const pathSegments = pathArray.slice(0, -1);
-
-  // Convert path segments to XPath format
-  const xpathSegments = pathSegments.map(segment =>
-    typeof segment === 'string' ? segment : ''
-  );
-
-  // Construct the XPath
-  // Note: This is a basic conversion and may need customization
-  // depending on your specific XML/HTML structure
-  const xpath = '/' + xpathSegments.join('/');
-
-  return xpath;
-}
 function replaceWhitespaceWithSpace(text: string): string {
   // Replace all whitespace characters with a single space
   return text.replace(/\s+/g, ' ').trim();
@@ -107,7 +91,7 @@ export function parseXML(xml: string) {
   const parsedData = parser.parse(xml);
 
   // Clean the parsed XML data
-  cleanXMLText(parsedData);
+  // cleanXMLText(parsedData);
 
   return parsedData;
 }
@@ -162,6 +146,12 @@ interface TagSelectorProps {
   open: boolean;
   choices: string[];
   onSelect: (tag: string) => void;
+}
+
+interface Node {
+  firstchild: {
+    nodeValue: string;
+  }
 }
 
 export function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
@@ -357,7 +347,7 @@ function XMLAttributeRenderer({
 
   const key = attr.substring(ATTRIBUTE_PREFIX.length);
   let dataString = JSON.stringify(data);
-  dataString = dataString.substring(1, dataString.length - 1);
+  dataString = dataString.substring(0, dataString.length - 1);
   return (
     <div
       style={{
@@ -396,7 +386,7 @@ function XMLValueRenderer({
   const [start, setStart] = useState<number | null>(null);
   const [end, setEnd] = useState<number | null>(null);
   const [range, setRange] = useState<[number, number] | null>(null);
-
+  const [isPrediction, setIsPrediction] = useState<number>(-1);
   const click = useContext(ClickContext);
 
 
@@ -422,9 +412,6 @@ function XMLValueRenderer({
   //   });
   //   return xpathBuilder;
   // }, [path]);
-  // console.log("Path :", path);
-  // console.log("from xpath builder: ", xpath);
-  // console.log("xpath form bacend: ", predictions[0].location.xpath_location.xpath);
 
 
   const clickKey = useMemo(() => `${xpath}:${attr}`, [xpath, attr]);
@@ -470,14 +457,24 @@ function XMLValueRenderer({
     setRange(null);
   };
   const charArray: string[] = data.toString().split('');
-  const node: any = xpath.select(predictions[0].location.xpath_location.xpath, xmlDom);
-  console.log("Inside value renderer: ", node);
-  console.log("node value renderer", node[0].firstChild.nodeValue);
+  const nodes: any = predictions.map((prediction) => {
+    return (xpath.select(prediction.location.xpath_location.xpath, xmlDom))
+  });
 
-  if (data.toString() === node[0].firstChild.nodeValue) {
-    console.log("Jai Shree Ram!!!");
-  }
 
+  useEffect(() => {
+    for (let index = 0; index < nodes.length; index++) {
+      const node = nodes[index];
+      if (data.toString() === node[0].firstChild.nodeValue) {
+        console.log("Jai Shree Ram!!!");
+        setIsPrediction(index);
+      }
+      else {
+        console.log("Jai Node: ", node[0].firstChild.nodeValue);
+        console.log("Jai data: ", data.toString());
+      }
+    }
+  }, [data]);
   return (
     <div
       style={{
@@ -504,8 +501,8 @@ function XMLValueRenderer({
             onMouseUp={finalizeSelection}
           > */}
 
-          {(index >= predictions[0].location.local_char_span.start && index <= predictions[0].location.local_char_span.end)
-            ? (<span className='bg-yellow-200'>{token}</span>) :
+          {(isPrediction !== -1) && (index >= predictions[isPrediction].location.local_char_span.start && index <= predictions[isPrediction].location.local_char_span.end)
+            ? (<span className='bg-yellow-200'>{token + " "}</span>) :
             (token)}
 
           {/* </ClickyThing> */}

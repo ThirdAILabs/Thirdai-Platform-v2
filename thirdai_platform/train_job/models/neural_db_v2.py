@@ -240,7 +240,16 @@ class NeuralDBV2(Model):
 
         for file in files:
             if file.ext() == ".jsonl":
-                self.rlhf_retraining(file.path)
+                try:
+                    self.rlhf_retraining(file.path)
+                    successfully_trained_files += 1
+                except Exception as e:
+                    msg = f"Failed to train on file {file.path} with error {e}"
+                    self.logger.error(msg, code=LogCode.MODEL_RLHF)
+                    self.reporter.report_warning(
+                        model_id=self.config.model_id,
+                        message=msg,
+                    )
             else:
                 try:
                     supervised_dataset = ndbv2.supervised.CsvSupervised(

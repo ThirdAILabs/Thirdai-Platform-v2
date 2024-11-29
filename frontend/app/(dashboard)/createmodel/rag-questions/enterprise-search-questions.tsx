@@ -7,7 +7,7 @@ import DropdownMenu from '@/components/ui/dropDownMenu';
 import { create_enterprise_search_workflow, EnterpriseSearchOptions } from '@/lib/backend';
 import SemanticSearchQuestions from '../semantic-search-questions';
 import NERQuestions from '../nlp-questions/ner-questions';
-
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 interface EnterpriseSearchQuestionsProps {
   models: Workflow[];
   workflowNames: string[];
@@ -503,12 +503,39 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
             const labelProps: {
               optional?: React.ReactNode;
             } = {};
-            if (isStepOptional(step.title)) {
-              labelProps.optional = <Typography variant="caption">Optional</Typography>;
-            }
+            // if (isStepOptional(step.title)) {
+            //   // labelProps.optional = <Typography variant="caption">Optional</Typography>;
+            //   labelProps.optional = '';
+            // }
             return (
               <Step key={step.title} {...stepProps}>
-                <StepLabel {...labelProps}>{step.title}</StepLabel>
+                {step.title === "LLM" ? (<div style={{ display: 'flex', alignItems: 'center' }}>
+                  <StepLabel {...labelProps}>{step.title}</StepLabel>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span style={{ marginLeft: '8px', cursor: 'pointer' }}>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="w-5 h-5"
+                        >
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="16" x2="12" y2="12" />
+                          <line x1="12" y1="8" x2="12.01" y2="8" />
+                        </svg>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" style={{ maxWidth: '300px' }}>
+                      <strong>This step is optional</strong>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>) : (<StepLabel {...labelProps}>{step.title}</StepLabel>)}
+
               </Step>
             );
           })}

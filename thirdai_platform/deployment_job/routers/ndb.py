@@ -464,6 +464,7 @@ class NDBRouter:
                     message=message,
                 )
             try:
+                message = "Associate applied successfully."
                 self.model.associate(input.text_pairs)
                 self.logger.info(message, code=LogCode.MODEL_RLHF)
                 return response(

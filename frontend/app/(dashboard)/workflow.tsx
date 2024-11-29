@@ -465,7 +465,7 @@ export function WorkFlow({
                 {workflow.type === 'enterprise-search' &&
                   (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
                     <Link
-                      href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
+                      href={`/analytics?id=${encodeURIComponent(workflow.dependencies[0].model_id)}&username=${encodeURIComponent(workflow.dependencies[0].username)}&model_name=${encodeURIComponent(workflow.dependencies[0].model_name)}&old_model_id=${encodeURIComponent(workflow.dependencies[0].model_id)}`}
                     >
                       <DropdownMenuItem>
                         <button type="button">Usage Dashboard</button>
@@ -481,7 +481,7 @@ export function WorkFlow({
                       <Tooltip
                         title={
                           deployStatus === DeployStatus.Failed ||
-                          deployStatus === DeployStatus.TrainingFailed
+                            deployStatus === DeployStatus.TrainingFailed
                             ? 'Access restricted: model failed'
                             : ''
                         }
@@ -497,7 +497,7 @@ export function WorkFlow({
                             style={{
                               cursor:
                                 deployStatus === DeployStatus.Failed ||
-                                deployStatus === DeployStatus.TrainingFailed
+                                  deployStatus === DeployStatus.TrainingFailed
                                   ? 'not-allowed'
                                   : 'pointer',
                             }}

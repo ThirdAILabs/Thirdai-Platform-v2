@@ -292,10 +292,12 @@ class NeuralDBV2(Model):
 
         start_time = time.time()
 
+        successfully_indexed_files = 0
         if unsupervised_files:
             check_disk(self.db, self.config.model_bazaar_dir, unsupervised_files)
             successfully_indexed_files = self.unsupervised_train(unsupervised_files)
 
+        successfully_trained_files = 0
         if supervised_files:
             check_disk(self.db, self.config.model_bazaar_dir, supervised_files)
             successfully_trained_files = self.supervised_train(supervised_files)

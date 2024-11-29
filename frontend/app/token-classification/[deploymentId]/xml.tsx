@@ -20,7 +20,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { preconnect } from 'react-dom';
 // import { Feedback } from './useBackend';
-
+import * as xpath from 'xpath';
 export const ATTRIBUTE_PREFIX = '@_';
 export const INDENT = '20px';
 export const SPACE = '5px';
@@ -112,10 +112,12 @@ export function parseXML(xml: string) {
   return parsedData;
 }
 
+
 interface CharSpan {
   start: number;
   end: number;
 }
+
 
 interface XPathLocation {
   xpath: string;
@@ -123,7 +125,8 @@ interface XPathLocation {
 }
 
 interface Location {
-  char_span: CharSpan;
+  local_char_span: CharSpan;
+  global_char_span: CharSpan;
   xpath_location: XPathLocation;
   value: string;
 }
@@ -138,6 +141,7 @@ interface XMLRendererProps {
   path: (string | number)[];
   choices: string[];
   predictions: Prediction[];
+  xmlDom: any
   // onFeedback: (feedback: FrontendFeedback) => void;
 }
 
@@ -347,10 +351,10 @@ function XMLAttributeRenderer({
   attr,
   choices,
   predictions,
+  xmlDom
   // onFeedback
 }: XMLAttributeRendererProps) {
-  console.log("Paht in Attribute: ", path);
-  console.log("XPaht in Attribute: ", convertPathToXPath(path));
+
   const key = attr.substring(ATTRIBUTE_PREFIX.length);
   let dataString = JSON.stringify(data);
   dataString = dataString.substring(1, dataString.length - 1);
@@ -371,6 +375,7 @@ function XMLAttributeRenderer({
         attr={key}
         choices={choices}
         predictions={predictions}
+        xmlDom={xmlDom}
       // onFeedback={onFeedback}
       />
       &quot;
@@ -384,16 +389,13 @@ function XMLValueRenderer({
   attr,
   choices,
   predictions,
+  xmlDom
   // onFeedback
 }: XMLValueRendererProps) {
-  console.log("Paht in Value: ", path);
-  console.log("XPaht in Value: ", convertPathToXPath(path));
 
   const [start, setStart] = useState<number | null>(null);
   const [end, setEnd] = useState<number | null>(null);
   const [range, setRange] = useState<[number, number] | null>(null);
-  const [globalIndex, setGlobalIndex] = useState<number>(0);
-  let currentPredictionIndex = 0; //This variable will be used to iterate through the predictions array.
 
   const click = useContext(ClickContext);
 
@@ -402,25 +404,28 @@ function XMLValueRenderer({
   //   () => (typeof data === 'string' ? data.split(/\s+/) : [data.toString()]),
   //   [data]
   // );
-  console.log("Printend predictions: ", predictions);
-  const xpath = useMemo(() => {
-    if (path.length === 0) {
-      return '#text'; // For normal text inputs
-    }
+  // const xpath = useMemo(() => {
+  //   if (path.length === 0) {
+  //     return '#text'; // For normal text inputs
+  //   }
 
-    let xpathBuilder = '';
-    path.forEach((step) => {
-      if (typeof step === 'number') {
-        xpathBuilder += `[${step + 1}]`;
-      } else {
-        if (xpathBuilder !== '') {
-          xpathBuilder += '/';
-        }
-        xpathBuilder += step;
-      }
-    });
-    return xpathBuilder;
-  }, [path]);
+  //   let xpathBuilder = '';
+  //   path.forEach((step) => {
+  //     if (typeof step === 'number') {
+  //       xpathBuilder += `[${step + 1}]`;
+  //     } else {
+  //       if (xpathBuilder !== '') {
+  //         xpathBuilder += '/';
+  //       }
+  //       xpathBuilder += step;
+  //     }
+  //   });
+  //   return xpathBuilder;
+  // }, [path]);
+  // console.log("Path :", path);
+  // console.log("from xpath builder: ", xpath);
+  // console.log("xpath form bacend: ", predictions[0].location.xpath_location.xpath);
+
 
   const clickKey = useMemo(() => `${xpath}:${attr}`, [xpath, attr]);
 
@@ -464,18 +469,14 @@ function XMLValueRenderer({
     setEnd(null);
     setRange(null);
   };
-  console.log("Inside xml-> ", typeof (data), data);
   const charArray: string[] = data.toString().split('');
-  const charArrayLength = charArray.length;
+  const node: any = xpath.select(predictions[0].location.xpath_location.xpath, xmlDom);
+  console.log("Inside value renderer: ", node);
+  console.log("node value renderer", node[0].firstChild.nodeValue);
 
-  const incrementGlobalIndex = (value: number) => {
-    setGlobalIndex((prevVal) => (prevVal + value));
+  if (data.toString() === node[0].firstChild.nodeValue) {
+    console.log("Jai Shree Ram!!!");
   }
-
-  useEffect(() => {
-    console.log("Jai Shri ram");
-    incrementGlobalIndex(charArrayLength);
-  }, [data])
 
   return (
     <div
@@ -488,8 +489,6 @@ function XMLValueRenderer({
       }}
     >
       {charArray.map((token, index) => {
-        const currentIndex = (globalIndex) + index;
-        console.log("HUE HUE ", currentIndex);
         return (<>
           {/* <ClickyThing
             key={`clicky${index}`}
@@ -505,7 +504,7 @@ function XMLValueRenderer({
             onMouseUp={finalizeSelection}
           > */}
 
-          {(currentIndex >= predictions[currentPredictionIndex].location.char_span.start && currentIndex <= predictions[currentPredictionIndex].location.char_span.end)
+          {(index >= predictions[0].location.local_char_span.start && index <= predictions[0].location.local_char_span.end)
             ? (<span className='bg-yellow-200'>{token}</span>) :
             (token)}
 
@@ -534,7 +533,8 @@ function XMLObjectRenderer({
   path,
   tag,
   choices,
-  predictions
+  predictions,
+  xmlDom
   // onFeedback
 }: XMLObjectRendererProps) {
   console.log("Paht in ObjectRenderer: ", path);
@@ -568,6 +568,7 @@ function XMLObjectRenderer({
             path={path}
             choices={choices}
             predictions={predictions}
+            xmlDom={xmlDom}
           // onFeedback={onFeedback}
           />
         ))}
@@ -585,6 +586,7 @@ function XMLObjectRenderer({
               path={path}
               choices={choices}
               predictions={predictions}
+              xmlDom={xmlDom}
             // onFeedback={onFeedback}
             />
           </div>
@@ -600,6 +602,7 @@ export function XMLRenderer({
   path,
   choices,
   predictions,
+  xmlDom,
   // onFeedback
 }: XMLRendererProps) {
   console.log("print inside xml renderer");
@@ -615,6 +618,7 @@ export function XMLRenderer({
         path={path}
         choices={choices}
         predictions={predictions}
+        xmlDom={xmlDom}
       // onFeedback={onFeedback}
       />
     );
@@ -628,6 +632,7 @@ export function XMLRenderer({
         path={path}
         choices={choices}
         predictions={predictions}
+        xmlDom={xmlDom}
       // onFeedback={onFeedback}
       />
     );
@@ -640,6 +645,7 @@ export function XMLRenderer({
         path={path}
         choices={choices}
         predictions={predictions}
+        xmlDom={xmlDom}
       // onFeedback={onFeedback}
       />
     );
@@ -648,6 +654,7 @@ export function XMLRenderer({
   const childKeys = Object.keys(data).filter(
     (key) => !key.startsWith(ATTRIBUTE_PREFIX)
   );
+
   return (
     <div
       style={{ display: 'flex', flexDirection: 'column', width: 'fit-content' }}
@@ -661,6 +668,7 @@ export function XMLRenderer({
               path={path}
               choices={choices}
               predictions={predictions}
+              xmlDom={xmlDom}
             // onFeedback={onFeedback}
             />
           );
@@ -677,6 +685,7 @@ export function XMLRenderer({
                   tag={key}
                   choices={choices}
                   predictions={predictions}
+                  xmlDom={xmlDom}
                 // onFeedback={onFeedback}
                 />
               ))}
@@ -692,6 +701,7 @@ export function XMLRenderer({
             tag={key}
             choices={choices}
             predictions={predictions}
+            xmlDom={xmlDom}
           // onFeedback={onFeedback}
           />
         );

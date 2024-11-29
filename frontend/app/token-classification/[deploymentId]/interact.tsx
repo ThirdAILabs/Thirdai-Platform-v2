@@ -34,6 +34,8 @@ import {
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 // import XMLRenderer from './xmlRenderer';
 import { parseXML, XMLRenderer, clean } from './xml';
+import * as xpath from 'xpath';
+import { DOMParser } from 'xmldom';
 interface Token {
   text: string;
   tag: string;
@@ -66,10 +68,14 @@ interface TagSelectorProps {
 interface xmlPrediction {
   label: string;
   location: {
-    char_span: {
+    local_char_span: {
       start: number;
       end: number;
     };
+    global_char_span: {
+      start: number;
+      end: number;
+    },
     xpath_location: {
       xpath: string;
       attribute: string | null;
@@ -446,7 +452,7 @@ export default function Interact() {
         );
       }
       else {
-        console.log("hue hue I am here.")
+
         setAnnotations([{ text: "this is", tag: "hue" }]);
         const result = await predictXml(clean(text));
         // const result = await predictXml(formatXML(text));
@@ -847,11 +853,13 @@ export default function Interact() {
       // return (<XMLRenderer xmlText={xmlQueryText} predictions={xmlAnnotations} />)
       const cleanXml = clean(xmlQueryText);
       const parsedXml = parseXML(cleanXml);
+      const xmlDom = new DOMParser().parseFromString(cleanXml, 'application/xml');
       return <XMLRenderer
         data={parsedXml}
         path={[]}
         choices={allLabels}
         predictions={xmlAnnotations}
+        xmlDom={xmlDom}
       />
     }
     return words

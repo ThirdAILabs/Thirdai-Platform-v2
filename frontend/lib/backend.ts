@@ -1129,7 +1129,11 @@ export interface TokenClassificationResultXml {
   predictions: Array<{
     label: string;
     location: {
-      char_span: {
+      local_char_span: {
+        start: number;
+        end: number;
+      };
+      global_char_span: {
         start: number;
         end: number;
       };

@@ -22,7 +22,7 @@ class JobLogger(WrappedLogger):
         self.model_type = model_type
 
     @property
-    def get_logger_keys(self) -> Dict[str, Union[str, int]]:
+    def logger_keys(self) -> Dict[str, Union[str, int]]:
         return {
             "model_id": self.model_id,
             "model_type": self.model_type,

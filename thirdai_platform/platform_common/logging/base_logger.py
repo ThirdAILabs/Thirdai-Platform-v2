@@ -14,7 +14,7 @@ To make search efficient and more customizable, it also supports marking certain
 Searching over stream fields is significantly faster than doing a full text search or simple key-value pair search.
 
 WrappedLogger and all its derived classes should have two methods:
-1. get_logger_keys: Returns a dictionary of key,value pairs enabling searching over logs.
+1. logger_keys: Returns a dictionary of key,value pairs enabling searching over logs.
 2. stream_fields: Returns a list of fields which should be marked as stream fields in VictoriaLogs.
 
 The fields in stream_fields should not have very high cardinality (i.e. number of unique values should be limited).
@@ -68,12 +68,13 @@ class WrappedLogger:
         self.logger = self._setup_logger(log_dir, log_prefix, service_type, level)
 
     @property
-    def get_logger_keys(self) -> Dict[str, Union[str, int]]:
+    def logger_keys(self) -> Dict[str, Union[str, int]]:
         """Returns key,value pairs that can be used to filter logs"""
         return {}
 
     @property
     def stream_fields(self) -> List[str]:
+        # TODO: Remove stream_fields from Vector Configs and use these keys for indexing logs into unique streams in VictoriaLogs
         """Returns keys used for indexing logs into unique streams in VictoriaLogs"""
         return []
 
@@ -112,7 +113,7 @@ class WrappedLogger:
 
     def _log_with_level(self, level: int, msg: str, **extra_fields):
         """Log a message with the specified level and extra fields"""
-        logger_keys = self.get_logger_keys
+        logger_keys = self.logger_keys
         extra_fields.update(logger_keys)
         self.logger.log(level, msg, extra={"extra_fields": extra_fields})
 

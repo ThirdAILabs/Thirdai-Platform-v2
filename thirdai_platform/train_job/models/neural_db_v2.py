@@ -118,7 +118,7 @@ class NeuralDBV2(Model):
                 docs = []
                 for doc_idx, doc in enumerate(curr_batch):
                     if not doc:
-                        msg = f"Unable to parse {batches[i][doc_idx].path}. Unsupported filetype."
+                        msg = f"Unable to parse {batches[i][doc_idx].path}. Unsupported filetype. Cannot train model."
                         self.logger.error(msg, code=LogCode.MODEL_INSERT)
                         self.reporter.report_warning(
                             model_id=self.config.model_id,

@@ -154,6 +154,7 @@ class FileOperations:
         """
         Advise the kernel to drop cache for the file given by file descriptor.
         """
+        # Mac doesnot have posix_fadvise, hence the condition
         try:
             if hasattr(os, "posix_fadvise") and hasattr(os, "POSIX_FADV_DONTNEED"):
                 os.posix_fadvise(fileno, 0, 0, os.POSIX_FADV_DONTNEED)

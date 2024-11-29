@@ -12,6 +12,159 @@ from botocore.exceptions import ClientError
 from fastapi import HTTPException, UploadFile, status
 from platform_common.pydantic_models.training import FileInfo, FileLocation
 
+import os
+import shutil
+
+
+class FileOperations:
+    """
+    A class to handle file and directory operations with cache management.
+    Ensures that data is synced to disk before clearing cache.
+    """
+
+    def copy(self, src, dst):
+        """
+        Copy a file or directory from src to dst, sync data to disk, and clear cache.
+        """
+        try:
+            if os.path.isfile(src):
+                # Copy the file
+                shutil.copy2(src, dst)
+                # Sync and clear cache for the destination file
+                self._sync_and_clear_cache(dst)
+            elif os.path.isdir(src):
+                # Copy the directory
+                if not os.path.exists(dst):
+                    os.makedirs(dst)
+                for root, dirs, files in os.walk(src):
+                    relative_path = os.path.relpath(root, src)
+                    dest_dir = os.path.join(dst, relative_path)
+                    if not os.path.exists(dest_dir):
+                        os.makedirs(dest_dir)
+                    for file in files:
+                        src_file = os.path.join(root, file)
+                        dst_file = os.path.join(dest_dir, file)
+                        shutil.copy2(src_file, dst_file)
+                        # Sync and clear cache for the destination file
+                        self._sync_and_clear_cache(dst_file)
+            else:
+                print(f"Source {src} does not exist.")
+        except Exception as e:
+            print(f"Error copying from {src} to {dst}: {e}")
+            raise
+
+    def delete(self, path):
+        """
+        Delete the file or directory at path, ensuring data is synced and cache is cleared.
+        """
+        try:
+            if os.path.isfile(path):
+                # Sync and clear cache for the file
+                self._sync_and_clear_cache(path)
+                # Delete the file
+                os.remove(path)
+            elif os.path.isdir(path):
+                # Recursively sync and clear cache for all files in the directory
+                for root, dirs, files in os.walk(path, topdown=False):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        self._sync_and_clear_cache(file_path)
+                        os.remove(file_path)
+                    for dir in dirs:
+                        dir_path = os.path.join(root, dir)
+                        os.rmdir(dir_path)
+                # Delete the top-level directory
+                os.rmdir(path)
+            else:
+                print(f"Path {path} does not exist.")
+        except Exception as e:
+            print(f"Error deleting {path}: {e}")
+            raise
+
+    def move(self, src, dst):
+        """
+        Move a file or directory from src to dst, sync data to disk, and clear cache.
+        """
+        try:
+            if os.path.exists(src):
+                if os.path.isfile(src):
+                    # Sync and clear cache for the source file
+                    self._sync_and_clear_cache(src)
+                elif os.path.isdir(src):
+                    # Recursively sync and clear cache for all files in the source directory
+                    for root, dirs, files in os.walk(src):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            self._sync_and_clear_cache(file_path)
+                else:
+                    print(f"Source {src} is neither a file nor a directory.")
+                    return
+
+                # Move the file or directory
+                shutil.move(src, dst)
+
+                # Sync and clear cache for the destination
+                if os.path.isfile(dst):
+                    self._sync_and_clear_cache(dst)
+                elif os.path.isdir(dst):
+                    for root, dirs, files in os.walk(dst):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            self._sync_and_clear_cache(file_path)
+            else:
+                print(f"Source {src} does not exist.")
+        except Exception as e:
+            print(f"Error moving from {src} to {dst}: {e}")
+            raise
+
+    def clear_cache(self, path):
+        """
+        Clear cache for the file or directory at the given path.
+        """
+        try:
+            if os.path.isfile(path):
+                # Clear cache for the file
+                self._sync_and_clear_cache(path)
+            elif os.path.isdir(path):
+                # Recursively clear cache for all files in the directory
+                for root, dirs, files in os.walk(path):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        self._sync_and_clear_cache(file_path)
+            else:
+                print(f"Path {path} does not exist.")
+        except Exception as e:
+            print(f"Error clearing cache for {path}: {e}")
+            raise
+
+    def _sync_and_clear_cache(self, file_path):
+        """
+        Sync data to disk and clear cache for a single file.
+        """
+        try:
+            with open(file_path, "rb") as f:
+                f.flush()
+                os.fsync(f.fileno())
+                self._advise_drop_cache(f.fileno())
+        except Exception as e:
+            print(f"Error syncing and clearing cache for {file_path}: {e}")
+            raise
+
+    def _advise_drop_cache(self, fileno):
+        """
+        Advise the kernel to drop cache for the file given by file descriptor.
+        """
+        try:
+            if hasattr(os, "posix_fadvise") and hasattr(os, "POSIX_FADV_DONTNEED"):
+                os.posix_fadvise(fileno, 0, 0, os.POSIX_FADV_DONTNEED)
+            else:
+                print(
+                    "posix_fadvise not available on this system. Cannot clear cache for file."
+                )
+        except Exception as e:
+            print(f"Error in posix_fadvise: {e}")
+            raise
+
 
 def download_local_file(file_info: FileInfo, upload_file: UploadFile, dest_dir: str):
     assert os.path.basename(file_info.path) == upload_file.filename

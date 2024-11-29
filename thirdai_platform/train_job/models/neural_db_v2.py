@@ -90,6 +90,7 @@ class NeuralDBV2(Model):
         tmp_dir = self.data_dir / "unsupervised"
 
         docs_indexed = 0
+        successfully_indexed_files = 0
 
         batches = [files[i : i + batch_size] for i in range(0, len(files), batch_size)]
         with mp.Pool(processes=n_jobs) as pool:
@@ -118,7 +119,7 @@ class NeuralDBV2(Model):
                 docs = []
                 for doc_idx, doc in enumerate(curr_batch):
                     if not doc:
-                        msg = f"Unable to parse {batches[i][doc_idx].path}. Unsupported filetype. Cannot train model."
+                        msg = f"Unable to parse {batches[i][doc_idx].path}. Unsupported filetype."
                         self.logger.error(msg, code=LogCode.MODEL_INSERT)
                         self.reporter.report_warning(
                             model_id=self.config.model_id,
@@ -132,6 +133,7 @@ class NeuralDBV2(Model):
                 index_end = time.perf_counter()
 
                 docs_indexed += len(curr_batch)
+                successfully_indexed_files += len(docs)
 
                 if next_batch:
                     next_batch.wait()
@@ -173,6 +175,8 @@ class NeuralDBV2(Model):
             f"After removing old doc versions total_chunks={total_chunks}",
             code=LogCode.MODEL_DELETE,
         )
+
+        return successfully_indexed_files
 
     def rlhf_retraining(self, path: str):
         feedback_samples = defaultdict(int)
@@ -232,6 +236,8 @@ class NeuralDBV2(Model):
     def supervised_train(self, files: List[FileInfo]):
         self.logger.info("Starting supervised training.", code=LogCode.MODEL_RLHF)
 
+        successfully_trained_files = 0
+
         for file in files:
             if file.ext() == ".jsonl":
                 self.rlhf_retraining(file.path)
@@ -250,13 +256,18 @@ class NeuralDBV2(Model):
                         f"Completed CSV supervised training on {file.path}.",
                         code=LogCode.MODEL_RLHF,
                     )
+                    successfully_trained_files += 1
                 except Exception as e:
-                    self.logger.error(
-                        f"Failed to train on file {file.path} with error {e}",
-                        code=LogCode.MODEL_RLHF,
+                    msg = f"Failed to train on file {file.path} with error {e}"
+                    self.logger.error(msg, code=LogCode.MODEL_RLHF)
+                    self.reporter.report_warning(
+                        model_id=self.config.model_id,
+                        message=msg,
                     )
 
         self.logger.info("Completed supervised training.", code=LogCode.MODEL_RLHF)
+
+        return successfully_trained_files
 
     def train(self, **kwargs):
         """
@@ -283,11 +294,16 @@ class NeuralDBV2(Model):
 
         if unsupervised_files:
             check_disk(self.db, self.config.model_bazaar_dir, unsupervised_files)
-            self.unsupervised_train(unsupervised_files)
+            successfully_indexed_files = self.unsupervised_train(unsupervised_files)
 
         if supervised_files:
             check_disk(self.db, self.config.model_bazaar_dir, supervised_files)
-            self.supervised_train(supervised_files)
+            successfully_trained_files = self.supervised_train(supervised_files)
+
+        if successfully_indexed_files == 0 and successfully_trained_files == 0:
+            msg = "The number of documents indexed and trained is 0. Marking training as failed."
+            self.logger.error(msg, code=LogCode.MODEL_TRAIN)
+            raise ValueError(msg)
 
         train_time = time.time() - start_time
         self.logger.debug(f"Total training time: {train_time} seconds")

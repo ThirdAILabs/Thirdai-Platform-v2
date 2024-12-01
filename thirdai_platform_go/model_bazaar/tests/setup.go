@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 	"thirdai_platform/model_bazaar/licensing"
+	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
 	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
@@ -60,7 +61,9 @@ func setupTestEnv(t *testing.T) *testEnv {
 
 	modelBazaar := services.NewModelBazaar(
 		db, nomadStub, store,
-		licensing.NewVerifier(licensePath), services.Variables{},
+		licensing.NewVerifier(licensePath), services.Variables{
+			BackendDriver: &nomad.LocalDriver{},
+		},
 	)
 
 	modelBazaar.InitAdmin(adminUsername, adminEmail, adminPassword)

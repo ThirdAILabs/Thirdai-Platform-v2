@@ -5,14 +5,33 @@ import (
 	"thirdai_platform/model_bazaar/nomad"
 )
 
-type Variables struct {
-	Driver nomad.Driver
+type DockerRegistry struct {
+	Registry       string
+	DockerUsername string
+	DockerPassword string
+}
 
+type Variables struct {
+	BackendDriver  nomad.Driver
+	FrontendDriver nomad.DockerDriver
+
+	DockerRegistry DockerRegistry
+
+	ShareDir            string
 	ModelBazaarEndpoint string
 
 	CloudCredentials nomad.CloudCredentials
 
 	LlmProviders map[string]string
+}
+
+func (vars *Variables) DockerEnv() nomad.DockerEnv {
+	return nomad.DockerEnv{
+		Registry:       vars.DockerRegistry.Registry,
+		DockerUsername: vars.DockerRegistry.DockerUsername,
+		DockerPassword: vars.DockerRegistry.DockerPassword,
+		ShareDir:       vars.ShareDir,
+	}
 }
 
 func (vars *Variables) GenaiKey(provider string) (string, error) {

@@ -136,7 +136,7 @@ func (s *DeployService) deployModel(modelId, userId string, autoscaling bool, au
 				DeploymentName:     deploymentName,
 				AutoscalingEnabled: autoscaling,
 				AutoscalingMax:     autoscalingMax,
-				Driver:             s.variables.Driver,
+				Driver:             s.variables.BackendDriver,
 				Resources:          resources,
 				CloudCredentials:   s.variables.CloudCredentials,
 			},

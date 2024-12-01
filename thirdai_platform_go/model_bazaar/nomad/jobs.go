@@ -4,13 +4,17 @@ type Driver interface {
 	DriverType() string
 }
 
-type DockerDriver struct {
+type DockerEnv struct {
 	Registry       string
-	ImageName      string
-	Tag            string
 	DockerUsername string
 	DockerPassword string
 	ShareDir       string
+}
+
+type DockerDriver struct {
+	ImageName string
+	Tag       string
+	DockerEnv
 }
 
 func (p DockerDriver) DriverType() string {
@@ -27,6 +31,7 @@ func (p LocalDriver) DriverType() string {
 }
 
 type Resources struct {
+	AllocationCores     int
 	AllocationMhz       int
 	AllocationMemory    int
 	AllocationMemoryMax int
@@ -64,7 +69,7 @@ func (j TrainJob) GetJobName() string {
 }
 
 func (j TrainJob) TemplateName() string {
-	return "train_job.hcl.tmpl"
+	return "train.hcl.tmpl"
 }
 
 type DeployJob struct {
@@ -89,7 +94,7 @@ func (j DeployJob) GetJobName() string {
 }
 
 func (j DeployJob) TemplateName() string {
-	return "deploy_job.hcl.tmpl"
+	return "deploy.hcl.tmpl"
 }
 
 type DatagenTrainJob struct {
@@ -104,5 +109,98 @@ func (j DatagenTrainJob) GetJobName() string {
 }
 
 func (j DatagenTrainJob) TemplateName() string {
-	return "datagen_train_job.hcl.tmpl"
+	return "datagen_train.hcl.tmpl"
+}
+
+type LlmCacheJob struct {
+	ModelBazaarEndpoint string
+	LicenseKey          string
+	ShareDir            string
+
+	Driver Driver
+}
+
+func (j LlmCacheJob) GetJobName() string {
+	return "llm-cache"
+}
+
+func (j LlmCacheJob) TemplateName() string {
+	return "llm_cache.hcl.tmpl"
+}
+
+type LlmDispatchJob struct {
+	ModelBazaarEndpoint string
+
+	Driver Driver
+}
+
+func (j LlmDispatchJob) GetJobName() string {
+	return "llm-dispatch"
+}
+
+func (j LlmDispatchJob) TemplateName() string {
+	return "llm_dispatch.hcl.tmpl"
+}
+
+type OnPremLlmGenerationJob struct {
+	InitialAllocations int
+	AutoscalingEnabled bool
+	MinAllocations     int
+	MaxAllocations     int
+
+	ModelDir string
+
+	Docker DockerEnv
+
+	Resources Resources
+}
+
+func (j OnPremLlmGenerationJob) GetJobName() string {
+	return "on-prem-llm-generation"
+}
+
+func (j OnPremLlmGenerationJob) TemplateName() string {
+	return "on_prem_llm_generation.hcl.tmpl"
+}
+
+type TelemetryJob struct {
+	IsLocal bool
+
+	ShareDir           string
+	NomadMonitoringDir string // /model_bazaar/nomad-monitoring
+
+	GrafanaAdminUsername string
+	GrafanaAdminEmail    string
+	GrafanaAdminPassword string
+	GrafanaDbUrl         string
+
+	ModelBazaarPrivateHost string
+
+	Docker DockerEnv
+}
+
+func (j TelemetryJob) GetJobName() string {
+	return "telemetry"
+}
+
+func (j TelemetryJob) TemplateName() string {
+	return "telemetry.hcl.tmpl"
+}
+
+type FrontendJob struct {
+	OpenaiApiKey           string
+	IdentityProvider       string
+	KeycloakServerHostname string
+	NextAuthSecret         string
+
+	UseSslInLogin bool
+	Driver        DockerDriver
+}
+
+func (j FrontendJob) GetJobName() string {
+	return "thirdai-platform-frontend"
+}
+
+func (j FrontendJob) TemplateName() string {
+	return "frontend.hcl.tmpl"
 }

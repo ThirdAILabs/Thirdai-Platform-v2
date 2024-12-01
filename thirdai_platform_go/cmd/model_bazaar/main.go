@@ -34,6 +34,12 @@ func (info *DbInfo) format() string {
 	return fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v", info.Host, info.User, info.Password, info.Dbname, info.Port)
 }
 
+type ImageInfo struct {
+	BackendImage  string
+	FrontendImage string
+	Tag           string
+}
+
 type Config struct {
 	DB                  DbInfo
 	NomadEndpoint       string
@@ -42,26 +48,49 @@ type Config struct {
 	LicensePath         string
 	ModelBazaarEndpoint string
 
-	LocalDriver  *nomad.LocalDriver
-	DockerDriver *nomad.DockerDriver
+	LocalDriver    *nomad.LocalDriver
+	ImageInfo      ImageInfo
+	DockerRegistry services.DockerRegistry
 
 	AdminUsername string
 	AdminEmail    string
 	AdminPassword string
+
+	CloudCredentials nomad.CloudCredentials
 
 	LlmProviders map[string]string
 
 	Port int
 }
 
-func (c *Config) Driver() nomad.Driver {
+func (c *Config) BackendDriver() nomad.Driver {
 	if c.LocalDriver != nil {
-		return *c.LocalDriver
+		return c.LocalDriver
 	}
-	if c.DockerDriver != nil {
-		return *c.DockerDriver
+
+	return nomad.DockerDriver{
+		ImageName: c.ImageInfo.BackendImage,
+		Tag:       c.ImageInfo.Tag,
+		DockerEnv: nomad.DockerEnv{
+			Registry:       c.DockerRegistry.Registry,
+			DockerUsername: c.DockerRegistry.DockerUsername,
+			DockerPassword: c.DockerRegistry.DockerPassword,
+			ShareDir:       c.ShareDir,
+		},
 	}
-	panic("either LocalDriver or DockerDriver must be specified in config")
+}
+
+func (c *Config) FrontendDriver() nomad.DockerDriver {
+	return nomad.DockerDriver{
+		ImageName: c.ImageInfo.FrontendImage,
+		Tag:       c.ImageInfo.Tag,
+		DockerEnv: nomad.DockerEnv{
+			Registry:       c.DockerRegistry.Registry,
+			DockerUsername: c.DockerRegistry.DockerUsername,
+			DockerPassword: c.DockerRegistry.DockerPassword,
+			ShareDir:       c.ShareDir,
+		},
+	}
 }
 
 func loadConfig() Config {
@@ -131,8 +160,12 @@ func main() {
 		storage.NewSharedDisk(c.ShareDir),
 		licensing.NewVerifier(c.LicensePath),
 		services.Variables{
-			Driver:              c.Driver(),
+			BackendDriver:       c.BackendDriver(),
+			FrontendDriver:      c.FrontendDriver(),
+			DockerRegistry:      c.DockerRegistry,
+			ShareDir:            c.ShareDir,
 			ModelBazaarEndpoint: c.ModelBazaarEndpoint,
+			CloudCredentials:    c.CloudCredentials,
 			LlmProviders:        c.LlmProviders,
 		},
 	)

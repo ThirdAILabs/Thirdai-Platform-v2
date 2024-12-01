@@ -15,10 +15,20 @@
     "PlatformDir": "/path/to/thirdai_platform",
     "PythonPath": "python3"
   },
-  "DockerDriver": null,
+  "ImageInfo": {
+    "BackendImage": "",
+    "FrontendImage": "",
+    "Tag": ""
+  },
+  "DockerRegistry": {
+    "Registry": "",
+    "DockerUsername": "",
+    "DockerPassword": ""
+  },
   "AdminUsername": "admin",
   "AdminEmail": "admin@mail.com",
   "AdminPassword": "password",
+  "CloudCredentials": {},
   "LlmProviders": {
     "openai": "your key"
   },

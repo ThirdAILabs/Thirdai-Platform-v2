@@ -430,7 +430,7 @@ func (s *TrainService) createModelAndStartDatagenTraining(
 		TrainJob: nomad.TrainJob{
 			JobName:    model.TrainJobName(),
 			ConfigPath: trainConfigPath,
-			Driver:     s.variables.Driver,
+			Driver:     s.variables.BackendDriver,
 			Resources: nomad.Resources{
 				AllocationMhz:       trainConfig.JobOptions.CpuUsageMhz(),
 				AllocationMemory:    trainConfig.JobOptions.AllocationMemory,

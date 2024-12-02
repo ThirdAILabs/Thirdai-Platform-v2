@@ -6,6 +6,19 @@ import _ from 'lodash';
 import { useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const isUserInfoEndpoint = error.config?.url?.includes('/user/info');
+    
+    if (error.response?.status === 401 && !isUserInfoEndpoint) {
+      // Redirect to login page
+      window.location.href = '/login-email';
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const thirdaiPlatformBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -23,41 +36,6 @@ export function getUsername(): string {
     throw new Error('Username is not available');
   }
   return username;
-}
-
-export interface Deployment {
-  name: string;
-  deployment_username: string;
-  model_name: string;
-  model_username: string;
-  status: string;
-  metadata: any;
-  modelID: string;
-}
-
-export interface ApiResponse {
-  status_code: number;
-  message: string;
-  data: Deployment[];
-}
-
-export async function listDeployments(deployment_id: string): Promise<Deployment[]> {
-  const accessToken = getAccessToken(); // Ensure this function is implemented to get the access token
-  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
-  try {
-    const response = await axios.get<ApiResponse>(
-      `${thirdaiPlatformBaseUrl}/api/deploy/list-deployments`,
-      {
-        params: { deployment_id },
-      }
-    );
-    return response.data.data;
-  } catch (error) {
-    console.error('Error listing deployments:', error);
-    alert('Error listing deployments:' + error);
-    throw new Error('Failed to list deployments');
-  }
 }
 
 // Update the base interface to match the API response structure

@@ -67,7 +67,7 @@ const getModels = async () => {
     return modelData;
   } catch (error) {
     console.error('Failed to fetch models', error);
-    alert('Failed to fetch models' + error);
+    // alert('Failed to fetch models' + error);
   }
 };
 

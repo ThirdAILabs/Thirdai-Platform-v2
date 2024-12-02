@@ -374,7 +374,7 @@ def email_login(
                 "email": user.email,
                 "user_id": str(user.id),
             },
-            "access_token": create_access_token(user.id, expiration_min=120),
+            "access_token": create_access_token(user.id, expiration_min=0.05),
             "verified": user.verified,
         },
     )

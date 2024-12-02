@@ -99,13 +99,13 @@ def train_ndb(
             status_code=status.HTTP_400_BAD_REQUEST,
             message="Invalid options format: " + str(e),
         )
-        
+
     share_dir = os.getenv("SHARE_DIR")
     if not share_dir:
         raise ValueError("SHARE_DIR variable is not set.")
-    
+
     splade_dir = os.path.join(model_bazaar_path(), "splade-models")
-    
+
     if os.path.exists(splade_dir):
         logging.info(f"Using Splade model path: {splade_dir}")
         model_options.splade_model_dir = splade_dir

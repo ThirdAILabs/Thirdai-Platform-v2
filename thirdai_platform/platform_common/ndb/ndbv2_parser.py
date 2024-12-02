@@ -1,7 +1,5 @@
 import logging
 import os
-
-pass
 import uuid
 from typing import Any, Dict, Optional, Tuple
 

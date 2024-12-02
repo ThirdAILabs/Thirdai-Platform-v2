@@ -188,6 +188,7 @@ def download_local_files(
                     upload_file=filename_to_file[os.path.basename(file_info.path)],
                     dest_dir=dest_dir,
                 )
+                FileOperations.clear_cache(local_path)
             except Exception as error:
                 raise ValueError(
                     f"Error processing file '{file_info.path}' from '{file_info.location}': {error}"

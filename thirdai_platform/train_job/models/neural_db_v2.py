@@ -124,7 +124,7 @@ class NeuralDBV2(Model):
                         docs.append(doc)
 
                 index_start = time.perf_counter()
-                # self.db.insert(docs)
+                self.db.insert(docs)
                 index_end = time.perf_counter()
 
                 docs_indexed += len(curr_batch)

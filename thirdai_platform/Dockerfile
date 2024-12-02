@@ -20,6 +20,13 @@ RUN pip install -r /app/requirements.txt
 RUN python3 -m pip install thirdai[neural_db_v2]>=0.9.21
 RUN python3 -m pip install -U langchain-community
 
+# The following block downloads pretrained HuggingFace models to our cache,
+# so they are not downloaded during runtime
+ENV HF_HOME=/app/.cache
+RUN mkdir -p /app/.cache
+COPY download_pretrained_transformers.py /app/
+RUN python3 download_pretrained_transformers.py
+
 COPY . /app
 
 # Use build args instead of env variables to pass in these variables at build time

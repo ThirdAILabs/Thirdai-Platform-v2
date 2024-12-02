@@ -152,9 +152,9 @@ class NeuralDBV2(Model):
         )
 
         upsert_doc_ids = [
-            file.doc_id
+            file.source_id
             for file in files
-            if file.doc_id and file.options.get("upsert", False)
+            if file.source_id and file.options.get("upsert", False)
         ]
 
         self.logger.info(

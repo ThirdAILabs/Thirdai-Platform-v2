@@ -18,11 +18,12 @@ import (
 )
 
 type ModelBazaar struct {
-	user   UserService
-	team   TeamService
-	model  ModelService
-	train  TrainService
-	deploy DeployService
+	user      UserService
+	team      TeamService
+	model     ModelService
+	train     TrainService
+	deploy    DeployService
+	telemetry TelemetryService
 
 	db    *gorm.DB
 	nomad nomad.NomadClient
@@ -63,6 +64,10 @@ func NewModelBazaar(
 			license:   license,
 			variables: variables,
 		},
+		telemetry: TelemetryService{
+			nomad:     nomad,
+			variables: variables,
+		},
 		db:    db,
 		nomad: nomad,
 		stop:  make(chan bool, 1),
@@ -82,6 +87,7 @@ func (m *ModelBazaar) Routes() chi.Router {
 	r.Mount("/model", m.model.Routes())
 	r.Mount("/train", m.train.Routes())
 	r.Mount("/deploy", m.deploy.Routes())
+	r.Mount("/telemetry", m.telemetry.Routes())
 
 	return r
 }

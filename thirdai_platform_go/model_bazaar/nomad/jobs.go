@@ -143,12 +143,13 @@ func (j LlmDispatchJob) TemplateName() string {
 }
 
 type OnPremLlmGenerationJob struct {
-	InitialAllocations int
 	AutoscalingEnabled bool
+	InitialAllocations int
 	MinAllocations     int
 	MaxAllocations     int
 
-	ModelDir string
+	ModelDir  string
+	ModelName string
 
 	Docker DockerEnv
 
@@ -164,15 +165,15 @@ func (j OnPremLlmGenerationJob) TemplateName() string {
 }
 
 type TelemetryJob struct {
-	IsLocal bool
+	IsLocal     bool
+	TargetCount int
 
-	ShareDir           string
-	NomadMonitoringDir string // /model_bazaar/nomad-monitoring
+	NomadMonitoringDir string
 
-	GrafanaAdminUsername string
-	GrafanaAdminEmail    string
-	GrafanaAdminPassword string
-	GrafanaDbUrl         string
+	AdminUsername string
+	AdminEmail    string
+	AdminPassword string
+	GrafanaDbUrl  string
 
 	ModelBazaarPrivateHost string
 

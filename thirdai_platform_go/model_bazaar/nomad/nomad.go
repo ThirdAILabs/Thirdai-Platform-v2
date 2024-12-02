@@ -31,6 +31,18 @@ type JobLog struct {
 	Stderr string `json:"stderr"`
 }
 
+type ServiceAllocation struct {
+	Address string
+	AllocID string
+	NodeID  string
+	Port    int
+}
+
+type ServiceInfo struct {
+	Name        string
+	Allocations []ServiceAllocation
+}
+
 type NomadClient interface {
 	StartJob(job Job) error
 
@@ -39,6 +51,8 @@ type NomadClient interface {
 	JobInfo(jobName string) (JobInfo, error)
 
 	JobLogs(jobName string) ([]JobLog, error)
+
+	ListServices() ([]ServiceInfo, error)
 
 	TotalCpuUsage() (int, error)
 }
@@ -359,6 +373,102 @@ func (c *NomadHttpClient) JobLogs(jobName string) ([]JobLog, error) {
 	slog.Info("nomad job logs retrieved successfully", "job_name", jobName)
 
 	return logs, nil
+}
+
+type serviceResponse struct {
+	Namespace string
+	Services  []struct {
+		ServiceName string
+	}
+}
+
+func (c *NomadHttpClient) listAllServices() ([]string, error) {
+	url, err := url.JoinPath(c.addr, "v1/services")
+	if err != nil {
+		return nil, fmt.Errorf("error formatting services url: %w", err)
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating new request: %w", err)
+	}
+	req.Header.Add("X-Nomad-Token", c.token)
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error getting nomad services: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("list nomad services returned status %d", res.StatusCode)
+	}
+
+	var namespaces []serviceResponse
+	err = json.NewDecoder(res.Body).Decode(&namespaces)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding services response from nomad: %w", err)
+	}
+
+	services := make([]string, 0)
+	for _, namespace := range namespaces {
+		for _, service := range namespace.Services {
+			services = append(services, service.ServiceName)
+		}
+	}
+
+	return services, nil
+}
+
+func (c *NomadHttpClient) getServiceInfo(service string) (ServiceInfo, error) {
+	url, err := url.JoinPath(c.addr, fmt.Sprintf("v1/service/%v", service))
+	if err != nil {
+		return ServiceInfo{}, fmt.Errorf("error formatting service url: %w", err)
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return ServiceInfo{}, fmt.Errorf("error creating new request: %w", err)
+	}
+	req.Header.Add("X-Nomad-Token", c.token)
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return ServiceInfo{}, fmt.Errorf("error getting nomad service info: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return ServiceInfo{}, fmt.Errorf("get service info returned status %d", res.StatusCode)
+	}
+
+	var allocations []ServiceAllocation
+	err = json.NewDecoder(res.Body).Decode(&allocations)
+	if err != nil {
+		return ServiceInfo{}, fmt.Errorf("error decoding service info response from nomad: %w", err)
+	}
+
+	return ServiceInfo{Name: service, Allocations: allocations}, nil
+}
+
+func (c *NomadHttpClient) ListServices() ([]ServiceInfo, error) {
+	serviceNames, err := c.listAllServices()
+	if err != nil {
+		slog.Error("error listing nomad services", "error", err)
+		return nil, fmt.Errorf("error listing nomad services: %w", err)
+	}
+
+	serviceInfos := make([]ServiceInfo, 0, len(serviceNames))
+	for _, service := range serviceNames {
+		info, err := c.getServiceInfo(service)
+		if err != nil {
+			slog.Error("error getting info for nomad service", "service", service, "error", err)
+			return nil, fmt.Errorf("error getting info for service %v: %w", service, err)
+		}
+		serviceInfos = append(serviceInfos, info)
+	}
+
+	return serviceInfos, nil
 }
 
 type nomadAllocation struct {

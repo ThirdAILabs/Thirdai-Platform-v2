@@ -2,6 +2,7 @@ package storage
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -93,6 +94,19 @@ func (s *SharedDiskStorage) List(path string) ([]string, error) {
 	return paths, nil
 }
 
+func (s *SharedDiskStorage) Exists(path string) (bool, error) {
+	fullpath := s.fullpath(path)
+	_, err := os.Stat(fullpath)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	slog.Error("error checking if file exists", "path", fullpath, "error", err)
+	return false, fmt.Errorf("error checking if file %v exists: %w", fullpath, err)
+}
+
 func (s *SharedDiskStorage) Unzip(path string) error {
 	fullpath := s.fullpath(path)
 	zip, err := zip.OpenReader(fullpath)
@@ -145,6 +159,18 @@ func (s *SharedDiskStorage) Zip(path string) error {
 	}
 
 	return nil
+}
+
+func (s *SharedDiskStorage) Size(path string) (int64, error) {
+	fullpath := s.fullpath(path)
+
+	info, err := os.Stat(fullpath)
+	if err != nil {
+		slog.Error("error getting stats for file", "path", fullpath, "error", err)
+		return 0, fmt.Errorf("error gettings stats for file %v: %w", fullpath, err)
+	}
+
+	return info.Size(), nil
 }
 
 func (s *SharedDiskStorage) Location() string {

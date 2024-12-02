@@ -13,9 +13,13 @@ type Storage interface {
 
 	List(path string) ([]string, error)
 
+	Exists(path string) (bool, error)
+
 	Unzip(path string) error
 
 	Zip(path string) error
+
+	Size(path string) (int64, error)
 
 	Location() string
 }

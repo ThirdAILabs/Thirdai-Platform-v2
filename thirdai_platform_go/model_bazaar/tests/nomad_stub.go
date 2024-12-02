@@ -33,6 +33,10 @@ func (c *NomadStub) JobLogs(jobName string) ([]nomad.JobLog, error) {
 	return []nomad.JobLog{}, nil
 }
 
+func (c *NomadStub) ListServices() ([]nomad.ServiceInfo, error) {
+	return []nomad.ServiceInfo{}, nil
+}
+
 func (c *NomadStub) TotalCpuUsage() (int, error) {
 	return 0, nil
 }

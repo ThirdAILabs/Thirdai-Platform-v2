@@ -45,7 +45,7 @@ func Checksum(data io.Reader) (string, error) {
 	return base64.StdEncoding.EncodeToString(h.Sum(nil)), nil
 }
 
-func utils.WriteJsonResponse(w http.ResponseWriter, data interface{}) {
+func writeJsonResponse(w http.ResponseWriter, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(data)

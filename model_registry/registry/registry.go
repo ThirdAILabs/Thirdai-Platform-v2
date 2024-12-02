@@ -96,7 +96,7 @@ func (registry *ModelRegistry) NewApiKey(w http.ResponseWriter, r *http.Request)
 	}
 
 	res := generateApiKeyResponse{ApiKey: key}
-	utils.WriteJsonResponse(w, res)
+	writeJsonResponse(w, res)
 }
 
 func (registry *ModelRegistry) DeleteModel(w http.ResponseWriter, r *http.Request) {
@@ -190,7 +190,7 @@ func (registry *ModelRegistry) ListModels(w http.ResponseWriter, r *http.Request
 	}
 
 	res := listModelsResponse{Models: modelInfos}
-	utils.WriteJsonResponse(w, res)
+	writeJsonResponse(w, res)
 }
 
 type downloadRequest struct {
@@ -248,7 +248,7 @@ func (registry *ModelRegistry) DownloadLink(w http.ResponseWriter, r *http.Reque
 	}
 
 	res := downloadResponse{DownloadLink: link}
-	utils.WriteJsonResponse(w, res)
+	writeJsonResponse(w, res)
 }
 
 type uploadRequest struct {
@@ -353,7 +353,7 @@ func (registry *ModelRegistry) StartUpload(w http.ResponseWriter, r *http.Reques
 	}
 
 	res := uploadResponse{SessionToken: token}
-	utils.WriteJsonResponse(w, res)
+	writeJsonResponse(w, res)
 }
 
 type contentRange struct {

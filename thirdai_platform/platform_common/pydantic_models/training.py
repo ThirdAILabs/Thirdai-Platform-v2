@@ -121,6 +121,7 @@ class NDBOptions(BaseModel):
 
     on_disk: bool = True
     advanced_search: bool = False
+    splade_model_dir: Optional[str] = None
 
     class Config:
         protected_namespaces = ()

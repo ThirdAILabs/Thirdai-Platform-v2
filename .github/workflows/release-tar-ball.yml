@@ -35,6 +35,15 @@ jobs:
           mkdir -p gen-ai-models
           wget -O gen-ai-models/Llama-3.2-1B-Instruct-f16.gguf https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-f16.gguf?download=true
 
+      - name: Download and store the Splade model and tokenizer
+        run: |
+          mkdir -p splade-models
+          wget -O splade-models/pytorch_model.bin https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/pytorch_model.bin
+          wget -O splade-models/tokenizer.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/tokenizer.json
+          wget -O splade-models/config.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/config.json
+          wget -O splade-models/tokenizer_config.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/tokenizer_config.json
+          wget -O splade-models/vocab.txt https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/vocab.txt
+
       - name: Ensure scripts directory exists
         run: mkdir -p ./platform/scripts
 

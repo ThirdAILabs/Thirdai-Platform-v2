@@ -44,9 +44,10 @@ func CheckValidPermission(permission string) error {
 }
 
 const (
-	NdbModel      = "ndb"
-	NlpTokenModel = "nlp-token"
-	NlpTextModel  = "nlp-text"
+	NdbModel         = "ndb"
+	NlpTokenModel    = "nlp-token"
+	NlpTextModel     = "nlp-text"
+	EnterpriseSearch = "enterprise-search"
 )
 
 func CheckValidModelType(modelType string) error {

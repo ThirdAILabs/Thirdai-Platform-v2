@@ -3,7 +3,6 @@ Defines NDB model classes for the application.
 """
 
 import ast
-import logging
 import os
 import shutil
 import tempfile
@@ -23,6 +22,7 @@ from deployment_job.pydantic_models import inputs
 from deployment_job.utils import acquire_file_lock, release_file_lock
 from fastapi import HTTPException, status
 from platform_common.file_handler import FileInfo, expand_cloud_buckets_and_directories
+from platform_common.logging import JobLogger, LogCode
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.core.types import Chunk
@@ -30,12 +30,14 @@ from thirdai.neural_db_v2.core.types import Chunk
 
 class NDBModel(Model):
     def __init__(
-        self, config: DeploymentConfig, logger: logging.Logger, write_mode: bool = False
+        self,
+        config: DeploymentConfig,
+        logger: JobLogger,
+        write_mode: bool = False,
     ):
         super().__init__(config=config, logger=logger)
 
         self.db_lock = Lock()
-        self.logger.info(f"Loading NDBV2 model from {self.ndb_save_path()}")
         self.db = self.load(write_mode=write_mode)
 
         self.chat_instances = {}
@@ -112,10 +114,9 @@ class NDBModel(Model):
 
         for i, doc in enumerate(ndb_docs):
             if not doc:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Unable to parse {documents[i].path}. Unsupported file type.",
-                )
+                msg = f"Unable to parse {documents[i].path}. Unsupported file type."
+                self.logger.error(msg, code=LogCode.FILE_VALIDATION)
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
 
         with self.db_lock:
             self.db.insert(ndb_docs)
@@ -251,33 +252,41 @@ class NDBModel(Model):
         }
 
     def load(self, write_mode: bool = False, **kwargs) -> ndbv2.NeuralDB:
-        self.logger.info(
-            f"Loading NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}"
-        )
+        try:
+            with open(ndbv2.NeuralDB.metadata_path(self.ndb_save_path()), "r") as f:
+                ndb_save_metadata = json.load(f)
+            chunk_store_name = ndb_save_metadata["chunk_store_name"]
 
-        with open(ndbv2.NeuralDB.metadata_path(self.ndb_save_path()), "r") as f:
-            ndb_save_metadata = json.load(f)
-        chunk_store_name = ndb_save_metadata["chunk_store_name"]
+            if write_mode or chunk_store_name == "PandasChunkStore":
+                loaded_db = ndbv2.NeuralDB.load(self.ndb_save_path(), read_only=not write_mode)
+            else:
+                lockfile = os.path.join(self.host_model_dir, "ndb.lock")
+                lock = acquire_file_lock(lockfile)
+                try:
+                    if not os.path.exists(self.ndb_host_save_path()):
+                        self.logger.info(
+                            f"Creating a local ndb copy at {self.ndb_host_save_path()}"
+                        )
+                        shutil.copytree(self.ndb_save_path(), self.ndb_host_save_path())
+                    else:
+                        pass
+                finally:
+                    release_file_lock(lock)
 
-        if write_mode or chunk_store_name == "PandasChunkStore":
-            return ndbv2.NeuralDB.load(self.ndb_save_path(), read_only=not write_mode)
-        else:
-            lockfile = os.path.join(self.host_model_dir, "ndb.lock")
-            lock = acquire_file_lock(lockfile)
-            try:
-                if not os.path.exists(self.ndb_host_save_path()):
-                    self.logger.info(
-                        f"Creating a local ndb copy at {self.ndb_host_save_path()}"
-                    )
-                    shutil.copytree(self.ndb_save_path(), self.ndb_host_save_path())
-                else:
-                    pass
-            finally:
-                release_file_lock(lock)
-
-            return ndbv2.NeuralDB.load(
-                self.ndb_host_save_path(), read_only=not write_mode
+                loaded_db = ndbv2.NeuralDB.load(
+                    self.ndb_host_save_path(), read_only=not write_mode
+                )
+            self.logger.info(
+                f"Loaded NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}",
+                code=LogCode.MODEL_LOAD,
             )
+            return loaded_db
+        except:
+            self.logger.error(
+                f"Failed to load NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}",
+                code=LogCode.MODEL_LOAD,
+            )
+            raise e
 
     def save(self, model_id: str, **kwargs) -> None:
         model_path = self.get_ndb_path(model_id)
@@ -290,18 +299,30 @@ class NDBModel(Model):
                 if model_path.exists():
                     backup_id = str(uuid.uuid4())
                     backup_path = self.get_ndb_path(backup_id)
-                    self.logger.info(f"Creating backup: {backup_id}")
+                    self.logger.debug(
+                        f"Creating backup: {backup_id}", code=LogCode.MODEL_SAVE
+                    )
                     shutil.copytree(model_path, backup_path)
 
                 if model_path.exists():
                     shutil.rmtree(model_path)
+
+                self.logger.debug(
+                    f"Moving temp model to {model_path}", code=LogCode.MODEL_SAVE
+                )
                 shutil.move(temp_model_path, model_path)
 
                 if model_path.exists() and backup_path is not None:
                     shutil.rmtree(backup_path.parent)
 
+                self.logger.info(
+                    f"Saved NDBv2 model to {model_path}", code=LogCode.MODEL_SAVE
+                )
+
         except Exception as err:
-            self.logger.error(f"Failed while saving with error: {err}")
+            self.logger.error(
+                f"Failed while saving with error: {err}", code=LogCode.MODEL_SAVE
+            )
             traceback.print_exc()
 
             if backup_path is not None and backup_path.exists():
@@ -327,7 +348,8 @@ class NDBModel(Model):
             if provider in self.chat_instances and self.chat_instances[provider]:
                 # Chat instance for this provider already exists, do not recreate
                 self.logger.info(
-                    f"Chat instance for provider '{provider}' is already set."
+                    f"Chat instance for provider '{provider}' is already set.",
+                    code=LogCode.CHAT,
                 )
                 return
             try:
@@ -356,10 +378,13 @@ class NDBModel(Model):
                     base_url=self.config.model_bazaar_endpoint,
                     **kwargs,
                 )
-                self.logger.info(f"Chat instance set for provider '{provider}'")
+                self.logger.info(
+                    f"Chat instance set for provider '{provider}'", code=LogCode.CHAT
+                )
             except Exception:
                 self.logger.error(
-                    f"Error setting chat instance for provider '{provider}': {traceback.format_exc()}"
+                    f"Error setting chat instance for provider '{provider}': {traceback.format_exc()}",
+                    code=LogCode.CHAT,
                 )
                 traceback.print_exc()
                 self.chat_instances[provider] = None

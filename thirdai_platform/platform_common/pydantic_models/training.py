@@ -266,6 +266,7 @@ class JobOptions(BaseModel):
 
 
 class TrainConfig(BaseModel):
+    user_id: str
     model_bazaar_dir: str
     license_key: str
     model_bazaar_endpoint: str

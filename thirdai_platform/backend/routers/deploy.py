@@ -237,6 +237,7 @@ async def deploy_single_model(
 
     host_dir_uuid = str(uuid.uuid4())
     config = DeploymentConfig(
+        user_id=str(user.id),
         model_id=str(model.id),
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
         model_bazaar_dir=(

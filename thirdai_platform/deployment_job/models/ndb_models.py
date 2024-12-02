@@ -281,7 +281,7 @@ class NDBModel(Model):
                 code=LogCode.MODEL_LOAD,
             )
             return loaded_db
-        except:
+        except Exception as e:
             self.logger.error(
                 f"Failed to load NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}",
                 code=LogCode.MODEL_LOAD,

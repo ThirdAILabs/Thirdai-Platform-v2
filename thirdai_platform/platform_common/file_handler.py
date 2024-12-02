@@ -26,11 +26,19 @@ class FileOperations:
         """
         try:
             if os.path.isfile(src):
-                shutil.copy2(src, dst)
-                self._sync_and_clear_cache(dst)
+                if os.path.isdir(dst):
+                    dst_file = os.path.join(dst, os.path.basename(src))
+                else:
+                    dst_file = dst
+                shutil.copy2(src, dst_file)
+                self._sync_and_clear_cache(dst_file)
             elif os.path.isdir(src):
                 if not os.path.exists(dst):
                     os.makedirs(dst)
+                elif os.path.isfile(dst):
+                    raise ValueError(
+                        f"Destination {dst} is a file, cannot copy directory into a file."
+                    )
                 for root, dirs, files in os.walk(src):
                     relative_path = os.path.relpath(root, src)
                     dest_dir = os.path.join(dst, relative_path)
@@ -79,24 +87,25 @@ class FileOperations:
             if os.path.exists(src):
                 if os.path.isfile(src):
                     self._sync_and_clear_cache(src)
+                    if os.path.isdir(dst):
+                        dst_file = os.path.join(dst, os.path.basename(src))
+                    else:
+                        dst_file = dst
+                    shutil.move(src, dst_file)
+                    self._sync_and_clear_cache(dst_file)
                 elif os.path.isdir(src):
-                    for root, dirs, files in os.walk(src):
+                    if os.path.exists(dst) and os.path.isfile(dst):
+                        raise ValueError(
+                            f"Destination {dst} is a file, cannot move directory into a file."
+                        )
+                    shutil.move(src, dst)
+                    for root, dirs, files in os.walk(dst):
                         for file in files:
                             file_path = os.path.join(root, file)
                             self._sync_and_clear_cache(file_path)
                 else:
                     print(f"Source {src} is neither a file nor a directory.")
                     return
-
-                shutil.move(src, dst)
-
-                if os.path.isfile(dst):
-                    self._sync_and_clear_cache(dst)
-                elif os.path.isdir(dst):
-                    for root, dirs, files in os.walk(dst):
-                        for file in files:
-                            file_path = os.path.join(root, file)
-                            self._sync_and_clear_cache(file_path)
             else:
                 print(f"Source {src} does not exist.")
         except Exception as e:
@@ -126,10 +135,13 @@ class FileOperations:
         Sync data to disk and clear cache for a single file.
         """
         try:
-            with open(file_path, "rb") as f:
-                f.flush()
-                os.fsync(f.fileno())
-                self._advise_drop_cache(f.fileno())
+            if os.path.isfile(file_path):
+                with open(file_path, "rb") as f:
+                    f.flush()
+                    os.fsync(f.fileno())
+                    self._advise_drop_cache(f.fileno())
+            else:
+                print(f"Cannot sync and clear cache for {file_path}: Not a file.")
         except Exception as e:
             print(f"Error syncing and clearing cache for {file_path}: {e}")
             raise
@@ -138,7 +150,6 @@ class FileOperations:
         """
         Advise the kernel to drop cache for the file given by file descriptor.
         """
-        # Mac doesnot have posix_fadvise, hence the condition, however it seems just fsync is fine for mac to clean up the cache
         try:
             if hasattr(os, "posix_fadvise") and hasattr(os, "POSIX_FADV_DONTNEED"):
                 os.posix_fadvise(fileno, 0, 0, os.POSIX_FADV_DONTNEED)

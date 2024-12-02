@@ -1146,22 +1146,6 @@ async def validate_text_classification_csv(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
-def extract_labels_from_csv(file: UploadFile) -> Set[str]:
-    """Extract unique labels from the target column of the CSV."""
-    # Read CSV content
-    content = file.file.read()
-    file.file.seek(0)  # Reset file pointer for later use
-    # Parse CSV
-    df = pd.read_csv(io.StringIO(content.decode("utf-8")))
-    # Extract all unique tags from the target column
-    all_tags = set()
-    for row in df["target"]:
-        tags = row.split()
-        all_tags.update(set(tags) - {"O"})  # Exclude the 'O' tag
-    return all_tags
-
-
 def validate_csv_format(file: UploadFile) -> tuple[bool, str, set[str] | None]:
     """
     Validates the CSV file format for token classification.

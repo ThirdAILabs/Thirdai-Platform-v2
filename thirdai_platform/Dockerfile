@@ -17,8 +17,7 @@ RUN pip install -r /app/requirements.txt
 
 # Install thirdai package separately since this is the dependency that changes
 # the most often. This allows the other packages to stay cached.
-COPY thirdai-0.9.24-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl /app/thirdai-0.9.24-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-RUN pip install /app/thirdai-0.9.24-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+RUN python3 -m pip install thirdai[neural_db_v2]>=0.9.21
 
 RUN python3 -m pip install -U langchain-community
 

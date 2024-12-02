@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from functools import wraps
@@ -11,9 +12,6 @@ from botocore.client import Config
 from botocore.exceptions import ClientError
 from fastapi import HTTPException, UploadFile, status
 from platform_common.pydantic_models.training import FileInfo, FileLocation
-
-import os
-import shutil
 
 
 class FileOperations:

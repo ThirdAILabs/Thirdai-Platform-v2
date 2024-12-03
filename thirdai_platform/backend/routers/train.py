@@ -1272,16 +1272,41 @@ async def validate_document_classification_folder(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
+    """
+    Validates a folder structure for document classification training.
+
+    Expected folder structure when user selects a root folder (e.g., customer_feedback):
+    customer_feedback/
+    ├── positive/
+    │   ├── comment_1.pdf
+    │   ├── feedback_2.txt
+    │   └── ...
+    ├── neutral/
+    │   ├── comment_3.docx
+    │   ├── feedback_4.pdf
+    │   └── ...
+    ├── negative/
+    │   ├── comment_5.pdf
+    │   ├── feedback_6.txt
+    │   └── ...
+
+    Requirements:
+    1. Only .txt, .doc, .docx, and .pdf files are allowed
+    2. Must have at least 2 category folders (e.g., positive, neutral, negative)
+    3. Each category must contain at least 10 documents
+    4. Files must be organized in exactly 3 levels (root/category/files)
+    5. No nested subcategories are allowed beyond the category level
+    """
     try:
         valid_extensions = {".txt", ".doc", ".docx", ".pdf"}
-        
+
         # Validate file types first
         invalid_files = []
         for file in files:
             ext = Path(file.filename).suffix.lower()
             if ext not in valid_extensions:
                 invalid_files.append(file.filename)
-                
+
         if invalid_files:
             return FolderValidationResponse(
                 valid=False,
@@ -1290,18 +1315,33 @@ async def validate_document_classification_folder(
                 file_counts={},
             )
 
-        # Process files and maintain folder structure
+        # Process files and validate folder structure
         categories = set()
         category_files = {}
+        invalid_structure = []
+
         for file in files:
             parts = Path(file.filename).parts
-            if len(parts) < 2:
+
+            # Validate folder structure depth
+            if len(parts) != 3:  # Exactly 3 levels: root/category/file.ext
+                invalid_structure.append(file.filename)
                 continue
+
             category = parts[1]
             categories.add(category)
             if category not in category_files:
                 category_files[category] = []
             category_files[category].append(file.filename)
+
+        # Check for invalid folder structure
+        if invalid_structure:
+            return FolderValidationResponse(
+                valid=False,
+                message=f"Invalid folder structure detected. Files must be inside category folders within the selected root folder. Invalid files: {', '.join(invalid_structure)}",
+                categories=list(categories),
+                file_counts=category_files,
+            )
 
         if len(categories) < 2:
             return FolderValidationResponse(
@@ -1316,7 +1356,7 @@ async def validate_document_classification_folder(
         for category, files_list in category_files.items():
             if len(files_list) < 10:
                 insufficient_categories.append(f"{category} ({len(files_list)} files)")
-                
+
         if insufficient_categories:
             return FolderValidationResponse(
                 valid=False,

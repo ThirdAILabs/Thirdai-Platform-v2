@@ -47,7 +47,7 @@ def download_local_files(
                 FileInfo(
                     path=local_path,
                     location=file_info.location,
-                    doc_id=file_info.doc_id,
+                    source_id=file_info.source_id,
                     options=file_info.options,
                     metadata=file_info.metadata,
                 )
@@ -63,7 +63,7 @@ def expand_file_info(paths: List[str], file_info: FileInfo):
         FileInfo(
             path=path,
             location=file_info.location,
-            doc_id=file_info.doc_id if len(paths) == 1 else None,
+            source_id=file_info.source_id if len(paths) == 1 else None,
             options=file_info.options,
             metadata=file_info.metadata,
         )

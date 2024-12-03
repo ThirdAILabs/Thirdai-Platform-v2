@@ -1101,6 +1101,14 @@ def validate_text_classification_csv_format(
     Validates the CSV file format for text classification.
     Returns (is_valid, error_message, extracted_labels).
     """
+    # Check file extension
+    if not file.filename.lower().endswith('.csv'):
+        return False, "File must have .csv extension", None
+        
+    # Check MIME type
+    if file.content_type not in ['text/csv', 'application/csv']:
+        return False, "File must be a CSV", None
+
     try:
         content = file.file.read()
         file.file.seek(0)
@@ -1187,6 +1195,14 @@ def validate_token_classification_csv_format(
     3. Must have at least one non-'O' token type
     4. No empty cells allowed
     """
+    # Check file extension
+    if not file.filename.lower().endswith('.csv'):
+        return False, "File must have .csv extension", None
+        
+    # Check MIME type
+    if file.content_type not in ['text/csv', 'application/csv']:
+        return False, "File must be a CSV", None
+
     try:
         content = file.file.read()
         file.file.seek(0)  # Reset file pointer for later use

@@ -58,7 +58,6 @@ const DocumentQuestions = ({
       const structure: FolderStructure = {};
       Array.from(files).forEach((file) => {
         const pathParts = file.webkitRelativePath.split('/');
-        // Use pathParts[1] to get the category folder name instead of the root folder
         if (pathParts.length >= 3) {
           // Changed from >= 2 to >= 3 since we expect 3 parts
           const category = pathParts[1]; // Changed from pathParts[0] to pathParts[1]

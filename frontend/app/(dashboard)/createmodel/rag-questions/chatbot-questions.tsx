@@ -539,7 +539,7 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
       </div>
 
       {/* Step Content */}
-      <div>{steps[currentStep].content}</div>
+      <div className="mt-8">{steps[currentStep].content}</div>
 
       {/* Step Controls */}
       <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between' }}>

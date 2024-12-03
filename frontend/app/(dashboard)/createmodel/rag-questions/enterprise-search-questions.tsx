@@ -538,7 +538,7 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
       </Box>
 
       {/* Step Content */}
-      <div>{steps[currentStep].content}</div>
+      <div className="mt-8">{steps[currentStep].content}</div>
 
       {/* Step Controls - only show if not on Knowledge Base step or LLM not chosen yet */}
       {!(currentStep === 1 && ssModelId) && (

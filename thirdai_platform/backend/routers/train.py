@@ -1148,12 +1148,6 @@ def validate_text_classification_csv_format(
         return False, f"Error validating CSV: {str(e)}", None
 
 
-class CSVValidationResponse(BaseModel):
-    valid: bool
-    message: str
-    labels: List[str] = []
-
-
 @train_router.post("/validate-text-classification-csv")
 async def validate_text_classification_csv(
     file: UploadFile = File(...),
@@ -1166,17 +1160,19 @@ async def validate_text_classification_csv(
         )
 
         if not is_valid:
-            return CSVValidationResponse(
-                valid=False,
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
                 message=error_message,
-                labels=list(unique_labels) if unique_labels else [],
+                data={"labels": list(unique_labels) if unique_labels else []},
             )
 
-        return CSVValidationResponse(
-            valid=True, message="CSV file is valid", labels=list(unique_labels)
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="CSV file is valid",
+            data={"labels": list(unique_labels)},
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(e))
 
 
 def validate_token_classification_csv_format(

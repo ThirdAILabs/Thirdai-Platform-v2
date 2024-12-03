@@ -560,12 +560,25 @@ export async function validateSentenceClassifierCSV(file: File) {
       }
     );
 
-    return response.data;
+    return {
+      valid: response.data.status === 'success',
+      message: response.data.message,
+      labels: response.data.data?.labels || []
+    };
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response?.data) {
-      throw new Error(error.response.data.message || 'Failed to validate CSV');
+    if (axios.isAxiosError(error)) {
+      const errorMessage = error.response?.data?.message || 'Failed to validate CSV';
+      return {
+        valid: false,
+        message: errorMessage,
+        labels: []
+      };
     }
-    throw new Error('Failed to validate CSV');
+    return {
+      valid: false,
+      message: 'Failed to validate CSV',
+      labels: []
+    };
   }
 }
 

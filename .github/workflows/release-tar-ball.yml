@@ -36,9 +36,9 @@ jobs:
 
       - name: Download and store the Llama model in the unified models folder
         run: |
-          mkdir -p models/huggingface/models/bartowski/Llama-3.2-1B-Instruct-GGUF
+          mkdir -p models/genai
 
-          wget -O models/huggingface/models/bartowski/Llama-3.2-1B-Instruct-GGUF/Llama-3.2-1B-Instruct-f16.gguf https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-f16.gguf
+          wget -O models/genai/Llama-3.2-1B-Instruct-f16.gguf https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-f16.gguf
 
       - name: Download and store the Splade model and tokenizer in the unified models folder
         run: |

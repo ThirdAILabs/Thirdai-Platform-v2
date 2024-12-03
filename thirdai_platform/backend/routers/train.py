@@ -1214,7 +1214,7 @@ def validate_csv_format(file: UploadFile) -> tuple[bool, str, set[str] | None]:
 
 
 @train_router.post("/validate-token-classifier-csv")
-async def validate_token_classifier_csv(
+def validate_token_classifier_csv(
     file: UploadFile = File(...),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
@@ -1270,62 +1270,61 @@ async def validate_document_classification_folder(
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     try:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Process files and maintain folder structure
-            categories = set()
-            category_files = {}
-            for file in files:
-                parts = Path(file.filename).parts
-                if len(parts) < 2:
-                    continue
-                category = parts[1]
-                categories.add(category)
-                if category not in category_files:
-                    category_files[category] = []
-                category_files[category].append(file.filename)
-            # Basic validation checks
-            if len(categories) < 2:
-                return FolderValidationResponse(
-                    valid=False,
-                    message="At least two different categories (folders) are required",
-                    categories=list(categories),
-                    file_counts=category_files,
-                )
-            # Check minimum files per category
-            insufficient_categories = []
-            for category, files_list in category_files.items():
-                if len(files_list) < 10:
-                    insufficient_categories.append(
-                        f"{category} ({len(files_list)} files)"
-                    )
-            if insufficient_categories:
-                return FolderValidationResponse(
-                    valid=False,
-                    message=f"The following categories have fewer than 10 documents: {', '.join(insufficient_categories)}",
-                    categories=list(categories),
-                    file_counts=category_files,
-                )
-            # Validate file types
-            valid_extensions = {".txt", ".doc", ".docx", ".pdf"}
-            invalid_files = []
-            for category, files_list in category_files.items():
-                for file in files_list:
-                    ext = Path(file).suffix.lower()
-                    if ext not in valid_extensions:
-                        invalid_files.append(file)
-            if invalid_files:
-                return FolderValidationResponse(
-                    valid=False,
-                    message=f"Invalid file types found: {', '.join(invalid_files)}. Only .txt, .doc, .docx, and .pdf files are supported.",
-                    categories=list(categories),
-                    file_counts=category_files,
-                )
+        # Process files and maintain folder structure
+        categories = set()
+        category_files = {}
+        for file in files:
+            parts = Path(file.filename).parts
+            if len(parts) < 2:
+                continue
+            category = parts[1]
+            categories.add(category)
+            if category not in category_files:
+                category_files[category] = []
+            category_files[category].append(file.filename)
+        # Basic validation checks
+        if len(categories) < 2:
             return FolderValidationResponse(
-                valid=True,
-                message="Folder structure is valid",
+                valid=False,
+                message="At least two different categories (folders) are required",
                 categories=list(categories),
                 file_counts=category_files,
             )
+        # Check minimum files per category
+        insufficient_categories = []
+        for category, files_list in category_files.items():
+            if len(files_list) < 10:
+                insufficient_categories.append(
+                    f"{category} ({len(files_list)} files)"
+                )
+        if insufficient_categories:
+            return FolderValidationResponse(
+                valid=False,
+                message=f"The following categories have fewer than 10 documents: {', '.join(insufficient_categories)}",
+                categories=list(categories),
+                file_counts=category_files,
+            )
+        # Validate file types
+        valid_extensions = {".txt", ".doc", ".docx", ".pdf"}
+        invalid_files = []
+        for category, files_list in category_files.items():
+            for file in files_list:
+                ext = Path(file).suffix.lower()
+                if ext not in valid_extensions:
+                    invalid_files.append(file)
+        if invalid_files:
+            return FolderValidationResponse(
+                valid=False,
+                message=f"Invalid file types found: {', '.join(invalid_files)}. Only .txt, .doc, .docx, and .pdf files are supported.",
+                categories=list(categories),
+                file_counts=category_files,
+            )
+        return FolderValidationResponse(
+            valid=True,
+            message="Folder structure is valid",
+            categories=list(categories),
+            file_counts=category_files,
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

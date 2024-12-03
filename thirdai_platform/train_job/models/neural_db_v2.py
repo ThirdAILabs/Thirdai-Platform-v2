@@ -172,7 +172,7 @@ class NeuralDBV2(Model):
             )
         except Exception as e:
             self.logger.error(
-                f"Failed to upsert doc {doc_id} with error {e}",
+                f"Failed to delete upserted files with error {e}",
                 code=LogCode.MODEL_DELETE,
             )
 

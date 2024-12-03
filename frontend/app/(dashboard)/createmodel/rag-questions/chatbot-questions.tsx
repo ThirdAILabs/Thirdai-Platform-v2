@@ -1,31 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { Workflow } from '@/lib/backend';
-import NERQuestions from './nlp-questions/ner-questions';
-import SemanticSearchQuestions from './semantic-search-questions';
 import { CardDescription } from '@/components/ui/card';
 import { Button, TextField } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import DropdownMenu from '@/components/ui/dropDownMenu';
 import { create_enterprise_search_workflow, EnterpriseSearchOptions } from '@/lib/backend';
+import SemanticSearchQuestions from '../semantic-search-questions';
+import NERQuestions from '../nlp-questions/ner-questions';
 
-interface RAGQuestionsProps {
+interface ChatbotQuestionsProps {
   models: Workflow[];
   workflowNames: string[];
-  isChatbot: boolean;
 }
 
 enum LlmProvider {
   OpenAI = 'openai',
   OnPrem = 'on-prem',
   SelfHosted = 'self-hosted',
-  None = 'none',
 }
 
-const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) => {
+const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNames }) => {
   const [currentStep, setCurrentStep] = useState(0);
 
-  // Begin state variables & func for source
+  // Knowledge base state
   const [ifUseExistingSS, setUseExistingSS] = useState<string | null>(null);
   const [existingSSmodels, setExistingSSmodels] = useState<Workflow[]>([]);
   const [ssIdentifier, setSsIdentifier] = useState<string | null>(null);
@@ -36,9 +34,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
     setExistingSSmodels(models.filter((model) => model.type === 'ndb'));
   }, [models]);
 
-  // End state variables & func for source
-
-  // Begin state variables & func for LLM guardrail
+  // LLM Guardrail state
   const [ifUseLGR, setIfUseLGR] = useState('');
   const [ifUseExistingLGR, setIfUseExistingLGR] = useState<string | null>(null);
   const [existingNERModels, setExistingNERModels] = useState<Workflow[]>([]);
@@ -52,7 +48,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
     );
   }, [models]);
 
-  // NLP Classifier state variables
+  // Sentiment Analysis state
   const [ifUseNLPClassifier, setIfUseNLPClassifier] = useState<string | null>(null);
   const [nlpClassifierIdentifier, setNlpClassifierIdentifier] = useState<string | null>(null);
   const [nlpClassifierModelId, setNlpClassifierModelId] = useState<string | null>(null);
@@ -64,36 +60,51 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
     );
   }, [models]);
 
-  // End state variables & func for LLM guardrail
-
   const [modelName, setModelName] = useState('');
-
-  // Begin state variables & func for LLM
-
   const [llmType, setLlmType] = useState<LlmProvider | null>(null);
-
-  // End state variables & func for LLM
-
   const router = useRouter();
-
   const [isLoading, setIsLoading] = useState(false);
+  const [warningMessage, setWarningMessage] = useState('');
+
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [isNameValid, setIsNameValid] = useState(false);
+
+  const validateAppName = (name: string): string => {
+    if (!name) return 'App name is required.';
+    if (name.includes(' ')) return 'The app name cannot contain spaces.';
+    if (name.includes('.')) return "The app name cannot contain periods ('.')";
+    if (!/^[\w-]+$/.test(name))
+      return 'The app name can only contain letters, numbers, underscores, and hyphens.';
+    if (workflowNames.includes(name)) return 'An app with the same name already exists.';
+    return '';
+  };
+
+  const handleNext = () => {
+    if (currentStep === 0 && !warningMessage && modelName) {
+      if (!completedSteps.includes(0)) {
+        setCompletedSteps([...completedSteps, 0]);
+      }
+      setCurrentStep(1);
+    } else if (currentStep === 1 && ssModelId) {
+      if (!completedSteps.includes(1)) {
+        setCompletedSteps([...completedSteps, 1]);
+      }
+      setCurrentStep(2);
+    }
+  };
 
   const handleSubmit = async () => {
     setIsLoading(true);
 
-    const workflowName = modelName;
-
     try {
-      // Prepare options
       let options: EnterpriseSearchOptions = {
         retrieval_id: ssModelId || '',
         guardrail_id: grModelId || '',
         nlp_classifier_id: nlpClassifierModelId || '',
         llm_provider: '',
-        default_mode: isChatbot ? 'chat' : 'search',
+        default_mode: 'chat',
       };
 
-      // Set llm_provider based on llmType
       switch (llmType) {
         case LlmProvider.OpenAI:
           options.llm_provider = 'openai';
@@ -104,34 +115,22 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
         case LlmProvider.SelfHosted:
           options.llm_provider = 'self-host';
           break;
-        case LlmProvider.None:
-        // LLM is not added
         default:
-          if (isChatbot) {
-            console.error('Invalid LLM type selected');
-            alert('Invalid LLM type selected');
-            setIsLoading(false);
-            return;
-          } else {
-            // LLM is not required for enterprise search
-            break;
-          }
+          console.error('Invalid LLM type selected');
+          alert('Invalid LLM type selected');
+          setIsLoading(false);
+          return;
       }
 
-      // Clean up options by removing undefined or empty values
       options = Object.fromEntries(
         Object.entries(options).filter(([_, v]) => v !== undefined && v !== '')
       ) as EnterpriseSearchOptions;
 
-      // Call create_workflow
       const workflowResponse = await create_enterprise_search_workflow({
-        workflow_name: workflowName,
+        workflow_name: modelName,
         options,
       });
-      const workflowId = workflowResponse.data.model_id;
-      console.log('Workflow created:', workflowId);
-
-      // Go back home page
+      console.log('Workflow created:', workflowResponse.data.model_id);
       router.push('/');
     } catch (error) {
       console.error('Error during workflow creation:', error);
@@ -139,20 +138,26 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
       setIsLoading(false);
     }
   };
-  // Creating drop-down list for choosing model....
-  const modelDropDownList = existingSSmodels.map((model) => {
-    return {
-      id: model.model_id,
-      name: model.username + '/' + model.model_name,
-    };
-  });
 
-  const grDropDownList = existingNERModels.map((model) => {
-    return {
-      id: model.model_id,
-      name: model.username + '/' + model.model_name,
-    };
-  });
+  const handleStepClick = (stepIndex: number) => {
+    // Only allow clicking on completed steps or the next available step
+    if (
+      completedSteps.includes(stepIndex) ||
+      stepIndex === Math.min(currentStep, completedSteps.length)
+    ) {
+      setCurrentStep(stepIndex);
+    }
+  };
+
+  const modelDropDownList = existingSSmodels.map((model) => ({
+    id: model.model_id,
+    name: model.username + '/' + model.model_name,
+  }));
+
+  const grDropDownList = existingNERModels.map((model) => ({
+    id: model.model_id,
+    name: model.username + '/' + model.model_name,
+  }));
 
   const handleSSIdentifier = (ssID: string) => {
     setSsIdentifier(ssID);
@@ -174,8 +179,6 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
     }
   };
 
-  const [warningMessage, setWarningMessage] = useState('');
-
   const steps = [
     {
       title: 'App Name',
@@ -186,32 +189,10 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
             value={modelName}
             onChange={(e) => {
               const name = e.target.value;
-              const regexPattern = /^[\w-]+$/;
-              let warningMessage = '';
-
-              // Check if the name contains spaces
-              if (name.includes(' ')) {
-                warningMessage = 'The app name cannot contain spaces. Please remove the spaces.';
-              }
-              // Check if the name contains periods
-              else if (name.includes('.')) {
-                warningMessage =
-                  "The app name cannot contain periods ('.'). Please remove the periods.";
-              }
-              // Check if the name contains invalid characters (doesn't match the regex pattern)
-              else if (!regexPattern.test(name)) {
-                warningMessage =
-                  'The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.';
-              }
-              // Check if the name is already in use
-              else if (workflowNames.includes(name)) {
-                warningMessage =
-                  'An app with the same name already exists. Please choose a different name.';
-              }
-
-              // Set the warning message or clear it if the name is valid
-              setWarningMessage(warningMessage);
+              const warning = validateAppName(name);
+              setWarningMessage(warning);
               setModelName(name);
+              setIsNameValid(!warning);
             }}
             placeholder="Enter app name"
             style={{ marginTop: '10px' }}
@@ -228,24 +209,10 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
         <div>
           {!createdSS && (
             <>
-              <CardDescription>Use an existing knowledge base?</CardDescription>
+              <CardDescription>Would you like to create a new Knowledge Base?</CardDescription>
               <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  gap: '10px',
-                  marginTop: '10px',
-                }}
+                style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}
               >
-                <Button
-                  variant={ifUseExistingSS === 'Yes' ? 'contained' : 'outlined'}
-                  onClick={() => {
-                    setUseExistingSS('Yes');
-                    setCreatedSS(false);
-                  }}
-                >
-                  Yes
-                </Button>
                 <Button
                   variant={ifUseExistingSS === 'No' ? 'contained' : 'outlined'}
                   onClick={() => {
@@ -253,7 +220,16 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
                     setCreatedSS(false);
                   }}
                 >
-                  No, create a new one
+                  Yes
+                </Button>
+                <Button
+                  variant={ifUseExistingSS === 'Yes' ? 'contained' : 'outlined'}
+                  onClick={() => {
+                    setUseExistingSS('Yes');
+                    setCreatedSS(false);
+                  }}
+                >
+                  No, use an existing one
                 </Button>
               </div>
             </>
@@ -309,17 +285,12 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
           {/* LLM selection */}
           <div>
             <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
-              LLM {!isChatbot && '(Optional)'}
+              LLM
             </span>
             <div>
               <CardDescription>Choose an LLM for generating answers</CardDescription>
               <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  gap: '10px',
-                  marginTop: '10px',
-                }}
+                style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}
               >
                 <Button
                   variant={llmType === LlmProvider.OpenAI ? 'contained' : 'outlined'}
@@ -339,19 +310,11 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
                 >
                   Self-host
                 </Button>
-                {!isChatbot && (
-                  <Button
-                    variant={llmType === LlmProvider.None ? 'contained' : 'outlined'}
-                    onClick={() => setLlmType(LlmProvider.None)}
-                  >
-                    None
-                  </Button>
-                )}
               </div>
             </div>
           </div>
 
-          {/* LLM Guardrail (Optional) */}
+          {/* LLM Guardrail */}
           <div>
             <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
               LLM Guardrail (Optional)
@@ -363,12 +326,7 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
                   references?
                 </CardDescription>
                 <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    gap: '10px',
-                    marginTop: '10px',
-                  }}
+                  style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}
                 >
                   <Button
                     variant={ifUseLGR === 'Yes' ? 'contained' : 'outlined'}
@@ -467,63 +425,59 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
             )}
           </div>
 
-          {/* Sentiment Analysis (Optional) */}
-          {isChatbot && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', marginTop: '20px' }}>
-                <span className="block text-lg font-semibold">Sentiment Analysis (Optional)</span>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span style={{ marginLeft: '8px', cursor: 'pointer' }}>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="w-5 h-5"
-                      >
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="12" y1="8" x2="12" y2="8" />
-                        <line x1="12" y1="12" x2="12" y2="16" />
-                      </svg>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" style={{ maxWidth: '250px' }}>
-                    A sentiment analysis model can determine the emotional tone behind a user&apos;s
-                    query, providing insights into their attitude and emotional state.
-                  </TooltipContent>
-                </Tooltip>
-              </div>
+          {/* Sentiment Analysis */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', marginTop: '20px' }}>
+              <span className="block text-lg font-semibold">Sentiment Analysis (Optional)</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span style={{ marginLeft: '8px', cursor: 'pointer' }}>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="w-5 h-5"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="8" />
+                      <line x1="12" y1="12" x2="12" y2="16" />
+                    </svg>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="right" style={{ maxWidth: '250px' }}>
+                  A sentiment analysis model can determine the emotional tone behind a user&apos;s
+                  query, providing insights into their attitude and emotional state.
+                </TooltipContent>
+              </Tooltip>
+            </div>
 
-              <CardDescription>Would you like to detect sentiment of user query?</CardDescription>
-              <div
-                style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}
+            <CardDescription>Would you like to detect sentiment of user query?</CardDescription>
+            <div style={{ display: 'flex', flexDirection: 'row', gap: '10px', marginTop: '10px' }}>
+              <Button
+                variant={ifUseNLPClassifier === 'Yes' ? 'contained' : 'outlined'}
+                onClick={() => setIfUseNLPClassifier('Yes')}
               >
-                <Button
-                  variant={ifUseNLPClassifier === 'Yes' ? 'contained' : 'outlined'}
-                  color={ifUseNLPClassifier === 'Yes' ? 'secondary' : 'primary'}
-                  onClick={() => setIfUseNLPClassifier('Yes')}
-                >
-                  Yes
-                </Button>
-                <Button
-                  variant={ifUseNLPClassifier === 'No' ? 'contained' : 'outlined'}
-                  color={ifUseNLPClassifier === 'No' ? 'secondary' : 'primary'}
-                  onClick={() => {
-                    setNlpClassifierIdentifier(null);
-                    setIfUseNLPClassifier('No');
-                  }}
-                >
-                  No
-                </Button>
-              </div>
+                Yes
+              </Button>
+              <Button
+                variant={ifUseNLPClassifier === 'No' ? 'contained' : 'outlined'}
+                onClick={() => {
+                  setNlpClassifierIdentifier(null);
+                  setIfUseNLPClassifier('No');
+                }}
+              >
+                No
+              </Button>
+            </div>
 
-              {ifUseNLPClassifier === 'Yes' && (
-                <div style={{ marginTop: '20px' }}>
-                  <CardDescription>Choose from existing sentiment analysis models</CardDescription>
+            {ifUseNLPClassifier === 'Yes' && (
+              <div style={{ marginTop: '20px' }}>
+                <CardDescription>Choose from existing sentiment analysis models</CardDescription>
+                <div className="mt-2">
                   <DropdownMenu
                     title="Please choose a model"
                     handleSelectedTeam={(selectedValue: string, modelId?: string) => {
@@ -532,23 +486,24 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
                         setNlpClassifierModelId(modelId);
                       }
                     }}
-                    teams={existingNLPClassifierModels}
+                    teams={existingNLPClassifierModels.map((model) => ({
+                      id: model.model_id,
+                      name: model.username + '/' + model.model_name,
+                    }))}
                   />
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       ),
     },
   ];
 
-  // This is for displaying message in case user missed requirements
   const missingRequirements = [];
-
   if (!modelName) missingRequirements.push('App Name is not specified (Step 1)');
   if (!ssModelId) missingRequirements.push('Retrieval app is not specified (Step 2)');
-  if (!llmType && isChatbot) missingRequirements.push('LLM Type is not specified (Step 3)');
+  if (!llmType) missingRequirements.push('LLM Type is not specified (Step 3)');
 
   const errorMessage = missingRequirements.length > 0 && (
     <div>
@@ -566,7 +521,6 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
 
   return (
     <div>
-      {/* Step Navigation */}
       <div
         className="mb-4"
         style={{
@@ -577,28 +531,39 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
           columnGap: '15px',
         }}
       >
-        {steps.map((step, index) => (
-          <Button
-            key={index}
-            variant={index === currentStep ? 'contained' : 'outlined'}
-            onClick={() => setCurrentStep(index)}
-            style={{
-              marginBottom: '10px',
-              minWidth: '140px',
-              height: '40px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textTransform: 'none',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              padding: '0 16px',
-            }}
-          >
-            {step.title}
-          </Button>
-        ))}
+        {steps.map((step, index) => {
+          // Only show steps that are completed or the next available step
+          const isAvailable =
+            completedSteps.includes(index) ||
+            index === Math.min(currentStep, completedSteps.length);
+          if (!isAvailable && index > 0) return null;
+
+          return (
+            <Button
+              key={index}
+              variant={index === currentStep ? 'contained' : 'outlined'}
+              onClick={() => handleStepClick(index)}
+              style={{
+                marginBottom: '10px',
+                minWidth: '140px',
+                height: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textTransform: 'none',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                padding: '0 16px',
+                opacity: isAvailable ? 1 : 0.5,
+                cursor: isAvailable ? 'pointer' : 'not-allowed',
+              }}
+              disabled={!isAvailable}
+            >
+              {step.title}
+            </Button>
+          );
+        })}
       </div>
 
       {/* Step Content */}
@@ -606,52 +571,27 @@ const RAGQuestions = ({ models, workflowNames, isChatbot }: RAGQuestionsProps) =
 
       {/* Step Controls */}
       <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between' }}>
-        {/* Previous Button */}
         {currentStep > 0 ? (
           <Button onClick={() => setCurrentStep(currentStep - 1)}>Previous</Button>
         ) : (
           <div></div>
         )}
 
-        {/* Next Button or Create/Deploy Button */}
         {currentStep < steps.length - 1 ? (
-          <Button onClick={() => setCurrentStep(currentStep + 1)}>Next</Button>
+          <Button onClick={handleNext} disabled={currentStep === 0 && (!modelName || !isNameValid)}>
+            Next
+          </Button>
         ) : (
-          <>
-            {ssModelId && modelName && (llmType || !isChatbot) ? (
-              <div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <Button
-                        onClick={handleSubmit}
-                        style={{ width: '100%' }}
-                        disabled={isLoading || !(ssModelId && modelName && (llmType || !isChatbot))}
-                      >
-                        {isLoading ? (
-                          <div className="flex items-center justify-center">
-                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
-                            <span>Creating...</span>
-                          </div>
-                        ) : (
-                          'Create'
-                        )}
-                      </Button>
-                    </div>
-                  </TooltipTrigger>
-                  {!(ssModelId && modelName && (llmType || !isChatbot)) && (
-                    <TooltipContent side="bottom">Requirements not met</TooltipContent>
-                  )}
-                </Tooltip>
-              </div>
-            ) : (
-              <div style={{ color: 'red' }}>{errorMessage}</div>
-            )}
-          </>
+          <Button
+            onClick={handleSubmit}
+            disabled={isLoading || !(ssModelId && modelName && llmType)}
+          >
+            {isLoading ? 'Creating...' : 'Create'}
+          </Button>
         )}
       </div>
     </div>
   );
 };
 
-export default RAGQuestions;
+export default ChatbotQuestions;

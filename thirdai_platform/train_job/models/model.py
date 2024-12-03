@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from logging import Logger
 from pathlib import Path
 
 import thirdai
+from platform_common.logging import JobLogger
 from platform_common.pydantic_models.training import TrainConfig
 from train_job.reporter import Reporter
 
@@ -14,9 +14,8 @@ class Model(ABC):
     """
 
     report_failure_method = "report_status"
-    logger: Logger = None
 
-    def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
+    def __init__(self, config: TrainConfig, reporter: Reporter, logger: JobLogger):
         """
         Initialize the model with general and training options, create necessary
         directories, and set up a reporter for status updates.
@@ -50,7 +49,7 @@ class Model(ABC):
             self.model_dir / "checkpoints" / "supervised"
         )
 
-        self.logger.info("Model initialization complete.")
+        self.logger.info("Directory setup complete.")
 
     @abstractmethod
     def train(self, **kwargs):

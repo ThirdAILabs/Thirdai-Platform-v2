@@ -1,12 +1,12 @@
-from logging import Logger
 from typing import Optional
 from urllib.parse import urljoin
 
 import requests
+from platform_common.logging import JobLogger
 
 
 class Reporter:
-    def __init__(self, api_url: str, logger: Logger):
+    def __init__(self, api_url: str, logger: JobLogger):
         """
         Initializes the Reporter instance with the API URL.
 

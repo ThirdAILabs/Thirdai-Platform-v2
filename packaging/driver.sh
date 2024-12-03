@@ -101,14 +101,14 @@ if [ "$ONBOARD_CLIENTS" -eq 1 ]; then
 fi
 
 # Model path
-GENERATIVE_MODEL_FOLDER="gen-ai-models/"
+MODEL_FOLDER="models/"
 
 # Warn if model file is not found
-if [ ! -d "$GENERATIVE_MODEL_FOLDER" ]; then
+if [ ! -d "$MODEL_FOLDER" ]; then
     echo "WARNING: Model file not found at $GENERATIVE_MODEL_FOLDER. The playbook will proceed without it."
 fi
 
-GENERATIVE_MODEL_FOLDER=$(realpath "$GENERATIVE_MODEL_FOLDER")
+MODEL_FOLDER=$(realpath "$MODEL_FOLDER")
 
 # Search for docker_images folder with a prefix
 DOCKER_IMAGES_PATH=$(find . -type d -name "docker_images-*" | head -n 1)
@@ -118,17 +118,6 @@ if [ -z "$DOCKER_IMAGES_PATH" ]; then
 else
     DOCKER_IMAGES_PATH=$(realpath "$DOCKER_IMAGES_PATH")
     echo "Found docker images folder at $DOCKER_IMAGES_PATH"
-fi
-
-# Splade model path
-SPLADE_MODEL_FOLDER="splade-models/"
-
-# Warn if Splade model folder is not found
-if [ ! -d "$SPLADE_MODEL_FOLDER" ]; then
-    echo "WARNING: Splade model folder not found at $SPLADE_MODEL_FOLDER. The playbook will proceed without it."
-else
-    SPLADE_MODEL_FOLDER=$(realpath "$SPLADE_MODEL_FOLDER")
-    echo "Found Splade model folder at $SPLADE_MODEL_FOLDER"
 fi
 
 # Change directory to platform directory
@@ -143,22 +132,22 @@ fi
 if [ "$CLEANUP" -eq 1 ]; then
     echo "Running cleanup playbook..."
     if [ "$VERBOSE" -eq 1 ]; then
-        ansible-playbook playbooks/test_cleanup.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER splade_model_folder=$SPLADE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH" -vvvv
+        ansible-playbook playbooks/test_cleanup.yml --extra-vars "config_path=$CONFIG_PATH model_folder=$MODEL_FOLDER  docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH" -vvvv
     else
-        ansible-playbook playbooks/test_cleanup.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER splade_model_folder=$SPLADE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH"
+        ansible-playbook playbooks/test_cleanup.yml --extra-vars "config_path=$CONFIG_PATH model_folder=$MODEL_FOLDER  docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH"
     fi
 elif [ "$ONBOARD_CLIENTS" -eq 1 ]; then
     echo "Running onboarding playbook..."
     if [ "$VERBOSE" -eq 1 ]; then
-        ansible-playbook playbooks/onboard_clients.yml --extra-vars "config_path=$CONFIG_PATH new_client_config_path=$NEW_CLIENT_CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER splade_model_folder=$SPLADE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH" -vvvv
+        ansible-playbook playbooks/onboard_clients.yml --extra-vars "config_path=$CONFIG_PATH new_client_config_path=$NEW_CLIENT_CONFIG_PATH model_folder=$MODEL_FOLDER  docker_images=$DOCKER_IMAGES_PATH" -vvvv
     else
-        ansible-playbook playbooks/onboard_clients.yml --extra-vars "config_path=$CONFIG_PATH new_client_config_path=$NEW_CLIENT_CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER splade_model_folder=$SPLADE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH"
+        ansible-playbook playbooks/onboard_clients.yml --extra-vars "config_path=$CONFIG_PATH new_client_config_path=$NEW_CLIENT_CONFIG_PATH model_folder=$MODEL_FOLDER  docker_images=$DOCKER_IMAGES_PATH"
     fi
 else
     echo "Running deployment playbook..."
     if [ "$VERBOSE" -eq 1 ]; then
-        ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER splade_model_folder=$SPLADE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH" -vvvv
+        ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH model_folder=$MODEL_FOLDER  docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH" -vvvv
     else
-        ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER splade_model_folder=$SPLADE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH"
+        ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH model_folder=$MODEL_FOLDER  docker_images=$DOCKER_IMAGES_PATH platform_image_branch=$PLATFORM_IMAGE_BRANCH"
     fi
 fi

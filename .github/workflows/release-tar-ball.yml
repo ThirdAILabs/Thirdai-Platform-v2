@@ -29,20 +29,23 @@ jobs:
       - name: Clone Platform repository
         run: |
           git clone git@github.com:ThirdAILabs/platform.git
-
-      - name: Download and store the model
+      
+      - name: Create a unified models folder
         run: |
-          mkdir -p gen-ai-models
-          wget -O gen-ai-models/Llama-3.2-1B-Instruct-f16.gguf https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-f16.gguf?download=true
+          mkdir -p models/genai
+          mkdir -p models/splade
 
-      - name: Download and store the Splade model and tokenizer
+      - name: Download and store the Llama model in the unified models folder
         run: |
-          mkdir -p splade-models
-          wget -O splade-models/pytorch_model.bin https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/pytorch_model.bin
-          wget -O splade-models/tokenizer.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/tokenizer.json
-          wget -O splade-models/config.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/config.json
-          wget -O splade-models/tokenizer_config.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/tokenizer_config.json
-          wget -O splade-models/vocab.txt https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/vocab.txt
+          wget -O models/genai/Llama-3.2-1B-Instruct-f16.gguf https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-f16.gguf?download=true
+
+      - name: Download and store the Splade model and tokenizer in the unified models folder
+        run: |
+          wget -O models/splade/pytorch_model.bin https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/pytorch_model.bin
+          wget -O models/splade/tokenizer.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/tokenizer.json
+          wget -O models/splade/config.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/config.json
+          wget -O models/splade/tokenizer_config.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/tokenizer_config.json
+          wget -O models/splade/vocab.txt https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/vocab.txt
 
       - name: Ensure scripts directory exists
         run: mkdir -p ./platform/scripts
@@ -181,11 +184,11 @@ jobs:
 
       - name: Package platform, model, splade, driver, config, and README into tarball
         run: |
-          tar -czvf thirdai-platform-package-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz ./platform ./gen-ai-models ./splade-models ./driver.sh ./config.yml ./README.md
+          tar -czvf thirdai-platform-package-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz ./platform ./models ./driver.sh ./config.yml ./README.md
 
       - name: Package Docker images, driver script, config, and README into tarball
         run: |
-          tar -czvf thirdai-platform-package-offline-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz ./platform ./docker_images-${{ env.latest_tag }} ./driver.sh ./config.yml ./README.md ./gen-ai-models ./splade-models
+          tar -czvf thirdai-platform-package-offline-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz ./platform ./docker_images-${{ env.latest_tag }} ./driver.sh ./config.yml ./README.md ./models
 
       - name: Upload platform package to S3
         run: |

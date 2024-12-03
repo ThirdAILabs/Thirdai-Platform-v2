@@ -104,7 +104,7 @@ def train_ndb(
     if not share_dir:
         raise ValueError("SHARE_DIR variable is not set.")
 
-    splade_dir = os.path.join(model_bazaar_path(), "splade-models")
+    splade_dir = os.path.join(model_bazaar_path(), "huggingface-models/models/naver/splade-cocondenser-selfdistil")
 
     if os.path.exists(splade_dir):
         logging.info(f"Using Splade model path: {splade_dir}")

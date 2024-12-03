@@ -32,20 +32,23 @@ jobs:
       
       - name: Create a unified models folder
         run: |
-          mkdir -p models/genai
-          mkdir -p models/splade
+          mkdir -p models/
 
       - name: Download and store the Llama model in the unified models folder
         run: |
-          wget -O models/genai/Llama-3.2-1B-Instruct-f16.gguf https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-f16.gguf?download=true
+          mkdir -p models/huggingface/models/bartowski/Llama-3.2-1B-Instruct-GGUF
+
+          wget -O models/huggingface/models/bartowski/Llama-3.2-1B-Instruct-GGUF/Llama-3.2-1B-Instruct-f16.gguf https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-f16.gguf
 
       - name: Download and store the Splade model and tokenizer in the unified models folder
         run: |
-          wget -O models/splade/pytorch_model.bin https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/pytorch_model.bin
-          wget -O models/splade/tokenizer.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/tokenizer.json
-          wget -O models/splade/config.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/config.json
-          wget -O models/splade/tokenizer_config.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/tokenizer_config.json
-          wget -O models/splade/vocab.txt https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/vocab.txt
+          mkdir -p models/huggingface/models/naver/splade-cocondenser-selfdistil
+
+          wget -O models/huggingface/models/naver/splade-cocondenser-selfdistil/pytorch_model.bin https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/pytorch_model.bin
+          wget -O models/huggingface/models/naver/splade-cocondenser-selfdistil/tokenizer.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/tokenizer.json
+          wget -O models/huggingface/models/naver/splade-cocondenser-selfdistil/config.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/config.json
+          wget -O models/huggingface/models/naver/splade-cocondenser-selfdistil/tokenizer_config.json https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/tokenizer_config.json
+          wget -O models/huggingface/models/naver/splade-cocondenser-selfdistil/vocab.txt https://huggingface.co/naver/splade-cocondenser-selfdistil/resolve/main/vocab.txt
 
       - name: Ensure scripts directory exists
         run: mkdir -p ./platform/scripts

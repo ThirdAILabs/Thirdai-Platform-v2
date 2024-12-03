@@ -119,9 +119,9 @@ class NDBModel(Model):
             self.db.insert(ndb_docs)
 
             upsert_doc_ids = [
-                doc.doc_id
+                doc.source_id
                 for doc in documents
-                if doc.doc_id and doc.options.get("upsert", False)
+                if doc.source_id and doc.options.get("upsert", False)
             ]
 
             delete_docs_and_remove_files(

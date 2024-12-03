@@ -136,7 +136,7 @@ def parse_doc(
     ndb_doc = preload_chunks(
         resource_path=local_file_path,
         display_path=display_path,
-        doc_id=doc.doc_id,
+        doc_id=doc.source_id,
         metadata=doc.metadata,
         options=doc.options,
     )

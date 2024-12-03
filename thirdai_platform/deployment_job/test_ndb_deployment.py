@@ -146,6 +146,7 @@ def check_insertion_dev_mode(client: TestClient):
         {"path": "mutual_nda.pdf", "location": "local"},
         {"path": "four_english_words.docx", "location": "local"},
         {"path": "supervised.csv", "location": "local"},
+        {"path": "supervised.csv", "location": "local"},  # test duplicate files
     ]
 
     files = [
@@ -165,7 +166,7 @@ def check_insertion_dev_mode(client: TestClient):
 
     res = client.get("/sources")
     assert res.status_code == 200
-    assert len(res.json()["data"]) == 4
+    assert len(res.json()["data"]) == 5
 
 
 def check_deletion_dev_mode(client: TestClient):

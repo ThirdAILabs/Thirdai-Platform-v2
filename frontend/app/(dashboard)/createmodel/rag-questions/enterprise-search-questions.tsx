@@ -490,10 +490,6 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
     </div>
   );
 
-  const isStepOptional = (stepTitle: string) => {
-    return stepTitle === 'LLM';
-  };
-
   return (
     <div>
       <Box sx={{ width: '100%' }}>
@@ -503,10 +499,6 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
             const labelProps: {
               optional?: React.ReactNode;
             } = {};
-            // if (isStepOptional(step.title)) {
-            //   // labelProps.optional = <Typography variant="caption">Optional</Typography>;
-            //   labelProps.optional = '';
-            // }
             return (
               <Step key={step.title} {...stepProps}>
                 {step.title === "LLM" ? (<div style={{ display: 'flex', alignItems: 'center' }}>

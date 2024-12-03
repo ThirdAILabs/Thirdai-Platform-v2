@@ -139,16 +139,6 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
     }
   };
 
-  const handleStepClick = (stepIndex: number) => {
-    // Only allow clicking on completed steps or the next available step
-    if (
-      completedSteps.includes(stepIndex) ||
-      stepIndex === Math.min(currentStep, completedSteps.length)
-    ) {
-      setCurrentStep(stepIndex);
-    }
-  };
-
   const modelDropDownList = existingSSmodels.map((model) => ({
     id: model.model_id,
     name: model.username + '/' + model.model_name,

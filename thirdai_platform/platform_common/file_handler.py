@@ -162,6 +162,9 @@ class FileOperations:
             raise
 
 
+file_ops = FileOperations()
+
+
 def download_local_file(file_info: FileInfo, upload_file: UploadFile, dest_dir: str):
     assert os.path.basename(file_info.path) == upload_file.filename
     destination_path = os.path.join(dest_dir, upload_file.filename)
@@ -188,7 +191,7 @@ def download_local_files(
                     upload_file=filename_to_file[os.path.basename(file_info.path)],
                     dest_dir=dest_dir,
                 )
-                FileOperations.clear_cache(local_path)
+                file_ops.clear_cache(local_path)
             except Exception as error:
                 raise ValueError(
                     f"Error processing file '{file_info.path}' from '{file_info.location}': {error}"

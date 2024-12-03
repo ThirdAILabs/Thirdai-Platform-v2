@@ -194,7 +194,7 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
     {
       title: 'App Name',
       content: (
-        <div className='mt-5'>
+        <div className="mt-5">
           <TextField
             className="text-md w-full"
             value={modelName}

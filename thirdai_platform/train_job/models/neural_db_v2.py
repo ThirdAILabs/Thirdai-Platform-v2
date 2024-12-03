@@ -1,8 +1,8 @@
+import json
 import multiprocessing as mp
 import os
 import shutil
 import time
-import json
 from collections import defaultdict
 from logging import Logger
 from typing import List
@@ -365,7 +365,9 @@ class NeuralDBV2(Model):
                 chunk_store_name = ndb_save_metadata["chunk_store_name"]
                 if chunk_store_name == "PandasChunkStore":
                     os.remove(self.db.chunk_store_path(self.ndb_save_path()))
-                    self.db.chunk_store.save(self.db.chunk_store_path(self.ndb_save_path()))
+                    self.db.chunk_store.save(
+                        self.db.chunk_store_path(self.ndb_save_path())
+                    )
             elif not self.ndb_options.on_disk:
                 self.db.save(self.ndb_save_path())
             self.logger.info(
@@ -385,11 +387,14 @@ class NeuralDBV2(Model):
                     return
                 except OSError as e:
                     if attempt < retries - 1:
-                        self.logger.info(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay} seconds...")
+                        self.logger.info(
+                            f"Attempt {attempt + 1} failed: {e}. Retrying in {delay} seconds..."
+                        )
                         time.sleep(delay)
                     else:
-                        self.logger.info(f"Failed to delete '{self.retriever_save_path()}' after {retries} attempts. Continuing without deleting temp retriever.")
-                        
+                        self.logger.info(
+                            f"Failed to delete '{self.retriever_save_path()}' after {retries} attempts. Continuing without deleting temp retriever."
+                        )
 
     def get_latency(self) -> float:
         self.logger.debug("Measuring latency of the NeuralDBv2 instance.")

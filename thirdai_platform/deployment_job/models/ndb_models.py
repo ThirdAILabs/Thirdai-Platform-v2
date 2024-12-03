@@ -3,11 +3,11 @@ Defines NDB model classes for the application.
 """
 
 import ast
+import json
 import os
 import shutil
 import tempfile
 import traceback
-import json
 import uuid
 from pathlib import Path
 from threading import Lock
@@ -258,7 +258,9 @@ class NDBModel(Model):
             chunk_store_name = ndb_save_metadata["chunk_store_name"]
 
             if write_mode or chunk_store_name == "PandasChunkStore":
-                loaded_db = ndbv2.NeuralDB.load(self.ndb_save_path(), read_only=not write_mode)
+                loaded_db = ndbv2.NeuralDB.load(
+                    self.ndb_save_path(), read_only=not write_mode
+                )
             else:
                 lockfile = os.path.join(self.host_model_dir, "ndb.lock")
                 lock = acquire_file_lock(lockfile)
@@ -319,9 +321,9 @@ class NDBModel(Model):
                     f"Saved NDBv2 model to {model_path}", code=LogCode.MODEL_SAVE
                 )
 
-        except Exception as err:
+        except Exception as e:
             self.logger.error(
-                f"Failed while saving with error: {err}", code=LogCode.MODEL_SAVE
+                f"Failed while saving with error: {e}", code=LogCode.MODEL_SAVE
             )
             traceback.print_exc()
 
@@ -331,7 +333,7 @@ class NDBModel(Model):
                 shutil.copytree(backup_path, model_path)
                 shutil.rmtree(backup_path.parent)
 
-            raise
+            raise e
 
     def set_chat(self, **kwargs):
         """

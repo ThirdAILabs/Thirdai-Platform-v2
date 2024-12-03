@@ -18,4 +18,6 @@ def delete_docs_and_remove_files(
         deleted_filenames.update([chunk.document for chunk in deleted_chunks])
 
     for deleted_filename in deleted_filenames:
-        os.remove(os.path.join(full_documents_path, deleted_filename))
+        full_file_path = os.path.join(full_documents_path, deleted_filename)
+        if os.path.exists(full_file_path):
+            os.remove(full_file_path)

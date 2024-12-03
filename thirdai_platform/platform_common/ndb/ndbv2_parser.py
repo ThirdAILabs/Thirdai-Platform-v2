@@ -75,7 +75,7 @@ def convert_to_ndb_doc(
             doc_id=doc_id,
         )
     else:
-        logging.warning("{ext} Document type isn't supported yet.")
+        logging.warning(f"{ext} Document type isn't supported yet.")
         return None
 
 
@@ -144,5 +144,7 @@ def parse_doc(
     # Remove the local file if it was downloaded from cloud storage
     if doc.location in {FileLocation.s3, FileLocation.azure, FileLocation.gcp}:
         os.remove(local_file_path)
+
+    # we don't delete local files because we use them to render PDFs
 
     return ndb_doc

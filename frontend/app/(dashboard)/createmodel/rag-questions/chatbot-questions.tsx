@@ -173,7 +173,7 @@ const ChatbotQuestions: React.FC<ChatbotQuestionsProps> = ({ models, workflowNam
     {
       title: 'App Name',
       content: (
-        <div>
+        <div className='mt-5'>
           <TextField
             className="text-md w-full"
             value={modelName}

@@ -1273,6 +1273,23 @@ async def validate_document_classification_folder(
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     try:
+        valid_extensions = {".txt", ".doc", ".docx", ".pdf"}
+        
+        # Validate file types first
+        invalid_files = []
+        for file in files:
+            ext = Path(file.filename).suffix.lower()
+            if ext not in valid_extensions:
+                invalid_files.append(file.filename)
+                
+        if invalid_files:
+            return FolderValidationResponse(
+                valid=False,
+                message=f"Invalid file types found: {', '.join(invalid_files)}. Only .txt, .doc, .docx, and .pdf files are supported.",
+                categories=[],
+                file_counts={},
+            )
+
         # Process files and maintain folder structure
         categories = set()
         category_files = {}
@@ -1285,7 +1302,7 @@ async def validate_document_classification_folder(
             if category not in category_files:
                 category_files[category] = []
             category_files[category].append(file.filename)
-        # Basic validation checks
+
         if len(categories) < 2:
             return FolderValidationResponse(
                 valid=False,
@@ -1293,11 +1310,13 @@ async def validate_document_classification_folder(
                 categories=list(categories),
                 file_counts=category_files,
             )
+
         # Check minimum files per category
         insufficient_categories = []
         for category, files_list in category_files.items():
             if len(files_list) < 10:
                 insufficient_categories.append(f"{category} ({len(files_list)} files)")
+                
         if insufficient_categories:
             return FolderValidationResponse(
                 valid=False,
@@ -1305,21 +1324,7 @@ async def validate_document_classification_folder(
                 categories=list(categories),
                 file_counts=category_files,
             )
-        # Validate file types
-        valid_extensions = {".txt", ".doc", ".docx", ".pdf"}
-        invalid_files = []
-        for category, files_list in category_files.items():
-            for file in files_list:
-                ext = Path(file).suffix.lower()
-                if ext not in valid_extensions:
-                    invalid_files.append(file)
-        if invalid_files:
-            return FolderValidationResponse(
-                valid=False,
-                message=f"Invalid file types found: {', '.join(invalid_files)}. Only .txt, .doc, .docx, and .pdf files are supported.",
-                categories=list(categories),
-                file_counts=category_files,
-            )
+
         return FolderValidationResponse(
             valid=True,
             message="Folder structure is valid",

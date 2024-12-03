@@ -18,7 +18,6 @@ def download_local_file(file_info: FileInfo, upload_file: UploadFile, dest_dir: 
     assert os.path.basename(file_info.path) == upload_file.filename
     destination_path = os.path.join(dest_dir, str(uuid.uuid4()), upload_file.filename)
     os.makedirs(os.path.dirname(destination_path), exist_ok=True)
-    print("LMFAO", upload_file.filename, flush=True)
     content = upload_file.file.read()
     upload_file.file.close()
     with open(destination_path, "wb") as f:

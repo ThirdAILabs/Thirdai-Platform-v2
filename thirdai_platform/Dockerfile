@@ -22,6 +22,15 @@ RUN python3 -m pip install -U langchain-community
 
 COPY . /app
 
+# Disable outbound telemetry for the Unstructured library
+ENV SCARF_NO_ANALYTICS=true
+
+# Disable outbound telemetry for the HuggingFace library
+ENV HF_HUB_DISABLE_TELEMETRY=1
+
+# Download nltk models
+RUN python3 -m nltk.downloader -d /usr/share/nltk_data stopwords punkt_tab
+
 # Use build args instead of env variables to pass in these variables at build time
 ARG tag
 ARG docker_registry

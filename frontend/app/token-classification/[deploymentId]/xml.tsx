@@ -2,14 +2,10 @@ import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import {
   ChangeEvent,
   KeyboardEvent,
-  ReactNode,
-  use,
-  useContext,
   useEffect,
   useMemo,
   useState
 } from 'react';
-import { ClickContext } from './clickContext';
 import Fuse from 'fuse.js';
 import {
   DropdownMenu,
@@ -18,44 +14,11 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { preconnect } from 'react-dom';
-// import { Feedback } from './useBackend';
-import * as xpath from 'xpath';
+import * as Xpath from 'xpath';
 export const ATTRIBUTE_PREFIX = '@_';
 export const INDENT = '20px';
 export const SPACE = '5px';
 
-// export interface FrontendFeedback extends Feedback {
-//   text: string;
-// }
-
-function replaceWhitespaceWithSpace(text: string): string {
-  // Replace all whitespace characters with a single space
-  return text.replace(/\s+/g, ' ').trim();
-}
-
-function cleanText(text: string): string {
-  // Replace specific punctuation characters with a space
-  return text.replace(/[:|"<>'\/\\,=%)(}{&]/g, ' ');
-}
-
-function cleanXMLText(obj: any): void {
-  if (typeof obj === 'object' && obj !== null) {
-    for (const key in obj) {
-      if (key === '#text' && typeof obj[key] === 'string') {
-        obj[key] = replaceWhitespaceWithSpace(cleanText(obj[key]));
-      } else if (Array.isArray(obj[key])) {
-        obj[key].forEach((item: any) => cleanXMLText(item));
-      } else if (typeof obj[key] === 'object') {
-        cleanXMLText(obj[key]);
-      }
-      // Optionally clean attribute values
-      else if (key.startsWith(ATTRIBUTE_PREFIX) && typeof obj[key] === 'string') {
-        obj[key] = cleanText(obj[key]);
-      }
-    }
-  }
-}
 
 export function clean(xmlString: string): string {
   // Find the first '<' and the last '>' characters
@@ -125,7 +88,8 @@ interface XMLRendererProps {
   path: (string | number)[];
   choices: string[];
   predictions: Prediction[];
-  xmlDom: any
+  xmlDom: any;
+  onSelectionComplete: (selection: Selection) => void;
   // onFeedback: (feedback: FrontendFeedback) => void;
 }
 
@@ -148,10 +112,11 @@ interface TagSelectorProps {
   onSelect: (tag: string) => void;
 }
 
-interface Node {
-  firstchild: {
-    nodeValue: string;
-  }
+interface Selection {
+  start: number;
+  end: number;
+  xpath: string;
+  tag?: string;
 }
 
 export function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
@@ -287,62 +252,14 @@ export function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
   );
 }
 
-export function ClickyThing(props: any) {
-  const [hover, setHover] = useState(false);
-  const background = props.selected
-    ? 'rgba(153, 227, 181, 1.0)'
-    : hover
-      ? 'rgba(153, 227, 181, 0.5)'
-      : '';
-  return (
-    <span
-      style={{ cursor: 'pointer' }}
-      onMouseDown={(e) => {
-        e.stopPropagation();
-        props.onMouseDown();
-      }}
-      onMouseOver={(e) => {
-        setHover(true);
-        e.stopPropagation();
-        props.onMouseOver();
-      }}
-      onMouseUp={(e) => {
-        e.stopPropagation();
-        props.onMouseUp();
-      }}
-      onMouseLeave={(e) => {
-        setHover(false);
-        e.stopPropagation();
-      }}
-    >
-      <span
-        className={'bg-muted'}
-        style={{
-          flexWrap: 'nowrap',
-          textWrap: 'nowrap',
-          margin: '0 2px',
-          padding: '2px 2px',
-          borderRadius: '4px',
-          background,
-          userSelect: 'none',
-          transition: '0.1s'
-        }}
-        onClick={props.onClick}
-      >
-        {props.children}
-      </span>
-    </span>
-  );
-}
-
 function XMLAttributeRenderer({
   data,
   path,
   attr,
   choices,
   predictions,
-  xmlDom
-  // onFeedback
+  xmlDom,
+  onSelectionComplete
 }: XMLAttributeRendererProps) {
 
   const key = attr.substring(ATTRIBUTE_PREFIX.length);
@@ -366,6 +283,7 @@ function XMLAttributeRenderer({
         choices={choices}
         predictions={predictions}
         xmlDom={xmlDom}
+        onSelectionComplete={onSelectionComplete}
       // onFeedback={onFeedback}
       />
       &quot;
@@ -379,7 +297,8 @@ function XMLValueRenderer({
   attr,
   choices,
   predictions,
-  xmlDom
+  xmlDom,
+  onSelectionComplete
   // onFeedback
 }: XMLValueRendererProps) {
 
@@ -387,31 +306,32 @@ function XMLValueRenderer({
   const [end, setEnd] = useState<number | null>(null);
   const [range, setRange] = useState<[number, number] | null>(null);
   const [isPrediction, setIsPrediction] = useState<number>(-1);
-  const click = useContext(ClickContext);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [tagSelectorOpen, setTagSelectorOpen] = useState(false);
 
 
-  // const tokens = useMemo(
-  //   () => (typeof data === 'string' ? data.split(/\s+/) : [data.toString()]),
-  //   [data]
-  // );
-  // const xpath = useMemo(() => {
-  //   if (path.length === 0) {
-  //     return '#text'; // For normal text inputs
-  //   }
+  const tokens = useMemo(
+    () => (typeof data === 'string' ? data.split(/\s+/) : [data.toString()]),
+    [data]
+  );
+  const xpath = useMemo(() => {
+    if (path.length === 0) {
+      return '#text'; // For normal text inputs
+    }
 
-  //   let xpathBuilder = '';
-  //   path.forEach((step) => {
-  //     if (typeof step === 'number') {
-  //       xpathBuilder += `[${step + 1}]`;
-  //     } else {
-  //       if (xpathBuilder !== '') {
-  //         xpathBuilder += '/';
-  //       }
-  //       xpathBuilder += step;
-  //     }
-  //   });
-  //   return xpathBuilder;
-  // }, [path]);
+    let xpathBuilder = '';
+    path.forEach((step) => {
+      if (typeof step === 'number') {
+        xpathBuilder += `[${step + 1}]`;
+      } else {
+        if (xpathBuilder !== '') {
+          xpathBuilder += '/';
+        }
+        xpathBuilder += step;
+      }
+    });
+    return xpathBuilder;
+  }, [path]);
 
 
   const clickKey = useMemo(() => `${xpath}:${attr}`, [xpath, attr]);
@@ -458,23 +378,59 @@ function XMLValueRenderer({
   };
   const charArray: string[] = data.toString().split('');
   const nodes: any = predictions.map((prediction) => {
-    return (xpath.select(prediction.location.xpath_location.xpath, xmlDom))
+    return (Xpath.select(prediction.location.xpath_location.xpath, xmlDom))
   });
 
 
   useEffect(() => {
     for (let index = 0; index < nodes.length; index++) {
       const node = nodes[index];
-      if (data.toString() === node[0].firstChild.nodeValue) {
-        console.log("Jai Shree Ram!!!");
+      if (data.toString() === node[0].firstChild.nodeValue.trim()) {
         setIsPrediction(index);
       }
-      else {
-        console.log("Jai Node: ", node[0].firstChild.nodeValue);
-        console.log("Jai data: ", data.toString());
-      }
+      // else {
+      //   console.log("Jai Node: ", node[0].firstChild.nodeValue, "x");
+      //   console.log("Jai data: ", data.toString(), "x");
+      // }
     }
   }, [data]);
+  //Mouse event handlers for selection
+  const handleMouseDown = (index: number) => {
+    setStart(index);
+    setEnd(null);
+    setIsSelecting(true);
+  };
+
+  const handleMouseEnter = (index: number) => {
+    if (isSelecting && start !== null) {
+      setEnd(index);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (start !== null && end !== null) {
+      setIsSelecting(false);
+      setTagSelectorOpen(true);
+    }
+  };
+
+  // Tag selection handler
+  const handleTagSelect = (tag: string) => {
+    if (start !== null && end !== null && onSelectionComplete) {
+      const normalizedStart = Math.min(start, end);
+      const normalizedEnd = Math.max(start, end);
+      onSelectionComplete({
+        start: normalizedStart,
+        end: normalizedEnd,
+        xpath,
+        tag
+      });
+    }
+    setTagSelectorOpen(false);
+    setStart(null);
+    setEnd(null);
+  };
+  // Render logic with selection
   return (
     <div
       style={{
@@ -482,45 +438,58 @@ function XMLValueRenderer({
         display: 'flex',
         flexDirection: 'row',
         justifyContent: 'start',
-        flexWrap: 'wrap'
+        flexWrap: 'wrap',
+        userSelect: 'none'
       }}
     >
       {charArray.map((token, index) => {
-        return (<>
-          {/* <ClickyThing
-            key={`clicky${index}`}
-            selected={selected(index) && clickKey === click.key}
-            onMouseDown={() => {
-              click.register(clickKey);
-              setStart(index);
-              setRange(null);
-            }}
-            onMouseOver={() => {
-              setEnd(index);
-            }}
-            onMouseUp={finalizeSelection}
-          > */}
+        const isSelected =
+          start !== null &&
+          end !== null &&
+          index >= Math.min(start, end) &&
+          index <= Math.max(start, end);
 
-          {(isPrediction !== -1) && (index >= predictions[isPrediction].location.local_char_span.start && index <= predictions[isPrediction].location.local_char_span.end)
-            ? (<span className='bg-yellow-200'>{token + " "}</span>) :
-            (token)}
+        // Prediction highlighting
+        const isPredictionSpan =
+          isPrediction !== -1 &&
+          index >= predictions[isPrediction].location.local_char_span.start &&
+          index <= predictions[isPrediction].location.local_char_span.end;
 
-          {/* </ClickyThing> */}
-          {
-            // <TagSelector
-            //   key={`token${index}`}
-            //   open={
-            //     selected(index) &&
-            //     clickKey === click.key &&
-            //     range !== null &&
-            //     index === range[1]
-            //   }
-            //   onSelect={(newLabel: string) => submit(newLabel)}
-            //   choices={choices}
-            // />
-          }
-        </>)
+        return (
+          <>
+            <span
+              key={index}
+              onMouseDown={() => handleMouseDown(index)}
+              onMouseEnter={() => handleMouseEnter(index)}
+              onMouseUp={handleMouseUp}
+              style={{
+                backgroundColor: isSelected
+                  ? 'rgba(153, 227, 181, 0.5)'
+                  : isPredictionSpan
+                    ? 'rgba(255, 255, 0, 0.3)'
+                    : 'transparent',
+                cursor: 'text'
+              }}
+            >
+              {token === ' ' ? '\u00A0' : token}
+            </span>{
+              (isPrediction !== -1 && index === predictions[isPrediction].location.local_char_span.end - 1) && (
+                <span className='font-semibold text-red-500'>
+                  {predictions[isPrediction].label}
+                </span>
+
+              )
+            }
+          </>
+        );
       })}
+      {tagSelectorOpen && (
+        <TagSelector
+          open={tagSelectorOpen}
+          choices={choices}
+          onSelect={handleTagSelect}
+        />
+      )}
     </div>
   );
 }
@@ -531,7 +500,8 @@ function XMLObjectRenderer({
   tag,
   choices,
   predictions,
-  xmlDom
+  xmlDom,
+  onSelectionComplete
   // onFeedback
 }: XMLObjectRendererProps) {
   console.log("Paht in ObjectRenderer: ", path);
@@ -566,6 +536,7 @@ function XMLObjectRenderer({
             choices={choices}
             predictions={predictions}
             xmlDom={xmlDom}
+            onSelectionComplete={onSelectionComplete}
           // onFeedback={onFeedback}
           />
         ))}
@@ -584,6 +555,7 @@ function XMLObjectRenderer({
               choices={choices}
               predictions={predictions}
               xmlDom={xmlDom}
+              onSelectionComplete={onSelectionComplete}
             // onFeedback={onFeedback}
             />
           </div>
@@ -600,12 +572,15 @@ export function XMLRenderer({
   choices,
   predictions,
   xmlDom,
+  onSelectionComplete,
   // onFeedback
 }: XMLRendererProps) {
   console.log("print inside xml renderer");
   console.log(data);
   console.log(path);
   console.log(choices);
+
+
 
   if (typeof data === 'string') {
     // Data is a string, render it directly
@@ -616,6 +591,7 @@ export function XMLRenderer({
         choices={choices}
         predictions={predictions}
         xmlDom={xmlDom}
+        onSelectionComplete={onSelectionComplete}
       // onFeedback={onFeedback}
       />
     );
@@ -630,6 +606,7 @@ export function XMLRenderer({
         choices={choices}
         predictions={predictions}
         xmlDom={xmlDom}
+        onSelectionComplete={onSelectionComplete}
       // onFeedback={onFeedback}
       />
     );
@@ -643,6 +620,7 @@ export function XMLRenderer({
         choices={choices}
         predictions={predictions}
         xmlDom={xmlDom}
+        onSelectionComplete={onSelectionComplete}
       // onFeedback={onFeedback}
       />
     );
@@ -666,6 +644,7 @@ export function XMLRenderer({
               choices={choices}
               predictions={predictions}
               xmlDom={xmlDom}
+              onSelectionComplete={onSelectionComplete}
             // onFeedback={onFeedback}
             />
           );
@@ -683,6 +662,7 @@ export function XMLRenderer({
                   choices={choices}
                   predictions={predictions}
                   xmlDom={xmlDom}
+                  onSelectionComplete={onSelectionComplete}
                 // onFeedback={onFeedback}
                 />
               ))}
@@ -699,6 +679,7 @@ export function XMLRenderer({
             choices={choices}
             predictions={predictions}
             xmlDom={xmlDom}
+            onSelectionComplete={onSelectionComplete}
           // onFeedback={onFeedback}
           />
         );

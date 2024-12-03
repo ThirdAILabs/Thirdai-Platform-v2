@@ -23,6 +23,8 @@ import {
 import { Input } from '@/components/ui/input';
 import Fuse from 'fuse.js';
 import FeedbackDashboard from './FeedbackDashboard';
+import FeedbackDashboardXML from './FeedbackDashboadXML';
+
 import {
   parseCSV,
   parseExcel,
@@ -30,11 +32,8 @@ import {
   convertCSVToPDFFormat,
   ParsedData,
 } from '@/utils/fileParsingUtils';
-// import TimerIcon from '@mui/icons-material/Timer';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
-// import XMLRenderer from './xmlRenderer';
 import { parseXML, XMLRenderer, clean } from './xml';
-import * as xpath from 'xpath';
 import { DOMParser } from 'xmldom';
 interface Token {
   text: string;
@@ -82,6 +81,12 @@ interface xmlPrediction {
     };
     value: string;
   };
+}
+interface Selection {
+  start: number;
+  end: number;
+  xpath: string;
+  tag?: string;
 }
 
 const SELECTING_COLOR = '#EFEFEF';
@@ -253,38 +258,6 @@ function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSel
   );
 }
 
-const formatXML = (xml: string): string => {
-  let formatted = '';
-  let indent = 0;
-  const tab = '  '; // 2 spaces for indentation
-  const tokens = xml.trim().split(/(<\/?[^>]+>)/g);
-
-  tokens.forEach((token) => {
-    if (!token.trim()) return; // Skip empty tokens
-
-    // Check if it's a closing tag
-    if (token.startsWith('</')) {
-      indent--;
-      formatted += tab.repeat(Math.max(0, indent)) + token + '\n';
-    }
-    // Check if it's an opening tag
-    else if (token.startsWith('<') && !token.startsWith('<?') && !token.endsWith('/>')) {
-      formatted += tab.repeat(indent) + token + '\n';
-      indent++;
-    }
-    // Self-closing tag
-    else if (token.startsWith('<') && token.endsWith('/>')) {
-      formatted += tab.repeat(indent) + token + '\n';
-    }
-    // Text content
-    else if (token.trim()) {
-      formatted += tab.repeat(indent) + token.trim() + '\n';
-    }
-  });
-
-  return formatted.trim();
-};
-
 export default function Interact() {
   const { predict, predictXml, insertSample, addLabel, getLabels, getTextFromFile } =
     useTokenClassificationEndpoints();
@@ -319,7 +292,29 @@ export default function Interact() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [cachedTags, setCachedTags] = useState<CachedTags>({});
+  const [selections, setSelections] = useState<Selection[]>([]);
+  // Handler for when a selection is completed
+  const handleSelectionComplete = (selection: Selection) => {
+    // Add the new selection to the list of selections
+    setSelections([...selections, selection]);
+    console.log('New selection:', selection);
+    console.log('All selections:', [...selections, selection]);
+  };
+  // Handler to delete a selection
+  const handleDeleteSelection = (index: number) => {
+    setSelections(prevSelections =>
+      prevSelections.filter((_, i) => i !== index)
+    );
+  };
 
+  // Handler to update a selection's tag
+  const handleUpdateSelection = (index: number, newTag: string) => {
+    setSelections(prevSelections =>
+      prevSelections.map((selection, i) =>
+        i === index ? { ...selection, tag: newTag } : selection
+      )
+    );
+  };
   useEffect(() => {
     const stopSelectingOnOutsideClick = () => {
       setSelecting(false);
@@ -452,10 +447,7 @@ export default function Interact() {
         );
       }
       else {
-
-        setAnnotations([{ text: "this is", tag: "hue" }]);
         const result = await predictXml(clean(text));
-        // const result = await predictXml(formatXML(text));
         setXmlQueryText(result.prediction_results.query_text);
         setXmlAnnotations(result.prediction_results.predictions)
       }
@@ -850,17 +842,29 @@ export default function Interact() {
     let currentIndex = 0;
 
     if (logType === "xml" && xmlQueryText) {
-      // return (<XMLRenderer xmlText={xmlQueryText} predictions={xmlAnnotations} />)
       const cleanXml = clean(xmlQueryText);
       const parsedXml = parseXML(cleanXml);
       const xmlDom = new DOMParser().parseFromString(cleanXml, 'application/xml');
-      return <XMLRenderer
-        data={parsedXml}
-        path={[]}
-        choices={allLabels}
-        predictions={xmlAnnotations}
-        xmlDom={xmlDom}
-      />
+
+
+      return (
+        <>
+          <XMLRenderer
+            data={parsedXml}
+            path={[]}
+            choices={allLabels}
+            predictions={xmlAnnotations}
+            xmlDom={xmlDom}
+            onSelectionComplete={handleSelectionComplete}
+          />
+          {/* <FeedbackDashboardXML
+            selections={selections}
+            predictions={xmlAnnotations}
+            xmlText={xmlQueryText}
+            onDeleteSelection={handleDeleteSelection}
+            onUpdateSelection={handleUpdateSelection}
+          /> */}
+        </>)
     }
     return words
       .map((word, wordIndex) => {
@@ -1001,7 +1005,7 @@ export default function Interact() {
           </Typography>
         </Box>
 
-        {annotations.length > 0 && (
+        {(annotations.length > 0 || xmlAnnotations.length > 0) && (
           <Box mt={4} mb={2} display="flex" alignItems="center" justifyContent="flex-end">
             <FormControlLabel
               control={
@@ -1021,7 +1025,7 @@ export default function Interact() {
             <CircularProgress />
           </Box>
         ) : (
-          annotations.length > 0 && (
+          (annotations.length > 0 || xmlAnnotations.length > 0) && (
             <Box mt={4}>
               <Card
                 className="p-7 text-start"
@@ -1046,21 +1050,29 @@ export default function Interact() {
           marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
         }}
       >
-        {processingTime !== undefined && annotations.length && (
+        {processingTime !== undefined && (annotations.length || xmlAnnotations.length) && (
           <div className="mb-4">
             {' '}
-            <InferenceTimeDisplay processingTime={processingTime} tokenCount={annotations.length} />
+            {annotations.length ? (<InferenceTimeDisplay processingTime={processingTime} tokenCount={annotations.length} />) :
+              (<InferenceTimeDisplay processingTime={processingTime} tokenCount={xmlAnnotations.length} />)}
           </div>
         )}
 
-        <Card className="p-7 text-start">
+        {annotations.length !== 0 ? (<Card className="p-7 text-start">
           <FeedbackDashboard
             cachedTags={cachedTags}
             tagColors={tagColors}
             deleteFeedbackExample={deleteFeedbackExample}
             submitFeedback={submitFeedback}
           />
-        </Card>
+        </Card>) : (xmlQueryText && <FeedbackDashboardXML
+          selections={selections}
+          predictions={xmlAnnotations}
+          xmlText={xmlQueryText}
+          onDeleteSelection={handleDeleteSelection}
+          onUpdateSelection={handleUpdateSelection}
+        />)
+        }
       </div>
     </Container>
   );

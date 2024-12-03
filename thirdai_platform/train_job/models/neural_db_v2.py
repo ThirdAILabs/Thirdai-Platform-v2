@@ -60,7 +60,6 @@ class NeuralDBV2(Model):
             self.db = ndbv2.NeuralDB(
                 save_path=save_path,
                 splade=splade,
-                splade_model_dir=self.ndb_options.splade_model_dir,
             )
 
     def ndb_save_path(self):

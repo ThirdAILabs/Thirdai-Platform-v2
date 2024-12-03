@@ -1,4 +1,3 @@
-import os
 from transformers import AutoModelForMaskedLM, AutoModelForSequenceClassification
 
 # Download Splade model

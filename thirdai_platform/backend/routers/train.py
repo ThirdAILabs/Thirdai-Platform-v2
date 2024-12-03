@@ -1094,6 +1094,60 @@ def train_udt(
     )
 
 
+def validate_text_classification_csv_format(
+    file: UploadFile,
+) -> tuple[bool, str, set[str] | None]:
+    """
+    Validates the CSV file format for text classification.
+    Returns (is_valid, error_message, extracted_labels).
+    """
+    try:
+        content = file.file.read()
+        file.file.seek(0)
+
+        df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+
+        if set(df.columns) != {"text", "label"}:
+            return (
+                False,
+                "CSV must contain exactly two columns named 'text' and 'label'",
+                None,
+            )
+
+        if df.empty:
+            return False, "CSV file is empty", None
+
+        if df["text"].isnull().any() or df["label"].isnull().any():
+            return False, "CSV contains empty cells", None
+
+        unique_labels = set(df["label"].unique())
+        label_counts = df["label"].value_counts()
+        insufficient_labels = {
+            label for label, count in label_counts.items() if count < 10
+        }
+
+        if len(unique_labels) < 2:
+            return False, "At least two different labels are required", unique_labels
+
+        if insufficient_labels:
+            return (
+                False,
+                f"Labels {', '.join(insufficient_labels)} have fewer than 10 examples",
+                unique_labels,
+            )
+
+        return True, "", unique_labels
+
+    except UnicodeDecodeError:
+        return False, "File is not a valid CSV file (encoding error)", None
+    except pd.errors.EmptyDataError:
+        return False, "CSV file is empty", None
+    except pd.errors.ParserError:
+        return False, "File is not a valid CSV file (parsing error)", None
+    except Exception as e:
+        return False, f"Error validating CSV: {str(e)}", None
+
+
 class CSVValidationResponse(BaseModel):
     valid: bool
     message: str
@@ -1107,49 +1161,27 @@ async def validate_text_classification_csv(
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
     try:
-        # Read CSV content
-        contents = await file.read()
-        df = pd.read_csv(pd.io.common.BytesIO(contents))
-        # Validation checks
-        if "text" not in df.columns or "label" not in df.columns:
+        is_valid, error_message, unique_labels = (
+            validate_text_classification_csv_format(file)
+        )
+
+        if not is_valid:
             return CSVValidationResponse(
                 valid=False,
-                message="CSV must contain 'text' and 'label' columns",
-                labels=[],
+                message=error_message,
+                labels=list(unique_labels) if unique_labels else [],
             )
-        # Check for empty values
-        if df["text"].isnull().any() or df["label"].isnull().any():
-            return CSVValidationResponse(
-                valid=False,
-                message="CSV contains empty values in text or label columns",
-                labels=[],
-            )
-        # Get unique labels
-        unique_labels = df["label"].unique().tolist()
-        # Check minimum number of labels
-        if len(unique_labels) < 2:
-            return CSVValidationResponse(
-                valid=False,
-                message="At least two different labels are required",
-                labels=unique_labels,
-            )
-        # Check minimum examples per label
-        label_counts = df["label"].value_counts()
-        insufficient_labels = label_counts[label_counts < 10].index.tolist()
-        if insufficient_labels:
-            return CSVValidationResponse(
-                valid=False,
-                message=f"Labels {', '.join(insufficient_labels)} have fewer than 10 examples",
-                labels=unique_labels,
-            )
+
         return CSVValidationResponse(
-            valid=True, message="CSV file is valid", labels=unique_labels
+            valid=True, message="CSV file is valid", labels=list(unique_labels)
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-def validate_csv_format(file: UploadFile) -> tuple[bool, str, set[str] | None]:
+def validate_token_classification_csv_format(
+    file: UploadFile,
+) -> tuple[bool, str, set[str] | None]:
     """
     Validates the CSV file format for token classification.
     Returns (is_valid, error_message, extracted_labels).
@@ -1234,7 +1266,9 @@ def validate_token_classifier_csv(
                 data={"valid": False, "details": "File must have .csv extension"},
             )
         # Validate CSV format and get labels
-        is_valid, error_message, token_types = validate_csv_format(file)
+        is_valid, error_message, token_types = validate_token_classification_csv_format(
+            file
+        )
         if not is_valid:
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,

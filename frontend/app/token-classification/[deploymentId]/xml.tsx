@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Underline } from 'lucide-react';
 export const ATTRIBUTE_PREFIX = '@_';
 export const INDENT = '20px';
 export const SPACE = '5px';
@@ -105,6 +106,7 @@ interface TagSelectorProps {
   open: boolean;
   choices: string[];
   onSelect: (tag: string) => void;
+  predictions: Prediction[];
 }
 
 interface Selection {
@@ -115,7 +117,7 @@ interface Selection {
   value: string;
 }
 
-export function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
+export function TagSelector({ open, choices, onSelect, predictions }: TagSelectorProps) {
   const defaultOptions = useMemo(
     () => choices.map((label) => ({ label, new: false })),
     [choices]
@@ -325,10 +327,6 @@ function XMLValueRenderer({
       if (data.toString().substring(prediction.location.local_char_span.start, prediction.location.local_char_span.end) === prediction.location.value.trim()) {
         setIsPredictionIndex(index);
       }
-
-      console.log("data: ", "x", data.toString().substring(prediction.location.local_char_span.start, prediction.location.local_char_span.end),
-        " hue ", prediction.location.value.trim())
-
     }
   }, [data, predictions.length]);
 
@@ -355,9 +353,9 @@ function XMLValueRenderer({
   // Tag selection handler
   const handleTagSelect = (tag: string) => {
     if (start !== null && end !== null) {
-      const normalizedStart = Math.min(start, end);
-      const normalizedEnd = Math.max(start, end);
-      const selectedText = data.toString().trim().substring(normalizedStart, normalizedEnd + 1);
+      const normalizedStart = Math.min(start, end + 1);
+      const normalizedEnd = Math.max(start, end + 1);
+      const selectedText = data.toString().trim().substring(normalizedStart, normalizedEnd);
       onSelectionComplete({
         start: normalizedStart,
         end: normalizedEnd,
@@ -370,6 +368,7 @@ function XMLValueRenderer({
     setStart(null);
     setEnd(null);
   };
+
   // Render logic with selection
   return (
     <div
@@ -392,6 +391,7 @@ function XMLValueRenderer({
         // Prediction highlighting
         const predictionIndexSpan =
           predictionIndex !== -1 &&
+          predictions[predictionIndex] !== undefined &&
           index >= predictions[predictionIndex].location.local_char_span.start &&
           index <= predictions[predictionIndex].location.local_char_span.end - 1;
 
@@ -414,8 +414,8 @@ function XMLValueRenderer({
               {token === ' ' ? '\u00A0' : token}
             </span>
             {
-              (predictionIndex !== -1 && index === predictions[predictionIndex].location.local_char_span.end - 1) && (
-                <span className='font-semibold text-red-500'>
+              (predictionIndex !== -1 && predictions[predictionIndex] && index === predictions[predictionIndex].location.local_char_span.end - 1) && (
+                <span className='font-semibold text-red-500' style={{ backgroundColor: 'rgba(255, 255, 0, 0.3)' }}>
                   {'\u00A0'}{"[" + predictions[predictionIndex].label + "]"}
                 </span>
               )
@@ -429,6 +429,7 @@ function XMLValueRenderer({
           open={tagSelectorOpen}
           choices={choices}
           onSelect={handleTagSelect}
+          predictions={predictions}
         />
       )}
     </div>

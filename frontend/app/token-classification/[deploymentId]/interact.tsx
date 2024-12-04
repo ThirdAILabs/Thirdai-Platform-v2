@@ -288,7 +288,6 @@ export default function Interact() {
   // Handler for when a selection is completed
   const handleSelectionComplete = (selection: Selection) => {
     // Add the new selection to the list of selections
-    setSelections([...selections, selection]);
     const xmlAnnotation: xmlPrediction = {
       location: {
         local_char_span: {
@@ -299,11 +298,29 @@ export default function Interact() {
       },
       label: selection.tag
     };
-    // setXmlAnnotations([...xmlAnnotations, xmlAnnotation]);
-    setXmlAnnotations((prevAnnotations) => [...prevAnnotations, xmlAnnotation]);
-    console.log('New selection:', selection);
-    console.log('All selections:', [...selections, selection]);
-    console.log("all sele xml ", xmlAnnotations);
+    if (selection.tag === "DELETE TAG") {
+      // setXmlAnnotations((prevAnnotations) => [...prevAnnotations, xmlAnnotation]);
+      console.log("Delete tag hue hue", xmlAnnotation);
+
+      setXmlAnnotations(xmlAnnotations.filter((item) =>
+        (item.location.value !== xmlAnnotation.location.value)
+      ));
+      console.log('DELETE TAG SELE:', selection);
+      // console.log('All selections:', [...selections, selection]);
+      setSelections(selections.filter((item) => {
+        // const newItem = [item.end, item.start, item.value, item.xpath];
+        // const newSelection = [selection.end, selection.start, selection.value, selection.xpath];
+        return (item.value !== selection.value)
+      }));
+      console.log("DELETE TAG sele xml ", xmlAnnotations);
+    }
+    else {
+      setXmlAnnotations((prevAnnotations) => [...prevAnnotations, xmlAnnotation]);
+      setSelections([...selections, selection]);
+      console.log('New selection:', selection);
+      console.log('All selections:', [...selections, selection]);
+      console.log("all sele xml ", xmlAnnotations);
+    }
   };
   // Handler to delete a selection
   const handleDeleteSelection = (index: number) => {
@@ -324,6 +341,9 @@ export default function Interact() {
     setInputText(event.target.value);
     setParsedData(null);
     setAnnotations([]);
+    setXmlAnnotations([]);
+    setSelections([]);
+    setLogType(undefined);
     setProcessingTime(undefined); // make time display disppears as typying begins
   };
 
@@ -446,6 +466,7 @@ export default function Interact() {
         const result = await predictXml(clean(text));
         setXmlQueryText(result.prediction_results.query_text);
         setXmlAnnotations(result.prediction_results.predictions)
+        setSelections([]);
       }
       if (!isFileUpload) {
         setParsedData({ type: 'other', content: text });
@@ -840,6 +861,7 @@ export default function Interact() {
     if (logType === "xml" && xmlQueryText) {
       const cleanXml = clean(xmlQueryText);
       const parsedXml = parseXML(cleanXml);
+      console.log("DELETE TAG annoat", xmlAnnotations);
       return (
         <XMLRenderer
           data={parsedXml}
@@ -1041,18 +1063,18 @@ export default function Interact() {
           </div>
         )}
 
-        {annotations.length !== 0 ? (<Card className="p-7 text-start">
+        {(annotations.length !== 0) && (<Card className="p-7 text-start">
           <FeedbackDashboard
             cachedTags={cachedTags}
             tagColors={tagColors}
             deleteFeedbackExample={deleteFeedbackExample}
             submitFeedback={submitFeedback}
           />
-        </Card>) : (
-          xmlQueryText && <FeedbackDashboardXML
-            selections={selections}
-            onDeleteSelection={handleDeleteSelection}
-          />)
+        </Card>)}
+        {(xmlAnnotations.length !== 0) && <FeedbackDashboardXML
+          selections={selections}
+          onDeleteSelection={handleDeleteSelection}
+        />
         }
       </div>
     </Container>

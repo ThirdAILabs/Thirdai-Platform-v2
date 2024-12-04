@@ -1,6 +1,7 @@
 import logging
 import os
-import shutil
+
+pass
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from functools import wraps
@@ -11,8 +12,8 @@ from botocore import UNSIGNED
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from fastapi import HTTPException, UploadFile, status
-from platform_common.pydantic_models.training import FileInfo, FileLocation
 from platform_common import file_ops
+from platform_common.pydantic_models.training import FileInfo, FileLocation
 
 
 def download_local_file(file_info: FileInfo, upload_file: UploadFile, dest_dir: str):

@@ -27,7 +27,7 @@ class EnterpriseSearchRouter:
         )
         self.logger.info(f"Retrieval endpoint set to {self.retrieval_endpoint}")
 
-        if self.config.options["guardrail_id"]:
+        if self.config.options.get("guardrail_id", None):
             self.guardrail = Guardrail(
                 guardrail_model_id=self.config.options["guardrail_id"],
                 model_bazaar_endpoint=self.config.model_bazaar_endpoint,

@@ -88,7 +88,11 @@ func (r *httpRequest) Do(result interface{}) error {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("%v request to endpoint %v returned status %d", r.method, r.endpoint, res.StatusCode)
+		content, err := io.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("%v request to endpoint %v returned status %d", r.method, r.endpoint, res.StatusCode)
+		}
+		return fmt.Errorf("%v request to endpoint %v returned status %d, content '%v'", r.method, r.endpoint, res.StatusCode, string(content))
 	}
 
 	if result != nil {

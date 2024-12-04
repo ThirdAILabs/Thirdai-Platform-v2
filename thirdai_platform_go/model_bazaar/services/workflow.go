@@ -101,6 +101,7 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 		}
 
 		model := createModel(modelId, params.ModelName, schema.EnterpriseSearch, nil, userId)
+		model.TrainStatus = schema.Complete
 		model.Dependencies = deps
 		model.Attributes = attrs
 

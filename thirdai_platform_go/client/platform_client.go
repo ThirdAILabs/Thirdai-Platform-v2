@@ -3,7 +3,9 @@ package client
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"mime/multipart"
+	"os"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
 )
@@ -210,4 +212,91 @@ func (c *PlatformClient) TrainNlpTextDatagen(name string, taskPrompt string, opt
 			modelId:    res["model_id"],
 		},
 	}, nil
+}
+
+func (c *PlatformClient) CreateEnterpriseSearchWorkflow(modelName string, retrieval *NdbClient, guardrail *NlpTokenClient) (*EnterpriseSearchClient, error) {
+	var guardrailId *string = nil
+	if guardrail != nil {
+		guardrailId = &guardrail.modelId
+	}
+
+	body := services.EnterpriseSearchRequest{
+		ModelName:   modelName,
+		RetrievalId: retrieval.modelId,
+		GuardrailId: guardrailId,
+	}
+
+	var res map[string]string
+	err := c.Post("/api/v2/workflow/enterprise-search").Json(body).Do(&res)
+	if err != nil {
+		return nil, err
+	}
+
+	return &EnterpriseSearchClient{
+		ModelClient{
+			baseClient: c.baseClient,
+			modelId:    res["model_id"],
+		},
+	}, nil
+}
+
+func (c *PlatformClient) UploadModel(modelName, modelType, path string) (interface{}, error) {
+	// TODO: path could be a directory for ndb uploads, needs to be zipped
+
+	modelFile, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("error reading model file %v: %w", path, err)
+	}
+	defer modelFile.Close()
+
+	body := map[string]string{"model_name": modelName, "model_type": modelType}
+	var uploadToken map[string]string
+	err = c.Post("/api/v2/model/upload").Json(body).Do(&uploadToken)
+	if err != nil {
+		return nil, fmt.Errorf("error starting model upload: %w", err)
+	}
+
+	chunkIdx := 0
+	chunk := make([]byte, 1*1024*1024)
+	for {
+		n, rerr := modelFile.Read(chunk)
+		if rerr != nil && rerr != io.EOF {
+			return nil, fmt.Errorf("error reading from model file: %w", err)
+		}
+
+		err := c.Post(fmt.Sprintf("/api/v2/model/upload/%d", chunkIdx)).
+			Auth(uploadToken["token"]).
+			Body(bytes.NewReader(chunk[:n])).Do(nil)
+		if err != nil {
+			return nil, fmt.Errorf("error sending chunk %d: %w", chunkIdx, err)
+		}
+		if rerr == io.EOF {
+			break
+		}
+		chunkIdx++
+	}
+
+	var res map[string]string
+	err = c.Post("/api/v2/model/upload/commit").Auth(uploadToken["token"]).Do(&res)
+	if err != nil {
+		return nil, fmt.Errorf("error committing model upload: %w", err)
+	}
+
+	if modelType == "nlp-text" {
+		return &NlpTextClient{
+			ModelClient{
+				baseClient: c.baseClient,
+				modelId:    res["model_id"],
+			},
+		}, nil
+	} else if modelType == "nlp-token" {
+		return &NlpTokenClient{
+			ModelClient{
+				baseClient: c.baseClient,
+				modelId:    res["model_id"],
+			},
+		}, nil
+	} else {
+		return nil, fmt.Errorf("invalid model type: %v", modelType)
+	}
 }

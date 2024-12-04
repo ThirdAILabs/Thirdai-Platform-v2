@@ -130,6 +130,7 @@ func (j LlmCacheJob) TemplateName() string {
 
 type LlmDispatchJob struct {
 	ModelBazaarEndpoint string
+	ShareDir            string
 
 	Driver Driver
 }

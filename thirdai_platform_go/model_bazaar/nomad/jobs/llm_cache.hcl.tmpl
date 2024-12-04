@@ -63,7 +63,7 @@ job "llm-cache" {
         {{ else if isLocal .Driver }}
           command = "/bin/sh"
           {{ with .Driver }}
-          args    = ["-c", "cd {{ .Platformdir }} && {{ .PythonPath }} -m uvicorn main:app --app-dir llm_cache_job --host 0.0.0.0 --port ${NOMAD_PORT_llm_cache_http}"]
+          args    = ["-c", "cd {{ .PlatformDir }} && {{ .PythonPath }} -m uvicorn main:app --app-dir llm_cache_job --host 0.0.0.0 --port ${NOMAD_PORT_llm_cache_http}"]
           {{ end }}
         {{ end }}
       }

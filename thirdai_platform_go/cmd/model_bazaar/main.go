@@ -1,15 +1,16 @@
 package main
 
 import (
-	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"log"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+	"thirdai_platform/model_bazaar/jobs"
 	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
@@ -18,101 +19,170 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-type DbInfo struct {
-	Host     string
-	User     string
-	Password string
-	Dbname   string
-	Port     int
-}
-
-func (info *DbInfo) format() string {
-	return fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v", info.Host, info.User, info.Password, info.Dbname, info.Port)
-}
-
-type ImageInfo struct {
-	BackendImage  string
-	FrontendImage string
-	Tag           string
-}
-
-type Config struct {
-	DB                  DbInfo
-	NomadEndpoint       string
-	NomadToken          string
-	ShareDir            string
-	LicensePath         string
-	ModelBazaarEndpoint string
-
-	LocalDriver    *nomad.LocalDriver
-	ImageInfo      ImageInfo
-	DockerRegistry services.DockerRegistry
+type modelBazaarEnv struct {
+	PublicModelBazaarEndpoint  string
+	PrivateModelBazaarEndpoint string
+	LicensePath                string
+	NomadEndpoint              string
+	NomadToken                 string
+	ShareDir                   string
 
 	AdminUsername string
 	AdminEmail    string
 	AdminPassword string
 
+	// LlmAutoscalingEnabled bool // TODO: is this needed
+	GenAiKey string
+
+	IdentityProvider  string
+	KeycloakServerUrl string
+	UseSslInLogin     bool
+
+	DockerRegistry string
+	DockerUsername string
+	DockerPassword string
+	Tag            string
+	BackendImage   string
+	FrontendImage  string
+
+	// These args are only needed if backend image is not specified, this is used to run locally.
+	PythonPath  string
+	PlatformDir string
+
+	DatabaseUri  string
+	GrafanaDbUri string
+
 	CloudCredentials nomad.CloudCredentials
-
-	LlmProviders map[string]string
-
-	Port int
 }
 
-func (c *Config) BackendDriver() nomad.Driver {
-	if c.LocalDriver != nil {
-		return c.LocalDriver
-	}
+func boolEnvVar(key string) bool {
+	value := os.Getenv(key)
+	return strings.ToLower(value) == "true"
+}
 
-	return nomad.DockerDriver{
-		ImageName: c.ImageInfo.BackendImage,
-		Tag:       c.ImageInfo.Tag,
-		DockerEnv: nomad.DockerEnv{
-			Registry:       c.DockerRegistry.Registry,
-			DockerUsername: c.DockerRegistry.DockerUsername,
-			DockerPassword: c.DockerRegistry.DockerPassword,
-			ShareDir:       c.ShareDir,
+func loadEnvFileIfExists() {
+	path := []string{"thirdai_platform_go", "cmd", "model_bazaar", ".env"}
+
+	for i := 0; i < len(path); i++ {
+		candidate := filepath.Join(path[i:]...)
+		if _, err := os.Stat(candidate); err == nil {
+			err := godotenv.Load(candidate)
+			if err != nil {
+				log.Fatalf("error loading .env file '%v': %v", candidate, err)
+			}
+			break
+		}
+	}
+}
+
+/**
+ * ==========================================================================
+ * ==== All variables that are used by model bazaar must be loaded here. ====
+ * ==== This is to make the data flow clear so that a user can see what  ====
+ * ==== variables are exposed, and how the values are propagated through ====
+ * ==== the system.                                                      ====
+ * ==========================================================================
+ */
+func loadEnv() modelBazaarEnv {
+	loadEnvFileIfExists()
+
+	return modelBazaarEnv{
+		PublicModelBazaarEndpoint:  os.Getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT"),
+		PrivateModelBazaarEndpoint: os.Getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+		LicensePath:                os.Getenv("LICENSE_PATH"),
+		NomadEndpoint:              os.Getenv("NOMAD_ENDPOINT"),
+		NomadToken:                 os.Getenv("TASK_RUNNER_TOKEN"),
+		ShareDir:                   os.Getenv("SHARE_DIR"),
+
+		AdminUsername: os.Getenv("ADMIN_USERNAME"),
+		AdminEmail:    os.Getenv("ADMIN_MAIL"),
+		AdminPassword: os.Getenv("ADMIN_PASSWORD"),
+
+		// LlmAutoscalingEnabled: boolEnvVar("AUTOSCALING_ENABLED"),
+		GenAiKey: os.Getenv("GENAI_KEY"),
+
+		IdentityProvider:  os.Getenv("IDENTITY_PROVIDER"),
+		KeycloakServerUrl: os.Getenv("KEYCLOAK_SERVER_URL"),
+		UseSslInLogin:     boolEnvVar("USE_SSL_IN_LOGIN"),
+
+		DockerRegistry: os.Getenv("DOCKER_REGISTRY"),
+		DockerUsername: os.Getenv("DOCKER_USERNAME"),
+		DockerPassword: os.Getenv("DOCKER_PASSWORD"),
+		Tag:            os.Getenv("TAG"),
+		BackendImage:   os.Getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
+		FrontendImage:  os.Getenv("FRONTEND_IMAGE_NAME"),
+
+		PythonPath:  os.Getenv("PYTHON_PATH"),
+		PlatformDir: os.Getenv("PLATFORM_DIR"),
+
+		DatabaseUri:  os.Getenv("DATABASE_URI"),
+		GrafanaDbUri: os.Getenv("GRAFANA_DB_URL"),
+
+		CloudCredentials: nomad.CloudCredentials{
+			AwsAccessKey:       os.Getenv("AWS_ACCESS_KEY"),
+			AwsAccessSecret:    os.Getenv("AWS_ACCESS_SECRET"),
+			AwsRegionName:      os.Getenv("AWS_REGION_NAME"),
+			AzureAccountName:   os.Getenv("AZURE_ACCOUNT_NAME"),
+			AzureAccountKey:    os.Getenv("AZURE_ACCOUNT_KEY"),
+			GcpCredentialsFile: os.Getenv("GCP_CREDENTIALS_FILE"),
 		},
 	}
 }
 
-func (c *Config) FrontendDriver() nomad.DockerDriver {
+func (env *modelBazaarEnv) postgresDsn() string {
+	parts, err := url.Parse(env.DatabaseUri)
+	if err != nil {
+		log.Fatalf("error parsing db uri: %v", err)
+	}
+	pwd, _ := parts.User.Password()
+	dbname := strings.TrimPrefix(parts.Path, "/")
+	return fmt.Sprintf("host=%v user=%v password=%v dbname=%v port=%v", parts.Hostname(), parts.User.Username(), pwd, dbname, parts.Port())
+}
+
+func (env *modelBazaarEnv) BackendDriver() nomad.Driver {
+	if env.BackendImage == "" {
+		return nomad.LocalDriver{
+			PythonPath:  env.PythonPath,
+			PlatformDir: env.PlatformDir,
+		}
+	}
+
 	return nomad.DockerDriver{
-		ImageName: c.ImageInfo.FrontendImage,
-		Tag:       c.ImageInfo.Tag,
+		ImageName: env.BackendImage,
+		Tag:       env.Tag,
 		DockerEnv: nomad.DockerEnv{
-			Registry:       c.DockerRegistry.Registry,
-			DockerUsername: c.DockerRegistry.DockerUsername,
-			DockerPassword: c.DockerRegistry.DockerPassword,
-			ShareDir:       c.ShareDir,
+			Registry:       env.DockerRegistry,
+			DockerUsername: env.DockerUsername,
+			DockerPassword: env.DockerPassword,
+			ShareDir:       env.ShareDir,
 		},
 	}
 }
 
-func loadConfig() Config {
-	configFilePath := flag.String("config", "", "the config file to use to start model_bazaar")
-	flag.Parse()
-
-	if *configFilePath == "" {
-		log.Fatal("missing arg 'config'")
+func (env *modelBazaarEnv) FrontendDriver() nomad.DockerDriver {
+	return nomad.DockerDriver{
+		ImageName: env.FrontendImage,
+		Tag:       env.Tag,
+		DockerEnv: nomad.DockerEnv{
+			Registry:       env.DockerRegistry,
+			DockerUsername: env.DockerUsername,
+			DockerPassword: env.DockerPassword,
+			ShareDir:       env.ShareDir,
+		},
 	}
+}
 
-	configFile, err := os.Open(*configFilePath)
-	if err != nil {
-		log.Fatalf("unable to open config file '%v': %v", *configFilePath, err)
+func (env *modelBazaarEnv) llmProviders() map[string]string {
+	providers := map[string]string{}
+	if strings.HasPrefix(env.GenAiKey, "sk-") {
+		providers["openai"] = env.GenAiKey
 	}
-
-	var c Config
-	err = json.NewDecoder(configFile).Decode(&c)
-	if err != nil {
-		log.Fatalf("unable to parse config file: %v", err)
-	}
-
-	return c
+	return providers
 }
 
 func initLogging(logFile *os.File) {
@@ -139,14 +209,14 @@ func initDb(dsn string) *gorm.DB {
 }
 
 func main() {
-	c := loadConfig()
+	env := loadEnv()
 
-	err := os.MkdirAll(filepath.Join(c.ShareDir, "logs/"), 0777)
+	err := os.MkdirAll(filepath.Join(env.ShareDir, "logs/"), 0777)
 	if err != nil {
 		log.Fatalf("error creating log dir: %v", err)
 	}
 
-	logFile, err := os.OpenFile(filepath.Join(c.ShareDir, "logs/model_bazaar.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	logFile, err := os.OpenFile(filepath.Join(env.ShareDir, "logs/model_bazaar.log"), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {
 		log.Fatalf("error opening log file: %v", err)
 	}
@@ -154,33 +224,75 @@ func main() {
 
 	initLogging(logFile)
 
-	model_bazaar := services.NewModelBazaar(
-		initDb(c.DB.format()),
-		nomad.NewHttpClient(c.NomadEndpoint, c.NomadToken),
-		storage.NewSharedDisk(c.ShareDir),
-		licensing.NewVerifier(c.LicensePath),
-		services.Variables{
-			BackendDriver:       c.BackendDriver(),
-			FrontendDriver:      c.FrontendDriver(),
-			DockerRegistry:      c.DockerRegistry,
-			ShareDir:            c.ShareDir,
-			ModelBazaarEndpoint: c.ModelBazaarEndpoint,
-			CloudCredentials:    c.CloudCredentials,
-			LlmProviders:        c.LlmProviders,
+	nomadClient := nomad.NewHttpClient(env.NomadEndpoint, env.NomadToken)
+
+	licenseVerifier := licensing.NewVerifier(env.LicensePath)
+
+	sharedStorage := storage.NewSharedDisk(env.ShareDir)
+
+	variables := services.Variables{
+		BackendDriver: env.BackendDriver(),
+		DockerRegistry: services.DockerRegistry{
+			Registry:       env.DockerRegistry,
+			DockerUsername: env.DockerUsername,
+			DockerPassword: env.DockerPassword,
 		},
+		ShareDir:            env.ShareDir,
+		ModelBazaarEndpoint: env.PrivateModelBazaarEndpoint,
+		CloudCredentials:    env.CloudCredentials,
+		LlmProviders:        env.llmProviders(),
+	}
+
+	model_bazaar := services.NewModelBazaar(
+		initDb(env.postgresDsn()),
+		nomadClient,
+		sharedStorage,
+		licenseVerifier,
+		variables,
 	)
+
+	err = jobs.StartLlmCacheJob(nomadClient, licenseVerifier, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
+	if err != nil {
+		log.Fatalf("failed to start llm cache job: %v", err)
+	}
+
+	err = jobs.StartLlmDispatchJob(nomadClient, env.BackendDriver(), env.PrivateModelBazaarEndpoint, env.ShareDir)
+	if err != nil {
+		log.Fatalf("failed to start llm dispatch job: %v", err)
+	}
+
+	telemetryArgs := jobs.TelemetryJobArgs{
+		IsLocal:             env.BackendImage == "",
+		ModelBazaarEndpoint: env.PrivateModelBazaarEndpoint,
+		Docker:              variables.DockerEnv(),
+		GrafanaDbUrl:        env.GrafanaDbUri,
+		AdminUsername:       env.AdminUsername,
+		AdminEmail:          env.AdminEmail,
+		AdminPassword:       env.AdminPassword,
+	}
+	err = jobs.StartTelemetryJob(nomadClient, sharedStorage, telemetryArgs)
+	if err != nil {
+		log.Fatalf("failed to start telemetry job: %v", err)
+	}
+
+	if env.FrontendImage != "" {
+		err := jobs.StartFrontendJob(nomadClient, env.FrontendDriver(), env.GenAiKey)
+		if err != nil {
+			log.Fatalf("failed to start frontend job: %v", err)
+		}
+	}
 
 	go model_bazaar.StartStatusSync(5 * time.Second)
 
-	model_bazaar.InitAdmin(c.AdminUsername, c.AdminEmail, c.AdminPassword)
+	model_bazaar.InitAdmin(env.AdminUsername, env.AdminEmail, env.AdminPassword)
 
 	r := chi.NewRouter()
 	r.Mount("/api/v2", model_bazaar.Routes())
 
-	slog.Info("starting serrver", "port", c.Port)
-	err = http.ListenAndServe(fmt.Sprintf(":%v", c.Port), r)
+	slog.Info("starting serrver", "port", 8000)
+	err = http.ListenAndServe(fmt.Sprintf(":%d", 8000), r)
 	if err != nil {
-		log.Fatalf(err.Error())
+		log.Fatalf("listen and serve returned error: %v", err.Error())
 	}
 	model_bazaar.StopStatusSync()
 }

@@ -38,9 +38,7 @@ job "llm-dispatch" {
         {{ if isDocker .Driver }}
           MODEL_BAZAAR_DIR = "/model_bazaar"
         {{ else if isLocal .Driver }}
-          {{ with .Driver }}
           MODEL_BAZAAR_DIR = "{{ .ShareDir }}"
-          {{ end }}
         {{ end }}
       }
       config {
@@ -60,7 +58,7 @@ job "llm-dispatch" {
         {{ else if isLocal .Driver }}
           command = "/bin/sh"
           {{ with .Driver }}
-          args    = ["-c", "cd {{ .Platformdir }} && {{ .PythonPath }} -m uvicorn main:app --app-dir llm_dispatch_job --host 0.0.0.0 --port ${NOMAD_PORT_llm_dispatch_http}"]
+          args    = ["-c", "cd {{ .PlatformDir }} && {{ .PythonPath }} -m uvicorn main:app --app-dir llm_dispatch_job --host 0.0.0.0 --port ${NOMAD_PORT_llm_dispatch_http}"]
           {{ end }}
         {{ end }}
       }

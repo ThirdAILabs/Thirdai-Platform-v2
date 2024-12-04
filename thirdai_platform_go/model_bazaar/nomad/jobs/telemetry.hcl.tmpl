@@ -254,9 +254,9 @@ EOF
       env {
         GF_LOG_LEVEL          = "DEBUG"
         GF_LOG_MODE           = "console"
-        GF_SECURITY_ADMIN_USER = "{{ .GrafanaAdminUsername }}"
-        GF_SECURITY_ADMIN_EMAIL = "{{ .GrafanaAdminEmail }}"
-        GF_SECURITY_ADMIN_PASSWORD = "{{ .GrafanaAdminPassword }}"
+        GF_SECURITY_ADMIN_USER = "{{ .AdminUsername }}"
+        GF_SECURITY_ADMIN_EMAIL = "{{ .AdminEmail }}"
+        GF_SECURITY_ADMIN_PASSWORD = "{{ .AdminPassword }}"
         GF_DATABASE_URL = "{{ .GrafanaDbUrl }}"
         GF_SERVER_ROOT_URL = "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
         GF_SERVER_SERVE_FROM_SUB_PATH = "true"

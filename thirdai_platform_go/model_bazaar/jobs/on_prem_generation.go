@@ -6,22 +6,21 @@ import (
 	"path/filepath"
 	"slices"
 	"thirdai_platform/model_bazaar/nomad"
-	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
 )
 
 func StartOnPremGenerationJobDefaultArgs(
 	client nomad.NomadClient,
 	storage storage.Storage,
-	vars *services.Variables,
+	docker nomad.DockerEnv,
 ) error {
-	return StartOnPremGenerationJob(client, storage, vars, "", true, true, -1)
+	return StartOnPremGenerationJob(client, storage, docker, "", true, true, -1)
 }
 
 func StartOnPremGenerationJob(
 	client nomad.NomadClient,
 	storage storage.Storage,
-	vars *services.Variables,
+	docker nomad.DockerEnv,
 	model string,
 	restart bool,
 	autoscaling bool,
@@ -60,7 +59,7 @@ func StartOnPremGenerationJob(
 		MaxAllocations:     5,
 		ModelDir:           filepath.Join(storage.Location(), "gen-ai-models"),
 		ModelName:          model,
-		Docker:             vars.DockerEnv(),
+		Docker:             docker,
 		Resources: nomad.Resources{
 			AllocationMemory:    int(modelSize),
 			AllocationMemoryMax: 2 * int(modelSize),

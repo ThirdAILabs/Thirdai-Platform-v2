@@ -5,10 +5,9 @@ import (
 	"log/slog"
 	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
-	"thirdai_platform/model_bazaar/services"
 )
 
-func StartLlmCacheJob(client nomad.NomadClient, license *licensing.LicenseVerifier, vars *services.Variables) error {
+func StartLlmCacheJob(client nomad.NomadClient, license *licensing.LicenseVerifier, driver nomad.Driver, modelBazaarEndpoint, shareDir string) error {
 	slog.Info("starting llm-cache job")
 
 	licenseKey, err := license.Verify(0)
@@ -18,10 +17,10 @@ func StartLlmCacheJob(client nomad.NomadClient, license *licensing.LicenseVerifi
 	}
 
 	job := nomad.LlmCacheJob{
-		ModelBazaarEndpoint: vars.ModelBazaarEndpoint,
+		ModelBazaarEndpoint: modelBazaarEndpoint,
 		LicenseKey:          licenseKey.BoltLicenseKey,
-		ShareDir:            vars.ShareDir,
-		Driver:              vars.BackendDriver,
+		ShareDir:            shareDir,
+		Driver:              driver,
 	}
 
 	err = stopJobIfExists(client, job.GetJobName())

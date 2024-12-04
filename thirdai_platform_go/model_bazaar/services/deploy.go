@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/config"
+	"thirdai_platform/model_bazaar/jobs"
 	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
@@ -70,6 +71,8 @@ func (s *DeployService) Routes() chi.Router {
 func (s *DeployService) deployModel(modelId, userId string, autoscaling bool, autoscalingMax int, memory int, deploymentName string) error {
 	slog.Info("deploying model", "model_id", modelId, "autoscaling", autoscaling, "autoscalingMax", autoscalingMax, "memory", memory, "deployment_name", deploymentName)
 
+	requiresOnPremLlm := false
+
 	var nomadErr error = nil
 	err := s.db.Transaction(func(txn *gorm.DB) error {
 		perm, err := auth.GetModelPermissions(modelId, userId, txn)
@@ -111,6 +114,10 @@ func (s *DeployService) deployModel(modelId, userId string, autoscaling bool, au
 		}
 
 		attrs := model.GetAttributes()
+
+		if llm, hasLlm := attrs["llm_provider"]; hasLlm && llm == "on-prem" {
+			requiresOnPremLlm = true
+		}
 
 		config := config.DeployConfig{
 			ModelId:             model.Id,
@@ -155,6 +162,14 @@ func (s *DeployService) deployModel(modelId, userId string, autoscaling bool, au
 
 		return nil
 	})
+
+	if requiresOnPremLlm {
+		err := jobs.StartOnPremGenerationJobDefaultArgs(s.nomad, s.storage, s.variables.DockerEnv())
+		if err != nil {
+			slog.Error("error starting on-prem-generation job", "error", err)
+			return fmt.Errorf("unable to start on prem generation job: %w", err)
+		}
+	}
 
 	// TODO(nicholas): start on prem llm if needed
 

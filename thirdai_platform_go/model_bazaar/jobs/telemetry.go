@@ -8,28 +8,31 @@ import (
 	"path/filepath"
 	"strings"
 	"thirdai_platform/model_bazaar/nomad"
-	"thirdai_platform/model_bazaar/services"
 	"thirdai_platform/model_bazaar/storage"
 
 	"gopkg.in/yaml.v3"
 )
 
-type TelemetryVariables struct {
+type TelemetryJobArgs struct {
+	IsLocal             bool
+	ModelBazaarEndpoint string
+	Docker              nomad.DockerEnv
+	GrafanaDbUrl        string
+
 	AdminUsername string
 	AdminEmail    string
 	AdminPassword string
-	GrafanaDbUrl  string
 }
 
-func StartTelemetryJob(client nomad.NomadClient, storage storage.Storage, vars *services.Variables, telemetryVars TelemetryVariables) error {
+func StartTelemetryJob(client nomad.NomadClient, storage storage.Storage, args TelemetryJobArgs) error {
 	slog.Info("starting telemetry job")
 
-	err := createPromFile(storage, vars)
+	err := createPromFile(storage, args.ModelBazaarEndpoint, args.IsLocal)
 	if err != nil {
 		return fmt.Errorf("error creating promfile: %w", err)
 	}
 
-	url, err := url.Parse(vars.ModelBazaarEndpoint)
+	url, err := url.Parse(args.ModelBazaarEndpoint)
 	if err != nil {
 		return fmt.Errorf("unable to parse model bazaar endpoint: %w", err)
 	}
@@ -42,15 +45,15 @@ func StartTelemetryJob(client nomad.NomadClient, storage storage.Storage, vars *
 	// TODO: how to ensure grafana dashboards in in expected location
 
 	job := nomad.TelemetryJob{
-		IsLocal:                vars.BackendDriver.DriverType() == "local",
+		IsLocal:                args.IsLocal,
 		TargetCount:            targetCount,
 		NomadMonitoringDir:     "/model_bazaar/nomad-monitoring",
-		AdminUsername:          telemetryVars.AdminUsername,
-		AdminEmail:             telemetryVars.AdminEmail,
-		AdminPassword:          telemetryVars.AdminPassword,
-		GrafanaDbUrl:           telemetryVars.GrafanaDbUrl,
+		AdminUsername:          args.AdminUsername,
+		AdminEmail:             args.AdminEmail,
+		AdminPassword:          args.AdminPassword,
+		GrafanaDbUrl:           args.GrafanaDbUrl,
 		ModelBazaarPrivateHost: url.Hostname(),
-		Docker:                 vars.DockerEnv(),
+		Docker:                 args.Docker,
 	}
 
 	err = stopJobIfExists(client, job.GetJobName())
@@ -69,17 +72,20 @@ func StartTelemetryJob(client nomad.NomadClient, storage storage.Storage, vars *
 	return nil
 }
 
-func createPromFile(storage storage.Storage, vars *services.Variables) error {
-	isLocal := vars.BackendDriver.DriverType() == "local"
+type targetList struct {
+	Targets []string
+	Labels  map[string]string
+}
 
+func createPromFile(storage storage.Storage, modelBazaarEndpoint string, isLocal bool) error {
 	serverNodeFile := filepath.Join("nomad-monitoring", "nomad_nodes", "server.yaml")
 
 	if isLocal {
 		data, err := yaml.Marshal(
-			map[string]interface{}{
-				"targets": []string{"host.docker.internal:4646"},
-				"labels":  map[string]string{"nomad_node": "server"},
-			},
+			[]targetList{{
+				Targets: []string{"host.docker.internal:4646"},
+				Labels:  map[string]string{"nomad_node": "server"},
+			}},
 		)
 		if err != nil {
 			return fmt.Errorf("error creating local server.yaml file: %w", err)
@@ -91,7 +97,7 @@ func createPromFile(storage storage.Storage, vars *services.Variables) error {
 		}
 	}
 
-	promfile, err := yaml.Marshal(prometheusConfig(vars))
+	promfile, err := yaml.Marshal(prometheusConfig(modelBazaarEndpoint, isLocal))
 	if err != nil {
 		return fmt.Errorf("error creating promfile: %w", err)
 	}
@@ -107,16 +113,16 @@ func createPromFile(storage storage.Storage, vars *services.Variables) error {
 	return nil
 }
 
-func getDeploymentTargetsEndpoint(vars *services.Variables) string {
-	if vars.BackendDriver.DriverType() == "local" {
+func getDeploymentTargetsEndpoint(modelBazaarEndpoint string, isLocal bool) string {
+	if isLocal {
 		return "http://host.docker.internal:80/api/telemetry/deployment-services"
 	} else {
-		return strings.TrimSuffix(vars.ModelBazaarEndpoint, "/") + "/api/telemetry/deployment-services"
+		return strings.TrimSuffix(modelBazaarEndpoint, "/") + "/api/telemetry/deployment-services"
 	}
 }
 
-func prometheusConfig(vars *services.Variables) map[string]interface{} {
-	deploymentTargetsEndpoint := getDeploymentTargetsEndpoint(vars)
+func prometheusConfig(modelBazaarEndpoint string, isLocal bool) map[string]interface{} {
+	deploymentTargetsEndpoint := getDeploymentTargetsEndpoint(modelBazaarEndpoint, isLocal)
 
 	return map[string]interface{}{
 		"global": map[string]interface{}{
@@ -153,10 +159,6 @@ func prometheusConfig(vars *services.Variables) map[string]interface{} {
 			},
 		},
 	}
-}
-
-type targetList struct {
-	Targets []string
 }
 
 func countTargets(storage storage.Storage) (int, error) {

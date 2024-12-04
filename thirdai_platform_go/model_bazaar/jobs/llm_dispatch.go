@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"log/slog"
 	"thirdai_platform/model_bazaar/nomad"
-	"thirdai_platform/model_bazaar/services"
 )
 
-func StartLlmDispatchJob(client nomad.NomadClient, vars *services.Variables) error {
+func StartLlmDispatchJob(client nomad.NomadClient, driver nomad.Driver, modelBazaarEndpoint, shareDir string) error {
 	slog.Info("starting llm-dispatch job")
 
 	job := nomad.LlmDispatchJob{
-		ModelBazaarEndpoint: vars.ModelBazaarEndpoint,
-		Driver:              vars.BackendDriver,
+		ModelBazaarEndpoint: modelBazaarEndpoint,
+		Driver:              driver,
+		ShareDir:            shareDir,
 	}
 
 	err := stopJobIfExists(client, job.GetJobName())

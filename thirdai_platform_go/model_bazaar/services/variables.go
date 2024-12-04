@@ -12,8 +12,7 @@ type DockerRegistry struct {
 }
 
 type Variables struct {
-	BackendDriver  nomad.Driver
-	FrontendDriver nomad.DockerDriver
+	BackendDriver nomad.Driver
 
 	DockerRegistry DockerRegistry
 

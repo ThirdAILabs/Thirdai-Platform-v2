@@ -205,7 +205,7 @@ def check_deletion_dev_mode(client: TestClient):
 def test_deploy_ndb_dev_mode(tmp_dir):
     from deployment_job.routers.ndb import NDBRouter
 
-    config = create_config(tmp_dir=tmp_dir, autoscaling=False)
+    config = create_config(tmp_dir=tmp_dir, autoscaling=False, on_disk=True)
 
     router = NDBRouter(config, None, logger)
     client = TestClient(router.router)

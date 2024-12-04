@@ -45,10 +45,6 @@ jobs:
       - name: Copy config.yml to parent directory
         run: |
           cp ./platform/config.yml ./config.yml
-      
-      - name: Copy new_client_config.yml to parent directory
-        run: |
-          cp ./platform/new_client_config.yml ./new_client_config.yml
 
       - name: Copy README.md to parent directory
         run: |

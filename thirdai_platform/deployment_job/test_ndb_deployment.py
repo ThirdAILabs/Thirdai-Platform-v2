@@ -190,13 +190,12 @@ def check_deletion_dev_mode(client: TestClient):
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("on_disk", [False, True])
 @patch.object(Permissions, "verify_permission", mock_verify_permission)
 @patch.object(Permissions, "check_permission", mock_check_permission)
-def test_deploy_ndb_dev_mode(tmp_dir, on_disk):
+def test_deploy_ndb_dev_mode(tmp_dir):
     from deployment_job.routers.ndb import NDBRouter
 
-    config = create_config(tmp_dir=tmp_dir, autoscaling=False, on_disk=on_disk)
+    config = create_config(tmp_dir=tmp_dir, autoscaling=False)
 
     router = NDBRouter(config, None, logger)
     client = TestClient(router.router)

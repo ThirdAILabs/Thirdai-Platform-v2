@@ -14,7 +14,6 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import * as Xpath from 'xpath';
 export const ATTRIBUTE_PREFIX = '@_';
 export const INDENT = '20px';
 export const SPACE = '5px';
@@ -73,8 +72,6 @@ interface XPathLocation {
 
 interface Location {
   local_char_span: CharSpan;
-  global_char_span: CharSpan;
-  xpath_location: XPathLocation;
   value: string;
 }
 
@@ -88,9 +85,7 @@ interface XMLRendererProps {
   path: (string | number)[];
   choices: string[];
   predictions: Prediction[];
-  xmlDom: any;
   onSelectionComplete: (selection: Selection) => void;
-  // onFeedback: (feedback: FrontendFeedback) => void;
 }
 
 interface XMLAttributeRendererProps extends XMLRendererProps {
@@ -116,7 +111,8 @@ interface Selection {
   start: number;
   end: number;
   xpath: string;
-  tag?: string;
+  tag: string;
+  value: string;
 }
 
 export function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
@@ -258,7 +254,6 @@ function XMLAttributeRenderer({
   attr,
   choices,
   predictions,
-  xmlDom,
   onSelectionComplete
 }: XMLAttributeRendererProps) {
 
@@ -282,9 +277,7 @@ function XMLAttributeRenderer({
         attr={key}
         choices={choices}
         predictions={predictions}
-        xmlDom={xmlDom}
         onSelectionComplete={onSelectionComplete}
-      // onFeedback={onFeedback}
       />
       &quot;
     </div>
@@ -294,26 +287,17 @@ function XMLAttributeRenderer({
 function XMLValueRenderer({
   data,
   path,
-  attr,
   choices,
   predictions,
-  xmlDom,
   onSelectionComplete
-  // onFeedback
 }: XMLValueRendererProps) {
 
   const [start, setStart] = useState<number | null>(null);
   const [end, setEnd] = useState<number | null>(null);
-  const [range, setRange] = useState<[number, number] | null>(null);
-  const [isPrediction, setIsPrediction] = useState<number>(-1);
+  const [predictionIndex, setIsPredictionIndex] = useState<number>(-1);
   const [isSelecting, setIsSelecting] = useState(false);
   const [tagSelectorOpen, setTagSelectorOpen] = useState(false);
 
-
-  const tokens = useMemo(
-    () => (typeof data === 'string' ? data.split(/\s+/) : [data.toString()]),
-    [data]
-  );
   const xpath = useMemo(() => {
     if (path.length === 0) {
       return '#text'; // For normal text inputs
@@ -333,67 +317,21 @@ function XMLValueRenderer({
     return xpathBuilder;
   }, [path]);
 
-
-  const clickKey = useMemo(() => `${xpath}:${attr}`, [xpath, attr]);
-
-  const finalizeSelection = () => {
-    if (start !== null && end !== null) {
-      setRange([Math.min(start, end), Math.max(start, end)]);
-      setStart(null);
-      setEnd(null);
-    }
-  };
-
-  const selected = (index: number) => {
-    const withinStartEnd =
-      start !== null &&
-      end !== null &&
-      index >= Math.min(start, end) &&
-      index <= Math.max(start, end);
-    const withinRange =
-      range !== null && index >= range[0] && index <= range[1];
-    return withinStartEnd || withinRange;
-  };
-
-  function arrayFromRange(x: number, y: number): number[] {
-    return Array.from({ length: y - x + 1 }, (_, i) => x + i);
-  }
-
-  const submit = (newLabel: string) => {
-    if (!range) {
-      return;
-    }
-    // onFeedback({
-    //   xpath,
-    //   attr: attr || null,
-    //   indices: arrayFromRange(range[0], range[1]),
-    //   ntokens: tokens.length,
-    //   label: newLabel,
-    //   text: tokens.slice(range[0], range[1] + 1).join(' '),
-    //   user_provided: true
-    // });
-    setStart(null);
-    setEnd(null);
-    setRange(null);
-  };
   const charArray: string[] = data.toString().split('');
-  const nodes: any = predictions.map((prediction) => {
-    return (Xpath.select(prediction.location.xpath_location.xpath, xmlDom))
-  });
-
 
   useEffect(() => {
-    for (let index = 0; index < nodes.length; index++) {
-      const node = nodes[index];
-      if (data.toString() === node[0].firstChild.nodeValue.trim()) {
-        setIsPrediction(index);
+    for (let index = 0; index < predictions.length; index++) {
+      const prediction = predictions[index];
+      if (data.toString().substring(prediction.location.local_char_span.start, prediction.location.local_char_span.end) === prediction.location.value.trim()) {
+        setIsPredictionIndex(index);
       }
-      // else {
-      //   console.log("Jai Node: ", node[0].firstChild.nodeValue, "x");
-      //   console.log("Jai data: ", data.toString(), "x");
-      // }
+
+      console.log("data: ", "x", data.toString().substring(prediction.location.local_char_span.start, prediction.location.local_char_span.end),
+        " hue ", prediction.location.value.trim())
+
     }
-  }, [data]);
+  }, [data, predictions.length]);
+
   //Mouse event handlers for selection
   const handleMouseDown = (index: number) => {
     setStart(index);
@@ -416,14 +354,16 @@ function XMLValueRenderer({
 
   // Tag selection handler
   const handleTagSelect = (tag: string) => {
-    if (start !== null && end !== null && onSelectionComplete) {
+    if (start !== null && end !== null) {
       const normalizedStart = Math.min(start, end);
       const normalizedEnd = Math.max(start, end);
+      const selectedText = data.toString().trim().substring(normalizedStart, normalizedEnd + 1);
       onSelectionComplete({
         start: normalizedStart,
         end: normalizedEnd,
         xpath,
-        tag
+        tag,
+        value: selectedText,
       });
     }
     setTagSelectorOpen(false);
@@ -450,10 +390,10 @@ function XMLValueRenderer({
           index <= Math.max(start, end);
 
         // Prediction highlighting
-        const isPredictionSpan =
-          isPrediction !== -1 &&
-          index >= predictions[isPrediction].location.local_char_span.start &&
-          index <= predictions[isPrediction].location.local_char_span.end;
+        const predictionIndexSpan =
+          predictionIndex !== -1 &&
+          index >= predictions[predictionIndex].location.local_char_span.start &&
+          index <= predictions[predictionIndex].location.local_char_span.end - 1;
 
         return (
           <>
@@ -465,21 +405,22 @@ function XMLValueRenderer({
               style={{
                 backgroundColor: isSelected
                   ? 'rgba(153, 227, 181, 0.5)'
-                  : isPredictionSpan
+                  : predictionIndexSpan
                     ? 'rgba(255, 255, 0, 0.3)'
                     : 'transparent',
                 cursor: 'text'
               }}
             >
               {token === ' ' ? '\u00A0' : token}
-            </span>{
-              (isPrediction !== -1 && index === predictions[isPrediction].location.local_char_span.end - 1) && (
+            </span>
+            {
+              (predictionIndex !== -1 && index === predictions[predictionIndex].location.local_char_span.end - 1) && (
                 <span className='font-semibold text-red-500'>
-                  {predictions[isPrediction].label}
+                  {'\u00A0'}{"[" + predictions[predictionIndex].label + "]"}
                 </span>
-
               )
             }
+
           </>
         );
       })}
@@ -500,9 +441,7 @@ function XMLObjectRenderer({
   tag,
   choices,
   predictions,
-  xmlDom,
   onSelectionComplete
-  // onFeedback
 }: XMLObjectRendererProps) {
   console.log("Paht in ObjectRenderer: ", path);
   const attrs = Object.keys(data).filter((key) =>
@@ -535,9 +474,7 @@ function XMLObjectRenderer({
             path={path}
             choices={choices}
             predictions={predictions}
-            xmlDom={xmlDom}
             onSelectionComplete={onSelectionComplete}
-          // onFeedback={onFeedback}
           />
         ))}
         {hasChild ? (
@@ -554,9 +491,7 @@ function XMLObjectRenderer({
               path={path}
               choices={choices}
               predictions={predictions}
-              xmlDom={xmlDom}
               onSelectionComplete={onSelectionComplete}
-            // onFeedback={onFeedback}
             />
           </div>
           <span style={{ width: 'fit-content' }}>{`</${tag}>`}</span>
@@ -571,16 +506,8 @@ export function XMLRenderer({
   path,
   choices,
   predictions,
-  xmlDom,
   onSelectionComplete,
-  // onFeedback
 }: XMLRendererProps) {
-  console.log("print inside xml renderer");
-  console.log(data);
-  console.log(path);
-  console.log(choices);
-
-
 
   if (typeof data === 'string') {
     // Data is a string, render it directly
@@ -590,9 +517,7 @@ export function XMLRenderer({
         path={path}
         choices={choices}
         predictions={predictions}
-        xmlDom={xmlDom}
         onSelectionComplete={onSelectionComplete}
-      // onFeedback={onFeedback}
       />
     );
   }
@@ -605,9 +530,7 @@ export function XMLRenderer({
         path={path}
         choices={choices}
         predictions={predictions}
-        xmlDom={xmlDom}
         onSelectionComplete={onSelectionComplete}
-      // onFeedback={onFeedback}
       />
     );
   }
@@ -619,9 +542,7 @@ export function XMLRenderer({
         path={path}
         choices={choices}
         predictions={predictions}
-        xmlDom={xmlDom}
         onSelectionComplete={onSelectionComplete}
-      // onFeedback={onFeedback}
       />
     );
   }
@@ -643,9 +564,7 @@ export function XMLRenderer({
               path={path}
               choices={choices}
               predictions={predictions}
-              xmlDom={xmlDom}
               onSelectionComplete={onSelectionComplete}
-            // onFeedback={onFeedback}
             />
           );
         }
@@ -661,9 +580,7 @@ export function XMLRenderer({
                   tag={key}
                   choices={choices}
                   predictions={predictions}
-                  xmlDom={xmlDom}
                   onSelectionComplete={onSelectionComplete}
-                // onFeedback={onFeedback}
                 />
               ))}
             </>
@@ -678,9 +595,7 @@ export function XMLRenderer({
             tag={key}
             choices={choices}
             predictions={predictions}
-            xmlDom={xmlDom}
             onSelectionComplete={onSelectionComplete}
-          // onFeedback={onFeedback}
           />
         );
       })}

@@ -34,7 +34,6 @@ import {
 } from '@/utils/fileParsingUtils';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 import { parseXML, XMLRenderer, clean } from './xml';
-import { DOMParser } from 'xmldom';
 interface Token {
   text: string;
   tag: string;
@@ -71,14 +70,6 @@ interface xmlPrediction {
       start: number;
       end: number;
     };
-    global_char_span: {
-      start: number;
-      end: number;
-    },
-    xpath_location: {
-      xpath: string;
-      attribute: string | null;
-    };
     value: string;
   };
 }
@@ -86,7 +77,8 @@ interface Selection {
   start: number;
   end: number;
   xpath: string;
-  tag?: string;
+  tag: string;
+  value: string;
 }
 
 const SELECTING_COLOR = '#EFEFEF';
@@ -278,7 +270,7 @@ export default function Interact() {
   const [logType, setLogType] = useState<string | undefined>();
   const [xmlAnnotations, setXmlAnnotations] = useState<xmlPrediction[]>([]);
   const [xmlQueryText, setXmlQueryText] = useState<string | undefined>('');
-  const [xmlObj, setXmlObj] = useState<Record<string, any>>({});
+
   const startIndex =
     mouseDownIndex !== null && mouseUpIndex !== null
       ? Math.min(mouseDownIndex, mouseUpIndex)
@@ -297,22 +289,26 @@ export default function Interact() {
   const handleSelectionComplete = (selection: Selection) => {
     // Add the new selection to the list of selections
     setSelections([...selections, selection]);
+    const xmlAnnotation: xmlPrediction = {
+      location: {
+        local_char_span: {
+          start: selection.start,
+          end: selection.end
+        },
+        value: selection.value
+      },
+      label: selection.tag
+    };
+    // setXmlAnnotations([...xmlAnnotations, xmlAnnotation]);
+    setXmlAnnotations((prevAnnotations) => [...prevAnnotations, xmlAnnotation]);
     console.log('New selection:', selection);
     console.log('All selections:', [...selections, selection]);
+    console.log("all sele xml ", xmlAnnotations);
   };
   // Handler to delete a selection
   const handleDeleteSelection = (index: number) => {
     setSelections(prevSelections =>
       prevSelections.filter((_, i) => i !== index)
-    );
-  };
-
-  // Handler to update a selection's tag
-  const handleUpdateSelection = (index: number, newTag: string) => {
-    setSelections(prevSelections =>
-      prevSelections.map((selection, i) =>
-        i === index ? { ...selection, tag: newTag } : selection
-      )
     );
   };
   useEffect(() => {
@@ -429,9 +425,9 @@ export default function Interact() {
     if (!text?.trim()) {
       return;
     }
-
     setIsLoading(true);
     try {
+
       const result = await predict(text);
       updateTagColors(result.prediction_results.predicted_tags);
       setProcessingTime(result.time_taken);
@@ -844,27 +840,14 @@ export default function Interact() {
     if (logType === "xml" && xmlQueryText) {
       const cleanXml = clean(xmlQueryText);
       const parsedXml = parseXML(cleanXml);
-      const xmlDom = new DOMParser().parseFromString(cleanXml, 'application/xml');
-
-
       return (
-        <>
-          <XMLRenderer
-            data={parsedXml}
-            path={[]}
-            choices={allLabels}
-            predictions={xmlAnnotations}
-            xmlDom={xmlDom}
-            onSelectionComplete={handleSelectionComplete}
-          />
-          {/* <FeedbackDashboardXML
-            selections={selections}
-            predictions={xmlAnnotations}
-            xmlText={xmlQueryText}
-            onDeleteSelection={handleDeleteSelection}
-            onUpdateSelection={handleUpdateSelection}
-          /> */}
-        </>)
+        <XMLRenderer
+          data={parsedXml}
+          path={[]}
+          choices={allLabels}
+          predictions={xmlAnnotations}
+          onSelectionComplete={handleSelectionComplete}
+        />)
     }
     return words
       .map((word, wordIndex) => {
@@ -1065,13 +1048,11 @@ export default function Interact() {
             deleteFeedbackExample={deleteFeedbackExample}
             submitFeedback={submitFeedback}
           />
-        </Card>) : (xmlQueryText && <FeedbackDashboardXML
-          selections={selections}
-          predictions={xmlAnnotations}
-          xmlText={xmlQueryText}
-          onDeleteSelection={handleDeleteSelection}
-          onUpdateSelection={handleUpdateSelection}
-        />)
+        </Card>) : (
+          xmlQueryText && <FeedbackDashboardXML
+            selections={selections}
+            onDeleteSelection={handleDeleteSelection}
+          />)
         }
       </div>
     </Container>

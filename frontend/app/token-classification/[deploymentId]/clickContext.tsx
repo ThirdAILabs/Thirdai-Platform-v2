@@ -13,14 +13,10 @@ interface ClickContext {
 export const ClickContext = createContext<ClickContext>({
   key: '',
   register: (key: string) => {},
-  isOutside: (key: string) => false
+  isOutside: (key: string) => false,
 });
 
-export default function ClickWrapper({
-  children
-}: {
-  children: React.ReactNode;
-}) {
+export default function ClickWrapper({ children }: { children: React.ReactNode }) {
   const [registeredKey, register] = useState('');
   const isOutside = (key: string) => key === registeredKey;
   return (

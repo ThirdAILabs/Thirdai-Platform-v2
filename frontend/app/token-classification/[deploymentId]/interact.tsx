@@ -292,41 +292,40 @@ export default function Interact() {
       location: {
         local_char_span: {
           start: selection.start,
-          end: selection.end
+          end: selection.end,
         },
-        value: selection.value
+        value: selection.value,
       },
-      label: selection.tag
+      label: selection.tag,
     };
-    if (selection.tag === "DELETE TAG") {
+    if (selection.tag === 'DELETE TAG') {
       // setXmlAnnotations((prevAnnotations) => [...prevAnnotations, xmlAnnotation]);
-      console.log("Delete tag hue hue", xmlAnnotation);
+      console.log('Delete tag hue hue', xmlAnnotation);
 
-      setXmlAnnotations(xmlAnnotations.filter((item) =>
-        (item.location.value !== xmlAnnotation.location.value)
-      ));
+      setXmlAnnotations(
+        xmlAnnotations.filter((item) => item.location.value !== xmlAnnotation.location.value)
+      );
       console.log('DELETE TAG SELE:', selection);
       // console.log('All selections:', [...selections, selection]);
-      setSelections(selections.filter((item) => {
-        // const newItem = [item.end, item.start, item.value, item.xpath];
-        // const newSelection = [selection.end, selection.start, selection.value, selection.xpath];
-        return (item.value !== selection.value)
-      }));
-      console.log("DELETE TAG sele xml ", xmlAnnotations);
-    }
-    else {
+      setSelections(
+        selections.filter((item) => {
+          // const newItem = [item.end, item.start, item.value, item.xpath];
+          // const newSelection = [selection.end, selection.start, selection.value, selection.xpath];
+          return item.value !== selection.value;
+        })
+      );
+      console.log('DELETE TAG sele xml ', xmlAnnotations);
+    } else {
       setXmlAnnotations((prevAnnotations) => [...prevAnnotations, xmlAnnotation]);
       setSelections([...selections, selection]);
       console.log('New selection:', selection);
       console.log('All selections:', [...selections, selection]);
-      console.log("all sele xml ", xmlAnnotations);
+      console.log('all sele xml ', xmlAnnotations);
     }
   };
   // Handler to delete a selection
   const handleDeleteSelection = (index: number) => {
-    setSelections(prevSelections =>
-      prevSelections.filter((_, i) => i !== index)
-    );
+    setSelections((prevSelections) => prevSelections.filter((_, i) => i !== index));
   };
   useEffect(() => {
     const stopSelectingOnOutsideClick = () => {
@@ -447,12 +446,11 @@ export default function Interact() {
     }
     setIsLoading(true);
     try {
-
       const result = await predict(text);
       updateTagColors(result.prediction_results.predicted_tags);
       setProcessingTime(result.time_taken);
       setLogType(result.prediction_results.log_type);
-      if (result.prediction_results.log_type === "unstructured") {
+      if (result.prediction_results.log_type === 'unstructured') {
         setAnnotations(
           _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(
             ([text, tag]) => ({
@@ -461,11 +459,10 @@ export default function Interact() {
             })
           )
         );
-      }
-      else {
+      } else {
         const result = await predictXml(clean(text));
         setXmlQueryText(result.prediction_results.query_text);
-        setXmlAnnotations(result.prediction_results.predictions)
+        setXmlAnnotations(result.prediction_results.predictions);
         setSelections([]);
       }
       if (!isFileUpload) {
@@ -858,10 +855,10 @@ export default function Interact() {
     const words = content.split(/\s+/);
     let currentIndex = 0;
 
-    if (logType === "xml" && xmlQueryText) {
+    if (logType === 'xml' && xmlQueryText) {
       const cleanXml = clean(xmlQueryText);
       const parsedXml = parseXML(cleanXml);
-      console.log("DELETE TAG annoat", xmlAnnotations);
+      console.log('DELETE TAG annoat', xmlAnnotations);
       return (
         <XMLRenderer
           data={parsedXml}
@@ -869,7 +866,8 @@ export default function Interact() {
           choices={allLabels}
           predictions={xmlAnnotations}
           onSelectionComplete={handleSelectionComplete}
-        />)
+        />
+      );
     }
     return words
       .map((word, wordIndex) => {
@@ -1058,24 +1056,33 @@ export default function Interact() {
         {processingTime !== undefined && (annotations.length || xmlAnnotations.length) && (
           <div className="mb-4">
             {' '}
-            {annotations.length ? (<InferenceTimeDisplay processingTime={processingTime} tokenCount={annotations.length} />) :
-              (<InferenceTimeDisplay processingTime={processingTime} tokenCount={xmlAnnotations.length} />)}
+            {annotations.length ? (
+              <InferenceTimeDisplay
+                processingTime={processingTime}
+                tokenCount={annotations.length}
+              />
+            ) : (
+              <InferenceTimeDisplay
+                processingTime={processingTime}
+                tokenCount={xmlAnnotations.length}
+              />
+            )}
           </div>
         )}
 
-        {(annotations.length !== 0) && (<Card className="p-7 text-start">
-          <FeedbackDashboard
-            cachedTags={cachedTags}
-            tagColors={tagColors}
-            deleteFeedbackExample={deleteFeedbackExample}
-            submitFeedback={submitFeedback}
-          />
-        </Card>)}
-        {(xmlAnnotations.length !== 0) && <FeedbackDashboardXML
-          selections={selections}
-          onDeleteSelection={handleDeleteSelection}
-        />
-        }
+        {annotations.length !== 0 && (
+          <Card className="p-7 text-start">
+            <FeedbackDashboard
+              cachedTags={cachedTags}
+              tagColors={tagColors}
+              deleteFeedbackExample={deleteFeedbackExample}
+              submitFeedback={submitFeedback}
+            />
+          </Card>
+        )}
+        {xmlAnnotations.length !== 0 && (
+          <FeedbackDashboardXML selections={selections} onDeleteSelection={handleDeleteSelection} />
+        )}
       </div>
     </Container>
   );

@@ -1,24 +1,17 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
-import {
-  ChangeEvent,
-  KeyboardEvent,
-  useEffect,
-  useMemo,
-  useState
-} from 'react';
+import { ChangeEvent, KeyboardEvent, useEffect, useMemo, useState } from 'react';
 import Fuse from 'fuse.js';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Underline } from 'lucide-react';
 export const ATTRIBUTE_PREFIX = '@_';
 export const INDENT = '20px';
 export const SPACE = '5px';
-
 
 export function clean(xmlString: string): string {
   // Find the first '<' and the last '>' characters
@@ -59,12 +52,10 @@ export function parseXML(xml: string) {
   return parsedData;
 }
 
-
 interface CharSpan {
   start: number;
   end: number;
 }
-
 
 interface XPathLocation {
   xpath: string;
@@ -118,14 +109,10 @@ interface Selection {
 }
 
 export function TagSelector({ open, choices, onSelect, predictions }: TagSelectorProps) {
-  const defaultOptions = useMemo(
-    () => choices.map((label) => ({ label, new: false })),
-    [choices]
-  );
+  const defaultOptions = useMemo(() => choices.map((label) => ({ label, new: false })), [choices]);
 
   const [fuse, setFuse] = useState(new Fuse(choices));
-  const [options, setOptions] =
-    useState<{ label: string; new: boolean }[]>(defaultOptions);
+  const [options, setOptions] = useState<{ label: string; new: boolean }[]>(defaultOptions);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -135,8 +122,7 @@ export function TagSelector({ open, choices, onSelect, predictions }: TagSelecto
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
-    const searchResults =
-      query !== '' ? fuse.search(query).map((val) => val.item) : choices;
+    const searchResults = query !== '' ? fuse.search(query).map((val) => val.item) : choices;
     let newOptions = searchResults.map((label) => ({ label, new: false }));
     if (query !== '' && !choices.includes(query)) {
       newOptions.unshift({ label: query, new: true });
@@ -156,16 +142,12 @@ export function TagSelector({ open, choices, onSelect, predictions }: TagSelecto
       case 'ArrowUp':
         console.log('ArrowUp key pressed');
         setSelectedIndex((prev) =>
-          prev === null
-            ? options.length - 1
-            : Math.min(options.length - 1, prev - 1)
+          prev === null ? options.length - 1 : Math.min(options.length - 1, prev - 1)
         );
         break;
       case 'ArrowDown':
         console.log('ArrowDown key pressed');
-        setSelectedIndex((prev) =>
-          prev === null ? 0 : Math.min(options.length, prev + 1)
-        );
+        setSelectedIndex((prev) => (prev === null ? 0 : Math.min(options.length, prev + 1)));
         break;
       case 'Enter':
         console.log('Enter key pressed');
@@ -201,7 +183,7 @@ export function TagSelector({ open, choices, onSelect, predictions }: TagSelecto
                 padding: '0 3px',
                 marginRight: '5px',
                 borderRadius: '2px',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               New{' '}
@@ -236,12 +218,7 @@ export function TagSelector({ open, choices, onSelect, predictions }: TagSelecto
             onMouseLeave={() => setSelectedIndex(null)}
           >
             {options.map((val, index) =>
-              makeDropdownMenuItem(
-                index,
-                val.label,
-                val.new,
-                index === selectedIndex
-              )
+              makeDropdownMenuItem(index, val.label, val.new, index === selectedIndex)
             )}
           </div>
         </DropdownMenuContent>
@@ -256,9 +233,8 @@ function XMLAttributeRenderer({
   attr,
   choices,
   predictions,
-  onSelectionComplete
+  onSelectionComplete,
 }: XMLAttributeRendererProps) {
-
   const key = attr.substring(ATTRIBUTE_PREFIX.length);
   let dataString = JSON.stringify(data);
   dataString = dataString.substring(0, dataString.length - 1);
@@ -269,7 +245,7 @@ function XMLAttributeRenderer({
         flexDirection: 'row',
         gap: '',
         marginLeft: SPACE,
-        flexWrap: 'nowrap'
+        flexWrap: 'nowrap',
       }}
     >
       {key}=&quot;
@@ -291,9 +267,8 @@ function XMLValueRenderer({
   path,
   choices,
   predictions,
-  onSelectionComplete
+  onSelectionComplete,
 }: XMLValueRendererProps) {
-
   const [start, setStart] = useState<number | null>(null);
   const [end, setEnd] = useState<number | null>(null);
   const [predictionIndex, setIsPredictionIndex] = useState<number>(-1);
@@ -324,7 +299,14 @@ function XMLValueRenderer({
   useEffect(() => {
     for (let index = 0; index < predictions.length; index++) {
       const prediction = predictions[index];
-      if (data.toString().substring(prediction.location.local_char_span.start, prediction.location.local_char_span.end) === prediction.location.value.trim()) {
+      if (
+        data
+          .toString()
+          .substring(
+            prediction.location.local_char_span.start,
+            prediction.location.local_char_span.end
+          ) === prediction.location.value.trim()
+      ) {
         setIsPredictionIndex(index);
       }
     }
@@ -378,7 +360,7 @@ function XMLValueRenderer({
         flexDirection: 'row',
         justifyContent: 'start',
         flexWrap: 'wrap',
-        userSelect: 'none'
+        userSelect: 'none',
       }}
     >
       {charArray.map((token, index) => {
@@ -408,19 +390,22 @@ function XMLValueRenderer({
                   : predictionIndexSpan
                     ? 'rgba(255, 255, 0, 0.3)'
                     : 'transparent',
-                cursor: 'text'
+                cursor: 'text',
               }}
             >
               {token === ' ' ? '\u00A0' : token}
             </span>
-            {
-              (predictionIndex !== -1 && predictions[predictionIndex] && index === predictions[predictionIndex].location.local_char_span.end - 1) && (
-                <span className='font-semibold text-red-500' style={{ backgroundColor: 'rgba(255, 255, 0, 0.3)' }}>
-                  {'\u00A0'}{"[" + predictions[predictionIndex].label + "]"}
+            {predictionIndex !== -1 &&
+              predictions[predictionIndex] &&
+              index === predictions[predictionIndex].location.local_char_span.end - 1 && (
+                <span
+                  className="font-semibold text-red-500"
+                  style={{ backgroundColor: 'rgba(255, 255, 0, 0.3)' }}
+                >
+                  {'\u00A0'}
+                  {'[' + predictions[predictionIndex].label + ']'}
                 </span>
-              )
-            }
-
+              )}
           </>
         );
       })}
@@ -442,18 +427,14 @@ function XMLObjectRenderer({
   tag,
   choices,
   predictions,
-  onSelectionComplete
+  onSelectionComplete,
 }: XMLObjectRendererProps) {
-  console.log("Paht in ObjectRenderer: ", path);
-  const attrs = Object.keys(data).filter((key) =>
-    key.startsWith(ATTRIBUTE_PREFIX)
-  );
+  console.log('Paht in ObjectRenderer: ', path);
+  const attrs = Object.keys(data).filter((key) => key.startsWith(ATTRIBUTE_PREFIX));
   const numKeys = Object.keys(data).length;
-  const emptyChild =
-    numKeys === 0 || (numKeys - attrs.length === 1 && data['#text'] === '');
+  const emptyChild = numKeys === 0 || (numKeys - attrs.length === 1 && data['#text'] === '');
   const hasChild = numKeys === 0 || (numKeys > attrs.length && !emptyChild);
-  const childInSameLine =
-    !(typeof data === 'object') || data['#text'] !== undefined;
+  const childInSameLine = !(typeof data === 'object') || data['#text'] !== undefined;
   const flexDirection = childInSameLine ? 'row' : 'column';
   const marginLeft = childInSameLine ? '0' : '20px';
   return (
@@ -462,7 +443,7 @@ function XMLObjectRenderer({
         display: 'flex',
         flexDirection,
         flexWrap: 'wrap',
-        justifyContent: 'start'
+        justifyContent: 'start',
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'row' }}>
@@ -478,11 +459,7 @@ function XMLObjectRenderer({
             onSelectionComplete={onSelectionComplete}
           />
         ))}
-        {hasChild ? (
-          <span>{`>`}</span>
-        ) : (
-          <span style={{ marginLeft: SPACE }}>{`/>`}</span>
-        )}
+        {hasChild ? <span>{`>`}</span> : <span style={{ marginLeft: SPACE }}>{`/>`}</span>}
       </div>
       {hasChild && (
         <>
@@ -509,7 +486,6 @@ export function XMLRenderer({
   predictions,
   onSelectionComplete,
 }: XMLRendererProps) {
-
   if (typeof data === 'string') {
     // Data is a string, render it directly
     return (
@@ -548,14 +524,10 @@ export function XMLRenderer({
     );
   }
 
-  const childKeys = Object.keys(data).filter(
-    (key) => !key.startsWith(ATTRIBUTE_PREFIX)
-  );
+  const childKeys = Object.keys(data).filter((key) => !key.startsWith(ATTRIBUTE_PREFIX));
 
   return (
-    <div
-      style={{ display: 'flex', flexDirection: 'column', width: 'fit-content' }}
-    >
+    <div style={{ display: 'flex', flexDirection: 'column', width: 'fit-content' }}>
       {childKeys.map((key, index) => {
         if (key == '#text') {
           return (

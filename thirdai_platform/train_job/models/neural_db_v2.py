@@ -25,7 +25,7 @@ class NeuralDBV2(Model):
     def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
         super().__init__(config=config, reporter=reporter, logger=logger)
 
-        self.on_disk = self.config.model_options
+        self.on_disk = self.config.model_options.on_disk
         splade = self.config.model_options.advanced_search
 
         self.logger.info(

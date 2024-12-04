@@ -32,7 +32,7 @@ def test_knowledge_extraction():
         f"knowledge-extraction-{uuid.uuid4()}",
         questions=[
             "net revenue of apple",
-            "iphone sales in 2021",
+            "iphone sales in 2021 (in billion)",
             "a question that should be deleted",
             "did sales in europe change from 2022 to 2023",
             "how much did apple spend on research and development in 2021",

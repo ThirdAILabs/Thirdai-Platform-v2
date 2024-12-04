@@ -12,8 +12,7 @@ from platform_common.file_handler import (
     download_file,
 )
 from thirdai import neural_db_v2 as ndbv2
-
-file_ops = FileOperations()
+from platform_common import file_ops
 
 
 def convert_to_ndb_doc(

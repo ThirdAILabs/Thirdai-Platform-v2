@@ -18,17 +18,21 @@ const (
 )
 
 func CheckValidStatus(status string) error {
-	if status == NotStarted || status == Starting || status == InProgress || status == Stopped || status == Complete || status == Failed {
+	switch status {
+	case NotStarted, Starting, InProgress, Stopped, Complete, Failed:
 		return nil
+	default:
+		return fmt.Errorf("invalid status '%v'", status)
 	}
-	return fmt.Errorf("invalid status '%v'", status)
 }
 
 func CheckValidAccess(access string) error {
-	if access == Public || access == Private || access == Protected {
+	switch access {
+	case Public, Private, Protected:
 		return nil
+	default:
+		return fmt.Errorf("invalid access %v, must be 'public', 'private', or 'protected'", access)
 	}
-	return fmt.Errorf("invalid access %v, must be 'public', 'private', or 'protected'", access)
 }
 
 const (
@@ -37,10 +41,12 @@ const (
 )
 
 func CheckValidPermission(permission string) error {
-	if permission == ReadPerm || permission == WritePerm {
+	switch permission {
+	case ReadPerm, WritePerm:
 		return nil
+	default:
+		return fmt.Errorf("invalid permission %v, must be 'read' or 'write'", permission)
 	}
-	return fmt.Errorf("invalid permission %v, must be 'read' or 'write'", permission)
 }
 
 const (
@@ -51,8 +57,10 @@ const (
 )
 
 func CheckValidModelType(modelType string) error {
-	if modelType == NdbModel || modelType == NlpTokenModel || modelType == NlpTextModel {
+	switch modelType {
+	case NdbModel, NlpTokenModel, NlpTextModel, EnterpriseSearch:
 		return nil
+	default:
+		return fmt.Errorf("invalid model type '%v'", modelType)
 	}
-	return fmt.Errorf("invalid model type '%v'", modelType)
 }

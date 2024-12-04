@@ -24,14 +24,6 @@ azure:
         password: n1h+tdIIYmQ93MDjTqhJYgHJghg89buIJMYWOxuQnb+ACRDWiBnd
         username: thirdaiplatform-push-frontend-keycloak
       version: 0.0.1
-    grafana-db-uri:
-      pull_credentials:
-        password: 45zLWOgWyB08Yq9E5K6jfgGfyr7JdqsYrHcnGv6ss2+ACRBoTttW
-        username: thirdaiplatform-pull-grafana-db-uri
-      push_credentials:
-        password: 8leDO+e7OSLVULRGXNVbkLxZRuPaptja4kTY5q3R74+ACRCkwaRg
-        username: thirdaiplatform-push-grafana-db-uri
-      version: 0.0.1
     local_registry:
       pull_credentials:
         password: 1N7CsVddLTv4+enVywVCgjOkDkMqpv63WenU0bWihF+ACRBVBnXz

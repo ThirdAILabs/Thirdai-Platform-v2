@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"mime/multipart"
-	"net/url"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
 )
@@ -35,18 +34,10 @@ type ndbSearchResults struct {
 }
 
 func (c *NdbClient) Search(query string, topk int) ([]NdbSearchResult, error) {
-	params := ndbSearchParams{Query: query, Topk: topk}
-	body, err := json.Marshal(params)
-	if err != nil {
-		return nil, fmt.Errorf("error encoding request params: %v", err)
-	}
+	body := ndbSearchParams{Query: query, Topk: topk}
 
-	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/search", c.modelId))
-	if err != nil {
-		return nil, fmt.Errorf("error formatting url: %w", err)
-	}
-
-	res, err := post[ndbSearchResults](u, body, c.authToken)
+	var res ndbSearchResults
+	err := c.Post(fmt.Sprintf("/%v/search", c.modelId)).Json(body).Do(&res)
 	if err != nil {
 		return nil, err
 	}
@@ -88,36 +79,17 @@ func (c *NdbClient) Insert(files []config.FileInfo) error {
 		return fmt.Errorf("error closing mutlipart writer: %w", err)
 	}
 
-	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/insert", c.modelId))
-	if err != nil {
-		return fmt.Errorf("error formatting url: %w", err)
-	}
-
-	headers := authHeader(c.authToken)
-	headers["Content-Type"] = writer.FormDataContentType()
-
-	_, err = postWithHeaders[noBody](u, body.Bytes(), headers)
-	return err
+	return c.Post(fmt.Sprintf("/%v/insert", c.modelId)).Header("Content-Type", writer.FormDataContentType()).Body(body).Do(nil)
 }
 
 type deleteParams struct {
 	SourceIds []string `json:"source_ids"`
 }
 
-func (c *NdbClient) Delete(doc_ids []string) error {
-	params := deleteParams{SourceIds: doc_ids}
-	body, err := json.Marshal(params)
-	if err != nil {
-		return fmt.Errorf("error encoding request params: %v", err)
-	}
+func (c *NdbClient) DeleteDocs(doc_ids []string) error {
+	body := deleteParams{SourceIds: doc_ids}
 
-	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/delete", c.modelId))
-	if err != nil {
-		return fmt.Errorf("error formatting url: %w", err)
-	}
-
-	_, err = post[noBody](u, body, c.authToken)
-	return err
+	return c.Post(fmt.Sprintf("/%v/delete", c.modelId)).Json(body).Do(nil)
 }
 
 type UpvotePair struct {
@@ -131,19 +103,9 @@ type upvoteParams struct {
 }
 
 func (c *NdbClient) Upvote(samples []UpvotePair) error {
-	params := upvoteParams{TextIdPairs: samples}
-	body, err := json.Marshal(params)
-	if err != nil {
-		return fmt.Errorf("error encoding request params: %v", err)
-	}
+	body := upvoteParams{TextIdPairs: samples}
 
-	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/upvote", c.modelId))
-	if err != nil {
-		return fmt.Errorf("error formatting url: %w", err)
-	}
-
-	_, err = post[noBody](u, body, c.authToken)
-	return err
+	return c.Post(fmt.Sprintf("/%v/upvote", c.modelId)).Json(body).Do(nil)
 }
 
 type AssociatePair struct {
@@ -156,19 +118,9 @@ type associateParams struct {
 }
 
 func (c *NdbClient) Associate(samples []AssociatePair) error {
-	params := associateParams{TextPairs: samples}
-	body, err := json.Marshal(params)
-	if err != nil {
-		return fmt.Errorf("error encoding request params: %v", err)
-	}
+	body := associateParams{TextPairs: samples}
 
-	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/associate", c.modelId))
-	if err != nil {
-		return fmt.Errorf("error formatting url: %w", err)
-	}
-
-	_, err = post[noBody](u, body, c.authToken)
-	return err
+	return c.Post(fmt.Sprintf("/%v/associate", c.modelId)).Json(body).Do(nil)
 }
 
 type Source struct {
@@ -182,12 +134,8 @@ type sourcesResponse struct {
 }
 
 func (c *NdbClient) Sources() ([]Source, error) {
-	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/sources", c.modelId))
-	if err != nil {
-		return nil, fmt.Errorf("error formatting url: %w", err)
-	}
-
-	res, err := get[sourcesResponse](u, c.authToken)
+	var res sourcesResponse
+	err := c.Get(fmt.Sprintf("/%v/sources", c.modelId)).Do(&res)
 	if err != nil {
 		return nil, err
 	}
@@ -195,31 +143,21 @@ func (c *NdbClient) Sources() ([]Source, error) {
 }
 
 func (c *NdbClient) Retrain(newModelName string) (*NdbClient, error) {
-	params := services.NdbRetrainRequest{
+	body := services.NdbRetrainRequest{
 		ModelName:   newModelName,
 		BaseModelId: c.modelId,
 	}
 
-	body, err := json.Marshal(params)
-	if err != nil {
-		return nil, fmt.Errorf("error encoding request: %w", err)
-	}
-
-	u, err := url.JoinPath(c.baseUrl, "/api/v2/train/ndb-retrain")
-	if err != nil {
-		return nil, fmt.Errorf("error formatting url: %w", err)
-	}
-
-	res, err := post[map[string]string](u, body, c.authToken)
+	var res map[string]string
+	err := c.Post("/api/v2/train/ndb-retrain").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
 	}
 
 	return &NdbClient{
 		ModelClient{
-			baseUrl:   c.baseUrl,
-			authToken: c.authToken,
-			modelId:   res["model_id"],
+			baseClient: c.baseClient,
+			modelId:    res["model_id"],
 		},
 	}, nil
 }
@@ -236,35 +174,25 @@ type saveReponse struct {
 }
 
 func (c *NdbClient) Save(newModelName string) (*NdbClient, error) {
-	params := saveRequest{Override: false, ModelName: newModelName}
-	body, err := json.Marshal(params)
-	if err != nil {
-		return nil, fmt.Errorf("error encoding request: %w", err)
-	}
+	body := saveRequest{Override: false, ModelName: newModelName}
 
-	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/save", c.modelId))
-	if err != nil {
-		return nil, fmt.Errorf("error formatting url: %w", err)
-	}
-
-	res, err := post[saveReponse](u, body, c.authToken)
+	var res saveReponse
+	err := c.Post(fmt.Sprintf("/%v/save", c.modelId)).Json(body).Do(&res)
 	if err != nil {
 		return nil, err
 	}
 
 	return &NdbClient{
 		ModelClient{
-			baseUrl:   c.baseUrl,
-			authToken: c.authToken,
-			modelId:   res.Data.NewModelId,
+			baseClient: c.baseClient,
+			modelId:    res.Data.NewModelId,
 		},
 	}, nil
 }
 
 func (c *NdbClient) ClientForDeployment(name string) *NdbClient {
 	return &NdbClient{ModelClient{
-		baseUrl:   c.baseUrl,
-		authToken: c.authToken,
-		modelId:   name,
+		baseClient: c.baseClient,
+		modelId:    name,
 	}}
 }

@@ -120,7 +120,7 @@ func doInsert(ndb *client.NdbClient, t *testing.T, fileNames []string) {
 
 func doDelete(ndb *client.NdbClient, t *testing.T) {
 	sources := getSources(ndb, t)
-	err := ndb.Delete([]string{sources[len(sources)-1].SourceId})
+	err := ndb.DeleteDocs([]string{sources[len(sources)-1].SourceId})
 	if err != nil {
 		t.Fatal(err)
 	}

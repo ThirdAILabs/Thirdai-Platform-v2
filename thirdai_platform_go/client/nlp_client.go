@@ -1,9 +1,7 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/url"
 	"thirdai_platform/model_bazaar/services"
 )
 
@@ -28,18 +26,10 @@ type nlpPredictResults[T any] struct {
 }
 
 func (c *NlpTokenClient) Predict(text string, topk int) (NlpTokenPredictions, error) {
-	params := nlpPredictParams{Text: text, Topk: topk}
-	body, err := json.Marshal(params)
-	if err != nil {
-		return NlpTokenPredictions{}, fmt.Errorf("error encoding request params: %v", err)
-	}
+	body := nlpPredictParams{Text: text, Topk: topk}
 
-	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/predict", c.modelId))
-	if err != nil {
-		return NlpTokenPredictions{}, fmt.Errorf("error formatting url: %w", err)
-	}
-
-	res, err := post[nlpPredictResults[NlpTokenPredictions]](u, body, c.authToken)
+	var res nlpPredictResults[NlpTokenPredictions]
+	err := c.Post(fmt.Sprintf("/%v/predict", c.modelId)).Json(body).Do(&res)
 	if err != nil {
 		return NlpTokenPredictions{}, err
 	}
@@ -48,20 +38,9 @@ func (c *NlpTokenClient) Predict(text string, topk int) (NlpTokenPredictions, er
 }
 
 func (c *NlpTokenClient) AddSample(tokens, tags []string) error {
-	params := map[string][]string{"tokens": tokens, "tags": tags}
+	body := map[string][]string{"tokens": tokens, "tags": tags}
 
-	body, err := json.Marshal(params)
-	if err != nil {
-		return fmt.Errorf("error encoding request params: %v", err)
-	}
-
-	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/insert_sample", c.modelId))
-	if err != nil {
-		return fmt.Errorf("error formatting url: %w", err)
-	}
-
-	_, err = post[noBody](u, body, c.authToken)
-	return err
+	return c.Post(fmt.Sprintf("/%v/insert_sample", c.modelId)).Json(body).Do(nil)
 }
 
 type newLabel struct {
@@ -71,50 +50,29 @@ type newLabel struct {
 }
 
 func (c *NlpTokenClient) AddLabel(label, description string, examples []string) error {
-	params := map[string][]newLabel{
+	body := map[string][]newLabel{
 		"tags": {{Name: label, Description: description, Examples: examples}},
 	}
 
-	body, err := json.Marshal(params)
-	if err != nil {
-		return fmt.Errorf("error encoding request params: %v", err)
-	}
-
-	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/add_labels", c.modelId))
-	if err != nil {
-		return fmt.Errorf("error formatting url: %w", err)
-	}
-
-	_, err = post[noBody](u, body, c.authToken)
-	return err
+	return c.Post(fmt.Sprintf("/%v/add_labels", c.modelId)).Json(body).Do(nil)
 }
 
 func (c *NlpTokenClient) Retrain(name string) (*NlpTokenClient, error) {
-	params := services.NlpTokenRetrainRequest{
+	body := services.NlpTokenRetrainRequest{
 		ModelName:   name,
 		BaseModelId: c.modelId,
 	}
 
-	body, err := json.Marshal(params)
-	if err != nil {
-		return nil, fmt.Errorf("error encoding request: %w", err)
-	}
-
-	u, err := url.JoinPath(c.baseUrl, "/api/v2/train/nlp-token-retrain")
-	if err != nil {
-		return nil, fmt.Errorf("error formatting url: %w", err)
-	}
-
-	res, err := post[map[string]string](u, body, c.authToken)
+	var res map[string]string
+	err := c.Post("/api/v2/train/nlp-token-retrain").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
 	}
 
 	return &NlpTokenClient{
 		ModelClient{
-			baseUrl:   c.baseUrl,
-			authToken: c.authToken,
-			modelId:   res["model_id"],
+			baseClient: c.baseClient,
+			modelId:    res["model_id"],
 		},
 	}, nil
 }
@@ -133,18 +91,10 @@ type NlpTextPredictions struct {
 }
 
 func (c *NlpTextClient) Predict(text string, topk int) (NlpTextPredictions, error) {
-	params := nlpPredictParams{Text: text, Topk: topk}
-	body, err := json.Marshal(params)
-	if err != nil {
-		return NlpTextPredictions{}, fmt.Errorf("error encoding request params: %v", err)
-	}
+	body := nlpPredictParams{Text: text, Topk: topk}
 
-	u, err := url.JoinPath(c.baseUrl, fmt.Sprintf("/%v/predict", c.modelId))
-	if err != nil {
-		return NlpTextPredictions{}, fmt.Errorf("error formatting url: %w", err)
-	}
-
-	res, err := post[nlpPredictResults[NlpTextPredictions]](u, body, c.authToken)
+	var res nlpPredictResults[NlpTextPredictions]
+	err := c.Post(fmt.Sprintf("/%v/predict", c.modelId)).Json(body).Do(&res)
 	if err != nil {
 		return NlpTextPredictions{}, err
 	}

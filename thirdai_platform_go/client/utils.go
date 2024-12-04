@@ -7,90 +7,127 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"thirdai_platform/model_bazaar/config"
 )
 
-func authHeader(token string) map[string]string {
-	return map[string]string{"Authorization": fmt.Sprintf("bearer %v", token)}
+type httpRequest struct {
+	method   string
+	baseUrl  string
+	endpoint string
+	headers  map[string]string
+	json     interface{}
+	body     io.Reader
 }
 
-type noBody struct{}
+func newHttpRequest(method, baseUrl, endpoint string) *httpRequest {
+	return &httpRequest{
+		method:   method,
+		baseUrl:  baseUrl,
+		endpoint: endpoint,
+		headers:  nil,
+		json:     nil,
+		body:     nil,
+	}
+}
 
-func parseRes[T any](endpoint, method string, res *http.Response) (T, error) {
-	var data T
-	if res.StatusCode != http.StatusOK {
-		msg, err := io.ReadAll(res.Body)
+func (r *httpRequest) Header(key, value string) *httpRequest {
+	if r.headers == nil {
+		r.headers = make(map[string]string)
+	}
+	r.headers[key] = value
+	return r
+}
+
+func (r *httpRequest) Auth(token string) *httpRequest {
+	return r.Header("Authorization", fmt.Sprintf("Bearer %v", token))
+}
+
+func (r *httpRequest) Json(data interface{}) *httpRequest {
+	r.json = data
+	return r
+}
+
+func (r *httpRequest) Body(body io.Reader) *httpRequest {
+	r.body = body
+	return r
+}
+
+func (r *httpRequest) Do(result interface{}) error {
+	fullEndpoint, err := url.JoinPath(r.baseUrl, r.endpoint)
+	if err != nil {
+		return fmt.Errorf("error formatting url for endpoint %v: %w", r.endpoint, err)
+	}
+
+	if r.json != nil {
+		body := new(bytes.Buffer)
+		err := json.NewEncoder(body).Encode(r.json)
 		if err != nil {
-			return data, fmt.Errorf("%v '%v' failed with status %d", method, endpoint, res.StatusCode)
+			return fmt.Errorf("error encoding json body for endpoint %v: %w", r.endpoint, err)
 		}
-		return data, fmt.Errorf("%v '%v' failed with status %d, message: %v", method, endpoint, res.StatusCode, string(msg))
+		r.body = body
 	}
 
-	err := json.NewDecoder(res.Body).Decode(&data)
+	req, err := http.NewRequest(r.method, fullEndpoint, r.body)
 	if err != nil {
-		return data, fmt.Errorf("%v '%v' failed to parse response: %v", method, endpoint, err)
+		return fmt.Errorf("error creating %v request for endpoint %v: %w", r.method, r.endpoint, err)
 	}
 
-	return data, nil
-}
-
-func get[T any](endpoint string, authToken string) (T, error) {
-	req, err := http.NewRequest("GET", endpoint, nil)
-	if err != nil {
-		return *new(T), fmt.Errorf("error constructing new request: %w", err)
-	}
-	headers := authHeader(authToken)
-	for k, v := range headers {
-		req.Header.Add(k, v)
+	if r.headers != nil {
+		for k, v := range r.headers {
+			req.Header.Add(k, v)
+		}
 	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return *new(T), fmt.Errorf("GET '%v' failed: %w", endpoint, err)
+		return fmt.Errorf("error sending %v request to endpoint %v: %w", r.method, r.endpoint, err)
 	}
 	defer res.Body.Close()
 
-	return parseRes[T](endpoint, "GET", res)
-}
-
-func post[T any](endpoint string, body []byte, authToken string) (T, error) {
-	return postWithHeaders[T](endpoint, body, authHeader(authToken))
-}
-
-func postWithHeaders[T any](endpoint string, body []byte, headers map[string]string) (T, error) {
-	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(body))
-	if err != nil {
-		return *new(T), fmt.Errorf("error constructing new request: %w", err)
-	}
-	for k, v := range headers {
-		req.Header.Add(k, v)
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("%v request to endpoint %v returned status %d", r.method, r.endpoint, res.StatusCode)
 	}
 
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return *new(T), fmt.Errorf("POST '%v' failed: %w", endpoint, err)
+	if result != nil {
+		err := json.NewDecoder(res.Body).Decode(result)
+		if err != nil {
+			return fmt.Errorf("error parsing %v response from endpoint %v: %w", r.method, r.endpoint, err)
+		}
 	}
-	defer res.Body.Close()
-
-	return parseRes[T](endpoint, "POST", res)
-}
-
-func deleteReq(endpoint string, authToken string) error {
-	req, err := http.NewRequest("DELETE", endpoint, nil)
-	if err != nil {
-		return fmt.Errorf("error constructing new request: %w", err)
-	}
-	req.Header.Add("Authorization", fmt.Sprintf("Bearer %v", authToken))
-
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("POST '%v' failed: %w", endpoint, err)
-	}
-	defer res.Body.Close()
 
 	return nil
+}
+
+type baseClient struct {
+	baseUrl   string
+	authToken string
+}
+
+func (c *baseClient) Get(endpoint string) *httpRequest {
+	r := newHttpRequest(c.baseUrl, "GET", endpoint)
+	if c.authToken != "" {
+		return r.Auth(c.authToken)
+	}
+	return r
+}
+
+func (c *baseClient) Post(endpoint string) *httpRequest {
+	r := newHttpRequest(c.baseUrl, "POST", endpoint)
+	if c.authToken != "" {
+		return r.Auth(c.authToken)
+	}
+	return r
+}
+
+func (c *baseClient) Delete(endpoint string) *httpRequest {
+	r := newHttpRequest(c.baseUrl, "DELETE", endpoint)
+	if c.authToken != "" {
+		return r.Auth(c.authToken)
+	}
+	return r
 }
 
 func addFilesToMultipart(writer *multipart.Writer, files []config.FileInfo) error {

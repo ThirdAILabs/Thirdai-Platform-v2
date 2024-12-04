@@ -2,54 +2,34 @@ package client
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"mime/multipart"
-	"net/url"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/services"
 )
 
 type PlatformClient struct {
-	baseUrl   string
-	authToken string
-	userId    string
+	baseClient
+	userId string
 }
 
 func New(baseUrl string) *PlatformClient {
-	return &PlatformClient{baseUrl: baseUrl}
+	return &PlatformClient{baseClient: baseClient{baseUrl: baseUrl}}
 }
 
 func (c *PlatformClient) Signup(username, email, password string) error {
-	body, err := json.Marshal(map[string]string{
+	body := map[string]string{
 		"email": email, "username": username, "password": password,
-	})
-	if err != nil {
-		return fmt.Errorf("error encoding request: %w", err)
 	}
 
-	u, err := url.JoinPath(c.baseUrl, "/api/v2/user/signup")
-	if err != nil {
-		return fmt.Errorf("error formatting url: %w", err)
-	}
-
-	_, err = post[map[string]string](u, body, c.authToken)
-
-	return err
+	return c.Post("/api/v2/user/signup").Json(body).Do(nil)
 }
 
 func (c *PlatformClient) Login(email, password string) error {
-	body, err := json.Marshal(map[string]string{"email": email, "password": password})
-	if err != nil {
-		return fmt.Errorf("error encoding request: %w", err)
-	}
+	body := map[string]string{"email": email, "password": password}
 
-	u, err := url.JoinPath(c.baseUrl, "/api/v2/user/login")
-	if err != nil {
-		return fmt.Errorf("error formatting url: %w", err)
-	}
-
-	data, err := post[map[string]string](u, body, c.authToken)
+	var data map[string]string
+	err := c.Post("/api/v2/user/login").Json(body).Do(&data)
 	if err != nil {
 		return err
 	}
@@ -74,15 +54,8 @@ func (c *PlatformClient) uploadFiles(files []config.FileInfo) ([]config.FileInfo
 		return nil, fmt.Errorf("error closing mutlipart writer: %w", err)
 	}
 
-	u, err := url.JoinPath(c.baseUrl, "/api/v2/train/upload-data")
-	if err != nil {
-		return nil, fmt.Errorf("error formatting url: %w", err)
-	}
-
-	headers := authHeader(c.authToken)
-	headers["Content-Type"] = writer.FormDataContentType()
-
-	res, err := postWithHeaders[map[string]string](u, body.Bytes(), headers)
+	var res map[string]string
+	err = c.Post("/api/v2/train/upload-data").Header("Content-Type", writer.FormDataContentType()).Body(body).Do(&res)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +76,7 @@ func (c *PlatformClient) TrainNdb(name string, unsupervised []config.FileInfo, s
 		return nil, fmt.Errorf("error uploading supervised files for training: %w", err)
 	}
 
-	params := services.NdbTrainRequest{
+	body := services.NdbTrainRequest{
 		ModelName:    name,
 		ModelOptions: &config.NdbOptions{},
 		Data: config.NDBData{
@@ -113,26 +86,16 @@ func (c *PlatformClient) TrainNdb(name string, unsupervised []config.FileInfo, s
 		JobOptions: jobOptions,
 	}
 
-	body, err := json.Marshal(params)
-	if err != nil {
-		return nil, fmt.Errorf("error encoding request: %w", err)
-	}
-
-	u, err := url.JoinPath(c.baseUrl, "/api/v2/train/ndb")
-	if err != nil {
-		return nil, fmt.Errorf("error formatting url: %w", err)
-	}
-
-	res, err := post[map[string]string](u, body, c.authToken)
+	var res map[string]string
+	err = c.Post("/api/v2/train/ndb").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
 	}
 
 	return &NdbClient{
 		ModelClient{
-			baseUrl:   c.baseUrl,
-			authToken: c.authToken,
-			modelId:   res["model_id"],
+			baseClient: c.baseClient,
+			modelId:    res["model_id"],
 		},
 	}, nil
 }
@@ -143,7 +106,7 @@ func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []con
 		return nil, fmt.Errorf("error uploading files for training: %w", err)
 	}
 
-	params := services.NlpTokenTrainRequest{
+	body := services.NlpTokenTrainRequest{
 		ModelName: name,
 		ModelOptions: &config.NlpTokenOptions{
 			TargetLabels: labels,
@@ -157,26 +120,16 @@ func (c *PlatformClient) TrainNlpToken(name string, labels []string, files []con
 		TrainOptions: trainOptions,
 	}
 
-	body, err := json.Marshal(params)
-	if err != nil {
-		return nil, fmt.Errorf("error encoding request: %w", err)
-	}
-
-	u, err := url.JoinPath(c.baseUrl, "/api/v2/train/nlp-token")
-	if err != nil {
-		return nil, fmt.Errorf("error formatting url: %w", err)
-	}
-
-	res, err := post[map[string]string](u, body, c.authToken)
+	var res map[string]string
+	err = c.Post("/api/v2/train/nlp-token").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
 	}
 
 	return &NlpTokenClient{
 		ModelClient{
-			baseUrl:   c.baseUrl,
-			authToken: c.authToken,
-			modelId:   res["model_id"],
+			baseClient: c.baseClient,
+			modelId:    res["model_id"],
 		},
 	}, nil
 }
@@ -187,7 +140,7 @@ func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []c
 		return nil, fmt.Errorf("error uploading files for training: %w", err)
 	}
 
-	params := services.NlpTextTrainRequest{
+	body := services.NlpTextTrainRequest{
 		ModelName: name,
 		ModelOptions: &config.NlpTextOptions{
 			NTargetClasses: nTargetClasses,
@@ -201,90 +154,60 @@ func (c *PlatformClient) TrainNlpText(name string, nTargetClasses int, files []c
 		TrainOptions: trainOptions,
 	}
 
-	body, err := json.Marshal(params)
-	if err != nil {
-		return nil, fmt.Errorf("error encoding request: %w", err)
-	}
-
-	u, err := url.JoinPath(c.baseUrl, "/api/v2/train/nlp-text")
-	if err != nil {
-		return nil, fmt.Errorf("error formatting url: %w", err)
-	}
-
-	res, err := post[map[string]string](u, body, c.authToken)
+	var res map[string]string
+	err = c.Post("/api/v2/train/nlp-text").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
 	}
 
 	return &NlpTextClient{
 		ModelClient{
-			baseUrl:   c.baseUrl,
-			authToken: c.authToken,
-			modelId:   res["model_id"],
+			baseClient: c.baseClient,
+			modelId:    res["model_id"],
 		},
 	}, nil
 }
 
 func (c *PlatformClient) TrainNlpTokenDatagen(name string, taskPrompt string, options config.NlpTokenDatagenOptions, trainOptions config.NlpTrainOptions) (*NlpTokenClient, error) {
-	params := services.NlpTrainDatagenRequest{
+	body := services.NlpTrainDatagenRequest{
 		ModelName:    name,
 		TaskPrompt:   taskPrompt,
 		TokenOptions: &options,
 		TrainOptions: trainOptions,
 	}
 
-	body, err := json.Marshal(params)
-	if err != nil {
-		return nil, fmt.Errorf("error encoding request: %w", err)
-	}
-
-	u, err := url.JoinPath(c.baseUrl, "/api/v2/train/nlp-datagen")
-	if err != nil {
-		return nil, fmt.Errorf("error formatting url: %w", err)
-	}
-
-	res, err := post[map[string]string](u, body, c.authToken)
+	var res map[string]string
+	err := c.Post("/api/v2/train/nlp-datagen").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
 	}
 
 	return &NlpTokenClient{
 		ModelClient{
-			baseUrl:   c.baseUrl,
-			authToken: c.authToken,
-			modelId:   res["model_id"],
+			baseClient: c.baseClient,
+			modelId:    res["model_id"],
 		},
 	}, nil
 }
 
 func (c *PlatformClient) TrainNlpTextDatagen(name string, taskPrompt string, options config.NlpTextDatagenOptions, trainOptions config.NlpTrainOptions) (*NlpTextClient, error) {
-	params := services.NlpTrainDatagenRequest{
+	body := services.NlpTrainDatagenRequest{
 		ModelName:    name,
 		TaskPrompt:   taskPrompt,
 		TextOptions:  &options,
 		TrainOptions: trainOptions,
 	}
 
-	body, err := json.Marshal(params)
-	if err != nil {
-		return nil, fmt.Errorf("error encoding request: %w", err)
-	}
-
-	u, err := url.JoinPath(c.baseUrl, "/api/v2/train/nlp-datagen")
-	if err != nil {
-		return nil, fmt.Errorf("error formatting url: %w", err)
-	}
-
-	res, err := post[map[string]string](u, body, c.authToken)
+	var res map[string]string
+	err := c.Post("/api/v2/train/nlp-datagen").Json(body).Do(&res)
 	if err != nil {
 		return nil, err
 	}
 
 	return &NlpTextClient{
 		ModelClient{
-			baseUrl:   c.baseUrl,
-			authToken: c.authToken,
-			modelId:   res["model_id"],
+			baseClient: c.baseClient,
+			modelId:    res["model_id"],
 		},
 	}, nil
 }

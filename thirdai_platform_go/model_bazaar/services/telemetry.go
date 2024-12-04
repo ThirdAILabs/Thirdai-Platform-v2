@@ -40,8 +40,8 @@ func (s *TelemetryService) DeploymentServices(w http.ResponseWriter, r *http.Req
 
 	targets := make([]scrapeTarget, 0)
 	for _, service := range services {
-		nameParts := strings.SplitN(service.Name, "-", 2)
-		if len(nameParts) != 2 {
+		nameParts := strings.SplitN(service.Name, "-", 3)
+		if len(nameParts) != 3 {
 			slog.Error("invalid service name encountered: " + service.Name)
 			http.Error(w, "invalid service name: "+service.Name, http.StatusBadRequest)
 			return
@@ -56,7 +56,7 @@ func (s *TelemetryService) DeploymentServices(w http.ResponseWriter, r *http.Req
 			targets = append(targets, scrapeTarget{
 				Targets: []string{address},
 				Labels: map[string]string{
-					"model_id": nameParts[1],
+					"model_id": nameParts[2],
 					"alloc_id": allocation.AllocID,
 					"node_id":  allocation.NodeID,
 					"address":  allocation.Address,

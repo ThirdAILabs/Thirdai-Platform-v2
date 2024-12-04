@@ -34,6 +34,17 @@ class EnterpriseSearchOptions(BaseModel):
         protected_namespaces = ()
 
 
+class KnowledgeExtractionOptions(BaseModel):
+    model_type: Literal[ModelType.KNOWLEDGE_EXTRACTION] = ModelType.KNOWLEDGE_EXTRACTION
+
+    llm_provider: str = "openai"
+    genai_key: Optional[str] = None
+
+    advanced_indexing: bool
+    rerank: bool
+    generate_answers: bool
+
+
 class DeploymentConfig(BaseModel):
     user_id: str
     model_id: str
@@ -44,7 +55,10 @@ class DeploymentConfig(BaseModel):
     autoscaling_enabled: bool = False
 
     model_options: Union[
-        NDBDeploymentOptions, UDTDeploymentOptions, EnterpriseSearchOptions
+        NDBDeploymentOptions,
+        UDTDeploymentOptions,
+        EnterpriseSearchOptions,
+        KnowledgeExtractionOptions,
     ] = Field(..., discriminator="model_type")
 
     class Config:

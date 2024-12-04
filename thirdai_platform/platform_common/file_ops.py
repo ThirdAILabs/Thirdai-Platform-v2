@@ -138,6 +138,7 @@ def _advise_drop_cache(fileno):
     """
     Advise the kernel to drop cache for the file given by file descriptor.
     """
+    # Note: posix_fadvise is not supported for mac M1, hence the warning. For Mac, fsync seems to be enough
     try:
         if hasattr(os, "posix_fadvise") and hasattr(os, "POSIX_FADV_DONTNEED"):
             os.posix_fadvise(fileno, 0, 0, os.POSIX_FADV_DONTNEED)

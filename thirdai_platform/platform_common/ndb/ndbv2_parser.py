@@ -69,6 +69,7 @@ def convert_to_ndb_doc(
             resource_path,
             keyword_columns=options.get("csv_strong_columns", []),
             text_columns=options.get("csv_weak_columns", []),
+            metadata_columns=options.get("csv_metadata_columns", []),
             doc_metadata=metadata,
             display_path=display_path,
             doc_id=doc_id,
@@ -135,7 +136,7 @@ def parse_doc(
     ndb_doc = preload_chunks(
         resource_path=local_file_path,
         display_path=display_path,
-        doc_id=doc.doc_id,
+        doc_id=doc.source_id,
         metadata=doc.metadata,
         options=doc.options,
     )

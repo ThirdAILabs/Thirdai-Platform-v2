@@ -45,6 +45,10 @@ jobs:
       - name: Copy config.yml to parent directory
         run: |
           cp ./platform/config.yml ./config.yml
+      
+      - name: Copy new_client_config.yml to parent directory
+        run: |
+          cp ./platform/new_client_config.yml ./new_client_config.yml
 
       - name: Copy README.md to parent directory
         run: |
@@ -145,9 +149,6 @@ jobs:
           # TODO(pratik): Cleanup workflows/update_llama_cpp_docker.yml.
           docker pull thirdaiplatform.azurecr.io/llama.cpp:server
           docker save -o docker_images-${{ env.latest_tag }}/llama.cpp_server.tar thirdaiplatform.azurecr.io/llama.cpp:server
-
-          docker pull thirdaiplatform.azurecr.io/redis:7.4.0
-          docker save -o docker_images-${{ env.latest_tag }}/redis_7.4.0.tar thirdaiplatform.azurecr.io/redis:7.4.0
 
           docker pull thirdaiplatform.azurecr.io/keycloak:26.0.0
           docker save -o docker_images-${{ env.latest_tag }}/keycloak_26.0.0.tar thirdaiplatform.azurecr.io/keycloak:26.0.0

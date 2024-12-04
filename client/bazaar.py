@@ -199,7 +199,7 @@ class ModelBazaar:
             "supervised_files": [
                 {
                     "path": sup_file,
-                    "doc_id": source_id,
+                    "source_id": source_id,
                     "location": doc_type,
                     "options": doc_options.get(sup_file, {}),
                 }

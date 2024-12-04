@@ -2,13 +2,14 @@ import json
 import os
 import shutil
 import uuid
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from deployment_job.permissions import Permissions
 from fastapi.testclient import TestClient
 from licensing.verify import verify_license
-from platform_common.logging import get_default_logger
+from platform_common.logging import JobLogger
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     NDBDeploymentOptions,
@@ -17,6 +18,7 @@ from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
 from thirdai.neural_db_v2.retrievers import FinetunableRetriever
 
+USER_ID = "abc"
 MODEL_ID = "xyz"
 
 THIRDAI_LICENSE = os.path.join(
@@ -24,7 +26,14 @@ THIRDAI_LICENSE = os.path.join(
 )
 
 
-logger = get_default_logger()
+logger = JobLogger(
+    log_dir=Path("./tmp"),
+    log_prefix="deployment",
+    service_type="deployment",
+    model_id="model-123",
+    model_type="ndb",
+    user_id="user-123",
+)
 
 
 def doc_dir():
@@ -79,7 +88,8 @@ def create_config(tmp_dir: str, autoscaling: bool, on_disk: bool):
     license_info = verify_license.verify_license(THIRDAI_LICENSE)
 
     return DeploymentConfig(
-        model_id=f"{MODEL_ID}",
+        user_id=USER_ID,
+        model_id=MODEL_ID,
         model_bazaar_endpoint="",
         model_bazaar_dir=tmp_dir,
         license_key=license_info["boltLicenseKey"],

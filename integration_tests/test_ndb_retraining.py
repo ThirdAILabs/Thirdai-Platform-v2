@@ -11,7 +11,8 @@ from client.utils import auth_header
 
 
 @pytest.mark.unit
-def test_ndb_retraining_log_feedback_from_read_only_users():
+@pytest.mark.parametrize("on_disk", [True, False])
+def test_ndb_retraining_log_feedback_from_read_only_users(on_disk):
     base_url = "http://127.0.0.1:80/api/"
 
     admin_client = ModelBazaar(base_url)
@@ -21,7 +22,7 @@ def test_ndb_retraining_log_feedback_from_read_only_users():
     base_model = admin_client.train(
         base_model_name,
         unsupervised_docs=[os.path.join(doc_dir(), "articles.csv")],
-        model_options={},
+        model_options={"on_disk": on_disk},
         supervised_docs=[],
     )
     admin_client.await_train(base_model)
@@ -93,7 +94,8 @@ def test_ndb_retraining_log_feedback_from_read_only_users():
 
 
 @pytest.mark.unit
-def test_ndb_retraining_autoscaling_mode():
+@pytest.mark.parametrize("on_disk", [True, False])
+def test_ndb_retraining_autoscaling_mode(on_disk):
     base_url = "http://127.0.0.1:80/api/"
 
     admin_client = ModelBazaar(base_url)
@@ -106,7 +108,7 @@ def test_ndb_retraining_autoscaling_mode():
             os.path.join(doc_dir(), "articles.csv"),
             os.path.join(doc_dir(), "supervised.csv"),
         ],
-        model_options={},
+        model_options={"on_disk": on_disk},
         supervised_docs=[],
     )
     admin_client.await_train(base_model)

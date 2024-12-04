@@ -100,6 +100,9 @@ def train_ndb(
             message="Invalid options format: " + str(e),
         )
 
+    print("XDDDDD")
+    print(model_options.on_disk)
+
     license_info = validate_license_info()
 
     try:

@@ -225,7 +225,7 @@ async def deploy_single_model(
         requires_on_prem_llm = model_options.llm_provider == "on-prem"
 
         ndb_metadata_path = os.path.join(
-            model_bazaar_path(), "models", model.id, "model.ndb", "metadata.json"
+            model_bazaar_path(), "models", str(model.id), "model.ndb", "metadata.json"
         )
         with open(ndb_metadata_path) as ndb_metadata_file:
             chunk_store = json.load(ndb_metadata_file)["chunk_store_name"]

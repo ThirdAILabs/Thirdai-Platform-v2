@@ -7,7 +7,7 @@ import shutil
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 from auth.jwt import AuthenticatedUser, verify_access_token
@@ -1094,26 +1094,41 @@ def train_udt(
     )
 
 
-def validate_text_classification_csv_format(
+import aiofiles
+import aiofiles.tempfile
+
+
+async def validate_text_classification_csv_format(
     file: UploadFile,
-) -> tuple[bool, str, set[str] | None]:
+) -> Tuple[bool, str, set[str] | None]:  # Changed return type annotation
     """
-    Validates the CSV file format for text classification.
+    Validates the CSV file format for text classification asynchronously using aiofiles.
     Returns (is_valid, error_message, extracted_labels).
     """
     # Check file extension
-    if not file.filename.lower().endswith('.csv'):
+    if not file.filename.lower().endswith(".csv"):
         return False, "File must have .csv extension", None
-        
+
     # Check MIME type
-    if file.content_type not in ['text/csv', 'application/csv']:
+    if file.content_type not in ["text/csv", "application/csv"]:
         return False, "File must be a CSV", None
 
     try:
-        content = file.file.read()
-        file.file.seek(0)
+        # Create a temporary file using aiofiles
+        async with aiofiles.tempfile.NamedTemporaryFile("wb+") as temp_file:
+            # Read and write the uploaded file in chunks
+            while chunk := await file.read(8192):  # 8KB chunks
+                await temp_file.write(chunk)
 
-        df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+            # Reset the temporary file pointer
+            await temp_file.seek(0)
+
+            # Read the temporary file content
+            async with aiofiles.open(temp_file.name, mode="rb") as af:
+                content = await af.read()
+
+        # Process the CSV data
+        df = pd.read_csv(io.BytesIO(content))
 
         if set(df.columns) != {"text", "label"}:
             return (
@@ -1164,7 +1179,7 @@ async def validate_text_classification_csv(
 ):
     try:
         is_valid, error_message, unique_labels = (
-            validate_text_classification_csv_format(file)
+            await validate_text_classification_csv_format(file)
         )
 
         if not is_valid:
@@ -1196,11 +1211,11 @@ def validate_token_classification_csv_format(
     4. No empty cells allowed
     """
     # Check file extension
-    if not file.filename.lower().endswith('.csv'):
+    if not file.filename.lower().endswith(".csv"):
         return False, "File must have .csv extension", None
-        
+
     # Check MIME type
-    if file.content_type not in ['text/csv', 'application/csv']:
+    if file.content_type not in ["text/csv", "application/csv"]:
         return False, "File must be a CSV", None
 
     try:

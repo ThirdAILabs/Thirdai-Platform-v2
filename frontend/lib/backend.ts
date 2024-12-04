@@ -417,43 +417,42 @@ interface TrainDocumentClassifierParams {
   testSplit?: number;
 }
 
-// Function to create CSV from documents
-async function createClassificationCSV(files: FileList): Promise<CreateCSVResponse> {
-  const accessToken = getAccessToken();
-  const formData = new FormData();
+// // Function to create CSV from documents
+// async function createClassificationCSV(files: FileList): Promise<CreateCSVResponse> {
+//   const accessToken = getAccessToken();
+//   const formData = new FormData();
 
-  // Add all files to FormData
-  Array.from(files).forEach((file) => {
-    formData.append('files', file, file.webkitRelativePath);
-  });
+//   // Add all files to FormData
+//   Array.from(files).forEach((file) => {
+//     formData.append('files', file, file.webkitRelativePath);
+//   });
 
-  try {
-    const response = await axios.post<CreateCSVResponse>(
-      `${thirdaiPlatformBaseUrl}/api/train/create-classification-csv`,
-      formData,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
+//   try {
+//     const response = await axios.post<CreateCSVResponse>(
+//       `${thirdaiPlatformBaseUrl}/api/train/create-classification-csv`,
+//       formData,
+//       {
+//         headers: {
+//           Authorization: `Bearer ${accessToken}`,
+//           'Content-Type': 'multipart/form-data',
+//         },
+//       }
+//     );
 
-    if (response.data.status === 'failed') {
-      throw new Error(response.data.message);
-    }
+//     if (response.data.status === 'failed') {
+//       throw new Error(response.data.message);
+//     }
 
-    return response.data;
-  } catch (error) {
-    console.error('CSV creation error:', error);
-    if (axios.isAxiosError(error) && error.response?.data) {
-      throw new Error(error.response.data.message || 'Failed to create CSV from documents');
-    }
-    throw new Error('Failed to create CSV from documents');
-  }
-}
+//     return response.data;
+//   } catch (error) {
+//     console.error('CSV creation error:', error);
+//     if (axios.isAxiosError(error) && error.response?.data) {
+//       throw new Error(error.response.data.message || 'Failed to create CSV from documents');
+//     }
+//     throw new Error('Failed to create CSV from documents');
+//   }
+// }
 
-// Updated trainDocumentClassifier function
 export async function trainDocumentClassifier({
   modelName,
   files,
@@ -462,42 +461,34 @@ export async function trainDocumentClassifier({
   const accessToken = getAccessToken();
 
   try {
-    // Step 1: Create CSV from documents
-    const csvResponse = await createClassificationCSV(files);
-    const { csv_content, categories } = csvResponse.data;
-
-    // Step 2: Prepare training data
     const formData = new FormData();
 
-    // Create a Blob from the CSV content and add it to FormData
-    const csvBlob = new Blob([csv_content], { type: 'text/csv' });
-    formData.append(
-      'files',
-      new File([csvBlob], 'document_classification.csv', { type: 'text/csv' })
-    );
+    // Add all document files to FormData
+    Array.from(files).forEach((file) => {
+      formData.append('files', file, file.webkitRelativePath);
+    });
 
-    // Prepare file info
+    // Prepare file info with webkitRelativePath to preserve directory structure
     const fileInfo = {
-      supervised_files: [
-        {
-          filename: 'document_classification.csv',
-          content_type: 'text/csv',
-          path: 'document_classification.csv',
-          location: 'local',
-        },
-      ],
+      supervised_files: Array.from(files).map(file => ({
+        filename: file.name,
+        content_type: file.type,
+        path: file.webkitRelativePath,
+        location: 'local',
+      })),
       test_files: [],
     };
     formData.append('file_info', JSON.stringify(fileInfo));
 
-    // Model options - updated structure
+    // Model options for document classification
     const modelOptions = {
       model_type: 'udt',
       udt_options: {
         udt_sub_type: 'document',
         text_column: 'text',
         label_column: 'label',
-        n_target_classes: categories.length,
+        n_target_classes: 3,
+        word_limit: 1000, // Configure word limit
       },
       train_options: {
         test_split: testSplit,
@@ -512,7 +503,7 @@ export async function trainDocumentClassifier({
     };
     formData.append('job_options', JSON.stringify(jobOptions));
 
-    // Step 3: Train the model
+    // Train the model
     const params = new URLSearchParams({ model_name: modelName });
     const response = await axios.post(
       `${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`,

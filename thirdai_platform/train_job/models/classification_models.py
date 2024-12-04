@@ -275,6 +275,109 @@ class TextClassificationModel(ClassificationModel):
         return latency
 
 
+class DocClassificationModel(TextClassificationModel):
+    def train(self, **kwargs):
+        try:
+            self.reporter.report_status(self.config.model_id, "in_progress")
+            model = self.get_model()
+
+            # Create temporary directory for CSV generation
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Process documents and create CSV
+                train_csv_path = self._create_classification_csv(
+                    self.config.data.supervised_files,
+                    temp_dir,
+                    is_training=True
+                )
+                
+                if self.config.data.test_files:
+                    test_csv_path = self._create_classification_csv(
+                        self.config.data.test_files,
+                        temp_dir,
+                        is_training=False
+                    )
+                    test_files = [test_csv_path]
+                else:
+                    test_files = []
+
+                # Train the model
+                start_time = time.time()
+                model.train(
+                    train_csv_path,
+                    epochs=self.train_options.supervised_epochs,
+                    learning_rate=self.train_options.learning_rate,
+                    batch_size=self.train_options.batch_size,
+                    metrics=self.train_options.metrics,
+                )
+                training_time = time.time() - start_time
+                self.logger.info(f"Training completed in {training_time:.2f} seconds.")
+
+                # Save model and evaluate
+                self.save_model(model)
+                if test_files:
+                    self.evaluate(model, test_files)
+
+                # Report metrics
+                num_params = self.get_num_params(model)
+                model_size = self.get_size()
+                model_size_in_memory = model_size * 4
+                latency = self.get_latency(model)
+
+                self.reporter.report_complete(
+                    self.config.model_id,
+                    metadata={
+                        "num_params": str(num_params),
+                        "thirdai_version": str(thirdai.version),
+                        "training_time": str(training_time),
+                        "size": str(model_size),
+                        "size_in_memory": str(model_size_in_memory),
+                        "latency": str(latency),
+                    },
+                )
+        finally:
+            self.cleanup_temp_dirs()
+
+    def _create_classification_csv(self, files: List[dict], temp_dir: str, is_training: bool = True) -> str:
+        """Create classification CSV from document files."""
+        self.logger.info(f"Creating classification CSV for {'training' if is_training else 'testing'}")
+        
+        processed_docs = []
+        categories = set()
+        
+        for file_info in files:
+            try:
+                file_path = file_info['path']
+                # Extract category from parent directory name
+                category = os.path.basename(os.path.dirname(file_path))
+                categories.add(category)
+                
+                # Read and process document
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    text = f.read()
+                    # Truncate if needed (word_limit can be configured in model options)
+                    word_limit = getattr(self.txt_cls_vars, 'word_limit', 1000)
+                    words = text.split()[:word_limit]
+                    truncated_text = ' '.join(words)
+                    
+                processed_docs.append({
+                    'text': truncated_text,
+                    'label': category
+                })
+            except Exception as e:
+                self.logger.error(f"Error processing file {file_path}: {str(e)}")
+                continue
+
+        # Create CSV file
+        csv_path = os.path.join(temp_dir, 'classification.csv')
+        with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=['text', 'label'])
+            writer.writeheader()
+            writer.writerows(processed_docs)
+
+        self.logger.info(f"Created CSV with {len(processed_docs)} documents and {len(categories)} categories")
+        return csv_path
+
+
 @dataclass
 class PerTagMetrics:
     metrics: Dict[str, Dict[str, float]]

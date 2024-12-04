@@ -21,6 +21,7 @@ try:
     from train_job.models.classification_models import (
         TextClassificationModel,
         TokenClassificationModel,
+        DocClassificationModel
     )
     from train_job.models.neural_db_v2 import NeuralDBV2
     from train_job.reporter import HttpReporter, Reporter
@@ -40,8 +41,10 @@ def get_model(config: TrainConfig, reporter: Reporter, logger: Logger):
         udt_type = config.model_options.udt_options.udt_sub_type
         logger.info(f"UDT type: {udt_type}")
 
-        if udt_type == UDTSubType.text or udt_type == UDTSubType.document:
+        if udt_type == UDTSubType.text:
             return TextClassificationModel(config, reporter, logger)
+        elif udt_type == UDTSubType.document:
+            return DocClassificationModel(config, reporter, logger)
         elif udt_type == UDTSubType.token:
             return TokenClassificationModel(config, reporter, logger)
         else:

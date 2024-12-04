@@ -37,15 +37,21 @@ type EnterpriseSearchRequest struct {
 	DefaultMode     *string `json:"default_mode"`
 }
 
-func (r *EnterpriseSearchRequest) models() map[string]string {
-	models := map[string]string{"retrieval_id": r.RetrievalId}
+type searchComponent struct {
+	component    string
+	id           string
+	expectedType string
+}
+
+func (r *EnterpriseSearchRequest) components() []searchComponent {
+	components := []searchComponent{{component: "retrieval_id", id: r.RetrievalId, expectedType: schema.NdbModel}}
 	if r.GuardrailId != nil {
-		models["guardrail_id"] = *r.GuardrailId
+		components = append(components, searchComponent{component: "guardrail_id", id: *r.GuardrailId, expectedType: schema.NlpTokenModel})
 	}
 	if r.NlpClassifierId != nil {
-		models["nlp_classifier_id"] = *r.NlpClassifierId
+		components = append(components, searchComponent{component: "nlp_classifier_id", id: *r.NlpClassifierId, expectedType: schema.NlpTextModel})
 	}
-	return models
+	return components
 }
 
 func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Request) {
@@ -68,29 +74,29 @@ func (s *WorkflowService) EnterpriseSearch(w http.ResponseWriter, r *http.Reques
 			return err
 		}
 
-		models := params.models()
-		deps := make([]schema.ModelDependency, 0, len(models))
-		attrs := make([]schema.ModelAttribute, 0, len(models)+2)
-		for key, depId := range models {
+		components := params.components()
+		deps := make([]schema.ModelDependency, 0, len(components))
+		attrs := make([]schema.ModelAttribute, 0, len(components)+2)
+		for _, component := range components {
 			// TODO: check dep types
-			exists, err := schema.ModelExists(txn, depId)
+			model, err := schema.GetModel(component.id, txn, false, false, false)
 			if err != nil {
-				return fmt.Errorf("error checking if %v exists: %w", key, err)
+				return fmt.Errorf("error getting model for %v: %w", component.component, err)
 			}
-			if !exists {
-				return fmt.Errorf("model specified for %v does not exist", key)
+			if model.Type != component.expectedType {
+				return fmt.Errorf("component %v was expected to have type %v, but specified model has type %v", component.component, component.expectedType, model.Type)
 			}
 
-			perm, err := auth.GetModelPermissions(depId, userId, txn)
+			perm, err := auth.GetModelPermissions(model.Id, userId, txn)
 			if err != nil {
-				return fmt.Errorf("error verifying permissions for %v: %w", key, err)
+				return fmt.Errorf("error verifying permissions for %v: %w", component.component, err)
 			}
 			if perm < auth.ReadPermission {
-				return fmt.Errorf("user does not have permissiont to access %v", key)
+				return fmt.Errorf("user does not have permissiont to access %v", component.component)
 			}
 
-			deps = append(deps, schema.ModelDependency{ModelId: modelId, DependencyId: depId})
-			attrs = append(attrs, schema.ModelAttribute{ModelId: modelId, Key: key, Value: depId})
+			deps = append(deps, schema.ModelDependency{ModelId: modelId, DependencyId: model.Id})
+			attrs = append(attrs, schema.ModelAttribute{ModelId: modelId, Key: component.component, Value: model.Id})
 		}
 
 		if params.LlmProvider != nil {

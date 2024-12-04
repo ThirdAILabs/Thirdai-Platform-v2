@@ -10,6 +10,7 @@ import thirdai
 from platform_common.file_handler import expand_cloud_buckets_and_directories
 from platform_common.logging.logcodes import LogCode
 from platform_common.ndb.ndbv2_parser import parse_doc
+from platform_common.ndb.utils import delete_docs_and_remove_files
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
 from platform_common.pydantic_models.training import FileInfo, NDBOptions, TrainConfig
 from thirdai import neural_db_v2 as ndbv2
@@ -161,14 +162,19 @@ class NeuralDBV2(Model):
             f"Found {len(upsert_doc_ids)} docs to upsert, removing old versions",
             code=LogCode.MODEL_DELETE,
         )
-        for doc_id in upsert_doc_ids:
-            try:
-                self.db.delete_doc(doc_id=doc_id, keep_latest_version=True)
-            except Exception as e:
-                self.logger.error(
-                    f"Failed to upsert doc {doc_id} with error {e}",
-                    code=LogCode.MODEL_DELETE,
-                )
+
+        try:
+            delete_docs_and_remove_files(
+                db=self.db,
+                doc_ids=upsert_doc_ids,
+                full_documents_path=self.doc_save_path(),
+                keep_latest_version=True,
+            )
+        except Exception as e:
+            self.logger.error(
+                f"Failed to delete upserted files with error {e}",
+                code=LogCode.MODEL_DELETE,
+            )
 
         total_chunks = self.db.retriever.retriever.size()
         self.logger.info(
@@ -321,8 +327,12 @@ class NeuralDBV2(Model):
         self.logger.debug(f"Total training time: {train_time} seconds")
 
         if self.config.data.deletions:
-            for doc_id in self.config.data.deletions:
-                self.db.delete_doc(doc_id=doc_id)
+            delete_docs_and_remove_files(
+                db=self.db,
+                doc_ids=self.config.data.deletions,
+                full_documents_path=self.doc_save_path(),
+                keep_latest_version=False,
+            )
             self.logger.debug(f"Deleted {len(self.config.data.deletions)} docs.")
 
         self.save()

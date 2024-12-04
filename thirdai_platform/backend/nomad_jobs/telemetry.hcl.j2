@@ -128,11 +128,7 @@ job "telemetry" {
       }
 
       env {
-        {% if platform == "local" -%}
-        PRIVATE_MODEL_BAZAAR_ENDPOINT = "http://host.docker.internal/"
-        {%- else -%}
         PRIVATE_MODEL_BAZAAR_ENDPOINT = "http://{{ model_bazaar_private_host }}/"
-        {%- endif %}
       }
 
       config {
@@ -297,7 +293,7 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
-    url: http://{{ prometheus_data_source }}/victoriametrics
+    url: http://{{ model_bazaar_private_host }}/victoriametrics
     isDefault: true
     editable: false
 EOF

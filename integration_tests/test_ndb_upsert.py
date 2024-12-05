@@ -28,7 +28,7 @@ def create_and_deploy_ndb(admin_client, base_model_name, autoscaling):
             {
                 "path": doc_path,
                 "location": "local",
-                "doc_id": old_sources[0]["source_id"],
+                "source_id": old_sources[0]["source_id"],
                 "options": {"upsert": True},
             }
         ]

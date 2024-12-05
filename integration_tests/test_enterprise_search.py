@@ -22,12 +22,12 @@ def upload_guardrail_model(admin_client: ModelBazaar):
     model = bolt.UniversalDeepTransformer(
         data_types={
             "source": bolt.types.text(),
-            "target": bolt.types.token_tags(tags=["PHONENUMBER"], default_tag="O"),
+            "target": bolt.types.token_tags(tags=[], default_tag="O"),
         },
         target="target",
-        rules=True,
         embedding_dimension=10,
     )
+    model.add_ner_rule("PHONENUMBER")
 
     path = "./phone_guardrail"
     model.save(path)

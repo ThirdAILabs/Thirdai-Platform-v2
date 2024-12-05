@@ -1,11 +1,12 @@
 import os
 import shutil
+from pathlib import Path
 from typing import Dict
 
 import pandas as pd
 import pytest
 from licensing.verify import verify_license
-from platform_common.logging import get_default_logger
+from platform_common.logging import JobLogger
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
     FeedbackLog,
@@ -53,7 +54,14 @@ THIRDAI_LICENSE = os.path.join(
     os.path.dirname(__file__), "../tests/ndb_enterprise_license.json"
 )
 
-default_logger = get_default_logger()
+logger = JobLogger(
+    log_dir=Path("./model_bazaar_tmp"),
+    log_prefix="train",
+    service_type="train",
+    model_id="model-123",
+    model_type="ndb",
+    user_id="user-123",
+)
 
 
 def file_dir():
@@ -73,7 +81,7 @@ def dummy_ner_file():
 
 @pytest.fixture(autouse=True, scope="function")
 def create_tmp_model_bazaar_dir():
-    os.makedirs(MODEL_BAZAAR_DIR)
+    os.makedirs(MODEL_BAZAAR_DIR, exist_ok=True)
     yield
     shutil.rmtree(MODEL_BAZAAR_DIR)
 
@@ -88,6 +96,7 @@ def run_ndb_train_job(extra_supervised_files=[]):
     ).hash
 
     config = TrainConfig(
+        user_id="user_123",
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
         model_bazaar_endpoint="",
@@ -118,7 +127,7 @@ def run_ndb_train_job(extra_supervised_files=[]):
                 FileInfo(
                     path=os.path.join(file_dir(), "supervised.csv"),
                     location="local",
-                    doc_id=source_id,
+                    source_id=source_id,
                     options={"csv_query_column": "query", "csv_id_column": "id"},
                 ),
                 *extra_supervised_files,
@@ -133,7 +142,7 @@ def run_ndb_train_job(extra_supervised_files=[]):
         job_options=JobOptions(),
     )
 
-    model = get_model(config, DummyReporter(), default_logger)
+    model = get_model(config, DummyReporter(), logger)
 
     model.train()
 
@@ -183,6 +192,7 @@ def test_udt_text_train():
 
     os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
+        user_id="user_123",
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
         model_bazaar_endpoint="",
@@ -216,7 +226,7 @@ def test_udt_text_train():
         job_options=JobOptions(),
     )
 
-    model = get_model(config, DummyReporter(), default_logger)
+    model = get_model(config, DummyReporter(), logger)
 
     model.train()
 
@@ -231,6 +241,7 @@ def test_udt_token_train(test_split):
 
     os.environ["AZURE_ACCOUNT_NAME"] = "csg100320028d93f3bc"
     config = TrainConfig(
+        user_id="user_123",
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
         model_bazaar_endpoint="",
@@ -289,7 +300,7 @@ def test_udt_token_train(test_split):
         ),
     )
 
-    model = get_model(config, DummyReporter(), default_logger)
+    model = get_model(config, DummyReporter(), logger)
 
     model.train()
 
@@ -306,6 +317,7 @@ def test_udt_token_train_with_balancing(dummy_ner_file):
     verify_license.verify_and_activate(THIRDAI_LICENSE)
 
     config = TrainConfig(
+        user_id="user_123",
         model_bazaar_dir=MODEL_BAZAAR_DIR,
         license_key=THIRDAI_LICENSE,
         model_bazaar_endpoint="",
@@ -339,7 +351,7 @@ def test_udt_token_train_with_balancing(dummy_ner_file):
         ),
     )
 
-    model: TokenClassificationModel = get_model(config, DummyReporter(), default_logger)
+    model: TokenClassificationModel = get_model(config, DummyReporter(), logger)
     assert (
         model.find_and_save_balancing_samples() is None
     ), "No Balancing Samples without training"

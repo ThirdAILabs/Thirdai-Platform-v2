@@ -152,6 +152,7 @@ def train_ndb(
         base_model = get_base_model(base_model_identifier, user=user, session=session)
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -319,6 +320,7 @@ def retrain_ndb(
     shutil.copytree(feedback_dir, supervised_train_dir)
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -474,6 +476,7 @@ def nlp_datagen(
         )
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -789,6 +792,7 @@ def retrain_udt(
     )
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -957,6 +961,7 @@ def train_udt(
         base_model = get_base_model(base_model_identifier, user=user, session=session)
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),

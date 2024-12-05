@@ -3,12 +3,20 @@ name: Release Job
 on:
   release:
     types: [published] # This triggers the workflow when a new release is published
+  workflow_call:
+    inputs:
+      installer_branch_name:
+        description: "Installer branch name for the release"
+        type: string
+        required: true
+        default: "main"
 
   workflow_dispatch:
     inputs:
-      branch_name:
-        description: "Branch name for the release"
+      installer_branch_name:
+        description: "Installer branch name for the release"
         required: true
+        type: string
         default: "main"
 
 jobs:
@@ -29,6 +37,7 @@ jobs:
       - name: Clone Platform repository
         run: |
           git clone git@github.com:ThirdAILabs/platform.git
+          git checkout ${{ github.event.inputs.installer_branch_name }}
 
       - name: Download and store the model
         run: |
@@ -99,12 +108,18 @@ jobs:
 
       - name: Set the branch name for release
         run: |
-          branch_name="${{ github.event.inputs.branch_name || 'release-test-main' }}"
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            branch_name="release-test-main"
+          else
+            branch_name="installation-test-${{ github.ref_name }}"
+          fi
+          
           echo "Docker image branch to build on is: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_ENV
-
+      
       - name: Read Pull Credentials from release/config.yaml
         id: credentials
+        if: github.event_name == 'release'
         run: |
           PULL_USERNAME=$(yq e '.azure.branches."'${branch_name}'".pull_credentials.username' $GITHUB_WORKSPACE/release/config.yaml)
           PULL_PASSWORD=$(yq e '.azure.branches."'${branch_name}'".pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml)
@@ -113,16 +128,32 @@ jobs:
           echo "pull_password=$PULL_PASSWORD" >> $GITHUB_ENV
 
       - name: Log in to Docker Registry
+        if: github.event_name == 'release'
         run: |
           docker login -u ${{ env.pull_username }} -p ${{ env.pull_password }} thirdaiplatform.azurecr.io
 
       - name: Fetch the latest tag for thirdai_platform
+        if: github.event_name == 'release'
         id: fetch_latest_tag
         run: |
           latest_tag=$(az acr repository show-tags --name thirdaiplatform \
             --repository thirdai_platform_${{ env.branch_name }} --orderby time_desc --output tsv | grep -v '^latest$' | head -n 1)
           echo "Latest tag is: $latest_tag"
           echo "latest_tag=$latest_tag" >> $GITHUB_ENV  # Save the latest_tag to the environment file
+      
+      - name: Generate random version
+        id: generate_version
+        if: github.event_name == 'workflow_call'
+        run: |
+          tag=$(shuf -i 100-999 -n 3 | paste -sd '.')
+          echo "Generated tag: $tag"
+          echo "::set-output name=latest_tag::$tag"
+
+      - name: Build and push docker images to the repository
+        run: |
+          cd release
+          pip install -r requirements.txt
+          python3 push.py -b ${{ env.branch_name }} --config config.yaml --no-cache --version ${{ steps.generate_version.outputs.version }}
 
       - name: Download Docker images using the latest tag
         run: |

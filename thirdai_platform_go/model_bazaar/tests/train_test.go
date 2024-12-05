@@ -3,7 +3,6 @@ package tests
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"mime/multipart"
 	"os"
@@ -39,7 +38,7 @@ func TestTrain(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	token := params["job_auth_token"].(string)
+	jobToken := params["job_auth_token"].(string)
 
 	status, err := client.trainStatus(model)
 	if err != nil {
@@ -49,16 +48,16 @@ func TestTrain(t *testing.T) {
 		t.Fatalf("invalid status: %v", status)
 	}
 
-	_, err = postWithToken[NoBody](&client, "/train/log", []byte(`{"level": "warning", "message": "probably fine"}`), token)
+	err = client.Post("/train/log").Auth(jobToken).Json(map[string]string{"level": "warning", "message": "probably fine"}).Do(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = postWithToken[NoBody](&client, "/train/log", []byte(`{"level": "error", "message": "uh oh"}`), token)
+	err = client.Post("/train/log").Auth(jobToken).Json(map[string]string{"level": "error", "message": "uh oh"}).Do(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = postWithToken[NoBody](&client, "/train/update-status", []byte(`{"status": "in_progress"}`), token)
+	err = client.Post("/train/update-status").Auth(jobToken).Json(map[string]string{"status": "in_progress"}).Do(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,15 +120,8 @@ func TestFileUpload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res, err := postWithHeaders[map[string]string](
-		&client,
-		"/train/upload-data",
-		body.Bytes(),
-		map[string]string{
-			"Authorization": fmt.Sprintf("Bearer %v", client.token),
-			"Content-Type":  writer.FormDataContentType(),
-		},
-	)
+	var res map[string]string
+	err = client.Post("/train/upload-data").Header("Content-Type", writer.FormDataContentType()).Body(body).Do(&res)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,9 +159,9 @@ func TestTrainReport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	token := getJobAuthToken(env, t, model)
+	jobToken := getJobAuthToken(env, t, model)
 
-	_, err = postWithToken[NoBody](&client, "/train/update-status", []byte(`{"status": "complete"}`), token)
+	err = client.Post("/train/update-status").Auth(jobToken).Json(map[string]string{"status": "complete"}).Do(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

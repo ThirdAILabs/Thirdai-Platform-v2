@@ -18,9 +18,9 @@ func TestDeploy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	token := getJobAuthToken(env, t, model)
+	jobToken := getJobAuthToken(env, t, model)
 
-	_, err = postWithToken[NoBody](&client, "/train/update-status", []byte(`{"status": "complete"}`), token)
+	err = client.Post("/train/update-status").Auth(jobToken).Json(map[string]string{"status": "complete"}).Do(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,16 +38,16 @@ func TestDeploy(t *testing.T) {
 		t.Fatalf("invalid status: %v", status)
 	}
 
-	_, err = postWithToken[NoBody](&client, "/deploy/log", []byte(`{"level": "warning", "message": "probably fine"}`), token)
+	err = client.Post("/deploy/log").Auth(jobToken).Json(map[string]string{"level": "warning", "message": "probably fine"}).Do(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = postWithToken[NoBody](&client, "/deploy/log", []byte(`{"level": "error", "message": "uh oh"}`), token)
+	err = client.Post("/deploy/log").Auth(jobToken).Json(map[string]string{"level": "error", "message": "uh oh"}).Do(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = postWithToken[NoBody](&client, "/deploy/update-status", []byte(`{"status": "in_progress"}`), token)
+	err = client.Post("/deploy/update-status").Auth(jobToken).Json(map[string]string{"status": "in_progress"}).Do(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

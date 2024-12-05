@@ -35,8 +35,11 @@ var intArg = pArg[int]
 var strArg = pArg[string]
 
 func adminLogin(client *gocloak.GoCloak, adminUsername, adminPassword string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
 	// The "master" realm is the default admin realm in Keycloak.
-	adminToken, err := client.LoginAdmin(context.TODO(), adminUsername, adminPassword, "master")
+	adminToken, err := client.LoginAdmin(ctx, adminUsername, adminPassword, "master")
 	if err != nil {
 		return "", fmt.Errorf("error during keycloak admin login: %w", err)
 	}
@@ -44,12 +47,14 @@ func adminLogin(client *gocloak.GoCloak, adminUsername, adminPassword string) (s
 }
 
 func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email, password string) (string, error) {
-	users, err := client.GetUsers(
-		context.TODO(), adminToken, "master", gocloak.GetUsersParams{
-			Username: &username,
-			Max:      intArg(1),
-			Exact:    boolArg(true),
-		})
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	users, err := client.GetUsers(ctx, adminToken, "master", gocloak.GetUsersParams{
+		Username: &username,
+		Max:      intArg(1),
+		Exact:    boolArg(true),
+	})
 	if err != nil {
 		return "", fmt.Errorf("error checking for existing admin: %w", err)
 	}
@@ -57,7 +62,7 @@ func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email
 		return *users[0].ID, nil
 	}
 
-	userId, err := client.CreateUser(context.TODO(), adminToken, "master", gocloak.User{
+	userId, err := client.CreateUser(ctx, adminToken, "master", gocloak.User{
 		Username:      &username,
 		Email:         &email,
 		Enabled:       boolArg(true),
@@ -78,13 +83,16 @@ func createAdminIfNotExists(client *gocloak.GoCloak, adminToken, username, email
 }
 
 func assignAdminRole(client *gocloak.GoCloak, adminToken, userId string) error {
-	roles, err := client.GetRealmRoles(context.TODO(), adminToken, "master", gocloak.GetRoleParams{})
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	roles, err := client.GetRealmRoles(ctx, adminToken, "master", gocloak.GetRoleParams{})
 	if err != nil {
 		return fmt.Errorf("error getting keycloak roles: %w", err)
 	}
 	for _, role := range roles {
 		if *role.Name == "admin" {
-			err := client.AddRealmRoleToUser(context.TODO(), adminToken, "master", userId, []gocloak.Role{*role})
+			err := client.AddRealmRoleToUser(ctx, adminToken, "master", userId, []gocloak.Role{*role})
 			if err != nil {
 				return fmt.Errorf("error assigning admin role: %w", err)
 			}
@@ -94,7 +102,10 @@ func assignAdminRole(client *gocloak.GoCloak, adminToken, userId string) error {
 }
 
 func createRealm(client *gocloak.GoCloak, adminToken, realmName string) error {
-	serverInfo, err := client.GetServerInfo(context.TODO(), adminToken)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	serverInfo, err := client.GetServerInfo(ctx, adminToken)
 	if err != nil {
 		return fmt.Errorf("error getting keycloak server info: %w", err)
 	}
@@ -122,7 +133,7 @@ func createRealm(client *gocloak.GoCloak, adminToken, realmName string) error {
 		}
 	}
 
-	_, err = client.CreateRealm(context.TODO(), adminToken, args)
+	_, err = client.CreateRealm(ctx, adminToken, args)
 	if err != nil {
 		return fmt.Errorf("error creating realm: %w", err)
 	}
@@ -132,7 +143,10 @@ func createRealm(client *gocloak.GoCloak, adminToken, realmName string) error {
 func createClient(client *gocloak.GoCloak, adminToken, realm string, redirectUrls []string, rootUrl string) error {
 	clientName := "thirdai-platform-login"
 
-	clients, err := client.GetClients(context.TODO(), adminToken, realm, gocloak.GetClientsParams{
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	clients, err := client.GetClients(ctx, adminToken, realm, gocloak.GetClientsParams{
 		ClientID: &clientName,
 	})
 	if err != nil {
@@ -143,33 +157,31 @@ func createClient(client *gocloak.GoCloak, adminToken, realm string, redirectUrl
 		return nil
 	}
 
-	_, err = client.CreateClient(
-		context.TODO(), adminToken, realm, gocloak.Client{
-			ClientID:                  &clientName,
-			Enabled:                   boolArg(true),
-			PublicClient:              boolArg(true),    // Public client that doesn't require a secret for authentication.
-			RedirectURIs:              &redirectUrls,    // URIs where the client will redirect after authentication.
-			RootURL:                   &rootUrl,         // Root URL for the client application.
-			BaseURL:                   strArg("/login"), // Base URL for the client application.
-			DirectAccessGrantsEnabled: boolArg(false),   // Direct grants like password flow are disabled.
-			ServiceAccountsEnabled:    boolArg(false),   // Service accounts are disabled.
-			StandardFlowEnabled:       boolArg(true),    // Standard authorization code flow is enabled.
-			ImplicitFlowEnabled:       boolArg(false),   // Implicit flow is disabled.
-			FullScopeAllowed:          boolArg(false),   // Limit access to only allowed scopes.
-			DefaultClientScopes:       &[]string{"profile", "email", "openid", "roles"},
-			OptionalClientScopes:      &[]string{"offline_access", "microprofile-jwt"},
-			ProtocolMappers: &[]gocloak.ProtocolMapperRepresentation{
-				{
-					Name:            strArg("auidience resolve"),            // Protocol mappers adjust tokens for clients.
-					Protocol:        strArg("openid-connect"),               // The OIDC protocol used for authentication.
-					ProtocolMapper:  strArg("oidc-audience-resolve-mapper"), // Mapper to add audience claim in tokens.
-					ConsentRequired: boolArg(false),
-					Config:          &map[string]string{},
-				},
+	_, err = client.CreateClient(ctx, adminToken, realm, gocloak.Client{
+		ClientID:                  &clientName,
+		Enabled:                   boolArg(true),
+		PublicClient:              boolArg(true),    // Public client that doesn't require a secret for authentication.
+		RedirectURIs:              &redirectUrls,    // URIs where the client will redirect after authentication.
+		RootURL:                   &rootUrl,         // Root URL for the client application.
+		BaseURL:                   strArg("/login"), // Base URL for the client application.
+		DirectAccessGrantsEnabled: boolArg(false),   // Direct grants like password flow are disabled.
+		ServiceAccountsEnabled:    boolArg(false),   // Service accounts are disabled.
+		StandardFlowEnabled:       boolArg(true),    // Standard authorization code flow is enabled.
+		ImplicitFlowEnabled:       boolArg(false),   // Implicit flow is disabled.
+		FullScopeAllowed:          boolArg(false),   // Limit access to only allowed scopes.
+		DefaultClientScopes:       &[]string{"profile", "email", "openid", "roles"},
+		OptionalClientScopes:      &[]string{"offline_access", "microprofile-jwt"},
+		ProtocolMappers: &[]gocloak.ProtocolMapperRepresentation{
+			{
+				Name:            strArg("auidience resolve"),            // Protocol mappers adjust tokens for clients.
+				Protocol:        strArg("openid-connect"),               // The OIDC protocol used for authentication.
+				ProtocolMapper:  strArg("oidc-audience-resolve-mapper"), // Mapper to add audience claim in tokens.
+				ConsentRequired: boolArg(false),
+				Config:          &map[string]string{},
 			},
-			WebOrigins: &redirectUrls,
 		},
-	)
+		WebOrigins: &redirectUrls,
+	})
 	if err != nil {
 		return fmt.Errorf("error creating realm client: %w", err)
 	}

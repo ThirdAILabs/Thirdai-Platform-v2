@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Underline } from 'lucide-react';
+import * as Xpath from 'xpath';
 export const ATTRIBUTE_PREFIX = '@_';
 export const INDENT = '20px';
 export const SPACE = '5px';
@@ -64,6 +65,7 @@ interface XPathLocation {
 
 interface Location {
   local_char_span: CharSpan;
+  xpath_location: XPathLocation;
   value: string;
 }
 
@@ -78,6 +80,7 @@ interface XMLRendererProps {
   choices: string[];
   predictions: Prediction[];
   onSelectionComplete: (selection: Selection) => void;
+  xmlDom: any;
 }
 
 interface XMLAttributeRendererProps extends XMLRendererProps {
@@ -97,7 +100,6 @@ interface TagSelectorProps {
   open: boolean;
   choices: string[];
   onSelect: (tag: string) => void;
-  predictions: Prediction[];
 }
 
 interface Selection {
@@ -108,7 +110,7 @@ interface Selection {
   value: string;
 }
 
-export function TagSelector({ open, choices, onSelect, predictions }: TagSelectorProps) {
+export function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
   const defaultOptions = useMemo(() => choices.map((label) => ({ label, new: false })), [choices]);
 
   const [fuse, setFuse] = useState(new Fuse(choices));
@@ -220,6 +222,9 @@ export function TagSelector({ open, choices, onSelect, predictions }: TagSelecto
             {options.map((val, index) =>
               makeDropdownMenuItem(index, val.label, val.new, index === selectedIndex)
             )}
+            {
+              makeDropdownMenuItem(options.length, "DELETE TAG", false, options.length === selectedIndex)
+            }
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -234,6 +239,7 @@ function XMLAttributeRenderer({
   choices,
   predictions,
   onSelectionComplete,
+  xmlDom
 }: XMLAttributeRendererProps) {
   const key = attr.substring(ATTRIBUTE_PREFIX.length);
   let dataString = JSON.stringify(data);
@@ -256,6 +262,7 @@ function XMLAttributeRenderer({
         choices={choices}
         predictions={predictions}
         onSelectionComplete={onSelectionComplete}
+        xmlDom={xmlDom}
       />
       &quot;
     </div>
@@ -268,10 +275,11 @@ function XMLValueRenderer({
   choices,
   predictions,
   onSelectionComplete,
+  xmlDom
 }: XMLValueRendererProps) {
   const [start, setStart] = useState<number | null>(null);
   const [end, setEnd] = useState<number | null>(null);
-  const [predictionIndex, setIsPredictionIndex] = useState<number>(-1);
+  const [predictionIndices, setPredictionIndices] = useState<Set<number>>(new Set());
   const [isSelecting, setIsSelecting] = useState(false);
   const [tagSelectorOpen, setTagSelectorOpen] = useState(false);
 
@@ -297,19 +305,36 @@ function XMLValueRenderer({
   const charArray: string[] = data.toString().split('');
 
   useEffect(() => {
+    const newIndices = new Set<number>();
     for (let index = 0; index < predictions.length; index++) {
       const prediction = predictions[index];
-      if (
-        data
-          .toString()
-          .substring(
-            prediction.location.local_char_span.start,
-            prediction.location.local_char_span.end
-          ) === prediction.location.value.trim()
-      ) {
-        setIsPredictionIndex(index);
+      const node: any = Xpath.select(prediction.location.xpath_location.xpath, xmlDom);
+      const nodeValue = node[0].firstChild.data;
+      if (data.toString() === nodeValue.trim()) {
+        const { start: startI, end: endI } = prediction.location.local_char_span;
+        let hasIntersection = false;
+        for (let j = index + 1; j < predictions.length; j++) {
+          const nextPrediction = predictions[j];
+          const { start: startJ, end: endJ } = nextPrediction.location.local_char_span;
+
+          const predictionNode: any = Xpath.select(prediction.location.xpath_location.xpath, xmlDom);
+          const nextPredictionNode: any = Xpath.select(nextPrediction.location.xpath_location.xpath, xmlDom);
+
+          if (predictionNode[0].firstChild.data === nextPredictionNode[0].firstChild.data) {
+            // Check for intersection
+            if (!(endI < startJ || startI > endJ)) {
+              hasIntersection = true;
+              break;
+            }
+          }
+        }
+        // Add index to the set if no intersection
+        if (!hasIntersection) {
+          newIndices.add(index);
+        }
       }
     }
+    setPredictionIndices(newIndices);
   }, [data, predictions.length]);
 
   //Mouse event handlers for selection
@@ -361,6 +386,7 @@ function XMLValueRenderer({
         justifyContent: 'start',
         flexWrap: 'wrap',
         userSelect: 'none',
+        marginBottom: '5px'
       }}
     >
       {charArray.map((token, index) => {
@@ -370,12 +396,13 @@ function XMLValueRenderer({
           index >= Math.min(start, end) &&
           index <= Math.max(start, end);
 
-        // Prediction highlighting
-        const predictionIndexSpan =
-          predictionIndex !== -1 &&
-          predictions[predictionIndex] !== undefined &&
-          index >= predictions[predictionIndex].location.local_char_span.start &&
-          index <= predictions[predictionIndex].location.local_char_span.end - 1;
+        // Prediction highlighting for multiple selected indices
+        const isInPredictionRange = [...predictionIndices].some((selectedIndex) => {
+          const prediction = predictions[selectedIndex];
+          if (!prediction) return false;
+          const { start, end } = prediction.location.local_char_span;
+          return index >= start && index <= end - 1;
+        });
 
         return (
           <>
@@ -387,7 +414,7 @@ function XMLValueRenderer({
               style={{
                 backgroundColor: isSelected
                   ? 'rgba(153, 227, 181, 0.5)'
-                  : predictionIndexSpan
+                  : isInPredictionRange
                     ? 'rgba(255, 255, 0, 0.3)'
                     : 'transparent',
                 cursor: 'text',
@@ -395,26 +422,37 @@ function XMLValueRenderer({
             >
               {token === ' ' ? '\u00A0' : token}
             </span>
-            {predictionIndex !== -1 &&
-              predictions[predictionIndex] &&
-              index === predictions[predictionIndex].location.local_char_span.end - 1 && (
-                <span
-                  className="font-semibold text-red-500"
-                  style={{ backgroundColor: 'rgba(255, 255, 0, 0.3)' }}
-                >
-                  {'\u00A0'}
-                  {'[' + predictions[predictionIndex].label + ']'}
-                </span>
-              )}
+            {[...predictionIndices].map((selectedIndex) => {
+              const prediction = predictions[selectedIndex];
+              if (!prediction) return null;
+
+              const { start: startI, end: endI } = prediction.location.local_char_span;
+              let isMatched = false;
+              if (index === (endI - 1)) {
+                isMatched = true;
+                return (
+                  <span
+                    key={`label-${selectedIndex}`}
+                    className="font-semibold text-red-500"
+                    style={{ backgroundColor: 'rgba(255, 255, 0, 0.3)' }}
+                  >
+                    {'\u00A0'}
+                    {'[' + prediction.label + ']'}
+                  </span>
+                );
+              }
+              return null;
+            })}
           </>
         );
       })}
+
+
       {tagSelectorOpen && (
         <TagSelector
           open={tagSelectorOpen}
           choices={choices}
           onSelect={handleTagSelect}
-          predictions={predictions}
         />
       )}
     </div>
@@ -428,8 +466,9 @@ function XMLObjectRenderer({
   choices,
   predictions,
   onSelectionComplete,
+  xmlDom
 }: XMLObjectRendererProps) {
-  console.log('Paht in ObjectRenderer: ', path);
+
   const attrs = Object.keys(data).filter((key) => key.startsWith(ATTRIBUTE_PREFIX));
   const numKeys = Object.keys(data).length;
   const emptyChild = numKeys === 0 || (numKeys - attrs.length === 1 && data['#text'] === '');
@@ -457,6 +496,7 @@ function XMLObjectRenderer({
             choices={choices}
             predictions={predictions}
             onSelectionComplete={onSelectionComplete}
+            xmlDom={xmlDom}
           />
         ))}
         {hasChild ? <span>{`>`}</span> : <span style={{ marginLeft: SPACE }}>{`/>`}</span>}
@@ -470,6 +510,7 @@ function XMLObjectRenderer({
               choices={choices}
               predictions={predictions}
               onSelectionComplete={onSelectionComplete}
+              xmlDom={xmlDom}
             />
           </div>
           <span style={{ width: 'fit-content' }}>{`</${tag}>`}</span>
@@ -485,6 +526,7 @@ export function XMLRenderer({
   choices,
   predictions,
   onSelectionComplete,
+  xmlDom
 }: XMLRendererProps) {
   if (typeof data === 'string') {
     // Data is a string, render it directly
@@ -495,6 +537,7 @@ export function XMLRenderer({
         choices={choices}
         predictions={predictions}
         onSelectionComplete={onSelectionComplete}
+        xmlDom={xmlDom}
       />
     );
   }
@@ -508,6 +551,7 @@ export function XMLRenderer({
         choices={choices}
         predictions={predictions}
         onSelectionComplete={onSelectionComplete}
+        xmlDom={xmlDom}
       />
     );
   }
@@ -520,6 +564,7 @@ export function XMLRenderer({
         choices={choices}
         predictions={predictions}
         onSelectionComplete={onSelectionComplete}
+        xmlDom={xmlDom}
       />
     );
   }
@@ -538,6 +583,7 @@ export function XMLRenderer({
               choices={choices}
               predictions={predictions}
               onSelectionComplete={onSelectionComplete}
+              xmlDom={xmlDom}
             />
           );
         }
@@ -554,6 +600,7 @@ export function XMLRenderer({
                   choices={choices}
                   predictions={predictions}
                   onSelectionComplete={onSelectionComplete}
+                  xmlDom={xmlDom}
                 />
               ))}
             </>
@@ -569,6 +616,7 @@ export function XMLRenderer({
             choices={choices}
             predictions={predictions}
             onSelectionComplete={onSelectionComplete}
+            xmlDom={xmlDom}
           />
         );
       })}

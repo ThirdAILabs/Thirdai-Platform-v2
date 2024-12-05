@@ -24,7 +24,6 @@ import { Input } from '@/components/ui/input';
 import Fuse from 'fuse.js';
 import FeedbackDashboard from './FeedbackDashboard';
 import FeedbackDashboardXML from './FeedbackDashboadXML';
-
 import {
   parseCSV,
   parseExcel,
@@ -34,6 +33,7 @@ import {
 } from '@/utils/fileParsingUtils';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 import { parseXML, XMLRenderer, clean } from './xml';
+import { DOMParser } from 'xmldom';
 interface Token {
   text: string;
   tag: string;
@@ -62,7 +62,10 @@ interface TagSelectorProps {
   onNewLabel: (newLabel: string) => Promise<void>;
   currentTag: string;
 }
-
+interface XPathLocation {
+  xpath: string;
+  attribute: string | null;
+}
 interface xmlPrediction {
   label: string;
   location: {
@@ -70,6 +73,7 @@ interface xmlPrediction {
       start: number;
       end: number;
     };
+    xpath_location: XPathLocation
     value: string;
   };
 }
@@ -295,32 +299,29 @@ export default function Interact() {
           end: selection.end,
         },
         value: selection.value,
+        xpath_location: {
+          xpath: selection.xpath,
+          attribute: null,
+        }
       },
       label: selection.tag,
     };
     if (selection.tag === 'DELETE TAG') {
-      // setXmlAnnotations((prevAnnotations) => [...prevAnnotations, xmlAnnotation]);
-      console.log('Delete tag hue hue', xmlAnnotation);
 
       setXmlAnnotations(
         xmlAnnotations.filter((item) => item.location.value !== xmlAnnotation.location.value)
       );
-      console.log('DELETE TAG SELE:', selection);
-      // console.log('All selections:', [...selections, selection]);
       setSelections(
         selections.filter((item) => {
-          // const newItem = [item.end, item.start, item.value, item.xpath];
-          // const newSelection = [selection.end, selection.start, selection.value, selection.xpath];
           return item.value !== selection.value;
         })
       );
-      console.log('DELETE TAG sele xml ', xmlAnnotations);
     } else {
       setXmlAnnotations((prevAnnotations) => [...prevAnnotations, xmlAnnotation]);
       setSelections([...selections, selection]);
-      console.log('New selection:', selection);
-      console.log('All selections:', [...selections, selection]);
-      console.log('all sele xml ', xmlAnnotations);
+      // console.log('New selection:', selection);
+      // console.log('All selections:', [...selections, selection]);
+      // console.log('all sele xml ', xmlAnnotations);
     }
   };
   // Handler to delete a selection
@@ -858,7 +859,7 @@ export default function Interact() {
     if (logType === 'xml' && xmlQueryText) {
       const cleanXml = clean(xmlQueryText);
       const parsedXml = parseXML(cleanXml);
-      console.log('DELETE TAG annoat', xmlAnnotations);
+      const xmlDom = new DOMParser().parseFromString(cleanXml, 'application/xml');
       return (
         <XMLRenderer
           data={parsedXml}
@@ -866,6 +867,7 @@ export default function Interact() {
           choices={allLabels}
           predictions={xmlAnnotations}
           onSelectionComplete={handleSelectionComplete}
+          xmlDom={xmlDom}
         />
       );
     }

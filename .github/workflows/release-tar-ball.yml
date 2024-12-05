@@ -3,13 +3,6 @@ name: Release Job
 on:
   release:
     types: [published] # This triggers the workflow when a new release is published
-  workflow_call:
-    inputs:
-      installer_branch_name:
-        description: "Installer branch name for the release"
-        type: string
-        required: true
-        default: "main"
 
   workflow_dispatch:
     inputs:
@@ -20,13 +13,71 @@ on:
         default: "main"
 
 jobs:
-  package:
+  build_docker_images:
     runs-on: ubuntu-latest-8-cores
+
+    outputs:
+      version: "v${{ steps.fetch_version.outputs.version }}"
+      docker_image_branch_name: ${{ steps.fetch_branch_name.outputs.branch_name }}
+      docker_registy_password: ${{ steps.fetch_branch_name.outputs.PULL_PASSWORD }}
 
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v2
 
+      - name: "Azure Login"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get the version of the docker images
+        id: fetch_version
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            version=${{ github.event.release.tag_name }}
+          else
+            version=$(shuf -i 100-999 -n 3 | paste -sd '.')
+          fi
+          echo "Next version: $version"
+          echo "::set-output name=version::$version"
+
+      - name: Set the branch name of the docker images
+        id: fetch_branch_name
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            branch_name="release-test-main"
+          else
+            branch_name="installation-test-${{ github.ref_name }}"
+          fi
+          
+          echo "Docker image branch to build on: $branch_name"
+          echo "::set-output name=branch_name::$branch_name"
+          echo "branch_name=$branch_name" >> $GITHUB_ENV
+      
+      - name: Build and push docker images to the repository
+        run: |
+          cd release
+          pip install -r requirements.txt
+          python3 push.py -b ${{ env.branch_name }} --config config.yaml --no-cache --version ${{ steps.fetch_version.outputs.version }}
+      
+      - name: Install yq for YAML parsing
+        run: |
+          sudo add-apt-repository ppa:rmescandon/yq
+          sudo apt update
+          sudo apt install yq -y
+
+      - name: Extract the docker registry_password
+        run: |
+          PULL_PASSWORD=$(yq e '.azure.branches."'${branch_name}'".pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml)
+          echo "::set-output name=PULL_PASSWORD::$PULL_PASSWORD"
+  
+  package:
+    runs-on: ubuntu-latest-8-cores
+    needs: build_docker_images
+    outputs:
+      offline_package_name: ${{ steps.offline_pack.outputs.name }}
+      online_package_name: ${{ steps.online_pack.outputs.name }}
+    steps:
       - name: Set up SSH for cloning
         run: |
           mkdir -p ~/.ssh
@@ -65,25 +116,11 @@ jobs:
           name: thirdai-platform-package
           path: thirdai-platform-package.tar.gz
 
-      - name: Install Docker
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            apt-transport-https \
-            ca-certificates \
-            curl \
-            software-properties-common
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-          sudo add-apt-repository \
-            "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-          sudo apt-get update
-          sudo apt-get install -y docker-ce
-
       - name: Install AWS CLI
         run: |
           sudo apt-get update
           sudo apt-get install -y awscli
-
+  
       - name: Configure AWS credentials
         run: |
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -100,115 +137,252 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Install yq for YAML parsing
+      - name: Install Docker
         run: |
-          sudo add-apt-repository ppa:rmescandon/yq
-          sudo apt update
-          sudo apt install yq -y
-
-      - name: Set the branch name for release
-        run: |
-          if [[ "${{ github.event_name }}" == "release" ]]; then
-            branch_name="release-test-main"
-          else
-            branch_name="installation-test-${{ github.ref_name }}"
-          fi
-          
-          echo "Docker image branch to build on is: $branch_name"
-          echo "branch_name=$branch_name" >> $GITHUB_ENV
-      
-      - name: Read Pull Credentials from release/config.yaml
-        id: credentials
-        if: github.event_name == 'release'
-        run: |
-          PULL_USERNAME=$(yq e '.azure.branches."'${branch_name}'".pull_credentials.username' $GITHUB_WORKSPACE/release/config.yaml)
-          PULL_PASSWORD=$(yq e '.azure.branches."'${branch_name}'".pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml)
-
-          echo "pull_username=$PULL_USERNAME" >> $GITHUB_ENV
-          echo "pull_password=$PULL_PASSWORD" >> $GITHUB_ENV
-
-      - name: Log in to Docker Registry
-        if: github.event_name == 'release'
-        run: |
-          docker login -u ${{ env.pull_username }} -p ${{ env.pull_password }} thirdaiplatform.azurecr.io
-
-      - name: Fetch the latest tag for thirdai_platform
-        if: github.event_name == 'release'
-        id: fetch_latest_tag
-        run: |
-          latest_tag=$(az acr repository show-tags --name thirdaiplatform \
-            --repository thirdai_platform_${{ env.branch_name }} --orderby time_desc --output tsv | grep -v '^latest$' | head -n 1)
-          echo "Latest tag is: $latest_tag"
-          echo "latest_tag=$latest_tag" >> $GITHUB_ENV  # Save the latest_tag to the environment file
-      
-      - name: Generate random version
-        id: generate_version
-        if: github.event_name == 'workflow_call'
-        run: |
-          tag=$(shuf -i 100-999 -n 3 | paste -sd '.')
-          echo "Generated tag: $tag"
-          echo "::set-output name=latest_tag::$tag"
-
-      - name: Build and push docker images to the repository
-        run: |
-          cd release
-          pip install -r requirements.txt
-          python3 push.py -b ${{ env.branch_name }} --config config.yaml --no-cache --version ${{ steps.generate_version.outputs.version }}
+          sudo apt-get update
+          sudo apt-get install -y \
+            apt-transport-https \
+            ca-certificates \
+            curl \
+            software-properties-common
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+          sudo add-apt-repository \
+            "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+          sudo apt-get update
+          sudo apt-get install -y docker-ce
 
       - name: Download Docker images using the latest tag
         run: |
           # TODO(pratik): write a job to keep updating the images whose releases doesnot have versioning.
-          mkdir -p docker_images-${{ env.latest_tag }}
+          mkdir -p docker_images-${{ needs.build_docker_images.outputs.version }}
 
-          # Pull and save images using the persisted ${{ env.latest_tag }} across steps
-          images=(thirdai_platform_${{ env.branch_name }} frontend_${{ env.branch_name }})
+          # Pull and save images using the persisted ${{ needs.build_docker_images.outputs.version }} across steps
+          images=(thirdai_platform_${{ needs.build_docker_images.outputs.docker_image_branch_name }} frontend_${{ needs.build_docker_images.outputs.docker_image_branch_name }})
 
           for image in "${images[@]}"
           do
-              echo "Pulling thirdaiplatform.azurecr.io/${image}:${{ env.latest_tag }}..."
-              docker pull thirdaiplatform.azurecr.io/${image}:${{ env.latest_tag }}
-              docker save -o docker_images-${{ env.latest_tag }}/${image}_${{ env.latest_tag }}.tar thirdaiplatform.azurecr.io/${image}:${{ env.latest_tag }}
+              echo "Pulling thirdaiplatform.azurecr.io/${image}:${{ needs.build_docker_images.outputs.version }}..."
+              docker pull thirdaiplatform.azurecr.io/${image}:${{ needs.build_docker_images.outputs.version }}
+              docker save -o docker_images-${{ needs.build_docker_images.outputs.version }}/${image}_${{ needs.build_docker_images.outputs.version }}.tar thirdaiplatform.azurecr.io/${image}:${{ needs.build_docker_images.outputs.version }}
           done
 
           docker pull thirdaiplatform.azurecr.io/nomad-autoscaler:0.3.7
-          docker save -o docker_images-${{ env.latest_tag }}/nomad-autoscaler_0.3.7.tar thirdaiplatform.azurecr.io/nomad-autoscaler:0.3.7
+          docker save -o docker_images-${{ needs.build_docker_images.outputs.version }}/nomad-autoscaler_0.3.7.tar thirdaiplatform.azurecr.io/nomad-autoscaler:0.3.7
 
           # TODO(pratik): Cleanup workflows/update_llama_cpp_docker.yml.
           docker pull thirdaiplatform.azurecr.io/llama.cpp:server
-          docker save -o docker_images-${{ env.latest_tag }}/llama.cpp_server.tar thirdaiplatform.azurecr.io/llama.cpp:server
+          docker save -o docker_images-${{ needs.build_docker_images.outputs.version }}/llama.cpp_server.tar thirdaiplatform.azurecr.io/llama.cpp:server
 
           docker pull thirdaiplatform.azurecr.io/keycloak:26.0.0
-          docker save -o docker_images-${{ env.latest_tag }}/keycloak_26.0.0.tar thirdaiplatform.azurecr.io/keycloak:26.0.0
+          docker save -o docker_images-${{ needs.build_docker_images.outputs.version }}/keycloak_26.0.0.tar thirdaiplatform.azurecr.io/keycloak:26.0.0
 
           docker pull registry:2
-          docker save -o docker_images-${{ env.latest_tag }}/registry_2.tar registry:2
+          docker save -o docker_images-${{ needs.build_docker_images.outputs.version }}/registry_2.tar registry:2
 
           docker pull postgres:latest
-          docker save -o docker_images-${{ env.latest_tag }}/postgres_latest.tar postgres:latest
+          docker save -o docker_images-${{ needs.build_docker_images.outputs.version }}/postgres_latest.tar postgres:latest
 
           docker pull thirdaiplatform.azurecr.io/traefik:v2.10
-          docker save -o docker_images-${{ env.latest_tag }}/traefik_v2.10.tar thirdaiplatform.azurecr.io/traefik:v2.10
+          docker save -o docker_images-${{ needs.build_docker_images.outputs.version }}/traefik_v2.10.tar thirdaiplatform.azurecr.io/traefik:v2.10
 
           docker pull thirdaiplatform.azurecr.io/grafana:main-ubuntu
-          docker save -o docker_images-${{ env.latest_tag }}/grafana_main-ubuntu.tar thirdaiplatform.azurecr.io/grafana:main-ubuntu
+          docker save -o docker_images-${{ needs.build_docker_images.outputs.version }}/grafana_main-ubuntu.tar thirdaiplatform.azurecr.io/grafana:main-ubuntu
 
           docker pull thirdaiplatform.azurecr.io/victoria-metrics:tags-v1.102.1-1-g76115c611f
-          docker save -o docker_images-${{ env.latest_tag }}/victoria-metrics_tags-v1.102.1-1-g76115c611f.tar thirdaiplatform.azurecr.io/victoria-metrics:tags-v1.102.1-1-g76115c611f
+          docker save -o docker_images-${{ needs.build_docker_images.outputs.version }}/victoria-metrics_tags-v1.102.1-1-g76115c611f.tar thirdaiplatform.azurecr.io/victoria-metrics:tags-v1.102.1-1-g76115c611f
 
-          echo "All images pulled and saved in the docker_images-${{ env.latest_tag }} folder."
+          echo "All images pulled and saved in the docker_images-${{ needs.build_docker_images.outputs.version }} folder."
 
-      - name: Package platform, model, driver, config, and README into tarball
+      - name: Package platform, model, driver script, config, and README into tarball
+        id: online_pack
         run: |
-          tar -czvf thirdai-platform-package-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz ./platform ./gen-ai-models ./driver.sh ./config.yml ./README.md
+          name="thirdai-platform-package-${{ needs.build_docker_images.outputs.docker_image_branch_name }}-${{ needs.build_docker_images.outputs.version }}.tar.gz"
+          echo "::set-output name=name::$name"
+          tar -czvf $name ./platform ./gen-ai-models ./driver.sh ./config.yml ./README.md
 
-      - name: Package Docker images, driver script, config, and README into tarball
+      - name: Package Docker images, platform, model, driver script, config, and README into tarball
+        id: offline_pack
         run: |
-          tar -czvf thirdai-platform-package-offline-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz ./platform ./docker_images-${{ env.latest_tag }} ./driver.sh ./config.yml ./README.md ./gen-ai-models
+          name="thirdai-platform-package-offline-${{ needs.build_docker_images.outputs.docker_image_branch_name }}-${{ needs.build_docker_images.outputs.version }}.tar.gz"
+          echo "::set-output name=name::$name"
+          tar -czvf $name ./platform ./docker_images-${{ needs.build_docker_images.outputs.version }} ./driver.sh ./config.yml ./README.md ./gen-ai-models
 
-      - name: Upload platform package to S3
+      - name: Upload online platform package to S3
         run: |
-          aws s3 cp thirdai-platform-package-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz s3://thirdai-corp-public/ThirdAI-Platform-latest-release/
+          aws s3 cp ${{ steps.online_pack.outputs.name }} s3://thirdai-corp-public/ThirdAI-Platform-latest-release/
 
-      - name: Upload Docker images package to S3
+      - name: Upload online platform package to S3
         run: |
-          aws s3 cp thirdai-platform-package-offline-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz s3://thirdai-corp-public/ThirdAI-Platform-latest-release/
+          aws s3 cp ${{ steps.offline_pack.outputs.name }} s3://thirdai-corp-public/ThirdAI-Platform-latest-release/
+
+  start_the_ec2_instances:
+    runs-on: ubuntu-latest
+    needs: [build_docker_images, package]
+
+    outputs:
+      server_machine_public_ip: ${{ steps.host_machine.outputs.public_ip }} 
+
+    steps:
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
+      - name: Configure AWS credentials
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region us-east-1
+
+      - name: Verify AWS CLI Setup
+        run: |
+          aws --version
+          aws sts get-caller-identity
+      
+      # These instances already have the aws configured to pull thirdai-packages from the s3 bucket
+      - name: start the ec2-instance
+        run: |
+          aws ec2 start-instances --instance-ids i-0fcca07a398bcfc8f i-<another-instance>
+      
+      - name: Wait for EC2 to be running
+        run: |
+          echo "Waiting for EC2 instance to start..."
+          sleep 30
+
+      - name: Fetch the public ip of the server machine
+        id: host_machine
+        run: |
+          PUBLIC_IP=$(aws ec2 describe-instances \
+            --instance-ids i-0fcca07a398bcfc8f \
+            --query "Reservations[0].Instances[0].PublicIpAddress" \
+            --output text)
+          echo "::set-ouput name=public_ip::$PUBLIC_IP"
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.HOST_MACHINE_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+        
+      - name: Add EC2 Host to Known Hosts
+        run: ssh-keyscan -H ${{ secrets.HOST_MACHINE_PUBLIC_KEY }} >> ~/.ssh/known_hosts
+      
+      - name: Download the package and run driver.sh
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }} <<<EOF
+            aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ needs.package.outputs.online_package_name }} .
+
+            # unzip the package
+            mkdir -p package
+            tar -xvf ${{ needs.package.outputs.online_package_name }} -C package
+
+            # Modify the config.yml
+            yq -i '
+              .license_path = "/home/ubuntu/ndb_enterprise_license.json" |
+              .admin_mail = "${{ secrets.EMAIL }}" |
+              .admin_username = "admin" |
+              .admin_password = "${{ secrets.PASSWORD }}" |
+              .genai_key = "${{ secrets.GENAI_KEY }}" |
+              .thirdai_platform_version = "${{ needs.build_docker_images.outputs.version }}" |
+              .platform_branch = "${{ needs.build_docker_images.outputs.docker_image_branch_name }}" |
+              .docker_registry_password = "${{ needs.build_docker_images.outputs.docker_registy_password }}" |
+              .login_method = "postgres" |
+              .nodes[0].public_ip = "${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}" |
+              .nodes[0].private_ip = "12.12.12.12" |
+              .nodes[0].ssh_username = "ubuntu" |
+              .nodes[0].connection_type = "local" |
+              .nodes[1].private_ip = "13.13.13.13" |
+              .nodes[1].ssh_username = "ubuntu" |
+              .nodes[1].connection_type = "ssh" |
+            '  ./package/config.yml
+
+            # Run the driver.sh script
+            source ./package/driver.sh ./package/config.yml -v 1>./package/installation.out 2>./package/installation.err
+          EOF
+      
+      - name: Wait for 7 minutes to let the model_bazaar get started
+        run: sleep $((7 * 60))
+
+  test:
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    needs: [build_docker_images, package, start_the_ec2_instances]
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+      
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install requirements
+        run: |
+          cd headless
+          pip install -r requirements.txt
+
+      - name: Env variables
+        run: |
+          echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
+          echo "GENAI_KEY=${{ secrets.GENAI_KEY }}" >> $GITHUB_ENV
+          mkdir -p ${{ env.SHARE_DIR }}
+
+      - name: Generate random run name
+        id: random-run-name
+        run: |
+          echo "::set-output name=name::test_$(python3 -c "import secrets; print(secrets.token_urlsafe(8))")"
+      
+      - name: Run tests
+        id: backend_test_status
+        run: |
+          python3 -m headless.run_locally --base-url "http://${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag NDB --on-prem --generation
+          python3 -m headless.run_locally --base-url "http://${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag UDT
+          python3 -m headless.run_locally --base-url "http://${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag UDT_DATAGEN
+          python3 -m headless.run_locally --base-url "http://${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag Recovery_Backup
+      
+      - name: Test Next.js frontend
+        if: always()
+        id: frontend_test_status
+        run: |
+          BASE_URL_WITHOUT_API=$(echo "${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}" | sed 's/\/api\/\?$//')
+          echo "Testing frontend at $BASE_URL_WITHOUT_API"
+          curl -f "$BASE_URL_WITHOUT_API" || exit 1
+        
+  cleanup:
+    runs-on: ubuntu-latest
+    needs: [build_docker_images, package, start_the_ec2_instances, test]
+    if: always()
+    steps:
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
+      - name: Configure AWS credentials
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region us-east-1
+
+      - name: Verify AWS CLI Setup
+        run: |
+          aws --version
+          aws sts get-caller-identity
+      
+      - name: run the cleanup script
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }} <<<EOF
+
+            source ./package/driver.sh ./package/config.yml --cleanup -v 1>./package/cleanup.out 2>./package/cleanup.err
+            rm -rf ./package "./${{ needs.package.outputs.online_package_name }}"
+          EOF
+      
+      - name: Stop the ec2-machine
+        run: |
+          aws ec2 stop-instances --instance-ids  i-0fcca07a398bcfc8f i-<another-instance>
+      
+      - 
+
+  

@@ -1,6 +1,5 @@
 import logging
 import os
-
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from functools import wraps

@@ -417,47 +417,38 @@ interface TrainDocumentClassifierParams {
   testSplit?: number;
 }
 
-// // Function to create CSV from documents
-// async function createClassificationCSV(files: FileList): Promise<CreateCSVResponse> {
-//   const accessToken = getAccessToken();
-//   const formData = new FormData();
-
-//   // Add all files to FormData
-//   Array.from(files).forEach((file) => {
-//     formData.append('files', file, file.webkitRelativePath);
-//   });
-
-//   try {
-//     const response = await axios.post<CreateCSVResponse>(
-//       `${thirdaiPlatformBaseUrl}/api/train/create-classification-csv`,
-//       formData,
-//       {
-//         headers: {
-//           Authorization: `Bearer ${accessToken}`,
-//           'Content-Type': 'multipart/form-data',
-//         },
-//       }
-//     );
-
-//     if (response.data.status === 'failed') {
-//       throw new Error(response.data.message);
-//     }
-
-//     return response.data;
-//   } catch (error) {
-//     console.error('CSV creation error:', error);
-//     if (axios.isAxiosError(error) && error.response?.data) {
-//       throw new Error(error.response.data.message || 'Failed to create CSV from documents');
-//     }
-//     throw new Error('Failed to create CSV from documents');
-//   }
-// }
+interface FileWithPath extends File {
+  webkitRelativePath: string;
+}
 
 export async function trainDocumentClassifier({
   modelName,
   files,
   testSplit = 0.1,
 }: TrainDocumentClassifierParams): Promise<any> {
+  function countUniqueTopLevelFolders(files: FileList | FileWithPath[]): number {
+    // Use Set to store unique folder names
+    const uniqueFolders = new Set<string>();
+    
+    Array.from(files).forEach((file: File) => {
+      // Type assertion since we know our files have webkitRelativePath
+      const fileWithPath = file as FileWithPath;
+      
+      // Get the relative path
+      const path = fileWithPath.webkitRelativePath;
+      
+      // Extract top-level folder name (everything before the first '/')
+      const topLevelFolder = path.split('/')[0];
+      
+      // Add to Set if it's not empty
+      if (topLevelFolder) {
+        uniqueFolders.add(topLevelFolder);
+      }
+    });
+    
+    return uniqueFolders.size;
+  }
+
   const accessToken = getAccessToken();
 
   try {
@@ -480,6 +471,8 @@ export async function trainDocumentClassifier({
     };
     formData.append('file_info', JSON.stringify(fileInfo));
 
+    const n_target_classes = countUniqueTopLevelFolders(files);
+ 
     // Model options for document classification
     const modelOptions = {
       model_type: 'udt',
@@ -487,7 +480,7 @@ export async function trainDocumentClassifier({
         udt_sub_type: 'document',
         text_column: 'text',
         label_column: 'label',
-        n_target_classes: 3,
+        n_target_classes: n_target_classes,
         word_limit: 1000, // Configure word limit
       },
       train_options: {

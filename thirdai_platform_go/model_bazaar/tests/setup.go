@@ -60,16 +60,20 @@ func setupTestEnv(t *testing.T) *testEnv {
 	store := storage.NewSharedDisk(storagePath)
 	nomadStub := newNomadStub()
 
+	userAuth, err := auth.NewBasicIdentityProvider(db, auth.BasicProviderArgs{
+		AdminUsername: adminUsername,
+		AdminEmail:    adminEmail,
+		AdminPassword: adminPassword,
+	})
+
 	modelBazaar := services.NewModelBazaar(
 		db, nomadStub, store,
 		licensing.NewVerifier(licensePath),
-		auth.NewBasicIdentityProvider(db),
+		userAuth,
 		services.Variables{
 			BackendDriver: &nomad.LocalDriver{},
 		},
 	)
-
-	modelBazaar.InitAdmin(adminUsername, adminEmail, adminPassword)
 
 	return &testEnv{modelBazaar: modelBazaar, api: modelBazaar.Routes(), storage: store, nomad: nomadStub}
 }

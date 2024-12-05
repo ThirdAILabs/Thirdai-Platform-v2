@@ -230,6 +230,10 @@ func NewKeycloakIdentityProvider(db *gorm.DB, args KeycloakArgs) (IdentityProvid
 	if err != nil {
 		return nil, err
 	}
+	err = addInitialAdminToDb(db, userId, args.AdminUsername, args.AdminEmail, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	err = assignAdminRole(client, adminToken, userId)
 	if err != nil {
@@ -385,7 +389,7 @@ func (auth *KeycloakIdentityProvider) checkExistingUsers(field string, params go
 	return nil
 }
 
-func (auth *KeycloakIdentityProvider) CreateUser(username, email, password string, admin bool) (string, error) {
+func (auth *KeycloakIdentityProvider) CreateUser(username, email, password string) (string, error) {
 	existingUsername := auth.checkExistingUsers("username", gocloak.GetUsersParams{Username: &username})
 	if existingUsername != nil {
 		return "", existingUsername
@@ -422,7 +426,7 @@ func (auth *KeycloakIdentityProvider) CreateUser(username, email, password strin
 		Id:       userId,
 		Username: username,
 		Email:    email,
-		IsAdmin:  admin,
+		IsAdmin:  false,
 	}
 
 	result := auth.db.Create(&user)

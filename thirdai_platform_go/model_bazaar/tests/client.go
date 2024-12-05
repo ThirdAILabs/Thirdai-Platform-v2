@@ -103,6 +103,8 @@ func (r *httpTestRequest) Do(result interface{}) error {
 	return nil
 }
 
+var ErrUnauthorized = errors.New("unauthorized")
+
 type client struct {
 	api       chi.Router
 	authToken string
@@ -138,12 +140,6 @@ type loginInfo struct {
 	Password string `json:"password"`
 }
 
-func jsonError(err error) error {
-	return fmt.Errorf("json encode/decode error: %w", err)
-}
-
-var ErrUnauthorized = errors.New("unauthorized")
-
 func (c *client) signup(username, email, password string) (loginInfo, error) {
 	body := map[string]string{
 		"email": email, "username": username, "password": password,
@@ -168,6 +164,19 @@ func (c *client) login(login loginInfo) error {
 	c.userId = res["user_id"]
 
 	return nil
+}
+
+func (c *client) addUser(username, email, password string) (loginInfo, error) {
+	body := map[string]string{
+		"email": email, "username": username, "password": password,
+	}
+
+	err := c.Post("/user/create").Json(body).Do(nil)
+	if err != nil {
+		return loginInfo{}, err
+	}
+
+	return loginInfo{Email: email, Password: password}, nil
 }
 
 func (c *client) deleteUser(userId string) error {

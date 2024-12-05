@@ -50,6 +50,41 @@ func TestSignupAndLogin(t *testing.T) {
 	}
 }
 
+func TestAddUser(t *testing.T) {
+	env := setupTestEnv(t)
+
+	admin, err := env.adminClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, err := env.newUser("abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	client := env.newClient()
+
+	_, err = user.addUser("xyz", "xyz@mail.com", "123")
+	if err != ErrUnauthorized {
+		t.Fatal("users cannot add users")
+	}
+
+	err = client.login(loginInfo{Email: "xyz@mail.com", Password: "123"})
+	if err != ErrUnauthorized {
+		t.Fatal("no login should be created")
+	}
+
+	_, err = admin.addUser("xyz", "xyz@mail.com", "123")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = client.login(loginInfo{Email: "xyz@mail.com", Password: "123"})
+	if err != nil {
+		t.Fatal("new user should be created")
+	}
+}
+
 func TestUserInfo(t *testing.T) {
 	env := setupTestEnv(t)
 

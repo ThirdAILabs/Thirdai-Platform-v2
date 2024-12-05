@@ -18,11 +18,27 @@ type BasicIdentityProvider struct {
 	db         *gorm.DB
 }
 
-func NewBasicIdentityProvider(db *gorm.DB) IdentityProvider {
+type BasicProviderArgs struct {
+	AdminUsername string
+	AdminEmail    string
+	AdminPassword string
+}
+
+func NewBasicIdentityProvider(db *gorm.DB, args BasicProviderArgs) (IdentityProvider, error) {
+	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(args.AdminPassword), 10)
+	if err != nil {
+		return nil, fmt.Errorf("error encrypting admin password: %w", err)
+	}
+
+	err = addInitialAdminToDb(db, uuid.New().String(), args.AdminUsername, args.AdminEmail, hashedPwd)
+	if err != nil {
+		return nil, fmt.Errorf("error adding inital admin to db: %w", err)
+	}
+
 	return &BasicIdentityProvider{
 		jwtManager: NewJwtManager(),
 		db:         db,
-	}
+	}, nil
 }
 
 func (auth *BasicIdentityProvider) AuthMiddleware() chi.Middlewares {
@@ -61,13 +77,13 @@ func (auth *BasicIdentityProvider) LoginWithToken(accessToken string) (LoginResu
 	return LoginResult{}, fmt.Errorf("login with token is not supported for this identity provider")
 }
 
-func (auth *BasicIdentityProvider) CreateUser(username, email, password string, admin bool) (string, error) {
+func (auth *BasicIdentityProvider) CreateUser(username, email, password string) (string, error) {
 	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(password), 10)
 	if err != nil {
 		return "", fmt.Errorf("error encrypting password: %w", err)
 	}
 
-	newUser := schema.User{Id: uuid.New().String(), Username: username, Email: email, Password: hashedPwd, IsAdmin: admin}
+	newUser := schema.User{Id: uuid.New().String(), Username: username, Email: email, Password: hashedPwd, IsAdmin: false}
 
 	err = auth.db.Transaction(func(txn *gorm.DB) error {
 		var existingUser schema.User
@@ -77,9 +93,9 @@ func (auth *BasicIdentityProvider) CreateUser(username, email, password string, 
 		}
 		if result.RowsAffected != 0 {
 			if existingUser.Username == username {
-				return ErrUsernameAlreadyExists
+				return fmt.Errorf("username '%v' is already in use", username)
 			} else {
-				return ErrUserEmailAlreadyExists
+				return fmt.Errorf("email '%v' is already in use", email)
 			}
 		}
 

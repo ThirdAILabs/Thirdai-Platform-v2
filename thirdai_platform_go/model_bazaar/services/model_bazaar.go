@@ -97,13 +97,6 @@ func (m *ModelBazaar) Routes() chi.Router {
 	return r
 }
 
-func (m *ModelBazaar) InitAdmin(username, email, password string) {
-	_, err := m.user.CreateUser(username, email, password, true, false)
-	if err != nil {
-		log.Panicf("error initializing admin at startup: %v", err)
-	}
-}
-
 func (m *ModelBazaar) syncTrainStatus(model *schema.Model) {
 	if model.TrainStatus != schema.Starting && model.TrainStatus != schema.InProgress {
 		return

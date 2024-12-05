@@ -1,7 +1,6 @@
 package services
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"thirdai_platform/model_bazaar/auth"
@@ -37,7 +36,7 @@ func (s *UserService) Routes() chi.Router {
 		r.Use(s.userAuth.AuthMiddleware()...)
 		r.Use(auth.AdminOnly(s.db))
 
-		r.Post("/add", s.AddUser)
+		r.Post("/create", s.CreateUser)
 
 		r.Delete("/{user_id}", s.DeleteUser)
 
@@ -60,18 +59,6 @@ type signupResponse struct {
 	UserId string `json:"user_id"`
 }
 
-func (s *UserService) CreateUser(username, email, password string, admin bool, errorIfExists bool) (string, error) {
-	userId, err := s.userAuth.CreateUser(username, email, password, admin)
-	if (errors.Is(err, auth.ErrUserEmailAlreadyExists) || errors.Is(err, auth.ErrUsernameAlreadyExists)) && !errorIfExists {
-		return "", nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("error creating new user: %w", err)
-	}
-
-	return userId, nil
-}
-
 func (s *UserService) Signup(w http.ResponseWriter, r *http.Request) {
 	var params signupRequest
 	if !utils.ParseRequestBody(w, r, &params) {
@@ -83,7 +70,7 @@ func (s *UserService) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userId, err := s.CreateUser(params.Username, params.Email, params.Password, false, true)
+	userId, err := s.userAuth.CreateUser(params.Username, params.Email, params.Password)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -336,13 +323,13 @@ func (s *UserService) Info(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJsonResponse(w, info)
 }
 
-func (s *UserService) AddUser(w http.ResponseWriter, r *http.Request) {
+func (s *UserService) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var params signupRequest
 	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
-	userId, err := s.userAuth.CreateUser(params.Username, params.Email, params.Password, false)
+	userId, err := s.userAuth.CreateUser(params.Username, params.Email, params.Password)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error creating user: %v", err), http.StatusBadRequest)
 		return
@@ -357,7 +344,7 @@ func (s *UserService) VerifyUser(w http.ResponseWriter, r *http.Request) {
 
 	err := s.userAuth.VerifyUser(userId)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error verifying user %v: %v", userId, err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error verifying user '%v': %v", userId, err), http.StatusBadRequest)
 		return
 	}
 

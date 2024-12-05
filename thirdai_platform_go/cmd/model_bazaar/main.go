@@ -275,7 +275,14 @@ func main() {
 			log.Fatalf("error creating keycloak identity provider: %v", err)
 		}
 	} else {
-		identityProvider = auth.NewBasicIdentityProvider(db)
+		identityProvider, err = auth.NewBasicIdentityProvider(db, auth.BasicProviderArgs{
+			AdminUsername: env.AdminUsername,
+			AdminEmail:    env.AdminEmail,
+			AdminPassword: env.AdminPassword,
+		})
+		if err != nil {
+			log.Fatalf("error creating basic identity provider: %v", err)
+		}
 	}
 
 	model_bazaar := services.NewModelBazaar(
@@ -319,8 +326,6 @@ func main() {
 	}
 
 	go model_bazaar.StartStatusSync(5 * time.Second)
-
-	model_bazaar.InitAdmin(env.AdminUsername, env.AdminEmail, env.AdminPassword)
 
 	r := chi.NewRouter()
 	r.Mount("/api/v2", model_bazaar.Routes())

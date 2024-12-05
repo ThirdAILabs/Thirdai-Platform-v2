@@ -1,11 +1,11 @@
 import logging
 import os
-import shutil
 import uuid
 from typing import Any, Dict, Optional, Tuple
 
 import pdftitle
 from fastapi import Response
+from platform_common import file_ops
 from platform_common.file_handler import FileInfo, FileLocation, download_file
 from thirdai import neural_db_v2 as ndbv2
 
@@ -110,6 +110,8 @@ def parse_doc(
         if not local_file_path:
             raise ValueError(f"Error downloading file '{doc.path}' from {doc.location}")
 
+        file_ops.clear_cache(local_file_path)
+
         # Set display_path based on the cloud provider
         if doc.location == FileLocation.s3:
             bucket_name, prefix = doc.parse_s3_url()
@@ -129,7 +131,7 @@ def parse_doc(
         artifact_dir = os.path.join(doc_save_dir, save_artifact_uuid)
         os.makedirs(artifact_dir, exist_ok=True)
         local_file_path = os.path.join(artifact_dir, os.path.basename(doc.path))
-        shutil.copy(src=doc.path, dst=artifact_dir)
+        file_ops.copy(src=doc.path, dst=artifact_dir)
         display_path = os.path.join(save_artifact_uuid, os.path.basename(doc.path))
 
     # Convert the downloaded or local file into an NDB document
@@ -143,7 +145,7 @@ def parse_doc(
 
     # Remove the local file if it was downloaded from cloud storage
     if doc.location in {FileLocation.s3, FileLocation.azure, FileLocation.gcp}:
-        os.remove(local_file_path)
+        file_ops.delete(local_file_path)
 
     # we don't delete local files because we use them to render PDFs
 

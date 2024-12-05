@@ -10,6 +10,7 @@ from botocore import UNSIGNED
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from fastapi import HTTPException, UploadFile, status
+from platform_common import file_ops
 from platform_common.pydantic_models.training import FileInfo, FileLocation
 
 
@@ -39,6 +40,7 @@ def download_local_files(
                     upload_file=filename_to_file[os.path.basename(file_info.path)],
                     dest_dir=dest_dir,
                 )
+                file_ops.clear_cache(local_path)
             except Exception as error:
                 raise ValueError(
                     f"Error processing file '{file_info.path}' from '{file_info.location}': {error}"

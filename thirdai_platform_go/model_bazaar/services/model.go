@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/jwtauth/v5"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -27,7 +26,7 @@ type ModelService struct {
 	nomad   nomad.NomadClient
 	storage storage.Storage
 
-	userAuth          *auth.JwtManager
+	userAuth          auth.IdentityProvider
 	uploadSessionAuth *auth.JwtManager
 }
 
@@ -35,8 +34,7 @@ func (s *ModelService) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Route("/{model_id}", func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
+		r.Use(s.userAuth.AuthMiddleware()...)
 
 		r.Get("/permissions", s.Permissions)
 
@@ -57,8 +55,7 @@ func (s *ModelService) Routes() chi.Router {
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
+		r.Use(s.userAuth.AuthMiddleware()...)
 
 		r.Get("/list", s.List)
 		r.Post("/upload", s.UploadStart)
@@ -228,9 +225,9 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, _, err := jwtauth.FromContext(r.Context())
+	expiration, err := s.userAuth.GetTokenExpiration(r)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("error retrieving access token: %v", err), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("error retrieving token expiration: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -238,7 +235,7 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 		Read:  permission >= auth.ReadPermission,
 		Write: permission >= auth.WritePermission,
 		Owner: permission >= auth.OwnerPermission,
-		Exp:   token.Expiration(),
+		Exp:   expiration,
 	}
 	utils.WriteJsonResponse(w, res)
 }

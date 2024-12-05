@@ -25,7 +25,7 @@ type DeployService struct {
 	nomad   nomad.NomadClient
 	storage storage.Storage
 
-	userAuth *auth.JwtManager
+	userAuth auth.IdentityProvider
 	jobAuth  *auth.JwtManager
 
 	license   *licensing.LicenseVerifier
@@ -36,8 +36,7 @@ func (s *DeployService) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Route("/{model_id}", func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
+		r.Use(s.userAuth.AuthMiddleware()...)
 
 		r.Group(func(r chi.Router) {
 			r.Use(auth.ModelPermissionOnly(s.db, auth.OwnerPermission))

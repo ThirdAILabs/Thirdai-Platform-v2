@@ -32,9 +32,8 @@ type ModelBazaar struct {
 }
 
 func NewModelBazaar(
-	db *gorm.DB, nomad nomad.NomadClient, storage storage.Storage, license *licensing.LicenseVerifier, variables Variables,
+	db *gorm.DB, nomad nomad.NomadClient, storage storage.Storage, license *licensing.LicenseVerifier, userAuth auth.IdentityProvider, variables Variables,
 ) ModelBazaar {
-	userAuth := auth.NewJwtManager()
 	jobAuth := auth.NewJwtManager()
 
 	return ModelBazaar{

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"thirdai_platform/model_bazaar/auth"
@@ -8,14 +9,12 @@ import (
 	"thirdai_platform/model_bazaar/utils"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
 type UserService struct {
 	db       *gorm.DB
-	userAuth *auth.JwtManager
+	userAuth auth.IdentityProvider
 }
 
 func (s *UserService) Routes() chi.Router {
@@ -23,26 +22,29 @@ func (s *UserService) Routes() chi.Router {
 
 	r.Group(func(r chi.Router) {
 		r.Post("/signup", s.Signup)
-		r.Post("/login", s.Login)
+		r.Post("/login", s.LoginWithEmail)
+		r.Post("/login-with-token", s.LoginWithToken)
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
+		r.Use(s.userAuth.AuthMiddleware()...)
 
 		r.Get("/list", s.List)
 		r.Get("/info", s.Info)
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
+		r.Use(s.userAuth.AuthMiddleware()...)
 		r.Use(auth.AdminOnly(s.db))
+
+		r.Post("/add", s.AddUser)
 
 		r.Delete("/{user_id}", s.DeleteUser)
 
 		r.Post("/{user_id}/admin", s.PromoteAdmin)
 		r.Delete("/{user_id}/admin", s.DemoteAdmin)
+
+		r.Post("/{user_id}/verify", s.VerifyUser)
 	})
 
 	return r
@@ -58,44 +60,16 @@ type signupResponse struct {
 	UserId string `json:"user_id"`
 }
 
-func (s *UserService) CreateUser(username, email, password string, admin bool, errorIfExists bool) (schema.User, error) {
-	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+func (s *UserService) CreateUser(username, email, password string, admin bool, errorIfExists bool) (string, error) {
+	userId, err := s.userAuth.CreateUser(username, email, password, admin)
+	if (errors.Is(err, auth.ErrUserEmailAlreadyExists) || errors.Is(err, auth.ErrUsernameAlreadyExists)) && !errorIfExists {
+		return "", nil
+	}
 	if err != nil {
-		return schema.User{}, fmt.Errorf("error encrypting password: %w", err)
+		return "", fmt.Errorf("error creating new user: %w", err)
 	}
 
-	newUser := schema.User{Id: uuid.New().String(), Username: username, Email: email, Password: hashedPwd, IsAdmin: admin}
-
-	err = s.db.Transaction(func(txn *gorm.DB) error {
-		var existingUser schema.User
-		result := txn.Find(&existingUser, "username = ? or email = ?", username, email)
-		if result.Error != nil {
-			return schema.NewDbError("checking for existing username/email", result.Error)
-		}
-		if result.RowsAffected != 0 {
-			if !errorIfExists {
-				return nil
-			}
-			if existingUser.Username == username {
-				return fmt.Errorf("username %v is already in use", username)
-			} else {
-				return fmt.Errorf("email %v is already in use", email)
-			}
-		}
-
-		result = txn.Create(&newUser)
-		if result.Error != nil {
-			return schema.NewDbError("creating new user entry", result.Error)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return schema.User{}, fmt.Errorf("error creating new user: %w", err)
-	}
-
-	return newUser, nil
+	return userId, nil
 }
 
 func (s *UserService) Signup(w http.ResponseWriter, r *http.Request) {
@@ -104,17 +78,22 @@ func (s *UserService) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newUser, err := s.CreateUser(params.Username, params.Email, params.Password, false, true)
+	if !s.userAuth.AllowDirectSignup() {
+		http.Error(w, "direct signup is not supported for this identify provider", http.StatusUnauthorized)
+		return
+	}
+
+	userId, err := s.CreateUser(params.Username, params.Email, params.Password, false, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	res := signupResponse{UserId: newUser.Id}
+	res := signupResponse{UserId: userId}
 	utils.WriteJsonResponse(w, res)
 }
 
-type loginRequest struct {
+type loginWithEmailRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
@@ -124,36 +103,39 @@ type loginResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
-func (s *UserService) Login(w http.ResponseWriter, r *http.Request) {
-	var params loginRequest
+func (s *UserService) LoginWithEmail(w http.ResponseWriter, r *http.Request) {
+	var params loginWithEmailRequest
 	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
-	var user schema.User
-	result := s.db.Find(&user, "email = ?", params.Email)
-	if result.Error != nil {
-		err := schema.NewDbError("locating user for email", result.Error)
-		http.Error(w, fmt.Sprintf("login failed: %v", err), http.StatusBadRequest)
-		return
-	}
-	if result.RowsAffected != 1 {
-		http.Error(w, fmt.Sprintf("no user found with email %v", params.Email), http.StatusBadRequest)
+	login, err := s.userAuth.LoginWithEmail(params.Email, params.Password)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("login failed: %v", err), http.StatusUnauthorized)
 		return
 	}
 
-	err := bcrypt.CompareHashAndPassword(user.Password, []byte(params.Password))
-	if err != nil {
-		http.Error(w, "email and password do not match", http.StatusUnauthorized)
+	res := loginResponse{UserId: login.UserId, AccessToken: login.AccessToken}
+	utils.WriteJsonResponse(w, res)
+}
+
+type loginWithTokenRequest struct {
+	AccessToken string `json:"access_token"`
+}
+
+func (s *UserService) LoginWithToken(w http.ResponseWriter, r *http.Request) {
+	var params loginWithTokenRequest
+	if !utils.ParseRequestBody(w, r, &params) {
 		return
 	}
 
-	token, err := s.userAuth.CreateUserJwt(user.Id)
+	login, err := s.userAuth.LoginWithToken(params.AccessToken)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("login failed: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("login failed: %v", err), http.StatusUnauthorized)
 		return
 	}
-	res := loginResponse{UserId: user.Id, AccessToken: token}
+
+	res := loginResponse{UserId: login.UserId, AccessToken: login.AccessToken}
 	utils.WriteJsonResponse(w, res)
 }
 
@@ -188,6 +170,12 @@ func (s *UserService) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error deleting user %v: %v", userId, err), http.StatusBadRequest)
+		return
+	}
+
+	err = s.userAuth.DeleteUser(userId)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("error deleting user %v: %v", userId, err), http.StatusBadRequest)
 		return
@@ -346,4 +334,32 @@ func (s *UserService) Info(w http.ResponseWriter, r *http.Request) {
 
 	info := convertToUserInfo(&user)
 	utils.WriteJsonResponse(w, info)
+}
+
+func (s *UserService) AddUser(w http.ResponseWriter, r *http.Request) {
+	var params signupRequest
+	if !utils.ParseRequestBody(w, r, &params) {
+		return
+	}
+
+	userId, err := s.userAuth.CreateUser(params.Username, params.Email, params.Password, false)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error creating user: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	res := signupResponse{UserId: userId}
+	utils.WriteJsonResponse(w, res)
+}
+
+func (s *UserService) VerifyUser(w http.ResponseWriter, r *http.Request) {
+	userId := chi.URLParam(r, "user_id")
+
+	err := s.userAuth.VerifyUser(userId)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error verifying user %v: %v", userId, err), http.StatusBadRequest)
+		return
+	}
+
+	utils.WriteSuccess(w)
 }

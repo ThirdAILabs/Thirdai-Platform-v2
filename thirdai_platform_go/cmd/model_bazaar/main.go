@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/jobs"
 	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
@@ -39,9 +40,11 @@ type modelBazaarEnv struct {
 	// LlmAutoscalingEnabled bool // TODO: is this needed
 	GenAiKey string
 
-	IdentityProvider  string
-	KeycloakServerUrl string
-	UseSslInLogin     bool
+	IdentityProvider      string
+	KeycloakServerUrl     string
+	UseSslInLogin         bool
+	KeycloakAdminUsername string
+	keycloakAdminPassword string
 
 	DockerRegistry string
 	DockerUsername string
@@ -106,9 +109,11 @@ func loadEnv() modelBazaarEnv {
 		// LlmAutoscalingEnabled: boolEnvVar("AUTOSCALING_ENABLED"),
 		GenAiKey: os.Getenv("GENAI_KEY"),
 
-		IdentityProvider:  os.Getenv("IDENTITY_PROVIDER"),
-		KeycloakServerUrl: os.Getenv("KEYCLOAK_SERVER_URL"),
-		UseSslInLogin:     boolEnvVar("USE_SSL_IN_LOGIN"),
+		IdentityProvider:      os.Getenv("IDENTITY_PROVIDER"),
+		KeycloakServerUrl:     os.Getenv("KEYCLOAK_SERVER_URL"),
+		UseSslInLogin:         boolEnvVar("USE_SSL_IN_LOGIN"),
+		KeycloakAdminUsername: os.Getenv("KEYCLOAK_ADMIN_USER"),
+		keycloakAdminPassword: os.Getenv("KEYCLOAK_ADMIN_PASSWORD"),
 
 		DockerRegistry: os.Getenv("DOCKER_REGISTRY"),
 		DockerUsername: os.Getenv("DOCKER_USERNAME"),
@@ -208,6 +213,14 @@ func initDb(dsn string) *gorm.DB {
 	return db
 }
 
+func getHostname(u string) string {
+	parts, err := url.Parse(u)
+	if err != nil {
+		log.Fatalf("error parsing url '%v': %v", u, err)
+	}
+	return parts.Hostname()
+}
+
 func main() {
 	env := loadEnv()
 
@@ -223,6 +236,8 @@ func main() {
 	defer logFile.Close()
 
 	initLogging(logFile)
+
+	db := initDb(env.postgresDsn())
 
 	nomadClient := nomad.NewHttpClient(env.NomadEndpoint, env.NomadToken)
 
@@ -243,11 +258,32 @@ func main() {
 		LlmProviders:        env.llmProviders(),
 	}
 
+	var identityProvider auth.IdentityProvider
+	if env.IdentityProvider == "keycloak" {
+		identityProvider, err = auth.NewKeycloakIdentityProvider(db, auth.KeycloakArgs{
+			KeycloakServerUrl:     env.KeycloakServerUrl,
+			KeycloakAdminUsername: env.KeycloakAdminUsername,
+			KeycloakAdminPassword: env.keycloakAdminPassword,
+			AdminUsername:         env.AdminUsername,
+			AdminEmail:            env.AdminEmail,
+			AdminPassword:         env.AdminPassword,
+			PublicHostname:        getHostname(env.PublicModelBazaarEndpoint),
+			PrivateHostname:       getHostname(env.PrivateModelBazaarEndpoint),
+			SslLogin:              env.UseSslInLogin,
+		})
+		if err != nil {
+			log.Fatalf("error creating keycloak identity provider: %v", err)
+		}
+	} else {
+		identityProvider = auth.NewBasicIdentityProvider(db)
+	}
+
 	model_bazaar := services.NewModelBazaar(
-		initDb(env.postgresDsn()),
+		db,
 		nomadClient,
 		sharedStorage,
 		licenseVerifier,
+		identityProvider,
 		variables,
 	)
 

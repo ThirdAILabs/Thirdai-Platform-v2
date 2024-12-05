@@ -14,14 +14,13 @@ import (
 
 type TeamService struct {
 	db       *gorm.DB
-	userAuth *auth.JwtManager
+	userAuth auth.IdentityProvider
 }
 
 func (s *TeamService) Routes() chi.Router {
 	r := chi.NewRouter()
 
-	r.Use(s.userAuth.Verifier())
-	r.Use(s.userAuth.Authenticator())
+	r.Use(s.userAuth.AuthMiddleware()...)
 
 	r.With(auth.AdminOnly(s.db)).Post("/create", s.CreateTeam)
 

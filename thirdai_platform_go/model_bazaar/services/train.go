@@ -30,7 +30,7 @@ type TrainService struct {
 	nomad   nomad.NomadClient
 	storage storage.Storage
 
-	userAuth *auth.JwtManager
+	userAuth auth.IdentityProvider
 	jobAuth  *auth.JwtManager
 
 	license   *licensing.LicenseVerifier
@@ -41,8 +41,7 @@ func (s *TrainService) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Group(func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
+		r.Use(s.userAuth.AuthMiddleware()...)
 
 		r.Post("/ndb", s.TrainNdb)
 		r.Post("/ndb-retrain", s.NdbRetrain)
@@ -62,8 +61,7 @@ func (s *TrainService) Routes() chi.Router {
 	})
 
 	r.Route("/{model_id}", func(r chi.Router) {
-		r.Use(s.userAuth.Verifier())
-		r.Use(s.userAuth.Authenticator())
+		r.Use(s.userAuth.AuthMiddleware()...)
 		r.Use(auth.ModelPermissionOnly(s.db, auth.ReadPermission))
 
 		r.Get("/status", s.GetStatus)

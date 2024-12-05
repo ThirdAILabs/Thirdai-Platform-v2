@@ -14,14 +14,13 @@ import (
 
 type WorkflowService struct {
 	db       *gorm.DB
-	userAuth *auth.JwtManager
+	userAuth auth.IdentityProvider
 }
 
 func (s *WorkflowService) Routes() chi.Router {
 	r := chi.NewRouter()
 
-	r.Use(s.userAuth.Verifier())
-	r.Use(s.userAuth.Authenticator())
+	r.Use(s.userAuth.AuthMiddleware()...)
 
 	r.Post("/enterprise-search", s.EnterpriseSearch)
 

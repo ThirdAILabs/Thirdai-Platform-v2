@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/licensing"
 	"thirdai_platform/model_bazaar/nomad"
 	"thirdai_platform/model_bazaar/schema"
@@ -61,7 +62,9 @@ func setupTestEnv(t *testing.T) *testEnv {
 
 	modelBazaar := services.NewModelBazaar(
 		db, nomadStub, store,
-		licensing.NewVerifier(licensePath), services.Variables{
+		licensing.NewVerifier(licensePath),
+		auth.NewBasicIdentityProvider(db),
+		services.Variables{
 			BackendDriver: &nomad.LocalDriver{},
 		},
 	)

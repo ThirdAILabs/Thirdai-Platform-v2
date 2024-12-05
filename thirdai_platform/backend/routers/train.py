@@ -892,6 +892,7 @@ def retrain_udt(
         },
     )
 
+import traceback
 
 @train_router.post("/udt", dependencies=[Depends(is_on_low_disk())])
 def train_udt(
@@ -952,6 +953,7 @@ def train_udt(
             ),
         )
     except Exception as error:
+        traceback.print_exc()
         return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(error))
 
     # Base model checks

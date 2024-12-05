@@ -275,6 +275,11 @@ class TextClassificationModel(ClassificationModel):
         return latency
 
 
+import traceback
+from platform_common.file_handler import FileInfo
+import PyPDF2
+import csv
+
 class DocClassificationModel(TextClassificationModel):
     def train(self, **kwargs):
         try:
@@ -327,7 +332,7 @@ class DocClassificationModel(TextClassificationModel):
                     self.config.model_id,
                     metadata={
                         "num_params": str(num_params),
-                        "thirdai_version": str(thirdai.version),
+                        # "thirdai_version": str(thirdai.version),
                         "training_time": str(training_time),
                         "size": str(model_size),
                         "size_in_memory": str(model_size_in_memory),
@@ -337,7 +342,7 @@ class DocClassificationModel(TextClassificationModel):
         finally:
             self.cleanup_temp_dirs()
 
-    def _create_classification_csv(self, files: List[dict], temp_dir: str, is_training: bool = True) -> str:
+    def _create_classification_csv(self, files: List[FileInfo], temp_dir: str, is_training: bool = True) -> str:
         """Create classification CSV from document files."""
         self.logger.info(f"Creating classification CSV for {'training' if is_training else 'testing'}")
         
@@ -346,15 +351,19 @@ class DocClassificationModel(TextClassificationModel):
         
         for file_info in files:
             try:
-                file_path = file_info['path']
+                file_path = file_info.path
                 # Extract category from parent directory name
                 category = os.path.basename(os.path.dirname(file_path))
                 categories.add(category)
                 
-                # Read and process document
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    text = f.read()
-                    # Truncate if needed (word_limit can be configured in model options)
+                # Read PDF file using PyPDF2
+                with open(file_path, 'rb') as f:  # Note: 'rb' for binary reading
+                    pdf_reader = PyPDF2.PdfReader(f)
+                    text = ""
+                    for page in pdf_reader.pages:
+                        text += page.extract_text() + " "
+                    
+                    # Truncate if needed
                     word_limit = getattr(self.txt_cls_vars, 'word_limit', 1000)
                     words = text.split()[:word_limit]
                     truncated_text = ' '.join(words)
@@ -364,7 +373,9 @@ class DocClassificationModel(TextClassificationModel):
                     'label': category
                 })
             except Exception as e:
-                self.logger.error(f"Error processing file {file_path}: {str(e)}")
+                file_path_str = getattr(file_info, 'path', 'unknown file')
+                self.logger.error(f"Error processing file {file_path_str}: {str(e)}")
+                traceback.print_exc()
                 continue
 
         # Create CSV file

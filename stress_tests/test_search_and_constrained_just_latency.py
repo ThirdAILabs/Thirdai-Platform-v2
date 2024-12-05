@@ -159,11 +159,13 @@ def benchmark_queries(num_queries=10, constrained=False):
                 # "Form Id": {"constraint_type": "AnyOf", "values": ["KYTCS", "HNGI", "ZSCA", "WPASSIVE", "something", "other thing", "this", "A KEY", "ANOTHER KEY", "HAHAHA"]}
             }
         start = time.time()
-        requests.post(
+        response = requests.post(
             urljoin(args.host, f"{deployment_id}/search"),
             json=data,
             headers=auth_header,
         )
+        if response.status_code != 200:
+            raise ValueError("OOpS")
         total_time += time.time() - start
     print(f"Avg Latency for query type constrained = {constrained}: {1000 * (total_time / num_queries)} ms")
 

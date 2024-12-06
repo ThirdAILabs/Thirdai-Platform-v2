@@ -79,7 +79,12 @@ class WrappedLogger:
         return []
 
     def _setup_logger(
-        self, log_dir: Path, log_prefix: str, service_type: str, level: int
+        self,
+        log_dir: Path,
+        log_prefix: str,
+        service_type: str,
+        level: int,
+        add_console_handler: bool = True,
     ) -> logging.Logger:
         log_dir.mkdir(parents=True, exist_ok=True)
         logger_file_path = log_dir / f"{log_prefix}.log"
@@ -92,23 +97,24 @@ class WrappedLogger:
 
         file_handler = logging.FileHandler(logger_file_path, mode="a+")
         file_handler.setFormatter(JSONFormatter())
-
-        console_formatter = ColoredFormatter(
-            "%(log_color)s%(asctime)s - %(levelname)s - %(msg)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-            log_colors={
-                "DEBUG": "cyan",
-                "INFO": "green",
-                "WARNING": "yellow",
-                "ERROR": "red",
-                "CRITICAL": "red,bg_white",
-            },
-        )
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(console_formatter)
-
         logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
+
+        if add_console_handler:
+            console_formatter = ColoredFormatter(
+                "%(log_color)s%(asctime)s - %(levelname)s - %(msg)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+                log_colors={
+                    "DEBUG": "cyan",
+                    "INFO": "green",
+                    "WARNING": "yellow",
+                    "ERROR": "red",
+                    "CRITICAL": "red,bg_white",
+                },
+            )
+            console_handler = logging.StreamHandler()
+            console_handler.setFormatter(console_formatter)
+
+            logger.addHandler(console_handler)
         return logger
 
     def _log_with_level(self, level: int, msg: str, **extra_fields):

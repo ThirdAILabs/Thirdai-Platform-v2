@@ -48,7 +48,7 @@ log_dir: Path = Path(model_bazaar_path()) / "logs"
 
 logger = setup_logger(log_dir=log_dir, log_prefix="platform_backend")
 audit_logger = setup_logger(
-    log_dir=log_dir, log_prefix="audit", add_stream_handler=False
+    log_dir=log_dir, log_prefix="audit", add_console_handler=False
 )
 
 app.include_router(user, prefix="/api/user", tags=["user"])
@@ -100,7 +100,7 @@ async def log_requests(request: fastapi.Request, call_next):
         )
         audit_log["username"] = user.user.username
     except Exception as e:
-        audit_log["username"] = "UNAUTHORIZED"
+        audit_log["username"] = "unknown"
     finally:
         session.close()
 

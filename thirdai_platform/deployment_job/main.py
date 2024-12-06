@@ -49,6 +49,13 @@ logger = JobLogger(
     model_type=config.model_options.model_type,
     user_id=config.user_id,
 )
+audit_logger = JobLogger(
+    log_dir=log_dir / "deployment_audit_logs",
+    log_prefix=os.getenv(os.getenv("NOMAD_ALLOC_ID")),
+    service_type="deployment-audit",
+    model_id=config.model_id,
+    model_type=config.model_options.model_type,
+)
 
 reporter = Reporter(config.model_bazaar_endpoint, logger)
 

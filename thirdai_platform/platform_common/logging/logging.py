@@ -5,7 +5,7 @@ from colorlog import ColoredFormatter
 
 
 def setup_logger(
-    log_dir: Path, log_prefix: str, level=logging.INFO, add_stream_handler: bool = True
+    log_dir: Path, log_prefix: str, level=logging.INFO, add_console_handler: bool = True
 ):
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -29,7 +29,7 @@ def setup_logger(
     # Add handlers to the logger
     logger.addHandler(file_handler)
 
-    if add_stream_handler:
+    if add_console_handler:
         # Colored Formatter for console output
         colored_formatter = ColoredFormatter(
             "%(log_color)s%(asctime)s - %(levelname)s - %(message)s",

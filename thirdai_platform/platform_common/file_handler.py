@@ -723,6 +723,7 @@ def get_cloud_client(provider: str):
             f"Currently supports s3,azure and gcp, but received {provider}"
         )
 
+
 # TODO (anyone): pass in the logger object to log at appropriate file.
 def download_file(doc: FileInfo, tmp_dir: str):
     """

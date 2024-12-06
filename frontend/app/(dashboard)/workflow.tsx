@@ -54,6 +54,11 @@ interface WarningState {
   messages: string[];
 }
 
+interface WarningState {
+  type: 'training' | 'deployment';
+  messages: string[];
+}
+
 export function WorkFlow({
   workflow,
   Workflows,
@@ -223,6 +228,8 @@ export function WorkFlow({
       }
     } else if (workflow.type === 'enterprise-search') {
       setDeployType('Enterprise Search & Summarizer');
+    } else if (workflow.type === 'knowledge-extraction') {
+      setDeployType('Knowledge Extraction');
     }
   }, [workflow.type]);
 
@@ -404,7 +411,8 @@ export function WorkFlow({
             variant="contained"
             style={{ width: '100px' }}
             disabled={
-              deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive
+              (deployStatus !== DeployStatus.Active && deployStatus !== DeployStatus.Inactive) ||
+              (deployStatus === DeployStatus.Active && workflow.type === 'knowledge-extraction')
             }
           >
             {getButtonValue(deployStatus)}
@@ -479,7 +487,7 @@ export function WorkFlow({
                 {workflow.type === 'enterprise-search' &&
                   (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
                     <Link
-                      href={`/analytics?id=${encodeURIComponent(workflow.model_id)}&username=${encodeURIComponent(workflow.username)}&model_name=${encodeURIComponent(workflow.model_name)}&old_model_id=${encodeURIComponent(workflow.model_id)}`}
+                      href={`/analytics?id=${encodeURIComponent(workflow.dependencies[0].model_id)}&username=${encodeURIComponent(workflow.dependencies[0].username)}&model_name=${encodeURIComponent(workflow.dependencies[0].model_name)}&old_model_id=${encodeURIComponent(workflow.dependencies[0].model_id)}`}
                     >
                       <DropdownMenuItem>
                         <button type="button">Usage Dashboard</button>

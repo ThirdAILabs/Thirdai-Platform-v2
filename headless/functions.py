@@ -268,7 +268,9 @@ class NDBFunctions:
                 for file in config.insert_paths
             ],
         )
-        assert insert_response.status_code == 200
+        assert (
+            insert_response.status_code == 200
+        ), f"Insert failed with status code {insert_response.status_code} and error: {insert_response.text}"
 
         logging.info("Checking the sources")
         deployment.sources()

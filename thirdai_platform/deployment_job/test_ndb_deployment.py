@@ -1,19 +1,24 @@
 import json
 import os
 import shutil
+import uuid
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from deployment_job.permissions import Permissions
 from fastapi.testclient import TestClient
 from licensing.verify import verify_license
-from platform_common.logging import get_default_logger
+from platform_common.logging import JobLogger
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     NDBDeploymentOptions,
 )
 from thirdai import neural_db_v2 as ndbv2
+from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
+from thirdai.neural_db_v2.retrievers import FinetunableRetriever
 
+USER_ID = "abc"
 MODEL_ID = "xyz"
 
 THIRDAI_LICENSE = os.path.join(
@@ -21,7 +26,14 @@ THIRDAI_LICENSE = os.path.join(
 )
 
 
-logger = get_default_logger()
+logger = JobLogger(
+    log_dir=Path("./tmp"),
+    log_prefix="deployment",
+    service_type="deployment",
+    model_id="model-123",
+    model_type="ndb",
+    user_id="user-123",
+)
 
 
 def doc_dir():
@@ -34,20 +46,32 @@ def doc_dir():
 @pytest.fixture(scope="function")
 def tmp_dir():
     path = "./tmp"
+    os.environ["SHARE_DIR"] = path
+    os.makedirs(path, exist_ok=True)
     yield path
     shutil.rmtree(path)
 
 
-def create_ndbv2_model(tmp_dir):
+def create_ndbv2_model(tmp_dir: str, on_disk: bool):
     verify_license.verify_and_activate(THIRDAI_LICENSE)
 
-    db = ndbv2.NeuralDB()
+    random_path = f"{uuid.uuid4()}.ndb"
+
+    if on_disk:
+        db = ndbv2.NeuralDB(save_path=random_path)
+    else:
+        db = ndbv2.NeuralDB(
+            chunk_store=PandasChunkStore(),
+            retriever=FinetunableRetriever(random_path),
+        )
 
     db.insert(
         [ndbv2.CSV(os.path.join(doc_dir(), "articles.csv"), text_columns=["text"])]
     )
 
     db.save(os.path.join(tmp_dir, "models", f"{MODEL_ID}", "model.ndb"))
+
+    shutil.rmtree(random_path)
 
 
 def mock_verify_permission(permission_type: str = "read"):
@@ -58,13 +82,14 @@ def mock_check_permission(token: str, permission_type: str = "read"):
     return True
 
 
-def create_config(tmp_dir: str, autoscaling: bool):
-    create_ndbv2_model(tmp_dir)
+def create_config(tmp_dir: str, autoscaling: bool, on_disk: bool):
+    create_ndbv2_model(tmp_dir, on_disk)
 
     license_info = verify_license.verify_license(THIRDAI_LICENSE)
 
     return DeploymentConfig(
-        model_id=f"{MODEL_ID}",
+        user_id=USER_ID,
+        model_id=MODEL_ID,
         model_bazaar_endpoint="",
         model_bazaar_dir=tmp_dir,
         license_key=license_info["boltLicenseKey"],
@@ -180,7 +205,7 @@ def check_deletion_dev_mode(client: TestClient):
 def test_deploy_ndb_dev_mode(tmp_dir):
     from deployment_job.routers.ndb import NDBRouter
 
-    config = create_config(tmp_dir=tmp_dir, autoscaling=False)
+    config = create_config(tmp_dir=tmp_dir, autoscaling=False, on_disk=True)
 
     router = NDBRouter(config, None, logger)
     client = TestClient(router.router)
@@ -290,12 +315,13 @@ def check_log_lines(logdir, expected_lines):
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("on_disk", [True, False])
 @patch.object(Permissions, "verify_permission", mock_verify_permission)
 @patch.object(Permissions, "check_permission", mock_check_permission)
-def test_deploy_ndb_prod_mode(tmp_dir):
+def test_deploy_ndb_prod_mode(tmp_dir, on_disk):
     from deployment_job.routers.ndb import NDBRouter
 
-    config = create_config(tmp_dir=tmp_dir, autoscaling=True)
+    config = create_config(tmp_dir=tmp_dir, autoscaling=True, on_disk=on_disk)
 
     router = NDBRouter(config, None, logger)
     client = TestClient(router.router)

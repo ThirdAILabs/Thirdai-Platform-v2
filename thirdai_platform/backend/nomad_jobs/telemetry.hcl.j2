@@ -8,12 +8,14 @@ job "telemetry" {
       If there are more than one node in the cluster, 
         then this constraint ensures that telemetry job always run on client node,
 
-      The issue originates from victoriametric and grafana creating db on nfs.
-        so, if the telemetry job is started by node of a class [server or (any client)], the job won't get restarted by node of different class [(any client) or server] 
+      The issue originates from ownerships of files created by victoriametric on nfs.
+        - If server starts the job, files created is having (root, nomad_nfs) as ownership and group ownership
+        - If client starts the job, files created is having (nomad_nfs, nomad_nfs) as ownership and group ownership,
+        so, different node class is unable to restart the victoriametric task.
       
       Incase multiple nodes are in the cluster,
         Assumption: There will be more client nodes than server.
-        so constraint the job to always get scheduled on client node.
+        so constrain the job to always get scheduled on client node.
     #}
     {% if platform == "docker" and target_count != "1" -%}
     constraint {
@@ -27,12 +29,13 @@ job "telemetry" {
       port "vicky-http" {
         to = 8428
       }
-      port "loki-http" {
-        to = 3100
-      }
 
       port "grafana-http" {
         to = 3000
+      }
+
+      port "vicky-logs-http" {
+        to = 9428
       }
     }
 
@@ -64,7 +67,8 @@ job "telemetry" {
           "--retentionPeriod=10d",
           "--httpListenAddr=:${NOMAD_PORT_vicky_http}",
           "--promscrape.config={{ nomad_monitoring_dir }}/node_discovery/prometheus.yaml",
-          "--http.pathPrefix=/victoriametrics"
+          "--http.pathPrefix=/victoriametrics",
+          "--promscrape.fileSDCheckInterval=5s"
         ]
         {% if platform == "local" -%}
         extra_hosts = ["host.docker.internal:host-gateway"]
@@ -79,100 +83,153 @@ job "telemetry" {
       }
     }
 
-    task "loki" {
+    task "victorialogs" {
       driver = "docker"
 
-      config {
-        image = "{{ registry }}/loki:k221-47b9075"
-        auth {
-          username = "{{ docker_username }}"
-          password = "{{ docker_password }}"
-          server_address = "{{ registry }}"
-        }
-        group_add = ["4646"]
-        args = [
-          "-config.file",
-          "${NOMAD_TASK_DIR}/loki.yaml",
-        ]
-
-        volumes = [
-          "{{ share_dir }}:/model_bazaar"
-        ]
-        ports = ["loki-http"]
-        
-      }
-
-      resources {
-        cpu    = 500
-        memory = 200
-      }
-
-      /*
-        Date: 19/08/2024
-        Cannot use "data            = file(abspath("./../configs/loki.yaml"))" because file function only works via CLI currently.
-        https://github.com/hashicorp/nomad/issues/19648#issuecomment-1881052624
-        */
-      template {
-        data            = <<EOF
-auth_enabled: false
-server:
-  http_listen_port: 3100
-  grpc_listen_port: 9096
-common:
-  instance_addr: 127.0.0.1
-  path_prefix: {{ nomad_monitoring_dir }}/loki
-  storage:
-    filesystem:
-      chunks_directory: {{ nomad_monitoring_dir }}/loki/chunks
-      rules_directory: {{ nomad_monitoring_dir }}/loki/rules
-  replication_factor: 1
-  ring:
-    kvstore:
-      store: inmemory
-frontend:
-  max_outstanding_per_tenant: 2048
-pattern_ingester:
-  enabled: true
-limits_config:
-  max_global_streams_per_user: 0
-  ingestion_rate_mb: 50000
-  ingestion_burst_size_mb: 50000
-  volume_enabled: true
-query_range:
-  results_cache:
-    cache:
-      embedded_cache:
-        enabled: true
-        max_size_mb: 100
-schema_config:
-  configs:
-    - from: 2020-10-27
-      store: tsdb
-      object_store: filesystem
-      schema: v13
-      index:
-        prefix: index_
-        period: 24h
-ruler:
-  alertmanager_url: http://localhost:9093
-analytics:
-  reporting_enabled: false
-ingester:
-  wal:
-    flush_on_shutdown: true
-EOF
-        destination     = "${NOMAD_TASK_DIR}/loki.yaml"
-      }
-
       service {
-        name = "loki-web"
-        port = "loki-http"
+        name     = "vicky-logs"
+        port     = "vicky-logs-http"
         provider = "nomad"
         tags = [
           "traefik.enable=true",
-          "traefik.http.routers.loki-http.rule=PathPrefix(`/loki`)",
-          "traefik.http.routers.loki-http.priority=10"
+          "traefik.http.routers.vicky-logs-http.rule=PathPrefix(`/victorialogs`)",
+          "traefik.http.routers.vicky-logs-http.priority=10"
         ]
+      }
+
+      config {
+        image = "docker.io/victoriametrics/victoria-logs:latest"
+        ports = ["vicky-logs-http"]
+        args = [
+          "--storageDataPath={{ nomad_monitoring_dir }}/victorialogs",
+          "--retentionPeriod=30d",
+          "--httpListenAddr=:${NOMAD_PORT_vicky_logs_http}",
+          "--http.pathPrefix=/victorialogs"
+        ]
+        {% if platform == "local" -%}
+        extra_hosts = ["host.docker.internal:host-gateway"]
+        {%- endif %}
+        volumes = [
+          "{{ share_dir }}:/model_bazaar"
+        ]
+      }
+      resources {
+        cpu    = 256
+        memory = 600
+      }
+    }
+
+    task "vector" {
+      driver = "docker"
+
+      lifecycle {
+        hook = "poststart"
+        sidecar = true
+      }
+
+      env {
+        PRIVATE_MODEL_BAZAAR_ENDPOINT = "http://{{ model_bazaar_private_host }}/"
+      }
+
+      config {
+        image = "timberio/vector:nightly-distroless-libc"
+
+        {% if platform == "local" %}
+        {%- else -%}
+        group_add = ["4646"]
+        {%- endif %}
+
+        volumes = [
+          "{{ share_dir }}:/model_bazaar",
+          "local/vector-config.yaml:/etc/vector/vector.yaml"
+        ]
+      }
+
+      template {
+        data = <<EOF
+# the checkpoints for different logs will be stored in this directory
+data_dir: /model_bazaar/logs
+
+sources:
+  # fetching logs for all models
+  training_logs:
+    type: file
+    include:
+      - "/model_bazaar/logs/*/train.log"
+    read_from: beginning
+
+  deployment_logs:
+    type: file
+    include:
+      - "/model_bazaar/logs/*/deployment.log"
+    read_from: beginning
+
+transforms:
+  parse_logs:
+    # loads the json line as it is. we can add more fields here if needed
+    # for example the IP address of the machine where the logs are generated
+    type: remap
+    inputs:
+      - training_logs
+      - deployment_logs
+    source: |
+      . = parse_json!(.message)
+
+  # create two different sources for debug and non-debug logs
+  filter_debug_logs:
+    type: filter
+    inputs:
+      - parse_logs
+    condition: |
+      .level == "DEBUG"
+  
+  filter_non_debug_logs:
+    type: filter
+    inputs:
+      - parse_logs
+    condition: |
+      .level != "DEBUG"
+
+sinks:
+  # two different sinks for debug and non-debug logs.
+  # the number of debug logs can be high hence, we store them for a short period
+  # retention period of debug logs is 48 hours, non debug logs are stored for 30 days
+  debug_logs:
+    type: http
+    inputs:
+      - filter_debug_logs
+    uri: "${PRIVATE_MODEL_BAZAAR_ENDPOINT}victorialogs/insert/jsonline?_stream_fields=model_id,service_type&_msg_field=_msg&_time_field=_time&extra_fields=retention=48h"
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    request:
+      headers:
+        Content-Type: application/json
+    healthcheck:
+      enabled: false
+
+  other_logs:
+    type: http
+    inputs:
+      - filter_non_debug_logs
+    uri: "${PRIVATE_MODEL_BAZAAR_ENDPOINT}victorialogs/insert/jsonline?_stream_fields=model_id,service_type&_msg_field=_msg&_time_field=_time&extra_fields=retention=30d"
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    request:
+      headers:
+        Content-Type: application/json
+    healthcheck:
+      enabled: false
+EOF
+        destination = "local/vector-config.yaml"
+      }
+
+      resources {
+        cpu    = 256
+        memory = 300
       }
     }
 
@@ -196,6 +253,7 @@ EOF
         GF_SERVER_HTTP_PORT   = "${NOMAD_PORT_http}"
         GF_PATHS_PROVISIONING = "/local/grafana/provisioning"
         GF_PATHS_DATA = "{{ nomad_monitoring_dir }}/grafana"
+        GF_SECURITY_ALLOW_EMBEDDING=true
       }
 
       config {
@@ -235,21 +293,8 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
-    {% if platform == "local" -%}
-    url: http://host.docker.internal/victoriametrics
-    {%- else -%}
-    {% raw %}{{ range nomadService "vicky-web" }}url: http://{{ .Address }}/victoriametrics{{ end }}{% endraw %}
-    {%- endif %}
+    url: http://{{ model_bazaar_private_host }}/victoriametrics
     isDefault: true
-    editable: false
-  - name: Loki
-    type: loki
-    access: proxy
-    {% if platform == "local" -%}
-    url: http://host.docker.internal:{% raw %}{{ range nomadService "loki-web" }}{{ .Port }}{{ end }}{% endraw %}
-    {%- else -%}
-    {% raw %}{{ range nomadService "loki-web" }}url: http://{{ .Address }}:{{ .Port }}{{ end }}{% endraw %}
-    {%- endif %}
     editable: false
 EOF
         destination = "/local/grafana/provisioning/datasources/datasources.yaml"
@@ -266,7 +311,7 @@ providers:
     allowUiUpdates: true
     options:
       foldersFromFilesStructure: true
-      path: {{ nomad_monitoring_dir }}/telemetry_dashboards
+      path: {{ nomad_monitoring_dir }}/grafana_dashboards
 EOF
         destination = "/local/grafana/provisioning/dashboards/dashboards.yaml"
       }

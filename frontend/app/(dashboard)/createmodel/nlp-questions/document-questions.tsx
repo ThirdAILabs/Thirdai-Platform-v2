@@ -181,11 +181,18 @@ const DocumentQuestions = ({
         return;
       }
 
-      // If validation passes, proceed with training
+      // Extract the categories from validation result
+      const { categories } = validationResult;
+
+      // Determine n_target_classes based on the number of categories
+      const nTargetClasses = categories.length;
+
+      // If validation passes, proceed with training and pass nTargetClasses
       const trainingResult = await trainDocumentClassifier({
         modelName: modelName,
         files: selectedFolder,
         testSplit: 0.1,
+        nTargetClasses, // Pass as a new param
       });
 
       setSuccess(true);

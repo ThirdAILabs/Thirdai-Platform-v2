@@ -10,7 +10,15 @@ import {
   Alert,
 } from '@mui/material';
 import { Button } from '@/components/ui/button';
-import React, { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
+import React, {
+  CSSProperties,
+  ReactNode,
+  useEffect,
+  useRef,
+  useState,
+  ChangeEvent,
+  KeyboardEvent,
+} from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import * as _ from 'lodash';
 import { useTokenClassificationEndpoints } from '@/lib/backend';
@@ -30,8 +38,111 @@ import {
   convertCSVToPDFFormat,
   ParsedData,
 } from '@/utils/fileParsingUtils';
-// import TimerIcon from '@mui/icons-material/Timer';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
+
+import { Paperclip, Send } from 'lucide-react';
+
+interface EnhancedInputProps {
+  onSubmit: (text: string) => void;
+  onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+}
+
+const EnhancedInput: React.FC<EnhancedInputProps> = ({ onSubmit, onFileChange }) => {
+  const [inputText, setInputText] = useState<string>('');
+  const [showTooltip, setShowTooltip] = useState<boolean>(false);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    adjustHeight();
+  }, [inputText]);
+
+  const adjustHeight = () => {
+    const textarea = textAreaRef.current;
+    if (textarea) {
+      textarea.style.height = '3rem';
+      const maxHeight = 11 * parseFloat(getComputedStyle(textarea).lineHeight);
+      const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+      textarea.style.height = `${newHeight}px`;
+    }
+  };
+
+  const handleTextChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    setInputText(e.target.value);
+  };
+
+  const handleSubmit = () => {
+    if (inputText.trim()) {
+      onSubmit(inputText);
+      setInputText('');
+      if (textAreaRef.current) {
+        textAreaRef.current.style.height = '3rem';
+      }
+    }
+  };
+
+  const handleFileClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div className="w-full">
+      <div className="flex items-end gap-2">
+        <div className="relative">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-12 w-12"
+            onClick={handleFileClick}
+            onMouseEnter={() => setShowTooltip(true)}
+            onMouseLeave={() => setShowTooltip(false)}
+          >
+            <Paperclip className="h-5 w-5" />
+          </Button>
+          {showTooltip && (
+            <div className="absolute bottom-full left-0 mb-2 px-3 py-2 text-sm bg-gray-900 text-white rounded-md whitespace-nowrap z-50">
+              Supported file types: .txt, .pdf, .docx, .csv, .xls, .xlsx (Max size: 1MB)
+              <div className="absolute top-full left-6 border-8 border-transparent border-t-gray-900" />
+            </div>
+          )}
+        </div>
+
+        <textarea
+          ref={textAreaRef}
+          className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+          style={{
+            minHeight: '3rem',
+            maxHeight: '11em',
+            overflowY: 'auto',
+          }}
+          value={inputText}
+          onChange={handleTextChange}
+          placeholder="Enter your text..."
+          onKeyDown={(e: KeyboardEvent<HTMLTextAreaElement>) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSubmit();
+            }
+          }}
+        />
+
+        {inputText && (
+          <Button size="sm" className="h-12 w-12" onClick={handleSubmit}>
+            <Send className="h-5 w-5" />
+          </Button>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".txt,.pdf,.docx,.csv,.xls,.xlsx"
+          onChange={onFileChange}
+          className="hidden"
+        />
+      </div>
+    </div>
+  );
+};
 
 interface Token {
   text: string;
@@ -871,40 +982,7 @@ export default function Interact() {
       <div style={{ flex: 2, marginRight: '20px' }}>
         <Box display="flex" flexDirection="column" width="100%">
           <Box display="flex" justifyContent="center" alignItems="center" width="100%">
-            <label htmlFor="file-upload" style={{ marginRight: '10px' }}>
-              <Button size="sm" asChild>
-                <span>Upload File</span>
-              </Button>
-            </label>
-            <input
-              ref={fileInputRef}
-              id="file-upload"
-              type="file"
-              accept=".txt,.pdf,.docx,.csv,.xls,.xlsx"
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
-            />
-            <Input
-              autoFocus
-              className="text-md"
-              style={{ height: '3rem', flex: 1 }}
-              value={inputText}
-              onChange={handleInputChange}
-              placeholder="Enter your text..."
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleRun(inputText);
-                }
-              }}
-            />
-            <Button
-              size="sm"
-              style={{ height: '3rem', marginLeft: '10px', padding: '0 20px' }}
-              onClick={() => handleRun(inputText)}
-            >
-              Run
-            </Button>
+            <EnhancedInput onSubmit={handleRun} onFileChange={handleFileChange} />
           </Box>
 
           {fileError && (
@@ -912,10 +990,6 @@ export default function Interact() {
               {fileError}
             </Alert>
           )}
-
-          <Typography variant="caption" display="block" mt={1}>
-            Supported file types: .txt, .pdf, .docx, .csv, .xls, .xlsx (Max size: 1MB)
-          </Typography>
         </Box>
 
         {annotations.length > 0 && (

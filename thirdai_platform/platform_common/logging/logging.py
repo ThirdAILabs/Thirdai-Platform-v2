@@ -4,7 +4,9 @@ from pathlib import Path
 from colorlog import ColoredFormatter
 
 
-def setup_logger(log_dir: Path, log_prefix: str, level=logging.INFO):
+def setup_logger(
+    log_dir: Path, log_prefix: str, level=logging.INFO, configure_root: bool = True
+):
     log_dir.mkdir(parents=True, exist_ok=True)
 
     logger_file_path = log_dir / f"{log_prefix}.log"
@@ -37,10 +39,17 @@ def setup_logger(log_dir: Path, log_prefix: str, level=logging.INFO):
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(colored_formatter)
 
-    # Basic configuration with multiple handlers
-    logging.basicConfig(
-        level=level,
-        format=log_format,
-        datefmt=date_format,
-        handlers=[file_handler, console_handler],
-    )
+    if configure_root:
+        # Basic configuration with multiple handlers
+        logging.basicConfig(
+            level=level,
+            format=log_format,
+            datefmt=date_format,
+            handlers=[file_handler, console_handler],
+        )
+    else:
+        logger = logging.getLogger(log_prefix)
+        logger.setLevel(level)
+        logger.addHandler(file_handler)
+        logger.propagate = False
+        return logger

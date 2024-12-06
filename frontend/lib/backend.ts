@@ -527,7 +527,7 @@ export async function validateSentenceClassifierCSV(file: File) {
     return {
       valid: response.data.status === 'success',
       message: response.data.message,
-      labels: response.data.data?.labels || []
+      labels: response.data.data?.labels || [],
     };
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -535,13 +535,13 @@ export async function validateSentenceClassifierCSV(file: File) {
       return {
         valid: false,
         message: errorMessage,
-        labels: []
+        labels: [],
       };
     }
     return {
       valid: false,
       message: 'Failed to validate CSV',
-      labels: []
+      labels: [],
     };
   }
 }

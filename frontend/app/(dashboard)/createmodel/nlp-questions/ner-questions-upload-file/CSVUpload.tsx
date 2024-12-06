@@ -195,16 +195,17 @@ const CSVUpload = ({ modelName, onSuccess, onError, workflowNames = [] }: CSVUpl
         </Typography>
         <Box component="ul" sx={{ pl: 2, mb: 3 }}>
           <Typography component="li" variant="body2" color="text.secondary">
-            • File must have exactly two columns named 'source' and 'target'
+            • File must have exactly two columns named &apos;source&apos; and &apos;target&apos;
           </Typography>
           <Typography component="li" variant="body2" color="text.secondary">
             • Each row must have the same number of tokens in source and target
           </Typography>
           <Typography component="li" variant="body2" color="text.secondary">
-            • Target column should contain labels for each token (use 'O' for non-entities)
+            • Target column should contain labels for each token (use &apos;O&apos; for
+            non-entities)
           </Typography>
           <Typography component="li" variant="body2" color="text.secondary">
-            • At least one token type other than 'O' must be present
+            • At least one token type other than &apos;O&apos; must be present
           </Typography>
         </Box>
       </Box>

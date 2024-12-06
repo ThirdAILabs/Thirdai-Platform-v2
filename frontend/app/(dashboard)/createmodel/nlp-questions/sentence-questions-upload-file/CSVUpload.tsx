@@ -93,7 +93,7 @@ const CSVUpload = ({ modelName, onSuccess, onError }: CSVUploadProps) => {
             CSV File Requirements:
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            • File must have exactly two columns named 'text' and 'label'
+            • File must have exactly two columns named &apos;text&apos; and &apos;label&apos;
           </Typography>
           <Typography variant="body2" color="text.secondary">
             • Each row should contain a text sample and its corresponding label

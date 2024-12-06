@@ -4,7 +4,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
-from platform_common.logging import setup_logger, file_logger
+from platform_common.logging import file_logger, setup_logger
 from platform_common.utils import model_bazaar_path
 
 load_dotenv()

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
-from platform_common.logging import file_logger, setup_logger
+from platform_common.logging import setup_logger
 from platform_common.utils import model_bazaar_path
 
 load_dotenv()
@@ -49,7 +49,7 @@ log_dir: Path = Path(model_bazaar_path()) / "logs"
 setup_logger(log_dir=log_dir, log_prefix="platform_backend")
 
 logger = logging.getLogger("platform-backend")
-audit_logger = file_logger(log_dir=log_dir, log_prefix="audit")
+audit_logger = setup_logger(log_dir=log_dir, log_prefix="audit", configure_root=False)
 
 app.include_router(user, prefix="/api/user", tags=["user"])
 app.include_router(train, prefix="/api/train", tags=["train"])
@@ -78,35 +78,42 @@ async def global_exception_handler(request: fastapi.Request, exc: Exception):
 
 @app.middleware("http")
 async def log_requests(request: fastapi.Request, call_next):
-    x_forwarded_for = request.headers.get("x-forwarded-for")
-    client_ip = (
-        x_forwarded_for.split(",")[0].strip()
-        if x_forwarded_for
-        else (request.client.host if request.client else "Unknown")
-    )  # When behind a load balancer or proxy, client IP would be in `x-forwarded-for` header
-    audit_log = {
-        "ip": client_ip,
-        "protocol": request.headers.get("x-forwarded-proto", request.url.scheme),
-        "method": request.method,
-        "user_agent": request.headers.get("user-agent", "Unknown"),
-        "url": str(request.url),
-        "query_params": dict(request.query_params),
-        "path_params": dict(request.path_params),
-    }
+    if "/metrics" not in request.url.path:
+        # Don't log the prometheus client metric request
+        x_forwarded_for = request.headers.get("x-forwarded-for")
+        client_ip = (
+            x_forwarded_for.split(",")[0].strip()
+            if x_forwarded_for
+            else (request.client.host if request.client else "Unknown")
+        )  # When behind a load balancer or proxy, client IP would be in `x-forwarded-for` header
+        audit_log = {
+            "ip": client_ip,
+            "protocol": request.headers.get("x-forwarded-proto", request.url.scheme),
+            "method": request.method,
+            "url": str(request.url),
+            "query_params": dict(request.query_params),
+            "path_params": dict(request.path_params),
+        }
+        body = None
+        if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+            try:
+                body = await request.json()
+            except Exception:
+                body = "Could not parse body as JSON"
+        audit_log["body"] = body
+        try:
+            session = next(get_session())
+            user = validate_access_token(
+                access_token=request.headers.get("Authorization").split()[1],
+                session=session,
+            )
+            audit_log["username"] = user.user.username
+        except Exception as e:
+            audit_log["username"] = "unknown"
+        finally:
+            session.close()
 
-    try:
-        session = next(get_session())
-        user = validate_access_token(
-            access_token=request.headers.get("Authorization").split()[1],
-            session=session,
-        )
-        audit_log["username"] = user.user.username
-    except Exception as e:
-        audit_log["username"] = "unknown"
-    finally:
-        session.close()
-
-    audit_logger.info(json.dumps(audit_log))
+        audit_logger.info(json.dumps(audit_log))
 
     response = await call_next(request)
 

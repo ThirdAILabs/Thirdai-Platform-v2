@@ -86,7 +86,7 @@ def create_tmp_model_bazaar_dir():
     shutil.rmtree(MODEL_BAZAAR_DIR)
 
 
-def run_ndb_train_job(extra_supervised_files=[]):
+def run_ndb_train_job(extra_supervised_files=[], on_disk=True):
     verify_license.verify_and_activate(THIRDAI_LICENSE)
 
     source_id = ndb.CSV(
@@ -102,7 +102,7 @@ def run_ndb_train_job(extra_supervised_files=[]):
         model_bazaar_endpoint="",
         model_id="ndb_123",
         data_id="data_123",
-        model_options=NDBOptions(),
+        model_options=NDBOptions(on_disk=on_disk),
         data=NDBData(
             unsupervised_files=[
                 FileInfo(
@@ -177,9 +177,11 @@ def feedback_train_file():
     os.remove(filename)
 
 
-def test_ndbv2_train(feedback_train_file):
+@pytest.mark.parametrize("on_disk", [True, False])
+def test_ndbv2_train(feedback_train_file, on_disk):
     db_path = run_ndb_train_job(
         extra_supervised_files=[FileInfo(path=feedback_train_file, location="local")],
+        on_disk=on_disk,
     )
 
     db = ndbv2.NeuralDB.load(db_path)

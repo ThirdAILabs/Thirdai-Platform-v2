@@ -232,6 +232,7 @@ class TextClassificationDatagenOptions(BaseModel):
             raise ValueError("target_labels must contain at least two labels.")
         return values
 
+
 class TokenClassificationDatagenOptions(BaseModel):
     sub_type: Literal[UDTSubType.token] = UDTSubType.token
     tags: List[LabelEntity]

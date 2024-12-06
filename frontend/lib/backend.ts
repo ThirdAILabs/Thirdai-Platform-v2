@@ -405,12 +405,14 @@ interface TrainDocumentClassifierParams {
   modelName: string;
   files: FileList;
   testSplit?: number;
+  nTargetClasses?: number; // Add this to accept the dynamic number of classes
 }
 
 export async function trainDocumentClassifier({
   modelName,
   files,
   testSplit = 0.1,
+  nTargetClasses,
 }: TrainDocumentClassifierParams): Promise<any> {
   const accessToken = getAccessToken();
 
@@ -421,25 +423,6 @@ export async function trainDocumentClassifier({
     Array.from(files).forEach((file) => {
       formData.append('files', file, file.webkitRelativePath);
     });
-
-    // Determine unique subfolders under user_feedback
-    // Assuming your directory structure is something like:
-    // user_feedback/positive/file1.txt
-    // user_feedback/negative/file2.txt
-    // user_feedback/neutral/file3.txt
-    //
-    // We'll use the second part of webkitRelativePath (index 1) as the label.
-    const subfolderSet = new Set<string>();
-    for (const file of Array.from(files)) {
-      const pathParts = file.webkitRelativePath.split('/');
-      // We assume the top-level folder is user_feedback, and subfolder is next
-      if (pathParts.length > 1) {
-        const subfolderName = pathParts[1];
-        subfolderSet.add(subfolderName);
-      }
-    }
-
-    const n_target_classes = subfolderSet.size;
 
     // Prepare file info with webkitRelativePath to preserve directory structure
     const fileInfo = {
@@ -460,7 +443,7 @@ export async function trainDocumentClassifier({
         udt_sub_type: 'document',
         text_column: 'text',
         label_column: 'label',
-        n_target_classes, // Use the dynamically computed number of classes
+        n_target_classes: nTargetClasses, // Use the dynamically passed number of classes
         word_limit: 1000, // Configure word limit
       },
       train_options: {

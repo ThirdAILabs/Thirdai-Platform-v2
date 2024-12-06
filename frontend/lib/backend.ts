@@ -401,24 +401,10 @@ export async function validateDocumentClassificationFolder(files: FileList) {
   }
 }
 
-interface CreateCSVResponse {
-  status: string;
-  message: string;
-  data: {
-    csv_content: string;
-    categories: string[];
-    n_categories: number;
-  };
-}
-
 interface TrainDocumentClassifierParams {
   modelName: string;
   files: FileList;
   testSplit?: number;
-}
-
-interface FileWithPath extends File {
-  webkitRelativePath: string;
 }
 
 export async function trainDocumentClassifier({
@@ -426,29 +412,6 @@ export async function trainDocumentClassifier({
   files,
   testSplit = 0.1,
 }: TrainDocumentClassifierParams): Promise<any> {
-  function countUniqueTopLevelFolders(files: FileList | FileWithPath[]): number {
-    // Use Set to store unique folder names
-    const uniqueFolders = new Set<string>();
-    
-    Array.from(files).forEach((file: File) => {
-      // Type assertion since we know our files have webkitRelativePath
-      const fileWithPath = file as FileWithPath;
-      
-      // Get the relative path
-      const path = fileWithPath.webkitRelativePath;
-      
-      // Extract top-level folder name (everything before the first '/')
-      const topLevelFolder = path.split('/')[0];
-      
-      // Add to Set if it's not empty
-      if (topLevelFolder) {
-        uniqueFolders.add(topLevelFolder);
-      }
-    });
-    
-    return uniqueFolders.size;
-  }
-
   const accessToken = getAccessToken();
 
   try {
@@ -459,9 +422,28 @@ export async function trainDocumentClassifier({
       formData.append('files', file, file.webkitRelativePath);
     });
 
+    // Determine unique subfolders under user_feedback
+    // Assuming your directory structure is something like:
+    // user_feedback/positive/file1.txt
+    // user_feedback/negative/file2.txt
+    // user_feedback/neutral/file3.txt
+    //
+    // We'll use the second part of webkitRelativePath (index 1) as the label.
+    const subfolderSet = new Set<string>();
+    for (const file of Array.from(files)) {
+      const pathParts = file.webkitRelativePath.split('/');
+      // We assume the top-level folder is user_feedback, and subfolder is next
+      if (pathParts.length > 1) {
+        const subfolderName = pathParts[1];
+        subfolderSet.add(subfolderName);
+      }
+    }
+
+    const n_target_classes = subfolderSet.size;
+
     // Prepare file info with webkitRelativePath to preserve directory structure
     const fileInfo = {
-      supervised_files: Array.from(files).map(file => ({
+      supervised_files: Array.from(files).map((file) => ({
         filename: file.name,
         content_type: file.type,
         path: file.webkitRelativePath,
@@ -471,8 +453,6 @@ export async function trainDocumentClassifier({
     };
     formData.append('file_info', JSON.stringify(fileInfo));
 
-    const n_target_classes = countUniqueTopLevelFolders(files);
- 
     // Model options for document classification
     const modelOptions = {
       model_type: 'udt',
@@ -480,7 +460,7 @@ export async function trainDocumentClassifier({
         udt_sub_type: 'document',
         text_column: 'text',
         label_column: 'label',
-        n_target_classes: n_target_classes,
+        n_target_classes, // Use the dynamically computed number of classes
         word_limit: 1000, // Configure word limit
       },
       train_options: {

@@ -1,5 +1,6 @@
 try:
     import asyncio
+    import json
     import logging
     import os
     import sys
@@ -22,7 +23,7 @@ try:
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import JSONResponse
     from licensing.verify import verify_license
-    from platform_common.logging import JobLogger, LogCode
+    from platform_common.logging import JobLogger, LogCode, file_logger
     from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
     from platform_common.pydantic_models.training import ModelType
     from prometheus_client import make_asgi_app
@@ -49,6 +50,11 @@ logger = JobLogger(
     user_id=config.user_id,
 )
 
+audit_logger = file_logger(
+    log_dir=log_dir / "deployment_audit_logs",
+    log_prefix=os.getenv(os.getenv("NOMAD_ALLOC_ID")),
+)
+
 reporter = Reporter(config.model_bazaar_endpoint, logger)
 
 verify_license.activate_thirdai_license(config.license_key)
@@ -70,6 +76,28 @@ app.add_middleware(
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
+    x_forwarded_for = request.headers.get("x-forwarded-for")
+    client_ip = (
+        x_forwarded_for.split(",")[0].strip()
+        if x_forwarded_for
+        else (request.client.host if request.client else "Unknown")
+    )  # When behind a load balancer or proxy, client IP would be in `x-forwarded-for` header
+    audit_log = {
+        "ip": client_ip,
+        "protocol": request.headers.get("x-forwarded-proto", request.url.scheme),
+        "url": str(request.url),
+        "query_params": dict(request.query_params),
+        "path_params": dict(request.path_params),
+    }
+    try:
+        permissions = Permissions._get_permissions(
+            token=request.headers.get("Authorization").split()[1],
+        )
+        audit_log["username"] = permissions[3]
+    except Exception as e:
+        audit_log["username"] = "unknown"
+    audit_logger.info(json.dumps(audit_log))
+
     response = await call_next(request)
 
     logger.debug(

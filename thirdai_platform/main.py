@@ -8,9 +8,11 @@ from platform_common.logging import setup_logger
 from platform_common.utils import model_bazaar_path
 
 load_dotenv()
+import json
 
 import fastapi
 import uvicorn
+from auth.jwt import validate_access_token
 from backend.routers.data import data_router
 from backend.routers.deploy import deploy_router as deploy
 from backend.routers.models import model_router as model
@@ -29,6 +31,7 @@ from backend.startup_jobs import (
 )
 from backend.status_sync import sync_job_statuses
 from backend.utils import get_platform
+from database.session import get_session
 from fastapi.middleware.cors import CORSMiddleware
 
 app = fastapi.FastAPI()
@@ -46,6 +49,7 @@ log_dir: Path = Path(model_bazaar_path()) / "logs"
 setup_logger(log_dir=log_dir, log_prefix="platform_backend")
 
 logger = logging.getLogger("platform-backend")
+audit_logger = custom_logger(log_dir=log_dir, log_prefix="audit")
 
 app.include_router(user, prefix="/api/user", tags=["user"])
 app.include_router(train, prefix="/api/train", tags=["train"])
@@ -74,6 +78,34 @@ async def global_exception_handler(request: fastapi.Request, exc: Exception):
 
 @app.middleware("http")
 async def log_requests(request: fastapi.Request, call_next):
+    x_forwarded_for = request.headers.get("x-forwarded-for")
+    client_ip = (
+        x_forwarded_for.split(",")[0].strip()
+        if x_forwarded_for
+        else (request.client.host if request.client else "Unknown")
+    )  # When behind a load balancer or proxy, client IP would be in `x-forwarded-for` header
+    audit_log = {
+        "ip": client_ip,
+        "protocol": request.headers.get("x-forwarded-proto", request.url.scheme),
+        "url": str(request.url),
+        "query_params": dict(request.query_params),
+        "path_params": dict(request.path_params),
+    }
+
+    try:
+        session = next(get_session())
+        user = validate_access_token(
+            access_token=request.headers.get("Authorization").split()[1],
+            session=session,
+        )
+        audit_log["username"] = user.user.username
+    except Exception as e:
+        audit_log["username"] = "unknown"
+    finally:
+        session.close()
+
+    audit_logger.info(json.dumps(audit_log))
+
     response = await call_next(request)
 
     logger.info(

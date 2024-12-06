@@ -44,3 +44,24 @@ def setup_logger(log_dir: Path, log_prefix: str, level=logging.INFO):
         datefmt=date_format,
         handlers=[file_handler, console_handler],
     )
+
+
+def file_logger(log_dir: Path, log_prefix: str, level=logging.INFO):
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    logger_file_path = log_dir / f"{log_prefix}.log"
+    logger = logging.getLogger(log_prefix)
+    logger.setLevel(level)
+
+    # Define log format
+    log_format = "%(asctime)s - %(levelname)s - %(message)s"
+    date_format = "%Y-%m-%d %H:%M:%S"
+
+    # Formatter for file logs
+    file_formatter = logging.Formatter(log_format, datefmt=date_format)
+
+    # File handler setup
+    file_handler = logging.FileHandler(logger_file_path, mode="a+")
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+    return logger

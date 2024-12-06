@@ -42,7 +42,7 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
   const [generatedData, setGeneratedData] = useState<GeneratedData[]>([]);
   const [generateDataPrompt, setGenerateDataPrompt] = useState('');
   const [isCategoriesSufficient, setIsCategoriesSufficient] = useState<boolean>(true);
-  const [categoryErrorMessage, setCategoryErrorMessage] = useState<string>("");
+  const [categoryErrorMessage, setCategoryErrorMessage] = useState<string>('');
   const router = useRouter();
 
   const handleCategoryChange = (index: number, field: string, value: string) => {
@@ -109,18 +109,18 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
 
   const checkCategories = () => {
     if (categories.length < 2) {
-      setCategoryErrorMessage("*Oops! At least two categories must be selected to move forward.");
+      setCategoryErrorMessage('*Oops! At least two categories must be selected to move forward.');
       return false;
     }
     for (let index = 0; index < categories.length; index++) {
       const category = categories[index];
       if (category.name === '' || category.example === '' || category.description === '') {
-        setCategoryErrorMessage("*Oops! All fields must be completed before you can continue.");
+        setCategoryErrorMessage('*Oops! All fields must be completed before you can continue.');
         return false;
       }
     }
     return true;
-  }
+  };
 
   const generateData = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -131,8 +131,7 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
         // setTimeout(() => {
         //   setIsCategoriesSufficient(true);
         // }, 5000);//Display of error message for 5 seconds
-      }
-      else {
+      } else {
         setIsDataGenerating(true);
         setIsCategoriesSufficient(true);
         console.log('sending question', question);
@@ -190,7 +189,7 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
       console.log(e || 'Failed to create NER model and workflow');
     }
   };
-  console.log("Categories: ", categories);
+  console.log('Categories: ', categories);
   return (
     <div>
       <span className="block text-lg font-semibold">App Name</span>
@@ -280,7 +279,9 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
           >
             {isDataGenerating ? 'Generating data...' : 'Generate data'}
           </Button>
-          {!isCategoriesSufficient && <span className='text-red-500 italic font-serif text-sm'>{categoryErrorMessage}</span>}
+          {!isCategoriesSufficient && (
+            <span className="text-red-500 italic font-serif text-sm">{categoryErrorMessage}</span>
+          )}
         </div>
       </form>
 

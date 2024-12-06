@@ -63,5 +63,8 @@ def file_logger(log_dir: Path, log_prefix: str, level=logging.INFO):
     # File handler setup
     file_handler = logging.FileHandler(logger_file_path, mode="a+")
     file_handler.setFormatter(file_formatter)
+
     logger.addHandler(file_handler)
+
+    logger.propagate = False
     return logger

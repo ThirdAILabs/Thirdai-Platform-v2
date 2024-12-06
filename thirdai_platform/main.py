@@ -87,6 +87,8 @@ async def log_requests(request: fastapi.Request, call_next):
     audit_log = {
         "ip": client_ip,
         "protocol": request.headers.get("x-forwarded-proto", request.url.scheme),
+        "method": request.method,
+        "user_agent": request.headers.get("user-agent", "Unknown"),
         "url": str(request.url),
         "query_params": dict(request.query_params),
         "path_params": dict(request.path_params),

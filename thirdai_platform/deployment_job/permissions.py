@@ -120,7 +120,7 @@ class Permissions:
             token (str): The access token.
 
         Returns:
-            Tuple[bool, bool, bool, username]: Read, write, override permissions and username.
+            Tuple[bool, bool, bool, str]: Read, write, override permissions and username.
         """
         cls._clear_expired_entries()
         curr_time = now()

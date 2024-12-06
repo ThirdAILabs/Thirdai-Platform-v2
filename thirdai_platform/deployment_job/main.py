@@ -212,19 +212,15 @@ async def startup_event() -> None:
     """
     Event handler for application startup.
     """
-    # Run the delayed status update in the background
     asyncio.create_task(delayed_status_update())
 
 
 async def delayed_status_update():
-    """
-    Delays the deploy status update by 10 seconds.
-    """
     try:
         await asyncio.sleep(10)
         reporter.update_deploy_status(config.model_id, "complete")
     except Exception as e:
-        error_message = f"Delayed status update failed with error: {e}"
+        error_message = f"Startup event failed with error: {e}"
         reporter.update_deploy_status(config.model_id, "failed", message=error_message)
         logger.critical(error_message, code=LogCode.MODEL_INIT)
 

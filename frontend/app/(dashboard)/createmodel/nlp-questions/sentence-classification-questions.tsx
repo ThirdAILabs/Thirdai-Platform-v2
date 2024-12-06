@@ -41,7 +41,7 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
   const [isDataGenerating, setIsDataGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<GeneratedData[]>([]);
   const [generateDataPrompt, setGenerateDataPrompt] = useState('');
-
+  const [isCategoriesSufficient, setIsCategoriesSufficient] = useState<boolean>(true);
   const router = useRouter();
 
   const handleCategoryChange = (index: number, field: string, value: string) => {
@@ -110,32 +110,37 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
     e.preventDefault();
 
     try {
-      setIsDataGenerating(true);
-
-      console.log('sending question', question);
-      console.log('sending answer', answer);
-      console.log('sending categories', categories);
-
-      const response = await fetch('/endpoints/generate-data-sentence-classification', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ question, answer, categories }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Network response was not ok');
+      if (categories.length < 2) {
+        setIsCategoriesSufficient(false);
       }
+      else {
+        setIsDataGenerating(true);
+        setIsCategoriesSufficient(true);
+        console.log('sending question', question);
+        console.log('sending answer', answer);
+        console.log('sending categories', categories);
 
-      const result = await response.json();
+        const response = await fetch('/endpoints/generate-data-sentence-classification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ question, answer, categories }),
+        });
 
-      console.log('result', result);
-      setGeneratedData(result.generatedExamples);
-      setGenerateDataPrompt(result.prompts);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Network response was not ok');
+        }
 
-      setIsDataGenerating(false);
+        const result = await response.json();
+
+        console.log('result', result);
+        setGeneratedData(result.generatedExamples);
+        setGenerateDataPrompt(result.prompts);
+
+        setIsDataGenerating(false);
+      }
     } catch (error) {
       console.error('Error generating data:', error);
       alert('Error generating data:' + error);
@@ -247,16 +252,16 @@ const SCQQuestions = ({ question, answer, workflowNames }: SCQQuestionsProps) =>
           >
             Add Category
           </Button>
-          {categories.length > 0 && (
-            <Button
-              variant="contained"
-              style={{ marginTop: '30px' }}
-              onClick={generateData}
-              color={isDataGenerating ? 'success' : 'primary'}
-            >
-              {isDataGenerating ? 'Generating data...' : 'Generate data'}
-            </Button>
-          )}
+
+          <Button
+            variant="contained"
+            style={{ marginTop: '30px' }}
+            onClick={generateData}
+            color={isDataGenerating ? 'success' : 'primary'}
+          >
+            {isDataGenerating ? 'Generating data...' : 'Generate data'}
+          </Button>
+          {!isCategoriesSufficient && <span className='text-red-500 italic'>*The categories should be atleast two to proceed data geneation.</span>}
         </div>
       </form>
 

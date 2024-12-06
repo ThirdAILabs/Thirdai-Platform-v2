@@ -4,7 +4,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi.responses import JSONResponse
-from platform_common.logging import setup_logger
+from platform_common.logging import setup_logger, file_logger
 from platform_common.utils import model_bazaar_path
 
 load_dotenv()
@@ -49,7 +49,7 @@ log_dir: Path = Path(model_bazaar_path()) / "logs"
 setup_logger(log_dir=log_dir, log_prefix="platform_backend")
 
 logger = logging.getLogger("platform-backend")
-audit_logger = custom_logger(log_dir=log_dir, log_prefix="audit")
+audit_logger = file_logger(log_dir=log_dir, log_prefix="audit")
 
 app.include_router(user, prefix="/api/user", tags=["user"])
 app.include_router(train, prefix="/api/train", tags=["train"])

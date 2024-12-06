@@ -78,7 +78,7 @@ async def global_exception_handler(request: fastapi.Request, exc: Exception):
 
 @app.middleware("http")
 async def log_requests(request: fastapi.Request, call_next):
-    if "/metrics" not in request.url.path:
+    if request.url.path.strip("/") != "metrics":
         # Don't log the prometheus client metric request
         x_forwarded_for = request.headers.get("x-forwarded-for")
         client_ip = (

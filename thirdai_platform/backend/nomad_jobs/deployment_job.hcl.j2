@@ -51,6 +51,11 @@ job "deployment-{{ model_id }}" {
         "traefik.http.middlewares.{{ model_id }}-stripprefix.stripprefix.prefixes=/{{ model_id }}",
         {% endif %}
         "traefik.http.routers.{{ model_id }}-http.priority=10",
+        # Health check configuration
+        "traefik.http.services.{{ model_id }}-http.loadbalancer.healthcheck.path=/",
+        "traefik.http.services.{{ model_id }}-http.loadbalancer.healthcheck.interval=10s",
+        "traefik.http.services.{{ model_id }}-http.loadbalancer.healthcheck.timeout=3s",
+        "traefik.http.services.{{ model_id }}-http.loadbalancer.healthcheck.scheme=http",
       ]
     }
 

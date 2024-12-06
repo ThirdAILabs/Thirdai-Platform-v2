@@ -62,7 +62,7 @@ class ClassificationModel(Model):
 
     def train_test_files(self) -> Tuple[List[str], List[str]]:
         train_files = expand_cloud_buckets_and_directories(
-            self.config.data.supervised_files
+            self.config.data.supervised_files, logger=self.logger
         )
         check_csv_only(train_files)
         self.temp_train_dir = tempfile.mkdtemp()
@@ -71,7 +71,9 @@ class ClassificationModel(Model):
 
         self.logger.debug(f"Found {len(train_files)} train files")
 
-        test_files = expand_cloud_buckets_and_directories(self.config.data.test_files)
+        test_files = expand_cloud_buckets_and_directories(
+            self.config.data.test_files, logger=self.logger
+        )
         check_csv_only(test_files)
         self.temp_test_dir = tempfile.mkdtemp()
         test_files = get_local_file_infos(test_files, self.temp_test_dir)

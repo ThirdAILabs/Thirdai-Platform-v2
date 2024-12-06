@@ -144,7 +144,17 @@ def get_model_permissions(
     return response(
         status_code=status.HTTP_200_OK,
         message=f"Successfully fetched user permissions for model with ID {model_id}",
-        data={"read": read, "write": write, "exp": exp, "override": override},
+        data={
+            "read": read,
+            "write": write,
+            "exp": exp,
+            "override": override,
+            "username": (
+                authenticated_user.user.username
+                if isinstance(authenticated_user, AuthenticatedUser)
+                else "unknown_access_public_model"
+            ),
+        },
     )
 
 

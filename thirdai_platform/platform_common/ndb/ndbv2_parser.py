@@ -2,15 +2,12 @@ import logging
 import os
 import uuid
 from typing import Any, Dict, Optional, Tuple
-
+from logging import Logger
 import pdftitle
 from fastapi import Response
 from platform_common import file_ops
 from platform_common.file_handler import FileInfo, FileLocation, download_file
 from thirdai import neural_db_v2 as ndbv2
-
-platform_logger = logging.getLogger("platform_backend")
-
 
 def convert_to_ndb_doc(
     resource_path: str,
@@ -101,14 +98,14 @@ def preload_chunks(
 
 
 def parse_doc(
-    doc: FileInfo, doc_save_dir: str, tmp_dir: str
+    doc: FileInfo, doc_save_dir: str, tmp_dir: str, logger: Optional[Logger] = None
 ) -> Optional[Tuple[ndbv2.Document, str]]:
     """
     Process a file, downloading it from S3, Azure, or GCP if necessary,
     and convert it to an NDB file.
     """
     if doc.location in {FileLocation.s3, FileLocation.azure, FileLocation.gcp}:
-        local_file_path = download_file(doc, tmp_dir)
+        local_file_path = download_file(doc, tmp_dir, logger)
         if not local_file_path:
             raise ValueError(f"Error downloading file '{doc.path}' from {doc.location}")
 

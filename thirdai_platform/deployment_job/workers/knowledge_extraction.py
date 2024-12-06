@@ -105,7 +105,7 @@ class ReportProcessorWorker:
             documents = json.load(file)
 
         documents = [FileInfo.model_validate(doc) for doc in documents]
-        documents = expand_cloud_buckets_and_directories(documents)
+        documents = expand_cloud_buckets_and_directories(documents, logger=self.logger)
 
         if not documents:
             self.logger.error(f"No documents found for report {report_id}.")
@@ -126,6 +126,7 @@ class ReportProcessorWorker:
                     doc=doc,
                     doc_save_dir=str(self.reports_base_path / report_id / "documents"),
                     tmp_dir=str(self.reports_base_path / report_id / "documents/tmp"),
+                    logger = self.logger
                 )
             )
             self.logger.debug(f"parsed document: {doc.path}")

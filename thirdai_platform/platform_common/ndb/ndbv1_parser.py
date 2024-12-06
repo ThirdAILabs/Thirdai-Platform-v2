@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
-
+from logging import Logger
 from fastapi import Response
 from platform_common.file_handler import FileInfo, FileLocation, download_file
 from thirdai import neural_db as ndb
@@ -46,14 +46,14 @@ def convert_to_ndb_file(
         raise TypeError(f"{ext} Document type isn't supported yet.")
 
 
-def parse_doc(doc: FileInfo, tmp_dir: str) -> ndb.Document:
+def parse_doc(doc: FileInfo, tmp_dir: str, logger: Optional[Logger] = None) -> ndb.Document:
     """
     Process a file, downloading it from S3, Azure, or GCP if necessary,
     and convert it to an NDB file.
     """
     # Download the file if it's stored in cloud
     if doc.location in {FileLocation.s3, FileLocation.azure, FileLocation.gcp}:
-        local_file_path = download_file(doc, tmp_dir)
+        local_file_path = download_file(doc, tmp_dir, logger = logger)
         if not local_file_path:
             return f"There was an error downloading the file from {doc.location}. {doc.path}"
     else:

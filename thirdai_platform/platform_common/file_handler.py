@@ -1,9 +1,9 @@
-import logging
 import os
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import List
+from logging import Logger
+from typing import List, Optional
 
 import boto3
 from botocore import UNSIGNED
@@ -12,8 +12,6 @@ from botocore.exceptions import ClientError
 from fastapi import HTTPException, UploadFile, status
 from platform_common import file_ops
 from platform_common.pydantic_models.training import FileInfo, FileLocation
-
-platform_logger = logging.getLogger("platform_backend")
 
 
 def download_local_file(file_info: FileInfo, upload_file: UploadFile, dest_dir: str):
@@ -85,7 +83,9 @@ def list_files_in_nfs_dir(path: str):
     return [path]
 
 
-def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[FileInfo]:
+def expand_cloud_buckets_and_directories(
+    file_infos: List[FileInfo], logger: Optional[Logger]
+) -> List[FileInfo]:
     """
     This function takes in a list of file infos and expands it so that each file info
     represents a single file that can be passed to NDB or UDT. This is because we allow
@@ -100,7 +100,7 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
         if file_info.location == FileLocation.local:
             expanded_files.append(file_info)
         elif file_info.location == FileLocation.s3:
-            s3_client = get_cloud_client(provider="s3")
+            s3_client = get_cloud_client(provider="s3", logger=logger)
             bucket_name, source_path = file_info.parse_s3_url()
             s3_objects = s3_client.list_files(
                 bucket_name=bucket_name, source_path=source_path
@@ -109,7 +109,7 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
                 expand_file_info(paths=s3_objects, file_info=file_info)
             )
         elif file_info.location == FileLocation.azure:
-            azure_client = get_cloud_client(provider="azure")
+            azure_client = get_cloud_client(provider="azure", logger=logger)
             container_name, blob_path = file_info.parse_azure_url()
             azure_objects = azure_client.list_files(
                 bucket_name=container_name, source_path=blob_path
@@ -126,7 +126,7 @@ def expand_cloud_buckets_and_directories(file_infos: List[FileInfo]) -> List[Fil
                 )
             )
         elif file_info.location == FileLocation.gcp:
-            gcp_client = get_cloud_client(provider="gcp")
+            gcp_client = get_cloud_client(provider="gcp", logger=logger)
             bucket_name, source_path = file_info.parse_gcp_url()
             gcp_objects = gcp_client.list_files(bucket_name, source_path)
             expanded_files.extend(
@@ -154,13 +154,16 @@ def handle_exceptions(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            class_name = args[0].__class__.__name__ if args else "UnknownClass"
-            method_name = func.__name__
-            platform_logger.error(
-                f"Error in class '{class_name}', method '{method_name}' "
-                f"with arguments {args[1:]}, and keyword arguments {kwargs}. "
-                f"Error: {str(e)}"
-            )
+            # Check if a logger is provided in kwargs
+            logger = getattr(args[0], "logger", None)
+            if logger:
+                class_name = args[0].__class__.__name__ if args else "UnknownClass"
+                method_name = func.__name__
+                logger.error(
+                    f"Error in class '{class_name}', method '{method_name}' "
+                    f"with arguments {args[1:]}, and keyword arguments {kwargs}. "
+                    f"Error: {str(e)}"
+                )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"An error occurred: {str(e)}",
@@ -174,6 +177,9 @@ class CloudStorageHandler(ABC):
     Interface for Cloud Storage Handlers.
     All cloud storage handlers must implement these methods.
     """
+
+    def __init__(self, logger: Optional[Logger] = None):
+        self.logger = logger
 
     @abstractmethod
     def create_bucket_if_not_exists(self, bucket_name: str):
@@ -218,8 +224,13 @@ class S3StorageHandler(CloudStorageHandler):
     """
 
     def __init__(
-        self, aws_access_key=None, aws_secret_access_key=None, region_name=None
+        self,
+        aws_access_key=None,
+        aws_secret_access_key=None,
+        region_name=None,
+        logger: Optional[Logger] = None,
     ):
+        super.__init__(self, logger)
         self.s3_client = self.create_s3_client(
             aws_access_key=aws_access_key,
             aws_secret_access_key=aws_secret_access_key,
@@ -260,7 +271,8 @@ class S3StorageHandler(CloudStorageHandler):
     def create_bucket_if_not_exists(self, bucket_name: str):
         try:
             self.s3_client.head_bucket(Bucket=bucket_name)
-            platform_logger.warning(f"Bucket {bucket_name} already exists.")
+            if self.logger:
+                self.logger.warning(f"Bucket {bucket_name} already exists.")
         except ClientError as e:
             error_code = int(e.response["Error"]["Code"])
             if error_code == 404:
@@ -268,12 +280,14 @@ class S3StorageHandler(CloudStorageHandler):
                     self.s3_client.create_bucket(
                         Bucket=bucket_name,
                     )
-                    platform_logger.info(f"Bucket {bucket_name} created successfully.")
+                    if self.logger:
+                        self.logger.info(f"Bucket {bucket_name} created successfully.")
                 except ClientError as e:
                     if e.response["Error"]["Code"] == "BucketAlreadyExists":
-                        platform_logger.warning(
-                            f"Bucket {bucket_name} already exists globally."
-                        )
+                        if self.logger:
+                            self.logger.warning(
+                                f"Bucket {bucket_name} already exists globally."
+                            )
                     elif e.response["Error"]["Code"] == "AccessDenied":
                         raise HTTPException(
                             status_code=status.HTTP_403_FORBIDDEN,
@@ -373,7 +387,8 @@ class S3StorageHandler(CloudStorageHandler):
                 ExpiresIn=expiry_mins * 60,
             )
         except ClientError as e:
-            platform_logger.error(f"Failed to generate presigned URL: {e}")
+            if self.logger:
+                self.logger.error(f"Failed to generate presigned URL: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to generate presigned URL: {str(e)}",
@@ -402,7 +417,10 @@ class S3StorageHandler(CloudStorageHandler):
 
 
 class AzureStorageHandler(CloudStorageHandler):
-    def __init__(self, account_name=None, account_key=None):
+    def __init__(
+        self, account_name=None, account_key=None, logger: Optional[Logger] = None
+    ):
+        super.__init__(self, logger)
         self._blob_service_client = self.create_azure_client(
             account_name=account_name, account_key=account_key
         )
@@ -436,13 +454,16 @@ class AzureStorageHandler(CloudStorageHandler):
         return f"https://{self._account_name}.blob.core.windows.net/{bucket_name}/{source_path}"
 
     @handle_exceptions
-    def create_bucket_if_not_exists(self, bucket_name: str):
+    def create_bucket_if_not_exists(
+        self, bucket_name: str, logger: Optional[Logger] = None
+    ):
         container_client = self.container_client(bucket_name=bucket_name)
         if not container_client.exists():
             container_client.create_container()
-            platform_logger.info(f"Container {bucket_name} created successfully.")
-        else:
-            platform_logger.warning(f"Container {bucket_name} already exists.")
+            if logger:
+                logger.info(f"Container {bucket_name} created successfully.")
+        elif logger:
+            logger.warning(f"Container {bucket_name} already exists.")
 
     @handle_exceptions
     def upload_file(self, source_path: str, bucket_name: str, dest_path: str):
@@ -557,7 +578,10 @@ class AzureStorageHandler(CloudStorageHandler):
 
 
 class GCPStorageHandler(CloudStorageHandler):
-    def __init__(self, credentials_file_path: str = None):
+    def __init__(
+        self, credentials_file_path: str = None, logger: Optional[Logger] = None
+    ):
+        super.__init__(self, logger)
         from google.cloud import storage
 
         if credentials_file_path:
@@ -580,10 +604,12 @@ class GCPStorageHandler(CloudStorageHandler):
     def create_bucket_if_not_exists(self, bucket_name: str):
         bucket = self._client.lookup_bucket(bucket_name)
         if bucket:
-            platform_logger.info(f"Bucket {bucket_name} already exists.")
+            if self.logger:
+                self.logger.info(f"Bucket {bucket_name} already exists.")
         else:
             self._client.create_bucket(bucket_name)
-            platform_logger.warning(f"Bucket {bucket_name} created successfully.")
+            if self.logger:
+                self.logger.warning(f"Bucket {bucket_name} created successfully.")
 
     @handle_exceptions
     def full_path(self, bucket_name: str, source_path: str):
@@ -672,7 +698,8 @@ class GCPStorageHandler(CloudStorageHandler):
                 method="GET",
             )
         except Exception as e:
-            platform_logger.error(f"Failed to generate signed URL: {e}")
+            if self.logger:
+                self.logger.error(f"Failed to generate signed URL: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to generate signed URL: {str(e)}",
@@ -701,7 +728,7 @@ class GCPStorageHandler(CloudStorageHandler):
 
 
 # TODO( YASH): Configure these variables through api endpoints, so that users can change through course of time.
-def get_cloud_client(provider: str):
+def get_cloud_client(provider: str, logger: Optional[Logger] = None):
     if provider == "s3":
         aws_access_key = os.getenv("AWS_ACCESS_KEY", None)
         aws_secret_access_key = os.getenv("AWS_ACCESS_SECRET", None)
@@ -710,14 +737,19 @@ def get_cloud_client(provider: str):
             aws_access_key=aws_access_key,
             aws_secret_access_key=aws_secret_access_key,
             region_name=region_name,
+            logger=logger,
         )
     elif provider == "azure":
         account_name = os.getenv("AZURE_ACCOUNT_NAME", None)
         account_key = os.getenv("AZURE_ACCOUNT_KEY", None)
-        return AzureStorageHandler(account_name=account_name, account_key=account_key)
+        return AzureStorageHandler(
+            account_name=account_name, account_key=account_key, logger=logger
+        )
     elif provider == "gcp":
         gcp_credentials_file = os.getenv("GCP_CREDENTIALS_FILE", None)
-        return GCPStorageHandler(credentials_file_path=gcp_credentials_file)
+        return GCPStorageHandler(
+            credentials_file_path=gcp_credentials_file, logger=logger
+        )
     else:
         raise ValueError(
             f"Currently supports s3,azure and gcp, but received {provider}"
@@ -725,60 +757,65 @@ def get_cloud_client(provider: str):
 
 
 # TODO (anyone): pass in the logger object to log at appropriate file.
-def download_file(doc: FileInfo, tmp_dir: str):
+def download_file(doc: FileInfo, tmp_dir: str, logger: Optional[Logger] = None):
     """
     General method to download a file from S3, Azure, or GCP to a temporary directory.
     """
     local_file_path = None
 
     if doc.location == FileLocation.s3:
-        s3_client = get_cloud_client(provider="s3")
+        s3_client = get_cloud_client(provider="s3", logger=logger)
         bucket_name, prefix = doc.parse_s3_url()
         local_file_path = os.path.join(tmp_dir, os.path.basename(prefix))
 
         try:
             s3_client.download_file(bucket_name, prefix, local_file_path)
         except Exception as error:
-            platform_logger.error(
-                f"There was an error downloading the file from S3: {error}. {doc.path}"
-            )
+            if logger:
+                logger.error(
+                    f"There was an error downloading the file from S3: {error}. {doc.path}"
+                )
             return None
 
     elif doc.location == FileLocation.azure:
-        azure_client = get_cloud_client(provider="azure")
+        azure_client = get_cloud_client(provider="azure", logger=logger)
         container_name, blob_name = doc.parse_azure_url()
         local_file_path = os.path.join(tmp_dir, os.path.basename(blob_name))
 
         try:
             azure_client.download_file(container_name, blob_name, local_file_path)
         except Exception as error:
-            platform_logger.error(
-                f"There was an error downloading the file from Azure: {error}. {doc.path}"
-            )
+            if logger:
+                logger.error(
+                    f"There was an error downloading the file from Azure: {error}. {doc.path}"
+                )
             return None
 
     elif doc.location == FileLocation.gcp:
-        gcp_client = get_cloud_client(provider="gcp")
+        gcp_client = get_cloud_client(provider="gcp", logger=logger)
         bucket_name, blob_name = doc.parse_gcp_url()
         local_file_path = os.path.join(tmp_dir, os.path.basename(blob_name))
 
         try:
             gcp_client.download_file(bucket_name, blob_name, local_file_path)
         except Exception as error:
-            platform_logger.error(
-                f"There was an error downloading the file from GCP: {error}. {doc.path}"
-            )
+            if logger:
+                logger.error(
+                    f"There was an error downloading the file from GCP: {error}. {doc.path}"
+                )
             return None
 
     return local_file_path
 
 
-def get_local_file_infos(files: List[FileInfo], tmp_dir: str):
+def get_local_file_infos(
+    files: List[FileInfo], tmp_dir: str, logger: Optional[Logger] = None
+):
     local_file_infos = []
     for file in files:
         if file.location in {FileLocation.s3, FileLocation.azure, FileLocation.gcp}:
             # Download the cloud file to the temporary directory
-            local_file_path = download_file(file, tmp_dir)
+            local_file_path = download_file(file, tmp_dir, logger=logger)
             if local_file_path:
                 local_file_infos.append(
                     FileInfo(
@@ -788,8 +825,8 @@ def get_local_file_infos(files: List[FileInfo], tmp_dir: str):
                         location=FileLocation.local,
                     )
                 )
-            else:
-                platform_logger.error(f"Failed to download cloud file: {file.path}")
+            elif logger:
+                logger.error(f"Failed to download cloud file: {file.path}")
         else:
             # Local files can be used as-is
             local_file_infos.append(file)

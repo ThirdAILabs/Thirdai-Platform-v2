@@ -91,6 +91,13 @@ async def log_requests(request: Request, call_next):
         "query_params": dict(request.query_params),
         "path_params": dict(request.path_params),
     }
+    try:
+        permissions = Permissions._get_permissions(
+            token=request.headers.get("Authorization").split()[1],
+        )
+        audit_log["username"] = permissions[3]
+    except Exception as e:
+        audit_log["username"] = "unknown"
     audit_logger.info(json.dumps(audit_log))
 
     response = await call_next(request)

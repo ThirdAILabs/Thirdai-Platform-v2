@@ -101,10 +101,10 @@ class NDBModel(Model):
     def insert(self, documents: List[FileInfo], **kwargs: Any) -> List[Dict[str, str]]:
         # TODO(V2 Support): add flag for upsert
 
-        documents = expand_cloud_buckets_and_directories(documents)
+        documents = expand_cloud_buckets_and_directories(documents, self.logger)
         ndb_docs = [
             ndbv2_parser.parse_doc(
-                doc, doc_save_dir=self.doc_save_path(), tmp_dir=self.data_dir
+                doc, doc_save_dir=self.doc_save_path(), tmp_dir=self.data_dir, logger = self.logger
             )
             for doc in documents
         ]

@@ -745,7 +745,7 @@ class NDBRouter:
         provider: str,
         token=Depends(Permissions.verify_permission("read")),
     ):
-        cloud_client = get_cloud_client(provider=provider)
+        cloud_client = get_cloud_client(provider=provider, logger=self.logger)
 
         signed_url = cloud_client.generate_url_from_source(source=source)
 

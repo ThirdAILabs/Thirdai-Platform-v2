@@ -67,11 +67,13 @@ class NeuralDBV2(Model):
         return os.path.join(self.ndb_save_path(), "documents")
 
     def unsupervised_files(self) -> List[FileInfo]:
-        return expand_cloud_buckets_and_directories(self.config.data.unsupervised_files)
+        return expand_cloud_buckets_and_directories(
+            self.config.data.unsupervised_files, logger=self.logger
+        )
 
     def supervised_files(self) -> List[FileInfo]:
         all_files = expand_cloud_buckets_and_directories(
-            self.config.data.supervised_files
+            self.config.data.supervised_files, logger=self.logger
         )
         for file in all_files:
             if file.ext() != ".csv" and file.ext() != ".jsonl":
@@ -98,7 +100,7 @@ class NeuralDBV2(Model):
             first_batch_start = time.perf_counter()
             curr_batch = pool.starmap(
                 parse_doc,
-                [(doc, doc_save_dir, tmp_dir) for doc in batches[0]],
+                [(doc, doc_save_dir, tmp_dir, self.logger) for doc in batches[0]],
                 chunksize=10,
             )
             first_batch_end = time.perf_counter()
@@ -111,7 +113,7 @@ class NeuralDBV2(Model):
                 if i + 1 < len(batches):
                     next_batch = pool.starmap_async(
                         parse_doc,
-                        [(doc, doc_save_dir, tmp_dir) for doc in batches[i + 1]],
+                        [(doc, doc_save_dir, tmp_dir, self.logger) for doc in batches[i + 1]],
                         chunksize=10,
                     )
                 else:

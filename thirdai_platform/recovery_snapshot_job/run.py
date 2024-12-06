@@ -41,16 +41,20 @@ def get_cloud_storage_handler(config: BackupConfig):
         return S3StorageHandler(
             aws_access_key=provider_config.aws_access_key,
             aws_secret_access_key=provider_config.aws_secret_access_key,
+            logger=logger,
         )
     elif isinstance(provider_config, AzureConfig):
         logger.info("Using Azure storage handler for backup.")
         return AzureStorageHandler(
             account_name=provider_config.azure_account_name,
             account_key=provider_config.azure_account_key,
+            logger=logger,
         )
     elif isinstance(provider_config, GCPConfig):
         logger.info("Using GCP storage handler for backup.")
-        return GCPStorageHandler(provider_config.gcp_credentials_file_path)
+        return GCPStorageHandler(
+            provider_config.gcp_credentials_file_path, logger=logger
+        )
     else:
         logger.info("No cloud storage handler configured; using local storage.")
         return None  # Local backup, no cloud handler

@@ -88,6 +88,7 @@ jobs:
       - name: Clone Platform repository
         run: |
           git clone git@github.com:ThirdAILabs/platform.git
+          cd platform
           git checkout ${{ github.event.inputs.installer_branch_name }}
 
       - name: Download and store the model

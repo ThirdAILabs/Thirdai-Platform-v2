@@ -47,7 +47,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "release" && "${{ github.ref_name }}" == "main" ]]; then
             branch_name="release-test-main"
           else
-            branch_name="testing-${{ github.ref_name//_/- }}"
+            branch_name=$(echo "test-${{ github.ref_name }}" | tr '_' '-')
           fi
           
           echo "Docker image branch to build on: $branch_name"

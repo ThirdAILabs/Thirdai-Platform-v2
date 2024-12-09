@@ -150,16 +150,16 @@ class UDTBaseRouter:
                 [tags[0] for tags in results.predicted_tags if tags[0] != "O"]
             )
             self.tokens_identified.log(identified_count)
-            self.logger.info(
+            self.logger.debug(
                 f"Prediction complete with {identified_count} tokens identified",
-                extra={"text_length": len(params.text)},
+                text_length=len(params.text),
             )
 
         elif isinstance(results, XMLTokenClassificationResults):
             self.tokens_identified.log(len(results.predictions))
-            self.logger.info(
+            self.logger.debug(
                 f"Prediction complete with {len(results.predictions)} predictions",
-                extra={"text_length": len(params.text)},
+                text_length=len(params.text),
             )
 
         end_time = time.perf_counter()

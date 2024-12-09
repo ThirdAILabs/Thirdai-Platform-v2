@@ -219,23 +219,23 @@ class TokenClassificationModel(ClassificationModel):
             raise e
 
     def predict(self, text: str, **kwargs):
-        log = convert_log_to_concrete_type(text)
-        model_predictions = self.model.predict(
-            log.inference_sample, top_k=1, as_unicode=True
-        )
-
         try:
+            log = convert_log_to_concrete_type(text)
+            model_predictions = self.model.predict(
+                log.inference_sample, top_k=1, as_unicode=True
+            )
             result = log.process_prediction(model_predictions)
         except ValueError as e:
+            message = f"Error processing prediction: {e}"
+            self.logger.error(message, code=LogCode.MODEL_PREDICT)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e),
+                detail=message,
             )
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=str(e),
-            )
+            message = f"Error processing prediction: {e}"
+            self.logger.error(message, code=LogCode.MODEL_PREDICT)
+            raise e
 
         return result
 

@@ -1,10 +1,10 @@
-from platform_common.pii.logtypes.base import LogType
-from platform_common.pii.logtypes.pydantic_models import (
+from platform_common.pii.data_types.base import DataType
+from platform_common.pii.data_types.pydantic_models import (
     UnstructuredTokenClassificationResults,
 )
 
 
-class UnstructuredTokenClassificationLog(LogType):
+class UnstructuredText(DataType):
     def __init__(self, log: str):
         self._inference_sample = {"source": log}
 

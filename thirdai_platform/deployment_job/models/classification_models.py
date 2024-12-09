@@ -7,7 +7,7 @@ from deployment_job.pydantic_models.inputs import SearchResultsTextClassificatio
 from fastapi import HTTPException, status
 from platform_common.logging import JobLogger
 from platform_common.logging.logcodes import LogCode
-from platform_common.pii.logtypes import convert_log_to_concrete_type
+from platform_common.pii.data_types import convert_log_to_concrete_type
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
     DataSample,

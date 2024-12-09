@@ -1,24 +1,24 @@
 from collections import defaultdict
 from typing import List, Tuple
 
-from platform_common.pii.logtypes.base import LogType
-from platform_common.pii.logtypes.pydantic_models import (
+from platform_common.pii.data_types.base import DataType
+from platform_common.pii.data_types.pydantic_models import (
     CharSpan,
     XMLLocation,
     XMLPrediction,
     XMLTokenClassificationResults,
     XPathLocation,
 )
-from platform_common.pii.logtypes.xml.parser import XMLParser
-from platform_common.pii.logtypes.xml.position_tracker import parse_xml_with_positions
-from platform_common.pii.logtypes.xml.utils import (
+from platform_common.pii.data_types.xml.parser import XMLParser
+from platform_common.pii.data_types.xml.position_tracker import parse_xml_with_positions
+from platform_common.pii.data_types.xml.utils import (
     clean_and_extract_xml_block,
     convert_xpath_using_attributes,
     find_span,
 )
 
 
-class XMLTokenClassificationLog(LogType):
+class XMLTokenClassificationLog(DataType):
     def __init__(self, log: str):
         # extract the xml block
         self.clean_log = clean_and_extract_xml_block(log)

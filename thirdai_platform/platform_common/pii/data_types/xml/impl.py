@@ -18,7 +18,7 @@ from platform_common.pii.data_types.xml.utils import (
 )
 
 
-class XMLTokenClassificationLog(DataType):
+class XMLLog(DataType):
     def __init__(self, log: str):
         # extract the xml block
         self.clean_log = clean_and_extract_xml_block(log)

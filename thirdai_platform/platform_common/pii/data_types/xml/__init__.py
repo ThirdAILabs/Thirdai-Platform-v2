@@ -1,3 +1,3 @@
-from platform_common.pii.data_types.xml.impl import XMLTokenClassificationLog
+from platform_common.pii.data_types.xml.impl import XMLLog
 
-__all__ = ["XMLTokenClassificationLog"]
+__all__ = ["XMLLog"]

@@ -1,15 +1,14 @@
-from platform_common.pii.data_types.base import LogType
 from platform_common.pii.data_types.pydantic_models import (
     UnstructuredTokenClassificationResults,
     XMLTokenClassificationResults,
 )
 from platform_common.pii.data_types.unstructured import UnstructuredText
-from platform_common.pii.data_types.xml import XMLTokenClassificationLog
+from platform_common.pii.data_types.xml import XMLLog
 
 
 def convert_log_to_concrete_type(log: str):
     try:
-        return XMLTokenClassificationLog(log)
+        return XMLLog(log)
     except:
         return UnstructuredText(log)
 
@@ -17,7 +16,7 @@ def convert_log_to_concrete_type(log: str):
 __all__ = [
     "DataType",
     "UnstructuredText",
-    "XMLTokenClassificationLog",
+    "XMLLog",
     "XMLTokenClassificationResults",
     "UnstructuredTokenClassificationResults",
 ]

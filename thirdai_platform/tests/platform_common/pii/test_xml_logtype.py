@@ -1,5 +1,5 @@
 import pytest
-from platform_common.pii.logtypes.xml.logtype import XMLTokenClassificationLog
+from platform_common.pii.data_types.xml.impl import XMLLog
 
 pytestmark = [pytest.mark.unit]
 
@@ -21,7 +21,7 @@ xml_string = """
 
 
 def test_xml_logtype_end_to_end():
-    log = XMLTokenClassificationLog(log=xml_string)
+    log = XMLLog(log=xml_string)
 
     inference_sample = log.inference_sample
 

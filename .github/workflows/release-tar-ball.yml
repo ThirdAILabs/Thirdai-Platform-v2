@@ -365,7 +365,7 @@ jobs:
         
   cleanup:
     runs-on: ubuntu-latest
-    needs: [build_docker_images, package, setup_ec2_instances]
+    needs: [build_docker_images, package, setup_ec2_instances, test]
     if: always()
     steps:
       - name: Install AWS CLI

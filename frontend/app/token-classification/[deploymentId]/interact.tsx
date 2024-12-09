@@ -73,7 +73,7 @@ interface xmlPrediction {
       start: number;
       end: number;
     };
-    xpath_location: XPathLocation
+    xpath_location: XPathLocation;
     value: string;
   };
 }
@@ -302,12 +302,11 @@ export default function Interact() {
         xpath_location: {
           xpath: selection.xpath,
           attribute: null,
-        }
+        },
       },
       label: selection.tag,
     };
     if (selection.tag === 'DELETE TAG') {
-
       setXmlAnnotations(
         xmlAnnotations.filter((item) => item.location.value !== xmlAnnotation.location.value)
       );

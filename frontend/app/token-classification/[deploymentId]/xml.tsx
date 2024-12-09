@@ -222,9 +222,12 @@ export function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
             {options.map((val, index) =>
               makeDropdownMenuItem(index, val.label, val.new, index === selectedIndex)
             )}
-            {
-              makeDropdownMenuItem(options.length, "DELETE TAG", false, options.length === selectedIndex)
-            }
+            {makeDropdownMenuItem(
+              options.length,
+              'DELETE TAG',
+              false,
+              options.length === selectedIndex
+            )}
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -239,7 +242,7 @@ function XMLAttributeRenderer({
   choices,
   predictions,
   onSelectionComplete,
-  xmlDom
+  xmlDom,
 }: XMLAttributeRendererProps) {
   const key = attr.substring(ATTRIBUTE_PREFIX.length);
   let dataString = JSON.stringify(data);
@@ -275,7 +278,7 @@ function XMLValueRenderer({
   choices,
   predictions,
   onSelectionComplete,
-  xmlDom
+  xmlDom,
 }: XMLValueRendererProps) {
   const [start, setStart] = useState<number | null>(null);
   const [end, setEnd] = useState<number | null>(null);
@@ -317,8 +320,14 @@ function XMLValueRenderer({
           const nextPrediction = predictions[j];
           const { start: startJ, end: endJ } = nextPrediction.location.local_char_span;
 
-          const predictionNode: any = Xpath.select(prediction.location.xpath_location.xpath, xmlDom);
-          const nextPredictionNode: any = Xpath.select(nextPrediction.location.xpath_location.xpath, xmlDom);
+          const predictionNode: any = Xpath.select(
+            prediction.location.xpath_location.xpath,
+            xmlDom
+          );
+          const nextPredictionNode: any = Xpath.select(
+            nextPrediction.location.xpath_location.xpath,
+            xmlDom
+          );
 
           if (predictionNode[0].firstChild.data === nextPredictionNode[0].firstChild.data) {
             // Check for intersection
@@ -386,7 +395,7 @@ function XMLValueRenderer({
         justifyContent: 'start',
         flexWrap: 'wrap',
         userSelect: 'none',
-        marginBottom: '5px'
+        marginBottom: '5px',
       }}
     >
       {charArray.map((token, index) => {
@@ -428,7 +437,7 @@ function XMLValueRenderer({
 
               const { start: startI, end: endI } = prediction.location.local_char_span;
               let isMatched = false;
-              if (index === (endI - 1)) {
+              if (index === endI - 1) {
                 isMatched = true;
                 return (
                   <span
@@ -447,13 +456,8 @@ function XMLValueRenderer({
         );
       })}
 
-
       {tagSelectorOpen && (
-        <TagSelector
-          open={tagSelectorOpen}
-          choices={choices}
-          onSelect={handleTagSelect}
-        />
+        <TagSelector open={tagSelectorOpen} choices={choices} onSelect={handleTagSelect} />
       )}
     </div>
   );
@@ -466,9 +470,8 @@ function XMLObjectRenderer({
   choices,
   predictions,
   onSelectionComplete,
-  xmlDom
+  xmlDom,
 }: XMLObjectRendererProps) {
-
   const attrs = Object.keys(data).filter((key) => key.startsWith(ATTRIBUTE_PREFIX));
   const numKeys = Object.keys(data).length;
   const emptyChild = numKeys === 0 || (numKeys - attrs.length === 1 && data['#text'] === '');
@@ -526,7 +529,7 @@ export function XMLRenderer({
   choices,
   predictions,
   onSelectionComplete,
-  xmlDom
+  xmlDom,
 }: XMLRendererProps) {
   if (typeof data === 'string') {
     // Data is a string, render it directly

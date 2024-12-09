@@ -143,7 +143,17 @@ def get_model_permissions(
     return response(
         status_code=status.HTTP_200_OK,
         message=f"Successfully fetched user permissions for model with ID {model_id}",
-        data={"read": read, "write": write, "exp": exp, "override": override},
+        data={
+            "read": read,
+            "write": write,
+            "exp": exp,
+            "override": override,
+            "username": (
+                authenticated_user.user.username
+                if isinstance(authenticated_user, AuthenticatedUser)
+                else "unknown"
+            ),
+        },
     )
 
 
@@ -223,6 +233,17 @@ async def deploy_single_model(
             genai_key=(genai_key or os.getenv("GENAI_KEY", "")),
         )
         requires_on_prem_llm = model_options.llm_provider == "on-prem"
+
+        ndb_metadata_path = os.path.join(
+            model_bazaar_path(), "models", str(model.id), "model.ndb", "metadata.json"
+        )
+        with open(ndb_metadata_path) as ndb_metadata_file:
+            chunk_store = json.load(ndb_metadata_file)["chunk_store_name"]
+        if chunk_store == "PandasChunkStore" and not autoscaling_enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot deploy in-memory NeuralDB in dev mode. Please use prod mode with autoscaling.",
+            )
     elif model.type == ModelType.UDT:
         model_options = UDTDeploymentOptions(udt_sub_type=model.sub_type)
     elif model.type == ModelType.ENTERPRISE_SEARCH:

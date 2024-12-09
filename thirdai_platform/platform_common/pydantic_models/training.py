@@ -35,7 +35,7 @@ class FileInfo(BaseModel):
     location: FileLocation
     source_id: Optional[str] = None
     options: Dict[str, Any] = {}
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Union[int, str, float, bool]]] = None
 
     def ext(self) -> str:
         _, ext = os.path.splitext(self.path)

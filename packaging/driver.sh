@@ -101,7 +101,7 @@ if [ "$ONBOARD_CLIENTS" -eq 1 ]; then
 fi
 
 # Model path
-MODEL_FOLDER="huggingface-models/"
+MODEL_FOLDER="pretrained-models/"
 
 # Warn if model file is not found
 if [ ! -d "$MODEL_FOLDER" ]; then

@@ -1,4 +1,4 @@
-name: Release Job
+name: Release/Installation-testing Job
 
 on:
   release:
@@ -354,7 +354,7 @@ jobs:
             fi
           done
           echo "::set-output name=exit_code::$exit_code"
-            
+
       - name: Test Next.js frontend
         if: always()
         id: frontend_test_status

@@ -99,14 +99,14 @@ if [ "$ONBOARD_CLIENTS" -eq 1 ]; then
 fi
 
 # Model path
-GENERATIVE_MODEL_FOLDER="gen-ai-models/"
+MODEL_FOLDER="pretrained-models/"
 
 # Warn if model file is not found
-if [ ! -d "$GENERATIVE_MODEL_FOLDER" ]; then
+if [ ! -d "$MODEL_FOLDER" ]; then
     echo "WARNING: Model file not found at $GENERATIVE_MODEL_FOLDER. The playbook will proceed without it."
 fi
 
-GENERATIVE_MODEL_FOLDER=$(realpath "$GENERATIVE_MODEL_FOLDER")
+MODEL_FOLDER=$(realpath "$MODEL_FOLDER")
 
 # Search for docker_images folder with a prefix
 DOCKER_IMAGES_PATH=$(find . -type d -name "docker_images-*" | head -n 1)
@@ -125,22 +125,22 @@ cd "$(dirname "$0")/platform" || exit 1
 if [ "$CLEANUP" -eq 1 ]; then
     echo "Running cleanup playbook..."
     if [ "$VERBOSE" -eq 1 ]; then
-        ansible-playbook playbooks/test_cleanup.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH" -vvvv
+        ansible-playbook playbooks/test_cleanup.yml --extra-vars "config_path=$CONFIG_PATH model_folder=$MODEL_FOLDER  docker_images=$DOCKER_IMAGES_PATH" -vvvv
     else
-        ansible-playbook playbooks/test_cleanup.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH"
+        ansible-playbook playbooks/test_cleanup.yml --extra-vars "config_path=$CONFIG_PATH model_folder=$MODEL_FOLDER  docker_images=$DOCKER_IMAGES_PATH"
     fi
 elif [ "$ONBOARD_CLIENTS" -eq 1 ]; then
     echo "Running onboarding playbook..."
     if [ "$VERBOSE" -eq 1 ]; then
-        ansible-playbook playbooks/onboard_clients.yml --extra-vars "config_path=$CONFIG_PATH new_client_config_path=$NEW_CLIENT_CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH" -vvvv
+        ansible-playbook playbooks/onboard_clients.yml --extra-vars "config_path=$CONFIG_PATH new_client_config_path=$NEW_CLIENT_CONFIG_PATH model_folder=$MODEL_FOLDER  docker_images=$DOCKER_IMAGES_PATH" -vvvv
     else
-        ansible-playbook playbooks/onboard_clients.yml --extra-vars "config_path=$CONFIG_PATH new_client_config_path=$NEW_CLIENT_CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH"
+        ansible-playbook playbooks/onboard_clients.yml --extra-vars "config_path=$CONFIG_PATH new_client_config_path=$NEW_CLIENT_CONFIG_PATH model_folder=$MODEL_FOLDER  docker_images=$DOCKER_IMAGES_PATH"
     fi
 else
     echo "Running deployment playbook..."
     if [ "$VERBOSE" -eq 1 ]; then
-        ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH" -vvvv
+        ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH model_folder=$MODEL_FOLDER  docker_images=$DOCKER_IMAGES_PATH" -vvvv
     else
-        ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH generative_model_folder=$GENERATIVE_MODEL_FOLDER docker_images=$DOCKER_IMAGES_PATH"
+        ansible-playbook playbooks/test_deploy.yml --extra-vars "config_path=$CONFIG_PATH model_folder=$MODEL_FOLDER  docker_images=$DOCKER_IMAGES_PATH"
     fi
 fi

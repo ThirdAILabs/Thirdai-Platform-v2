@@ -106,6 +106,7 @@ When changing the public IP of your Cluster, follow these steps to update the se
          ./driver.sh ./config --onboard_clients
       ```
    - When prompted, enter the absolute path to the `new_client_config.yml` file.
+   - Make sure to update the `nodes` attribute of the `config.yml` with the new nodes present in `new_client_config.yml` to enable the addition of `nodes` again. 
 
 ### Troubleshooting
 

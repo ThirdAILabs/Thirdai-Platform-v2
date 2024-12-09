@@ -414,4 +414,8 @@ jobs:
           python3 docker_remove.py -b ${{ needs.build_docker_images.outputs.docker_image_branch_name }} --version "$version" --client_id ${{ secrets.APPLICATION_ID }} --tenant_id ${{ secrets.TENANT_ID }} --secret ${{ secrets.SECRET }} --config config.yaml
       
       - name: Delete the offline and online tarballs from the s3 buckets
+        run: |
+          echo "Deleting package ${{ needs.package.outputs.offline_package_name }} and ${{ needs.package.outputs.online_package_name }} from S3..."
+          aws s3 rm s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ needs.package.outputs.offline_package_name }}
+          aws s3 rm s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ needs.package.outputs.online_package_name }}
         

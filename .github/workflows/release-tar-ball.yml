@@ -39,7 +39,7 @@ jobs:
             version=$(shuf -i 100-999 -n 3 | paste -sd '.')
           fi
           echo "Next version: $version"
-          echo "::set-output name=version::$version"
+          echo "version=$version" >> $GITHUB_STATE
 
       - name: Set the branch name of the docker images
         id: fetch_branch_name
@@ -51,7 +51,7 @@ jobs:
           fi
           
           echo "Docker image branch to build on: $branch_name"
-          echo "::set-output name=branch_name::$branch_name"
+          echo "branch_name=$branch_name" >> $GITHUB_STATE
           echo "branch_name=$branch_name" >> $GITHUB_ENV
       
       - name: Build and push docker images to the repository
@@ -69,7 +69,7 @@ jobs:
       - name: Extract the docker registry_password
         run: |
           PULL_PASSWORD=$(yq e '.azure.branches."'${branch_name}'".pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml)
-          echo "::set-output name=PULL_PASSWORD::$PULL_PASSWORD"
+          echo "PULL_PASSWORD=$PULL_PASSWORD" >> $GITHUB_OUTPUT
   
   package:
     runs-on: ubuntu-latest-8-cores
@@ -90,26 +90,24 @@ jobs:
           git clone git@github.com:ThirdAILabs/platform.git
           cd platform
           git checkout ${{ github.event.inputs.installer_branch_name }}
+          cd $GITHUB_WORKSPACE
 
       - name: Download and store the model
         run: |
           mkdir -p gen-ai-models
           wget -O gen-ai-models/Llama-3.2-1B-Instruct-f16.gguf https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-f16.gguf?download=true
 
-      - name: Ensure scripts directory exists
-        run: mkdir -p ./platform/scripts
-
       - name: Copy driver script to parent directory
         run: |
-          cp ./packaging/driver.sh ./driver.sh
+          cp $GITHUB_WORKSPACE/packaging/driver.sh ./driver.sh
 
       - name: Copy config.yml to parent directory
         run: |
-          cp ./platform/config.yml ./config.yml
+          cp $GITHUB_WORKSPACE/platform/config.yml ./config.yml
 
       - name: Copy README.md to parent directory
         run: |
-          cp ./packaging/README.md ./README.md
+          cp $GITHUB_WORKSPACE/packaging/README.md ./README.md
 
       - name: Upload platform package artifact
         uses: actions/upload-artifact@v3
@@ -198,14 +196,14 @@ jobs:
         id: online_pack
         run: |
           tarfile_name="thirdai-platform-package-${{ needs.build_docker_images.outputs.docker_image_branch_name }}-${{ needs.build_docker_images.outputs.version }}.tar.gz"
-          echo "::set-output name=name::$tarfile_name"
+          echo "name=$tarfile_name" >> $GITHUB_OUTPUT
           tar -czvf $tarfile_name ./platform ./gen-ai-models ./driver.sh ./config.yml ./README.md
 
       - name: Package Docker images, platform, model, driver script, config, and README into tarball
         id: offline_pack
         run: |
           tarfile_name="thirdai-platform-package-offline-${{ needs.build_docker_images.outputs.docker_image_branch_name }}-${{ needs.build_docker_images.outputs.version }}.tar.gz"
-          echo "::set-output name=name::$tarfile_name"
+          echo "name=$tarfile_name" >> $GITHUB_OUTPUT
           tar -czvf $tarfile_name ./platform ./docker_images-${{ needs.build_docker_images.outputs.version }} ./driver.sh ./config.yml ./README.md ./gen-ai-models
 
       - name: Upload online platform package to S3
@@ -257,7 +255,7 @@ jobs:
             --instance-ids i-08bfe31f7665561c5 \
             --query "Reservations[0].Instances[0].PublicIpAddress" \
             --output text)
-          echo "::set-ouput name=public_ip::$PUBLIC_IP"
+          echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
 
       - name: Set up SSH key
         run: |
@@ -335,7 +333,7 @@ jobs:
       - name: Generate random run name
         id: random-run-name
         run: |
-          echo "::set-output name=name::test_$(python3 -c "import secrets; print(secrets.token_urlsafe(8))")"
+          echo "name=test_$(python3 -c "import secrets; print(secrets.token_urlsafe(8))")" >> $GITHUB_OUTPUT
       
       - name: Run tests
         id: backend_test_status
@@ -354,7 +352,7 @@ jobs:
               break
             fi
           done
-          echo "::set-output name=exit_code::$exit_code"
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
 
       - name: Test Next.js frontend
         if: always()

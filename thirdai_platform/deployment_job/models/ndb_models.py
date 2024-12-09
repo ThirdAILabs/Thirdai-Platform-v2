@@ -21,6 +21,7 @@ from deployment_job.pydantic_models import inputs
 from fastapi import HTTPException, status
 from platform_common.file_handler import FileInfo, expand_cloud_buckets_and_directories
 from platform_common.logging import JobLogger, LogCode
+from platform_common.ndb.utils import delete_docs_and_remove_files
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.core.types import Chunk
@@ -122,8 +123,13 @@ class NDBModel(Model):
                 for doc in documents
                 if doc.source_id and doc.options.get("upsert", False)
             ]
-            for doc_id in upsert_doc_ids:
-                self.db.delete_doc(doc_id, keep_latest_version=True)
+
+            delete_docs_and_remove_files(
+                db=self.db,
+                doc_ids=upsert_doc_ids,
+                full_documents_path=self.doc_save_path(),
+                keep_latest_version=True,
+            )
 
         return [
             {
@@ -151,8 +157,12 @@ class NDBModel(Model):
 
     def delete(self, source_ids: List[str], **kwargs: Any) -> None:
         with self.db_lock:
-            for id in source_ids:
-                self.db.delete_doc(doc_id=id)
+            delete_docs_and_remove_files(
+                db=self.db,
+                doc_ids=source_ids,
+                full_documents_path=self.doc_save_path(),
+                keep_latest_version=False,
+            )
 
     def sources(self) -> List[Dict[str, str]]:
         with self.db_lock:

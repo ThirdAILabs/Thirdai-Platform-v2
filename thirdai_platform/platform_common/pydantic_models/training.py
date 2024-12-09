@@ -13,6 +13,7 @@ class ModelType(str, Enum):
     NDB = "ndb"
     UDT = "udt"
     ENTERPRISE_SEARCH = "enterprise-search"
+    KNOWLEDGE_EXTRACTION = "knowledge-extraction"
 
 
 class ModelDataType(str, Enum):
@@ -34,7 +35,7 @@ class FileInfo(BaseModel):
     location: FileLocation
     source_id: Optional[str] = None
     options: Dict[str, Any] = {}
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Union[int, str, float, bool]]] = None
 
     def ext(self) -> str:
         _, ext = os.path.splitext(self.path)
@@ -310,3 +311,10 @@ class TrainConfig(BaseModel):
             file.write(self.model_dump_json(indent=4))
 
         return config_path
+
+
+class QuestionKeywords(BaseModel):
+    question: str = Field(..., description="The mandatory question.")
+    keywords: Optional[List[str]] = Field(
+        default=None, description="Optional keywords for the question."
+    )

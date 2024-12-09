@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Workflow } from '@/lib/backend';
 import { CardDescription } from '@/components/ui/card';
-import { Button, TextField } from '@mui/material';
+import { Button, TextField, Typography, Stepper, Step, StepLabel, Box } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import DropdownMenu from '@/components/ui/dropDownMenu';
 import { create_enterprise_search_workflow, EnterpriseSearchOptions } from '@/lib/backend';
 import SemanticSearchQuestions from '../semantic-search-questions';
 import NERQuestions from '../nlp-questions/ner-questions';
-
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 interface EnterpriseSearchQuestionsProps {
   models: Workflow[];
   workflowNames: string[];
@@ -194,7 +194,7 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
     {
       title: 'App Name',
       content: (
-        <div>
+        <div className="mt-5">
           <TextField
             className="text-md w-full"
             value={modelName}
@@ -492,50 +492,53 @@ const EnterpriseSearchQuestions: React.FC<EnterpriseSearchQuestionsProps> = ({
 
   return (
     <div>
-      <div
-        className="mb-4"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'flex-start',
-          rowGap: '15px',
-          columnGap: '15px',
-        }}
-      >
-        {steps.map((step, index) => {
-          // Show all completed steps, current step, and LLM step if opted in
-          const shouldShow =
-            index <= Math.max(...completedSteps, currentStep) || (index === 2 && showLLMStep);
-
-          if (!shouldShow) return null;
-
-          return (
-            <Button
-              key={index}
-              variant={index === currentStep ? 'contained' : 'outlined'}
-              onClick={() => handleStepClick(index)}
-              style={{
-                marginBottom: '10px',
-                minWidth: '140px',
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                textTransform: 'none',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                padding: '0 16px',
-              }}
-            >
-              {step.title}
-            </Button>
-          );
-        })}
-      </div>
+      <Box sx={{ width: '100%' }}>
+        <Stepper activeStep={currentStep}>
+          {steps.map((step, index) => {
+            const stepProps: { completed?: boolean } = {};
+            const labelProps: {
+              optional?: React.ReactNode;
+            } = {};
+            return (
+              <Step key={step.title} {...stepProps}>
+                {step.title === 'LLM' ? (
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <StepLabel {...labelProps}>{step.title}</StepLabel>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span style={{ marginLeft: '8px', cursor: 'pointer' }}>
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="w-5 h-5"
+                          >
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="16" x2="12" y2="12" />
+                            <line x1="12" y1="8" x2="12.01" y2="8" />
+                          </svg>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" style={{ maxWidth: '300px' }}>
+                        <strong>This step is optional</strong>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                ) : (
+                  <StepLabel {...labelProps}>{step.title}</StepLabel>
+                )}
+              </Step>
+            );
+          })}
+        </Stepper>
+      </Box>
 
       {/* Step Content */}
-      <div>{steps[currentStep].content}</div>
+      <div className="mt-8">{steps[currentStep].content}</div>
 
       {/* Step Controls - only show if not on Knowledge Base step or LLM not chosen yet */}
       {!(currentStep === 1 && ssModelId) && (

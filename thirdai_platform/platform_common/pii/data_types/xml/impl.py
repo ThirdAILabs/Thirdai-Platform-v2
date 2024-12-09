@@ -49,7 +49,7 @@ class XMLLog(DataType):
     def inference_sample(self):
         return self._inference_sample
 
-    def process_prediction(self, model_predictions: str):
+    def process_prediction(self, model_predictions: List[List[Tuple[str, float]]]):
         tokens = self._inference_sample["source"].split()
 
         labels = defaultdict(list)

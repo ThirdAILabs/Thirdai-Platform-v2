@@ -26,12 +26,9 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
-      - name: Clone Platform repository and checkout specific branch
+      - name: Clone Platform repository
         run: |
           git clone git@github.com:ThirdAILabs/platform.git
-          cd platform
-          git fetch origin
-          git checkout splade-dir
       
       - name: Create a unified models folder
         run: |

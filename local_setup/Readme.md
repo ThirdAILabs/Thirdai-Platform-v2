@@ -82,6 +82,7 @@ Without this process, it is cumbersome to test out platform changes. We would ha
       - Change the `SENDGRID_KEY`
       - Change the `PYTHON_PATH` to your virtual env python path.
       - Change `GENAI_KEY` to your Generative AI provider key, e.g. OpenAI key.
+      - (*Optional, to run telemetry locally*) modify username/password of the `GRAFANA_DB_URL` variable accordingly.
 
 
 6. If you are running this dev environment on a Mac, navigate to the `thirdai_platform/backend/nomad_jobs` directory and make sure any hcl or hcl.j2 file doesn't have a line that is in the form of `cores = x`. If those lines exist, change the lines to be `cpu = x * 2500` (put the actual value of the multiplication, not x * 2500). Doing this will fix any issues related to resource allocation of Nomad jobs on MacOS, because running Docker on MacOS does funky things when trying to reserve CPUs.
@@ -100,11 +101,11 @@ Without this process, it is cumbersome to test out platform changes. We would ha
     - After extraction, you should have a directory named `keycloak-26.0.0`.
     - Open a terminal and navigate to the `keycloak-26.0.0` directory:
      ```bash
-     cd keycloak-26.0.0/bin
+     cd keycloak-26.0.0/
      ```
     - Start the Keycloak server in development mode with the following command:
      ```bash
-     ./kc.sh start-dev --http-port=8180 --debug --bootstrap-admin-username temp_admin --bootstrap-admin-password password
+     bin/kc.sh start-dev --http-port=8180 --debug --bootstrap-admin-username temp_admin --bootstrap-admin-password password
      ```
     - Wait for the server to start, and you should see a message indicating that the server is running. The server will be accessible at `http://localhost:8180`.
     - Once the server has started, you can access the Keycloak Admin Console by navigating to:

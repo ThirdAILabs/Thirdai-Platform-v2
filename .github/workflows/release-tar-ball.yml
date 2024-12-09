@@ -40,6 +40,7 @@ jobs:
           fi
           echo "Next version: $version"
           echo "version=$version" >> $GITHUB_STATE
+          echo "version=$version" >> $GITHUB_ENV
 
       - name: Set the branch name of the docker images
         id: fetch_branch_name
@@ -58,7 +59,7 @@ jobs:
         run: |
           cd release
           pip install -r requirements.txt
-          python3 push.py -b ${{ env.branch_name }} --config config.yaml --no-cache --version ${{ steps.fetch_version.outputs.version }}
+          python3 push.py -b ${{ env.branch_name }} --config config.yaml --no-cache --version ${{ env.version }}
       
       - name: Install yq for YAML parsing
         run: |
@@ -196,6 +197,7 @@ jobs:
         id: online_pack
         run: |
           tarfile_name="thirdai-platform-package-${{ needs.build_docker_images.outputs.docker_image_branch_name }}-${{ needs.build_docker_images.outputs.version }}.tar.gz"
+          echo "online_tarfile_name=$tarfile_name" >> $GITHUB_ENV
           echo "name=$tarfile_name" >> $GITHUB_OUTPUT
           tar -czvf $tarfile_name ./platform ./gen-ai-models ./driver.sh ./config.yml ./README.md
 
@@ -203,16 +205,17 @@ jobs:
         id: offline_pack
         run: |
           tarfile_name="thirdai-platform-package-offline-${{ needs.build_docker_images.outputs.docker_image_branch_name }}-${{ needs.build_docker_images.outputs.version }}.tar.gz"
+          echo "offline_tarfile_name=$tarfile_name" >> $GITHUB_ENV
           echo "name=$tarfile_name" >> $GITHUB_OUTPUT
           tar -czvf $tarfile_name ./platform ./docker_images-${{ needs.build_docker_images.outputs.version }} ./driver.sh ./config.yml ./README.md ./gen-ai-models
 
       - name: Upload online platform package to S3
         run: |
-          aws s3 cp ${{ steps.online_pack.outputs.name }} s3://thirdai-corp-public/ThirdAI-Platform-latest-release/
+          aws s3 cp ${{ env.online_tarfile_name }} s3://thirdai-corp-public/ThirdAI-Platform-latest-release/
 
       - name: Upload online platform package to S3
         run: |
-          aws s3 cp ${{ steps.offline_pack.outputs.name }} s3://thirdai-corp-public/ThirdAI-Platform-latest-release/
+          aws s3 cp ${{ env.offline_tarfile_name }} s3://thirdai-corp-public/ThirdAI-Platform-latest-release/
 
   setup_ec2_instances:
     runs-on: ubuntu-latest
@@ -256,6 +259,7 @@ jobs:
             --query "Reservations[0].Instances[0].PublicIpAddress" \
             --output text)
           echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+          echo "public_ip=$PUBLIC_IP" >> $GITHUB_ENV
 
       - name: Set up SSH key
         run: |
@@ -268,7 +272,7 @@ jobs:
       
       - name: Download the package and run driver.sh
         run: |
-          ssh -o StrictHostKeyChecking=no ubuntu@$${{ steps.host_machine.outputs.public_ip }}  <<<EOF
+          ssh -o StrictHostKeyChecking=no ubuntu@$${{ env.public_ip }}  <<<EOF
             aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ needs.package.outputs.online_package_name }} .
 
             # unzip the package
@@ -286,7 +290,7 @@ jobs:
               .platform_image_branch = "${{ needs.build_docker_images.outputs.docker_image_branch_name }}" |
               .docker_registry_password = "${{ needs.build_docker_images.outputs.docker_registy_password }}" |
               .login_method = "postgres" |
-              .nodes[0].public_ip = "${{ steps.host_machine.outputs.public_ip }}" |
+              .nodes[0].public_ip = "${{ env.public_ip }}" |
               .nodes[0].private_ip = "172.31.17.228" |
               .nodes[0].ssh_username = "ubuntu" |
               .nodes[0].connection_type = "local" |
@@ -306,7 +310,7 @@ jobs:
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
-    needs: [setup_ec2_instances]
+    needs: [build_docker_images, package, setup_ec2_instances]
     outputs:
       exit_code: ${{ steps.backend_test_status.outputs.exit_code }}
 
@@ -333,17 +337,17 @@ jobs:
       - name: Generate random run name
         id: random-run-name
         run: |
-          echo "name=test_$(python3 -c "import secrets; print(secrets.token_urlsafe(8))")" >> $GITHUB_OUTPUT
+          echo "random_run_name=test_$(python3 -c "import secrets; print(secrets.token_urlsafe(8))")" >> $GITHUB_ENV
       
       - name: Run tests
         id: backend_test_status
         run: |
           set -e
           commands=(
-            python3 -m headless.run_locally --base-url "http://${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag NDB --on-prem --generation
-            python3 -m headless.run_locally --base-url "http://${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag UDT
-            python3 -m headless.run_locally --base-url "http://${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag UDT_DATAGEN
-            python3 -m headless.run_locally --base-url "http://${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ steps.random-run-name.outputs.name }} --dag Recovery_Backup
+            python3 -m headless.run_locally --base-url "http://${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag NDB --on-prem --generation
+            python3 -m headless.run_locally --base-url "http://${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag UDT
+            python3 -m headless.run_locally --base-url "http://${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag UDT_DATAGEN
+            python3 -m headless.run_locally --base-url "http://${{ needs.start_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag Recovery_Backup
           )
           exit_code=0
           for cmd in "${commands[@]}"; do

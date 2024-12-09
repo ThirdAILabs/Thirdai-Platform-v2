@@ -447,10 +447,10 @@ export default function Interact() {
     setIsLoading(true);
     try {
       const result = await predict(text);
-      updateTagColors(result.prediction_results.predicted_tags);
       setProcessingTime(result.time_taken);
       setLogType(result.prediction_results.log_type);
       if (result.prediction_results.log_type === 'unstructured') {
+        updateTagColors(result.prediction_results.predicted_tags);
         setAnnotations(
           _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(
             ([text, tag]) => ({
@@ -1009,7 +1009,7 @@ export default function Interact() {
           </Typography>
         </Box>
 
-        {(annotations.length > 0 || xmlAnnotations.length > 0) && (
+        {(annotations.length > 0 || logType === 'xml') && (
           <Box mt={4} mb={2} display="flex" alignItems="center" justifyContent="flex-end">
             <FormControlLabel
               control={
@@ -1029,7 +1029,7 @@ export default function Interact() {
             <CircularProgress />
           </Box>
         ) : (
-          (annotations.length > 0 || xmlAnnotations.length > 0) && (
+          (annotations.length > 0 || logType === 'xml') && (
             <Box mt={4}>
               <Card
                 className="p-7 text-start"
@@ -1054,7 +1054,7 @@ export default function Interact() {
           marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
         }}
       >
-        {processingTime !== undefined && (annotations.length || xmlAnnotations.length) && (
+        {processingTime !== undefined && (annotations.length || logType === 'xml') && (
           <div className="mb-4">
             {' '}
             {annotations.length ? (
@@ -1065,7 +1065,7 @@ export default function Interact() {
             ) : (
               <InferenceTimeDisplay
                 processingTime={processingTime}
-                tokenCount={xmlAnnotations.length}
+                tokenCount={xmlQueryText?.split(' ').length}
               />
             )}
           </div>

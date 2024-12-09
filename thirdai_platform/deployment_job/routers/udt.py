@@ -130,6 +130,8 @@ class UDTBaseRouter:
         udt_query_length.observe(text_length)
 
         results = self.model.predict(**params.model_dump())
+        self.queries_ingested.log(1)
+        self.queries_ingested_bytes.log(len(params.text))
 
         # TODO(pratik/geordie/yash): Add logging for search results text classification
         if isinstance(results, UnstructuredTokenClassificationResults):
@@ -137,16 +139,13 @@ class UDTBaseRouter:
                 [tags[0] for tags in results.predicted_tags if tags[0] != "O"]
             )
             self.tokens_identified.log(identified_count)
-            self.queries_ingested.log(1)
-            self.queries_ingested_bytes.log(len(params.text))
             self.logger.info(
                 f"Prediction complete with {identified_count} tokens identified",
                 extra={"text_length": len(params.text)},
             )
 
         elif isinstance(results, XMLTokenClassificationResults):
-            self.queries_ingested.log(1)
-            self.queries_ingested_bytes.log(len(params.text))
+            self.tokens_identified.log(len(results.predictions))
             self.logger.info(
                 f"Prediction complete with {len(results.predictions)} predictions",
                 extra={"text_length": len(params.text)},

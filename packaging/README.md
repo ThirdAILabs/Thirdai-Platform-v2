@@ -67,6 +67,20 @@ Before running the script, ensure the following are installed on your machine:
    ```bash
    ./driver.sh ./config.yml
    ```
+
+5. **Configure the `frontendUrl` for the Admin Console**
+
+   After completing the installation, open your browser and visit the URL `https://{PUBLIC_IP}/keycloak`. You should be automatically redirected to the Keycloak Admin Console login page. Once you've logged in as the administrator, follow these steps to properly configure the frontend URL:
+
+   1. In the Admin Console, select **Realm Settings** from the side navigation.
+   2. Click on the **General** tab.
+   3. Locate the **Frontend URL** field and set it to:
+      ``` 
+      https://localhost/keycloak
+      ```
+      
+   By setting the Frontend URL to `https://localhost/keycloak`, you're ensuring that the Admin Console can only be accessed through a local browser session via port forwarding (e.g., using an SSH tunnel or a local proxy). This helps prevent direct public access to the console, thus improving the security of your Keycloak environment.
+
 ### Instruction to migrating to a different public IP/DNS
 
 When changing the public IP of your Cluster, follow these steps to update the settings and ensure proper functionality:
@@ -99,8 +113,6 @@ When changing the public IP of your Cluster, follow these steps to update the se
      ```
      https://{newPublicIP}/keycloak
      ```
-   - Ensure the new public URL corresponds to the domain name specified for the SSL certificate.
-   - If the domain does not match the new URL, you will need to provide an updated certificate for the new domain/IP.
    - If you dont have the access to older admin console, then you may need to do change the env var `KC_HOSTNAME` and `KC_HOSTNAME_ADMIN` to new public IP in the Keycloak Job, restart it before seeing the change. 
 
 

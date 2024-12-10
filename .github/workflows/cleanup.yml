@@ -1,0 +1,71 @@
+name: Remove given docker images and s3 object
+
+on:
+  workflow_dispatch:
+    inputs:
+      docker_image_branch_name:
+        description: "Branch name of the docker images"
+        required: true
+        type: string
+
+      docker_image_version:
+        description: "version of the docker images (without prefix 'v')"
+        required: true
+        type: string
+      
+      offline_package_name:
+        description: "Offline tarball filename"
+        required: true
+        type: string
+
+      online_package_name:
+        description: "Online tarball filename"
+        required: true
+        type: string
+
+jobs:
+  Retrieve_facts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: "Azure Login"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Delete docker images from azure repository
+        run: |
+          cd release
+          pip install -r requirements.txt
+          version="${{ github.event.inputs.docker_image_version }}"
+          echo "Deleting Docker images for branch ${{ github.event.inputs.docker_image_branch_name }} with version: $version"
+          python3 docker_remove.py -b ${{ github.event.inputs.docker_image_branch_name }} --version "$version" --client_id ${{ secrets.APPLICATION_ID }} --tenant_id ${{ secrets.TENANT_ID }} --secret ${{ secrets.SECRET }} --config config.yaml
+      
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
+      - name: Configure AWS credentials
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region us-east-1
+
+      - name: Verify AWS CLI Setup
+        run: |
+          aws --version
+          aws sts get-caller-identity
+      
+      - name: Delete the offline and online tarballs from the s3 buckets
+        run: |
+          echo "Deleting package ${{ github.event.inputs.offline_package_name }} and ${{ github.event.inputs.online_package_name }} from S3..."
+          aws s3 rm s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ github.event.inputs.offline_package_name }}
+          aws s3 rm s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ github.event.inputs.online_package_name }}

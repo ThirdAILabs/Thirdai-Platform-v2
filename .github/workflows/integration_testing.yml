@@ -1,0 +1,214 @@
+name: Image integration testing of given tarball
+
+on:
+    workflow_call:
+        inputs:
+            docker_image_branch_name:
+                description: "Branch name of the docker images"
+                required: true
+                type: string
+            docker_image_version:
+                description: "version of the docker images (with prefix 'v')"
+                required: true
+                type: string
+                default: latest
+            docker_registry_password:
+                description: "Docker registry password for the docker image"
+                required: true
+                type: string
+            tarball_filename:
+                description: "Tarball file name in the S3 bucket"
+                required: true
+                type: string
+        outputs:
+            test_exit_code:
+                description: "Exit code of the test-run"
+                value: ${{ jobs.test.outputs.exit_code }}
+
+jobs:
+    setup_the_ec2_instances:
+        runs-on: ubuntu-latest
+        outputs:
+            server_machine_public_ip: ${{ steps.host_machine.outputs.public_ip }}
+        steps:
+            - name: Install AWS CLI
+              run: |
+                sudo apt-get update
+                sudo apt-get install -y awscli
+
+            - name: Configure AWS credentials
+              run: |
+                aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+                aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                aws configure set region us-east-1
+
+            - name: Verify AWS CLI Setup
+              run: |
+                aws --version
+                aws sts get-caller-identity
+            
+            # These instances already have the aws configured to pull thirdai-packages from the s3 bucket
+            - name: start the ec2-instance
+              run: |
+                aws ec2 start-instances --instance-ids i-08bfe31f7665561c5 i-00c741703fbf15a4d
+            
+            - name: Wait for EC2 to be running
+              run: |
+                echo "Waiting for EC2 instance to start..."
+                sleep 30
+
+            - name: Fetch the public ip of the server machine
+              id: host_machine
+              run: |
+                PUBLIC_IP=$(aws ec2 describe-instances \
+                    --instance-ids i-08bfe31f7665561c5 \
+                    --query "Reservations[0].Instances[0].PublicIpAddress" \
+                    --output text)
+                echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+            
+            - name: Set up SSH key
+              run: |
+                mkdir -p ~/.ssh
+                echo "${{ secrets.HOST_MACHINE_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+                chmod 600 ~/.ssh/id_rsa
+                
+            - name: Add EC2 Host to Known Hosts
+              run: ssh-keyscan -H ${{ secrets.HOST_MACHINE_PUBLIC_KEY }} >> ~/.ssh/known_hosts
+            
+            - name: Download the package and run driver.sh
+              run: |
+                ssh -o StrictHostKeyChecking=no ubuntu@$${{ steps.host_machine.outputs.public_ip }}  <<<EOF
+                aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ github.event.inputs.tarball_filename }} .
+    
+                # unzip the package
+                mkdir -p package
+                tar -xvf ${{ github.event.inputs.tarball_filename }} -C package
+    
+                # Modify the config.yml
+                yq -i '
+                    .license_path = "/home/ubuntu/ndb_enterprise_license.json" |
+                    .admin_mail = "${{ secrets.EMAIL }}" |
+                    .admin_username = "admin" |
+                    .admin_password = "${{ secrets.PASSWORD }}" |
+                    .genai_key = "${{ secrets.GENAI_KEY }}" |
+                    .thirdai_platform_version = "${{ github.event.inputs.docker_image_version }}" |
+                    .platform_image_branch = "${{ github.event.inputs.docker_image_branch_name }}" |
+                    .docker_registry_password = "${{ github.event.inputs.docker_registry_password }}" |
+                    .login_method = "postgres" |
+                    .nodes[0].public_ip = "${{ steps.host_machine.outputs.public_ip }}" |
+                    .nodes[0].private_ip = "172.31.17.228" |
+                    .nodes[0].ssh_username = "ubuntu" |
+                    .nodes[0].connection_type = "local" |
+                    .nodes[1].private_ip = "172.31.31.123" |
+                    .nodes[1].ssh_username = "ubuntu" |
+                    .nodes[1].connection_type = "ssh" |
+                '  ./package/config.yml
+    
+                # Run the driver.sh script
+                source ./package/driver.sh ./package/config.yml -v 1>./package/installation.out 2>./package/installation.err
+                EOF
+            
+            - name: Wait for 7 minutes to let the model_bazaar get started
+              run: sleep $((7 * 60))
+
+    test:
+        strategy:
+            fail-fast: false
+        runs-on: ubuntu-latest
+        needs: [setup_the_ec2_instances]
+        outputs:
+            exit_code: ${{ steps.backend_test_status.outputs.exit_code }}
+        steps:
+            - name: Checkout the repository
+              uses: actions/checkout@v2
+            
+            - name: Set up Python 3.9
+              uses: actions/setup-python@v2
+              with:
+                python-version: 3.9
+
+            - name: Install requirements
+              run: |
+                cd headless
+                pip install -r requirements.txt
+
+            - name: Env variables
+              run: |
+                echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
+                echo "GENAI_KEY=${{ secrets.GENAI_KEY }}" >> $GITHUB_ENV
+                mkdir -p ${{ env.SHARE_DIR }}
+
+            - name: Generate random run name
+              id: random-run-name
+              run: |
+                echo "random_run_name=test_$(python3 -c "import secrets; print(secrets.token_urlsafe(8))")" >> $GITHUB_ENV
+            
+            - name: Run tests
+              id: backend_test_status
+              run: |
+                set -e
+                commands=(
+                    python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag NDB --on-prem --generation
+                    python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag UDT
+                    python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag UDT_DATAGEN
+                    python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag Recovery_Backup
+                )
+                exit_code=0
+                for cmd in "${commands[@]}"; do
+                    if ! eval "$cmd"; then
+                    exit_code=$?
+                    break
+                    fi
+                done
+                echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+
+            - name: Test Next.js frontend
+              if: always()
+              id: frontend_test_status
+              run: |
+                BASE_URL_WITHOUT_API=$(echo "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}")
+                echo "Testing frontend at $BASE_URL_WITHOUT_API"
+                curl -f "$BASE_URL_WITHOUT_API" || exit 1
+    
+    clean_ec2_instances:
+        runs-on: ubuntu-latest
+        needs: [setup_the_ec2_instances, test]
+        if: always()
+        steps:
+            - name: Install AWS CLI
+              run: |
+                sudo apt-get update
+                sudo apt-get install -y awscli
+
+            - name: Configure AWS credentials
+              run: |
+                aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+                aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                aws configure set region us-east-1
+
+            - name: Verify AWS CLI Setup
+              run: |
+                aws --version
+                aws sts get-caller-identity
+            
+            - name: Set up SSH key
+              run: |
+                mkdir -p ~/.ssh
+                echo "${{ secrets.HOST_MACHINE_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+                chmod 600 ~/.ssh/id_rsa
+                
+            - name: Add EC2 Host to Known Hosts
+              run: ssh-keyscan -H ${{ secrets.HOST_MACHINE_PUBLIC_KEY }} >> ~/.ssh/known_hosts
+
+            - name: run the cleanup script
+              run: |
+                ssh -o StrictHostKeyChecking=no ubuntu@${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }} <<<EOF
+
+                    source ./package/driver.sh ./package/config.yml --cleanup -v 1>./package/cleanup.out 2>./package/cleanup.err
+                    rm -rf ./package "./${{ github.event.inputs.tarball_filename }}"
+                EOF
+            
+            - name: Stop the ec2-machine
+              run: |
+                aws ec2 stop-instances --instance-ids i-08bfe31f7665561c5 i-00c741703fbf15a4d
+        

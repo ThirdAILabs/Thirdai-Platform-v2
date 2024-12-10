@@ -1,0 +1,49 @@
+name: Build and push docker images
+
+on:
+  workflow_call:
+    inputs:
+      docker_image_branch_name:
+          description: "Branch name of the docker images"
+          required: true
+          type: string
+      docker_image_version:
+          description: "version of the docker images (without prefix 'v')"
+          required: true
+          type: string
+    outputs:
+      pull_password:
+        description: "Docker registry password for the provided image"
+        value: ${{ jobs.build_docker_images.outputs.pull_password }}
+
+jobs:
+  build_docker_images:
+    runs-on: ubuntu-latest-16-cores
+    outputs:
+      pull_password: "${{ steps.docker_registry.outputs.PULL_PASSWORD }}"
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+      
+      - name: "Azure Login"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build and push docker images to the repository
+        run: |
+          cd release
+          pip install -r requirements.txt
+          python3 push.py -b ${{ github.event.inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ github.event.inputs.docker_image_version }}
+        
+      - name: Install yq for YAML parsing
+        run: |
+            sudo add-apt-repository ppa:rmescandon/yq
+            sudo apt update
+            sudo apt install yq -y
+      
+      - name: Extract the docker registry_password
+        id: docker_registry
+        run: |
+          PULL_PASSWORD=$(yq e '.azure.branches."'${branch_name}'".pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml)
+          echo "PULL_PASSWORD=$PULL_PASSWORD" >> $GITHUB_OUTPUT

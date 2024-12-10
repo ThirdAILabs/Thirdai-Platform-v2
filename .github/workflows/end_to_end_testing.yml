@@ -1,8 +1,11 @@
 name: Release/Installation-testing Job
 
 on:
-  release:
-    types: [published] # This triggers the workflow when a new release is published
+  workflow_dispatch: # Allows manual triggering of the workflow
+    inputs:
+      installer_branch_name:
+        description: "Ansible-repo branch name"
+        type: string
 
 jobs:
   Retrieve_facts:
@@ -16,14 +19,14 @@ jobs:
       - name: Get the new version of the docker images
         id: fetch_version
         run: |
-          version=${{ github.event.release.tag_name }}
-          echo "Next version: $version"
+          version=$(shuf -i 100-999 -n 3 | paste -sd '.')
+          echo "Generated version: $version"
           echo "version=$version" >> $GITHUB_OUTPUT
 
       - name: Set the branch name of the docker images
         id: fetch_branch_name
         run: |
-          branch_name="release-test-main"
+          branch_name="test-${{ github.ref.name }}"
           echo "Docker image branch to build on: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
 
@@ -51,9 +54,8 @@ jobs:
       docker_registry_password: ${{ needs.Build_and_push_images.outputs.pull_password }}
       tarball_filename: ${{ needs.package.outputs.online_package_name }}
   
-  conditional_cleanup:
+  cleanup:
     needs: [Retrieve_facts, Build_and_push_images, package, run_tests]
-    if: needs.run_tests.outputs.test_exit_code
     uses: ./.github/workflows/cleanup.yml
     with:
       docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}

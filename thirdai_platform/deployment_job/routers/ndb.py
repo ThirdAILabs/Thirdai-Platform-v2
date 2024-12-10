@@ -783,3 +783,7 @@ class NDBRouter:
             message=f"Reference with id ${reference_id} is not a PDF.",
             data={},
         )
+
+    def shutdown(self):
+        self.logger.info(f"Shutting down NeuralDB deployment")
+        self.model.cleanup()

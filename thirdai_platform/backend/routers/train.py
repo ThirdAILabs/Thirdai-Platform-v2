@@ -90,7 +90,7 @@ def train_ndb(
 ):
     user: schema.User = authenticated_user.user
     try:
-        model_options = NDBOptions.model_validate_json(model_options)
+        model_options: NDBOptions = NDBOptions.model_validate_json(model_options)
         data = NDBData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
         logging.info(f"Extra options for training: {model_options}")

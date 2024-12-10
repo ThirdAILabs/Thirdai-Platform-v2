@@ -79,6 +79,9 @@ jobs:
       offline_package_name: ${{ steps.offline_pack.outputs.offline_tarfile_name }}
       online_package_name: ${{ steps.online_pack.outputs.online_tarfile_name }}
     steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
       - name: Set up SSH for cloning
         run: |
           mkdir -p ~/.ssh
@@ -91,12 +94,7 @@ jobs:
           git clone git@github.com:ThirdAILabs/platform.git
           cd platform
           git checkout ${{ github.event.inputs.installer_branch_name }}
-          cd $GITHUB_WORKSPACE
-
-      - name: Create a unified models folder
-        run: |
-          mkdir -p pretrained-models/
-
+          cd ..
       - name: Download and store the Llama model in the unified models folder
         run: |
           mkdir -p pretrained-models/genai
@@ -118,15 +116,15 @@ jobs:
 
       - name: Copy driver script to parent directory
         run: |
-          cp $GITHUB_WORKSPACE/packaging/driver.sh ./driver.sh
+          cp ./packaging/driver.sh ./driver.sh
 
       - name: Copy config.yml to parent directory
         run: |
-          cp $GITHUB_WORKSPACE/platform/config.yml ./config.yml
+          cp ./platform/config.yml ./config.yml
 
       - name: Copy README.md to parent directory
         run: |
-          cp $GITHUB_WORKSPACE/packaging/README.md ./README.md
+          cp ./packaging/README.md ./README.md
 
       - name: Upload platform package artifact
         uses: actions/upload-artifact@v3

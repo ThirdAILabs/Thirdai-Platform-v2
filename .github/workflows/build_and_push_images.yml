@@ -8,7 +8,7 @@ on:
           required: true
           type: string
       docker_image_version:
-          description: "version of the docker images (without prefix 'v')"
+          description: "Docker image version (without prefix 'v')"
           required: true
           type: string
     outputs:

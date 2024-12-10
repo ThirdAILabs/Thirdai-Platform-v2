@@ -1,4 +1,4 @@
-name: Release/Installation-testing Job
+name: End to end integration testing
 
 on:
   workflow_dispatch: # Allows manual triggering of the workflow

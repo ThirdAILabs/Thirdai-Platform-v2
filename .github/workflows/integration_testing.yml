@@ -1,4 +1,4 @@
-name: Image integration testing of given tarball
+name: Integration testing of given tarball
 
 on:
     workflow_call:

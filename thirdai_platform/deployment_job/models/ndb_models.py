@@ -412,4 +412,6 @@ class NDBModel(Model):
 
     def cleanup(self):
         if self.config.autoscaling_enabled:
-            shutil.rmtree(self.ndb_host_save_path, ignore_errors=True)
+            del self.db
+            self.logger.info(f"Cleaning up model at {self.host_model_dir}")
+            shutil.rmtree(self.host_model_dir, ignore_errors=True)

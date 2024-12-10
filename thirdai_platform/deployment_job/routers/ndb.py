@@ -785,4 +785,5 @@ class NDBRouter:
         )
 
     def shutdown(self):
+        self.logger.info(f"Shutting down NeuralDB deployment")
         self.model.cleanup()

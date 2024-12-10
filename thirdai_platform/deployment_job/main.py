@@ -224,10 +224,15 @@ async def startup_event() -> None:
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    if isinstance(backend_router_factory, NDBRouter):
+
+    logger.debug(
+        f"Shutting down FastAPI Application",
+    )
+
+    if isinstance(backend_router, NDBRouter):
         deployment_status = reporter.get_deploy_status(config.model_id)
         if deployment_status == "stopped":
-            backend_router_factory.shutdown()
+            backend_router.shutdown()
 
 
 if __name__ == "__main__":

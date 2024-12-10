@@ -228,6 +228,7 @@ async def delayed_status_update():
         error_message = f"Startup event failed with error: {e}"
         reporter.update_deploy_status(config.model_id, "failed", message=error_message)
         logger.critical(error_message, code=LogCode.MODEL_INIT)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

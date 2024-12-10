@@ -4,7 +4,7 @@ import logging
 import os
 import secrets
 import traceback
-import uuid
+
 from collections import defaultdict
 from pathlib import Path
 from typing import Annotated, Optional, Union
@@ -273,7 +273,6 @@ async def deploy_single_model(
             detail=f"Unsupported model type '{model.type}'.",
         )
 
-    host_dir_uuid = str(uuid.uuid4())
     config = DeploymentConfig(
         user_id=str(user.id),
         model_id=str(model.id),
@@ -282,9 +281,9 @@ async def deploy_single_model(
             os.getenv("SHARE_DIR", None) if platform == "local" else "/model_bazaar"
         ),
         host_dir=(
-            os.path.join(os.getenv("SHARE_DIR", None), host_dir_uuid)
+            os.path.join(os.getenv("SHARE_DIR", None), host_dir)
             if platform == "local"
-            else os.path.join("/thirdai_platform", "host_dir", host_dir_uuid)
+            else os.path.join("/thirdai_platform", "host_dir")
         ),
         license_key=license_info["boltLicenseKey"],
         autoscaling_enabled=autoscaling_enabled,

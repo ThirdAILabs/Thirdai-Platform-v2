@@ -263,8 +263,31 @@ class NDBModel(Model):
 
     def load(self, write_mode: bool = False, **kwargs) -> ndbv2.NeuralDB:
         try:
+            if self.host_model_dir.parent.exists():
+                # This logic for cleaning up of old models assumes there can only be one deployment of a model at a time
+                self.logger.info(
+                    f"Cleaning up stale model copies at {self.host_model_dir.parent}"
+                )
+
+                if write_mode:
+                    shutil.rmtree(self.host_model_dir.parent, ignore_errors=True)
+                else:
+                    deployment_ids = [
+                        deployment.name
+                        for deployment in self.host_model_dir.parent.iterdir()
+                        if deployment.is_dir()
+                    ]
+                    for deployment_id in deployment_ids:
+                        if deployment_id != self.config.deployment_id:
+                            shutil.rmtree(
+                                self.host_model_dir.parent / deployment_id,
+                                ignore_errors=True,
+                            )
+
             if write_mode:
-                loaded_ndb = ndbv2.NeuralDB.load(self.ndb_save_path(), read_only=not write_mode)
+                loaded_ndb = ndbv2.NeuralDB.load(
+                    self.ndb_save_path(), read_only=not write_mode
+                )
 
                 self.logger.info(
                     f"Loaded NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}",

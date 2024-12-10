@@ -10,7 +10,15 @@ import {
   Alert,
 } from '@mui/material';
 import { Button } from '@/components/ui/button';
-import React, { CSSProperties, ReactNode, useEffect, useRef, useState } from 'react';
+import React, {
+  CSSProperties,
+  ReactNode,
+  useEffect,
+  useRef,
+  useState,
+  ChangeEvent,
+  KeyboardEvent,
+} from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import * as _ from 'lodash';
 import { useTokenClassificationEndpoints } from '@/lib/backend';
@@ -30,8 +38,8 @@ import {
   convertCSVToPDFFormat,
   ParsedData,
 } from '@/utils/fileParsingUtils';
-// import TimerIcon from '@mui/icons-material/Timer';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
+import ExpandingInput from '@/components/ui/ExpandingInput';
 
 interface Token {
   text: string;
@@ -871,40 +879,7 @@ export default function Interact() {
       <div style={{ flex: 2, marginRight: '20px' }}>
         <Box display="flex" flexDirection="column" width="100%">
           <Box display="flex" justifyContent="center" alignItems="center" width="100%">
-            <label htmlFor="file-upload" style={{ marginRight: '10px' }}>
-              <Button size="sm" asChild>
-                <span>Upload File</span>
-              </Button>
-            </label>
-            <input
-              ref={fileInputRef}
-              id="file-upload"
-              type="file"
-              accept=".txt,.pdf,.docx,.csv,.xls,.xlsx"
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
-            />
-            <Input
-              autoFocus
-              className="text-md"
-              style={{ height: '3rem', flex: 1 }}
-              value={inputText}
-              onChange={handleInputChange}
-              placeholder="Enter your text..."
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleRun(inputText);
-                }
-              }}
-            />
-            <Button
-              size="sm"
-              style={{ height: '3rem', marginLeft: '10px', padding: '0 20px' }}
-              onClick={() => handleRun(inputText)}
-            >
-              Run
-            </Button>
+            <ExpandingInput onSubmit={handleRun} onFileChange={handleFileChange} />
           </Box>
 
           {fileError && (
@@ -912,10 +887,6 @@ export default function Interact() {
               {fileError}
             </Alert>
           )}
-
-          <Typography variant="caption" display="block" mt={1}>
-            Supported file types: .txt, .pdf, .docx, .csv, .xls, .xlsx (Max size: 1MB)
-          </Typography>
         </Box>
 
         {annotations.length > 0 && (

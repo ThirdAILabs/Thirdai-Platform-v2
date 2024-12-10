@@ -12,19 +12,19 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      version: "v${{ steps.fetch_version.outputs.version }}"
-      docker_image_branch_name: ${{ steps.fetch_branch_name.outputs.branch_name }}
+      version: "v${{ steps.docker_image_version.outputs.version }}"
+      docker_image_branch_name: ${{ steps.docker_image_branch_name.outputs.branch_name }}
 
     steps:
       - name: Get the new version of the docker images
-        id: fetch_version
+        id: docker_image_version
         run: |
           version=$(shuf -i 100-999 -n 3 | paste -sd '.')
           echo "Generated version: $version"
           echo "version=$version" >> $GITHUB_OUTPUT
 
       - name: Set the branch name of the docker images
-        id: fetch_branch_name
+        id: docker_image_branch_name
         run: |
           branch_name="test-${{ github.ref.name }}"
           echo "Docker image branch to build on: $branch_name"

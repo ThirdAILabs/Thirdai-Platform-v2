@@ -207,11 +207,20 @@ async def homepage(request: Request) -> dict:
     return {"Deployment"}
 
 
+@app.get("/health")
+async def health_check() -> dict:
+    return {"status": "success"}
+
+
 @app.on_event("startup")
 async def startup_event() -> None:
     """
     Event handler for application startup.
     """
+    asyncio.create_task(delayed_status_update())
+
+
+async def delayed_status_update():
     try:
         await asyncio.sleep(10)
         reporter.update_deploy_status(config.model_id, "complete")
@@ -219,7 +228,7 @@ async def startup_event() -> None:
         error_message = f"Startup event failed with error: {e}"
         reporter.update_deploy_status(config.model_id, "failed", message=error_message)
         logger.critical(error_message, code=LogCode.MODEL_INIT)
-        raise e  # Re-raise the exception to propagate it to the main block
+        sys.exit(1)
 
 
 @app.on_event("shutdown")

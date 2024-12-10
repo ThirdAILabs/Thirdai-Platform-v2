@@ -31,7 +31,6 @@ def download_local_files(
 ) -> List[FileInfo]:
     # Keep using full paths in the mapping
     filename_to_file = {file.filename: file for file in files}
-    print(filename_to_file)
 
     os.makedirs(dest_dir, exist_ok=True)
 

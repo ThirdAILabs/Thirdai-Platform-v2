@@ -280,7 +280,7 @@ async def deploy_single_model(
             os.getenv("SHARE_DIR", None) if platform == "local" else "/model_bazaar"
         ),
         host_dir=(
-            os.path.join(os.getenv("SHARE_DIR", None), host_dir)
+            os.path.join(os.getenv("SHARE_DIR", None), "host_dir")
             if platform == "local"
             else os.path.join("/thirdai_platform", "host_dir")
         ),

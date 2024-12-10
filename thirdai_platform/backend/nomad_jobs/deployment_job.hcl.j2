@@ -59,6 +59,7 @@ job "deployment-{{ model_id }}" {
         driver = "raw_exec"
       {% elif platform == "docker" %}  
         driver = "docker"
+        kill_timeout = "15s"
 
       template {
         destination = "${NOMAD_SECRETS_DIR}/env.vars"
@@ -100,7 +101,8 @@ EOF
             server_address = "{{ registry }}"
           }
           volumes = [
-            "{{ share_dir }}:/model_bazaar"
+            "{{ share_dir }}:/model_bazaar",
+            "/opt/thirdai_platform:/thirdai_platform"
           ]
           command = "python3"
           args    = ["-m", "uvicorn", "main:app", "--app-dir", "{{ app_dir }}", "--host", "0.0.0.0", "--port", "80"]

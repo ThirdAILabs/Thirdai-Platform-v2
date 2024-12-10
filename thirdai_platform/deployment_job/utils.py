@@ -1,6 +1,7 @@
 import ast
 import datetime
 import enum
+import fcntl
 import re
 from typing import Tuple
 
@@ -148,3 +149,14 @@ def old_pdf_chunks(db: ndb.NeuralDB, reference: ndb.Reference):
         "text": [text for text, _ in text_and_highlights],
         "boxes": boxes,
     }
+
+
+def acquire_file_lock(lockfile):
+    lock = open(lockfile, "w")
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    return lock
+
+
+def release_file_lock(lock):
+    fcntl.flock(lock, fcntl.LOCK_UN)
+    lock.close()

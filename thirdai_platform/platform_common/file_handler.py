@@ -15,6 +15,8 @@ from platform_common.pydantic_models.training import FileInfo, FileLocation
 
 
 def download_local_file(file_info: FileInfo, upload_file: UploadFile, dest_dir: str):
+    assert upload_file is not None
+
     # Create the destination path preserving the directory structure
     destination_path = os.path.join(dest_dir, upload_file.filename)
     os.makedirs(os.path.dirname(destination_path), exist_ok=True)
@@ -39,7 +41,10 @@ def download_local_files(
             try:
                 local_path = download_local_file(
                     file_info=file_info,
-                    upload_file=filename_to_file[file_info.path],
+                    upload_file=filename_to_file.get(
+                        str(file_info.path),
+                        filename_to_file.get(os.path.basename(file_info.path)),
+                    ),
                     dest_dir=dest_dir,
                 )
                 file_ops.clear_cache(local_path)

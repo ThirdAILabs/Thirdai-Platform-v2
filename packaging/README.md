@@ -67,6 +67,8 @@ Before running the script, ensure the following are installed on your machine:
    ```bash
    ./driver.sh ./config.yml
    ```
+
+
 ### Instruction to migrating to a different public IP/DNS
 
 When changing the public IP of your Cluster, follow these steps to update the settings and ensure proper functionality:
@@ -99,8 +101,6 @@ When changing the public IP of your Cluster, follow these steps to update the se
      ```
      https://{newPublicIP}/keycloak
      ```
-   - Ensure the new public URL corresponds to the domain name specified for the SSL certificate.
-   - If the domain does not match the new URL, you will need to provide an updated certificate for the new domain/IP.
    - If you dont have the access to older admin console, then you may need to do change the env var `KC_HOSTNAME` and `KC_HOSTNAME_ADMIN` to new public IP in the Keycloak Job, restart it before seeing the change. 
 
 

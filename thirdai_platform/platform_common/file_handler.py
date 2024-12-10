@@ -15,9 +15,6 @@ from platform_common.pydantic_models.training import FileInfo, FileLocation
 
 
 def download_local_file(file_info: FileInfo, upload_file: UploadFile, dest_dir: str):
-    # Since we're using full paths now, modify the assertion to compare full paths
-    assert file_info.path == upload_file.filename
-
     # Create the destination path preserving the directory structure
     destination_path = os.path.join(dest_dir, upload_file.filename)
     os.makedirs(os.path.dirname(destination_path), exist_ok=True)

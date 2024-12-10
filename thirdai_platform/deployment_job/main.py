@@ -207,6 +207,11 @@ async def homepage(request: Request) -> dict:
     return {"Deployment"}
 
 
+@app.get("/health")
+async def health_check() -> dict:
+    return {"status": "success"}
+
+
 @app.on_event("startup")
 async def startup_event() -> None:
     """

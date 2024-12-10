@@ -23,9 +23,10 @@ from client.bazaar import ModelBazaar
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="http://localhost:80")
-    parser.add_argument("--email", type=str, default="david@thirdai.com")
+    parser.add_argument("--email", type=str, default="admin@thirdai.com")
     parser.add_argument("--password", type=str, default="password")
     parser.add_argument("--on_disk", action="store_true")
+    parser.add_argument("--prod_mode", action="store_true")
     parser.add_argument("--deployment_id", type=str)
     parser.add_argument("--doc_size_mb", type=int, choices=[5, 100, 500], default=1)
     args = parser.parse_args()
@@ -100,7 +101,7 @@ if not args.deployment_id:
     )
 
     ndb_client = client.deploy(
-        model_identifier, autoscaling_enabled=True
+        model_identifier, autoscaling_enabled=args.prod_mode
     )
 
     deployment_id = ndb_client.model_id
@@ -170,5 +171,6 @@ def benchmark_queries(num_queries=10, constrained=False):
     print(f"Avg Latency for query type constrained = {constrained}: {1000 * (total_time / num_queries)} ms")
 
 
-benchmark_queries(num_queries=100, constrained=False)
-benchmark_queries(num_queries=100, constrained=True)
+benchmark_queries(num_queries=5, constrained=False)
+benchmark_queries(num_queries=5, constrained=True)
+

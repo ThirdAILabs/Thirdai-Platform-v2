@@ -50,13 +50,13 @@ def parse_args():
     parser.add_argument(
         "--min_wait",
         type=float,
-        default=10,
+        default=1,
         help="Minimum wait time between tasks in seconds",
     )
     parser.add_argument(
         "--max_wait",
         type=float,
-        default=20,
+        default=2,
         help="Maximum wait time between tasks in seconds",
     )
     parser.add_argument("--predict_weight", type=int, default=0)

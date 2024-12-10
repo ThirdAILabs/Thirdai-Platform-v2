@@ -328,7 +328,7 @@ def test_deploy_ndb_prod_mode(tmp_dir, on_disk):
     client = TestClient(router.router)
 
     deployment_dir = os.path.join(
-        tmp_dir, "models", config.model_id, "deployments/data"
+        tmp_dir, "models", config.model_id, config.deployment_id, "deployments/data"
     )
     check_log_lines(os.path.join(deployment_dir, "feedback"), 0)
     check_log_lines(os.path.join(deployment_dir, "insertions"), 0)

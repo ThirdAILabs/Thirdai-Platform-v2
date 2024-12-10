@@ -90,7 +90,7 @@ def train_ndb(
 ):
     user: schema.User = authenticated_user.user
     try:
-        model_options = NDBOptions.model_validate_json(model_options)
+        model_options: NDBOptions = NDBOptions.model_validate_json(model_options)
         data = NDBData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
         logging.info(f"Extra options for training: {model_options}")
@@ -151,6 +151,7 @@ def train_ndb(
         base_model = get_base_model(base_model_identifier, user=user, session=session)
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -318,6 +319,7 @@ def retrain_ndb(
     shutil.copytree(feedback_dir, supervised_train_dir)
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -473,6 +475,7 @@ def nlp_datagen(
         )
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -788,6 +791,7 @@ def retrain_udt(
     )
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -954,6 +958,7 @@ def train_udt(
         base_model = get_base_model(base_model_identifier, user=user, session=session)
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),

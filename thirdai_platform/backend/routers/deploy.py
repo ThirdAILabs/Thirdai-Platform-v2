@@ -2,6 +2,7 @@ import heapq
 import json
 import logging
 import os
+import secrets
 import traceback
 import uuid
 from collections import defaultdict
@@ -38,6 +39,7 @@ from platform_common.dependencies import is_on_low_disk
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     EnterpriseSearchOptions,
+    KnowledgeExtractionOptions,
     NDBDeploymentOptions,
     UDTDeploymentOptions,
 )
@@ -142,7 +144,17 @@ def get_model_permissions(
     return response(
         status_code=status.HTTP_200_OK,
         message=f"Successfully fetched user permissions for model with ID {model_id}",
-        data={"read": read, "write": write, "exp": exp, "override": override},
+        data={
+            "read": read,
+            "write": write,
+            "exp": exp,
+            "override": override,
+            "username": (
+                authenticated_user.user.username
+                if isinstance(authenticated_user, AuthenticatedUser)
+                else "unknown"
+            ),
+        },
     )
 
 
@@ -152,6 +164,7 @@ async def deploy_single_model(
     deployment_name: Optional[str],
     memory: Optional[int],
     autoscaling_enabled: bool,
+    autoscaler_min_count: int,
     autoscaler_max_count: int,
     genai_key: Optional[str],
     session: Session,
@@ -211,6 +224,7 @@ async def deploy_single_model(
     platform = get_platform()
 
     requires_on_prem_llm = False
+    knowledge_extraction = False
     if model.type == ModelType.NDB:
         model_options = NDBDeploymentOptions(
             llm_provider=(
@@ -220,6 +234,17 @@ async def deploy_single_model(
             genai_key=(genai_key or os.getenv("GENAI_KEY", "")),
         )
         requires_on_prem_llm = model_options.llm_provider == "on-prem"
+
+        ndb_metadata_path = os.path.join(
+            model_bazaar_path(), "models", str(model.id), "model.ndb", "metadata.json"
+        )
+        with open(ndb_metadata_path) as ndb_metadata_file:
+            chunk_store = json.load(ndb_metadata_file)["chunk_store_name"]
+        if chunk_store == "PandasChunkStore" and not autoscaling_enabled:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot deploy in-memory NeuralDB in dev mode. Please use prod mode with autoscaling.",
+            )
     elif model.type == ModelType.UDT:
         model_options = UDTDeploymentOptions(udt_sub_type=model.sub_type)
     elif model.type == ModelType.ENTERPRISE_SEARCH:
@@ -229,6 +254,19 @@ async def deploy_single_model(
             guardrail_id=attributes.get("guardrail_id", None),
         )
         requires_on_prem_llm = attributes.get("llm_provider") == "on-prem"
+    elif model.type == ModelType.KNOWLEDGE_EXTRACTION:
+        attributes = model.get_attributes()
+        model_options = KnowledgeExtractionOptions(
+            llm_provider=(
+                attributes.get("llm_provider") or os.getenv("LLM_PROVIDER", "openai")
+            ),
+            genai_key=(genai_key or os.getenv("GENAI_KEY", "")),
+            advanced_indexing=attributes["advanced_indexing"],
+            rerank=attributes["rerank"],
+            generate_answers=attributes["generate_answers"],
+        )
+        requires_on_prem_llm = model_options.llm_provider == "on-prem"
+        knowledge_extraction = True
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -237,6 +275,7 @@ async def deploy_single_model(
 
     host_dir_uuid = str(uuid.uuid4())
     config = DeploymentConfig(
+        user_id=str(user.id),
         model_id=str(model.id),
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
         model_bazaar_dir=(
@@ -267,6 +306,7 @@ async def deploy_single_model(
             share_dir=os.getenv("SHARE_DIR", None),
             config_path=config.save_deployment_config(),
             autoscaling_enabled=("true" if autoscaling_enabled else "false"),
+            autoscaler_min_count=str(autoscaler_min_count),
             autoscaler_max_count=str(autoscaler_max_count),
             memory=memory,
             python_path=get_python_path(),
@@ -278,6 +318,8 @@ async def deploy_single_model(
             azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
             azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
             gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
+            knowledge_extraction=knowledge_extraction,
+            job_token=secrets.token_hex(16),
         )
 
         model.deploy_status = schema.Status.starting
@@ -310,6 +352,7 @@ async def deploy_model(
     deployment_name: Optional[str] = None,
     memory: Optional[int] = None,
     autoscaling_enabled: bool = False,
+    autoscaler_min_count: int = 1,
     autoscaler_max_count: int = 1,
     genai_key: Optional[str] = None,
     session: Session = Depends(get_session),
@@ -359,6 +402,7 @@ async def deploy_model(
                 deployment_name=deployment_name if dependency.id == model.id else None,
                 memory=memory,
                 autoscaling_enabled=autoscaling_enabled,
+                autoscaler_min_count=autoscaler_min_count,
                 autoscaler_max_count=autoscaler_max_count,
                 genai_key=genai_key,
                 session=session,

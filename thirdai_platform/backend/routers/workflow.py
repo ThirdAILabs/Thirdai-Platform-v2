@@ -1,16 +1,27 @@
+import os
 import pathlib
 import uuid
 from typing import List, Optional
 
+from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import get_current_user
 from backend.utils import get_model, validate_name
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from platform_common.dependencies import is_on_low_disk
-from platform_common.pydantic_models.training import ModelType, UDTSubType
-from platform_common.utils import disk_usage, get_section, response
-from pydantic import BaseModel
+from platform_common.knowledge_extraction.schema import (
+    Keyword,
+    Question,
+    get_knowledge_db_session,
+)
+from platform_common.pydantic_models.training import (
+    ModelType,
+    QuestionKeywords,
+    UDTSubType,
+)
+from platform_common.utils import disk_usage, get_section, model_bazaar_path, response
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
 workflow_router = APIRouter()
@@ -141,4 +152,131 @@ def create_enterprise_search_workflow(
             "user_id": str(user.id),
             "disk_usage": disk_usage(),
         },
+    )
+
+
+class KnowledgeExtractionRequest(BaseModel):
+    model_name: str = Field(..., description="The name of the model to be created.")
+    questions: List[QuestionKeywords] = Field(
+        ..., description="A list of questions with optional keywords.", min_length=1
+    )
+    llm_provider: str
+
+    advanced_indexing: bool = True
+    rerank: bool = True
+    generate_answers: bool = True
+
+    @model_validator(mode="after")
+    def check_valid_llm_provider(self):
+        if self.llm_provider not in {"on-prem", "openai", "cohere"}:
+            raise ValueError("Invalid llm_provider specified.")
+        return self
+
+
+@workflow_router.post("/knowledge-extraction", dependencies=[Depends(is_on_low_disk())])
+def train_knowledge_extraction(
+    request: KnowledgeExtractionRequest,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    user: schema.User = authenticated_user.user
+
+    try:
+        validate_name(request.model_name)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"'{request.model_name}' is not a valid model name.",
+        )
+
+    unique_questions = set()
+    for q in request.questions:
+        question = q.question.lower()
+        if question in unique_questions:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=f"Duplicate question '{q.question}' detected",
+            )
+        unique_questions.add(question)
+
+    duplicate_model = get_model(
+        session, username=user.username, model_name=request.model_name
+    )
+    if duplicate_model:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Model with name '{request.model_name}' already exists for user '{user.username}'.",
+        )
+
+    try:
+        new_model = schema.Model(
+            user_id=user.id,
+            train_status=schema.Status.not_started,
+            deploy_status=schema.Status.not_started,
+            name=request.model_name,
+            type=ModelType.KNOWLEDGE_EXTRACTION,
+            domain=user.domain,
+            access_level=schema.Access.private,
+        )
+        session.add(new_model)
+        session.commit()
+        session.refresh(new_model)
+        attributes = {
+            "llm_provider": request.llm_provider,
+            "advanced_indexing": request.advanced_indexing,
+            "rerank": request.rerank,
+            "generate_answers": request.generate_answers,
+        }
+        for k, v in attributes.items():
+            session.add(schema.ModelAttribute(model_id=new_model.id, key=k, value=v))
+        session.commit()
+
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create the model: {err}",
+        )
+
+    new_model.train_status = schema.Status.in_progress
+    session.commit()
+
+    knowledge_db_path = os.path.join(
+        model_bazaar_path(), "models", str(new_model.id), "knowledge.db"
+    )
+    os.makedirs(os.path.dirname(knowledge_db_path), exist_ok=True)
+
+    try:
+        KnowledgeSessionLocal = get_knowledge_db_session(knowledge_db_path)
+        knowledge_session = KnowledgeSessionLocal()
+        # Save questions and keywords in the knowledge extraction database
+        for question_item in request.questions:
+            question = Question(
+                id=str(uuid.uuid4()), question_text=question_item.question
+            )
+            knowledge_session.add(question)
+            if question_item.keywords:
+                for keyword in question_item.keywords:
+                    keyword_entry = Keyword(
+                        id=str(uuid.uuid4()), question_id=question.id, text=keyword
+                    )
+                    knowledge_session.add(keyword_entry)
+        knowledge_session.commit()
+    except Exception as err:
+        knowledge_session.rollback()
+        new_model.train_status = schema.Status.failed
+        session.commit()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to store questions and keywords: {err}",
+        )
+    finally:
+        knowledge_session.close()
+
+    new_model.train_status = schema.Status.complete
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully created the knowledge extraction model.",
+        data={"model_id": str(new_model.id), "user_id": str(user.id)},
     )

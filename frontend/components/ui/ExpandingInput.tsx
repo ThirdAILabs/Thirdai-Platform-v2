@@ -7,7 +7,7 @@ interface EnhancedInputProps {
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
 }
 
-const EnhancedInput: React.FC<EnhancedInputProps> = ({ onSubmit, onFileChange }) => {
+const ExpandingInput: React.FC<EnhancedInputProps> = ({ onSubmit, onFileChange }) => {
   const [inputText, setInputText] = useState<string>('');
   const [showTooltip, setShowTooltip] = useState<boolean>(false);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -104,4 +104,4 @@ const EnhancedInput: React.FC<EnhancedInputProps> = ({ onSubmit, onFileChange })
   );
 };
 
-export default EnhancedInput;
+export default ExpandingInput;

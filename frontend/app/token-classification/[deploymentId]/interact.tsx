@@ -39,7 +39,7 @@ import {
   ParsedData,
 } from '@/utils/fileParsingUtils';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
-import EnhancedInput from '@/components/ui/EnhancedInput';
+import ExpandingInput from '@/components/ui/ExpandingInput';
 
 interface Token {
   text: string;
@@ -879,7 +879,7 @@ export default function Interact() {
       <div style={{ flex: 2, marginRight: '20px' }}>
         <Box display="flex" flexDirection="column" width="100%">
           <Box display="flex" justifyContent="center" alignItems="center" width="100%">
-            <EnhancedInput onSubmit={handleRun} onFileChange={handleFileChange} />
+            <ExpandingInput onSubmit={handleRun} onFileChange={handleFileChange} />
           </Box>
 
           {fileError && (

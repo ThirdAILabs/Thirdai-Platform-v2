@@ -11,7 +11,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { parseCSV, parseExcel, parseTXT } from '@/utils/fileParsingUtils';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 import ThumbsUpButton from './thumbsUpButton';
-import EnhancedInput from '@/components/ui/EnhancedInput';
+import ExpandingInput from '@/components/ui/ExpandingInput';
 
 interface ParsedData {
   type: 'csv' | 'pdf' | 'other';
@@ -170,7 +170,7 @@ export default function Page() {
         >
           <Box display="flex" flexDirection="column" width="100%">
             <Box display="flex" justifyContent="center" alignItems="center" width="100%">
-              <EnhancedInput onSubmit={handleRun} onFileChange={handleFileChange} />
+              <ExpandingInput onSubmit={handleRun} onFileChange={handleFileChange} />
             </Box>
 
             {fileError && (

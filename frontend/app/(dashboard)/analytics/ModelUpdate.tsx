@@ -2,11 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { TextField, Typography, Box, Tooltip, Button, Alert } from '@mui/material';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, HelpCircle } from 'lucide-react';
-import { retrainTokenClassifier, trainUDTWithCSV, getTrainReport } from '@/lib/backend';
+import {
+  retrainTokenClassifier,
+  trainUDTWithCSV,
+  getTrainReport,
+  getAccessToken,
+  useTokenClassificationEndpoints,
+} from '@/lib/backend';
 import RecentSamples from './samples';
 import { TrainingResults } from './MetricsChart';
 import type { TrainReportData } from '@/lib/backend';
-import UsageStatsUDT from './usageStatsUDT';
+import axios from 'axios';
+
 interface ModelUpdateProps {
   username: string;
   modelName: string;
@@ -43,6 +50,10 @@ export default function ModelUpdate({
   // New states for button cooldown
   const [uploadButtonDisabled, setUploadButtonDisabled] = useState(false);
   const [pollingButtonDisabled, setPollingButtonDisabled] = useState(false);
+
+  //state for toggling tags list
+  const [isTagDisplay, setIsTagDisplay] = useState<boolean>(false);
+  const [tags, setTags] = useState<string[]>([]);
 
   // Effect to validate model name on each change
   useEffect(() => {
@@ -286,6 +297,40 @@ export default function ModelUpdate({
     }
   };
 
+  const handleTagDisplay = () => {
+    setIsTagDisplay(!isTagDisplay);
+  };
+
+  const getLabels = async (): Promise<string[]> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${getAccessToken()}`;
+    try {
+      const response = await axios.get(`${deploymentUrl}/get_labels`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching labels:', error);
+      alert('Error fetching labels:' + error);
+      throw new Error('Failed to fetch labels');
+    }
+  };
+
+  useEffect(() => {
+    async function getTags() {
+      try {
+        const labels = await getLabels();
+        const filteredLabels = labels.filter((label) => label !== 'O');
+        console.log('Filtered labels: ', filteredLabels);
+        setTags(filteredLabels);
+      } catch (err) {
+        if (err instanceof Error) {
+          console.log(err.message);
+        } else {
+          console.log('An unknown error occurred');
+        }
+      }
+    }
+    getTags();
+  }, []);
+
   return (
     <div className="space-y-6 px-1">
       {/* Training Report Section */}
@@ -325,6 +370,40 @@ export default function ModelUpdate({
             <br />
             {`Target: "O O O O NAME NAME"`}
             <br />
+            <br />
+            <div className="relative">
+              {/* Button */}
+              <Button variant="outlined" color="inherit" onClick={handleTagDisplay}>
+                {isTagDisplay ? 'Hide Tags' : 'Show Tags'}
+              </Button>
+
+              {isTagDisplay && (
+                <div className="relative mt-2 ml-20 w-fit">
+                  {/* L Shape */}
+                  <div className="absolute flex items-center left-[-40px]">
+                    {/* Vertical Line */}
+                    <div
+                      className="w-[1px] bg-gray-400"
+                      style={{
+                        height: '40px', // Adjust based on the space needed
+                      }}
+                    ></div>
+                    {/* Horizontal Line */}
+                    <div className=" w-[40px] h-[1px] bg-gray-400"></div>
+                  </div>
+
+                  {/* Tags Box */}
+                  <div className="p-1 border-2 border-slate-400 rounded-lg shadow-sm flex flex-wrap">
+                    {tags.map((tag, index) => (
+                      <div className="rounded-lg p-2 m-2 bg-slate-100" key={`${index}-${tag}`}>
+                        {tag}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <br />
           </CardDescription>
         </CardHeader>

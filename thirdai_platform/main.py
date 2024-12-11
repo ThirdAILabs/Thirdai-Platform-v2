@@ -76,6 +76,12 @@ async def global_exception_handler(request: fastapi.Request, exc: Exception):
     )
 
 
+# TODO(pratik): Make this health check comprehencsive, checking databse access nomad access, keycloak access.
+@app.get("/health", tags=["health"])
+async def health_check():
+    return {"status": "ok"}
+
+
 @app.middleware("http")
 async def log_requests(request: fastapi.Request, call_next):
     if request.url.path.strip("/") != "metrics":

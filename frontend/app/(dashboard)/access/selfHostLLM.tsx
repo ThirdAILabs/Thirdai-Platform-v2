@@ -76,9 +76,10 @@ export default function SelfHostLLMComponent() {
     }
   };
 
-  const handleInputChange = (field: keyof SelfHostedLLM) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({ ...prev, [field]: e.target.value }));
-  };
+  const handleInputChange =
+    (field: keyof SelfHostedLLM) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+    };
 
   return (
     <div>
@@ -142,21 +143,19 @@ export default function SelfHostLLMComponent() {
           </Typography>
           <List>
             <ListItem divider>
-              <ListItemText 
-                primary="API Endpoint" 
-                secondary={endpoint.endpoint} 
-              />
+              <ListItemText primary="API Endpoint" secondary={endpoint.endpoint} />
             </ListItem>
             <ListItem>
-              <ListItemText 
-                primary="API Key" 
-                secondary={`${endpoint.api_key.slice(0, 4)}...${endpoint.api_key.slice(-4)}`} 
+              <ListItemText
+                primary="API Key"
+                secondary={`${endpoint.api_key.slice(0, 4)}...${endpoint.api_key.slice(-4)}`}
               />
               <ListItemSecondaryAction>
                 <IconButton
                   edge="end"
                   aria-label="delete"
                   onClick={handleDelete}
+                  sx={{ color: 'error.main' }}
                 >
                   <DeleteIcon />
                 </IconButton>

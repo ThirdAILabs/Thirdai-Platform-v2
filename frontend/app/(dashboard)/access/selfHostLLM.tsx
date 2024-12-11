@@ -33,7 +33,9 @@ export default function SelfHostLLMComponent() {
   const fetchEndpoint = async (): Promise<void> => {
     try {
       const response = await getSelfHostedLLM();
-      if (response.data) {
+      console.log('response', response);
+      if (response.data?.endpoint && response.data?.api_key) {
+        console.log('response data valid', response.data);
         setEndpoint(response.data);
       }
     } catch (error) {
@@ -136,11 +138,20 @@ export default function SelfHostLLMComponent() {
       {endpoint && (
         <Paper elevation={1} sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Current Endpoint
+            Current Integration
           </Typography>
           <List>
             <ListItem divider>
-              <ListItemText primary="API Endpoint" secondary={endpoint.endpoint} />
+              <ListItemText 
+                primary="API Endpoint" 
+                secondary={endpoint.endpoint} 
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="API Key" 
+                secondary={`${endpoint.api_key.slice(0, 4)}...${endpoint.api_key.slice(-4)}`} 
+              />
               <ListItemSecondaryAction>
                 <IconButton
                   edge="end"

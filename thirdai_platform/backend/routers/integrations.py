@@ -111,13 +111,7 @@ def test_openai_compatible(endpoint: str, api_key: str):
             return "Authentication Error: Invalid API key."
         if response.status_code == 404:
             return "Error: Endpoint not found."
-        return f"HTTP Error: {http_err}"
-
-    except requests.exceptions.RequestException as req_err:
-        return f"Request Error: {req_err}"
-
-    except ValueError:
-        return "Error: The response is not valid JSON."
+    return f"Error: The endpoint may not be OpenAI-compatible. {e}"
 
 
 class SelfHostedBody(BaseModel):
@@ -132,13 +126,13 @@ class SelfHostedBody(BaseModel):
     dependencies=[Depends(global_admin_only)],
 )
 def set_self_hosted_llm(body: SelfHostedBody, session: Session = Depends(get_session)):
+    endpoint, api_key = body.endpoint, body.api_key
+    failure_message = test_openai_compatible(endpoint, api_key)
+
+    if failure_message is not None:
+        raise HTTPException(status_code=400, detail=failure_message)
+    
     try:
-        endpoint, api_key = body.endpoint, body.api_key
-        failure_message = test_openai_compatible(endpoint, api_key)
-
-        if failure_message is not None:
-            raise HTTPException(status_code=400, detail=failure_message)
-
         existing_integration = (
             session.query(schema.Integrations)
             .filter_by(type=schema.IntegrationType.self_hosted)

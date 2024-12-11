@@ -36,15 +36,8 @@ Before running the script, ensure the following are installed on your machine:
    - `platform/`
    - `models/Llama-3.2-1B-Instruct-f16.gguf`
 
-2. **Make the `driver.sh` Script Executable**:
-   
-   Before running the script, ensure that it has executable permissions. If not, change the permissions by running:
 
-   ```bash
-   chmod +x driver.sh
-   ```
-
-3. **Run the Script with Various Options**:
+2. **Run the Script with Various Options**:
    
    The `driver.sh` script supports several options to customize its behavior. Below are the available options and examples of how to use them:
 
@@ -100,7 +93,7 @@ Before running the script, ensure the following are installed on your machine:
      ./driver.sh --cleanup --verbose ./config.yml
      ```
 
-4. **Understanding the Script Flags and Behavior**
+3. **Understanding the Script Flags and Behavior**
    
    - **Verbose Mode (`-v` or `--verbose`)**:
      
@@ -114,7 +107,7 @@ Before running the script, ensure the following are installed on your machine:
      
      Initiates the onboarding process for new clients by running the `onboard_clients.yml` Ansible playbook. The script will prompt you to provide the path to the new client configuration file (`new_client_config.yml`).
 
-5. **Examples of Common Use Cases**
+4. **Examples of Common Use Cases**
 
    - **Deploy with Default Settings**:
 
@@ -146,7 +139,7 @@ Before running the script, ensure the following are installed on your machine:
      ./driver.sh --onboard_clients --verbose ./config.yml
      ```
 
-6. **Additional Notes**
+5. **Additional Notes**
 
    - **Configuration File**:
      

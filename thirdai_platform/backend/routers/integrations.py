@@ -6,6 +6,7 @@ from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
 from platform_common.utils import response
 from sqlalchemy.orm import Session
+import requests
 
 integrations_router = APIRouter()
 
@@ -86,6 +87,40 @@ def get_self_hosted_llm(session: Session = Depends(get_session)):
         raise HTTPException(
             status_code=500, detail="Failed to retrieve self-hosted LLM integration."
         )
+    
+
+
+def test_openai_compatible(endpoint: str, api_key: str):
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": "gpt-3.5-turbo",
+        "messages": [{"role": "user", "content": "Hello!"}]
+    }
+
+    try:
+        response = requests.post(endpoint, headers=headers, json=payload)
+        response.raise_for_status()
+
+        json_response = response.json()
+        if "choices" in json_response and isinstance(json_response["choices"], list):
+            return None
+        return "Error: Unexpected response structure. The endpoint may not be OpenAI-compatible."
+    except requests.exceptions.HTTPError as http_err:
+        if response.status_code == 401:
+            return "Authentication Error: Invalid API key."
+        if response.status_code == 404:
+            return "Error: Endpoint not found."
+        return f"HTTP Error: {http_err}"
+
+    except requests.exceptions.RequestException as req_err:
+        return f"Request Error: {req_err}"
+
+    except ValueError:
+        return "Error: The response is not valid JSON."
 
 
 @integrations_router.post(
@@ -98,6 +133,14 @@ def set_self_hosted_llm(
     endpoint: str, api_key: str, session: Session = Depends(get_session)
 ):
     try:
+        # TODO insert check for endpoint
+        failure_message = test_openai_compatible(endpoint, api_key)
+
+        if failure_message is not None:
+            raise HTTPException(
+                status_code=400, detail=failure_message
+            ) 
+
         existing_integration = (
             session.query(schema.Integrations)
             .filter_by(type=schema.IntegrationType.self_hosted)

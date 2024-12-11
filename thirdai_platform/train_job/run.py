@@ -18,6 +18,7 @@ try:
         UDTSubType,
     )
     from train_job.models.classification_models import (
+        DocClassificationModel,
         TextClassificationModel,
         TokenClassificationModel,
     )
@@ -39,6 +40,8 @@ def get_model(config: TrainConfig, reporter: Reporter, logger: JobLogger):
         logger.info(f"UDT type: {udt_type}", code=LogCode.MODEL_INIT)
         if udt_type == UDTSubType.text:
             return TextClassificationModel(config, reporter, logger)
+        elif udt_type == UDTSubType.document:
+            return DocClassificationModel(config, reporter, logger)
         elif udt_type == UDTSubType.token:
             return TokenClassificationModel(config, reporter, logger)
         else:

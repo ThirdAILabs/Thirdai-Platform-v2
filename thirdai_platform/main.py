@@ -21,6 +21,7 @@ from backend.routers.team import team_router as team
 from backend.routers.telemetry import telemetry_router as telemetry
 from backend.routers.train import train_router as train
 from backend.routers.user import user_router as user
+from backend.routers.integrations import integrations_router as integrations
 from backend.routers.vault import vault_router as vault
 from backend.routers.workflow import workflow_router as workflow
 from backend.startup_jobs import (
@@ -61,6 +62,7 @@ app.include_router(workflow, prefix="/api/workflow", tags=["workflow"])
 app.include_router(recovery, prefix="/api/recovery", tags=["recovery"])
 app.include_router(data_router, prefix="/api/data", tags=["data"])
 app.include_router(telemetry, prefix="/api/telemetry", tags=["telemetry"])
+app.include_router(integrations, prefix="/api/integrations", tags=["integrations"])
 
 
 @app.exception_handler(Exception)

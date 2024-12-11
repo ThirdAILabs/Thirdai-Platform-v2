@@ -1,4 +1,5 @@
 import os
+import uuid
 from typing import Literal, Optional, Union
 
 from platform_common.pydantic_models.training import ModelType, UDTSubType
@@ -46,10 +47,12 @@ class KnowledgeExtractionOptions(BaseModel):
 
 
 class DeploymentConfig(BaseModel):
+    deployment_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_id: str
     model_id: str
     model_bazaar_endpoint: str
     model_bazaar_dir: str
+    host_dir: str
     license_key: str
 
     autoscaling_enabled: bool = False

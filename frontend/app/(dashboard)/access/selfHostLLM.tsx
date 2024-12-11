@@ -13,68 +13,31 @@ import {
   ListItemSecondaryAction,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { getSelfHostedLLM, addSelfHostedLLM, deleteSelfHostedLLM } from '@/lib/backend';
+import type { SelfHostedLLM } from '@/lib/backend';
 
-interface Endpoint {
-  id: string;
-  name: string;
-  endpoint: string;
-}
-
-interface FormData {
-  name: string;
-  endpoint: string;
-  apiKey: string;
-}
-
-interface APIResponse {
-  success: boolean;
-  message?: string;
-  endpoints?: Endpoint[];
-}
-
-export default function SelfHostLLM() {
-  const [endpoints, setEndpoints] = useState<Endpoint[]>([]);
+export default function SelfHostLLMComponent() {
+  const [endpoint, setEndpoint] = useState<SelfHostedLLM | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
-  const [formData, setFormData] = useState<FormData>({
-    name: '',
+  const [formData, setFormData] = useState<SelfHostedLLM>({
     endpoint: '',
-    apiKey: '',
+    api_key: '',
   });
 
   useEffect(() => {
-    fetchEndpoints();
+    fetchEndpoint();
   }, []);
 
-  const fetchEndpoints = async (): Promise<void> => {
+  const fetchEndpoint = async (): Promise<void> => {
     try {
-      const response = await fetch('/endpoints/get_self_host_endpoints');
-      const data: APIResponse = await response.json();
-      setEndpoints(data.endpoints || []);
+      const response = await getSelfHostedLLM();
+      if (response.data) {
+        setEndpoint(response.data);
+      }
     } catch (error) {
-      setError('Failed to fetch endpoints');
-    }
-  };
-
-  const validateEndpoint = async (): Promise<boolean> => {
-    try {
-      setLoading(true);
-      const response = await fetch('/endpoints/test_endpoint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data: APIResponse = await response.json();
-      if (!data.success) throw new Error(data.message);
-
-      return true;
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to validate endpoint');
-      return false;
-    } finally {
-      setLoading(false);
+      setError('Failed to fetch endpoint');
     }
   };
 
@@ -83,51 +46,35 @@ export default function SelfHostLLM() {
     setError('');
     setSuccess('');
 
-    if (!formData.name || !formData.endpoint || !formData.apiKey) {
+    if (!formData.endpoint || !formData.api_key) {
       setError('All fields are required');
       return;
     }
 
-    const isValid = await validateEndpoint();
-    if (!isValid) return;
-
+    setLoading(true);
     try {
-      const response = await fetch('/endpoints/add_self_host_endpoint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data: APIResponse = await response.json();
-      if (!data.success) throw new Error(data.message);
-
+      await addSelfHostedLLM(formData);
       setSuccess('Endpoint added successfully');
-      setFormData({ name: '', endpoint: '', apiKey: '' });
-      fetchEndpoints();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to add endpoint');
+      setFormData({ endpoint: '', api_key: '' });
+      fetchEndpoint();
+    } catch (error: any) {
+      setError(error.response?.data?.detail || 'Failed to add endpoint');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDelete = async (endpointId: string): Promise<void> => {
+  const handleDelete = async (): Promise<void> => {
     try {
-      const response = await fetch('/endpoints/delete_self_host_endpoint', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: endpointId }),
-      });
-
-      const data: APIResponse = await response.json();
-      if (!data.success) throw new Error(data.message);
-
+      await deleteSelfHostedLLM();
       setSuccess('Endpoint deleted successfully');
-      fetchEndpoints();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to delete endpoint');
+      setEndpoint(null);
+    } catch (error: any) {
+      setError(error.response?.data?.detail || 'Failed to delete endpoint');
     }
   };
 
-  const handleInputChange = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (field: keyof SelfHostedLLM) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [field]: e.target.value }));
   };
 
@@ -140,17 +87,6 @@ export default function SelfHostLLM() {
         </Alert>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <Typography variant="subtitle1">Endpoint Name</Typography>
-            <TextField
-              fullWidth
-              value={formData.name}
-              onChange={handleInputChange('name')}
-              placeholder="Enter a unique identifier"
-              margin="dense"
-            />
-          </div>
-
           <div style={{ marginBottom: '16px' }}>
             <Typography variant="subtitle1">API Endpoint</Typography>
             <TextField
@@ -167,8 +103,8 @@ export default function SelfHostLLM() {
             <TextField
               fullWidth
               type="password"
-              value={formData.apiKey}
-              onChange={handleInputChange('apiKey')}
+              value={formData.api_key}
+              onChange={handleInputChange('api_key')}
               placeholder="Enter your API key"
               margin="dense"
             />
@@ -197,26 +133,24 @@ export default function SelfHostLLM() {
         )}
       </Paper>
 
-      {endpoints.length > 0 && (
+      {endpoint && (
         <Paper elevation={1} sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
-            Existing Endpoints
+            Current Endpoint
           </Typography>
           <List>
-            {endpoints.map((endpoint) => (
-              <ListItem key={endpoint.id} divider>
-                <ListItemText primary={endpoint.name} secondary={endpoint.endpoint} />
-                <ListItemSecondaryAction>
-                  <IconButton
-                    edge="end"
-                    aria-label="delete"
-                    onClick={() => handleDelete(endpoint.id)}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              </ListItem>
-            ))}
+            <ListItem divider>
+              <ListItemText primary="API Endpoint" secondary={endpoint.endpoint} />
+              <ListItemSecondaryAction>
+                <IconButton
+                  edge="end"
+                  aria-label="delete"
+                  onClick={handleDelete}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </ListItemSecondaryAction>
+            </ListItem>
           </List>
         </Paper>
       )}

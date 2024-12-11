@@ -4,7 +4,7 @@ from backend.auth_dependencies import global_admin_only, verify_access_token
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
-from platform_common.utils import get_section, response
+from platform_common.utils import response
 from sqlalchemy.orm import Session
 
 integrations_router = APIRouter()
@@ -12,15 +12,15 @@ integrations_router = APIRouter()
 root_folder = pathlib.Path(__file__).parent
 
 # TODO(david) generate documentation?
-docs_file = root_folder.joinpath("../../docs/integrations_endpoints.txt")
+# docs_file = root_folder.joinpath("../../docs/integrations_endpoints.txt")
 
-with open(docs_file) as f:
-    docs = f.read()
+# with open(docs_file) as f:
+#     docs = f.read()
 
 # @integrations_router.get(
 #     "/llm-provider-api-key",
 #     summary="Get LLM Provider API Key",
-#     description=get_section(docs, "Get LLM Provider API Key"),
+#     # description=get_section(docs, "Get LLM Provider API Key"),
 #     dependencies=[Depends(verify_access_token)],
 # )
 # def get_llm_provider_api_key():
@@ -35,7 +35,7 @@ with open(docs_file) as f:
 # @integrations_router.post(
 #     "/llm-provider-api-key",
 #     summary="Set LLM Provider API Key",
-#     description=get_section(docs, "Set LLM Provider API Key"),
+#     # description=get_section(docs, "Set LLM Provider API Key"),
 #     dependencies=[Depends(global_admin_only)],
 # )
 # def set_llm_provider_api_key(api_key: str):
@@ -49,7 +49,7 @@ with open(docs_file) as f:
 # @integrations_router.delete(
 #     "/llm-provider-api-key",
 #     summary="Delete LLM Provider API Key",
-#     description=get_section(docs, "Delete LLM Provider API Key"),
+#     # description=get_section(docs, "Delete LLM Provider API Key"),
 #     dependencies=[Depends(global_admin_only)],
 # )
 # def delete_llm_provider_api_key():
@@ -64,7 +64,7 @@ with open(docs_file) as f:
 @integrations_router.get(
     "/self-hosted-llm",
     summary="Get Self-Hosted LLM Integration",
-    description=get_section(docs, "Get Self-Hosted LLM Integration"),
+    # description=get_section(docs, "Get Self-Hosted LLM Integration"),
     dependencies=[Depends(verify_access_token)],
 )
 def get_self_hosted_llm(session: Session = Depends(get_session)):
@@ -91,7 +91,7 @@ def get_self_hosted_llm(session: Session = Depends(get_session)):
 @integrations_router.post(
     "/self-hosted-llm",
     summary="Store Self-Hosted LLM Integration",
-    description=get_section(docs, "Store Self-Hosted LLM Integration"),
+    # description=get_section(docs, "Store Self-Hosted LLM Integration"),
     dependencies=[Depends(global_admin_only)],
 )
 def set_self_hosted_llm(
@@ -131,7 +131,7 @@ def set_self_hosted_llm(
 @integrations_router.delete(
     "/self-hosted-llm",
     summary="Delete Self-Hosted LLM Integration",
-    description=get_section(docs, "Delete Self-Hosted LLM Integration"),
+    # description=get_section(docs, "Delete Self-Hosted LLM Integration"),
     dependencies=[Depends(global_admin_only)],
 )
 def delete_self_hosted_llm(session: Session = Depends(get_session)):

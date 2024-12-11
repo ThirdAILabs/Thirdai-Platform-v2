@@ -1988,13 +1988,12 @@ export const getSelfHostedLLM = (): Promise<APIResponse> => {
 export const addSelfHostedLLM = (data: SelfHostedLLM): Promise<APIResponse> => {
   const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-  
-  const params = new URLSearchParams({
+
+  return axios.post(`${deploymentBaseUrl}/api/integrations/self-hosted-llm`, {
     endpoint: data.endpoint,
     api_key: data.api_key
-  });
-
-  return axios.post(`${deploymentBaseUrl}/api/integrations/self-hosted-llm?${params}`).then(res => res.data);
+  })
+  .then(res => res.data);
 };
 
 export const deleteSelfHostedLLM = (): Promise<APIResponse> => {

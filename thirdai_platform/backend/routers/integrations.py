@@ -1,12 +1,13 @@
 import pathlib
 
+import requests
 from backend.auth_dependencies import global_admin_only, verify_access_token
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
 from platform_common.utils import response
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
-import requests
 
 integrations_router = APIRouter()
 
@@ -87,18 +88,14 @@ def get_self_hosted_llm(session: Session = Depends(get_session)):
         raise HTTPException(
             status_code=500, detail="Failed to retrieve self-hosted LLM integration."
         )
-    
 
 
 def test_openai_compatible(endpoint: str, api_key: str):
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
     payload = {
         "model": "gpt-3.5-turbo",
-        "messages": [{"role": "user", "content": "Hello!"}]
+        "messages": [{"role": "user", "content": "Hello!"}],
     }
 
     try:
@@ -123,23 +120,24 @@ def test_openai_compatible(endpoint: str, api_key: str):
         return "Error: The response is not valid JSON."
 
 
+class SelfHostedBody(BaseModel):
+    endpoint: str
+    api_key: str
+
+
 @integrations_router.post(
     "/self-hosted-llm",
     summary="Store Self-Hosted LLM Integration",
     # description=get_section(docs, "Store Self-Hosted LLM Integration"),
     dependencies=[Depends(global_admin_only)],
 )
-def set_self_hosted_llm(
-    endpoint: str, api_key: str, session: Session = Depends(get_session)
-):
+def set_self_hosted_llm(body: SelfHostedBody, session: Session = Depends(get_session)):
     try:
-        # TODO insert check for endpoint
+        endpoint, api_key = body.endpoint, body.api_key
         failure_message = test_openai_compatible(endpoint, api_key)
 
         if failure_message is not None:
-            raise HTTPException(
-                status_code=400, detail=failure_message
-            ) 
+            raise HTTPException(status_code=400, detail=failure_message)
 
         existing_integration = (
             session.query(schema.Integrations)
@@ -148,15 +146,16 @@ def set_self_hosted_llm(
         )
 
         if existing_integration is not None:
+
             # TODO(david) check if any models are currently configured with the self-hosted llm and fail if they are.
             # Also, lets move towards having LLM selection at deployment time
             existing_integration.data = {"endpoint": endpoint, "api_key": api_key}
         else:
+            print("IN HERE")
             self_hosted_integration = schema.Integrations(
                 type=schema.IntegrationType.self_hosted,
                 data={"endpoint": endpoint, "api_key": api_key},
             )
-
             session.add(self_hosted_integration)
 
         session.commit()
@@ -167,7 +166,7 @@ def set_self_hosted_llm(
         )
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail="Failed to store self-hosted LLM integration."
+            status_code=500, detail="Failed to store self-hosted LLM integration"
         )
 
 

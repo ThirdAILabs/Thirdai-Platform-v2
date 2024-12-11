@@ -135,7 +135,7 @@ def set_self_hosted_llm(body: SelfHostedBody, session: Session = Depends(get_ses
 
     if failure_message is not None:
         raise HTTPException(status_code=400, detail=failure_message)
-    
+
     try:
         existing_integration = (
             session.query(schema.Integrations)
@@ -144,12 +144,8 @@ def set_self_hosted_llm(body: SelfHostedBody, session: Session = Depends(get_ses
         )
 
         if existing_integration is not None:
-
-            # TODO(david) check if any models are currently configured with the self-hosted llm and fail if they are.
-            # Also, lets move towards having LLM selection at deployment time
             existing_integration.data = {"endpoint": endpoint, "api_key": api_key}
         else:
-            print("IN HERE")
             self_hosted_integration = schema.Integrations(
                 type=schema.IntegrationType.self_hosted,
                 data={"endpoint": endpoint, "api_key": api_key},
@@ -181,6 +177,9 @@ def delete_self_hosted_llm(session: Session = Depends(get_session)):
             .filter_by(type=schema.IntegrationType.self_hosted)
             .first()
         )
+
+        # TODO(david) check if any models are currently configured with the self-hosted llm and fail if they are.
+        # Also, lets move towards having LLM selection at deployment time
 
         if existing_integration:
             session.delete(existing_integration)

@@ -307,8 +307,6 @@ class Model(SQLDeclarativeBase):
         Index("model_identifier_index", "user_id", "name"),
         UniqueConstraint("user_id", "name"),
     )
-    # https://api.openai.com/v1/chat/completions
-    # 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
 
 
 class ModelAttribute(SQLDeclarativeBase):

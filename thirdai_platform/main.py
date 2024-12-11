@@ -15,13 +15,13 @@ import uvicorn
 from auth.jwt import validate_access_token
 from backend.routers.data import data_router
 from backend.routers.deploy import deploy_router as deploy
+from backend.routers.integrations import integrations_router as integrations
 from backend.routers.models import model_router as model
 from backend.routers.recovery import recovery_router as recovery
 from backend.routers.team import team_router as team
 from backend.routers.telemetry import telemetry_router as telemetry
 from backend.routers.train import train_router as train
 from backend.routers.user import user_router as user
-from backend.routers.integrations import integrations_router as integrations
 from backend.routers.vault import vault_router as vault
 from backend.routers.workflow import workflow_router as workflow
 from backend.startup_jobs import (

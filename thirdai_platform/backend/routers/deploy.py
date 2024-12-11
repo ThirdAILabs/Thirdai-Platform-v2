@@ -271,14 +271,14 @@ async def deploy_single_model(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported model type '{model.type}'.",
         )
-    
+
     if hasattr(model_options, "llm_provider"):
         if model_options.llm_provider not in ["openai", "on-prem", "self-host"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid llm_provider: '{model_options.llm_provider}'. Please choose one of 'openai', 'on-prem' or 'self-host'.",
             )
-        
+
     # TODO make sure that the self-hosted option is being passed from the frontend
     if model_options.llm_provider == "self-host":
         # verify that self-hosted information is set

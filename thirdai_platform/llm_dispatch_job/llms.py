@@ -169,8 +169,11 @@ class OnPremLLM(LLMBase):
 class SelfHostedLLM(LLMBase):
     def __init__(self):
         import requests
+
         self.backend_endpoint = os.getenv("MODEL_BAZAAR_ENDPOINT")
-        response = requests.get(urljoin(self.backend_endpoint, "/api/integrations/self-hosted-llm"))
+        response = requests.get(
+            urljoin(self.backend_endpoint, "/api/integrations/self-hosted-llm")
+        )
         if response.status_code != 200:
             raise Exception("Cannot read self-hosted endpoint.")
         data = response.json()["data"]
@@ -178,8 +181,10 @@ class SelfHostedLLM(LLMBase):
         self.self_hosted_api_key = data["self_hosted_api_key"]
 
         if self.self_hosted_endpoint is None or self.self_hosted_api_key is None:
-            raise Exception("Self-hosted LLM may have been deleted or not configured. Please check the admin dashboard to configure the self-hosted llm")
-        
+            raise Exception(
+                "Self-hosted LLM may have been deleted or not configured. Please check the admin dashboard to configure the self-hosted llm"
+            )
+
     async def stream(
         self,
         key: str,

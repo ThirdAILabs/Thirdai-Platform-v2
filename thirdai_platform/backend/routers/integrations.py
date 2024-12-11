@@ -1,13 +1,17 @@
-from backend.auth_dependencies import verify_access_token, global_admin_only
+import pathlib
+
+from backend.auth_dependencies import global_admin_only, verify_access_token
+from database import schema
+from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
 from platform_common.utils import get_section, response
-import pathlib
+from sqlalchemy.orm import Session
 
 integrations_router = APIRouter()
 
 root_folder = pathlib.Path(__file__).parent
 
-#TODO(david) generate documentation?
+# TODO(david) generate documentation?
 docs_file = root_folder.joinpath("../../docs/integrations_endpoints.txt")
 
 with open(docs_file) as f:
@@ -56,20 +60,32 @@ with open(docs_file) as f:
 #         raise HTTPException(status_code=500, detail="Failed to delete OpenAI API key.")
 
 
-#TODO(david): support having multiple self-hosted LLM endpoints
+# TODO(david): support having multiple self-hosted LLM endpoints
 @integrations_router.get(
     "/self-hosted-llm",
     summary="Get Self-Hosted LLM Integration",
     description=get_section(docs, "Get Self-Hosted LLM Integration"),
     dependencies=[Depends(verify_access_token)],
 )
-def get_self_hosted_llm():
+def get_self_hosted_llm(session: Session = Depends(get_session)):
     try:
-        # store self hosted info in vault
-        integration_details = {"endpoint": "# endpoint", "api_key": "# api key"}
-        return integration_details
+        self_hosted_integration = (
+            session.query(schema.Integrations)
+            .filter_by(type=schema.IntegrationType.self_hosted)
+            .first()
+        )
+
+        if self_hosted_integration is not None:
+            return self_hosted_integration.data
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="No Self-Hosted LLM Integration found",
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to retrieve self-hosted LLM integration.")
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve self-hosted LLM integration."
+        )
 
 
 @integrations_router.post(
@@ -78,14 +94,38 @@ def get_self_hosted_llm():
     description=get_section(docs, "Store Self-Hosted LLM Integration"),
     dependencies=[Depends(global_admin_only)],
 )
-def set_self_hosted_llm(endpoint: str, api_key: str):
+def set_self_hosted_llm(
+    endpoint: str, api_key: str, session: Session = Depends(get_session)
+):
     try:
-        # get self hosted info in vault
-        # check if any models are currently configured with the self-hosted llm and give a warning or something
-        
-        return {"message": "Self-hosted LLM integration stored successfully."}
+        existing_integration = (
+            session.query(schema.Integrations)
+            .filter_by(type=schema.IntegrationType.self_hosted)
+            .first()
+        )
+
+        if existing_integration is not None:
+            # TODO(david) check if any models are currently configured with the self-hosted llm and fail if they are.
+            # Also, lets move towards having LLM selection at deployment time
+            existing_integration.data = {"endpoint": endpoint, "api_key": api_key}
+        else:
+            self_hosted_integration = schema.Integrations(
+                type=schema.IntegrationType.self_hosted,
+                data={"endpoint": endpoint, "api_key": api_key},
+            )
+
+            session.add(self_hosted_integration)
+
+        session.commit()
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully set the Self-Hosted LLM Integration",
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to store self-hosted LLM integration.")
+        raise HTTPException(
+            status_code=500, detail="Failed to store self-hosted LLM integration."
+        )
 
 
 @integrations_router.delete(
@@ -94,10 +134,27 @@ def set_self_hosted_llm(endpoint: str, api_key: str):
     description=get_section(docs, "Delete Self-Hosted LLM Integration"),
     dependencies=[Depends(global_admin_only)],
 )
-def delete_self_hosted_llm():
+def delete_self_hosted_llm(session: Session = Depends(get_session)):
     try:
-        # delete self hosted info in vault
-        # check if any models are currently configured with the self-hosted llm and give a warning or something
-        return {"message": "Self-hosted LLM integration deleted successfully."}
+        existing_integration = (
+            session.query(schema.Integrations)
+            .filter_by(type=schema.IntegrationType.self_hosted)
+            .first()
+        )
+
+        if existing_integration:
+            session.delete(existing_integration)
+            session.commit()
+            return response(
+                status_code=status.HTTP_200_OK,
+                message="Successfully deleted the Self-Hosted LLM Integration",
+            )
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Self-Hosted LLM Integration not found",
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Failed to delete self-hosted LLM integration.")
+        raise HTTPException(
+            status_code=500, detail="Failed to delete self-hosted LLM integration."
+        )

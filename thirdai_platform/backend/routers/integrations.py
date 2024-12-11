@@ -78,7 +78,11 @@ def get_self_hosted_llm(session: Session = Depends(get_session)):
         )
 
         if self_hosted_integration is not None:
-            return self_hosted_integration.data
+            return response(
+                status_code=status.HTTP_200_OK,
+                message="Found Self-Hosted LLM Integration",
+                data=self_hosted_integration.data,
+            )
 
         return response(
             status_code=status.HTTP_200_OK,
@@ -111,7 +115,7 @@ def test_openai_compatible(endpoint: str, api_key: str):
             return "Authentication Error: Invalid API key."
         if response.status_code == 404:
             return "Error: Endpoint not found."
-    return f"Error: The endpoint may not be OpenAI-compatible. {e}"
+    return f"Error: The endpoint may not be OpenAI-compatible."
 
 
 class SelfHostedBody(BaseModel):

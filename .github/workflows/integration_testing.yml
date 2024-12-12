@@ -88,7 +88,7 @@ jobs:
               --output text)
           echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
 
-      - name: verify ssh into ec2 instance
+      - name: Download the package and run driver.sh
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ steps.host_machine.outputs.public_ip }}
@@ -97,42 +97,30 @@ jobs:
           script: |
             aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.tarball_filename }} .
 
+            # unzip the package
             mkdir -p package
             tar -xvf ${{ inputs.tarball_filename }} -C package
 
-      - name: Download the package and run driver.sh
-        run: |
-          ssh -o StrictHostKeyChecking=no -T ubuntu@${{ steps.host_machine.outputs.public_ip }}  <<EOF
-          aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.tarball_filename }} .
-
-          # unzip the package
-          mkdir -p package
-          tar -xvf ${{ inputs.tarball_filename }} -C package
-
-          # Modify the config.yml
-          yq -i '
-              .license_path = "/home/ubuntu/ndb_enterprise_license.json" |
-              .admin_mail = "${{ secrets.EMAIL }}" |
-              .admin_username = "admin" |
-              .admin_password = "${{ secrets.PASSWORD }}" |
-              .genai_key = "${{ secrets.GENAI_KEY }}" |
-              .thirdai_platform_version = "${{ inputs.docker_image_version }}" |
-              .platform_image_branch = "${{ inputs.docker_image_branch_name }}" |
-              .docker_registry_password = "${{ inputs.docker_registry_password }}" |
-              .login_method = "postgres" |
-              .nodes[0].public_ip = "${{ steps.host_machine.outputs.public_ip }}" |
-              .nodes[0].private_ip = "172.31.17.228" |
-              .nodes[0].ssh_username = "ubuntu" |
-              .nodes[0].connection_type = "local" |
-              .nodes[1].private_ip = "172.31.31.123" |
-              .nodes[1].ssh_username = "ubuntu" |
-              .nodes[1].connection_type = "ssh" |
-          '  ./package/config.yml -y
-
-          # Run the driver.sh script
-          # source ./package/driver.sh ./package/config.yml -v 1>./package/installation.out 2>./package/installation.err
-          EOF
-      
+            # Modify the config.yml
+            yq -i '
+                .license_path = "/home/ubuntu/ndb_enterprise_license.json" |
+                .admin_mail = "${{ secrets.EMAIL }}" |
+                .admin_username = "admin" |
+                .admin_password = "${{ secrets.PASSWORD }}" |
+                .genai_key = "${{ secrets.GENAI_KEY }}" |
+                .thirdai_platform_version = "${{ inputs.docker_image_version }}" |
+                .platform_image_branch = "${{ inputs.docker_image_branch_name }}" |
+                .docker_registry_password = "${{ inputs.docker_registry_password }}" |
+                .login_method = "postgres" |
+                .nodes[0].public_ip = "${{ steps.host_machine.outputs.public_ip }}" |
+                .nodes[0].private_ip = "172.31.17.228" |
+                .nodes[0].ssh_username = "ubuntu" |
+                .nodes[0].connection_type = "local" |
+                .nodes[1].private_ip = "172.31.31.123" |
+                .nodes[1].ssh_username = "ubuntu" |
+                .nodes[1].connection_type = "ssh" |
+            '  ./package/config.yml -y
+            
       - name: Wait for 7 minutes to let the model_bazaar get started
         run: |
           exit 1

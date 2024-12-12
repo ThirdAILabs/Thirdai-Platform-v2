@@ -95,11 +95,11 @@ jobs:
           username: ubuntu
           key: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
           script: |
-            aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.tarball_filename }} .
+            aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.tarball_filename }} /home/ubuntu/
 
             # unzip the package
-            mkdir -p package
-            tar -xvf ${{ inputs.tarball_filename }} -C package
+            mkdir -p /home/ubuntu/package
+            tar -xvf ${{ inputs.tarball_filename }} -C /home/ubuntu/package
 
             # Modify the config.yml
             yq -i '
@@ -112,15 +112,19 @@ jobs:
                 .platform_image_branch = "${{ inputs.docker_image_branch_name }}" |
                 .docker_registry_password = "${{ inputs.docker_registry_password }}" |
                 .login_method = "postgres" |
+                .cluster_endpoint = "${{ steps.host_machine.outputs.public_ip }}" |
                 .nodes[0].public_ip = "${{ steps.host_machine.outputs.public_ip }}" |
                 .nodes[0].private_ip = "172.31.17.228" |
                 .nodes[0].ssh_username = "ubuntu" |
                 .nodes[0].connection_type = "local" |
                 .nodes[1].private_ip = "172.31.31.123" |
                 .nodes[1].ssh_username = "ubuntu" |
-                .nodes[1].connection_type = "ssh" |
-            '  ./package/config.yml -y
-            
+                .nodes[1].connection_type = "ssh"
+            '  /home/ubuntu/package/config.yml -y
+
+            # Run the driver.sh script
+            source /home/ubuntu/package/driver.sh /home/ubuntu/package/config.yml -v 1> /home/ubuntu/package/installation.out 2> /home/ubuntu/package/installation.err
+
       - name: Wait for 7 minutes to let the model_bazaar get started
         run: |
           exit 1
@@ -143,6 +147,7 @@ jobs:
 
         - name: Install requirements
           run: |
+            exit 1
             cd headless
             pip install -r requirements.txt
 
@@ -185,7 +190,7 @@ jobs:
             curl -f "$BASE_URL_WITHOUT_API" || exit 1
   
   clean_ec2_instances:
-      runs-on: ubuntu-latest
+      runs-on: ubuntu-latest-8-cores
       needs: [setup_the_ec2_instances, test]
       if: always()
       steps:
@@ -205,22 +210,15 @@ jobs:
             aws --version
             aws sts get-caller-identity
         
-        - name: Set up SSH key
-          run: |
-            mkdir -p ~/.ssh
-            echo "${{ secrets.HOST_MACHINE_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-            chmod 600 ~/.ssh/id_rsa
-            
-        - name: Add EC2 Host to Known Hosts
-          run: ssh-keyscan -H ${{ secrets.HOST_MACHINE_PUBLIC_KEY }} >> ~/.ssh/known_hosts
-
-        - name: run the cleanup script
-          run: |
-            ssh -o StrictHostKeyChecking=no ubuntu@${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }} <<<EOF
-
-                source ./package/driver.sh ./package/config.yml --cleanup -v 1>./package/cleanup.out 2>./package/cleanup.err
-                rm -rf ./package "./${{ inputs.tarball_filename }}"
-            EOF
+        - name: Download the package and run driver.sh
+          uses: appleboy/ssh-action@v1.2.0
+          with:
+            host: ${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}
+            username: ubuntu
+            key: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
+            script: |
+              source /home/ubuntu/package/driver.sh /home/ubuntu/package/config.yml --cleanup -v 1> /home/ubuntu/package/cleanup.out 2> /home/ubuntu/package/cleanup.err
+              rm -rf /home/ubuntu/package/package "/home/ubuntu/${{ inputs.tarball_filename }}"
         
         - name: Stop the ec2-machine
           run: |

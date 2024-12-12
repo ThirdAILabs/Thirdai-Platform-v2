@@ -7,6 +7,8 @@ on:
         description: "Ansible-repo branch name"
         type: string
         default: main
+  push:
+    branches: [ main ]
 
 jobs:
   Retrieve_facts:

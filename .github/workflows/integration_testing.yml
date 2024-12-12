@@ -93,6 +93,14 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.HOST_MACHINE_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+
+      - name: verify ssh into ec2 instance
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: "107.21.76.211"
+          username: ubuntu
+          script: whoami
+          
       - name: Verify SSH Configuration
         run: |
           ssh-keygen -l -f ~/.ssh/id_rsa  # Verify key

@@ -8,7 +8,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { Underline } from 'lucide-react';
 import * as Xpath from 'xpath';
 export const ATTRIBUTE_PREFIX = '@_';
 export const INDENT = '20px';
@@ -113,8 +112,13 @@ interface Selection {
 export function TagSelector({ open, choices, onSelect }: TagSelectorProps) {
   const defaultOptions = useMemo(() => choices.map((label) => ({ label, new: false })), [choices]);
 
+  // Initialize Fuse.js instance for performing fuzzy search on the choices array
   const [fuse, setFuse] = useState(new Fuse(choices));
+
+  // Stores the options to display in the dropdown, including labels and a flag for new entries
   const [options, setOptions] = useState<{ label: string; new: boolean }[]>(defaultOptions);
+
+  // Tracks the currently selected index for keyboard navigation using up and down keys
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -307,6 +311,9 @@ function XMLValueRenderer({
 
   const charArray: string[] = data.toString().split('');
 
+  /*Outcome of this useEffect:-
+    In the event of intersecting character spans within a leaf node, the action performed last will take precedence.
+  */
   useEffect(() => {
     const newIndices = new Set<number>();
     for (let index = 0; index < predictions.length; index++) {

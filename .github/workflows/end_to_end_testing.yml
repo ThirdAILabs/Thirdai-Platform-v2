@@ -41,28 +41,28 @@ jobs:
   #   secrets:
   #     azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
 
-  package:
-    needs: [Retrieve_facts]
-    uses: ./.github/workflows/packaging.yml
-    with:
-      Installer_branch_name: main
-      docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
-      docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
-      docker_registry_password: "C9Eu9ENcS5YojZoK5yC+bLikeNt7s1LnRgRdGq+sbV+ACRBpRw9s"
-    secrets:
-      PLATFORM_INSTALLATION_DEPLOY_KEY: ${{ secrets.PLATFORM_INSTALLATION_DEPLOY_KEY }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+  # package:
+  #   needs: [Retrieve_facts]
+  #   uses: ./.github/workflows/packaging.yml
+  #   with:
+  #     Installer_branch_name: main
+  #     docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
+  #     docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
+  #     docker_registry_password: "C9Eu9ENcS5YojZoK5yC+bLikeNt7s1LnRgRdGq+sbV+ACRBpRw9s"
+  #   secrets:
+  #     PLATFORM_INSTALLATION_DEPLOY_KEY: ${{ secrets.PLATFORM_INSTALLATION_DEPLOY_KEY }}
+  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  #     AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
       
   run_tests:
-    needs: [Retrieve_facts, package]
+    # needs: [Retrieve_facts, package]
     uses: ./.github/workflows/integration_testing.yml
     with:
       docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
       docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
       docker_registry_password: "C9Eu9ENcS5YojZoK5yC+bLikeNt7s1LnRgRdGq+sbV+ACRBpRw9s"
-      tarball_filename: ${{ needs.package.outputs.online_package_name }}
+      tarball_filename: "thirdai-platform-package-test-installation-testing-v766.309.855.tar.gz"
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

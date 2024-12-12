@@ -49,7 +49,7 @@ on:
 
 jobs:
   setup_the_ec2_instances:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-cores
     outputs:
       server_machine_public_ip: ${{ steps.host_machine.outputs.public_ip }}
     steps:

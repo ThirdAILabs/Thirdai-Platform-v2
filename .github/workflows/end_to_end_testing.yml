@@ -6,6 +6,8 @@ on:
       installer_branch_name:
         description: "Ansible-repo branch name"
         type: string
+  pull_request:
+    branches: [main]
 
 jobs:
   Retrieve_facts:
@@ -41,7 +43,7 @@ jobs:
     needs: [Retrieve_facts, Build_and_push_images]
     uses: ./.github/workflows/packaging.yml
     with:
-      Installer_branch_name: main
+      Installer_branch_name: ${{ github.event.inputs.installer_branch_name }}
       docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
       docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
       

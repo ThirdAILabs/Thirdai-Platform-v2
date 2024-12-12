@@ -124,7 +124,7 @@ jobs:
 
             # Run the driver.sh script
             cd /home/ubuntu/package
-            source ./driver.sh /home/ubuntu/package/config.yml -v 1> /home/ubuntu/package/installation.out 2> /home/ubuntu/package/installation.err
+            source ./driver.sh /home/ubuntu/package/config.yml -v 1> /home/ubuntu/installation.out 2> /home/ubuntu/installation.err
 
       - name: Wait for 7 minutes to let the model_bazaar get started
         run: |
@@ -219,8 +219,8 @@ jobs:
             key: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
             script: |
               cd /home/ubuntu/package
-              source ./driver.sh /home/ubuntu/package/config.yml --cleanup -v 1> /home/ubuntu/package/cleanup.out 2> /home/ubuntu/package/cleanup.err
-              rm -rf /home/ubuntu/package/package "/home/ubuntu/${{ inputs.tarball_filename }}"
+              source ./driver.sh /home/ubuntu/package/config.yml --cleanup -v 1> /home/ubuntu/cleanup.out 2> /home/ubuntu/cleanup.err
+              rm -rf /home/ubuntu/package "/home/ubuntu/${{ inputs.tarball_filename }}"
         
         - name: Stop the ec2-machine
           run: |

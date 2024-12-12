@@ -88,19 +88,19 @@ jobs:
       #         --output text)
       #     echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
       
-      - name: Set up SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HOST_MACHINE_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          cat ~/.ssh/id_rsa
+      # - name: Set up SSH key
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     echo "${{ secrets.HOST_MACHINE_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+      #     chmod 600 ~/.ssh/id_rsa
+      #     cat ~/.ssh/id_rsa
 
       - name: verify ssh into ec2 instance
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: "107.21.76.211"
           username: ubuntu
-          key_path: ~/.ssh/id_rsa
+          key: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
           script: whoami
           
       - name: Verify SSH Configuration

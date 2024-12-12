@@ -15,6 +15,10 @@ on:
         description: "version of the docker images (with prefix 'v')"
         required: true
         type: string
+      docker_registry_password:
+        description: "Docker registry password for the image"
+        required: true
+        type: string
     secrets:
       PLATFORM_INSTALLATION_DEPLOY_KEY:
         description: "key for accessing Platform repo"
@@ -133,7 +137,7 @@ jobs:
 
         - name: Log in to Docker Registry
           run: |
-            docker login -u "thirdaiplatform-pull-${{ inputs.docker_image_branch_name }}" -p ${{ inputs.docker_image_branch_name }} thirdaiplatform.azurecr.io
+            docker login -u "thirdaiplatform-pull-${{ inputs.docker_image_branch_name }}" -p ${{ inputs.docker_registry_password }} thirdaiplatform.azurecr.io
 
         - name: Download Docker images with the given tag
           run: |

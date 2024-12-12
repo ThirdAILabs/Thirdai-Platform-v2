@@ -1,7 +1,7 @@
 name: Remove given docker images and s3 object
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       docker_image_branch_name:
         description: "Branch name of the docker images"

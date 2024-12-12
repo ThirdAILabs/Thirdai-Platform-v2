@@ -99,6 +99,7 @@ jobs:
         with:
           host: "107.21.76.211"
           username: ubuntu
+          key_path: ~/.ssh/id_rsa
           script: whoami
           
       - name: Verify SSH Configuration

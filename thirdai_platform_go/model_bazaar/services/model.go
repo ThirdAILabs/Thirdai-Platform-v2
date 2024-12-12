@@ -58,7 +58,7 @@ func (s *ModelService) Routes() chi.Router {
 		r.Use(s.userAuth.AuthMiddleware()...)
 
 		r.Get("/list", s.List)
-		r.Post("/upload", s.UploadStart)
+		r.With(checkSufficientStorage(s.storage)).Post("/upload", s.UploadStart)
 	})
 
 	r.Group(func(r chi.Router) {

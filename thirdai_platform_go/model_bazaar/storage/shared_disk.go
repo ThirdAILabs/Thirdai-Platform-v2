@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/sys/unix"
 )
 
 type SharedDiskStorage struct {
@@ -171,6 +173,21 @@ func (s *SharedDiskStorage) Size(path string) (int64, error) {
 	}
 
 	return info.Size(), nil
+}
+
+func (s *SharedDiskStorage) Usage() (UsageStats, error) {
+	var stat unix.Statfs_t
+
+	err := unix.Statfs(s.basepath, &stat)
+	if err != nil {
+		slog.Error("error getting disk usage for shared storage", "path", s.basepath, "error", err)
+		return UsageStats{}, fmt.Errorf("error getting disk usage stats: %w", err)
+	}
+
+	return UsageStats{
+		TotalBytes: stat.Blocks * uint64(stat.Bsize),
+		FreeBytes:  stat.Bfree * uint64(stat.Bsize),
+	}, nil
 }
 
 func (s *SharedDiskStorage) Location() string {

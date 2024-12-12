@@ -21,5 +21,12 @@ type Storage interface {
 
 	Size(path string) (int64, error)
 
+	Usage() (UsageStats, error)
+
 	Location() string
+}
+
+type UsageStats struct {
+	TotalBytes uint64
+	FreeBytes  uint64
 }

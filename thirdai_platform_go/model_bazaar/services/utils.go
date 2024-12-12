@@ -361,3 +361,34 @@ func createModel(modelId, modelName, modelType string, baseModelId *string, user
 		UserId:            userId,
 	}
 }
+
+func checkDiskUsage(storage storage.Storage) error {
+	stats, err := storage.Usage()
+	if err != nil {
+		return err
+	}
+	oneMib := uint64(1024 * 1024)
+	// Either 20% disk needs to be free or 20Gb (in case the disk is very large)
+	threshold := min(stats.TotalBytes/5, 20*1024*oneMib)
+	if stats.FreeBytes < threshold {
+		used := (stats.TotalBytes - stats.FreeBytes) / oneMib
+		total := stats.TotalBytes / oneMib
+		delta := (threshold - stats.FreeBytes) / oneMib
+		return fmt.Errorf("insufficient disk space available, usage: %d/%d Mib, please clear %d Mib", used, total, delta)
+	}
+	return nil
+}
+
+func checkSufficientStorage(storage storage.Storage) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			if err := checkDiskUsage(storage); err != nil {
+				http.Error(w, err.Error(), http.StatusInsufficientStorage)
+				return
+			}
+			next.ServeHTTP(w, r)
+		}
+
+		return http.HandlerFunc(handler)
+	}
+}

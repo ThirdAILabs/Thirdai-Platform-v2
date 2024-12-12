@@ -41,7 +41,7 @@ func (s *DeployService) Routes() chi.Router {
 		r.Group(func(r chi.Router) {
 			r.Use(auth.ModelPermissionOnly(s.db, auth.OwnerPermission))
 
-			r.Post("/", s.Start)
+			r.With(checkSufficientStorage(s.storage)).Post("/", s.Start)
 			r.Delete("/", s.Stop)
 		})
 

@@ -42,6 +42,7 @@ func (s *TrainService) Routes() chi.Router {
 
 	r.Group(func(r chi.Router) {
 		r.Use(s.userAuth.AuthMiddleware()...)
+		r.Use(checkSufficientStorage(s.storage))
 
 		r.Post("/ndb", s.TrainNdb)
 		r.Post("/ndb-retrain", s.NdbRetrain)

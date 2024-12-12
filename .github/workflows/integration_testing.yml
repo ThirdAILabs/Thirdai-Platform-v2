@@ -51,47 +51,47 @@ jobs:
   setup_the_ec2_instances:
     runs-on: ubuntu-latest-8-cores
     outputs:
-      server_machine_public_ip: "107.21.76.211"
+      server_machine_public_ip: ${{ steps.host_machine.outputs.public_ip }}
     steps:
-      # - name: Install AWS CLI
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y awscli
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
 
-      # - name: Configure AWS credentials
-      #   run: |
-      #     aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     aws configure set region us-east-1
+      - name: Configure AWS credentials
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set region us-east-1
 
-      # - name: Verify AWS CLI Setup
-      #   run: |
-      #     aws --version
-      #     aws sts get-caller-identity
+      - name: Verify AWS CLI Setup
+        run: |
+          aws --version
+          aws sts get-caller-identity
       
-      # # These instances already have the aws configured to pull thirdai-packages from the s3 bucket
-      # - name: start the ec2-instance
-      #   run: |
-      #     aws ec2 start-instances --instance-ids i-08bfe31f7665561c5 i-00c741703fbf15a4d
+      # These instances already have the aws configured to pull thirdai-packages from the s3 bucket
+      - name: start the ec2-instance
+        run: |
+          aws ec2 start-instances --instance-ids i-08bfe31f7665561c5 i-00c741703fbf15a4d
       
-      # - name: Wait for EC2 to be running
-      #   run: |
-      #     echo "Waiting for EC2 instance to start..."
-      #     sleep 30
+      - name: Wait for EC2 to be running
+        run: |
+          echo "Waiting for EC2 instance to start..."
+          sleep 30
 
-      # - name: Fetch the public ip of the server machine
-      #   id: host_machine
-      #   run: |
-      #     PUBLIC_IP=$(aws ec2 describe-instances \
-      #         --instance-ids i-08bfe31f7665561c5 \
-      #         --query "Reservations[0].Instances[0].PublicIpAddress" \
-      #         --output text)
-      #     echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+      - name: Fetch the public ip of the server machine
+        id: host_machine
+        run: |
+          PUBLIC_IP=$(aws ec2 describe-instances \
+              --instance-ids i-08bfe31f7665561c5 \
+              --query "Reservations[0].Instances[0].PublicIpAddress" \
+              --output text)
+          echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
 
       - name: verify ssh into ec2 instance
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: "107.21.76.211"
+          host: ${{ steps.host_machine.outputs.public_ip }}
           username: ubuntu
           key: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
           script: |
@@ -105,7 +105,7 @@ jobs:
 
       - name: Download the package and run driver.sh
         run: |
-          ssh -o StrictHostKeyChecking=no -T ubuntu@107.21.76.211  <<EOF
+          ssh -o StrictHostKeyChecking=no -T ubuntu@${{ steps.host_machine.outputs.public_ip }}  <<EOF
           aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.tarball_filename }} .
 
           # unzip the package
@@ -123,21 +123,22 @@ jobs:
               .platform_image_branch = "${{ inputs.docker_image_branch_name }}" |
               .docker_registry_password = "${{ inputs.docker_registry_password }}" |
               .login_method = "postgres" |
-              .nodes[0].public_ip = "107.21.76.211" |
+              .nodes[0].public_ip = "${{ steps.host_machine.outputs.public_ip }}" |
               .nodes[0].private_ip = "172.31.17.228" |
               .nodes[0].ssh_username = "ubuntu" |
               .nodes[0].connection_type = "local" |
               .nodes[1].private_ip = "172.31.31.123" |
               .nodes[1].ssh_username = "ubuntu" |
               .nodes[1].connection_type = "ssh" |
-          '  ./package/config.yml
+          '  ./package/config.yml -y
 
           # Run the driver.sh script
-          source ./package/driver.sh ./package/config.yml -v 1>./package/installation.out 2>./package/installation.err
+          # source ./package/driver.sh ./package/config.yml -v 1>./package/installation.out 2>./package/installation.err
           EOF
       
       - name: Wait for 7 minutes to let the model_bazaar get started
-        run: sleep $((7 * 60))
+        run: |
+          exit 1
 
   test:
     strategy:

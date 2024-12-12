@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     outputs:
-      version: "v${{ steps.docker_image_version.outputs.version }}"
+      version: "${{ steps.docker_image_version.outputs.version }}"
       docker_image_branch_name: ${{ steps.docker_image_branch_name.outputs.branch_name }}
 
     steps:
@@ -31,10 +31,6 @@ jobs:
           branch_name="test-installation-testing"
           echo "Docker image branch to build on: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
-      - name: debug
-        run: |
-          echo "${{ secrets.AZURE_CREDENTIALS }}"
-          exit 1
 
   Build_and_push_images:
     needs: [Retrieve_facts]
@@ -71,21 +67,21 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       HOST_MACHINE_PRIVATE_KEY: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
       HOST_MACHINE_PUBLIC_KEY: ${{ secrets.HOST_MACHINE_PUBLIC_KEY }}
-      EMAIL: ${{ secrets.EMAIL }}
-      PASSWORD: ${{ secrets.PASSWORD }}
+      EMAIL: "gautam@thirdai.com"
+      PASSWORD: "password"
       GENAI_KEY: ${{ secrets.GENAI_KEY }}
       
-  cleanup:
-    needs: [Retrieve_facts, Build_and_push_images, package, run_tests]
-    uses: ./.github/workflows/cleanup.yml
-    with:
-      docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
-      docker_image_version: ${{ needs.Retrieve_facts.outputs.version }}
-      offline_package_name: ${{ needs.package.outputs.offline_package_name }}
-      online_package_name: ${{ needs.package.outputs.online_package_name }}
-    secrets:
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  # cleanup:
+  #   needs: [Retrieve_facts, Build_and_push_images, package, run_tests]
+  #   uses: ./.github/workflows/cleanup.yml
+  #   with:
+  #     docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
+  #     docker_image_version: ${{ needs.Retrieve_facts.outputs.version }}
+  #     offline_package_name: ${{ needs.package.outputs.offline_package_name }}
+  #     online_package_name: ${{ needs.package.outputs.online_package_name }}
+  #   secrets:
+  #     AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  #     AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  #     AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

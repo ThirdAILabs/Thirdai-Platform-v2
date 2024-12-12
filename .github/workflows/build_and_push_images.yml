@@ -33,6 +33,7 @@ jobs:
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Build and push docker images to the repository
         run: |
           cd release

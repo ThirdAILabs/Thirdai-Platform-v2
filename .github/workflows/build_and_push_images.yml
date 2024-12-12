@@ -27,6 +27,10 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v2
       
+      - name: debug
+        run: |
+          echo "${{ secrets.APPLICATION_ID }}"
+      
       - name: "Azure Login"
         uses: azure/login@v2
         with:

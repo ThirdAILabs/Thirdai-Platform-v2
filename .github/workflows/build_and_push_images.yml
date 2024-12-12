@@ -24,7 +24,7 @@ jobs:
   build_docker_images:
     runs-on: ubuntu-latest-8-cores
     outputs:
-      pull_password: "${{ steps.docker_registry.outputs.PULL_PASSWORD }}"
+      pull_password: ${{ steps.docker_registry.outputs.PULL_PASSWORD }}
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v2

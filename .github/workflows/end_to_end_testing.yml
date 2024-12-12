@@ -21,7 +21,7 @@ jobs:
       - name: Get the new version of the docker images
         id: docker_image_version
         run: |
-          version=$(shuf -i 100-999 -n 3 | paste -sd '.')
+          version="766.309.855"
           echo "Generated version: $version"
           echo "version=$version" >> $GITHUB_OUTPUT
 

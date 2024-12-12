@@ -99,9 +99,6 @@ jobs:
 
             mkdir -p package
             tar -xvf ${{ inputs.tarball_filename }} -C package
-      - name: exit the script
-        run: |
-          exit 1
 
       - name: Download the package and run driver.sh
         run: |

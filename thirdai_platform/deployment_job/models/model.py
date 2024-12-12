@@ -1,3 +1,4 @@
+import os
 from abc import ABC
 from pathlib import Path
 
@@ -21,6 +22,7 @@ class Model(ABC):
         self.logger = logger
 
         self.model_dir = self.get_model_dir(self.config.model_id)
+        self.host_model_dir = self.get_host_model_dir(self.config.model_id)
 
         self.logger.debug(
             f"Model initialized with model_id: {self.config.model_id} at {self.model_dir}",
@@ -34,3 +36,10 @@ class Model(ABC):
 
     def get_model_dir(self, model_id: str):
         return Path(self.config.model_bazaar_dir) / "models" / model_id
+
+    def get_host_model_dir(self, model_id: str):
+        host_model_dir = (
+            Path(self.config.host_dir) / "models" / model_id / self.config.deployment_id
+        )
+        os.makedirs(host_model_dir, exist_ok=True)
+        return host_model_dir

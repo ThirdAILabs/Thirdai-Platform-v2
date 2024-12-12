@@ -136,10 +136,14 @@ if config.model_options.model_type == ModelType.NDB:
 elif config.model_options.model_type == ModelType.UDT:
     if config.model_options.udt_sub_type == UDTSubType.token:
         backend_router_factory = UDTRouterTokenClassification
+
         logger.info(
             "Initializing UDT Token Classification router", code=LogCode.MODEL_INIT
         )
-    elif config.model_options.udt_sub_type == UDTSubType.text:
+    elif (
+        config.model_options.udt_sub_type == UDTSubType.text
+        or config.model_options.udt_sub_type == UDTSubType.document
+    ):
         backend_router_factory = UDTRouterTextClassification
         logger.info(
             "Initializing UDT Text Classification router", code=LogCode.MODEL_INIT
@@ -207,11 +211,20 @@ async def homepage(request: Request) -> dict:
     return {"Deployment"}
 
 
+@app.get("/health")
+async def health_check() -> dict:
+    return {"status": "success"}
+
+
 @app.on_event("startup")
 async def startup_event() -> None:
     """
     Event handler for application startup.
     """
+    asyncio.create_task(delayed_status_update())
+
+
+async def delayed_status_update():
     try:
         await asyncio.sleep(10)
         reporter.update_deploy_status(config.model_id, "complete")
@@ -219,7 +232,20 @@ async def startup_event() -> None:
         error_message = f"Startup event failed with error: {e}"
         reporter.update_deploy_status(config.model_id, "failed", message=error_message)
         logger.critical(error_message, code=LogCode.MODEL_INIT)
-        raise e  # Re-raise the exception to propagate it to the main block
+        sys.exit(1)
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+
+    logger.debug(
+        f"Shutting down FastAPI Application",
+    )
+
+    if isinstance(backend_router, NDBRouter):
+        deployment_status = reporter.get_deploy_status(config.model_id)
+        if deployment_status == "stopped":
+            backend_router.shutdown()
 
 
 if __name__ == "__main__":

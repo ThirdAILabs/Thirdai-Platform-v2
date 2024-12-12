@@ -151,6 +151,7 @@ class NDBData(BaseModel):
 class UDTSubType(str, Enum):
     text = "text"
     token = "token"
+    document = "document"
 
 
 class TokenClassificationOptions(BaseModel):
@@ -163,7 +164,7 @@ class TokenClassificationOptions(BaseModel):
 
 
 class TextClassificationOptions(BaseModel):
-    udt_sub_type: Literal[UDTSubType.text] = UDTSubType.text
+    udt_sub_type: Literal[UDTSubType.text, UDTSubType.document] = UDTSubType.text
 
     text_column: str
     label_column: str

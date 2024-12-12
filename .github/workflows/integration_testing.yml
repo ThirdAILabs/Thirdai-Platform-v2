@@ -96,7 +96,7 @@ jobs:
       - name: Verify SSH Configuration
         run: |
           ssh-keygen -l -f ~/.ssh/id_rsa  # Verify key
-          ssh -v -o StrictHostKeyChecking=no ubuntu@107.21.76.211 whoami  # Verbose connection test
+          ssh -vvv -o StrictHostKeyChecking=no ubuntu@107.21.76.211 whoami  # Verbose connection test
 
       - name: Download the package and run driver.sh
         run: |

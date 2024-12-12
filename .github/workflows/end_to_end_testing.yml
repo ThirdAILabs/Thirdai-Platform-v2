@@ -56,7 +56,7 @@ jobs:
   #     AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
       
   run_tests:
-    # needs: [Retrieve_facts, package]
+    needs: [Retrieve_facts]
     uses: ./.github/workflows/integration_testing.yml
     with:
       docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}

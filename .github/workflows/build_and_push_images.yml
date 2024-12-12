@@ -19,8 +19,6 @@ on:
 jobs:
   build_docker_images:
     runs-on: ubuntu-latest-16-cores
-    environment:
-      name: docker_tests
     outputs:
       pull_password: "${{ steps.docker_registry.outputs.PULL_PASSWORD }}"
     steps:
@@ -29,18 +27,12 @@ jobs:
       
       - name: debug
         run: |
-          echo "${{ secrets.APPLICATION_ID }}"
-      
+          echo "azure cred: ${{ secrets.AZURE_CREDENTIALS }}"
+        
       - name: "Azure Login"
-        uses: azure/login@v2
+        uses: azure/login@v1
         with:
-          creds: |
-            {
-              "clientId": "${{ secrets.APPLICATION_ID }}",
-              "clientSecret": "${{ secrets.SECRET }}",
-              "subscriptionId": "${{ secrets.SUBSCRIPTION_ID }}",
-              "tenantId": "${{ secrets.TENANT_ID }}"
-            }
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Build and push docker images to the repository
         run: |

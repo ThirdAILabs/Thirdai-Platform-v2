@@ -35,6 +35,13 @@ from backend.utils import get_platform
 from database.session import get_session
 from fastapi.middleware.cors import CORSMiddleware
 
+from sqlalchemy import event
+import asyncio
+from database import schema
+from fastapi import BackgroundTasks, WebSocket, WebSocketDisconnect
+from websocket.websocket import WebsocketConnectionManager
+from database.session import get_session
+
 app = fastapi.FastAPI()
 
 app.add_middleware(
@@ -63,6 +70,8 @@ app.include_router(recovery, prefix="/api/recovery", tags=["recovery"])
 app.include_router(data_router, prefix="/api/data", tags=["data"])
 app.include_router(telemetry, prefix="/api/telemetry", tags=["telemetry"])
 app.include_router(integrations, prefix="/api/integrations", tags=["integrations"])
+
+manager = WebsocketConnectionManager()
 
 
 @app.exception_handler(Exception)
@@ -163,6 +172,57 @@ async def startup_event():
         logger.debug(traceback.format_exc())
 
     await sync_job_statuses()
+
+
+@app.websocket("/ws/updates")
+async def websocket_endpoint(websocket: WebSocket, background_tasks: BackgroundTasks):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()  # Handle incoming messages if necessary
+            print(f"Received data: {data}")
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+        print("Client disconnected")
+
+
+# Listener for after insert event
+@event.listens_for(schema.Model, "after_insert")
+def after_insert(mapper, connection, target):
+    def run_async():
+        async def notify_clients():
+            # Send a message to all connected WebSocket clients
+            session = next(get_session())
+            data = session.query(schema.Model).get(target.id)
+            
+            await manager.broadcast(f"Record inserted: {data}")
+
+        # Create and run the event loop in a new thread
+        asyncio.run(notify_clients())
+
+    # Run the asynchronous task in a separate thread
+    from threading import Thread
+    thread = Thread(target=run_async)
+    thread.start()
+
+# Listener for after update event
+@event.listens_for(schema.Model, "after_update")
+def after_update(mapper, connection, target):
+    def run_async():
+        async def notify_clients():
+            # Send a message to all connected WebSocket clients
+            session = next(get_session())
+            data = session.query(schema.Model).get(target.id)
+
+            await manager.broadcast(f"Record updated: {data.name}, train_status -> {data.train_status}, deploy status -> {data.deploy_status}")
+
+        # Create and run the event loop in a new thread
+        asyncio.run(notify_clients())
+
+    # Run the asynchronous task in a separate thread
+    from threading import Thread
+    thread = Thread(target=run_async)
+    thread.start()
 
 
 if __name__ == "__main__":

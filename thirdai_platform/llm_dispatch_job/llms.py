@@ -4,6 +4,7 @@ from typing import AsyncGenerator, List
 from urllib.parse import urljoin
 
 import aiohttp
+import requests
 from llm_dispatch_job.utils import Reference, make_prompt
 
 
@@ -168,17 +169,17 @@ class OnPremLLM(LLMBase):
 
 class SelfHostedLLM(LLMBase):
     def __init__(self):
-        import requests
-
         self.backend_endpoint = os.getenv("MODEL_BAZAAR_ENDPOINT")
         response = requests.get(
-            urljoin(self.backend_endpoint, "/api/integrations/self-hosted-llm")
+            urljoin(self.backend_endpoint, "/api/integrations/self-hosted-llm"),
+            # TODO(david) forward the access_token
+            headers={"Authorization": f"Bearer {access_token}"},
         )
         if response.status_code != 200:
             raise Exception("Cannot read self-hosted endpoint.")
         data = response.json()["data"]
-        self.self_hosted_endpoint = data["self_hosted_endpoint"]
-        self.self_hosted_api_key = data["self_hosted_api_key"]
+        self.self_hosted_endpoint = data["endpoint"]
+        self.self_hosted_api_key = data["api_key"]
 
         if self.self_hosted_endpoint is None or self.self_hosted_api_key is None:
             raise Exception(

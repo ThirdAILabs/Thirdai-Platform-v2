@@ -418,6 +418,7 @@ class IntegrationType(str, enum.Enum):
     self_hosted = "self_hosted"
 
 
+# TODO(david) move api keys to vault
 class Integrations(SQLDeclarativeBase):
     __tablename__ = "integrations"
 

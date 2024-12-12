@@ -19,50 +19,9 @@ root_folder = pathlib.Path(__file__).parent
 # with open(docs_file) as f:
 #     docs = f.read()
 
-# @integrations_router.get(
-#     "/llm-provider-api-key",
-#     summary="Get LLM Provider API Key",
-#     # description=get_section(docs, "Get LLM Provider API Key"),
-#     dependencies=[Depends(verify_access_token)],
-# )
-# def get_llm_provider_api_key():
-#     try:
-#         # key key from vault
-#         openai_api_key = "# openai key"
-#         return {"openai_api_key": openai_api_key}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail="Failed to retrieve OpenAI API key.")
-
-
-# @integrations_router.post(
-#     "/llm-provider-api-key",
-#     summary="Set LLM Provider API Key",
-#     # description=get_section(docs, "Set LLM Provider API Key"),
-#     dependencies=[Depends(global_admin_only)],
-# )
-# def set_llm_provider_api_key(api_key: str):
-#     try:
-#         # store key in vault
-#         return {"message": "OpenAI API key stored successfully."}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail="Failed to store OpenAI API key.")
-
-
-# @integrations_router.delete(
-#     "/llm-provider-api-key",
-#     summary="Delete LLM Provider API Key",
-#     # description=get_section(docs, "Delete LLM Provider API Key"),
-#     dependencies=[Depends(global_admin_only)],
-# )
-# def delete_llm_provider_api_key():
-#     try:
-#         # delete key from vault
-#         return {"message": "OpenAI API key deleted successfully."}
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail="Failed to delete OpenAI API key.")
-
 
 # TODO(david): support having multiple self-hosted LLM endpoints
+# TODO(david): move endpoints/api keys to vault
 @integrations_router.get(
     "/self-hosted-llm",
     summary="Get Self-Hosted LLM Integration",
@@ -179,7 +138,7 @@ def delete_self_hosted_llm(session: Session = Depends(get_session)):
         )
 
         # TODO(david) check if any models are currently configured with the self-hosted llm and fail if they are.
-        # Also, lets move towards having LLM selection at deployment time
+        # Also, lets move towards having LLM selection be more dynamic vs being rigidly attached to the model
 
         if existing_integration:
             session.delete(existing_integration)

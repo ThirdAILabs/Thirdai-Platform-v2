@@ -23,7 +23,6 @@ import {
 import { Input } from '@/components/ui/input';
 import Fuse from 'fuse.js';
 import FeedbackDashboard from './FeedbackDashboard';
-import FeedbackDashboardXML from './FeedbackDashboadXML';
 import {
   parseCSV,
   parseExcel,
@@ -31,9 +30,9 @@ import {
   convertCSVToPDFFormat,
   ParsedData,
 } from '@/utils/fileParsingUtils';
+// import TimerIcon from '@mui/icons-material/Timer';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
-import { parseXML, XMLRenderer, clean } from './xml';
-import { DOMParser } from 'xmldom';
+
 interface Token {
   text: string;
   tag: string;
@@ -61,28 +60,6 @@ interface TagSelectorProps {
   onSelect: (tag: string) => void;
   onNewLabel: (newLabel: string) => Promise<void>;
   currentTag: string;
-}
-interface XPathLocation {
-  xpath: string;
-  attribute: string | null;
-}
-interface xmlPrediction {
-  label: string;
-  location: {
-    local_char_span: {
-      start: number;
-      end: number;
-    };
-    xpath_location: XPathLocation;
-    value: string;
-  };
-}
-interface Selection {
-  start: number;
-  end: number;
-  xpath: string;
-  tag: string;
-  value: string;
 }
 
 const SELECTING_COLOR = '#EFEFEF';
@@ -255,7 +232,7 @@ function TagSelector({ open, choices, onSelect, onNewLabel, currentTag }: TagSel
 }
 
 export default function Interact() {
-  const { predict, predictXml, insertSample, addLabel, getLabels, getTextFromFile } =
+  const { predict, insertSample, addLabel, getLabels, getTextFromFile } =
     useTokenClassificationEndpoints();
 
   const [inputText, setInputText] = useState<string>('');
@@ -265,16 +242,13 @@ export default function Interact() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [parsedData, setParsedData] = useState<ParsedData | null>(null);
   const [showHighlightedOnly, setShowHighlightedOnly] = useState(false);
+
   const [mouseDownIndex, setMouseDownIndex] = useState<number | null>(null);
   const [mouseUpIndex, setMouseUpIndex] = useState<number | null>(null);
   const [selecting, setSelecting] = useState<boolean>(false);
   const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(null);
   const [selectedRange, setSelectedRange] = useState<[number, number] | null>(null);
   const [processingTime, setProcessingTime] = useState<number | undefined>();
-  const [logType, setLogType] = useState<string | undefined>();
-  const [xmlAnnotations, setXmlAnnotations] = useState<xmlPrediction[]>([]);
-  const [xmlQueryText, setXmlQueryText] = useState<string | undefined>('');
-
   const startIndex =
     mouseDownIndex !== null && mouseUpIndex !== null
       ? Math.min(mouseDownIndex, mouseUpIndex)
@@ -288,45 +262,7 @@ export default function Interact() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [cachedTags, setCachedTags] = useState<CachedTags>({});
-  const [selections, setSelections] = useState<Selection[]>([]);
-  // Handler for when a selection is completed
-  const handleSelectionComplete = (selection: Selection) => {
-    // Add the new selection to the list of selections
-    const xmlAnnotation: xmlPrediction = {
-      location: {
-        local_char_span: {
-          start: selection.start,
-          end: selection.end,
-        },
-        value: selection.value,
-        xpath_location: {
-          xpath: selection.xpath,
-          attribute: null,
-        },
-      },
-      label: selection.tag,
-    };
-    if (selection.tag === 'DELETE TAG') {
-      setXmlAnnotations(
-        xmlAnnotations.filter((item) => item.location.value !== xmlAnnotation.location.value)
-      );
-      setSelections(
-        selections.filter((item) => {
-          return item.value !== selection.value;
-        })
-      );
-    } else {
-      setXmlAnnotations((prevAnnotations) => [...prevAnnotations, xmlAnnotation]);
-      setSelections([...selections, selection]);
-      // console.log('New selection:', selection);
-      // console.log('All selections:', [...selections, selection]);
-      // console.log('all sele xml ', xmlAnnotations);
-    }
-  };
-  // Handler to delete a selection
-  const handleDeleteSelection = (index: number) => {
-    setSelections((prevSelections) => prevSelections.filter((_, i) => i !== index));
-  };
+
   useEffect(() => {
     const stopSelectingOnOutsideClick = () => {
       setSelecting(false);
@@ -340,9 +276,6 @@ export default function Interact() {
     setInputText(event.target.value);
     setParsedData(null);
     setAnnotations([]);
-    setXmlAnnotations([]);
-    setSelections([]);
-    setLogType(undefined);
     setProcessingTime(undefined); // make time display disppears as typying begins
   };
 
@@ -422,19 +355,16 @@ export default function Interact() {
 
     setTagColors((existingColors) => {
       const colors = { ...existingColors };
-      //Anand TODO: this if tag is only for temporary basis, need to be removed before merging.
-      if (tags) {
-        const newTags = Array.from(new Set(tags.flatMap((tokenTags) => tokenTags))).filter(
-          (tag) => !existingColors[tag] && tag !== 'O'
-        );
-        newTags.forEach((tag, index) => {
-          const i = Object.keys(existingColors).length + index;
-          colors[tag] = {
-            text: pastels[i % pastels.length],
-            tag: darkers[i % darkers.length],
-          };
-        });
-      }
+      const newTags = Array.from(new Set(tags.flatMap((tokenTags) => tokenTags))).filter(
+        (tag) => !existingColors[tag] && tag !== 'O'
+      );
+      newTags.forEach((tag, index) => {
+        const i = Object.keys(existingColors).length + index;
+        colors[tag] = {
+          text: pastels[i % pastels.length],
+          tag: darkers[i % darkers.length],
+        };
+      });
       return colors;
     });
   };
@@ -444,27 +374,21 @@ export default function Interact() {
     if (!text?.trim()) {
       return;
     }
+
     setIsLoading(true);
     try {
       const result = await predict(text);
+      updateTagColors(result.prediction_results.predicted_tags);
       setProcessingTime(result.time_taken);
-      setLogType(result.prediction_results.log_type);
-      if (result.prediction_results.log_type === 'unstructured') {
-        updateTagColors(result.prediction_results.predicted_tags);
-        setAnnotations(
-          _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(
-            ([text, tag]) => ({
-              text: text as string,
-              tag: (tag as string[])[0],
-            })
-          )
-        );
-      } else {
-        const result = await predictXml(clean(text));
-        setXmlQueryText(result.prediction_results.query_text);
-        setXmlAnnotations(result.prediction_results.predictions);
-        setSelections([]);
-      }
+      setAnnotations(
+        _.zip(result.prediction_results.tokens, result.prediction_results.predicted_tags).map(
+          ([text, tag]) => ({
+            text: text as string,
+            tag: (tag as string[])[0],
+          })
+        )
+      );
+
       if (!isFileUpload) {
         setParsedData({ type: 'other', content: text });
       }
@@ -855,21 +779,6 @@ export default function Interact() {
     const words = content.split(/\s+/);
     let currentIndex = 0;
 
-    if (logType === 'xml' && xmlQueryText) {
-      const cleanXml = clean(xmlQueryText);
-      const parsedXml = parseXML(cleanXml);
-      const xmlDom = new DOMParser().parseFromString(cleanXml, 'application/xml');
-      return (
-        <XMLRenderer
-          data={parsedXml}
-          path={[]}
-          choices={allLabels}
-          predictions={xmlAnnotations}
-          onSelectionComplete={handleSelectionComplete}
-          xmlDom={xmlDom}
-        />
-      );
-    }
     return words
       .map((word, wordIndex) => {
         const tokenIndex = annotations.findIndex(
@@ -1009,7 +918,7 @@ export default function Interact() {
           </Typography>
         </Box>
 
-        {(annotations.length > 0 || logType === 'xml') && (
+        {annotations.length > 0 && (
           <Box mt={4} mb={2} display="flex" alignItems="center" justifyContent="flex-end">
             <FormControlLabel
               control={
@@ -1029,7 +938,7 @@ export default function Interact() {
             <CircularProgress />
           </Box>
         ) : (
-          (annotations.length > 0 || logType === 'xml') && (
+          annotations.length > 0 && (
             <Box mt={4}>
               <Card
                 className="p-7 text-start"
@@ -1054,36 +963,21 @@ export default function Interact() {
           marginTop: '4.7cm', // This will push the FeedbackDashboard 1cm lower
         }}
       >
-        {processingTime !== undefined && (annotations.length || logType === 'xml') && (
+        {processingTime !== undefined && annotations.length && (
           <div className="mb-4">
             {' '}
-            {annotations.length ? (
-              <InferenceTimeDisplay
-                processingTime={processingTime}
-                tokenCount={annotations.length}
-              />
-            ) : (
-              <InferenceTimeDisplay
-                processingTime={processingTime}
-                tokenCount={xmlQueryText?.split(' ').length}
-              />
-            )}
+            <InferenceTimeDisplay processingTime={processingTime} tokenCount={annotations.length} />
           </div>
         )}
 
-        {annotations.length !== 0 && (
-          <Card className="p-7 text-start">
-            <FeedbackDashboard
-              cachedTags={cachedTags}
-              tagColors={tagColors}
-              deleteFeedbackExample={deleteFeedbackExample}
-              submitFeedback={submitFeedback}
-            />
-          </Card>
-        )}
-        {xmlAnnotations.length !== 0 && (
-          <FeedbackDashboardXML selections={selections} onDeleteSelection={handleDeleteSelection} />
-        )}
+        <Card className="p-7 text-start">
+          <FeedbackDashboard
+            cachedTags={cachedTags}
+            tagColors={tagColors}
+            deleteFeedbackExample={deleteFeedbackExample}
+            submitFeedback={submitFeedback}
+          />
+        </Card>
       </div>
     </Container>
   );

@@ -54,9 +54,9 @@ jobs:
         run: |
           cd release
           pip install -r requirements.txt
-          version="${{ github.event.inputs.docker_image_version }}"
-          echo "Deleting Docker images for branch ${{ github.event.inputs.docker_image_branch_name }} with version: $version"
-          python3 docker_remove.py -b ${{ github.event.inputs.docker_image_branch_name }} --version "$version" --client_id ${{ secrets.AZURE_CLIENT_ID }} --tenant_id ${{ secrets.TENANT_ID }} --secret ${{ secrets.AZURE_CLIENT_SECRET }} --config config.yaml   # This works because config.yaml is only being used to get the registry provider
+          version="${{ inputs.docker_image_version }}"
+          echo "Deleting Docker images for branch ${{ inputs.docker_image_branch_name }} with version: $version"
+          python3 docker_remove.py -b ${{ inputs.docker_image_branch_name }} --version "$version" --client_id ${{ secrets.AZURE_CLIENT_ID }} --tenant_id ${{ secrets.TENANT_ID }} --secret ${{ secrets.AZURE_CLIENT_SECRET }} --config config.yaml   # This works because config.yaml is only being used to get the registry provider
       
       - name: Install AWS CLI
         run: |
@@ -76,6 +76,6 @@ jobs:
       
       - name: Delete the offline and online tarballs from the s3 buckets
         run: |
-          echo "Deleting package ${{ github.event.inputs.offline_package_name }} and ${{ github.event.inputs.online_package_name }} from S3..."
-          aws s3 rm s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ github.event.inputs.offline_package_name }}
-          aws s3 rm s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ github.event.inputs.online_package_name }}
+          echo "Deleting package ${{ inputs.offline_package_name }} and ${{ inputs.online_package_name }} from S3..."
+          aws s3 rm s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.offline_package_name }}
+          aws s3 rm s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.online_package_name }}

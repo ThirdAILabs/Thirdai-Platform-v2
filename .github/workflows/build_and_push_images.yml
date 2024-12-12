@@ -38,7 +38,7 @@ jobs:
         run: |
           cd release
           pip install -r requirements.txt
-          python3 push.py -b ${{ github.event.inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ github.event.inputs.docker_image_version }}
+          python3 push.py -b ${{ inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ inputs.docker_image_version }}
         
       - name: Install yq for YAML parsing
         run: |

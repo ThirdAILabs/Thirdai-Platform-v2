@@ -57,7 +57,7 @@ jobs:
           run: |
             git clone git@github.com:ThirdAILabs/platform.git
             cd platform
-            git checkout ${{ github.event.inputs.installer_branch_name }}
+            git checkout ${{ inputs.installer_branch_name }}
             cd ..
 
         - name: Download and store the Llama model in the unified models folder
@@ -134,58 +134,58 @@ jobs:
         - name: Download Docker images using the latest tag
           run: |
             # TODO(pratik): write a job to keep updating the images whose releases doesnot have versioning.
-            mkdir -p docker_images-${{ github.event.inputs.docker_image_version }}
+            mkdir -p docker_images-${{ inputs.docker_image_version }}
 
             # Pull and save images
-            images=(thirdai_platform_${{ github.event.inputs.docker_image_branch_name }} frontend_${{ github.event.inputs.docker_image_branch_name }})
+            images=(thirdai_platform_${{ inputs.docker_image_branch_name }} frontend_${{ inputs.docker_image_branch_name }})
 
             for image in "${images[@]}"
             do
-                echo "Pulling thirdaiplatform.azurecr.io/${image}:${{ github.event.inputs.docker_image_version }}..."
-                docker pull thirdaiplatform.azurecr.io/${image}:${{ github.event.inputs.docker_image_version }}
-                docker save -o docker_images-${{ github.event.inputs.docker_image_version }}/${image}_${{ github.event.inputs.docker_image_version }}.tar thirdaiplatform.azurecr.io/${image}:${{ github.event.inputs.docker_image_version }}
+                echo "Pulling thirdaiplatform.azurecr.io/${image}:${{ inputs.docker_image_version }}..."
+                docker pull thirdaiplatform.azurecr.io/${image}:${{ inputs.docker_image_version }}
+                docker save -o docker_images-${{ inputs.docker_image_version }}/${image}_${{ inputs.docker_image_version }}.tar thirdaiplatform.azurecr.io/${image}:${{ inputs.docker_image_version }}
             done
 
             docker pull thirdaiplatform.azurecr.io/nomad-autoscaler:0.3.7
-            docker save -o docker_images-${{ github.event.inputs.docker_image_version }}/nomad-autoscaler_0.3.7.tar thirdaiplatform.azurecr.io/nomad-autoscaler:0.3.7
+            docker save -o docker_images-${{ inputs.docker_image_version }}/nomad-autoscaler_0.3.7.tar thirdaiplatform.azurecr.io/nomad-autoscaler:0.3.7
 
             # TODO(pratik): Cleanup workflows/update_llama_cpp_docker.yml.
             docker pull thirdaiplatform.azurecr.io/llama.cpp:server
-            docker save -o docker_images-${{ github.event.inputs.docker_image_version }}/llama.cpp_server.tar thirdaiplatform.azurecr.io/llama.cpp:server
+            docker save -o docker_images-${{ inputs.docker_image_version }}/llama.cpp_server.tar thirdaiplatform.azurecr.io/llama.cpp:server
 
             docker pull thirdaiplatform.azurecr.io/keycloak:26.0.0
-            docker save -o docker_images-${{ github.event.inputs.docker_image_version }}/keycloak_26.0.0.tar thirdaiplatform.azurecr.io/keycloak:26.0.0
+            docker save -o docker_images-${{ inputs.docker_image_version }}/keycloak_26.0.0.tar thirdaiplatform.azurecr.io/keycloak:26.0.0
 
             docker pull registry:2
-            docker save -o docker_images-${{ github.event.inputs.docker_image_version }}/registry_2.tar registry:2
+            docker save -o docker_images-${{ inputs.docker_image_version }}/registry_2.tar registry:2
 
             docker pull postgres:latest
-            docker save -o docker_images-${{ github.event.inputs.docker_image_version }}/postgres_latest.tar postgres:latest
+            docker save -o docker_images-${{ inputs.docker_image_version }}/postgres_latest.tar postgres:latest
 
             docker pull thirdaiplatform.azurecr.io/traefik:v2.10
-            docker save -o docker_images-${{ github.event.inputs.docker_image_version }}/traefik_v2.10.tar thirdaiplatform.azurecr.io/traefik:v2.10
+            docker save -o docker_images-${{ inputs.docker_image_version }}/traefik_v2.10.tar thirdaiplatform.azurecr.io/traefik:v2.10
 
             docker pull thirdaiplatform.azurecr.io/grafana:main-ubuntu
-            docker save -o docker_images-${{ github.event.inputs.docker_image_version }}/grafana_main-ubuntu.tar thirdaiplatform.azurecr.io/grafana:main-ubuntu
+            docker save -o docker_images-${{ inputs.docker_image_version }}/grafana_main-ubuntu.tar thirdaiplatform.azurecr.io/grafana:main-ubuntu
 
             docker pull thirdaiplatform.azurecr.io/victoria-metrics:tags-v1.102.1-1-g76115c611f
-            docker save -o docker_images-${{ github.event.inputs.docker_image_version }}/victoria-metrics_tags-v1.102.1-1-g76115c611f.tar thirdaiplatform.azurecr.io/victoria-metrics:tags-v1.102.1-1-g76115c611f
+            docker save -o docker_images-${{ inputs.docker_image_version }}/victoria-metrics_tags-v1.102.1-1-g76115c611f.tar thirdaiplatform.azurecr.io/victoria-metrics:tags-v1.102.1-1-g76115c611f
 
-            echo "All images pulled and saved in the docker_images-${{ github.event.inputs.docker_image_version }} folder."
+            echo "All images pulled and saved in the docker_images-${{ inputs.docker_image_version }} folder."
 
         - name: Package platform, model, driver script, config, and README into tarball
           id: online_pack
           run: |
-            tarfile_name="thirdai-platform-package-${{ github.event.inputs.docker_image_branch_name }}-${{ github.event.inputs.docker_image_version }}.tar.gz"
+            tarfile_name="thirdai-platform-package-${{ inputs.docker_image_branch_name }}-${{ inputs.docker_image_version }}.tar.gz"
             echo "name=$tarfile_name" >> $GITHUB_OUTPUT
             tar -czvf $tarfile_name ./platform ./pretrained-models ./driver.sh ./config.yml ./README.md
 
         - name: Package Docker images, platform, model, driver script, config, and README into tarball
           id: offline_pack
           run: |
-            tarfile_name="thirdai-platform-package-offline-${{ github.event.inputs.docker_image_branch_name }}-${{ github.event.inputs.docker_image_version }}.tar.gz"
+            tarfile_name="thirdai-platform-package-offline-${{ inputs.docker_image_branch_name }}-${{ inputs.docker_image_version }}.tar.gz"
             echo "name=$tarfile_name" >> $GITHUB_OUTPUT
-            tar -czvf $tarfile_name ./platform ./docker_images-${{ github.event.inputs.docker_image_version }} ./driver.sh ./config.yml ./README.md ./pretrained-models
+            tar -czvf $tarfile_name ./platform ./docker_images-${{ inputs.docker_image_version }} ./driver.sh ./config.yml ./README.md ./pretrained-models
 
         - name: Upload online platform package to S3
           run: |

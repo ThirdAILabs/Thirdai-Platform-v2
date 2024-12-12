@@ -51,42 +51,42 @@ jobs:
   setup_the_ec2_instances:
     runs-on: ubuntu-latest-8-cores
     outputs:
-      server_machine_public_ip: ${{ steps.host_machine.outputs.public_ip }}
+      server_machine_public_ip: "107.21.76.211"
     steps:
-      - name: Install AWS CLI
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y awscli
+      # - name: Install AWS CLI
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y awscli
 
-      - name: Configure AWS credentials
-        run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set region us-east-1
+      # - name: Configure AWS credentials
+      #   run: |
+      #     aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     aws configure set region us-east-1
 
-      - name: Verify AWS CLI Setup
-        run: |
-          aws --version
-          aws sts get-caller-identity
+      # - name: Verify AWS CLI Setup
+      #   run: |
+      #     aws --version
+      #     aws sts get-caller-identity
       
-      # These instances already have the aws configured to pull thirdai-packages from the s3 bucket
-      - name: start the ec2-instance
-        run: |
-          aws ec2 start-instances --instance-ids i-08bfe31f7665561c5 i-00c741703fbf15a4d
+      # # These instances already have the aws configured to pull thirdai-packages from the s3 bucket
+      # - name: start the ec2-instance
+      #   run: |
+      #     aws ec2 start-instances --instance-ids i-08bfe31f7665561c5 i-00c741703fbf15a4d
       
-      - name: Wait for EC2 to be running
-        run: |
-          echo "Waiting for EC2 instance to start..."
-          sleep 30
+      # - name: Wait for EC2 to be running
+      #   run: |
+      #     echo "Waiting for EC2 instance to start..."
+      #     sleep 30
 
-      - name: Fetch the public ip of the server machine
-        id: host_machine
-        run: |
-          PUBLIC_IP=$(aws ec2 describe-instances \
-              --instance-ids i-08bfe31f7665561c5 \
-              --query "Reservations[0].Instances[0].PublicIpAddress" \
-              --output text)
-          echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+      # - name: Fetch the public ip of the server machine
+      #   id: host_machine
+      #   run: |
+      #     PUBLIC_IP=$(aws ec2 describe-instances \
+      #         --instance-ids i-08bfe31f7665561c5 \
+      #         --query "Reservations[0].Instances[0].PublicIpAddress" \
+      #         --output text)
+      #     echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
       
       - name: Set up SSH key
         run: |
@@ -96,7 +96,7 @@ jobs:
       
       - name: Download the package and run driver.sh
         run: |
-          ssh -o StrictHostKeyChecking=no ubuntu@$${{ steps.host_machine.outputs.public_ip }}  <<<EOF
+          ssh -o StrictHostKeyChecking=no -T ubuntu@$107.21.76.211  <<<EOF
           aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.tarball_filename }} .
 
           # unzip the package
@@ -114,7 +114,7 @@ jobs:
               .platform_image_branch = "${{ inputs.docker_image_branch_name }}" |
               .docker_registry_password = "${{ inputs.docker_registry_password }}" |
               .login_method = "postgres" |
-              .nodes[0].public_ip = "${{ steps.host_machine.outputs.public_ip }}" |
+              .nodes[0].public_ip = "107.21.76.211" |
               .nodes[0].private_ip = "172.31.17.228" |
               .nodes[0].ssh_username = "ubuntu" |
               .nodes[0].connection_type = "local" |

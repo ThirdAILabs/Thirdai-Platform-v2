@@ -1,14 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Grid,
-  TextField,
-  Divider,
-} from '@mui/material';
+import { Box, Typography, Card, CardContent, Grid, TextField, Divider } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ModelTrainingIcon from '@mui/icons-material/ModelTraining';

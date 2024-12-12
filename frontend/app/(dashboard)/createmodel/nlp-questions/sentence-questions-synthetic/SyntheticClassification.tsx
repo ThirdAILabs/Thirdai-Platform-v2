@@ -120,9 +120,7 @@ const SyntheticClassification = ({
     }
 
     if (categories.length < 2) {
-      alert(
-        'Please select at least two categories to proceed.'
-      );
+      alert('Please select at least two categories to proceed.');
       return;
     }
 

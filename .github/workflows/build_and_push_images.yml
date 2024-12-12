@@ -49,5 +49,10 @@ jobs:
       - name: Extract the docker registry_password
         id: docker_registry
         run: |
-          PULL_PASSWORD=$(yq e '.azure.branches."'${branch_name}'".pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml)
+          PULL_PASSWORD=$(yq e '.azure.branches.${{ inputs.docker_image_branch_name }}.pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml)
+          if [ -z "$PULL_PASSWORD" ]; then
+            echo "::error::No pull password found for branch ${{ inputs.docker_image_branch_name }}"
+            exit 1
+          fi
+          
           echo "PULL_PASSWORD=$PULL_PASSWORD" >> $GITHUB_OUTPUT

@@ -93,9 +93,6 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.HOST_MACHINE_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          
-      - name: Add EC2 Host to Known Hosts
-        run: ssh-keyscan -H ${{ secrets.HOST_MACHINE_PUBLIC_KEY }} >> ~/.ssh/known_hosts
       
       - name: Download the package and run driver.sh
         run: |

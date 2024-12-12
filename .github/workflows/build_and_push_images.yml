@@ -4,13 +4,17 @@ on:
   workflow_call:
     inputs:
       docker_image_branch_name:
-          description: "Branch name of the docker images"
-          required: true
-          type: string
+        description: "Branch name of the docker images"
+        required: true
+        type: string
       docker_image_version:
-          description: "Docker image version (without prefix 'v')"
-          required: true
-          type: string
+        description: "Docker image version (without prefix 'v')"
+        required: true
+        type: string
+    secrets:
+      AZURE_CREDENTIALS:
+        description: 'Azure credentials'
+        required: true
     outputs:
       pull_password:
         description: "Docker registry password for the provided image"
@@ -18,22 +22,17 @@ on:
 
 jobs:
   build_docker_images:
-    runs-on: ubuntu-latest-16-cores
+    runs-on: ubuntu-latest-8-cores
     outputs:
       pull_password: "${{ steps.docker_registry.outputs.PULL_PASSWORD }}"
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v2
       
-      - name: debug
-        run: |
-          echo "azure cred: ${{ secrets.AZURE_CREDENTIALS }}"
-        
       - name: "Azure Login"
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-
       - name: Build and push docker images to the repository
         run: |
           cd release

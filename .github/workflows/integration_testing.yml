@@ -20,6 +20,28 @@ on:
         description: "Tarball file name in the S3 bucket"
         required: true
         type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        description: "AWS access key id"
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        description: "AWS secret access key"
+        required: true
+      HOST_MACHINE_PRIVATE_KEY:
+        description: "server machine's private key hosted on AWS"
+        required: true
+      HOST_MACHINE_PUBLIC_KEY:
+        description: "server machine's public key hosted on AWS"
+        required: true
+      EMAIL:
+        description: "Global admin email ID"
+        required: true
+      PASSWORD:
+        description: "Global admin password"
+        required: true
+      GENAI_KEY:
+        description: "GenAI key"
+        required: true
     outputs:
       test_exit_code:
         description: "Exit code of the test-run"

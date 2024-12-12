@@ -7,7 +7,8 @@ on:
         description: "Ansible-repo branch name"
         type: string
         default: main
-
+  pull_request:
+    branches: [ main ]
 jobs:
   Retrieve_facts:
     runs-on: ubuntu-latest
@@ -27,7 +28,7 @@ jobs:
       - name: Set the branch name of the docker images
         id: docker_image_branch_name
         run: |
-          branch_name="test-${{ github.ref.name }}"
+          branch_name="test-installation-testing"
           echo "Docker image branch to build on: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
 
@@ -42,7 +43,7 @@ jobs:
     needs: [Retrieve_facts, Build_and_push_images]
     uses: ./.github/workflows/packaging.yml
     with:
-      Installer_branch_name: ${{ github.event.inputs.installer_branch_name }}
+      Installer_branch_name: main
       docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
       docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
       

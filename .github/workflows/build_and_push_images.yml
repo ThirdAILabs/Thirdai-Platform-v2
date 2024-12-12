@@ -17,7 +17,7 @@ on:
         required: true
     outputs:
       pull_password:
-        description: "Docker registry password for the provided image"
+        description: "Docker registry password for the image built"
         value: ${{ jobs.build_docker_images.outputs.pull_password }}
 
 jobs:

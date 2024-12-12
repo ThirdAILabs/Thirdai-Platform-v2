@@ -48,6 +48,7 @@ jobs:
       Installer_branch_name: main
       docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
       docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
+      docker_registry_password: ${{ needs.Build_and_push_images.outputs.pull_password }}
     secrets:
       PLATFORM_INSTALLATION_DEPLOY_KEY: ${{ secrets.PLATFORM_INSTALLATION_DEPLOY_KEY }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}

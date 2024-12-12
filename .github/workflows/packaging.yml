@@ -131,7 +131,11 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y docker-ce
 
-        - name: Download Docker images using the latest tag
+        - name: Log in to Docker Registry
+          run: |
+            docker login -u "thirdaiplatform-pull-${{ inputs.docker_image_branch_name }}" -p ${{ inputs.docker_image_branch_name }} thirdaiplatform.azurecr.io
+
+        - name: Download Docker images with the given tag
           run: |
             # TODO(pratik): write a job to keep updating the images whose releases doesnot have versioning.
             mkdir -p docker_images-${{ inputs.docker_image_version }}

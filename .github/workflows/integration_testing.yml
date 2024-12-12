@@ -96,11 +96,11 @@ jobs:
       - name: Verify SSH Configuration
         run: |
           ssh-keygen -l -f ~/.ssh/id_rsa  # Verify key
-          ssh -v -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@107.21.76.211 whoami  # Verbose connection test
+          ssh -v -o StrictHostKeyChecking=no ubuntu@107.21.76.211 whoami  # Verbose connection test
 
       - name: Download the package and run driver.sh
         run: |
-          ssh -o StrictHostKeyChecking=no -T -i ~/.ssh/id_rsa ubuntu@107.21.76.211  <<EOF
+          ssh -o StrictHostKeyChecking=no -T ubuntu@107.21.76.211  <<EOF
           aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.tarball_filename }} .
 
           # unzip the package

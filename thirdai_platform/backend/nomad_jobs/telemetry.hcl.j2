@@ -33,6 +33,10 @@ job "telemetry" {
       port "grafana-http" {
         to = 3000
       }
+
+      port "vicky-logs-http" {
+        to = 9428
+      }
     }
 
     task "victoriametrics" {
@@ -76,6 +80,156 @@ job "telemetry" {
       resources {
         cpu    = 256
         memory = 600
+      }
+    }
+
+    task "victorialogs" {
+      driver = "docker"
+
+      service {
+        name     = "vicky-logs"
+        port     = "vicky-logs-http"
+        provider = "nomad"
+        tags = [
+          "traefik.enable=true",
+          "traefik.http.routers.vicky-logs-http.rule=PathPrefix(`/victorialogs`)",
+          "traefik.http.routers.vicky-logs-http.priority=10"
+        ]
+      }
+
+      config {
+        image = "docker.io/victoriametrics/victoria-logs:latest"
+        ports = ["vicky-logs-http"]
+        args = [
+          "--storageDataPath={{ nomad_monitoring_dir }}/victorialogs",
+          "--retentionPeriod=30d",
+          "--httpListenAddr=:${NOMAD_PORT_vicky_logs_http}",
+          "--http.pathPrefix=/victorialogs"
+        ]
+        {% if platform == "local" -%}
+        extra_hosts = ["host.docker.internal:host-gateway"]
+        {%- endif %}
+        volumes = [
+          "{{ share_dir }}:/model_bazaar"
+        ]
+      }
+      resources {
+        cpu    = 256
+        memory = 600
+      }
+    }
+
+    task "vector" {
+      driver = "docker"
+
+      lifecycle {
+        hook = "poststart"
+        sidecar = true
+      }
+
+      env {
+        PRIVATE_MODEL_BAZAAR_ENDPOINT = "http://{{ model_bazaar_private_host }}/"
+      }
+
+      config {
+        image = "timberio/vector:nightly-distroless-libc"
+
+        {% if platform == "local" %}
+        {%- else -%}
+        group_add = ["4646"]
+        {%- endif %}
+
+        volumes = [
+          "{{ share_dir }}:/model_bazaar",
+          "local/vector-config.yaml:/etc/vector/vector.yaml"
+        ]
+      }
+
+      template {
+        data = <<EOF
+# the checkpoints for different logs will be stored in this directory
+data_dir: /model_bazaar/logs
+
+sources:
+  # fetching logs for all models
+  training_logs:
+    type: file
+    include:
+      - "/model_bazaar/logs/*/train.log"
+    read_from: beginning
+
+  deployment_logs:
+    type: file
+    include:
+      - "/model_bazaar/logs/*/deployment.log"
+    read_from: beginning
+
+transforms:
+  parse_logs:
+    # loads the json line as it is. we can add more fields here if needed
+    # for example the IP address of the machine where the logs are generated
+    type: remap
+    inputs:
+      - training_logs
+      - deployment_logs
+    source: |
+      . = parse_json!(.message)
+
+  # create two different sources for debug and non-debug logs
+  filter_debug_logs:
+    type: filter
+    inputs:
+      - parse_logs
+    condition: |
+      .level == "DEBUG"
+  
+  filter_non_debug_logs:
+    type: filter
+    inputs:
+      - parse_logs
+    condition: |
+      .level != "DEBUG"
+
+sinks:
+  # two different sinks for debug and non-debug logs.
+  # the number of debug logs can be high hence, we store them for a short period
+  # retention period of debug logs is 48 hours, non debug logs are stored for 30 days
+  debug_logs:
+    type: http
+    inputs:
+      - filter_debug_logs
+    uri: "${PRIVATE_MODEL_BAZAAR_ENDPOINT}victorialogs/insert/jsonline?_stream_fields=model_id,service_type&_msg_field=_msg&_time_field=_time&extra_fields=retention=48h"
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    request:
+      headers:
+        Content-Type: application/json
+    healthcheck:
+      enabled: false
+
+  other_logs:
+    type: http
+    inputs:
+      - filter_non_debug_logs
+    uri: "${PRIVATE_MODEL_BAZAAR_ENDPOINT}victorialogs/insert/jsonline?_stream_fields=model_id,service_type&_msg_field=_msg&_time_field=_time&extra_fields=retention=30d"
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    request:
+      headers:
+        Content-Type: application/json
+    healthcheck:
+      enabled: false
+EOF
+        destination = "local/vector-config.yaml"
+      }
+
+      resources {
+        cpu    = 256
+        memory = 300
       }
     }
 
@@ -139,11 +293,7 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
-    {% if platform == "local" -%}
-    url: http://host.docker.internal/victoriametrics
-    {%- else -%}
     url: http://{{ model_bazaar_private_host }}/victoriametrics
-    {%- endif %}
     isDefault: true
     editable: false
 EOF

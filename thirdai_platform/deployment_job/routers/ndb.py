@@ -1,7 +1,6 @@
 import io
 import traceback
 import uuid
-from logging import Logger
 from pathlib import Path
 from typing import AsyncGenerator, List
 
@@ -38,6 +37,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files, get_cloud_client
+from platform_common.logging import LogCode
+from platform_common.logging.job_loggers import JobLogger
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
@@ -68,7 +69,7 @@ ndb_top_k_selections = [
 
 
 class NDBRouter:
-    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: JobLogger):
         self.config = config
         self.reporter = reporter
         self.logger = logger
@@ -117,8 +118,7 @@ class NDBRouter:
         )
 
     @staticmethod
-    def get_model(config: DeploymentConfig, logger: Logger) -> NDBModel:
-        logger.info(f"Initializing ndb model")
+    def get_model(config: DeploymentConfig, logger: JobLogger) -> NDBModel:
         return NDBModel(
             config=config, logger=logger, write_mode=not config.autoscaling_enabled
         )
@@ -236,9 +236,11 @@ class NDBRouter:
             max_filesize_mb = 50
 
         if total_filesize > (max_filesize_mb * 1024 * 1024):
+            message = f"Size of uploaded files exceeds maximum of {max_filesize_mb}Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size."
+            self.logger.error(message, code=LogCode.FILE_VALIDATION)
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Size of uploaded files exceeds maximum of {max_filesize_mb}Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size.",
+                message=message,
             )
 
         documents = download_local_files(
@@ -249,18 +251,32 @@ class NDBRouter:
 
         if self.config.autoscaling_enabled:
             self.insertion_logger.log(InsertLog(documents=documents))
-            self.logger.info("Document insertion logged for autoscaling deployment")
+            self.logger.info(
+                "Document insertion logged for autoscaling deployment",
+                code=LogCode.MODEL_INSERT,
+            )
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Insert logged successfully.",
             )
         else:
-            self.model.insert(documents=documents)
-            self.logger.info("Document insertion applied successfully")
-            return response(
-                status_code=status.HTTP_200_OK,
-                message="Insert applied successfully.",
-            )
+            try:
+                self.model.insert(documents=documents)
+                self.logger.info(
+                    "Document insertion applied successfully", code=LogCode.MODEL_INSERT
+                )
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message="Insert applied successfully.",
+                )
+            except Exception as e:
+                self.logger.error(
+                    f"Error inserting documents: {e}", code=LogCode.MODEL_INSERT
+                )
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message="Error inserting documents",
+                )
 
     @ndb_delete_metric.time()
     def delete(
@@ -288,25 +304,39 @@ class NDBRouter:
 
         if self.config.autoscaling_enabled:
             self.deletion_logger.log(DeleteLog(doc_ids=input.source_ids))
-            self.logger.info("Deletion logged for autoscaling deployment")
+            self.logger.info(
+                "Deletion logged for autoscaling deployment", code=LogCode.MODEL_DELETE
+            )
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Delete logged successfully.",
             )
         else:
             if len(input.source_ids) > 5:
+                message = f"Number of deletions exceeds the maximum {input.source_ids} that can be processed synchronously in an active deployment."
+                self.logger.error(message, code=LogCode.MODEL_DELETE)
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message=f"Number of deletions exceeds the maximum {input.source_ids} that can be processed synchronously in an active deployment.",
+                    message=message,
                 )
-            self.model.delete(input.source_ids)
+            try:
+                self.model.delete(input.source_ids)
+                self.logger.info(
+                    "Document deletion applied successfully", code=LogCode.MODEL_DELETE
+                )
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message="Delete applied successfully.",
+                )
+            except Exception as e:
+                self.logger.error(
+                    f"Error deleting documents: {e}", code=LogCode.MODEL_DELETE
+                )
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message="Error deleting documents",
+                )
 
-            return response(
-                status_code=status.HTTP_200_OK,
-                message="Delete applied successfully.",
-            )
-
-    @ndb_upvote_metric.time()
     def upvote(
         self,
         input: UpvoteInput,
@@ -351,22 +381,31 @@ class NDBRouter:
         )
 
         if prod_mode:
-            return response(
-                status_code=status.HTTP_202_ACCEPTED,
-                message="Upvote logged successfully.",
-            )
+            message = "Upvote logged successfully."
+            self.logger.info(message, code=LogCode.MODEL_RLHF)
+            return response(status_code=status.HTTP_202_ACCEPTED, message=message)
         else:
             if len(input.text_id_pairs) > 100:
+                message = f"Number of upvote samples exceeds the maximum {input.text_id_pairs} that can be processed synchronously in an active deployment."
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
                 return response(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    message=f"Number of upvote samples exceeds the maximum {input.text_id_pairs} that can be processed synchronously in an active deployment.",
+                    status_code=status.HTTP_400_BAD_REQUEST, message=message
                 )
-            self.model.upvote(input.text_id_pairs)
-
-            return response(
-                status_code=status.HTTP_200_OK,
-                message="Upvote applied successfully.",
-            )
+            try:
+                message = "Upvote applied successfully."
+                self.model.upvote(input.text_id_pairs)
+                self.logger.info(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message=message,
+                )
+            except Exception as e:
+                message = f"Error applying upvote: {e}"
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message=message,
+                )
 
     @ndb_associate_metric.time()
     def associate(
@@ -410,22 +449,35 @@ class NDBRouter:
         )
 
         if prod_mode:
+            message = "Associate logged successfully."
+            self.logger.info(message, code=LogCode.MODEL_RLHF)
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
-                message="Associate logged successfully.",
+                message=message,
             )
         else:
             if len(input.text_pairs) > 100:
+                message = f"Number of association samples exceeds the maximum {input.text_pairs} that can be processed synchronously in an active deployment."
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message=f"Number of association samples exceeds the maximum {input.text_pairs} that can be processed synchronously in an active deployment.",
+                    message=message,
                 )
-            self.model.associate(input.text_pairs)
-
-            return response(
-                status_code=status.HTTP_200_OK,
-                message="Associate applied successfully.",
-            )
+            try:
+                message = "Associate applied successfully."
+                self.model.associate(input.text_pairs)
+                self.logger.info(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message=message,
+                )
+            except Exception as e:
+                message = f"Error applying association: {e}"
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message=message,
+                )
 
     @ndb_implicit_feedback_metric.time()
     def implicit_feedback(
@@ -615,9 +667,11 @@ class NDBRouter:
 
         background_tasks.add_task(self._perform_save, model_id, token, input.override)
 
+        message = "Save operation initiated in the background."
+        self.logger.info(message, code=LogCode.MODEL_SAVE)
         return response(
             status_code=status.HTTP_202_ACCEPTED,
-            message="Save operation initiated in the background.",
+            message=message,
             data={"new_model_id": model_id if not input.override else None},
         )
 
@@ -632,9 +686,11 @@ class NDBRouter:
                     model_name=model_id,
                     metadata={"thirdai_version": str(thirdai.__version__)},
                 )
-            self.logger.info("Successfully saved the model in the background.")
         except Exception as err:
-            self.logger.error(f"Error in background save: {traceback.format_exc()}")
+            self.logger.error(
+                f"Error in background save: {traceback.format_exc()}",
+                code=LogCode.MODEL_SAVE,
+            )
 
     def highlighted_pdf(
         self, reference_id: int, token=Depends(Permissions.verify_permission("read"))

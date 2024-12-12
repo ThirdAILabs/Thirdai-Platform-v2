@@ -3,7 +3,6 @@ import os
 import shutil
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urlparse
 
 import yaml
 from auth.utils import get_hostname_from_url
@@ -79,7 +78,7 @@ async def start_on_prem_generate_job(
     if not share_dir:
         raise ValueError("SHARE_DIR variable is not set.")
     cwd = Path(os.getcwd())
-    mount_dir = os.path.join(model_bazaar_path(), "gen-ai-models")
+    mount_dir = os.path.join(model_bazaar_path(), "pretrained-models/genai")
     model_path = os.path.join(mount_dir, model_name)
     if not os.path.exists(model_path):
         raise ValueError(f"Cannot find model at location: {model_path}.")
@@ -93,7 +92,7 @@ async def start_on_prem_generate_job(
     return submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
         filepath=str(cwd / "backend" / "nomad_jobs" / "on_prem_generation_job.hcl.j2"),
-        mount_dir=os.path.join(share_dir, "gen-ai-models"),
+        mount_dir=os.path.join(share_dir, "pretrained-models/genai"),
         initial_allocations=1,
         min_allocations=1,
         max_allocations=5,
@@ -192,7 +191,7 @@ def create_promfile(promfile_path: str):
     client_node_file = os.path.join(nomad_nodes_dir, "client.yaml")
 
     if platform == "local":
-        # create the local nomad_nodes.yaml file
+        # create the local server.yaml file
         with open(server_node_file, "w") as fp:
             yaml.dump(
                 [
@@ -275,25 +274,6 @@ def create_promfile(promfile_path: str):
     return node_private_ips
 
 
-def get_grafana_db_uri():
-    parsed_result = urlparse(os.getenv("DATABASE_URI"))
-    db_type, username, password, hostname, port = (
-        parsed_result.scheme,
-        parsed_result.username,
-        parsed_result.password,
-        parsed_result.hostname,
-        parsed_result.port,
-    )
-
-    platform = get_platform()
-    if db_type == "postgresql":
-        db_type = "postgres"  # Either mysql, postgres or sqlite3
-    if platform == "local":
-        hostname = "host.docker.internal"
-
-    return f"{db_type}://{username}:{password}@{hostname}:{port}/grafana"
-
-
 async def restart_telemetry_jobs():
     """
     Restart the telemetry jobs.
@@ -328,15 +308,20 @@ async def restart_telemetry_jobs():
         platform=platform,
         share_dir=share_dir,
         target_count=str(len(targets)),
-        grafana_db_url=get_grafana_db_uri(),
+        grafana_db_url=os.getenv("GRAFANA_DB_URL"),
         admin_username=os.getenv("ADMIN_USERNAME"),
         admin_password=os.getenv("ADMIN_PASSWORD"),
         admin_mail=os.getenv("ADMIN_MAIL"),
         registry=os.getenv("DOCKER_REGISTRY"),
         docker_username=os.getenv("DOCKER_USERNAME"),
         docker_password=os.getenv("DOCKER_PASSWORD"),
-        model_bazaar_private_host=get_hostname_from_url(
-            os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT")
+        model_bazaar_private_host=(
+            "host.docker.internal"
+            if platform == "local"
+            else get_hostname_from_url(os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"))
+        ),
+        vector_config_path=str(
+            cwd / "backend" / "nomad_jobs" / "vector-config-jobs.yaml"
         ),
     )
     if response.status_code != 200:

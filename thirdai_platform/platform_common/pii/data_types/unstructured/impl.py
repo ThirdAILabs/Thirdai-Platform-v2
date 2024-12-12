@@ -1,14 +1,16 @@
-from platform_common.pii.logtypes.base import LogType
-from platform_common.pii.logtypes.pydantic_models import (
+from typing import List, Tuple
+
+from platform_common.pii.data_types.base import DataType
+from platform_common.pii.data_types.pydantic_models import (
     UnstructuredTokenClassificationResults,
 )
 
 
-class UnstructuredTokenClassificationLog(LogType):
+class UnstructuredText(DataType):
     def __init__(self, log: str):
         self._inference_sample = {"source": log}
 
-    def process_prediction(self, model_predictions: str):
+    def process_prediction(self, model_predictions: List[List[Tuple[str, float]]]):
         predictions = []
         for prediction in model_predictions:
             predictions.append([x[0] for x in prediction])

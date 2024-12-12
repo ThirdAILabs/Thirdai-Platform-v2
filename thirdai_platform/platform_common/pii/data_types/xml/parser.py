@@ -5,7 +5,7 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 
 from lxml import etree
-from platform_common.pii.logtypes.xml.utils import (
+from platform_common.pii.data_types.xml.utils import (
     remove_delimiters_from_xml,
     remove_namespaces,
 )

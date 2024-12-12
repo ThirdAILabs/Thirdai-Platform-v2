@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class LogType(ABC):
+class DataType(ABC):
     @abstractmethod
     def process_prediction(self, model_predictions: str):
         pass

@@ -45,8 +45,8 @@ def test_train_error_handling(malformed_file):
 
     warning = "test_train_error_handling.py. Unsupported filetype"
     assert warning in status_info["warnings"][0]
-    assert warning in logs
 
-    error = "Error tokenizing data. C error:"
-    assert error in status_info["errors"][0]
-    assert error in logs
+    assert (
+        "The number of documents indexed and trained is 0" in status_info["errors"][0]
+    )
+    assert "Error tokenizing data. C error:" in logs

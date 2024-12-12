@@ -160,12 +160,14 @@ export default function Teams() {
       const selectedTeam = teams.find((team) => team.name === selectedTeamForRemove);
       //If user not belongs to the selected team
       if (!selectedTeam?.members.find((member) => member === memberToRemove)) {
-        alert(`${memberToRemove} is not member of the team ${selectedTeamForRemove}.`)
+        alert(`${memberToRemove} is not member of the team ${selectedTeamForRemove}.`);
         return;
       }
 
       if (selectedTeam.members.length === 1) {
-        alert('You need at least one member in the team. Add a new member before removing this one.');
+        alert(
+          'You need at least one member in the team. Add a new member before removing this one.'
+        );
         return;
       }
 
@@ -243,11 +245,13 @@ export default function Teams() {
         return;
       }
       if (!selectedTeam.admins.find((member) => member === adminToRemove)) {
-        alert(`${adminToRemove} is not an admin for the team ${selectedTeamForRemoveAdmin}.`)
+        alert(`${adminToRemove} is not an admin for the team ${selectedTeamForRemoveAdmin}.`);
         return;
       }
       if (selectedTeam.admins.length === 1) {
-        alert('You need at least one admin in the team. Assign a new admin before removing this one.');
+        alert(
+          'You need at least one admin in the team. Assign a new admin before removing this one.'
+        );
         return;
       }
       try {
@@ -407,13 +411,13 @@ export default function Teams() {
               options={
                 selectedTeamForAdd
                   ? users
-                    .map((user) => user.name)
-                    .filter(
-                      (userName) =>
-                        !teams
-                          .find((team) => team.name === selectedTeamForAdd)
-                          ?.members.includes(userName)
-                    )
+                      .map((user) => user.name)
+                      .filter(
+                        (userName) =>
+                          !teams
+                            .find((team) => team.name === selectedTeamForAdd)
+                            ?.members.includes(userName)
+                      )
                   : []
               }
               placeholder="New Member"

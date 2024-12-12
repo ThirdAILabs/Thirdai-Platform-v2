@@ -227,6 +227,12 @@ class TextClassificationDatagenOptions(BaseModel):
     user_prompts: Optional[List[str]] = None
     vocab_per_sentence: int = 4
 
+    @model_validator(mode="after")
+    def check_target_labels_length(cls, values):
+        if len(values.target_labels) < 2:
+            raise ValueError("target_labels must contain at least two labels.")
+        return values
+
 
 class TokenClassificationDatagenOptions(BaseModel):
     sub_type: Literal[UDTSubType.token] = UDTSubType.token

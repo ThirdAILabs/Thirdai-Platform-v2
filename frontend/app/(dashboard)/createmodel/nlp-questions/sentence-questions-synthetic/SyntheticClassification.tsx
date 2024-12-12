@@ -119,6 +119,13 @@ const SyntheticClassification = ({
       return;
     }
 
+    if (categories.length < 2) {
+      alert(
+        'Please select at least two categories to proceed.'
+      );
+      return;
+    }
+
     if (isDataGenerating) return;
 
     try {

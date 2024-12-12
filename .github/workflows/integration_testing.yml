@@ -87,13 +87,6 @@ jobs:
       #         --query "Reservations[0].Instances[0].PublicIpAddress" \
       #         --output text)
       #     echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
-      
-      # - name: Set up SSH key
-      #   run: |
-      #     mkdir -p ~/.ssh
-      #     echo "${{ secrets.HOST_MACHINE_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-      #     chmod 600 ~/.ssh/id_rsa
-      #     cat ~/.ssh/id_rsa
 
       - name: verify ssh into ec2 instance
         uses: appleboy/ssh-action@v1.2.0
@@ -101,12 +94,14 @@ jobs:
           host: "107.21.76.211"
           username: ubuntu
           key: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
-          script: whoami
-          
-      - name: Verify SSH Configuration
+          script: |
+            aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.tarball_filename }} .
+
+            mkdir -p package
+            tar -xvf ${{ inputs.tarball_filename }} -C package
+      - name: exit the script
         run: |
-          ssh-keygen -l -f ~/.ssh/id_rsa  # Verify key
-          ssh -vvv -o StrictHostKeyChecking=no ubuntu@107.21.76.211 whoami  # Verbose connection test
+          exit 1
 
       - name: Download the package and run driver.sh
         run: |

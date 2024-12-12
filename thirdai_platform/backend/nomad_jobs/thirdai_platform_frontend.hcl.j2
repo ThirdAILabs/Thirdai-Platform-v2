@@ -4,7 +4,13 @@ job "thirdai-platform-frontend" {
   type = "service"
 
   group "thirdai-platform-frontend" {
-    count = 1
+    count = "{{ majority_critical_services_nodes }}"
+
+    constraint {
+      attribute = "${node.meta.node_type}"
+      operator  = "="
+      value     = "server"
+    }
 
     network {
       port "thirdai-platform-frontend-http" {

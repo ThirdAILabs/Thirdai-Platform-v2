@@ -6,8 +6,6 @@ on:
       installer_branch_name:
         description: "Ansible-repo branch name"
         type: string
-  pull_request:
-    branches: [main]
 
 jobs:
   Retrieve_facts:

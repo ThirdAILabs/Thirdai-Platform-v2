@@ -91,7 +91,7 @@ class NDBRouter:
             dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
         )
         self.router.add_api_route("/delete", self.delete, methods=["POST"])
-        self.router.add_api_route("/tasks", self.tasks, methods=["GET"])
+        self.router.add_api_route("/tasks", self.get_tasks, methods=["GET"])
         self.router.add_api_route("/upvote", self.upvote, methods=["POST"])
         self.router.add_api_route("/associate", self.associate, methods=["POST"])
         self.router.add_api_route(
@@ -121,6 +121,7 @@ class NDBRouter:
         )
 
         self.task_queue = Queue()
+        # TODO(kartik): make tasks an on-disk data structure
         self.tasks = {}
         self.task_lock = threading.Lock()
 
@@ -836,7 +837,7 @@ class NDBRouter:
             data={},
         )
 
-    def tasks(
+    def get_tasks(
         self,
         task_id: Optional[str] = None,
         token: str = Depends(Permissions.verify_permission("write")),

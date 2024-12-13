@@ -40,7 +40,6 @@ import asyncio
 from database import schema
 from fastapi import BackgroundTasks, WebSocket, WebSocketDisconnect
 from websocket.websocket import WebsocketConnectionManager
-from database.session import get_session
 
 app = fastapi.FastAPI()
 
@@ -194,8 +193,9 @@ def after_insert(mapper, connection, target):
             # Send a message to all connected WebSocket clients
             session = next(get_session())
             data = session.query(schema.Model).get(target.id)
-            
-            await manager.broadcast(f"Record inserted: {data}")
+
+            await manager.broadcast(f"Record inserted: {data.name}, train_status -> {data.train_status}, deploy status -> {data.deploy_status}")
+            # await manager.broadcast(data)
 
         # Create and run the event loop in a new thread
         asyncio.run(notify_clients())
@@ -215,6 +215,7 @@ def after_update(mapper, connection, target):
             data = session.query(schema.Model).get(target.id)
 
             await manager.broadcast(f"Record updated: {data.name}, train_status -> {data.train_status}, deploy status -> {data.deploy_status}")
+            # await manager.broadcast(data)
 
         # Create and run the event loop in a new thread
         asyncio.run(notify_clients())

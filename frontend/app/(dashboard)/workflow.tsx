@@ -19,6 +19,7 @@ import {
   delete_workflow,
   getTrainingStatus,
   getDeployStatus,
+  fetchWorkflows,
   getTrainingLogs,
   getDeploymentLogs,
 } from '@/lib/backend';
@@ -28,6 +29,7 @@ import { Model, getModels } from '@/utils/apiRequests';
 import { UserContext } from '../user_wrapper';
 import { ContentCopy, Download } from '@mui/icons-material'; // MUI icons instead of SVG paths
 import { ExpandMore, ChevronRight } from '@mui/icons-material';
+
 
 enum DeployStatus {
   None = '',
@@ -293,6 +295,7 @@ export function WorkFlow({
   //   return () => clearInterval(intervalId);
   // }, [workflow.username, workflow.model_name]);
 
+
   useEffect(() => {
     const socket = new WebSocket('ws://localhost:8000/ws/updates');
   
@@ -302,7 +305,7 @@ export function WorkFlow({
   
     socket.onmessage = async (event) => {
       console.log('Status update received:', event.data);
-      
+    
       try {
         if (workflow.username && workflow.model_name) {
           const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
@@ -311,6 +314,8 @@ export function WorkFlow({
             getDeployStatus(modelIdentifier),
           ]);
   
+          // console.log(`training status -> ${trainStatus.data.train_status}`)
+          // console.log(`deploy status -> ${deployStatus.data.deploy_status}`)
           if (
             trainStatus.data.train_status === 'failed' &&
             (trainStatus.data.errors?.length > 0 || trainStatus.data.messages?.length > 0)

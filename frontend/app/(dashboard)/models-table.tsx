@@ -32,7 +32,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
   }
 
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
-
+  
   useEffect(() => {
     async function getWorkflows() {
       try {
@@ -49,9 +49,49 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
      
     getWorkflows();
 
-    const intervalId = setInterval(getWorkflows, 10000);
+    // const intervalId = setInterval(getWorkflows, 3000);
 
-    return () => clearInterval(intervalId);
+    // return () => clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    async function getWorkflows() {
+      try {
+        const fetchedWorkflows = await fetchWorkflows();
+        setWorkflows(fetchedWorkflows);
+      } catch (err) {
+        if (err instanceof Error) {
+          console.log(err.message);
+        } else {
+          console.log('An unknown error occurred');
+        }
+      }
+    }
+     
+    
+    const socket = new WebSocket('ws://localhost:8000/ws/updates');
+  
+    socket.onopen = () => {
+      console.log('WebSocket connection established');
+    };
+  
+    socket.onmessage = async (event) => {
+      console.log('[models-table.tsx] Status update received:', event.data);
+      getWorkflows();
+    }
+    
+  
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+  
+    socket.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+  
+    return () => {
+      socket.close();
+    };
   }, []);
 
   const filteredWorkflows = workflows.filter(

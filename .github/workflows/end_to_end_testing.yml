@@ -51,7 +51,8 @@ jobs:
     steps:
       - name: print the output values
         run: |
-          echo "pull password: ${{ needs.Build_and_push_images.outputs.pull_password }}"
+          pull_password=$(echo -n ${{ needs.Build_and_push_images.outputs.pull_password }} | base64 --decode)
+          echo "pull password: $pull_password"
           echo "var: ${{ needs.Build_and_push_images.outputs.var }}"
           echo "branch name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}"
           echo "version: ${{ needs.Retrieve_facts.outputs.version }}"

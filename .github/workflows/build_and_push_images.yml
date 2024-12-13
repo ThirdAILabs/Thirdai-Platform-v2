@@ -54,16 +54,11 @@ jobs:
       - name: Extract the docker registry_password
         id: docker_registry
         run: |
-          pull_password=$(yq e '.azure.branches.${{ inputs.docker_image_branch_name }}.pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml)
+          pull_password=$(yq e '.azure.branches."'${{ inputs.docker_image_branch_name }}'".pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml)
           if [ -z "$pull_password" ]; then
             echo "::error::No pull password found for branch ${{ inputs.docker_image_branch_name }}"
             exit 1
           fi
 
           echo "var=1234" >> $GITHUB_OUTPUT
-
-          random_secret_key=$(head -c 32 /dev/urandom | base64)
-          echo "$random_secret_key"  
-          echo "pull_password=$random_secret_key" >> $GITHUB_OUTPUT
-
-          # Log only the encoded value
+          echo "pull_password=$pull_password" >> $GITHUB_OUTPUT

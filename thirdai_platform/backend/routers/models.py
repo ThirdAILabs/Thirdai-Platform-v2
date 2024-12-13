@@ -17,7 +17,6 @@ from backend.utils import (
     get_high_level_model_info,
     get_model,
     get_model_from_identifier,
-    model_bazaar_path,
     validate_name,
 )
 from database import schema
@@ -34,9 +33,10 @@ from fastapi import (
 )
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, StreamingResponse
-from platform_common.utils import response
+from platform_common.dependencies import is_on_low_disk
+from platform_common.utils import disk_usage, model_bazaar_path, response
 from pydantic import BaseModel
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, desc, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 from storage import interface, local
 
@@ -88,11 +88,15 @@ def list_models(
     user: schema.User = authenticated_user.user
     user_teams = [ut.team_id for ut in user.teams]
 
-    query = session.query(schema.Model).options(
-        joinedload(schema.Model.user),
-        selectinload(schema.Model.attributes),
-        selectinload(schema.Model.dependencies),
-        selectinload(schema.Model.used_by),
+    query = (
+        session.query(schema.Model)
+        .options(
+            joinedload(schema.Model.user),
+            selectinload(schema.Model.attributes),
+            selectinload(schema.Model.dependencies),
+            selectinload(schema.Model.used_by),
+        )
+        .order_by(desc(schema.Model.published_date))
     )
 
     if name:
@@ -266,7 +270,7 @@ class ModelInfo(BaseModel):
     metadata: Optional[Dict[str, str]] = None
 
 
-@model_router.get("/upload-token")
+@model_router.get("/upload-token", dependencies=[Depends(is_on_low_disk())])
 def upload_token(
     model_name: str,
     size: int,
@@ -342,7 +346,7 @@ def upload_chunk(
         Example: "Bearer <token>"
 
     Returns:
-    - JSONResponse: Success message if the chunk is uploaded successfully.
+    - JSONResponse: Success message if the chunk is uploaded successfully. Along with the disk occupied.
     """
     if authorization is None:
         return response(
@@ -377,6 +381,20 @@ def upload_chunk(
     except Exception as error:
         return response(status_code=status.HTTP_401_UNAUTHORIZED, message=str(error))
 
+    disk_stats = disk_usage()
+    threshold = 0.8
+    disk_use = disk_stats["used"] / disk_stats["total"]
+    if disk_use > threshold:
+        space_needed = ((disk_use - threshold) * disk_stats["total"]) / (
+            1024 * 1024
+        )  # MB
+        # delete the chunk(s) of the model received till now
+        storage.delete(payload["model_id"])
+
+        return response(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            message=f"Platform reached the disk limit while uploading the model. Please clear {space_needed:.2f} MB space and try again.",
+        )
     try:
         chunk_data = chunk.file.read()
         storage.upload_chunk(
@@ -395,6 +413,7 @@ def upload_chunk(
     return response(
         status_code=status.HTTP_200_OK,
         message="Uploaded chunk",
+        data={"disk_usage": disk_usage()},
     )
 
 

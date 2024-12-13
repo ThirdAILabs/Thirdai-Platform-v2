@@ -1,3 +1,4 @@
+import logging
 import os
 import traceback
 from pathlib import Path
@@ -6,7 +7,6 @@ from typing import List, Optional
 from backend.utils import (
     get_platform,
     get_python_path,
-    model_bazaar_path,
     submit_nomad_job,
     thirdai_platform_dir,
 )
@@ -21,7 +21,7 @@ from platform_common.pydantic_models.training import (
     UDTSubType,
 )
 from platform_common.thirdai_storage.data_types import TokenClassificationData
-from platform_common.utils import response, save_dict
+from platform_common.utils import model_bazaar_path, response, save_dict
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
@@ -111,7 +111,7 @@ def generate_text_data(
         extra_options = JobOptions.model_validate(job_options).model_dump()
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
-            print(f"Extra options for training: {extra_options}")
+            logging.info(f"Extra options for training: {extra_options}")
     except ValidationError as e:
         raise ValueError(f"Invalid extra options format: {e}")
 
@@ -184,7 +184,7 @@ def generate_token_data(
         extra_options = JobOptions.model_validate(job_options).model_dump()
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
-            print(f"Extra options for training: {extra_options}")
+            logging.info(f"Extra options for training: {extra_options}")
     except ValidationError as e:
         raise ValueError(f"Invalid extra options format: {e}")
 
@@ -270,7 +270,7 @@ def find_datasets(
         )
 
     except Exception as e:
-        traceback.print_exc()
+        logging.error(traceback.print_exc())
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message="unable to find a sample text-dataset",

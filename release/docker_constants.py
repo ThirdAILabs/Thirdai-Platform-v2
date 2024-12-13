@@ -35,4 +35,11 @@ images_to_build = [
 ]
 
 
-images_to_pull_from_private = ["victoria-metrics", "grafana", "loki", "llama.cpp"]
+images_to_pull_from_private = [
+    "victoria-metrics",
+    "grafana",
+    "llama.cpp",
+    "keycloak",
+    "traefik",
+    "nomad-autoscaler",
+]

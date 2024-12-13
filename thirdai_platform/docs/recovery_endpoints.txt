@@ -1,0 +1,37 @@
+# Backup
+
+**Description**: This endpoint is used to create a backup for the platform using the provided configuration.
+
+**Dependencies**:
+- **verify_access_token**: Requires the user to be authenticated via a valid JWT token.
+
+**Request Body**: 
+- **BackupConfig** (Union):
+  - **provider** (str): The provider for backup, it can be one of the following options:
+    - **s3**:
+      - `aws_access_key`: AWS Access Key for S3.
+      - `aws_secret_access_key`: AWS Secret Key for S3.
+      - `bucket_name`: The S3 bucket name.
+    - **azure**:
+      - `azure_account_name`: Azure Storage Account Name.
+      - `azure_account_key`: Azure Storage Account Key.
+      - `bucket_name`: The Azure container name.
+    - **gcp**:
+      - `gcp_credentials_file_path`: GCP Credentials JSON file path.
+      - `bucket_name`: The GCP bucket name.
+    - **local**: No specific fields are required for the local option.
+  - **interval_minutes** (Optional, int): Interval at which backups are scheduled, in minutes.
+  - **backup_limit** (Optional, int): The maximum number of backups to retain. Default is 5.
+
+**Responses**:
+- `200 OK`: Successfully submitted recovery snapshot job.
+  ```json
+  {
+    "message": "Successfully submitted recovery snapshot job."
+  }
+  ```
+
+- `500 Internal Server Error`: If there is any issue while processing the backup.
+
+---
+

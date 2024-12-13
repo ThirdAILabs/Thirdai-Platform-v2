@@ -1,24 +1,29 @@
+import io
 import json
+import logging
 import os
 import secrets
 import shutil
+import tempfile
 import uuid
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
+import pandas as pd
 from auth.jwt import AuthenticatedUser, verify_access_token
 from backend.auth_dependencies import verify_model_read_access
 from backend.datagen import generate_data_for_train_job
 from backend.utils import (
     copy_data_storage,
+    create_classification_csv,
     delete_nomad_job,
+    get_job_logs,
     get_model,
     get_model_from_identifier,
     get_model_status,
     get_platform,
     get_python_path,
-    logger,
-    model_bazaar_path,
+    get_warnings_and_errors,
     nomad_job_exists,
     remove_unused_samples,
     retrieve_token_classification_samples_for_generation,
@@ -29,10 +34,15 @@ from backend.utils import (
     validate_license_info,
     validate_name,
 )
+from data_generation_job.llms import verify_llm_access
 from database import schema
 from database.session import get_session
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files
+
+pass
+from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.pydantic_models.feedback_logs import DeleteLog, InsertLog
 from platform_common.pydantic_models.training import (
     DatagenOptions,
@@ -43,8 +53,6 @@ from platform_common.pydantic_models.training import (
     ModelType,
     NDBData,
     NDBOptions,
-    NDBSubType,
-    NDBv2Options,
     TextClassificationOptions,
     TokenClassificationDatagenOptions,
     TokenClassificationOptions,
@@ -55,7 +63,7 @@ from platform_common.pydantic_models.training import (
     UDTSubType,
 )
 from platform_common.thirdai_storage import storage
-from platform_common.utils import response
+from platform_common.utils import disk_usage, model_bazaar_path, response
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
@@ -75,7 +83,7 @@ def get_base_model(base_model_identifier: str, user: schema.User, session: Sessi
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error))
 
 
-@train_router.post("/ndb")
+@train_router.post("/ndb", dependencies=[Depends(is_on_low_disk())])
 def train_ndb(
     model_name: str,
     files: List[UploadFile],
@@ -88,10 +96,10 @@ def train_ndb(
 ):
     user: schema.User = authenticated_user.user
     try:
-        model_options = NDBOptions.model_validate_json(model_options)
+        model_options: NDBOptions = NDBOptions.model_validate_json(model_options)
         data = NDBData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
-        print(f"Extra options for training: {model_options}")
+        logging.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -149,6 +157,7 @@ def train_ndb(
         base_model = get_base_model(base_model_identifier, user=user, session=session)
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -168,7 +177,7 @@ def train_ndb(
             deploy_status=schema.Status.not_started,
             name=model_name,
             type=config.model_options.model_type.value,
-            sub_type=config.model_options.ndb_options.ndb_sub_type.value,
+            sub_type="v2",
             domain=user.domain,
             access_level=schema.Access.private,
             parent_id=base_model.id if base_model else None,
@@ -200,6 +209,10 @@ def train_ndb(
             python_path=get_python_path(),
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+            aws_region_name=(os.getenv("AWS_REGION_NAME", "")),
+            azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
+            azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
+            gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
             train_job_name=new_model.get_train_job_name(),
             config_path=config.save_train_config(),
             allocation_cores=job_options.allocation_cores,
@@ -214,7 +227,7 @@ def train_ndb(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -226,6 +239,7 @@ def train_ndb(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
@@ -250,7 +264,7 @@ def list_deletions(deployment_dir: str) -> List[str]:
     return deletions
 
 
-@train_router.post("/ndb-retrain")
+@train_router.post("/ndb-retrain", dependencies=[Depends(is_on_low_disk())])
 def retrain_ndb(
     model_name: str,
     base_model_identifier: str,
@@ -282,7 +296,7 @@ def retrain_ndb(
 
     base_model = get_base_model(base_model_identifier, user=user, session=session)
 
-    if base_model.type != ModelType.NDB or base_model.sub_type != NDBSubType.v2:
+    if base_model.type != ModelType.NDB:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
             message=f"NDB retraining can only be performed on NDBv2 base models.",
@@ -311,13 +325,14 @@ def retrain_ndb(
     shutil.copytree(feedback_dir, supervised_train_dir)
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
         model_id=str(model_id),
         data_id=data_id,
         base_model_id=(None if not base_model_identifier else str(base_model.id)),
-        model_options=NDBOptions(ndb_options=NDBv2Options()),
+        model_options=NDBOptions(),
         data=NDBData(
             unsupervised_files=unsupervised_files,
             supervised_files=[
@@ -336,7 +351,7 @@ def retrain_ndb(
             deploy_status=schema.Status.not_started,
             name=model_name,
             type=config.model_options.model_type.value,
-            sub_type=config.model_options.ndb_options.ndb_sub_type.value,
+            sub_type="v2",
             domain=user.domain,
             access_level=schema.Access.private,
             parent_id=base_model.id,
@@ -368,6 +383,10 @@ def retrain_ndb(
             python_path=get_python_path(),
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+            aws_region_name=(os.getenv("AWS_REGION_NAME", "")),
+            azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
+            azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
+            gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
             train_job_name=new_model.get_train_job_name(),
             config_path=config.save_train_config(),
             allocation_cores=job_options.allocation_cores,
@@ -380,7 +399,7 @@ def retrain_ndb(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -392,11 +411,14 @@ def retrain_ndb(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
 
-@train_router.post("/nlp-datagen")
+@train_router.post(
+    "/nlp-datagen", dependencies=[Depends(is_on_low_disk(threshold=0.75))]
+)
 def nlp_datagen(
     model_name: str,
     base_model_identifier: Optional[str] = None,
@@ -411,7 +433,7 @@ def nlp_datagen(
         datagen_options = DatagenOptions.model_validate_json(datagen_options)
         datagen_job_options = JobOptions.model_validate_json(datagen_job_options)
         train_job_options = JobOptions.model_validate_json(train_job_options)
-        print(f"Datagen options: {datagen_options}")
+        logging.info(f"Datagen options: {datagen_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -459,6 +481,7 @@ def nlp_datagen(
         )
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -495,6 +518,14 @@ def nlp_datagen(
         session.add(new_model)
         session.commit()
         session.refresh(new_model)
+
+        attribute = schema.ModelAttribute(
+            model_id=model_id,
+            key="datagen",
+            value="true",
+        )
+        session.add(attribute)
+        session.commit()
     except Exception as err:
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -514,7 +545,7 @@ def nlp_datagen(
     except Exception as err:
         new_model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -526,11 +557,12 @@ def nlp_datagen(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
 
-@train_router.post("/datagen-callback")
+@train_router.post("/datagen-callback", dependencies=[Depends(is_on_low_disk())])
 def datagen_callback(
     data_id: str,
     secret_token: str,
@@ -542,7 +574,7 @@ def datagen_callback(
     try:
         model_options = UDTOptions.model_validate_json(model_options)
         data = UDTData.model_validate_json(file_info)
-        print(f"Extra options for training: {model_options}")
+        logging.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -613,6 +645,10 @@ def datagen_callback(
             python_path=get_python_path(),
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+            aws_region_name=(os.getenv("AWS_REGION_NAME", "")),
+            azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
+            azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
+            gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
             train_job_name=model.get_train_job_name(),
             config_path=config_path,
             allocation_cores=config.job_options.allocation_cores,
@@ -631,7 +667,7 @@ def datagen_callback(
             model.train_status = schema.Status.failed
         session.commit()
 
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -647,7 +683,7 @@ def datagen_callback(
     )
 
 
-@train_router.post("/retrain-udt")
+@train_router.post("/retrain-udt", dependencies=[Depends(is_on_low_disk())])
 def retrain_udt(
     model_name: str,
     llm_provider: LLMProvider,
@@ -681,8 +717,9 @@ def retrain_udt(
             )
 
         # create a new model
+        model_id = uuid.uuid4()
         model: schema.Model = schema.Model(
-            id=uuid.uuid4(),
+            id=model_id,
             user_id=user.id,
             train_status=schema.Status.not_started,
             deploy_status=schema.Status.not_started,
@@ -696,6 +733,14 @@ def retrain_udt(
         session.add(model)
         session.commit()
         session.refresh(model)
+
+        attribute = schema.ModelAttribute(
+            model_id=model_id,
+            key="datagen",
+            value="false",
+        )
+        session.add(attribute)
+        session.commit()
 
     else:
         model = get_model(session, username=user.username, model_name=model_name)
@@ -730,8 +775,8 @@ def retrain_udt(
     token_classification_options = TokenClassificationDatagenOptions(
         sub_type=UDTSubType.token,
         tags=tags,
-        num_sentences_to_generate=10_000,
-        num_samples_per_tag=500,
+        num_sentences_to_generate=1_000,
+        num_samples_per_tag=100,
         samples=token_classification_samples,
     )
 
@@ -752,6 +797,7 @@ def retrain_udt(
     )
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -765,20 +811,76 @@ def retrain_udt(
         is_retraining=True if not base_model_identifier else False,
     )
 
-    config.save_train_config()
-
     try:
-        generate_data_for_train_job(
-            data_id=str(model.id),
-            secret_token=secret_token,
-            license_key=license_info["boltLicenseKey"],
-            options=datagen_options,
-            job_options=JobOptions(),
-        )
+        if verify_llm_access(llm_provider, api_key=os.getenv("GENAI_KEY")):
+            logging.info("LLM access verified, generating data for training")
+
+            config_path = config.save_train_config()
+
+            generate_data_for_train_job(
+                data_id=str(model.id),
+                secret_token=secret_token,
+                license_key=license_info["boltLicenseKey"],
+                options=datagen_options,
+                job_options=JobOptions(),
+            )
+        else:
+            logging.info("No LLM access, training only on user provided samples")
+
+            if nomad_job_exists(
+                model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")
+            ):
+                delete_nomad_job(
+                    model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")
+                )
+
+            config.model_options.udt_options = TokenClassificationOptions(
+                target_labels=[tag.name for tag in tags],
+                source_column=NER_SOURCE_COLUMN,
+                target_column=NER_TARGET_COLUMN,
+            )
+
+            # Without any LLM access, the model should train only on the user provided samples present in the storage. Or balancing samples gathered from the training data. No file passed because user provided samples are already present in the storage.
+            config.data = UDTData(supervised_files=[])
+
+            config_path = config.save_train_config()
+
+            logging.info("Triggered nomad job for training.")
+
+            submit_nomad_job(
+                str(Path(os.getcwd()) / "backend" / "nomad_jobs" / "train_job.hcl.j2"),
+                nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+                platform=get_platform(),
+                tag=os.getenv("TAG"),
+                registry=os.getenv("DOCKER_REGISTRY"),
+                docker_username=os.getenv("DOCKER_USERNAME"),
+                docker_password=os.getenv("DOCKER_PASSWORD"),
+                image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
+                thirdai_platform_dir=thirdai_platform_dir(),
+                train_script="train_job.run",
+                model_id=str(model.id),
+                share_dir=os.getenv("SHARE_DIR", None),
+                python_path=get_python_path(),
+                aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
+                aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+                aws_region_name=(os.getenv("AWS_REGION_NAME", "")),
+                azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
+                azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
+                gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
+                train_job_name=model.get_train_job_name(),
+                config_path=config_path,
+                allocation_cores=config.job_options.allocation_cores,
+                allocation_memory=config.job_options.allocation_memory,
+                allocation_memory_max=config.job_options.allocation_memory,
+            )
+
+            model.train_status = schema.Status.starting
+            session.commit()
+
     except Exception as err:
         model.train_status = schema.Status.failed
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -790,11 +892,12 @@ def retrain_udt(
         data={
             "model_id": str(model.id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
     )
 
 
-@train_router.post("/udt")
+@train_router.post("/udt", dependencies=[Depends(is_on_low_disk())])
 def train_udt(
     model_name: str,
     files: List[UploadFile] = [],
@@ -810,7 +913,7 @@ def train_udt(
         model_options = UDTOptions.model_validate_json(model_options)
         data = UDTData.model_validate_json(file_info)
         job_options = JobOptions.model_validate_json(job_options)
-        print(f"Extra options for training: {model_options}")
+        logging.info(f"Extra options for training: {model_options}")
     except ValidationError as e:
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -861,6 +964,7 @@ def train_udt(
         base_model = get_base_model(base_model_identifier, user=user, session=session)
 
     config = TrainConfig(
+        user_id=str(user.id),
         model_bazaar_dir=model_bazaar_path(),
         license_key=license_info["boltLicenseKey"],
         model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT", None),
@@ -898,11 +1002,42 @@ def train_udt(
         session.add(new_model)
         session.commit()
         session.refresh(new_model)
+
+        attribute = schema.ModelAttribute(
+            model_id=model_id,
+            key="datagen",
+            value="false",
+        )
+        session.add(attribute)
+        session.commit()
+
     except Exception as err:
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
         )
+
+    if base_model:
+        try:
+            copy_data_storage(base_model, new_model)
+            remove_unused_samples(base_model)
+        except Exception as err:
+            new_model.train_status = schema.Status.failed
+            msg = "Unable to start training job. Encountered error loading data from specified base model."
+            logging.error(f"error copying storage from ner base model: {err}")
+            session.add(
+                schema.JobError(
+                    model_id=new_model.id,
+                    job_type="train",
+                    status=schema.Status.failed,
+                    message=msg,
+                )
+            )
+            session.commit()
+
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=msg
+            )
 
     work_dir = os.getcwd()
 
@@ -923,6 +1058,10 @@ def train_udt(
             python_path=get_python_path(),
             aws_access_key=(os.getenv("AWS_ACCESS_KEY", "")),
             aws_access_secret=(os.getenv("AWS_ACCESS_SECRET", "")),
+            aws_region_name=(os.getenv("AWS_REGION_NAME", "")),
+            azure_account_name=(os.getenv("AZURE_ACCOUNT_NAME", "")),
+            azure_account_key=(os.getenv("AZURE_ACCOUNT_KEY", "")),
+            gcp_credentials_file=(os.getenv("GCP_CREDENTIALS_FILE", "")),
             train_job_name=new_model.get_train_job_name(),
             config_path=config_path,
             allocation_cores=job_options.allocation_cores,
@@ -934,8 +1073,16 @@ def train_udt(
         session.commit()
     except Exception as err:
         new_model.train_status = schema.Status.failed
+        session.add(
+            schema.JobError(
+                model_id=new_model.id,
+                job_type="train",
+                status=schema.Status.failed,
+                message=f"Failed to start the training job on nomad. Received error: {err}",
+            )
+        )
         session.commit()
-        logger.info(str(err))
+        logging.error(str(err))
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message=str(err),
@@ -947,7 +1094,445 @@ def train_udt(
         data={
             "model_id": str(model_id),
             "user_id": str(user.id),
+            "disk_usage": disk_usage(),
         },
+    )
+
+
+import aiofiles
+import aiofiles.tempfile
+
+
+async def validate_text_classification_csv_format(
+    file: UploadFile,
+) -> Tuple[bool, str, set[str] | None]:  # Changed return type annotation
+    """
+    Validates the CSV file format for text classification asynchronously using aiofiles.
+    Returns (is_valid, error_message, extracted_labels).
+    """
+    # Check file extension
+    if not file.filename.lower().endswith(".csv"):
+        return False, "File must have .csv extension", None
+
+    # Check MIME type
+    if file.content_type not in ["text/csv", "application/csv"]:
+        return False, "File must be a CSV", None
+
+    try:
+        # Create a temporary file using aiofiles
+        async with aiofiles.tempfile.NamedTemporaryFile("wb+") as temp_file:
+            # Read and write the uploaded file in chunks
+            while chunk := await file.read(8192):  # 8KB chunks
+                await temp_file.write(chunk)
+
+            # Reset the temporary file pointer
+            await temp_file.seek(0)
+
+            # Read the temporary file content
+            async with aiofiles.open(temp_file.name, mode="rb") as af:
+                content = await af.read()
+
+        # Process the CSV data
+        df = pd.read_csv(io.BytesIO(content))
+
+        if set(df.columns) != {"text", "label"}:
+            return (
+                False,
+                "CSV must contain exactly two columns named 'text' and 'label'",
+                None,
+            )
+
+        if df.empty:
+            return False, "CSV file is empty", None
+
+        if df["text"].isnull().any() or df["label"].isnull().any():
+            return False, "CSV contains empty cells", None
+
+        unique_labels = set(df["label"].unique())
+        label_counts = df["label"].value_counts()
+        insufficient_labels = {
+            label for label, count in label_counts.items() if count < 10
+        }
+
+        if len(unique_labels) < 2:
+            return False, "At least two different labels are required", unique_labels
+
+        if insufficient_labels:
+            return (
+                False,
+                f"Labels {', '.join(insufficient_labels)} have fewer than 10 examples",
+                unique_labels,
+            )
+
+        return True, "", unique_labels
+
+    except UnicodeDecodeError:
+        return False, "File is not a valid CSV file (encoding error)", None
+    except pd.errors.EmptyDataError:
+        return False, "CSV file is empty", None
+    except pd.errors.ParserError:
+        return False, "File is not a valid CSV file (parsing error)", None
+    except Exception as e:
+        return False, f"Error validating CSV: {str(e)}", None
+
+
+@train_router.post("/validate-text-classification-csv")
+async def validate_text_classification_csv(
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    try:
+        is_valid, error_message, unique_labels = (
+            await validate_text_classification_csv_format(file)
+        )
+
+        if not is_valid:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=error_message,
+                data={"labels": list(unique_labels) if unique_labels else []},
+            )
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="CSV file is valid",
+            data={"labels": list(unique_labels)},
+        )
+    except Exception as e:
+        return response(status_code=status.HTTP_400_BAD_REQUEST, message=str(e))
+
+
+def validate_token_classification_csv_format(
+    file: UploadFile,
+) -> tuple[bool, str, set[str] | None]:
+    """
+    Validates the CSV file format for token classification.
+    Returns (is_valid, error_message, extracted_labels).
+    Validation rules:
+    1. Must be valid CSV with exactly 'source' and 'target' columns
+    2. Number of tokens must match between source and target
+    3. Must have at least one non-'O' token type
+    4. No empty cells allowed
+    """
+    # Check file extension
+    if not file.filename.lower().endswith(".csv"):
+        return False, "File must have .csv extension", None
+
+    # Check MIME type
+    if file.content_type not in ["text/csv", "application/csv"]:
+        return False, "File must be a CSV", None
+
+    try:
+        content = file.file.read()
+        file.file.seek(0)  # Reset file pointer for later use
+        # Parse CSV
+        df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+        # Check for required columns
+        if set(df.columns) != {"source", "target"}:
+            return (
+                False,
+                "CSV must contain exactly two columns named 'source' and 'target'",
+                None,
+            )
+        # Check for empty dataframe
+        if df.empty:
+            return False, "CSV file is empty", None
+        # Check for null values
+        if df["source"].isnull().any() or df["target"].isnull().any():
+            return False, "CSV contains empty cells", None
+        # Validate token alignment
+        for idx, row in df.iterrows():
+            source_tokens = row["source"].split()
+            target_tokens = row["target"].split()
+            if len(source_tokens) != len(target_tokens):
+                return (
+                    False,
+                    f"Row {idx + 1}: Number of tokens in source ({len(source_tokens)}) doesn't match target ({len(target_tokens)})",
+                    None,
+                )
+        # Extract and validate token types
+        token_types = set()
+        for row in df["target"]:
+            tokens = row.split()
+            # Add all non-'O' tokens to our set
+            token_types.update(token for token in tokens if token != "O")
+        if not token_types:
+            return (
+                False,
+                (
+                    "No valid token types found in the target column. "
+                    "The CSV must contain at least one token type other than 'O'. "
+                    "The 'O' token is used to indicate non-entity tokens and cannot be the only token type."
+                ),
+                None,
+            )
+        # Log found token types for debugging
+        logging.info(f"Found token types: {token_types}")
+        return True, "", token_types
+    except UnicodeDecodeError:
+        return False, "File is not a valid CSV file (encoding error)", None
+    except pd.errors.EmptyDataError:
+        return False, "CSV file is empty", None
+    except pd.errors.ParserError:
+        return False, "File is not a valid CSV file (parsing error)", None
+    except Exception as e:
+        return False, f"Error validating CSV: {str(e)}", None
+
+
+@train_router.post("/validate-token-classifier-csv")
+def validate_token_classifier_csv(
+    file: UploadFile = File(...),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Validate a CSV file for token classification training.
+    Returns the detected labels if valid.
+    """
+    try:
+        # Basic file type check
+        if not file.filename.endswith(".csv"):
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="File must be a CSV",
+                data={"valid": False, "details": "File must have .csv extension"},
+            )
+        # Validate CSV format and get labels
+        is_valid, error_message, token_types = validate_token_classification_csv_format(
+            file
+        )
+        if not is_valid:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=error_message,
+                data={"valid": False, "details": error_message},
+            )
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="CSV file is valid",
+            data={
+                "valid": True,
+                "labels": list(token_types),
+                "tokenTypeCount": len(token_types),
+                "details": f"Found {len(token_types)} valid token types: {', '.join(sorted(token_types))}",
+            },
+        )
+    except Exception as err:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=f"Error validating CSV: {str(err)}",
+            data={"valid": False, "details": str(err)},
+        )
+
+
+class FolderValidationResponse(BaseModel):
+    valid: bool
+    message: str
+    categories: List[str] = []
+    file_counts: dict = {}
+
+
+@train_router.post("/validate-document-classification-folder")
+async def validate_document_classification_folder(
+    files: List[UploadFile] = File(...),
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Validates a folder structure for document classification training.
+
+    Expected folder structure when user selects a root folder (e.g., customer_feedback):
+    customer_feedback/
+    ├── positive/
+    │   ├── comment_1.pdf
+    │   ├── feedback_2.txt
+    │   └── ...
+    ├── neutral/
+    │   ├── comment_3.docx
+    │   ├── feedback_4.pdf
+    │   └── ...
+    ├── negative/
+    │   ├── comment_5.pdf
+    │   ├── feedback_6.txt
+    │   └── ...
+
+    Requirements:
+    1. Only .txt, .doc, .docx, and .pdf files are allowed
+    2. Must have at least 2 category folders (e.g., positive, neutral, negative)
+    3. Each category must contain at least 10 documents
+    4. Files must be organized in exactly 3 levels (root/category/files)
+    5. No nested subcategories are allowed beyond the category level
+    """
+    try:
+        valid_extensions = {".txt", ".doc", ".docx", ".pdf"}
+
+        # Validate file types first
+        invalid_files = []
+        for file in files:
+            ext = Path(file.filename).suffix.lower()
+            if ext not in valid_extensions:
+                invalid_files.append(file.filename)
+
+        if invalid_files:
+            return FolderValidationResponse(
+                valid=False,
+                message=f"Invalid file types found: {', '.join(invalid_files)}. Only .txt, .doc, .docx, and .pdf files are supported.",
+                categories=[],
+                file_counts={},
+            )
+
+        # Process files and validate folder structure
+        categories = set()
+        category_files = {}
+        invalid_structure = []
+
+        for file in files:
+            parts = Path(file.filename).parts
+
+            # Validate folder structure depth
+            if len(parts) != 3:  # Exactly 3 levels: root/category/file.ext
+                invalid_structure.append(file.filename)
+                continue
+
+            category = parts[1]
+            categories.add(category)
+            if category not in category_files:
+                category_files[category] = []
+            category_files[category].append(file.filename)
+
+        # Check for invalid folder structure
+        if invalid_structure:
+            return FolderValidationResponse(
+                valid=False,
+                message=f"Invalid folder structure detected. Files must be inside category folders within the selected root folder. Invalid files: {', '.join(invalid_structure)}",
+                categories=list(categories),
+                file_counts=category_files,
+            )
+
+        if len(categories) < 2:
+            return FolderValidationResponse(
+                valid=False,
+                message="At least two different categories (folders) are required",
+                categories=list(categories),
+                file_counts=category_files,
+            )
+
+        # Check minimum files per category
+        insufficient_categories = []
+        for category, files_list in category_files.items():
+            if len(files_list) < 10:
+                insufficient_categories.append(f"{category} ({len(files_list)} files)")
+
+        if insufficient_categories:
+            return FolderValidationResponse(
+                valid=False,
+                message=f"The following categories have fewer than 10 documents: {', '.join(insufficient_categories)}",
+                categories=list(categories),
+                file_counts=category_files,
+            )
+
+        return FolderValidationResponse(
+            valid=True,
+            message="Folder structure is valid",
+            categories=list(categories),
+            file_counts=category_files,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class CSVCreationResponse(BaseModel):
+    status: str
+    message: str
+    data: dict = {}
+
+
+@train_router.post("/create-classification-csv", response_model=CSVCreationResponse)
+async def create_classification_csv_endpoint(
+    files: List[UploadFile] = File(...),
+    word_limit: int = 1000,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    """
+    Endpoint to create a CSV file from uploaded documents organized in folders
+    """
+    try:
+        # Create a temporary directory for processing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                # Create CSV and get categories
+                csv_path, categories = await create_classification_csv(
+                    temp_dir=temp_dir, files=files, word_limit=word_limit
+                )
+
+                # Read the CSV content
+                with open(csv_path, "r") as f:
+                    csv_content = f.read()
+
+                # Return the CSV content and categories
+                return CSVCreationResponse(
+                    status="success",
+                    message="Successfully created classification CSV",
+                    data={
+                        "csv_content": csv_content,
+                        "categories": categories,
+                        "n_categories": len(categories),
+                    },
+                )
+
+            except Exception as e:
+                logging.error(f"Error in create_classification_csv: {str(e)}")
+                raise HTTPException(
+                    status_code=400, detail=f"Error creating CSV: {str(e)}"
+                )
+
+    except Exception as e:
+        logging.error(f"Error in create_classification_csv_endpoint: {str(e)}")
+        return CSVCreationResponse(
+            status="failed",
+            message=f"Failed to create classification CSV: {str(e)}",
+            data={},
+        )
+
+
+@train_router.get("/train-report", dependencies=[Depends(verify_model_read_access)])
+def train_report(model_identifier: str, session: Session = Depends(get_session)):
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    if model.train_status != schema.Status.complete:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"Cannot get train report for model {model_identifier} since training is not completed.",
+        )
+
+    report_dir = os.path.join(
+        model_bazaar_path(), "models", str(model.id), "train_reports"
+    )
+    if not os.path.exists(report_dir) or len(os.listdir(report_dir)) == 0:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=(
+                f"No training reports found for model {model_identifier}. Train reports "
+                "are currently only availible for token classification use cases and if a test set "
+                "or test_split is provided."
+            ),
+        )
+
+    reports = os.listdir(report_dir)
+    most_recent_report = max([int(os.path.splitext(report)[0]) for report in reports])
+
+    with open(os.path.join(report_dir, f"{most_recent_report}.json")) as f:
+        report = json.load(f)
+
+    return response(
+        status_code=status.HTTP_200_OK, message="Retrieved train report", data=report
     )
 
 
@@ -1014,7 +1599,7 @@ def train_complete(
 def train_fail(
     model_id: str,
     new_status: schema.Status,
-    message: str,
+    message: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     """
@@ -1048,9 +1633,43 @@ def train_fail(
         )
 
     trained_model.train_status = new_status
+    if new_status == schema.Status.failed and message:
+        session.add(
+            schema.JobMessage(
+                model_id=trained_model.id,
+                job_type="train",
+                level=schema.Level.error,
+                message=message,
+            )
+        )
     session.commit()
 
     return {"message": f"successfully updated with following {message}"}
+
+
+@train_router.post("/warning")
+def train_warning(model_id: str, message: str, session: Session = Depends(get_session)):
+    trained_model: schema.Model = (
+        session.query(schema.Model).filter(schema.Model.id == model_id).first()
+    )
+
+    if not trained_model:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=f"No model with id {model_id}.",
+        )
+
+    session.add(
+        schema.JobMessage(
+            model_id=trained_model.id,
+            job_type="train",
+            level=schema.Level.warning,
+            message=message,
+        )
+    )
+    session.commit()
+
+    return {"message": "successfully logged the message"}
 
 
 @train_router.get("/status", dependencies=[Depends(verify_model_read_access)])
@@ -1078,12 +1697,39 @@ def train_status(
         )
 
     train_status, reasons = get_model_status(model, train_status=True)
+    warnings, errors = get_warnings_and_errors(session, model, job_type="train")
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully got the train status.",
         data={
             "model_identifier": model_identifier,
             "train_status": train_status,
-            "message": " ".join(reasons),
+            "messages": reasons,
+            "warnings": warnings,
+            "errors": errors,
         },
+    )
+
+
+@train_router.get("/logs", dependencies=[Depends(verify_model_read_access)])
+def train_logs(
+    model_identifier: str,
+    session: Session = Depends(get_session),
+):
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    logs = get_job_logs(
+        nomad_endpoint=os.getenv("NOMAD_ENDPOINT"), model=model, job_type="train"
+    )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message="Successfully got the train logs.",
+        data=logs,
     )

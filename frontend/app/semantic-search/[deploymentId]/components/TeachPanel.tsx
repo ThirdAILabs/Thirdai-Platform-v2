@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { borderRadius, color, fontSizes, shadow } from '../stylingConstants';
 import { Pad, Spacer } from './Layout';
@@ -37,6 +37,12 @@ const ButtonContainer = styled.section`
   justify-content: center;
 `;
 
+const ErrorMessage = styled.div`
+  color: red;
+  font-size: ${fontSizes.s};
+  text-align: center;
+`;
+
 interface TeachPanelProps {
   question: string;
   answer: string;
@@ -56,18 +62,15 @@ export default function TeachPanel({
   onAssociate,
   onAddAnswer,
 }: TeachPanelProps) {
-  function button(
-    buttonText: string,
-    notification: string,
-    onSubmit: (question: string, answer: string) => void
-  ) {
-    return (
-      <ButtonContainer>
-        <NotifyingClickable text={notification} onClick={() => onSubmit(question, answer)}>
-          <PillButton>{buttonText}</PillButton>
-        </NotifyingClickable>
-      </ButtonContainer>
-    );
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  function handleButtonClick(onSubmit: (question: string, answer: string) => void) {
+    if (question.trim() === '' || answer.trim() === '') {
+      setErrorMessage('Question and answer fields cannot be empty.');
+    } else {
+      setErrorMessage(null);
+      onSubmit(question, answer);
+    }
   }
 
   return (
@@ -87,14 +90,25 @@ export default function TeachPanel({
         value={answer}
         onChange={(e) => setAnswer(e.target.value)}
       />
-      {canAddAnswer && (
-        <>
-          <Spacer $height="15px" />
-          {button('Add answer', 'Answer added!', onAddAnswer)}
-        </>
-      )}
       <Spacer $height="15px" />
-      {button('Associate', 'Feedback received!', onAssociate)}
+      {errorMessage && <ErrorMessage>{errorMessage}</ErrorMessage>}
+      <ButtonContainer>
+        {question && answer ? (
+          <NotifyingClickable
+            text="Feedback received!"
+            onClick={() => handleButtonClick(onAssociate)}
+          >
+            <PillButton>Associate</PillButton>
+          </NotifyingClickable>
+        ) : (
+          <PillButton
+            onClick={() => setErrorMessage('Question and answer fields cannot be empty.')}
+          >
+            Associate
+          </PillButton>
+        )}
+      </ButtonContainer>
+
       <Spacer $height="15px" />
     </Panel>
   );

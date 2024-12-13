@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useRef, useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@mui/material';
 import styled from 'styled-components';
 import { borderRadius, color, duration, fontSizes, padding } from '../stylingConstants';
 import { Spacer } from './Layout';
@@ -12,8 +12,8 @@ import SaveButton from './buttons/SaveButton';
 import SearchTextInput from './SearchTextInput';
 import Modal from './Modal';
 import { Input } from '@/components/ui/input';
+import { TextField } from '@mui/material';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { DropdownMenuContent } from '@radix-ui/react-dropdown-menu';
 import { fetchAutoCompleteQueries } from '@/lib/backend';
 import { debounce } from 'lodash';
 
@@ -104,7 +104,7 @@ function ModelDescription(props: ModelDescriptionProps) {
       <Spacer $width="7px" />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button size="sm" className="h-8 gap-1" onClick={props.onClickViewDocuments}>
+          <Button variant="contained" className="h-8 gap-1" onClick={props.onClickViewDocuments}>
             View Documents
           </Button>
         </DropdownMenuTrigger>
@@ -140,6 +140,13 @@ interface SearchBarProps {
   abortController: AbortController | null;
   setAbortController: (controller: AbortController | null) => void;
   setAnswer: (answer: string) => void;
+
+  modalOpen: boolean;
+  setModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  showModelNameInput: boolean;
+  setShowModelNameInput: React.Dispatch<React.SetStateAction<boolean>>;
+  error: string;
+  setError: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export default function SearchBar({
@@ -156,14 +163,18 @@ export default function SearchBar({
   abortController,
   setAbortController,
   setAnswer,
+
+  modalOpen,
+  setModalOpen,
+  showModelNameInput,
+  setShowModelNameInput,
+  error,
+  setError,
 }: SearchBarProps) {
   const modelService = useContext<ModelService | null>(ModelServiceContext);
   const [showSources, setShowSources] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
   const [modelName, setModelName] = useState('');
-  const [showModelNameInput, setShowModelNameInput] = useState(false);
-  const [error, setError] = useState('');
 
   const sourcesRef = useRef<HTMLElement>(null);
   const handleClickOutside = useCallback(() => {
@@ -265,20 +276,39 @@ export default function SearchBar({
     }
   }, [query, cacheEnabled]);
 
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  const adjustHeight = () => {
+    if (textAreaRef.current) {
+      textAreaRef.current.style.height = '3rem';
+      const lineHeight = 24; // Approximate line height in pixels
+      const maxHeight = 11 * lineHeight; // 11 lines
+      const newHeight = Math.min(textAreaRef.current.scrollHeight, maxHeight);
+      textAreaRef.current.style.height = `${newHeight}px`;
+    }
+  };
+
   return (
     <Container>
       <div>
         <SearchArea style={{ marginBottom: '5px' }}>
-          <Input
-            autoFocus
-            className="text-md"
+          <textarea
+            ref={textAreaRef}
+            className="text-m w-full resize-none rounded-md border px-3 py-2"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              adjustHeight();
+            }}
             placeholder="Ask anything..."
-            style={{ height: '3rem' }}
-            onSubmit={handleSubmit}
+            style={{
+              minHeight: '3rem',
+              maxHeight: '264px', // 11 lines * 24px line height
+              overflowY: 'auto',
+              lineHeight: '24px',
+            }}
             onKeyDown={(e) => {
-              if (e.keyCode === 13 && e.shiftKey === false) {
+              if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSubmit();
               }
@@ -287,7 +317,6 @@ export default function SearchBar({
           <Spacer $width="15px" />
           {/* <PromptToggle onClick={() => setDialogOpen((dialogOpen) => !dialogOpen)} /> */}
           <Spacer $width="7px" />
-          <SaveButton onClick={handleSaveClick} />
         </SearchArea>
         <div className="w-full mt-2" style={{ backgroundColor: 'white' }}>
           {cacheEnabled &&
@@ -343,8 +372,12 @@ export default function SearchBar({
             <>
               {error && <ErrorMessage>{error}</ErrorMessage>}
               <ButtonGroup>
-                <Button onClick={handleOverride}>Override</Button>
-                <Button onClick={handleShowModelNameInput}>Save as New</Button>
+                <Button onClick={handleOverride} variant="contained">
+                  Override
+                </Button>
+                <Button onClick={handleShowModelNameInput} variant="contained">
+                  Save as New
+                </Button>
               </ButtonGroup>
             </>
           ) : (
@@ -357,8 +390,12 @@ export default function SearchBar({
               />
               {error && <ErrorMessage>{error}</ErrorMessage>}
               <ButtonGroup>
-                <Button onClick={handleBack}>Back</Button>
-                <Button onClick={handleSaveAsNew}>Submit</Button>
+                <Button onClick={handleBack} variant="contained" color="error">
+                  Back
+                </Button>
+                <Button onClick={handleSaveAsNew} variant="contained">
+                  Submit
+                </Button>
               </ButtonGroup>
             </>
           )}

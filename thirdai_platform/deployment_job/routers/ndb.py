@@ -7,7 +7,7 @@ from typing import AsyncGenerator, List
 import fitz
 import jwt
 import thirdai
-from deployment_job.models.ndb_models import NDBModel, NDBV1Model, NDBV2Model
+from deployment_job.models.ndb_models import NDBModel
 from deployment_job.permissions import Permissions
 from deployment_job.pydantic_models.inputs import (
     AssociateInput,
@@ -23,12 +23,23 @@ from deployment_job.pydantic_models.inputs import (
 )
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
-from deployment_job.utils import propagate_error, validate_name
-from fastapi import APIRouter, Depends, Form, Response, UploadFile, status
+from deployment_job.utils import validate_name
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Form,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
-from platform_common.file_handler import download_local_files
-from platform_common.pydantic_models.deployment import DeploymentConfig, NDBSubType
+from platform_common.dependencies import is_on_low_disk
+from platform_common.file_handler import download_local_files, get_cloud_client
+from platform_common.logging import LogCode
+from platform_common.logging.job_loggers import JobLogger
+from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
     DeleteLog,
@@ -48,17 +59,22 @@ ndb_implicit_feedback_metric = Summary("ndb_implicit_feedback", "NDB implicit fe
 ndb_insert_metric = Summary("ndb_insert", "NDB insertions")
 ndb_delete_metric = Summary("ndb_delete", "NDB deletions")
 
-ndb_top_k_selections = Counter(
-    "ndb_top_k_selections", "Number of top-k results selected by user."
-)
+TOPK_SELECTIONS_TO_TRACK = 5
+ndb_top_k_selections = [
+    Counter(
+        f"ndb_result_{i}_selections", f"Number of selections of result {i} by user."
+    )
+    for i in range(1, 1 + TOPK_SELECTIONS_TO_TRACK)
+]
 
 
 class NDBRouter:
-    def __init__(self, config: DeploymentConfig, reporter: Reporter):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: JobLogger):
         self.config = config
         self.reporter = reporter
+        self.logger = logger
 
-        self.model: NDBModel = NDBRouter.get_model(config)
+        self.model: NDBModel = NDBRouter.get_model(config, logger)
 
         self.feedback_logger = UpdateLogger.get_feedback_logger(self.model.data_dir)
         self.insertion_logger = UpdateLogger.get_insertion_logger(self.model.data_dir)
@@ -66,7 +82,12 @@ class NDBRouter:
 
         self.router = APIRouter()
         self.router.add_api_route("/search", self.search, methods=["POST"])
-        self.router.add_api_route("/insert", self.insert, methods=["POST"])
+        self.router.add_api_route(
+            "/insert",
+            self.insert,
+            methods=["POST"],
+            dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
+        )
         self.router.add_api_route("/delete", self.delete, methods=["POST"])
         self.router.add_api_route("/upvote", self.upvote, methods=["POST"])
         self.router.add_api_route("/associate", self.associate, methods=["POST"])
@@ -81,25 +102,28 @@ class NDBRouter:
         )
         self.router.add_api_route("/chat", self.chat, methods=["POST"])
         self.router.add_api_route("/sources", self.get_sources, methods=["GET"])
-        self.router.add_api_route("/save", self.save, methods=["POST"])
+        self.router.add_api_route(
+            "/save",
+            self.save,
+            methods=["POST"],
+            dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
+        )
         self.router.add_api_route(
             "/highlighted-pdf", self.highlighted_pdf, methods=["GET"]
         )
         self.router.add_api_route("/pdf-blob", self.pdf_blob, methods=["GET"])
         self.router.add_api_route("/pdf-chunks", self.pdf_chunks, methods=["GET"])
+        self.router.add_api_route(
+            "/get-signed-url", self.get_signed_url, methods=["GET"]
+        )
 
     @staticmethod
-    def get_model(config: DeploymentConfig) -> NDBModel:
-        subtype = config.model_options.ndb_sub_type
-        if subtype == NDBSubType.v1:
-            return NDBV1Model(config=config, write_mode=not config.autoscaling_enabled)
-        elif subtype == NDBSubType.v2:
-            return NDBV2Model(config=config, write_mode=not config.autoscaling_enabled)
-        else:
-            raise ValueError(f"Unsupported NDB subtype '{subtype}'.")
+    def get_model(config: DeploymentConfig, logger: JobLogger) -> NDBModel:
+        return NDBModel(
+            config=config, logger=logger, write_mode=not config.autoscaling_enabled
+        )
 
     @ndb_query_metric.time()
-    @propagate_error
     def search(
         self,
         params: NDBSearchParams,
@@ -144,7 +168,6 @@ class NDBRouter:
         }
         ```
         """
-
         results = self.model.predict(**params.model_dump())
 
         return response(
@@ -153,7 +176,6 @@ class NDBRouter:
             data=jsonable_encoder(results),
         )
 
-    @propagate_error
     @ndb_insert_metric.time()
     def insert(
         self,
@@ -206,6 +228,21 @@ class NDBRouter:
                 message="No documents supplied for insertion. Must supply at least one document.",
             )
 
+        total_filesize = sum(file.size or 0 for file in files)
+
+        if self.config.autoscaling_enabled:
+            max_filesize_mb = 200
+        else:
+            max_filesize_mb = 50
+
+        if total_filesize > (max_filesize_mb * 1024 * 1024):
+            message = f"Size of uploaded files exceeds maximum of {max_filesize_mb}Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size."
+            self.logger.error(message, code=LogCode.FILE_VALIDATION)
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message=message,
+            )
+
         documents = download_local_files(
             files=files,
             file_infos=documents,
@@ -214,20 +251,33 @@ class NDBRouter:
 
         if self.config.autoscaling_enabled:
             self.insertion_logger.log(InsertLog(documents=documents))
-
+            self.logger.info(
+                "Document insertion logged for autoscaling deployment",
+                code=LogCode.MODEL_INSERT,
+            )
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Insert logged successfully.",
             )
         else:
-            self.model.insert(documents=documents)
+            try:
+                self.model.insert(documents=documents)
+                self.logger.info(
+                    "Document insertion applied successfully", code=LogCode.MODEL_INSERT
+                )
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message="Insert applied successfully.",
+                )
+            except Exception as e:
+                self.logger.error(
+                    f"Error inserting documents: {e}", code=LogCode.MODEL_INSERT
+                )
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message="Error inserting documents",
+                )
 
-            return response(
-                status_code=status.HTTP_200_OK,
-                message="Insert applied successfully.",
-            )
-
-    @propagate_error
     @ndb_delete_metric.time()
     def delete(
         self,
@@ -254,21 +304,39 @@ class NDBRouter:
 
         if self.config.autoscaling_enabled:
             self.deletion_logger.log(DeleteLog(doc_ids=input.source_ids))
-
+            self.logger.info(
+                "Deletion logged for autoscaling deployment", code=LogCode.MODEL_DELETE
+            )
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Delete logged successfully.",
             )
         else:
-            self.model.delete(input.source_ids)
+            if len(input.source_ids) > 5:
+                message = f"Number of deletions exceeds the maximum {input.source_ids} that can be processed synchronously in an active deployment."
+                self.logger.error(message, code=LogCode.MODEL_DELETE)
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message=message,
+                )
+            try:
+                self.model.delete(input.source_ids)
+                self.logger.info(
+                    "Document deletion applied successfully", code=LogCode.MODEL_DELETE
+                )
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message="Delete applied successfully.",
+                )
+            except Exception as e:
+                self.logger.error(
+                    f"Error deleting documents: {e}", code=LogCode.MODEL_DELETE
+                )
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message="Error deleting documents",
+                )
 
-            return response(
-                status_code=status.HTTP_200_OK,
-                message="Delete applied successfully.",
-            )
-
-    @propagate_error
-    @ndb_upvote_metric.time()
     def upvote(
         self,
         input: UpvoteInput,
@@ -297,31 +365,48 @@ class NDBRouter:
         write_permission = Permissions.check_permission(
             token=token, permission_type="write"
         )
+        prod_mode = not write_permission or self.config.autoscaling_enabled
 
-        if not write_permission or self.config.autoscaling_enabled:
-            self.feedback_logger.log(
-                FeedbackLog(
-                    event=UpvoteLog(
-                        chunk_ids=[
-                            sample.reference_id for sample in input.text_id_pairs
-                        ],
-                        queries=[sample.query_text for sample in input.text_id_pairs],
-                    )
-                )
+        self.feedback_logger.log(
+            FeedbackLog(
+                event=UpvoteLog(
+                    chunk_ids=[sample.reference_id for sample in input.text_id_pairs],
+                    queries=[sample.query_text for sample in input.text_id_pairs],
+                    reference_texts=[
+                        sample.reference_text for sample in input.text_id_pairs
+                    ],
+                ),
+                perform_rlhf_later=prod_mode,
             )
-            return response(
-                status_code=status.HTTP_202_ACCEPTED,
-                message="Upvote logged successfully.",
-            )
+        )
+
+        if prod_mode:
+            message = "Upvote logged successfully."
+            self.logger.info(message, code=LogCode.MODEL_RLHF)
+            return response(status_code=status.HTTP_202_ACCEPTED, message=message)
         else:
-            self.model.upvote(input.text_id_pairs)
+            if len(input.text_id_pairs) > 100:
+                message = f"Number of upvote samples exceeds the maximum {input.text_id_pairs} that can be processed synchronously in an active deployment."
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST, message=message
+                )
+            try:
+                message = "Upvote applied successfully."
+                self.model.upvote(input.text_id_pairs)
+                self.logger.info(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message=message,
+                )
+            except Exception as e:
+                message = f"Error applying upvote: {e}"
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message=message,
+                )
 
-            return response(
-                status_code=status.HTTP_200_OK,
-                message="Upvote applied successfully.",
-            )
-
-    @propagate_error
     @ndb_associate_metric.time()
     def associate(
         self,
@@ -351,29 +436,49 @@ class NDBRouter:
         write_permission = Permissions.check_permission(
             token=token, permission_type="write"
         )
+        prod_mode = not write_permission or self.config.autoscaling_enabled
 
-        if not write_permission or self.config.autoscaling_enabled:
-            self.feedback_logger.log(
-                FeedbackLog(
-                    event=AssociateLog(
-                        sources=[sample.source for sample in input.text_pairs],
-                        targets=[sample.target for sample in input.text_pairs],
-                    )
-                )
+        self.feedback_logger.log(
+            FeedbackLog(
+                event=AssociateLog(
+                    sources=[sample.source for sample in input.text_pairs],
+                    targets=[sample.target for sample in input.text_pairs],
+                ),
+                perform_rlhf_later=prod_mode,
             )
+        )
+
+        if prod_mode:
+            message = "Associate logged successfully."
+            self.logger.info(message, code=LogCode.MODEL_RLHF)
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
-                message="Associate logged successfully.",
+                message=message,
             )
         else:
-            self.model.associate(input.text_pairs)
+            if len(input.text_pairs) > 100:
+                message = f"Number of association samples exceeds the maximum {input.text_pairs} that can be processed synchronously in an active deployment."
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message=message,
+                )
+            try:
+                message = "Associate applied successfully."
+                self.model.associate(input.text_pairs)
+                self.logger.info(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message=message,
+                )
+            except Exception as e:
+                message = f"Error applying association: {e}"
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message=message,
+                )
 
-            return response(
-                status_code=status.HTTP_200_OK,
-                message="Associate applied successfully.",
-            )
-
-    @propagate_error
     @ndb_implicit_feedback_metric.time()
     def implicit_feedback(
         self,
@@ -386,19 +491,21 @@ class NDBRouter:
                     chunk_id=feedback.reference_id,
                     query=feedback.query_text,
                     event_desc=feedback.event_desc,
-                )
+                ),
+                perform_rlhf_later=True,
             )
         )
 
-        if feedback.reference_rank is not None and feedback.reference_rank < 5:
-            ndb_top_k_selections.inc()
+        if feedback.reference_rank is not None and feedback.reference_rank < len(
+            ndb_top_k_selections
+        ):
+            ndb_top_k_selections[feedback.reference_rank].inc()
 
         return response(
             status_code=status.HTTP_200_OK,
             message="Implicit feedback logged successfully.",
         )
 
-    @propagate_error
     def update_chat_settings(
         self,
         settings: ChatSettings,
@@ -411,7 +518,6 @@ class NDBRouter:
             message="Successfully updated chat settings",
         )
 
-    @propagate_error
     def get_chat_history(
         self,
         input: ChatHistoryInput,
@@ -444,7 +550,6 @@ class NDBRouter:
             data=chat_history,
         )
 
-    @propagate_error
     def chat(
         self,
         input: ChatInput,
@@ -475,7 +580,6 @@ class NDBRouter:
 
         return StreamingResponse(generate_response(), media_type="text/plain")
 
-    @propagate_error
     def get_sources(self, token=Depends(Permissions.verify_permission("read"))):
         """
         Get the sources used in the model.
@@ -505,6 +609,7 @@ class NDBRouter:
     def save(
         self,
         input: SaveModel,
+        background_tasks: BackgroundTasks,
         token: str = Depends(Permissions.verify_permission("read")),
     ):
         """
@@ -559,29 +664,34 @@ class NDBRouter:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     message="You don't have permissions to override this model.",
                 )
+
+        background_tasks.add_task(self._perform_save, model_id, token, input.override)
+
+        message = "Save operation initiated in the background."
+        self.logger.info(message, code=LogCode.MODEL_SAVE)
+        return response(
+            status_code=status.HTTP_202_ACCEPTED,
+            message=message,
+            data={"new_model_id": model_id if not input.override else None},
+        )
+
+    def _perform_save(self, model_id: str, token: str, override: bool):
         try:
             self.model.save(model_id=model_id)
-            if not input.override:
+            if not override:
                 self.reporter.save_model(
                     access_token=token,
                     model_id=model_id,
                     base_model_id=self.config.model_id,
-                    model_name=input.model_name,
+                    model_name=model_id,
                     metadata={"thirdai_version": str(thirdai.__version__)},
                 )
         except Exception as err:
-            traceback.print_exc()
-            return response(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
+            self.logger.error(
+                f"Error in background save: {traceback.format_exc()}",
+                code=LogCode.MODEL_SAVE,
             )
 
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Successfully saved the model.",
-            data={"new_model_id": model_id if not input.override else None},
-        )
-
-    @propagate_error
     def highlighted_pdf(
         self, reference_id: int, token=Depends(Permissions.verify_permission("read"))
     ):
@@ -606,7 +716,6 @@ class NDBRouter:
             buffer.getvalue(), headers=headers, media_type="application/pdf"
         )
 
-    @propagate_error
     def pdf_blob(
         self, source: str, token=Depends(Permissions.verify_permission("read"))
     ):
@@ -630,7 +739,22 @@ class NDBRouter:
             buffer.getvalue(), headers=headers, media_type="application/pdf"
         )
 
-    @propagate_error
+    def get_signed_url(
+        self,
+        source: str,
+        provider: str,
+        token=Depends(Permissions.verify_permission("read")),
+    ):
+        cloud_client = get_cloud_client(provider=provider)
+
+        signed_url = cloud_client.generate_url_from_source(source=source)
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message=f"Successfully got the signed url",
+            data={"signed_url": signed_url},
+        )
+
     def pdf_chunks(
         self, reference_id: int, token=Depends(Permissions.verify_permission("read"))
     ):
@@ -659,3 +783,7 @@ class NDBRouter:
             message=f"Reference with id ${reference_id} is not a PDF.",
             data={},
         )
+
+    def shutdown(self):
+        self.logger.info(f"Shutting down NeuralDB deployment")
+        self.model.cleanup()

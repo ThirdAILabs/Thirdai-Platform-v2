@@ -24,7 +24,7 @@ on:
 
 jobs:
   backend-unit-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-cores
     services:
       # We need postgres because generate_random_uuid does not work with sqlite since 
       # it requires pg-crypto. Since these tests are just testing individual backend
@@ -146,7 +146,7 @@ jobs:
         python3 -m pytest llm_dispatch_job -v
 
   deployment-job-unit-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-cores
     steps:
     - uses: actions/checkout@v2
 
@@ -160,7 +160,6 @@ jobs:
         pip3 install -r thirdai_platform/requirements.txt
         pip3 install pyopenssl --upgrade
         pip3 install pytest
-        pip3 install thirdai[neural_db_v2]
 
     - name: run unit tests
       # These have to be run individually because otherwise global variables 

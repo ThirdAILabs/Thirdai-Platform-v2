@@ -16,6 +16,14 @@ azure:
         password: F2yp3m5uWE/8liQ6lFyGTtZxlMgpirMRStAcdQc6Mu+ACRB6nTfH
         username: thirdaiplatform-push-docker-tests
       version: 0.0.1
+    frontend-keycloak:
+      pull_credentials:
+        password: 9O/dSuSgUaIHdu5tQp45xySaSQ7FJhZLv1kPCfDaxG+ACRCeCgsx
+        username: thirdaiplatform-pull-frontend-keycloak
+      push_credentials:
+        password: n1h+tdIIYmQ93MDjTqhJYgHJghg89buIJMYWOxuQnb+ACRDWiBnd
+        username: thirdaiplatform-push-frontend-keycloak
+      version: 0.0.1
     local_registry:
       pull_credentials:
         password: 1N7CsVddLTv4+enVywVCgjOkDkMqpv63WenU0bWihF+ACRBVBnXz
@@ -31,6 +39,14 @@ azure:
         password: 6DSwbtoUZpFEsAEdV6bL9VpVK+8qJoRcn8li7VRgAz+ACRDNRKRx
         username: thirdaiplatform-push-mshift
       version: 0.0.12
+    ner-upload:
+      pull_credentials:
+        password: smPJdoL77d94iTueQPbXszB+MCDaxL3gTyYbcBG95++ACRBbOpLP
+        username: thirdaiplatform-pull-ner-upload
+      push_credentials:
+        password: dH9fGVekynLIug4usQOrCdUjJipBuxlCTwOGNyGb43+ACRBMND1X
+        username: thirdaiplatform-push-ner-upload
+      version: 0.0.1
     node-discovery:
       pull_credentials:
         password: axmgUWuDvRlAMdEnB8xydKqFEtrAGtm2WuOWEU0KEb+ACRBKSjGY
@@ -54,7 +70,7 @@ azure:
       push_credentials:
         password: c3P3qKGzI2dBE6fiKJfF+zHos70aRFcJ6vVLZh+zq0+ACRCEzI7T
         username: thirdaiplatform-push-release-test
-      version: 0.0.18
+      version: 0.0.62
     release-test-main:
       pull_credentials:
         password: 5Di/+qW2Q/++3mp0Ah/rkCq33n2N7f0E8G4+cSHnub+ACRClJvCj

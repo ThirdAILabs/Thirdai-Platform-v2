@@ -1,11 +1,10 @@
+import logging
 import os
 import shutil
 import sys
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import List
 
-from platform_common.ndb.ndbv1_parser import parse_doc
 from platform_common.pydantic_models.training import FileInfo, FileLocation
 from thirdai import neural_db as ndb
 
@@ -28,52 +27,6 @@ def check_local_nfs_only(files: List[FileInfo]):
             )
 
 
-def producer(files: List[FileInfo], buffer, tmp_dir: str):
-    """
-    Process files in parallel and add the resulting NDB files to a buffer.
-    """
-    max_cores = os.cpu_count()
-    num_workers = max(1, max_cores - 6)
-    with ProcessPoolExecutor(max_workers=num_workers) as executor:
-        future_to_file = {
-            executor.submit(parse_doc, file, tmp_dir): file for file in files
-        }
-
-        for future in as_completed(future_to_file):
-            file = future_to_file[future]
-            try:
-                ndb_file = future.result()
-                if ndb_file and not isinstance(ndb_file, str):
-                    buffer.put(ndb_file)
-                    print(f"Successfully processed {file.path}", flush=True)
-            except Exception as e:
-                print(f"Error processing file {file}: {e}")
-
-    buffer.put(None)  # Signal that the producer is done
-
-
-def consumer(buffer, db, epochs: int = 5, batch_size: int = 10):
-    """
-    Consume NDB files from a buffer and insert them into NeuralDB in batches.
-    """
-    batch = []
-
-    while True:
-        ndb_doc = buffer.get()
-        if ndb_doc is None:
-            # Process any remaining documents in the last batch
-            if batch:
-                db.insert(batch, train=True, epochs=epochs)
-            break
-
-        batch.append(ndb_doc)
-
-        # Process the batch if it reaches the batch size
-        if len(batch) >= batch_size and buffer.qsize() == 0:
-            db.insert(batch, train=True, epochs=epochs)
-            batch.clear()
-
-
 def check_disk(db, model_bazaar_dir: str, files: List[FileInfo]):
     """
     Check if there is enough disk space to process the files.
@@ -87,10 +40,9 @@ def check_disk(db, model_bazaar_dir: str, files: List[FileInfo]):
     ).free
 
     if available_nfs_storage < approx_ndb_size:
-        print(
-            f"Available NFS storage : {available_nfs_storage/GB_1} GB is less than approx model size : {approx_ndb_size/GB_1} GB."
-        )
-        raise Exception("Training aborted due to low disk space.")
+        critical_message = f"Available NFS storage : {available_nfs_storage/GB_1} GB is less than approx model size : {approx_ndb_size/GB_1} GB."
+        logging.critical(critical_message)
+        raise Exception(critical_message)
 
 
 def convert_supervised_to_ndb_file(file: FileInfo) -> ndb.Sup:
@@ -103,7 +55,7 @@ def convert_supervised_to_ndb_file(file: FileInfo) -> ndb.Sup:
             query_column=file.options.get("csv_query_column", None),
             id_delimiter=file.options.get("csv_id_delimiter", None),
             id_column=file.options.get("csv_id_column", None),
-            source_id=file.doc_id,
+            source_id=file.source_id,
         )
     else:
         raise TypeError(

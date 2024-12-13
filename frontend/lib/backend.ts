@@ -1,10 +1,10 @@
 // /lib/backend.js
 
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { access } from 'fs';
 import _ from 'lodash';
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 export const thirdaiPlatformBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 export const deploymentBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
@@ -60,27 +60,111 @@ export async function listDeployments(deployment_id: string): Promise<Deployment
   }
 }
 
-interface StatusResponse {
+// Update the base interface to match the API response structure
+
+interface BaseStatusResponse {
+  data: {
+    model_identifier: string; // Changed from model_id to model_identifier
+    messages: string[];
+  };
+}
+
+interface BaseDeployStatusResponse {
   data: {
     model_id: string;
+    messages: string[];
+  };
+}
+
+interface DeployStatusResponse extends BaseDeployStatusResponse {
+  data: {
+    model_id: string;
+    messages: string[];
     deploy_status: string;
   };
 }
 
-export function getDeployStatus(values: {
-  deployment_identifier: string;
-  model_identifier: string;
-}): Promise<StatusResponse> {
-  // Retrieve the access token from local storage
-  const accessToken = getAccessToken();
+interface TrainStatusResponse extends BaseStatusResponse {
+  data: {
+    model_identifier: string;
+    messages: string[];
+    train_status: string;
+    warnings: string[];
+    errors: string[];
+  };
+}
 
-  // Set the default authorization header for axios
+export function getDeployStatus(modelIdentifier: string): Promise<DeployStatusResponse> {
+  const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
   return new Promise((resolve, reject) => {
     axios
       .get(
-        `${thirdaiPlatformBaseUrl}/api/deploy/status?deployment_identifier=${encodeURIComponent(values.deployment_identifier)}&model_identifier=${encodeURIComponent(values.model_identifier)}`
+        `${thirdaiPlatformBaseUrl}/api/deploy/status?model_identifier=${encodeURIComponent(modelIdentifier)}`
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export function getTrainingStatus(modelIdentifier: string): Promise<TrainStatusResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(
+        `${thirdaiPlatformBaseUrl}/api/train/status?model_identifier=${encodeURIComponent(modelIdentifier)}`
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+interface LogEntry {
+  stderr: string;
+  stdout: string;
+}
+
+interface LogResponse {
+  data: LogEntry[]; // Now it's an array of LogEntry objects
+}
+
+export function getTrainingLogs(modelIdentifier: string): Promise<LogResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(
+        `${thirdaiPlatformBaseUrl}/api/train/logs?model_identifier=${encodeURIComponent(modelIdentifier)}`
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export function getDeploymentLogs(modelIdentifier: string): Promise<LogResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(
+        `${thirdaiPlatformBaseUrl}/api/deploy/logs?model_identifier=${encodeURIComponent(modelIdentifier)}`
       )
       .then((res) => {
         resolve(res.data);
@@ -253,6 +337,657 @@ export function retrain_ndb({
   });
 }
 
+export async function validateDocumentClassificationFolder(files: FileList) {
+  const accessToken = getAccessToken();
+  const formData = new FormData();
+
+  // Group files by their categories first
+  const categoryMap = new Map<string, File[]>();
+
+  Array.from(files).forEach((file) => {
+    const pathParts = file.webkitRelativePath.split('/');
+    // Change this to use the category folder name (pathParts[1])
+    if (pathParts.length >= 3) {
+      const category = pathParts[1]; // Changed from pathParts[0] to pathParts[1]
+      if (!categoryMap.has(category)) {
+        categoryMap.set(category, []);
+      }
+      categoryMap.get(category)?.push(file);
+    }
+  });
+
+  // Debug logging
+  console.log('Categories being sent to backend:', Array.from(categoryMap.keys()));
+
+  // Add files to FormData maintaining category structure
+  categoryMap.forEach((files, category) => {
+    files.forEach((file) => {
+      // Include the full relative path in the file name
+      formData.append('files', file, file.webkitRelativePath);
+    });
+  });
+
+  // Debug: Log what's being sent
+  console.log(
+    'Files being sent:',
+    Array.from(formData.getAll('files')).map((f) => {
+      if (f instanceof File) {
+        return f.name;
+      }
+      return f;
+    })
+  );
+
+  try {
+    const response = await axios.post(
+      `${thirdaiPlatformBaseUrl}/api/train/validate-document-classification-folder`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    console.log('Backend validation response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Validation error details:', error);
+    if (axios.isAxiosError(error) && error.response?.data) {
+      throw new Error(error.response.data.message || 'Failed to validate folder structure');
+    }
+    throw new Error('Failed to validate folder structure');
+  }
+}
+
+interface TrainDocumentClassifierParams {
+  modelName: string;
+  files: FileList;
+  testSplit?: number;
+  nTargetClasses?: number; // Add this to accept the dynamic number of classes
+}
+
+export async function trainDocumentClassifier({
+  modelName,
+  files,
+  testSplit = 0.1,
+  nTargetClasses,
+}: TrainDocumentClassifierParams): Promise<any> {
+  const accessToken = getAccessToken();
+
+  try {
+    const formData = new FormData();
+
+    // Add all document files to FormData
+    Array.from(files).forEach((file) => {
+      formData.append('files', file, file.webkitRelativePath);
+    });
+
+    // Prepare file info with webkitRelativePath to preserve directory structure
+    const fileInfo = {
+      supervised_files: Array.from(files).map((file) => ({
+        filename: file.name,
+        content_type: file.type,
+        path: file.webkitRelativePath,
+        location: 'local',
+      })),
+      test_files: [],
+    };
+    formData.append('file_info', JSON.stringify(fileInfo));
+
+    // Model options for document classification
+    const modelOptions = {
+      model_type: 'udt',
+      udt_options: {
+        udt_sub_type: 'document',
+        text_column: 'text',
+        label_column: 'label',
+        n_target_classes: nTargetClasses, // Use the dynamically passed number of classes
+        word_limit: 1000, // Configure word limit
+      },
+      train_options: {
+        test_split: testSplit,
+      },
+    };
+    formData.append('model_options', JSON.stringify(modelOptions));
+
+    // Job options
+    const jobOptions = {
+      allocation_cores: 2,
+      allocation_memory: 16000,
+    };
+    formData.append('job_options', JSON.stringify(jobOptions));
+
+    // Train the model
+    const params = new URLSearchParams({ model_name: modelName });
+    const response = await axios.post(
+      `${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    if (response.data?.status === 'failed') {
+      throw new Error(response.data.message || 'Failed to train model');
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('Training error:', error);
+    if (axios.isAxiosError(error) && error.response?.data) {
+      throw new Error(
+        error.response.data.message || 'Failed to train document classification model'
+      );
+    }
+    throw error instanceof Error
+      ? error
+      : new Error('Failed to train document classification model');
+  }
+}
+
+export async function validateSentenceClassifierCSV(file: File) {
+  const accessToken = getAccessToken();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await axios.post(
+      `${thirdaiPlatformBaseUrl}/api/train/validate-text-classification-csv`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    return {
+      valid: response.data.status === 'success',
+      message: response.data.message,
+      labels: response.data.data?.labels || [],
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const errorMessage = error.response?.data?.message || 'Failed to validate CSV';
+      return {
+        valid: false,
+        message: errorMessage,
+        labels: [],
+      };
+    }
+    return {
+      valid: false,
+      message: 'Failed to validate CSV',
+      labels: [],
+    };
+  }
+}
+
+interface TrainTextClassifierParams {
+  modelName: string;
+  file: File;
+  labels: string[];
+  testSplit?: number;
+}
+
+export function trainTextClassifierWithCSV({
+  modelName,
+  file,
+  labels,
+  testSplit = 0.1,
+}: TrainTextClassifierParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  // Create FormData instance to handle file upload
+  const formData = new FormData();
+  formData.append('files', file);
+
+  // Add file info with correct location type
+  const fileInfo = {
+    supervised_files: [
+      {
+        filename: file.name,
+        content_type: file.type,
+        path: file.name,
+        location: 'local',
+      },
+    ],
+    test_files: [], // No test files for now, will be split from training data
+  };
+  formData.append('file_info', JSON.stringify(fileInfo));
+
+  // Model options for text classification with TextClassificationOptions
+  const modelOptions = {
+    model_type: 'udt',
+    udt_options: {
+      udt_sub_type: 'text',
+      text_column: 'text', // Column containing the text
+      label_column: 'label', // Column containing the label
+      n_target_classes: labels.length, // Number of unique labels
+      target_labels: labels, // Array of label names
+    },
+    train_options: {
+      test_split: testSplit,
+    },
+  };
+  formData.append('model_options', JSON.stringify(modelOptions));
+
+  // Job options (using defaults)
+  const jobOptions = {
+    allocation_cores: 1,
+    allocation_memory: 8000,
+  };
+  formData.append('job_options', JSON.stringify(jobOptions));
+
+  // Create URL with query parameters
+  const params = new URLSearchParams({
+    model_name: modelName,
+    base_model_identifier: '', // Empty string for new model
+  });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`, formData)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error(
+                (axiosError.response.data as any).detail ||
+                  'Failed to train text classification model'
+              )
+            );
+          } else {
+            reject(new Error('Failed to train text classification model'));
+          }
+        } else {
+          reject(new Error('Failed to train text classification model'));
+        }
+      });
+  });
+}
+
+interface RetrainTokenClassifierParams {
+  model_name: string;
+  base_model_identifier?: string;
+}
+
+export function retrainTokenClassifier({
+  model_name,
+  base_model_identifier,
+}: RetrainTokenClassifierParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({
+    model_name,
+    llm_provider: 'openai',
+  });
+
+  if (base_model_identifier) {
+    params.append('base_model_identifier', base_model_identifier);
+  }
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/retrain-udt?${params.toString()}`)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error((axiosError.response.data as any).detail || 'Failed to retrain UDT model')
+            );
+          } else {
+            reject(new Error('Failed to retrain UDT model'));
+          }
+        } else {
+          reject(new Error('Failed to retrain UDT model'));
+        }
+      });
+  });
+}
+
+interface trainTokenClassifierWithCSVParams {
+  model_name: string;
+  file: File;
+  labels: string[];
+  test_split?: number;
+}
+
+export function trainTokenClassifierWithCSV({
+  model_name,
+  file,
+  labels,
+  test_split = 0.1,
+}: trainTokenClassifierWithCSVParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  // Create FormData instance to handle file upload
+  const formData = new FormData();
+  formData.append('files', file);
+
+  // Add file info with correct location type
+  const fileInfo = {
+    supervised_files: [
+      {
+        filename: file.name,
+        content_type: file.type,
+        path: file.name,
+        location: 'local',
+      },
+    ],
+    test_files: [],
+  };
+  formData.append('file_info', JSON.stringify(fileInfo));
+
+  // Model options for token classification with detected labels
+  const modelOptions = {
+    model_type: 'udt',
+    udt_options: {
+      udt_sub_type: 'token',
+      source_column: 'source',
+      target_column: 'target',
+      target_labels: labels,
+    },
+    train_options: {
+      test_split: test_split,
+    },
+  };
+  formData.append('model_options', JSON.stringify(modelOptions));
+
+  // Job options (using defaults)
+  const jobOptions = {
+    allocation_cores: 1,
+    allocation_memory: 8000,
+  };
+  formData.append('job_options', JSON.stringify(jobOptions));
+
+  // Create URL with query parameters
+  const params = new URLSearchParams({
+    model_name,
+    base_model_identifier: '', // Empty string for new model
+  });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`, formData)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error(
+                (axiosError.response.data as any).detail ||
+                  'Failed to train token classification model'
+              )
+            );
+          } else {
+            reject(new Error('Failed to train token classification model'));
+          }
+        } else {
+          reject(new Error('Failed to train token classification model'));
+        }
+      });
+  });
+}
+
+interface TrainUDTWithCSVParams {
+  model_name: string;
+  file: File;
+  base_model_identifier: string;
+  test_split?: number;
+}
+
+export function trainUDTWithCSV({
+  model_name,
+  file,
+  base_model_identifier,
+  test_split = 0.1,
+}: TrainUDTWithCSVParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  // Create FormData instance to handle file upload
+  const formData = new FormData();
+  formData.append('files', file);
+
+  // Add file info with correct location type
+  const fileInfo = {
+    supervised_files: [
+      {
+        filename: file.name,
+        content_type: file.type,
+        path: file.name,
+        location: 'local',
+      },
+    ],
+    test_files: [],
+  };
+  formData.append('file_info', JSON.stringify(fileInfo));
+
+  // Simplified model options for token classification
+  const modelOptions = {
+    udt_options: {
+      udt_sub_type: 'token',
+      source_column: '',
+      target_column: '',
+      target_labels: [],
+    },
+    train_options: {
+      test_split: test_split,
+    },
+  };
+  formData.append('model_options', JSON.stringify(modelOptions));
+
+  // Create URL with query parameters
+  const params = new URLSearchParams({
+    model_name,
+    base_model_identifier,
+  });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`, formData)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error(
+                (axiosError.response.data as any).detail || 'Failed to train UDT model with CSV'
+              )
+            );
+          } else {
+            reject(new Error('Failed to train UDT model with CSV'));
+          }
+        } else {
+          reject(new Error('Failed to train UDT model with CSV'));
+        }
+      });
+  });
+}
+
+interface APIResponse {
+  status: string;
+  message: string;
+  data?: {
+    valid: boolean;
+    labels?: string[];
+  };
+}
+
+interface ValidationResult {
+  valid: boolean;
+  message: string;
+  labels?: string[];
+}
+
+export async function validateTokenClassifierCSV(file: File): Promise<ValidationResult> {
+  const accessToken = getAccessToken();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await axios.post<APIResponse>(
+      `${thirdaiPlatformBaseUrl}/api/train/validate-token-classifier-csv`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    return {
+      valid: true,
+      message: response.data.message,
+      labels: response.data.data?.labels,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.data) {
+      // Type assertion to ensure TypeScript knows the shape of error.response.data
+      const errorData = error.response.data as APIResponse;
+      return {
+        valid: false,
+        message: errorData.message || 'Failed to validate CSV file',
+      };
+    }
+    return {
+      valid: false,
+      message: 'Failed to validate CSV file',
+    };
+  }
+}
+
+interface TrainTokenClassifierParams {
+  modelName: string;
+  file: File;
+  testSplit?: number;
+}
+
+export function trainTokenClassifierFromCSV({
+  modelName,
+  file,
+  testSplit = 0.1,
+}: TrainTokenClassifierParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('test_split', testSplit.toString());
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/train/train-token-classifier?model_name=${modelName}`,
+        formData
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error(
+                (axiosError.response.data as any).detail ||
+                  'Failed to train token classification model'
+              )
+            );
+          } else {
+            reject(new Error('Failed to train token classification model'));
+          }
+        } else {
+          reject(new Error('Failed to train token classification model'));
+        }
+      });
+  });
+}
+
+// types.ts
+export interface MetricValues {
+  precision: number;
+  recall: number;
+  fmeasure: number;
+}
+
+export interface LabelMetrics {
+  [labelName: string]: MetricValues;
+}
+
+export interface TrainingExample {
+  source: string;
+  target: string;
+  predictions: string;
+  index: number;
+}
+
+export interface LabelExamples {
+  [labelName: string]: TrainingExample[];
+}
+
+export interface ExampleCategories {
+  true_positives: LabelExamples;
+  false_positives: LabelExamples;
+  false_negatives: LabelExamples;
+}
+
+export interface TrainReportData {
+  before_train_metrics: LabelMetrics;
+  after_train_metrics: LabelMetrics;
+  after_train_examples: ExampleCategories;
+}
+
+export interface TrainReportResponse {
+  status: string;
+  message: string;
+  data: TrainReportData;
+}
+
+// api.ts
+export function getTrainReport(modelIdentifier: string): Promise<TrainReportResponse> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  return new Promise((resolve, reject) => {
+    axios
+      .get(
+        `${thirdaiPlatformBaseUrl}/api/train/train-report?model_identifier=${encodeURIComponent(modelIdentifier)}`
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
 export interface EnterpriseSearchOptions {
   retrieval_id: string;
   guardrail_id?: string;
@@ -373,7 +1108,8 @@ interface StartWorkflowResponse {
 
 export function start_workflow(
   username: string,
-  model_name: string
+  model_name: string,
+  autoscalingEnabled: boolean
 ): Promise<StartWorkflowResponse> {
   const accessToken = getAccessToken();
 
@@ -381,6 +1117,7 @@ export function start_workflow(
 
   const params = new URLSearchParams({
     model_identifier: createModelIdentifier(username, model_name),
+    autoscaling_enabled: autoscalingEnabled.toString(), // Convert boolean to string for URL param
   });
 
   return new Promise((resolve, reject) => {
@@ -517,6 +1254,63 @@ export function userEmailLogin(
         resolve(res.data);
       })
       .catch((err) => {
+        reject(err);
+      });
+  });
+}
+
+export function userEmailLoginWithAccessToken(
+  accessToken: string,
+  setAccessToken: (token: string) => void
+): Promise<any> {
+  console.debug('userEmailLogin called with accessToken:', accessToken);
+
+  return new Promise((resolve, reject) => {
+    console.debug('Sending request to /api/user/email-login-with-keycloak with payload:', {
+      access_token: accessToken,
+    });
+
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/user/email-login-with-keycloak`, {
+        access_token: accessToken,
+      })
+      .then((res) => {
+        console.debug('Response from email-login-with-keycloak:', res);
+
+        const accessToken = res.data.data.access_token;
+        const username = res.data.data.user.username;
+
+        if (accessToken) {
+          console.debug('Access token received from backend:', accessToken);
+          // Store accessToken into local storage, replacing any existing one.
+          localStorage.setItem('accessToken', accessToken);
+          setAccessToken(accessToken);
+        } else {
+          console.warn('No access token returned from backend response.');
+        }
+
+        if (username) {
+          console.debug('Username received from backend:', username);
+          localStorage.setItem('username', username);
+        } else {
+          console.warn('No username found in backend response.');
+        }
+
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          console.error('Axios error during login:', {
+            message: err.message,
+            status: err.response?.status,
+            data: err.response?.data,
+            headers: err.response?.headers,
+          });
+          console.error('Validation details from backend:', err.response?.data?.detail);
+        } else {
+          console.error('Unexpected error during login:', err);
+        }
+
         reject(err);
       });
   });
@@ -693,10 +1487,118 @@ function useAccessToken() {
   return accessToken;
 }
 
+interface UseLabelsOptions {
+  deploymentUrl: string;
+  maxRecentLabels?: number;
+}
+
+interface UseLabelsResult {
+  allLabels: Set<string>;
+  recentLabels: string[];
+  error: Error | null;
+  isLoading: boolean;
+  refresh: () => Promise<void>;
+}
+
+export function useLabels({
+  deploymentUrl,
+  maxRecentLabels = 5,
+}: UseLabelsOptions): UseLabelsResult {
+  const [allLabels, setAllLabels] = useState<Set<string>>(new Set());
+  const [recentLabels, setRecentLabels] = useState<string[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const accessToken = getAccessToken();
+      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+      const response = await axios.get<{ data: string[] }>(`${deploymentUrl}/get_labels`);
+      const labels = response.data.data;
+
+      setAllLabels((prevLabels) => {
+        const newLabels = new Set(prevLabels);
+        labels.forEach((label: string) => {
+          if (!prevLabels.has(label)) {
+            newLabels.add(label);
+            setRecentLabels((prev) => [label, ...prev].slice(0, maxRecentLabels));
+          }
+        });
+        return newLabels;
+      });
+
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching labels:', err);
+      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [deploymentUrl, maxRecentLabels]);
+
+  return { allLabels, recentLabels, error, isLoading, refresh };
+}
+
+interface Sample {
+  tokens: string[];
+  tags: string[];
+}
+
+interface UseRecentSamplesOptions {
+  deploymentUrl: string;
+  maxRecentSamples?: number;
+}
+
+interface UseRecentSamplesResult {
+  recentSamples: Sample[];
+  error: Error | null;
+  isLoading: boolean;
+  refresh: () => Promise<void>;
+}
+
+export function useRecentSamples({
+  deploymentUrl,
+  maxRecentSamples = 5,
+}: UseRecentSamplesOptions): UseRecentSamplesResult {
+  const [recentSamples, setRecentSamples] = useState<Sample[]>([]);
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const accessToken = getAccessToken();
+      axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+      const response = await axios.get<{ data: Sample[] }>(`${deploymentUrl}/get_recent_samples`);
+      setRecentSamples(response.data.data.slice(0, maxRecentSamples));
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching recent samples:', err);
+      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [deploymentUrl, maxRecentSamples]);
+
+  return { recentSamples, error, isLoading, refresh };
+}
+
 export interface TokenClassificationResult {
   query_text: string;
   tokens: string[];
   predicted_tags: string[][];
+}
+export interface PredictionResponse {
+  prediction_results: TokenClassificationResult;
+  time_taken: number;
+}
+
+export interface InsertSamplePayload {
+  tokens: string[];
+  tags: string[];
 }
 
 export function useTokenClassificationEndpoints() {
@@ -734,7 +1636,7 @@ export function useTokenClassificationEndpoints() {
     init();
   }, []);
 
-  const predict = async (query: string): Promise<TokenClassificationResult> => {
+  const predict = async (query: string): Promise<PredictionResponse> => {
     // Set the default authorization header for axios
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
     try {
@@ -828,9 +1730,68 @@ export function useTokenClassificationEndpoints() {
       }
     });
 
+  const insertSample = async (sample: InsertSamplePayload): Promise<void> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      await axios.post(`${deploymentUrl}/insert_sample`, sample);
+    } catch (error) {
+      console.error('Error inserting sample:', error);
+      alert('Error inserting sample:' + error);
+      throw new Error('Failed to insert sample');
+    }
+  };
+
+  const addLabel = async (labels: {
+    tags: { name: string; description: string }[];
+  }): Promise<void> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      await axios.post(`${deploymentUrl}/add_labels`, labels);
+    } catch (error) {
+      console.error('Error adding label:', error);
+      alert('Error adding label:' + error);
+      throw new Error('Failed to add label');
+    }
+  };
+
+  const getLabels = async (): Promise<string[]> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    try {
+      const response = await axios.get(`${deploymentUrl}/get_labels`);
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching labels:', error);
+      alert('Error fetching labels:' + error);
+      throw new Error('Failed to fetch labels');
+    }
+  };
+
+  const getTextFromFile = async (file: File): Promise<string[]> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post(`${deploymentUrl}/get-text`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error parsing file:', error);
+      alert('Error parsing file:' + error);
+      throw new Error('Failed to parse file');
+    }
+  };
+
   return {
     workflowName,
     predict,
+    insertSample,
+    addLabel,
+    getLabels,
+    getTextFromFile,
     getStats,
   };
 }
@@ -838,6 +1799,18 @@ export function useTokenClassificationEndpoints() {
 interface TextClassificationResult {
   query_text: string;
   predicted_classes: [string, number][];
+}
+
+interface PredictionResult {
+  status: string;
+  message: string;
+  data: {
+    prediction_results: {
+      query_text: string;
+      predicted_classes: [string, number][];
+    };
+    time_taken: number;
+  };
 }
 
 export function useTextClassificationEndpoints() {
@@ -872,15 +1845,18 @@ export function useTextClassificationEndpoints() {
     init();
   }, []);
 
-  const predict = async (query: string): Promise<TextClassificationResult> => {
+  const predict = async (query: string): Promise<PredictionResult> => {
     // Set the default authorization header for axios
     axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
     try {
-      const response = await axios.post(`${deploymentUrl}/predict`, {
+      const response = await axios.post<PredictionResult>(`${deploymentUrl}/predict`, {
         text: query,
         top_k: 5,
       });
-      return response.data.data;
+
+      // Return the full response data structure
+      return response.data;
     } catch (error) {
       console.error('Error predicting tokens:', error);
       alert('Error predicting tokens:' + error);
@@ -888,8 +1864,28 @@ export function useTextClassificationEndpoints() {
     }
   };
 
+  const getTextFromFile = async (file: File): Promise<string[]> => {
+    axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await axios.post(`${deploymentUrl}/get-text`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error parsing file:', error);
+      alert('Error parsing file:' + error);
+      throw new Error('Failed to parse file');
+    }
+  };
+
   return {
     workflowName,
+    getTextFromFile,
     predict,
   };
 }
@@ -998,6 +1994,7 @@ interface UserResponse {
   id: string;
   teams: UserTeamInfo[];
   username: string;
+  verified: boolean;
 }
 
 interface TeamResponse {
@@ -1054,6 +2051,16 @@ export async function fetchAllUsers(): Promise<{ data: UserResponse[] }> {
         reject(err);
       });
   });
+}
+
+export async function verifyUser(email: string): Promise<void> {
+  const accessToken = getAccessToken();
+
+  return axios.post(
+    `${thirdaiPlatformBaseUrl}/api/user/verify-user`,
+    { email },
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
 }
 
 // MODEL //
@@ -1260,6 +2267,56 @@ export async function deleteUserAccount(email: string): Promise<void> {
   });
 }
 
+export interface AddUserPayload {
+  username: string;
+  email: string;
+  password: string;
+}
+
+export interface AddUserResponse {
+  message: string;
+  data?: {
+    user_id: string;
+    email: string;
+  };
+}
+
+export async function addUser(userData: AddUserPayload): Promise<AddUserResponse> {
+  const accessToken = getAccessToken();
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post<AddUserResponse>(`${thirdaiPlatformBaseUrl}/api/user/add-user`, userData, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      .then((response) => {
+        resolve(response.data);
+      })
+      .catch((err) => {
+        console.error('Error adding user:', err);
+        reject(err);
+      });
+  });
+}
+
+export async function promoteUserToGlobalAdmin(email: string): Promise<void> {
+  const accessToken = getAccessToken();
+
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/user/add-global-admin`, { email: email })
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.error('Error promoting user:', err);
+        alert('Error promoting user:' + err);
+        reject(err);
+      });
+  });
+}
+
 export async function updateModel(modelIdentifier: string): Promise<void> {
   const accessToken = getAccessToken(); // Ensure this function is implemented elsewhere in your codebase
 
@@ -1354,5 +2411,28 @@ export async function temporaryCacheToken(modelId: string) {
   } catch (err) {
     console.error('Error getting temporary cache access token:', err);
     throw err; // Re-throwing the error to handle it in the component
+  }
+}
+
+export async function fetchFeedback(username: string, modelName: string) {
+  const modelIdentifier = `${username}/${modelName}`;
+  const accessToken = getAccessToken();
+
+  try {
+    const response = await axios({
+      method: 'get',
+      url: `${deploymentBaseUrl}/api/deploy/feedbacks`,
+      params: {
+        model_identifier: modelIdentifier,
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    return response?.data?.data;
+  } catch (error) {
+    console.error('Error getting Feedback Response:', error);
+    throw error;
   }
 }

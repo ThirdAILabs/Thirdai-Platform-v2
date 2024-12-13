@@ -1,8 +1,14 @@
 import json
-from typing import Dict
+import os
+import shutil
+from typing import Dict, Optional
 
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
+
+
+def model_bazaar_path():
+    return "/model_bazaar" if os.path.exists("/.dockerenv") else os.getenv("SHARE_DIR")
 
 
 def response(
@@ -38,3 +44,18 @@ def save_dict(write_to: str, **kwargs):
 def load_dict(path: str):
     with open(path, "r") as fp:
         return json.load(fp)
+
+
+def get_section(docs: str, header: str) -> str:
+    sections = docs.split("---")
+    for section in sections:
+        if header in section:
+            return section.strip()
+    return "Documentation not found."
+
+
+def disk_usage(path: Optional[str] = None):
+    if path is None:
+        path = model_bazaar_path()
+    disk_stat = shutil.disk_usage(path)
+    return {"total": disk_stat.total, "used": disk_stat.used, "free": disk_stat.free}

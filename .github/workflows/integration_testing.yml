@@ -90,7 +90,7 @@ jobs:
       
       - name: Create an identity file for ssh-login
         run: |
-          echo ${{ secrets.HOST_MACHINE_PRIVATE_KEY }} > /tmp/id_rsa
+          echo "${{ secrets.HOST_MACHINE_PRIVATE_KEY }}" > /tmp/id_rsa
           chmod 600 /tmp/id_rsa
           ssh -o StrictHostKeyChecking=no -i /tmp/id_rsa ubuntu@${{ steps.host_machine.outputs.public_ip }} whoami
 

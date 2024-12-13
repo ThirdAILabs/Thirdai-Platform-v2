@@ -48,9 +48,6 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
   
   useEffect(() => {
     getWorkflows();
-    // const intervalId = setInterval(getWorkflows, 3000);
-
-    // return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {  
@@ -61,11 +58,10 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
     };
   
     socket.onmessage = async (event) => {
-      console.log('[models-table.tsx] Status update received:', event.data);
+      console.log(`Received notification about change in the Model table.`)
       getWorkflows();
     }
     
-  
     socket.onerror = (error) => {
       console.error('WebSocket error:', error);
     };

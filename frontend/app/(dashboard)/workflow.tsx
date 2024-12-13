@@ -241,61 +241,6 @@ export function WorkFlow({
   const [warning, setWarning] = useState<WarningState | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
 
-  // useEffect(() => {
-  //   const fetchStatuses = async () => {
-  //     try {
-  //       if (workflow.username && workflow.model_name) {
-  //         const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
-  //         const [trainStatus, deployStatus] = await Promise.all([
-  //           getTrainingStatus(modelIdentifier),
-  //           getDeployStatus(modelIdentifier),
-  //         ]);
-
-  //         // Check training status
-  //         if (
-  //           trainStatus.data.train_status === 'failed' &&
-  //           (trainStatus.data.errors?.length > 0 || trainStatus.data.messages?.length > 0)
-  //         ) {
-  //           setError({
-  //             type: 'training',
-  //             messages: [...(trainStatus.data.errors || []), ...(trainStatus.data.messages || [])],
-  //           });
-  //         } else {
-  //           setError(null);
-  //         }
-
-  //         // Check warnings separately
-  //         if (trainStatus.data.warnings?.length > 0) {
-  //           setWarning({
-  //             type: 'training',
-  //             messages: trainStatus.data.warnings,
-  //           });
-  //         } else {
-  //           setWarning(null);
-  //         }
-
-  //         // Check deployment
-  //         if (
-  //           deployStatus.data.deploy_status === 'failed' &&
-  //           deployStatus.data.messages?.length > 0
-  //         ) {
-  //           setError({
-  //             type: 'deployment',
-  //             messages: deployStatus.data.messages,
-  //           });
-  //         }
-  //       }
-  //     } catch (error) {
-  //       console.error('Error fetching statuses:', error);
-  //     }
-  //   };
-
-  //   fetchStatuses();
-  //   const intervalId = setInterval(fetchStatuses, 25000);
-  //   return () => clearInterval(intervalId);
-  // }, [workflow.username, workflow.model_name]);
-
-
   useEffect(() => {
     const socket = new WebSocket('ws://localhost:8000/ws/updates');
   
@@ -304,9 +249,9 @@ export function WorkFlow({
     };
   
     socket.onmessage = async (event) => {
-      console.log('Status update received:', event.data);
       const data = JSON.parse(event.data);
-    
+      console.log(`Received notification about change in workflow with name ${data.name}.`)
+
       try {
         if (workflow.username && workflow.model_name && workflow.model_name === data.name) {
           const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
@@ -314,11 +259,7 @@ export function WorkFlow({
             getTrainingStatus(modelIdentifier),
             getDeployStatus(modelIdentifier),
           ]);
-
-          console.log(`workflow.model_name -> ${workflow.model_name}`)
   
-          // console.log(`training status -> ${trainStatus.data.train_status}`)
-          // console.log(`deploy status -> ${deployStatus.data.deploy_status}`)
           if (
             trainStatus.data.train_status === 'failed' &&
             (trainStatus.data.errors?.length > 0 || trainStatus.data.messages?.length > 0)

@@ -122,6 +122,7 @@ jobs:
             '  /home/ubuntu/package/config.yml -y
 
             # Run the driver.sh script
+            cd /home/ubuntu/package
             ./driver.sh ./config.yml -v 1> /home/ubuntu/installation.out 2> /home/ubuntu/installation.err
 
       - name: Wait for 7 minutes to let the model_bazaar get started

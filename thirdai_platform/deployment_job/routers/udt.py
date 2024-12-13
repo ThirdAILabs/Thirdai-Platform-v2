@@ -404,7 +404,8 @@ class UDTRouterTokenClassification(UDTBaseRouter):
         Predicts the output based on the provided query parameters.
 
         Parameters:
-        - text: str - The text for the sample to perform inference on.
+        - text: str - The text for the sample to perform inference on
+        - top_k: int - The number of results to return
         - data_type: str - The data type of the text. (unstructured or xml)
         - token: str - Authorization token (inferred from permissions dependency).
 

@@ -4,7 +4,7 @@ import traceback
 import uuid
 from pathlib import Path
 from queue import Queue
-from typing import AsyncGenerator, List
+from typing import AsyncGenerator, List, Optional
 
 import fitz
 import jwt
@@ -838,15 +838,17 @@ class NDBRouter:
 
     def tasks(
         self,
+        task_id: Optional[str] = None,
         token: str = Depends(Permissions.verify_permission("write")),
     ):
         """
         Returns list of queued insert or delete tasks
         Parameters:
+        - task_id: Optional[str] - Specific task id to get info for
         - token: str - Authorization token.
         Returns:
         - JSONResponse: Dict of tasks.
-        Example Request Body:
+        Example Response Body:
         ```
         {
             "tasks": {task_id: task_data}
@@ -854,11 +856,18 @@ class NDBRouter:
         ```
         """
         with self.task_lock:
-            return response(
-                status_code=status.HTTP_200_OK,
-                message=f"Returned all tasks.",
-                data={"tasks": self.tasks},
-            )
+            if task_id:
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message=f"Returned task info",
+                    data={"task": self.tasks.get(task_id)},
+                )
+            else:
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message=f"Returned all tasks.",
+                    data={"tasks": self.tasks},
+                )
 
     def process_tasks(self):
         while True:

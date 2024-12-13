@@ -39,7 +39,10 @@ from sqlalchemy import event
 import asyncio
 from database import schema
 from fastapi import BackgroundTasks, WebSocket, WebSocketDisconnect
-from websocket.websocket import WebsocketConnectionManager
+# from threading import Thread
+from websocket.websocket_connection_manager import WebsocketConnectionManager
+
+from websocket.utils import manager, notify_model_change
 
 
 app = fastapi.FastAPI()
@@ -70,8 +73,6 @@ app.include_router(recovery, prefix="/api/recovery", tags=["recovery"])
 app.include_router(data_router, prefix="/api/data", tags=["data"])
 app.include_router(telemetry, prefix="/api/telemetry", tags=["telemetry"])
 app.include_router(integrations, prefix="/api/integrations", tags=["integrations"])
-
-manager = WebsocketConnectionManager()
 
 
 @app.exception_handler(Exception)
@@ -186,56 +187,19 @@ async def websocket_endpoint(websocket: WebSocket, background_tasks: BackgroundT
         logger.error("Client disconnected")
 
 
-# @event.listens_for(schema.Model, "after_insert")
-# def after_insert(mapper, connection, target):
-#     def run_async():
-#         async def notify_clients():
-#             # Send a message to all connected WebSocket clients
-#             session = next(get_session())
-#             data = session.query(schema.Model).get(target.id)
+@event.listens_for(schema.Model, "after_insert")
+def after_insert(mapper, connection, target):
+    notify_model_change(target, "insert")
 
-#             model_inserted = {
-#                 "name": data.name
-#             }
-#             json_data = json.dumps(model_inserted)
 
-#             logger.info(f"Notifying the frontend about insertions of model {model_inserted['name']}")
-#             await manager.broadcast(json_data)            
-
-#         # Create and run the event loop in a new thread
-#         asyncio.run(notify_clients())
-
-#     # Run the asynchronous task in a separate thread
-#     from threading import Thread
-#     thread = Thread(target=run_async)
-#     thread.start()
+@event.listens_for(schema.Model, "after_update")
+def after_update(mapper, connection, target):
+    notify_model_change(target, "update")
 
 
 @event.listens_for(schema.Model, "after_delete")
-@event.listens_for(schema.Model, "after_insert")
-@event.listens_for(schema.Model, "after_update")
-def after_update(mapper, connection, target):
-    def run_async():
-        async def notify_clients():
-            # Send a message to all connected WebSocket clients
-            session = next(get_session())
-            data = session.query(schema.Model).get(target.id)
-
-            model = {
-                "name": data.name
-            }
-            json_data = json.dumps(model)
-
-            logger.info(f"Notifying the frontend about the model {model['name']}")
-
-            await manager.broadcast(json_data)
-
-        asyncio.run(notify_clients())
-
-    # Run the asynchronous task in a separate thread
-    from threading import Thread
-    thread = Thread(target=run_async)
-    thread.start()
+def after_delete(mapper, connection, target):
+    notify_model_change(target, "delete")
 
 
 if __name__ == "__main__":

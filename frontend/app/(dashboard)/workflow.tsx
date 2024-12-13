@@ -242,7 +242,7 @@ export function WorkFlow({
   const [showErrorModal, setShowErrorModal] = useState(false);
 
   useEffect(() => {
-    const socket = new WebSocket('ws://localhost:8000/ws/updates');
+    const socket = new WebSocket(`ws://${window.location.hostname}:8000/ws/updates`);
   
     socket.onopen = () => {
       console.log('WebSocket connection established');
@@ -250,10 +250,10 @@ export function WorkFlow({
   
     socket.onmessage = async (event) => {
       const data = JSON.parse(event.data);
-      console.log(`Received notification about change in workflow with name ${data.name}.`)
+      console.log(`Received notification about change in workflow with name ${data.name} [event: ${data.event}].`)
 
       try {
-        if (workflow.username && workflow.model_name && workflow.model_name === data.name) {
+        if (workflow.username && workflow.model_name && workflow.model_name === data.name && data.event != "delete") {
           const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
           const [trainStatus, deployStatus] = await Promise.all([
             getTrainingStatus(modelIdentifier),

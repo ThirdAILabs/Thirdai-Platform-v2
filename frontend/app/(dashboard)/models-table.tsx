@@ -51,7 +51,7 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
   }, []);
 
   useEffect(() => {  
-    const socket = new WebSocket('ws://localhost:8000/ws/updates');
+    const socket = new WebSocket(`ws://${window.location.hostname}:8000/ws/updates`);
   
     socket.onopen = () => {
       console.log('WebSocket connection established');

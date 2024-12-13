@@ -1,5 +1,5 @@
 import pytest
-from platform_common.pii.logtypes.xml.position_tracker import parse_xml_with_positions
+from platform_common.pii.data_types.xml.position_tracker import parse_xml_with_positions
 
 pytestmark = [pytest.mark.unit]
 

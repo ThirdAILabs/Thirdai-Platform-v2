@@ -32,8 +32,6 @@ jobs:
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v2
-        with:
-          ref: 'installation-testing'
 
       
       # - name: "Azure Login"

@@ -305,14 +305,17 @@ export function WorkFlow({
   
     socket.onmessage = async (event) => {
       console.log('Status update received:', event.data);
+      const data = JSON.parse(event.data);
     
       try {
-        if (workflow.username && workflow.model_name) {
+        if (workflow.username && workflow.model_name && workflow.model_name === data.name) {
           const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
           const [trainStatus, deployStatus] = await Promise.all([
             getTrainingStatus(modelIdentifier),
             getDeployStatus(modelIdentifier),
           ]);
+
+          console.log(`workflow.model_name -> ${workflow.model_name}`)
   
           // console.log(`training status -> ${trainStatus.data.train_status}`)
           // console.log(`deploy status -> ${deployStatus.data.deploy_status}`)

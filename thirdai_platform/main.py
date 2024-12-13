@@ -194,8 +194,14 @@ def after_insert(mapper, connection, target):
             session = next(get_session())
             data = session.query(schema.Model).get(target.id)
 
-            await manager.broadcast(f"Record inserted: {data.name}, train_status -> {data.train_status}, deploy status -> {data.deploy_status}")
-            # await manager.broadcast(data)
+            model_inserted = {
+                "name": data.name
+            }
+            json_data = json.dumps(model_inserted)
+
+            await manager.broadcast(json_data)
+            # await manager.broadcast(f"Record inserted: {data.name}, train_status -> {data.train_status}, deploy status -> {data.deploy_status}")
+            
 
         # Create and run the event loop in a new thread
         asyncio.run(notify_clients())
@@ -213,8 +219,15 @@ def after_update(mapper, connection, target):
             # Send a message to all connected WebSocket clients
             session = next(get_session())
             data = session.query(schema.Model).get(target.id)
+        
+            model_updated = {
+                "name": data.name
+            }
+            json_data = json.dumps(model_updated)
 
-            await manager.broadcast(f"Record updated: {data.name}, train_status -> {data.train_status}, deploy status -> {data.deploy_status}")
+            await manager.broadcast(json_data)
+
+            # await manager.broadcast(f"Record updated: {data.name}, train_status -> {data.train_status}, deploy status -> {data.deploy_status}")
             # await manager.broadcast(data)
 
         # Create and run the event loop in a new thread

@@ -32,43 +32,28 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
   }
 
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  
-  useEffect(() => {
-    async function getWorkflows() {
-      try {
-        const fetchedWorkflows = await fetchWorkflows();
-        setWorkflows(fetchedWorkflows);
-      } catch (err) {
-        if (err instanceof Error) {
-          console.log(err.message);
-        } else {
-          console.log('An unknown error occurred');
-        }
+
+  async function getWorkflows() {
+    try {
+      const fetchedWorkflows = await fetchWorkflows();
+      setWorkflows(fetchedWorkflows);
+    } catch (err) {
+      if (err instanceof Error) {
+        console.log(err.message);
+      } else {
+        console.log('An unknown error occurred');
       }
     }
-     
+  }
+  
+  useEffect(() => {
     getWorkflows();
-
     // const intervalId = setInterval(getWorkflows, 3000);
 
     // return () => clearInterval(intervalId);
   }, []);
 
-  useEffect(() => {
-    async function getWorkflows() {
-      try {
-        const fetchedWorkflows = await fetchWorkflows();
-        setWorkflows(fetchedWorkflows);
-      } catch (err) {
-        if (err instanceof Error) {
-          console.log(err.message);
-        } else {
-          console.log('An unknown error occurred');
-        }
-      }
-    }
-     
-    
+  useEffect(() => {  
     const socket = new WebSocket('ws://localhost:8000/ws/updates');
   
     socket.onopen = () => {

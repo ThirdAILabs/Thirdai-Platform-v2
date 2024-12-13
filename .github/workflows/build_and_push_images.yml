@@ -60,10 +60,11 @@ jobs:
             exit 1
           fi
 
-          encoded_password=$(echo "$pull_password" | base64)
-          echo "pull_password=$pull_password" >> $GITHUB_OUTPUT
-          echo "encoded_pull_password=$encoded_password" >> $GITHUB_OUTPUT
           echo "var=1234" >> $GITHUB_OUTPUT
+
+          random_secret_key=$(head -c 32 /dev/urandom | base64)
+          echo "$random_secret_key"  
+          # echo "pull_password=$random_secret_key" >> $GITHUB_OUTPUT
 
           # Log only the encoded value
           echo "Encoded pull password = $encoded_password"

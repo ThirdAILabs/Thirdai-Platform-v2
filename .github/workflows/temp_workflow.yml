@@ -21,5 +21,6 @@ jobs:
           sleep 20
           exit 1
       - name: always print
+        if: always()
         run: |
           echo "This should be always printed  "

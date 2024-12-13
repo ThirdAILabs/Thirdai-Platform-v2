@@ -72,7 +72,7 @@ jobs:
       # These instances already have the aws configured to pull thirdai-packages from the s3 bucket
       - name: start the ec2-instance
         run: |
-          aws ec2 start-instances --instance-ids i-08bfe31f7665561c5 i-00c741703fbf15a4d
+          aws ec2 start-instances --instance-ids i-005fec1cc68be528c i-00c741703fbf15a4d
       
       - name: Wait for EC2 to be running
         run: |
@@ -83,7 +83,7 @@ jobs:
         id: host_machine
         run: |
           PUBLIC_IP=$(aws ec2 describe-instances \
-              --instance-ids i-08bfe31f7665561c5 \
+              --instance-ids i-005fec1cc68be528c \
               --query "Reservations[0].Instances[0].PublicIpAddress" \
               --output text)
           echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
@@ -95,11 +95,11 @@ jobs:
           username: ubuntu
           key: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
           script: |
-            aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.tarball_filename }} /home/ubuntu/
+            #aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.tarball_filename }} /home/ubuntu/
 
             # unzip the package
-            mkdir -p /home/ubuntu/package
-            tar -xvf ${{ inputs.tarball_filename }} -C /home/ubuntu/package
+            #mkdir -p /home/ubuntu/package
+            #tar -xvf ${{ inputs.tarball_filename }} -C /home/ubuntu/package
 
             # Modify the config.yml
             yq -i '
@@ -113,8 +113,7 @@ jobs:
                 .docker_registry_password = "${{ inputs.docker_registry_password }}" |
                 .login_method = "postgres" |
                 .cluster_endpoint = "${{ steps.host_machine.outputs.public_ip }}" |
-                .nodes[0].public_ip = "${{ steps.host_machine.outputs.public_ip }}" |
-                .nodes[0].private_ip = "172.31.17.228" |
+                .nodes[0].private_ip = "172.31.22.118" |
                 .nodes[0].ssh_username = "ubuntu" |
                 .nodes[0].connection_type = "local" |
                 .nodes[1].private_ip = "172.31.31.123" |
@@ -123,8 +122,7 @@ jobs:
             '  /home/ubuntu/package/config.yml -y
 
             # Run the driver.sh script
-            cd /home/ubuntu/package
-            source ./driver.sh /home/ubuntu/package/config.yml -v 1> /home/ubuntu/installation.out 2> /home/ubuntu/installation.err
+            ./driver.sh ./config.yml -v 1> /home/ubuntu/installation.out 2> /home/ubuntu/installation.err
 
       - name: Wait for 7 minutes to let the model_bazaar get started
         run: |
@@ -193,7 +191,7 @@ jobs:
   clean_ec2_instances:
       runs-on: ubuntu-latest-8-cores
       needs: [setup_the_ec2_instances, test]
-      if: always()
+      # if: always()
       steps:
         - name: Install AWS CLI
           run: |
@@ -224,5 +222,5 @@ jobs:
         
         - name: Stop the ec2-machine
           run: |
-            aws ec2 stop-instances --instance-ids i-08bfe31f7665561c5 i-00c741703fbf15a4d
+            aws ec2 stop-instances --instance-ids i-005fec1cc68be528c i-00c741703fbf15a4d
       

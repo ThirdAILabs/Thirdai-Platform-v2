@@ -37,6 +37,7 @@ class TokenAnalysisPredictParams(BaseModel):
     """
 
     text: str
+    top_k: int = 5
 
     # set to None to auto infer the log type
     data_type: Optional[Literal["unstructured", "xml"]] = "unstructured"

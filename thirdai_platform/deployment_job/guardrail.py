@@ -84,7 +84,7 @@ class Guardrail:
                 "User-Agent": "NDB Deployment job",
                 "Authorization": f"Bearer {access_token}",
             },
-            json={"text": text, "top_k": 1},
+            json={"text": text, "data_type": "unstructured"},
         )
 
         if res.status_code != status.HTTP_200_OK:

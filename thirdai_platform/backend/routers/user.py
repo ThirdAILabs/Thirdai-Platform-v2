@@ -666,6 +666,7 @@ def get_user_info(
         headers={"Authorization": authorization},
     )
 
+
 @user_router.post(
     "/add-user",
     dependencies=[Depends(global_admin_only)],

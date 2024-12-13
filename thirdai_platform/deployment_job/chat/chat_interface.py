@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator, Callable, List, Union
 from threading import Lock
+from typing import AsyncGenerator, Callable, List, Union
 
 from deployment_job.chat.ndbv2_vectorstore import NeuralDBV2VectorStore
 from fastapi import HTTPException, status

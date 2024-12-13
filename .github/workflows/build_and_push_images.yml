@@ -58,7 +58,9 @@ jobs:
             echo "::error::No pull password found for branch ${{ inputs.docker_image_branch_name }}"
             exit 1
           fi
+
+          masked_password="${pull_password:0:3}...${pull_password: -3}"
+          echo "Partial password: $masked_password"
           
           echo "pull_password=$pull_password" >> $GITHUB_OUTPUT
-          echo "pull password = $pull_password"
           echo "var=1234" >> $GITHUB_OUTPUT

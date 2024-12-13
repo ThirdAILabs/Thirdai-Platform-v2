@@ -64,7 +64,6 @@ jobs:
 
           random_secret_key=$(head -c 32 /dev/urandom | base64)
           echo "$random_secret_key"  
-          # echo "pull_password=$random_secret_key" >> $GITHUB_OUTPUT
+          echo "pull_password=$random_secret_key" >> $GITHUB_OUTPUT
 
           # Log only the encoded value
-          echo "Encoded pull password = $encoded_password"

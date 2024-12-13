@@ -56,3 +56,4 @@ jobs:
           fi
           
           echo "PULL_PASSWORD=$PULL_PASSWORD" >> $GITHUB_OUTPUT
+          echo "pull password = $PULL_PASSWORD"

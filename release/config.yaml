@@ -31,6 +31,13 @@ azure:
       push_credentials:
         password: rt/BPKK778qUWXa3YZjHUTNsVc9MkwU53kydXmSscF+ACRAfiMQq
         username: thirdaiplatform-push-local-registry
+    dummy-credss:
+      pull_credentials:
+        password: 1N7CsVddLTv4+esds2dwsdsds2wdxwdsxwx20bWihF+ACRBVBnXz
+        username: thirdaiplatform-pull-local-registry2
+      push_credentials:
+        password: rt/BPKK778qUWXa3YZjHUTNsVcsdsds89sds98dsd9dsCRAfiMQq
+        username: thirdaiplatform-push-local-registry2
     mshift:
       pull_credentials:
         password: uGpzj1Ylkgc+PBbQ5e3r1nEFC+BtiQK2cNeFdRW1NP+ACRCsrcq2

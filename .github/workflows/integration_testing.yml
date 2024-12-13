@@ -87,14 +87,16 @@ jobs:
               --query "Reservations[0].Instances[0].PublicIpAddress" \
               --output text)
           echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+      
+      - name: Create an identity file for ssh-login
+        run: |
+          echo ${{ secrets.HOST_MACHINE_PRIVATE_KEY }} > /tmp/id_rsa
+          chmod 600 /tmp/id_rsa
+          ssh -o StrictHostKeyChecking=no -i /tmp/id_rsa ubuntu@${{ steps.host_machine.outputs.public_ip }} whoami
 
       - name: Download the package and run driver.sh
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ steps.host_machine.outputs.public_ip }}
-          username: ubuntu
-          key: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
-          script: |
+        run: |
+          ssh -o StrictHostKeyChecking=no -i /tmp/id_rsa ubuntu@${{ steps.host_machine.outputs.public_ip }} <<EOF
             #aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.tarball_filename }} /home/ubuntu/
 
             # unzip the package
@@ -124,7 +126,7 @@ jobs:
             # Run the driver.sh script
             cd /home/ubuntu/package
             ./driver.sh ./config.yml -v 1> /home/ubuntu/installation.out 2> /home/ubuntu/installation.err
-
+          EOF
       - name: Wait for 7 minutes to let the model_bazaar get started
         run: |
           exit 1

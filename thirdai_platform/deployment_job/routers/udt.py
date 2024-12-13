@@ -244,7 +244,7 @@ class UDTRouterTextClassification(UDTBaseRouter):
             f"Initializing Text Classification model of subtype: {subtype}",
             code=LogCode.MODEL_INIT,
         )
-        if subtype == UDTSubType.text:
+        if subtype == UDTSubType.text or subtype == UDTSubType.document:
             return TextClassificationModel(config=config, logger=logger)
         else:
             error_message = (

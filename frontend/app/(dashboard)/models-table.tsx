@@ -82,54 +82,12 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
   const totalWorkflows = filteredWorkflows.length;
   const displayedWorkflows = filteredWorkflows.slice(offset, offset + modelsPerPage);
 
-  const WebSocketComponent = () => {
-      const [messages, setMessages] = useState<string[]>([]);
-    
-      useEffect(() => {
-        const socket = new WebSocket('ws://localhost:8000/ws/updates');
-    
-        socket.onopen = () => {
-          console.log('WebSocket connection established');
-        };
-    
-        socket.onmessage = (event) => {
-          console.log('Message from server:', event.data);
-          setMessages((prevMessages) => [...prevMessages, event.data]);
-        };
-    
-        socket.onerror = (error) => {
-          console.log('WebSocket error:', error);
-        };
-    
-        socket.onclose = () => {
-          console.log('WebSocket connection closed');
-        };
-    
-        return () => {
-          socket.close();  // Clean up the WebSocket connection when the component is unmounted
-        };
-      }, []);
-    
-      return (
-        <div>
-          <h2>WebSocket Messages</h2>
-          <ul>
-            {messages.map((message, index) => (
-              <li key={index}>{message}</li>
-            ))}
-          </ul>
-        </div>
-      );
-    };
-
-
   return (
     <Card>
       <CardHeader>
         <CardTitle>App Catalog</CardTitle>
       </CardHeader>
       <CardContent>
-        {/* <WebSocketComponent /> */}
         <Table>
           <TableHeader>
             <TableRow>

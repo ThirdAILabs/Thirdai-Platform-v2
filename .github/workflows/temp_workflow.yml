@@ -22,4 +22,4 @@ jobs:
           exit 1
       - name: always print
         run: |
-          echo "This should be always printed"
+          echo "This should be always printed  "

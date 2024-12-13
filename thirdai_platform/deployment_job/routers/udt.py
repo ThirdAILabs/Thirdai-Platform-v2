@@ -1,6 +1,5 @@
 import os
 import time
-from typing import Union
 
 from deployment_job.models.classification_models import (
     ClassificationModel,

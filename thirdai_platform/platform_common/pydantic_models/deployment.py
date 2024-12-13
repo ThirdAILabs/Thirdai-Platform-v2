@@ -1,14 +1,13 @@
 import os
+import uuid
 from typing import Literal, Optional, Union
 
-from platform_common.pydantic_models.training import ModelType, NDBSubType, UDTSubType
+from platform_common.pydantic_models.training import ModelType, UDTSubType
 from pydantic import BaseModel, Field
 
 
 class NDBDeploymentOptions(BaseModel):
     model_type: Literal[ModelType.NDB] = ModelType.NDB
-
-    ndb_sub_type: NDBSubType = NDBSubType.v2
 
     llm_provider: str = "openai"
     genai_key: Optional[str] = None
@@ -36,16 +35,33 @@ class EnterpriseSearchOptions(BaseModel):
         protected_namespaces = ()
 
 
+class KnowledgeExtractionOptions(BaseModel):
+    model_type: Literal[ModelType.KNOWLEDGE_EXTRACTION] = ModelType.KNOWLEDGE_EXTRACTION
+
+    llm_provider: str = "openai"
+    genai_key: Optional[str] = None
+
+    advanced_indexing: bool
+    rerank: bool
+    generate_answers: bool
+
+
 class DeploymentConfig(BaseModel):
+    deployment_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
     model_id: str
     model_bazaar_endpoint: str
     model_bazaar_dir: str
+    host_dir: str
     license_key: str
 
     autoscaling_enabled: bool = False
 
     model_options: Union[
-        NDBDeploymentOptions, UDTDeploymentOptions, EnterpriseSearchOptions
+        NDBDeploymentOptions,
+        UDTDeploymentOptions,
+        EnterpriseSearchOptions,
+        KnowledgeExtractionOptions,
     ] = Field(..., discriminator="model_type")
 
     class Config:

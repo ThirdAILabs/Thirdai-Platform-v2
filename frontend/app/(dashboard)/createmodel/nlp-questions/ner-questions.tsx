@@ -3,7 +3,17 @@ import React, { useEffect, useState } from 'react';
 import { getUsername, trainTokenClassifier } from '@/lib/backend';
 import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
-import { Button, TextField, IconButton } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
+  Button,
+  TextField,
+  IconButton,
+  Divider,
+} from '@mui/material';
 import {
   Table,
   TableBody,
@@ -12,9 +22,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import ModelTrainingIcon from '@mui/icons-material/ModelTraining';
 import { CardDescription } from '@/components/ui/card';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import CSVUpload from './ner-questions-upload-file/CSVUpload';
+
+const CREATION_METHODS = {
+  // PRETRAINED: 'pretrained',
+  UPLOAD_DATA: 'upload-data',
+  SYNTHETIC: 'synthetic',
+};
 
 type Example = {
   text: string;
@@ -43,6 +63,7 @@ const NERQuestions = ({
   stayOnPage,
   appName,
 }: NERQuestionsProps) => {
+  const [creationMethod, setCreationMethod] = useState<string>('');
   const [modelName, setModelName] = useState(!appName ? '' : appName);
   const [categories, setCategories] = useState<Category[]>([
     { name: '', examples: [{ text: '' }], description: '' },
@@ -259,7 +280,6 @@ const NERQuestions = ({
   const [warningMessage, setWarningMessage] = useState('');
 
   useEffect(() => {
-    console.log('appname', appName);
     if (appName) {
       if (workflowNames.includes(appName)) {
         setWarningMessage(
@@ -271,241 +291,367 @@ const NERQuestions = ({
     }
   }, [appName]);
 
-  return (
-    <div>
-      <span className="block text-lg font-semibold">App Name</span>
-      <TextField
-        className="text-md w-full"
-        value={modelName}
-        onChange={(e) => {
-          const name = e.target.value;
-          setModelName(name);
-        }}
-        onBlur={(e) => {
-          const name = e.target.value;
-          const regexPattern = /^[\w-]+$/;
-          let warningMessage = '';
+  const renderCreationMethodSelection = () => (
+    <Box sx={{ width: '100%', mb: 4 }}>
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        Choose how you want to create your Text Extraction model
+      </Typography>
 
-          // Check if the name contains spaces
-          if (name.includes(' ')) {
-            warningMessage = 'The app name cannot contain spaces. Please remove the spaces.';
-          }
-          // Check if the name contains periods
-          else if (name.includes('.')) {
-            warningMessage =
-              "The app name cannot contain periods ('.'). Please remove the periods.";
-          }
-          // Check if the name contains invalid characters based on the regex pattern
-          else if (!regexPattern.test(name)) {
-            warningMessage =
-              'The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.';
-          }
-          // Check if the name already exists in the workflow
-          else if (workflowNames.includes(name)) {
-            warningMessage =
-              'An app with the same name already exists. Please choose a different name.';
-          }
-          // Set the warning message or clear it if the name is valid
-          setWarningMessage(warningMessage);
-          setModelName(name);
-        }}
-        placeholder="Enter app name"
-        style={{ marginTop: '10px' }}
-        disabled={!!appName && !workflowNames.includes(modelName)} // Use !! to explicitly convert to boolean
-      />
-      {warningMessage && <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>}
-      {generatedData.length === 0 && (
-        <>
-          <span className="block text-lg font-semibold" style={{ marginTop: '20px' }}>
-            Specify Tokens
-          </span>
-          <CardDescription>Define your own categories or select existing ones</CardDescription>
-          <form onSubmit={(e) => e.preventDefault()}>
-            <div style={{ display: 'flex', flexDirection: 'column', marginTop: '10px' }}>
-              {categories.map((category, categoryIndex) => (
-                <div
-                  key={categoryIndex}
-                  style={{
-                    marginBottom: '20px',
-                    border: '1px solid #ccc',
-                    padding: '10px',
-                    borderRadius: '4px',
+      <Grid container spacing={2}>
+        {/* Pretrained Model Option */}
+        {/* <Grid item xs={12} md={4}>
+          <Card
+            sx={{
+              height: '100%',
+              cursor: 'pointer',
+              border:
+                creationMethod === CREATION_METHODS.PRETRAINED
+                  ? '2px solid #1976d2'
+                  : '1px solid #e0e0e0',
+              '&:hover': { borderColor: '#1976d2' },
+            }}
+            onClick={() => setCreationMethod(CREATION_METHODS.PRETRAINED)}
+          >
+            <CardContent
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+              }}
+            >
+              <ModelTrainingIcon sx={{ fontSize: 40, mb: 2, color: 'primary.main' }} />
+              <Typography variant="h6" gutterBottom>
+                Use Pretrained Model
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Quick start with our pre-trained models for extracting common PII info like Names,
+                Addresses, Emails, SSNs etc
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid> */}
+
+        {/* Upload Data Option */}
+        <Grid item xs={12} md={4}>
+          <Card
+            sx={{
+              height: '100%',
+              cursor: 'pointer',
+              border:
+                creationMethod === CREATION_METHODS.UPLOAD_DATA
+                  ? '2px solid #1976d2'
+                  : '1px solid #e0e0e0',
+              '&:hover': { borderColor: '#1976d2' },
+            }}
+            onClick={() => setCreationMethod(CREATION_METHODS.UPLOAD_DATA)}
+          >
+            <CardContent
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+              }}
+            >
+              <UploadFileIcon sx={{ fontSize: 40, mb: 2, color: 'primary.main' }} />
+              <Typography variant="h6" gutterBottom>
+                Upload Your Data
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Train with your own labeled dataset via a CSV uploaded from your computer or S3
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Synthetic Data Option */}
+        <Grid item xs={12} md={4}>
+          <Card
+            sx={{
+              height: '100%',
+              cursor: 'pointer',
+              border:
+                creationMethod === CREATION_METHODS.SYNTHETIC
+                  ? '2px solid #1976d2'
+                  : '1px solid #e0e0e0',
+              '&:hover': { borderColor: '#1976d2' },
+            }}
+            onClick={() => setCreationMethod(CREATION_METHODS.SYNTHETIC)}
+          >
+            <CardContent
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+              }}
+            >
+              <AutoAwesomeIcon sx={{ fontSize: 40, mb: 2, color: 'primary.main' }} />
+              <Typography variant="h6" gutterBottom>
+                Generate Training Data
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Provide examples and let AI generate training data for your custom extraction needs
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+
+  const renderSelectedMethod = () => {
+    if (generatedData.length > 0) {
+      return renderGeneratedData();
+    }
+
+    switch (creationMethod) {
+      // case CREATION_METHODS.PRETRAINED:
+      //   return <Typography>Coming Soon</Typography>;
+      case CREATION_METHODS.UPLOAD_DATA:
+        return (
+          <Box sx={{ width: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Upload Training Data
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Upload a CSV file containing your labeled training data. The file should include text
+              samples and their corresponding labels.
+            </Typography>
+
+            <CSVUpload
+              modelName={modelName}
+              onSuccess={() => {
+                if (!stayOnPage) {
+                  router.push('/');
+                }
+                onCreateModel?.(modelName);
+              }}
+              onError={(errorMessage: string) => {
+                console.error('Error training model:', errorMessage);
+              }}
+            />
+          </Box>
+        );
+      case CREATION_METHODS.SYNTHETIC:
+        return renderSyntheticMethod();
+      default:
+        return null;
+    }
+  };
+
+  const renderSyntheticMethod = () => (
+    <div>
+      <span className="block text-lg font-semibold">Specify Tokens</span>
+      <CardDescription>Define your own categories or select existing ones</CardDescription>
+      <form onSubmit={(e) => e.preventDefault()}>
+        <div className="flex flex-col mt-3">
+          {categories.map((category, categoryIndex) => (
+            <div key={categoryIndex} className="mb-5 border border-gray-300 p-3 rounded-md">
+              <div className="flex justify-between mb-3">
+                <TextField
+                  className="w-[45%] text-sm"
+                  placeholder="Category Name"
+                  value={category.name}
+                  onChange={(e) => handleCategoryChange(categoryIndex, 'name', e.target.value)}
+                  InputProps={{
+                    inputProps: {
+                      list: `category-options-${categoryIndex}`,
+                    },
                   }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginBottom: '10px',
-                    }}
-                  >
-                    <TextField
-                      style={{ width: '45%' }}
-                      className="text-sm"
-                      placeholder="Category Name"
-                      value={category.name}
-                      onChange={(e) => handleCategoryChange(categoryIndex, 'name', e.target.value)}
-                      InputProps={{
-                        inputProps: {
-                          list: `category-options-${categoryIndex}`,
-                        },
-                      }}
-                    />
-                    <datalist id={`category-options-${categoryIndex}`}>
-                      {predefinedChoices.map((choice, i) => (
-                        <option key={i} value={choice} />
-                      ))}
-                    </datalist>
-                    <TextField
-                      style={{ width: '45%' }}
-                      className="text-sm"
-                      placeholder="What this category is about."
-                      value={category.description}
-                      onChange={(e) =>
-                        handleCategoryChange(categoryIndex, 'description', e.target.value)
-                      }
-                    />
-                  </div>
-                  {category.examples.map((example, exampleIndex) => (
-                    <div
-                      key={exampleIndex}
-                      style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}
-                    >
-                      <TextField
-                        style={{ flex: 1 }}
-                        className="text-sm"
-                        placeholder={`Example ${exampleIndex + 1}`}
-                        value={example.text}
-                        onChange={(e) =>
-                          handleExampleChange(categoryIndex, exampleIndex, e.target.value)
-                        }
-                      />
-                      <IconButton
-                        onClick={() => handleRemoveExample(categoryIndex, exampleIndex)}
-                        disabled={category.examples.length === 1}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </div>
+                />
+                <datalist id={`category-options-${categoryIndex}`}>
+                  {predefinedChoices.map((choice, i) => (
+                    <option key={i} value={choice} />
                   ))}
-                  <Button
-                    variant="outlined"
-                    startIcon={<AddIcon />}
-                    onClick={() => handleAddExample(categoryIndex)}
-                    style={{ marginRight: '10px' }}
+                </datalist>
+                <TextField
+                  className="w-[45%] text-sm"
+                  placeholder="What this category is about."
+                  value={category.description}
+                  onChange={(e) =>
+                    handleCategoryChange(categoryIndex, 'description', e.target.value)
+                  }
+                />
+              </div>
+              {category.examples.map((example, exampleIndex) => (
+                <div key={exampleIndex} className="flex items-center mb-3">
+                  <TextField
+                    className="flex-1 text-sm"
+                    placeholder={`Example ${exampleIndex + 1}`}
+                    value={example.text}
+                    onChange={(e) =>
+                      handleExampleChange(categoryIndex, exampleIndex, e.target.value)
+                    }
+                  />
+                  <IconButton
+                    onClick={() => handleRemoveExample(categoryIndex, exampleIndex)}
+                    disabled={category.examples.length === 1}
                   >
-                    Add Example
-                  </Button>
-                  <Button
-                    variant="contained"
-                    color="error"
-                    onClick={() => handleRemoveCategory(categoryIndex)}
-                    disabled={categories.length === 1}
-                  >
-                    Remove Category
-                  </Button>
+                    <DeleteIcon />
+                  </IconButton>
                 </div>
               ))}
               <Button
-                variant="contained"
-                style={{ marginTop: '10px', width: 'fit-content' }}
-                onClick={handleAddAndReviewCategory}
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={() => handleAddExample(categoryIndex)}
+                className="mr-3"
               >
-                Add Category
+                Add Example
               </Button>
               <Button
                 variant="contained"
-                color={isDataGenerating ? 'success' : 'primary'}
-                style={{ marginTop: '30px' }}
-                onClick={generateData}
+                color="error"
+                onClick={() => handleRemoveCategory(categoryIndex)}
+                disabled={categories.length === 1}
               >
-                {isDataGenerating ? 'Generating data...' : 'Generate data'}
+                Remove Category
               </Button>
             </div>
-          </form>
-        </>
-      )}
-
-      {isDataGenerating && (
-        <div className="flex justify-center mt-5">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          ))}
+          <Button variant="contained" className="mt-3 w-fit" onClick={handleAddAndReviewCategory}>
+            Add Category
+          </Button>
+          <Button
+            variant="contained"
+            color={isDataGenerating ? 'success' : 'primary'}
+            className="mt-8"
+            onClick={generateData}
+          >
+            {isDataGenerating ? 'Generating data...' : 'Generate data'}
+          </Button>
         </div>
-      )}
+      </form>
+    </div>
+  );
 
-      {generatedData.length > 0 && (
-        <>
-          <h3 className="text-lg font-semibold" style={{ marginTop: '20px' }}>
-            Categories and Examples
-          </h3>
-          <Table style={{ marginTop: '10px' }}>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Category</TableHead>
-                <TableHead>Example</TableHead>
-                <TableHead>Description</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {categories.map((category, index) => (
-                <TableRow key={index}>
-                  <TableCell className="font-medium" align="left">
-                    {category.name}
-                  </TableCell>
-                  <TableCell className="font-medium" align="left">
-                    {category.examples.map((ex, i) => (
-                      <div key={i}>{ex.text}</div>
-                    ))}
-                  </TableCell>
-                  <TableCell className="font-medium" align="left">
-                    {category.description}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </>
-      )}
+  const renderGeneratedData = () => (
+    <>
+      <h3 className="text-lg font-semibold mt-5">Categories and Examples</h3>
+      <Table className="mt-3">
+        <TableHeader>
+          <TableRow>
+            <TableHead>Category</TableHead>
+            <TableHead>Example</TableHead>
+            <TableHead>Description</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {categories.map((category, index) => (
+            <TableRow key={index}>
+              <TableCell className="font-medium">{category.name}</TableCell>
+              <TableCell className="font-medium">
+                {category.examples.map((ex, i) => (
+                  <div key={i}>{ex.text}</div>
+                ))}
+              </TableCell>
+              <TableCell className="font-medium">{category.description}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
-      {!isDataGenerating && generatedData.length > 0 && (
-        <div className="mt-5">
-          <h3 className="mb-3 text-lg font-semibold">Example Generated Data</h3>
-          <div>
-            {generatedData.map((pair, index) => (
-              <div key={index} className="my-2">
-                {renderTaggedSentence(pair)}
-              </div>
-            ))}
-          </div>
+      <div className="mt-5">
+        <h3 className="mb-3 text-lg font-semibold">Example Generated Data</h3>
+        <div>
+          {generatedData.map((pair, index) => (
+            <div key={index} className="my-2">
+              {renderTaggedSentence(pair)}
+            </div>
+          ))}
+        </div>
 
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              gap: '10px',
-              marginTop: '20px',
+        <div className="flex gap-3 mt-5">
+          <Button
+            variant="outlined"
+            className="flex-1"
+            onClick={() => {
+              setGeneratedData([]);
+              setCreationMethod('');
             }}
           >
-            <Button
-              variant="outlined"
-              style={{ width: '100%' }}
-              onClick={() => setGeneratedData([])}
-            >
-              Redefine Tokens
-            </Button>
-            <Button style={{ width: '100%' }} onClick={handleCreateNERModel} disabled={isLoading}>
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2"></div>
-                  <span>Creating...</span>
-                </div>
-              ) : (
-                'Create'
-              )}
-            </Button>
-          </div>
+            Redefine Tokens
+          </Button>
+          <Button
+            variant="contained"
+            className="flex-1"
+            onClick={handleCreateNERModel}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500 mr-2" />
+                <span>Creating...</span>
+              </div>
+            ) : (
+              'Create'
+            )}
+          </Button>
         </div>
-      )}
+      </div>
+    </>
+  );
+
+  return (
+    <div>
+      {/* App name section */}
+      <Box sx={{ mb: 4 }}>
+        <span className="block text-lg font-semibold">App Name</span>
+        <TextField
+          className="text-md w-full"
+          value={modelName}
+          onChange={(e) => {
+            const name = e.target.value;
+            setModelName(name);
+          }}
+          onBlur={(e) => {
+            const name = e.target.value;
+            const regexPattern = /^[\w-]+$/;
+            let warningMessage = '';
+
+            // Check if the name contains spaces
+            if (name.includes(' ')) {
+              warningMessage = 'The app name cannot contain spaces. Please remove the spaces.';
+            }
+            // Check if the name contains periods
+            else if (name.includes('.')) {
+              warningMessage =
+                "The app name cannot contain periods ('.'). Please remove the periods.";
+            }
+            // Check if the name contains invalid characters based on the regex pattern
+            else if (!regexPattern.test(name)) {
+              warningMessage =
+                'The app name can only contain letters, numbers, underscores, and hyphens. Please modify the name.';
+            }
+            // Check if the name already exists in the workflow
+            else if (workflowNames.includes(name)) {
+              warningMessage =
+                'An app with the same name already exists. Please choose a different name.';
+            }
+            // Set the warning message or clear it if the name is valid
+            setWarningMessage(warningMessage);
+            setModelName(name);
+          }}
+          placeholder="Enter app name"
+          style={{ marginTop: '10px' }}
+          disabled={!!appName && !workflowNames.includes(modelName)}
+        />
+        {warningMessage && (
+          <span style={{ color: 'red', marginTop: '10px' }}>{warningMessage}</span>
+        )}
+      </Box>
+
+      <Divider sx={{ my: 4 }} />
+
+      {/* Method selection and content */}
+      {renderCreationMethodSelection()}
+      {creationMethod && <Divider sx={{ my: 4 }} />}
+      {renderSelectedMethod()}
     </div>
   );
 };

@@ -1,12 +1,18 @@
-import sys
+import logging
 import traceback
+from pathlib import Path
 
 from dotenv import load_dotenv
+from fastapi.responses import JSONResponse
+from platform_common.logging import setup_logger
+from platform_common.utils import model_bazaar_path
 
 load_dotenv()
+import json
 
 import fastapi
 import uvicorn
+from auth.jwt import validate_access_token
 from backend.routers.data import data_router
 from backend.routers.deploy import deploy_router as deploy
 from backend.routers.models import model_router as model
@@ -25,6 +31,7 @@ from backend.startup_jobs import (
 )
 from backend.status_sync import sync_job_statuses
 from backend.utils import get_platform
+from database.session import get_session
 from fastapi.middleware.cors import CORSMiddleware
 
 app = fastapi.FastAPI()
@@ -36,6 +43,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+log_dir: Path = Path(model_bazaar_path()) / "logs"
+
+setup_logger(log_dir=log_dir, log_prefix="platform_backend")
+
+logger = logging.getLogger("platform-backend")
+audit_logger = setup_logger(log_dir=log_dir, log_prefix="audit", configure_root=False)
 
 app.include_router(user, prefix="/api/user", tags=["user"])
 app.include_router(train, prefix="/api/train", tags=["train"])
@@ -49,41 +63,105 @@ app.include_router(data_router, prefix="/api/data", tags=["data"])
 app.include_router(telemetry, prefix="/api/telemetry", tags=["telemetry"])
 
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: fastapi.Request, exc: Exception):
+    # Log the traceback
+    error_trace = traceback.format_exc()
+    logger.error(f"Exception occurred: {error_trace}")
+
+    # Return the exact exception message in the response
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+    )
+
+
+@app.middleware("http")
+async def log_requests(request: fastapi.Request, call_next):
+    if request.url.path.strip("/") != "metrics":
+        # Don't log the prometheus client metric request
+        x_forwarded_for = request.headers.get("x-forwarded-for")
+        client_ip = (
+            x_forwarded_for.split(",")[0].strip()
+            if x_forwarded_for
+            else (request.client.host if request.client else "Unknown")
+        )  # When behind a load balancer or proxy, client IP would be in `x-forwarded-for` header
+        audit_log = {
+            "ip": client_ip,
+            "protocol": request.headers.get("x-forwarded-proto", request.url.scheme),
+            "method": request.method,
+            "url": str(request.url),
+            "query_params": dict(request.query_params),
+            "path_params": dict(request.path_params),
+        }
+        body = None
+        if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+            try:
+                body = await request.json()
+            except Exception:
+                body = "Could not parse body as JSON"
+        audit_log["body"] = body
+        try:
+            session = next(get_session())
+            user = validate_access_token(
+                access_token=request.headers.get("Authorization").split()[1],
+                session=session,
+            )
+            audit_log["username"] = user.user.username
+        except Exception as e:
+            audit_log["username"] = "unknown"
+        finally:
+            session.close()
+
+        audit_logger.info(json.dumps(audit_log))
+
+    response = await call_next(request)
+
+    logger.info(
+        f"Request: {request.method}; URl: {request.url} - {response.status_code}"
+    )
+
+    return response
+
+
 @app.on_event("startup")
 async def startup_event():
     try:
-        print("Starting Generation Job...")
+        logger.info("Starting Generation Job...")
         await restart_generate_job()
-        print("Successfully started Generation Job!")
+        logger.info("Successfully started Generation Job!")
     except Exception as error:
-        print(f"Failed to start the Generation Job : {error}", file=sys.stderr)
+        logger.error(f"Failed to start the Generation Job: {error}")
+        logger.debug(traceback.format_exc())
 
     try:
-        print("Starting telemetry Job...")
+        logger.info("Starting telemetry Job...")
         await restart_telemetry_jobs()
-        print("Successfully started telemetry Job!")
+        logger.info("Successfully started telemetry Job!")
     except Exception as error:
-        traceback.print_exc()
-        print(f"Failed to start the telemetry Job : {error}", file=sys.stderr)
+        logger.error(f"Failed to start the telemetry Job: {error}")
+        logger.debug(traceback.format_exc())
 
     platform = get_platform()
     if platform == "docker":
         try:
-            print("Launching frontend...")
+            logger.info("Launching frontend...")
             await restart_thirdai_platform_frontend()
-            print("Successfully launched the frontend!")
+            logger.info("Successfully launched the frontend!")
         except Exception as error:
-            print(f"Failed to start the frontend : {error}", file=sys.stderr)
+            logger.error(f"Failed to start the frontend: {error}")
+            logger.debug(traceback.format_exc())
 
     try:
-        print("Starting LLM Cache Job...")
+        logger.info("Starting LLM Cache Job...")
         await restart_llm_cache_job()
-        print("Successfully started LLM Cache Job!")
+        logger.info("Successfully started LLM Cache Job!")
     except Exception as error:
-        print(f"Failed to start the LLM Cache Job : {error}", file=sys.stderr)
+        logger.error(f"Failed to start the LLM Cache Job: {error}")
+        logger.debug(traceback.format_exc())
 
     await sync_job_statuses()
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="localhost", port=8000)
+    uvicorn.run(app, host="localhost", port=8000, log_level="info")

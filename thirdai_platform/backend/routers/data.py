@@ -1,19 +1,29 @@
+import logging
+import pathlib
 import traceback
 import uuid
 from typing import Dict, List
 
-from auth.jwt import AuthenticatedUser, verify_access_token
+from backend.auth_dependencies import get_current_user
 from backend.datagen import generate_text_data, generate_token_data
 from backend.utils import validate_license_info
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, Form, status
+from platform_common.dependencies import is_on_low_disk
 from platform_common.pydantic_models.training import JobOptions, LLMProvider
-from platform_common.utils import response
+from platform_common.utils import disk_usage, get_section, response
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 data_router = APIRouter()
+
+root_folder = pathlib.Path(__file__).parent
+
+docs_file = root_folder.joinpath("../../docs/data_endpoints.txt")
+
+with open(docs_file) as f:
+    docs = f.read()
 
 
 # Utility function to validate and process generation jobs (for both text and token generation)
@@ -32,11 +42,13 @@ def validate_and_generate_data(
 
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
-            print(f"Extra options for job: {extra_options}")
+            logging.info(f"Extra options for job: {extra_options}")
     except ValidationError as e:
+        message = f"Invalid option format\nDetails: {str(e)}"
+        logging.error(message)
         return response(
             status_code=status.HTTP_400_BAD_REQUEST,
-            message=f"Invalid option format\nDetails: {str(e)}",
+            message=message,
         )
 
     license_info = validate_license_info()
@@ -57,16 +69,21 @@ def validate_and_generate_data(
     return response(
         status_code=status.HTTP_200_OK,
         message="Successfully submitted the data-generation job",
+        data={"disk_usage": disk_usage()},
     )
 
 
-@data_router.post("/generate-text-data")
+@data_router.post(
+    "/generate-text-data",
+    dependencies=[Depends(get_current_user), Depends(is_on_low_disk())],
+    summary="Generate Text Data",
+    description=get_section(docs, "Generate Text Data"),
+)
 def generate_text_data_endpoint(
     task_prompt: str,
     llm_provider: LLMProvider = LLMProvider.openai,
     datagen_form: str = Form(default="{}"),
     job_form: str = Form(default="{}"),
-    _: AuthenticatedUser = Depends(verify_access_token),
 ):
     return validate_and_generate_data(
         task_prompt=task_prompt,
@@ -77,13 +94,17 @@ def generate_text_data_endpoint(
     )
 
 
-@data_router.post("/generate-token-data")
+@data_router.post(
+    "/generate-token-data",
+    dependencies=[Depends(get_current_user), Depends(is_on_low_disk())],
+    summary="Generate Token Data",
+    description=get_section(docs, "Generate Token Data"),
+)
 def generate_token_data_endpoint(
     task_prompt: str,
     llm_provider: LLMProvider = LLMProvider.openai,
     datagen_form: str = Form(default="{}"),
     job_form: str = Form(default="{}"),
-    _: AuthenticatedUser = Depends(verify_access_token),
 ):
     return validate_and_generate_data(
         task_prompt=task_prompt,
@@ -125,7 +146,12 @@ def find_dataset(
 
 
 # Dataset Finding Endpoint
-@data_router.post("/find-dataset")
+@data_router.post(
+    "/find-dataset",
+    dependencies=[Depends(get_current_user)],
+    summary="Find Datasets",
+    description=get_section(docs, "Find Datasets"),
+)
 def find_datasets(
     task: schema.UDT_Task,
     target_labels: List[str],
@@ -162,8 +188,8 @@ def find_datasets(
         )
 
     except Exception as e:
-        traceback.print_exc()
+        logging.error(traceback.print_exc())
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            message="Unable to find a suitable dataset",
+            message=f"Unable to find a suitable dataset: {e}",
         )

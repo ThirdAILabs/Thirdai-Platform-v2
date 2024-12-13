@@ -243,8 +243,16 @@ class NDBFunctions:
         logging.info(f"upvoting the model")
         upvote_response = deployment.upvote(
             [
-                {"query_text": query_text, "reference_id": best_answer["id"]},
-                {"query_text": query_text, "reference_id": good_answer["id"]},
+                {
+                    "query_text": query_text,
+                    "reference_id": best_answer["id"],
+                    "reference_text": best_answer["text"],
+                },
+                {
+                    "query_text": query_text,
+                    "reference_id": good_answer["id"],
+                    "reference_text": good_answer["text"],
+                },
             ]
         )
 
@@ -260,7 +268,9 @@ class NDBFunctions:
                 for file in config.insert_paths
             ],
         )
-        assert insert_response.status_code == 200
+        assert (
+            insert_response.status_code == 200
+        ), f"Insert failed with status code {insert_response.status_code} and error: {insert_response.text}"
 
         logging.info("Checking the sources")
         deployment.sources()
@@ -449,29 +459,7 @@ class NDBFunctions:
         return flow.bazaar_client.deploy(model.model_identifier)
 
     def build_model_options(config: Config) -> Dict[str, Any]:
-        if config.ndb_version == "v1":
-            if config.retriever == "mach":
-                mach_options = {
-                    "fhr": config.input_dim,
-                    "embedding_dim": config.hidden_dim,
-                    "output_dim": config.output_dim,
-                    "unsupervised_epochs": config.epochs,
-                    "supervised_epochs": config.epochs,
-                }
-            else:
-                mach_options = None
-            return {
-                "ndb_options": {
-                    "ndb_sub_type": "v1",
-                    "retriever": config.retriever,
-                    "mach_options": mach_options,
-                    "checkpoint_interval": config.checkpoint_interval,
-                }
-            }
-        elif config.ndb_version == "v2":
-            return {"ndb_options": {"ndb_sub_type": "v2"}}
-        else:
-            raise ValueError(f"Invalid ndb version '{config.ndb_version}'")
+        return {}
 
     def build_doc_options(config: Config) -> Dict[str, Any]:
         return {

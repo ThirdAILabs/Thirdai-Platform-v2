@@ -1,15 +1,12 @@
 import ast
 import datetime
 import enum
+import fcntl
 import re
-import traceback
-from functools import wraps
 from typing import Tuple
 
 import fitz
 import requests
-from fastapi import status
-from platform_common.utils import response
 from thirdai import neural_db as ndb
 
 
@@ -43,32 +40,6 @@ def delete_deployment_job(
     headers = {"X-Nomad-Token": task_runner_token}
     response = requests.delete(job_url, headers=headers)
     return response, job_id
-
-
-def propagate_error(func):
-    """
-    Decorator to propagate errors and return a JSON response with the error message.
-
-    Args:
-        func: The function to wrap.
-
-    Returns:
-        The wrapped function.
-    """
-
-    @wraps(func)
-    def method(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception:
-            print(traceback.format_exc())
-            return response(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message=str(traceback.format_exc()),
-                success=False,
-            )
-
-    return method
 
 
 def validate_name(name: str) -> None:
@@ -178,3 +149,14 @@ def old_pdf_chunks(db: ndb.NeuralDB, reference: ndb.Reference):
         "text": [text for text, _ in text_and_highlights],
         "boxes": boxes,
     }
+
+
+def acquire_file_lock(lockfile):
+    lock = open(lockfile, "w")
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    return lock
+
+
+def release_file_lock(lock):
+    fcntl.flock(lock, fcntl.LOCK_UN)
+    lock.close()

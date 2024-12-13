@@ -1,3 +1,4 @@
+import logging
 import os
 import traceback
 from pathlib import Path
@@ -6,7 +7,6 @@ from typing import List, Optional
 from backend.utils import (
     get_platform,
     get_python_path,
-    model_bazaar_path,
     submit_nomad_job,
     thirdai_platform_dir,
 )
@@ -15,12 +15,13 @@ from database.session import get_session
 from fastapi import Depends, status
 from platform_common.pydantic_models.training import (
     DatagenOptions,
-    Entity,
     JobOptions,
+    LabelEntity,
     LLMProvider,
     UDTSubType,
 )
-from platform_common.utils import response, save_dict
+from platform_common.thirdai_storage.data_types import TokenClassificationData
+from platform_common.utils import model_bazaar_path, response, save_dict
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
@@ -91,7 +92,7 @@ def generate_data_for_train_job(
 
 class TextClassificationGenerateArgs(BaseModel):
     samples_per_label: int
-    target_labels: List[Entity]
+    target_labels: List[LabelEntity]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
     vocab_per_sentence: int = 4
@@ -110,7 +111,7 @@ def generate_text_data(
         extra_options = JobOptions.model_validate(job_options).model_dump()
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
-            print(f"Extra options for training: {extra_options}")
+            logging.info(f"Extra options for training: {extra_options}")
     except ValidationError as e:
         raise ValueError(f"Invalid extra options format: {e}")
 
@@ -138,7 +139,7 @@ def generate_text_data(
             registry=os.getenv("DOCKER_REGISTRY"),
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
-            image_name=os.getenv("DATA_GENERATION_IMAGE_NAME"),
+            image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
             thirdai_platform_dir=thirdai_platform_dir(),
             generate_script="data_generation_job.run",
             task_prompt=task_prompt,
@@ -159,11 +160,15 @@ def generate_text_data(
 
 
 class TokenClassificationGenerateArgs(BaseModel):
-    tags: List[Entity]
+    tags: List[LabelEntity]
     num_sentences_to_generate: int
     num_samples_per_tag: Optional[int] = None
     allocation_cores: Optional[int] = None
     allocation_memory: Optional[int] = None
+
+    # example NER samples
+    samples: Optional[List[TokenClassificationData]] = None
+    templates_per_sample: int = 10
 
 
 def generate_token_data(
@@ -179,7 +184,7 @@ def generate_token_data(
         extra_options = JobOptions.model_validate(job_options).model_dump()
         extra_options = {k: v for k, v in extra_options.items() if v is not None}
         if extra_options:
-            print(f"Extra options for training: {extra_options}")
+            logging.info(f"Extra options for training: {extra_options}")
     except ValidationError as e:
         raise ValueError(f"Invalid extra options format: {e}")
 
@@ -206,7 +211,7 @@ def generate_token_data(
             registry=os.getenv("DOCKER_REGISTRY"),
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
-            image_name=os.getenv("DATA_GENERATION_IMAGE_NAME"),
+            image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
             thirdai_platform_dir=thirdai_platform_dir(),
             generate_script="data_generation_job.run",
             task_prompt=task_prompt,
@@ -265,7 +270,7 @@ def find_datasets(
         )
 
     except Exception as e:
-        traceback.print_exc()
+        logging.error(traceback.print_exc())
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             message="unable to find a sample text-dataset",

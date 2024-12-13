@@ -1,9 +1,11 @@
+import logging
 import os
 
 from backend.utils import get_nomad_job
 from database import schema
 from database.session import get_session
 from fastapi_utils.tasks import repeat_every
+from platform_common.pydantic_models.training import ModelType
 
 
 @repeat_every(seconds=5)
@@ -28,8 +30,23 @@ async def sync_job_statuses() -> None:
                     model.get_train_job_name(), os.getenv("NOMAD_ENDPOINT")
                 )
                 if not model_data or model_data["Status"] == "dead":
-                    print(
+                    logging.warning(
                         f"Model {model.id} train status was starting or in_progress but the nomad"
+                        "job is either dead or not found. Setting status to failed."
+                    )
+                    model.train_status = schema.Status.failed
+
+            if (
+                model.train_status == schema.Status.not_started
+                and model.type == ModelType.UDT.value
+                and model.get_attributes().get("datagen", "false") == "true"
+            ):
+                model_data = get_nomad_job(
+                    model.get_datagen_job_name(), os.getenv("NOMAD_ENDPOINT")
+                )
+                if not model_data or model_data["Status"] == "dead":
+                    logging.warning(
+                        f"Model {model.id} train status was not_started but the datagen nomad"
                         "job is either dead or not found. Setting status to failed."
                     )
                     model.train_status = schema.Status.failed
@@ -42,7 +59,7 @@ async def sync_job_statuses() -> None:
                 or model.deploy_status == schema.Status.in_progress
             ):
                 if not deployment_data or deployment_data["Status"] == "dead":
-                    print(
+                    logging.warning(
                         f"Model {model.id} deployment status was starting or in_progress but the nomad"
                         "job is either dead or not found. Setting status to failed."
                     )
@@ -50,7 +67,7 @@ async def sync_job_statuses() -> None:
 
             if model.deploy_status == schema.Status.complete:
                 if not deployment_data or deployment_data["Status"] == "dead":
-                    print(
+                    logging.warning(
                         f"Model {model.id} deployment status was complete but the nomad"
                         "job is either dead or not found. Setting status to stopped instead."
                     )

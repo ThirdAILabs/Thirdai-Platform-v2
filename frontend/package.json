@@ -48,7 +48,7 @@
     "lucide-react": "^0.400.0",
     "mammoth": "^1.8.0",
     "next": "14.2.5",
-    "next-auth": "5.0.0-beta.19",
+    "next-auth": "^4.24.8",
     "npm": "^10.8.2",
     "openai": "^4.53.2",
     "papaparse": "^5.4.1",
@@ -62,7 +62,9 @@
     "react-icons": "^5.3.0",
     "react-markdown": "^9.0.1",
     "react-pdf": "^7.5.1",
+    "recharts": "^2.13.2",
     "server-only": "^0.0.1",
+    "sharp": "^0.33.5",
     "simplebar-react": "^3.2.6",
     "styled-components": "^6.1.12",
     "stylis-plugin-rtl": "^2.1.1",
@@ -80,6 +82,7 @@
     "@types/papaparse": "^5.3.14",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/recharts": "^1.8.29",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.5",
     "postcss": "^8",
@@ -92,5 +95,10 @@
     "singleQuote": true,
     "tabWidth": 2,
     "trailingComma": "none"
+  },
+  "pnpm": {
+    "overrides": {
+      "oidc-token-hash": "5.0.1"
+    }
   }
 }

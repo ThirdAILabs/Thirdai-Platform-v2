@@ -1,22 +1,40 @@
 import json
 import os
 import shutil
+import uuid
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import thirdai
 from deployment_job.permissions import Permissions
 from fastapi.testclient import TestClient
+from licensing.verify import verify_license
+from platform_common.logging import JobLogger
 from platform_common.pydantic_models.deployment import (
     DeploymentConfig,
     NDBDeploymentOptions,
 )
-from platform_common.pydantic_models.training import NDBSubType
-from thirdai import neural_db as ndbv1
 from thirdai import neural_db_v2 as ndbv2
+from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
+from thirdai.neural_db_v2.retrievers import FinetunableRetriever
 
+DEPLOYMENT_ID = "123"
+USER_ID = "abc"
 MODEL_ID = "xyz"
-LICENSE_KEY = "236C00-47457C-4641C5-52E3BB-3D1F34-V3"
+
+THIRDAI_LICENSE = os.path.join(
+    os.path.dirname(__file__), "../tests/ndb_enterprise_license.json"
+)
+
+
+logger = JobLogger(
+    log_dir=Path("./tmp"),
+    log_prefix="deployment",
+    service_type="deployment",
+    model_id="model-123",
+    model_type="ndb",
+    user_id="user-123",
+)
 
 
 def doc_dir():
@@ -29,32 +47,42 @@ def doc_dir():
 @pytest.fixture(scope="function")
 def tmp_dir():
     path = "./tmp"
+    os.environ["SHARE_DIR"] = path
+    os.makedirs(path, exist_ok=True)
     yield path
     shutil.rmtree(path)
 
 
-def create_ndbv1_model(tmp_dir):
-    thirdai.licensing.activate(LICENSE_KEY)
+def create_ndbv2_model(tmp_dir: str, on_disk: bool):
+    verify_license.verify_and_activate(THIRDAI_LICENSE)
 
-    db = ndbv1.NeuralDB()
+    random_path = f"{uuid.uuid4()}.ndb"
 
-    db.insert(
-        [ndbv1.CSV(os.path.join(doc_dir(), "articles.csv"), weak_columns=["text"])]
-    )
-
-    db.save(os.path.join(tmp_dir, "models", f"{MODEL_ID}_v1", "model.ndb"))
-
-
-def create_ndbv2_model(tmp_dir):
-    thirdai.licensing.activate(LICENSE_KEY)
-
-    db = ndbv2.NeuralDB()
+    if on_disk:
+        db = ndbv2.NeuralDB(save_path=random_path)
+    else:
+        db = ndbv2.NeuralDB(
+            chunk_store=PandasChunkStore(),
+            retriever=FinetunableRetriever(random_path),
+        )
 
     db.insert(
         [ndbv2.CSV(os.path.join(doc_dir(), "articles.csv"), text_columns=["text"])]
     )
 
-    db.save(os.path.join(tmp_dir, "models", f"{MODEL_ID}_v2", "model.ndb"))
+    db.save(os.path.join(tmp_dir, "models", f"{MODEL_ID}", "model.ndb"))
+    db.save(
+        os.path.join(
+            tmp_dir,
+            "host_dir",
+            "models",
+            f"{MODEL_ID}",
+            f"{DEPLOYMENT_ID}",
+            "model.ndb",
+        )
+    )
+
+    shutil.rmtree(random_path)
 
 
 def mock_verify_permission(permission_type: str = "read"):
@@ -65,21 +93,21 @@ def mock_check_permission(token: str, permission_type: str = "read"):
     return True
 
 
-def create_config(tmp_dir: str, sub_type: NDBSubType, autoscaling: bool):
-    if sub_type == NDBSubType.v1:
-        create_ndbv1_model(tmp_dir)
-    elif sub_type == NDBSubType.v2:
-        create_ndbv2_model(tmp_dir)
-    else:
-        raise ValueError(f"Invalid subtype '{sub_type}'")
+def create_config(tmp_dir: str, autoscaling: bool, on_disk: bool):
+    create_ndbv2_model(tmp_dir, on_disk)
+
+    license_info = verify_license.verify_license(THIRDAI_LICENSE)
 
     return DeploymentConfig(
-        model_id=f"{MODEL_ID}_{sub_type}",
+        deployment_id=DEPLOYMENT_ID,
+        user_id=USER_ID,
+        model_id=MODEL_ID,
         model_bazaar_endpoint="",
         model_bazaar_dir=tmp_dir,
-        license_key=LICENSE_KEY,
+        host_dir=os.path.join(tmp_dir, "host_dir"),
+        license_key=license_info["boltLicenseKey"],
         autoscaling_enabled=autoscaling,
-        model_options=NDBDeploymentOptions(ndb_sub_type=sub_type),
+        model_options=NDBDeploymentOptions(),
     )
 
 
@@ -101,7 +129,15 @@ def check_upvote_dev_mode(client: TestClient):
 
     res = client.post(
         "/upvote",
-        json={"text_id_pairs": [{"query_text": random_query, "reference_id": 78}]},
+        json={
+            "text_id_pairs": [
+                {
+                    "query_text": random_query,
+                    "reference_id": 78,
+                    "reference_text": "This is the corresponding reference text.",
+                }
+            ]
+        },
     )
     assert res.status_code == 200
 
@@ -177,15 +213,14 @@ def check_deletion_dev_mode(client: TestClient):
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("sub_type", ["v1", "v2"])
 @patch.object(Permissions, "verify_permission", mock_verify_permission)
 @patch.object(Permissions, "check_permission", mock_check_permission)
-def test_deploy_ndb_dev_mode(tmp_dir, sub_type):
+def test_deploy_ndb_dev_mode(tmp_dir):
     from deployment_job.routers.ndb import NDBRouter
 
-    config = create_config(tmp_dir=tmp_dir, sub_type=sub_type, autoscaling=False)
+    config = create_config(tmp_dir=tmp_dir, autoscaling=False, on_disk=True)
 
-    router = NDBRouter(config, None)
+    router = NDBRouter(config, None, logger)
     client = TestClient(router.router)
 
     check_query(client)
@@ -202,7 +237,15 @@ def check_upvote_prod_mode(client: TestClient):
     # Here 78 is just a random chunk that we are upvoting for this query
     res = client.post(
         "/upvote",
-        json={"text_id_pairs": [{"query_text": random_query, "reference_id": 78}]},
+        json={
+            "text_id_pairs": [
+                {
+                    "query_text": random_query,
+                    "reference_id": 78,
+                    "reference_text": "This is the corresponding reference text.",
+                }
+            ]
+        },
     )
     assert res.status_code == 202
 
@@ -285,15 +328,15 @@ def check_log_lines(logdir, expected_lines):
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("sub_type", ["v1", "v2"])
+@pytest.mark.parametrize("on_disk", [True, False])
 @patch.object(Permissions, "verify_permission", mock_verify_permission)
 @patch.object(Permissions, "check_permission", mock_check_permission)
-def test_deploy_ndb_prod_mode(tmp_dir, sub_type):
+def test_deploy_ndb_prod_mode(tmp_dir, on_disk):
     from deployment_job.routers.ndb import NDBRouter
 
-    config = create_config(tmp_dir=tmp_dir, sub_type=sub_type, autoscaling=True)
+    config = create_config(tmp_dir=tmp_dir, autoscaling=True, on_disk=on_disk)
 
-    router = NDBRouter(config, None)
+    router = NDBRouter(config, None, logger)
     client = TestClient(router.router)
 
     deployment_dir = os.path.join(

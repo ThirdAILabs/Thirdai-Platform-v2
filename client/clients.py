@@ -183,6 +183,10 @@ class NeuralDBClient(BaseClient):
                     constraint_type: Literal["EqualTo"]
                     value: Any
 
+                class Substring(BaseModel):
+                    constraint_type: Literal["Substring"]
+                    value: str
+
                 class InRange(BaseModel):
                     constraint_type: Literal["InRange"]
                     minimum: Any
@@ -224,7 +228,7 @@ class NeuralDBClient(BaseClient):
                 - path (str): the path to the document (either local or s3 bucket).
                 - location (str): where the file is found either "local" or "s3".
                   Optional, defaults to "local".
-                - doc_id (Optional[str]): an optional arg to indicate the id to use to
+                - source_id (Optional[str]): an optional arg to indicate the id to use to
                   reference the document. Optional.
                 - metadata (Dict[str, Any]): metadata for the document. Optional.
                 - options (Dict[str, Any]): any options for specific document types. Optional.
@@ -377,6 +381,16 @@ class NeuralDBClient(BaseClient):
             json={"provider": provider},
             headers=auth_header(self.login_instance.access_token),
         )
+
+    @check_deployment_decorator
+    def get_signed_url(self, source: str, provider: str):
+        response = http_get_with_error(
+            urljoin(self.base_url, "get-signed-url"),
+            params={"source": source, "provider": provider},
+            headers=auth_header(self.login_instance.access_token),
+        )
+
+        return response.json()["data"]["signed_url"]
 
 
 class LLMClient:

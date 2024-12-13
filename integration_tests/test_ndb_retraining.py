@@ -11,7 +11,8 @@ from client.utils import auth_header
 
 
 @pytest.mark.unit
-def test_ndb_retraining_log_feedback_from_read_only_users():
+@pytest.mark.parametrize("on_disk", [True, False])
+def test_ndb_retraining_log_feedback_from_read_only_users(on_disk):
     base_url = "http://127.0.0.1:80/api/"
 
     admin_client = ModelBazaar(base_url)
@@ -21,12 +22,14 @@ def test_ndb_retraining_log_feedback_from_read_only_users():
     base_model = admin_client.train(
         base_model_name,
         unsupervised_docs=[os.path.join(doc_dir(), "articles.csv")],
-        model_options={"ndb_options": {"ndb_sub_type": "v2"}},
+        model_options={"on_disk": on_disk},
         supervised_docs=[],
     )
     admin_client.await_train(base_model)
 
-    ndb_client = admin_client.deploy(base_model.model_identifier)
+    ndb_client = admin_client.deploy(
+        base_model.model_identifier, autoscaling_enabled=True
+    )
     admin_client.await_deploy(ndb_client)
 
     res = requests.post(
@@ -48,7 +51,15 @@ def test_ndb_retraining_log_feedback_from_read_only_users():
     ndb_client.login_instance = user_client._login_instance
 
     ndb_client.associate([{"source": "my source query", "target": "my target query"}])
-    ndb_client.upvote([{"query_text": "a query to upvote", "reference_id": 0}])
+    ndb_client.upvote(
+        [
+            {
+                "query_text": "a query to upvote",
+                "reference_id": 0,
+                "reference_text": "This is the corresponding reference text",
+            }
+        ]
+    )
 
     res = requests.post(
         urljoin(ndb_client.base_url, "implicit-feedback"),
@@ -75,7 +86,9 @@ def test_ndb_retraining_log_feedback_from_read_only_users():
 
     ndb_client.login_instance = admin_client._login_instance
 
-    ndb_client = admin_client.deploy(retrained_model.model_identifier)
+    ndb_client = admin_client.deploy(
+        retrained_model.model_identifier, autoscaling_enabled=True
+    )
     admin_client.await_deploy(ndb_client)
 
     res = ndb_client.search("a query to upvote", top_k=1)
@@ -85,7 +98,8 @@ def test_ndb_retraining_log_feedback_from_read_only_users():
 
 
 @pytest.mark.unit
-def test_ndb_retraining_autoscaling_mode():
+@pytest.mark.parametrize("on_disk", [True, False])
+def test_ndb_retraining_autoscaling_mode(on_disk):
     base_url = "http://127.0.0.1:80/api/"
 
     admin_client = ModelBazaar(base_url)
@@ -98,7 +112,7 @@ def test_ndb_retraining_autoscaling_mode():
             os.path.join(doc_dir(), "articles.csv"),
             os.path.join(doc_dir(), "supervised.csv"),
         ],
-        model_options={"ndb_options": {"ndb_sub_type": "v2"}},
+        model_options={"on_disk": on_disk},
         supervised_docs=[],
     )
     admin_client.await_train(base_model)
@@ -109,7 +123,15 @@ def test_ndb_retraining_autoscaling_mode():
     admin_client.await_deploy(ndb_client)
 
     ndb_client.associate([{"source": "my source query", "target": "my target query"}])
-    ndb_client.upvote([{"query_text": "a query to upvote", "reference_id": 0}])
+    ndb_client.upvote(
+        [
+            {
+                "query_text": "a query to upvote",
+                "reference_id": 0,
+                "reference_text": "This is the corresponding reference text",
+            }
+        ]
+    )
 
     ndb_client.insert(
         [
@@ -145,7 +167,9 @@ def test_ndb_retraining_autoscaling_mode():
         base_model_identifier=ndb_client.model_identifier,
     )
 
-    ndb_client = admin_client.deploy(retrained_model.model_identifier)
+    ndb_client = admin_client.deploy(
+        retrained_model.model_identifier, autoscaling_enabled=True
+    )
     admin_client.await_deploy(ndb_client)
 
     sources = ndb_client.sources()

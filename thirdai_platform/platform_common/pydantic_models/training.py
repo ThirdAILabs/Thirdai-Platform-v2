@@ -2,6 +2,10 @@ import os
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
+from platform_common.thirdai_storage.data_types import (
+    LabelEntity,
+    TokenClassificationData,
+)
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -9,6 +13,7 @@ class ModelType(str, Enum):
     NDB = "ndb"
     UDT = "udt"
     ENTERPRISE_SEARCH = "enterprise-search"
+    KNOWLEDGE_EXTRACTION = "knowledge-extraction"
 
 
 class ModelDataType(str, Enum):
@@ -21,77 +26,102 @@ class FileLocation(str, Enum):
     local = "local"
     nfs = "nfs"
     s3 = "s3"
+    azure = "azure"
+    gcp = "gcp"
 
 
 class FileInfo(BaseModel):
     path: str
     location: FileLocation
-    doc_id: Optional[str] = None
+    source_id: Optional[str] = None
     options: Dict[str, Any] = {}
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Union[int, str, float, bool]]] = None
 
     def ext(self) -> str:
         _, ext = os.path.splitext(self.path)
         return ext
 
+    def parse_s3_url(self):
+        """
+        Parses an S3 URL and returns the bucket name and key.
+        Only works for FileInfo objects where location is S3.
 
-class MachOptions(BaseModel):
-    fhr: int = 50_000
-    embedding_dim: int = 2048
-    output_dim: int = 10_000
-    extreme_num_hashes: int = 1
-    hidden_bias: bool = False
-    tokenizer: str = "char-4"
-    unsupervised_epochs: int = 5
-    supervised_epochs: int = 3
-    metrics: List[str] = ["hash_precision@1", "loss"]
-
-
-class NDBSubType(str, Enum):
-    v1 = "v1"
-    v2 = "v2"
-
-
-class RetrieverType(str, Enum):
-    mach = "mach"
-    hybrid = "hybrid"
-    finetunable_retriever = "finetunable_retriever"
-
-
-class NDBv1Options(BaseModel):
-    ndb_sub_type: Literal[NDBSubType.v1] = NDBSubType.v1
-
-    retriever: RetrieverType = RetrieverType.finetunable_retriever
-
-    mach_options: Optional[MachOptions] = None
-    checkpoint_interval: Optional[int] = None
-
-    @model_validator(mode="after")
-    def check_mach_options(self):
-        if (
-            self.retriever != RetrieverType.finetunable_retriever
-            and not self.mach_options
-        ) or (
-            self.retriever == RetrieverType.finetunable_retriever and self.mach_options
-        ):
+        Returns:
+            tuple: (bucket_name, key) where bucket_name is the name of the S3 bucket
+                   and key is the path within the bucket.
+        """
+        if self.location != FileLocation.s3:
             raise ValueError(
-                "mach_options must be provided if using mach or hybrid, and must not be provided if using finetunable_retriever"
+                f"Invalid operation. File location is not S3: {self.location}"
             )
-        return self
 
+        if not self.path.startswith("s3://"):
+            raise ValueError(f"Invalid S3 URL: {self.path}")
 
-class NDBv2Options(BaseModel):
-    ndb_sub_type: Literal[NDBSubType.v2] = NDBSubType.v2
+        # Remove the 's3://' prefix and split the remaining string
+        s3_path = self.path[5:]  # Remove 's3://'
+        bucket_name, _, key = s3_path.partition("/")
 
-    on_disk: bool = True
+        return bucket_name, key
+
+    def parse_azure_url(self):
+        """
+        Parses an Azure Blob Storage URL and returns the container name and blob path.
+        Only works for FileInfo objects where location is Azure.
+
+        Returns:
+            tuple: (container_name, blob_path) where container_name is the name of the
+                   Azure container and blob_path is the path to the blob inside the container.
+        """
+        if self.location != FileLocation.azure:
+            raise ValueError(
+                f"Invalid operation. File location is not Azure: {self.location}"
+            )
+
+        if not self.path.startswith("https://"):
+            raise ValueError(f"Invalid Azure Blob URL: {self.path}")
+
+        # Azure Blob URLs follow the pattern: https://<account_name>.blob.core.windows.net/<container>/<blob_path>
+        url_parts = self.path.split("/")
+
+        if len(url_parts) < 4:
+            raise ValueError(f"Invalid Azure Blob URL structure: {self.path}")
+
+        container_name = url_parts[
+            3
+        ]  # After 'https://<account_name>.blob.core.windows.net/'
+        blob_path = "/".join(url_parts[4:])  # Remaining path as the blob key
+
+        return container_name, blob_path
+
+    def parse_gcp_url(self):
+        """
+        Parses a GCP Cloud Storage URL and returns the bucket name and key.
+        Only works for FileInfo objects where location is GCP.
+
+        Returns:
+            tuple: (bucket_name, key) where bucket_name is the name of the GCP bucket
+                   and key is the path within the bucket.
+        """
+        if self.location != FileLocation.gcp:
+            raise ValueError(
+                f"Invalid operation. File location is not GCP: {self.location}"
+            )
+
+        if not self.path.startswith("gs://"):
+            raise ValueError(f"Invalid GCP URL: {self.path}")
+
+        gcs_path = self.path[5:]  # Remove 'gs://'
+        bucket_name, _, key = gcs_path.partition("/")
+
+        return bucket_name, key
 
 
 class NDBOptions(BaseModel):
     model_type: Literal[ModelType.NDB] = ModelType.NDB
 
-    ndb_options: Union[NDBv1Options, NDBv2Options] = Field(
-        NDBv2Options(), discriminator="ndb_sub_type"
-    )
+    on_disk: bool = True
+    advanced_search: bool = False
 
     class Config:
         protected_namespaces = ()
@@ -121,6 +151,7 @@ class NDBData(BaseModel):
 class UDTSubType(str, Enum):
     text = "text"
     token = "token"
+    document = "document"
 
 
 class TokenClassificationOptions(BaseModel):
@@ -133,7 +164,7 @@ class TokenClassificationOptions(BaseModel):
 
 
 class TextClassificationOptions(BaseModel):
-    udt_sub_type: Literal[UDTSubType.text] = UDTSubType.text
+    udt_sub_type: Literal[UDTSubType.text, UDTSubType.document] = UDTSubType.text
 
     text_column: str
     label_column: str
@@ -142,10 +173,11 @@ class TextClassificationOptions(BaseModel):
 
 
 class UDTTrainOptions(BaseModel):
-    supervised_epochs: int = 3
-    learning_rate: float = 0.005
+    supervised_epochs: int = 1
+    learning_rate: float = 0.0001
     batch_size: int = 2048
     max_in_memory_batches: Optional[int] = None
+    test_split: Optional[float] = None
 
     metrics: List[str] = ["precision@1", "loss"]
     validation_metrics: List[str] = ["categorical_accuracy", "recall@1"]
@@ -173,12 +205,6 @@ class UDTData(BaseModel):
     class Config:
         protected_namespaces = ()
 
-    @model_validator(mode="after")
-    def check_nonempty(self):
-        if len(self.supervised_files) == 0:
-            raise ValueError("Supervised files must not be empty for UDT training.")
-        return self
-
 
 class UDTGeneratedData(BaseModel):
     model_data_type: Literal[ModelDataType.UDT_DATAGEN] = ModelDataType.UDT_DATAGEN
@@ -193,26 +219,30 @@ class LLMProvider(str, Enum):
     cohere = "cohere"
 
 
-class Entity(BaseModel):
-    name: str
-    examples: List[str]
-    description: str
-
-
 class TextClassificationDatagenOptions(BaseModel):
     sub_type: Literal[UDTSubType.text] = UDTSubType.text
     samples_per_label: int
-    target_labels: List[Entity]
+    target_labels: List[LabelEntity]
     user_vocab: Optional[List[str]] = None
     user_prompts: Optional[List[str]] = None
     vocab_per_sentence: int = 4
 
+    @model_validator(mode="after")
+    def check_target_labels_length(cls, values):
+        if len(values.target_labels) < 2:
+            raise ValueError("target_labels must contain at least two labels.")
+        return values
+
 
 class TokenClassificationDatagenOptions(BaseModel):
     sub_type: Literal[UDTSubType.token] = UDTSubType.token
-    tags: List[Entity]
-    num_sentences_to_generate: int
+    tags: List[LabelEntity]
+    num_sentences_to_generate: int = 1_000
     num_samples_per_tag: Optional[int] = None
+
+    # example NER samples
+    samples: Optional[List[TokenClassificationData]] = None
+    templates_per_sample: int = 10
 
     @model_validator(mode="after")
     def deduplicate_tags(cls, values):
@@ -244,6 +274,7 @@ class JobOptions(BaseModel):
 
 
 class TrainConfig(BaseModel):
+    user_id: str
     model_bazaar_dir: str
     license_key: str
     model_bazaar_endpoint: str
@@ -267,6 +298,8 @@ class TrainConfig(BaseModel):
         ..., discriminator="model_data_type"
     )
 
+    is_retraining: bool = False
+
     class Config:
         protected_namespaces = ()
 
@@ -285,3 +318,10 @@ class TrainConfig(BaseModel):
             file.write(self.model_dump_json(indent=4))
 
         return config_path
+
+
+class QuestionKeywords(BaseModel):
+    question: str = Field(..., description="The mandatory question.")
+    keywords: Optional[List[str]] = Field(
+        default=None, description="Optional keywords for the question."
+    )

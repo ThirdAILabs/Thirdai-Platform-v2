@@ -7,10 +7,11 @@ job "deployment-{{ model_id }}" {
   group "deployment" {
     count = 1
 
+    {% if not knowledge_extraction %}
     scaling {
       enabled = "{{ autoscaling_enabled }}"
-      min = 1
-      max = "{{ autoscaler_max_count }}"
+      min = {{ autoscaler_min_count }}
+      max = {{ autoscaler_max_count }}
       policy {
         cooldown = "1m"
         evaluation_interval = "30s"
@@ -24,6 +25,7 @@ job "deployment-{{ model_id }}" {
         }
       }
     }
+    {% endif %}
 
     network {
       port "{{ model_id }}-http" {
@@ -40,8 +42,20 @@ job "deployment-{{ model_id }}" {
 
       tags = [
         "traefik.enable=true",
+        "traefik.http.routers.{{ model_id }}-http.middlewares={{ model_id }}-stripprefix",
+        {% if deployment_name %}
+        "traefik.http.routers.{{ model_id }}-http.rule=(PathPrefix(`/{{ model_id }}/`) || PathPrefix(`/{{ deployment_name }}/`))",
+        "traefik.http.middlewares.{{ model_id }}-stripprefix.stripprefix.prefixes=/{{ model_id }},/{{ deployment_name }}",
+        {% else %}
         "traefik.http.routers.{{ model_id }}-http.rule=PathPrefix(`/{{ model_id }}/`)",
-        "traefik.http.routers.{{ model_id }}-http.priority=10"
+        "traefik.http.middlewares.{{ model_id }}-stripprefix.stripprefix.prefixes=/{{ model_id }}",
+        {% endif %}
+        "traefik.http.routers.{{ model_id }}-http.priority=10",
+        # Health check configuration
+        "traefik.http.services.deployment-{{ model_id }}.loadbalancer.healthcheck.path=/health",
+        "traefik.http.services.deployment-{{ model_id }}.loadbalancer.healthcheck.interval=10s",
+        "traefik.http.services.deployment-{{ model_id }}.loadbalancer.healthcheck.timeout=3s",
+        "traefik.http.services.deployment-{{ model_id }}.loadbalancer.healthcheck.scheme=http",
       ]
     }
 
@@ -50,6 +64,7 @@ job "deployment-{{ model_id }}" {
         driver = "raw_exec"
       {% elif platform == "docker" %}  
         driver = "docker"
+        kill_timeout = "15s"
 
       template {
         destination = "${NOMAD_SECRETS_DIR}/env.vars"
@@ -70,7 +85,13 @@ EOF
         CONFIG_PATH = "{{ config_path }}"
         AWS_ACCESS_KEY = "{{ aws_access_key }}"
         AWS_ACCESS_SECRET = "{{ aws_access_secret }}"
+        AWS_REGION_NAME = "{{ aws_region_name }}"
         TASK_RUNNER_TOKEN = "${TASK_RUNNER_TOKEN}"
+        AZURE_ACCOUNT_NAME = "{{ azure_account_name }}"
+        AZURE_ACCOUNT_KEY = "{{ azure_account_key }}"
+        GCP_CREDENTIALS_FILE = "{{ gcp_credentials_file }}"
+        HF_HOME = "/model_bazaar/pretrained-models"
+        JOB_TOKEN = "{{ job_token }}"
       }
 
       config {
@@ -85,8 +106,11 @@ EOF
             server_address = "{{ registry }}"
           }
           volumes = [
-            "{{ share_dir }}:/model_bazaar"
+            "{{ share_dir }}:/model_bazaar",
+            "/opt/thirdai_platform:/thirdai_platform"
           ]
+          command = "python3"
+          args    = ["-m", "uvicorn", "main:app", "--app-dir", "{{ app_dir }}", "--host", "0.0.0.0", "--port", "80"]
         {% elif platform == "local" %}
           command = "/bin/sh"
           args    = ["-c", "cd {{ thirdai_platform_dir }} && {{ python_path }} -m uvicorn main:app --app-dir {{ app_dir }} --host 0.0.0.0 --port ${NOMAD_PORT_{{ model_id | replace("-", "_") }}_http}"]
@@ -97,8 +121,92 @@ EOF
         cpu = 2400
         memory = {{ memory }}
         memory_max = {{ 4 * memory }}
-
       }
     }
   }
+
+  {% if knowledge_extraction %}
+
+  group "knowledge-extraction" {
+    scaling {
+      enabled = "{{ autoscaling_enabled }}"
+      min = {{ autoscaler_min_count }}
+      max = {{ autoscaler_max_count }}
+      policy {
+        cooldown = "1m"
+        evaluation_interval = "30s"
+        check "avg_cpu" {
+          source = "nomad-apm"
+          query = "avg_cpu-allocated"
+          query_window = "1m"
+          strategy "target-value" {
+            target = 70
+          }
+        }
+      }
+    }
+
+    task "knowledge-extraction-worker" {
+      {% if platform == "local" %}
+        driver = "raw_exec"
+      {% elif platform == "docker" %}  
+        driver = "docker"
+      {% endif %}
+
+      template {
+        destination = "${NOMAD_SECRETS_DIR}/env.vars"
+        env         = true
+        data        = <<EOF
+{% raw %}
+{{ range nomadService "deployment-{% endraw %}{{ model_id }}{% raw %}" }}
+JOB_ENDPOINT = {{ .Address }}:{{ .Port }}
+{{- end -}}
+{% endraw %}
+EOF
+      }
+
+      config {
+        {% if platform == "docker" %}  
+          image = "{{ registry }}/{{ image_name }}:{{ tag }}"
+          image_pull_timeout = "15m"
+          auth {
+            username = "{{ docker_username }}"
+            password = "{{ docker_password }}"
+            server_address = "{{ registry }}"
+          }
+          volumes = [
+            "{{ share_dir }}:/model_bazaar"
+          ]
+          command = "python3"
+          args    = ["-m", "deployment_job.workers.knowledge_extraction"]
+        {% elif platform == "local" %}
+          command = "/bin/sh"
+          args    = ["-c", "cd {{ thirdai_platform_dir }} && {{ python_path }} -m deployment_job.workers.knowledge_extraction"]
+        {% endif %}
+      }
+
+    {% set worker_cores = 4 %}
+
+      env {
+        CONFIG_PATH = "{{ config_path }}"
+        AWS_ACCESS_KEY = "{{ aws_access_key }}"
+        AWS_ACCESS_SECRET = "{{ aws_access_secret }}"
+        AWS_REGION_NAME = "{{ aws_region_name }}"
+        TASK_RUNNER_TOKEN = "${TASK_RUNNER_TOKEN}"
+        AZURE_ACCOUNT_NAME = "{{ azure_account_name }}"
+        AZURE_ACCOUNT_KEY = "{{ azure_account_key }}"
+        GCP_CREDENTIALS_FILE = "{{ gcp_credentials_file }}"
+        JOB_TOKEN = "{{ job_token }}"
+        WORKER_CORES = "{{ worker_cores }}"
+      }
+
+      resources {
+        cores = {{ worker_cores }}
+        memory = 4000 
+        memory_max = 8000
+      }
+    }
+  }
+
+  {% endif %}
 }

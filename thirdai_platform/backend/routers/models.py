@@ -17,7 +17,6 @@ from backend.utils import (
     get_high_level_model_info,
     get_model,
     get_model_from_identifier,
-    model_bazaar_path,
     validate_name,
 )
 from database import schema
@@ -34,75 +33,16 @@ from fastapi import (
 )
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, StreamingResponse
-from platform_common.utils import response
+from platform_common.dependencies import is_on_low_disk
+from platform_common.utils import disk_usage, model_bazaar_path, response
 from pydantic import BaseModel
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, desc, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
-
 from storage import interface, local
 
 model_router = APIRouter()
 
 storage: interface.StorageInterface = local.LocalStorage(model_bazaar_path())
-
-
-@model_router.get("/public-list")
-def list_public_models(
-    name: str,
-    domain: Optional[str] = None,
-    username: Optional[str] = None,
-    type: Optional[str] = None,
-    sub_type: Optional[str] = None,
-    session: Session = Depends(get_session),
-):
-    """
-    List public models.
-
-    Parameters:
-    - name: str - The name to filter models.
-    - domain: Optional[str] - Optional domain to filter models.
-    - username: Optional[str] - Optional username to filter models.
-    - type: Optional[str] - Optional type to filter models.
-    - sub_type: Optional[str] - Optional sub-type to filter models.
-    - session: Session - The database session (dependency).
-
-    Returns:
-    - JSONResponse - A JSON response with the list of public models.
-    """
-    query = (
-        session.query(schema.Model)
-        .options(
-            joinedload(schema.Model.user),
-            selectinload(schema.Model.attributes),
-            selectinload(schema.Model.dependencies),
-            selectinload(schema.Model.used_by),
-        )
-        .filter(
-            schema.Model.name.ilike(f"%{name}%"),
-            schema.Model.access_level == schema.Access.public,
-            schema.Model.train_status == schema.Status.complete,
-        )
-    )
-
-    if domain:
-        query = query.filter(schema.Model.domain == domain)
-
-    if username:
-        query = query.join(schema.User).filter(schema.User.username == username)
-
-    if type:
-        query = query.filter(schema.Model.type == type)
-
-    if sub_type:
-        query = query.filter(schema.Model.sub_type == sub_type)
-
-    results = [get_high_level_model_info(result) for result in query.all()]
-
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Successfully got the public list",
-        data=jsonable_encoder(results),
-    )
 
 
 @model_router.get("/details")
@@ -148,11 +88,15 @@ def list_models(
     user: schema.User = authenticated_user.user
     user_teams = [ut.team_id for ut in user.teams]
 
-    query = session.query(schema.Model).options(
-        joinedload(schema.Model.user),
-        selectinload(schema.Model.attributes),
-        selectinload(schema.Model.dependencies),
-        selectinload(schema.Model.used_by),
+    query = (
+        session.query(schema.Model)
+        .options(
+            joinedload(schema.Model.user),
+            selectinload(schema.Model.attributes),
+            selectinload(schema.Model.dependencies),
+            selectinload(schema.Model.used_by),
+        )
+        .order_by(desc(schema.Model.published_date))
     )
 
     if name:
@@ -170,8 +114,8 @@ def list_models(
             .exists(),
         ]
 
-        def add_access_condition(access, condition):
-            if not access_level or access in access_level:
+        def add_access_condition(access: schema.Access, condition):
+            if not access_level or access.value in access_level:
                 access_conditions.append(condition)
 
         # Adding access conditions based on the user's role and teams
@@ -326,48 +270,7 @@ class ModelInfo(BaseModel):
     metadata: Optional[Dict[str, str]] = None
 
 
-@model_router.get("/pending-train-models")
-def pending_train_models(
-    session: Session = Depends(get_session),
-    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
-):
-    """
-    Get a list of all in progress or not started training models for the logged-in user.
-
-    Returns:
-    - JSONResponse: A list of models that are in progress or not started.
-    """
-    user: schema.User = authenticated_user.user
-
-    pending_model_train = (
-        session.query(schema.Model)
-        .filter(
-            schema.Model.user_id == user.id,
-            schema.Model.train_status.in_(
-                [schema.Status.in_progress, schema.Status.not_started]
-            ),
-        )
-        .all()
-    )
-
-    results = [
-        {
-            "model_name": result.name,
-            "train_status": result.train_status,
-            "username": user.username,
-            "deploy_status": result.deploy_status,
-        }
-        for result in pending_model_train
-    ]
-
-    return response(
-        status_code=status.HTTP_200_OK,
-        message="Successfully fetched the pending list models",
-        data=jsonable_encoder(results),
-    )
-
-
-@model_router.get("/upload-token")
+@model_router.get("/upload-token", dependencies=[Depends(is_on_low_disk())])
 def upload_token(
     model_name: str,
     size: int,
@@ -443,7 +346,7 @@ def upload_chunk(
         Example: "Bearer <token>"
 
     Returns:
-    - JSONResponse: Success message if the chunk is uploaded successfully.
+    - JSONResponse: Success message if the chunk is uploaded successfully. Along with the disk occupied.
     """
     if authorization is None:
         return response(
@@ -478,6 +381,20 @@ def upload_chunk(
     except Exception as error:
         return response(status_code=status.HTTP_401_UNAUTHORIZED, message=str(error))
 
+    disk_stats = disk_usage()
+    threshold = 0.8
+    disk_use = disk_stats["used"] / disk_stats["total"]
+    if disk_use > threshold:
+        space_needed = ((disk_use - threshold) * disk_stats["total"]) / (
+            1024 * 1024
+        )  # MB
+        # delete the chunk(s) of the model received till now
+        storage.delete(payload["model_id"])
+
+        return response(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            message=f"Platform reached the disk limit while uploading the model. Please clear {space_needed:.2f} MB space and try again.",
+        )
     try:
         chunk_data = chunk.file.read()
         storage.upload_chunk(
@@ -496,6 +413,7 @@ def upload_chunk(
     return response(
         status_code=status.HTTP_200_OK,
         message="Uploaded chunk",
+        data={"disk_usage": disk_usage()},
     )
 
 

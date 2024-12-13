@@ -1,6 +1,7 @@
 import random
 import re
 from collections import defaultdict
+from logging import Logger
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -16,20 +17,17 @@ from data_generation_job.utils import (
     train_test_split,
     write_to_csv,
 )
-from data_generation_job.variables import Entity, NERSample
+from data_generation_job.variables import Entity, EntityStatus, NERSample
 from faker import Faker
+from platform_common.pii.defaults import NER_SOURCE_COLUMN, NER_TARGET_COLUMN
 from platform_common.utils import save_dict
 from tqdm import tqdm
 
 
 class TokenDataFactory(DataFactory):
-    SOURCE_COLUMN = "source"
-    TARGET_COLUMN = "target"
 
-    def __init__(
-        self,
-    ):
-        super().__init__()
+    def __init__(self, logger: Logger):
+        super().__init__(logger)
         self.faker = Faker()
         self.sentences_per_template = 4
 
@@ -47,19 +45,22 @@ class TokenDataFactory(DataFactory):
         matched_attrs = list(
             filter(lambda method: tag.lower() == method.lower(), self.faked_methods)
         )
+        self.logger.debug(
+            f"Fetching tag values from Faker tag={tag}, matched_attrs={matched_attrs}"
+        )
 
         if not matched_attrs:
+            self.logger.warning(f"No Faker attributes match the tag={tag}")
             return []
 
-        return list(
-            map(
-                lambda x: str(x),
-                [
-                    self.faker.__getattr__(random.choice(matched_attrs))()
-                    for _ in range(num_samples)
-                ],
-            ),
+        values = [
+            str(self.faker.__getattr__(random.choice(matched_attrs))())
+            for _ in range(num_samples)
+        ]
+        self.logger.info(
+            f"Generated tag values from Faker tag={tag}, values={values[:5]},total_generated={len(values)}"
         )
+        return values
 
     def get_tag_values_from_llm(
         self,
@@ -69,50 +70,51 @@ class TokenDataFactory(DataFactory):
         complete_tag_values: Dict[str, List[str]],
         generate_at_a_time: int = 100,
     ):
-        print(f"{values_to_generate = }")
+        self.logger.info(
+            f"Generating tag values from LLM tag={tag.name},values_to_generate={values_to_generate}"
+        )
         sampled_tag_values = random.sample(tag.examples, k=min(3, len(tag.examples)))
 
         # Collecting prompts
-        arguments = []
-        for idx in range(0, values_to_generate, generate_at_a_time):
-            arguments.append(
-                {
-                    "prompt": tag_value_prompt.format(
-                        task_prompt=task_prompt,
-                        num_samples_per_tag=min(
-                            generate_at_a_time,
-                            values_to_generate - idx,
-                        ),
-                        tag=tag.name,
-                        tag_example=str(sampled_tag_values),
-                        tag_description=tag.description,
+        arguments = [
+            {
+                "prompt": tag_value_prompt.format(
+                    task_prompt=task_prompt,
+                    num_samples_per_tag=min(
+                        generate_at_a_time, values_to_generate - idx
                     ),
-                }
-            )
-        total_chunks = len(arguments) // self.write_chunk_size + 1
+                    tag=tag.name,
+                    tag_example=str(sampled_tag_values),
+                    tag_description=tag.description,
+                )
+            }
+            for idx in range(0, values_to_generate, generate_at_a_time)
+        ]
 
-        # Making llm call with collected prompts parallelly.
+        responses = []
         for idx in tqdm(
             range(0, len(arguments), self.write_chunk_size),
-            desc=f"Generating {tag.name} values: ",
-            total=total_chunks,
+            desc=f"Generating {tag.name} values",
             leave=False,
         ):
             # TODO(Gautam): If there are limited values to a tag, only should make call to get those many values atmost.
-            chunks_to_process = arguments[idx : idx + self.write_chunk_size]
-
-            responses: List[Dict[str, Any]] = self.run_and_collect_results(
-                tasks_prompt=chunks_to_process, parallelize=True
+            chunk_to_process = arguments[idx : idx + self.write_chunk_size]
+            responses.extend(
+                self.run_and_collect_results(
+                    tasks_prompt=chunk_to_process, parallelize=True
+                )
             )
 
-            generated_tag_values = [
-                value.strip()
-                for res in responses
-                for value in res["response_text"].split("\n")
-            ]
-
-            complete_tag_values[tag.name].extend(generated_tag_values)
-            save_dict(write_to=self.save_dir / "tags_value.json", **complete_tag_values)
+        generated_tag_values = [
+            value.strip()
+            for res in responses
+            for value in res["response_text"].split("\n")
+        ]
+        complete_tag_values[tag.name].extend(generated_tag_values)
+        save_dict(write_to=self.save_dir / "tags_value.json", **complete_tag_values)
+        self.logger.info(
+            f"Completed LLM tag value generation tag={tag.name},generated_count={len(generated_tag_values)}"
+        )
 
     # Function to generate the tag_values by using faker library or LLM calls.
     def get_tag_values(
@@ -125,6 +127,7 @@ class TokenDataFactory(DataFactory):
         complete_tag_values = defaultdict(list)
 
         for tag in tqdm(tags, desc="Generating values for tags: ", leave=False):
+            self.logger.debug(f"Processing tag={tag.name}")
             complete_tag_values[tag.name].extend(tag.examples)
 
             # Trying to generate more examples from faker
@@ -166,6 +169,7 @@ class TokenDataFactory(DataFactory):
         shuffle: bool = True,
         save: bool = True,
     ):
+        self.logger.info(f"Splitting tag values into train/test test_size={test_size}")
         if shuffle:
             for tag_name, values in tag_values.items():
                 random.shuffle(values)
@@ -186,6 +190,9 @@ class TokenDataFactory(DataFactory):
             save_dict(self.save_dir / "train" / "tag_values.json", **train_tags)
             save_dict(self.save_dir / "test" / "tag_values.json", **test_tags)
 
+        self.logger.info(
+            f"Completed train/test split for tags train_tag_count={len(train_tags)},test_tag_count={len(test_tags)}"
+        )
         return train_tags, test_tags
 
     # Function to calculate the number of templates to generate
@@ -200,7 +207,11 @@ class TokenDataFactory(DataFactory):
 
         sampling_weights = np.array(
             [
-                untrained_tag_weight_multiplier if tag.status == "untrained" else 1
+                (
+                    untrained_tag_weight_multiplier
+                    if tag.status != EntityStatus.trained
+                    else 1
+                )
                 for tag in tags
             ]
         )
@@ -370,8 +381,8 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
                         self.train_file_location,
                         train_datapoints,
                         fieldnames=[
-                            TokenDataFactory.SOURCE_COLUMN,
-                            TokenDataFactory.TARGET_COLUMN,
+                            NER_SOURCE_COLUMN,
+                            NER_TARGET_COLUMN,
                         ],
                     )
                     self.train_sentences_generated += len(train_datapoints)
@@ -394,8 +405,8 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
                         self.test_file_location,
                         test_datapoints,
                         fieldnames=[
-                            TokenDataFactory.SOURCE_COLUMN,
-                            TokenDataFactory.TARGET_COLUMN,
+                            NER_SOURCE_COLUMN,
+                            NER_TARGET_COLUMN,
                         ],
                     )
                 self.test_sentences_generated += len(test_datapoints)
@@ -405,8 +416,8 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
             "filepath": str(self.train_file_location),
             "error_file": str(self.errored_file_location),
             "task": "TOKEN_CLASSIFICATION",
-            "input_feature": TokenDataFactory.SOURCE_COLUMN,
-            "target_feature": TokenDataFactory.TARGET_COLUMN,
+            "input_feature": NER_SOURCE_COLUMN,
+            "target_feature": NER_TARGET_COLUMN,
             "target_labels": [tag.name for tag in tags],
             "train_samples": self.train_sentences_generated,
             "test_samples": self.test_sentences_generated,
@@ -424,6 +435,17 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
         samples: List[NERSample] = None,
         templates_per_sample: int = 4,
     ):
+        if len(tags) == 0:
+            return {
+                "error_file": str(self.errored_file_location),
+                "task": "TOKEN_CLASSIFICATION",
+                "input_feature": NER_SOURCE_COLUMN,
+                "target_feature": NER_TARGET_COLUMN,
+                "target_labels": [],
+                "train_samples": 0,
+                "test_samples": 0,
+            }
+
         templates_to_generate = self._templates_to_generate(num_sentences_to_generate)
 
         if samples is None:
@@ -506,7 +528,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
         words = template.strip().split()
 
         data_points = [
-            {TokenDataFactory.SOURCE_COLUMN: [], TokenDataFactory.TARGET_COLUMN: []}
+            {NER_SOURCE_COLUMN: [], NER_TARGET_COLUMN: []}
             for _ in range(sentences_to_generate)
         ]
 
@@ -516,6 +538,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
                 # word is a tag
                 word_tag = match.group(1).upper()
                 if word_tag not in tag_values:
+                    self.logger.error(f"Tag not found in tag values tag={word_tag}")
                     self.write_on_errorfile(
                         text=f"Tag {word_tag} not present in the allowed tags {', '.join(tag_values.keys())}\n"
                         + f"template: {template}\n"
@@ -526,9 +549,7 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
                     splitted_word_tag_value = random.choice(
                         tag_values[word_tag]
                     ).split()
-                    data_points[idx][TokenDataFactory.SOURCE_COLUMN].extend(
-                        splitted_word_tag_value
-                    )
+                    data_points[idx][NER_SOURCE_COLUMN].extend(splitted_word_tag_value)
 
                     """
                     Extending the [TAG] to match the source text
@@ -543,37 +564,29 @@ Example : {str(random.sample(tag_values[tag.name], k=2))} not limited to given b
                             source = 'Jessica vega reserved the hall for reunion'
                             target = 'NAME NAME O O O O O'
                     """
-                    data_points[idx][TokenDataFactory.TARGET_COLUMN].extend(
+                    data_points[idx][NER_TARGET_COLUMN].extend(
                         [word_tag] * len(splitted_word_tag_value)
                     )
             else:
                 for idx in range(sentences_to_generate):
-                    data_points[idx][TokenDataFactory.SOURCE_COLUMN].append(
-                        word.strip()
-                    )
-                    data_points[idx][TokenDataFactory.TARGET_COLUMN].append("O")
+                    data_points[idx][NER_SOURCE_COLUMN].append(word.strip())
+                    data_points[idx][NER_TARGET_COLUMN].append("O")
 
         # make sure that the source and target is of same length
         sentences = []
         for data in data_points:
-            if len(data[TokenDataFactory.SOURCE_COLUMN]) != len(
-                data[TokenDataFactory.TARGET_COLUMN]
-            ):
+            if len(data[NER_SOURCE_COLUMN]) != len(data[NER_TARGET_COLUMN]):
                 self.write_on_errorfile(
                     text=f"Source and target aren't of the same length {'-' * 30}\n"
-                    + f"source: {data[TokenDataFactory.SOURCE_COLUMN]}\n"
-                    + f"target: {data[TokenDataFactory.TARGET_COLUMN]}\n"
+                    + f"source: {data[NER_SOURCE_COLUMN]}\n"
+                    + f"target: {data[NER_TARGET_COLUMN]}\n"
                     + f"\n\ntemplate: {template}\n"
                 )
             else:
                 sentences.append(
                     {
-                        TokenDataFactory.SOURCE_COLUMN: " ".join(
-                            data[TokenDataFactory.SOURCE_COLUMN]
-                        ),
-                        TokenDataFactory.TARGET_COLUMN: " ".join(
-                            data[TokenDataFactory.TARGET_COLUMN]
-                        ),
+                        NER_SOURCE_COLUMN: " ".join(data[NER_SOURCE_COLUMN]),
+                        NER_TARGET_COLUMN: " ".join(data[NER_TARGET_COLUMN]),
                     }
                 )
 

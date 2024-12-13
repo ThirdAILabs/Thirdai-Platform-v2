@@ -1,10 +1,12 @@
 import os
 import pathlib
+import re
 from typing import List, Optional
 from urllib.parse import urlencode, urljoin
 
 import bcrypt
 from auth.jwt import AuthenticatedUser, create_access_token, verify_access_token
+from auth.utils import identity_provider, keycloak_admin, keycloak_openid
 from backend.auth_dependencies import global_admin_only
 from backend.mailer import mailer
 from backend.utils import hash_password
@@ -15,7 +17,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
-from platform_common.utils import response
+from platform_common.utils import get_section, response
 from pydantic import BaseModel
 from sqlalchemy import exists
 from sqlalchemy.orm import Session, selectinload
@@ -27,6 +29,15 @@ root_folder = pathlib.Path(__file__).parent
 template_directory = root_folder.joinpath("../templates/").resolve()
 templates = Jinja2Templates(directory=template_directory)
 
+docs_file = root_folder.joinpath("../../docs/user_endpoints.txt")
+
+with open(docs_file) as f:
+    docs = f.read()
+
+
+class AccessToken(BaseModel):
+    access_token: str
+
 
 class AccountSignupBody(BaseModel):
     username: str
@@ -36,6 +47,34 @@ class AccountSignupBody(BaseModel):
 
 class AdminRequest(BaseModel):
     email: str
+
+
+def delete_all_models_for_user(user_to_delete, session):
+    team_admins: List[schema.UserTeam] = (
+        session.query(schema.UserTeam).filter_by(role=schema.Role.team_admin).all()
+    )
+    team_admin_map = {
+        team_admin.team_id: team_admin.user_id for team_admin in team_admins
+    }
+
+    models: List[schema.Model] = user_to_delete.models
+
+    for model in models:
+        if model.access_level == schema.Access.protected:
+            new_owner_id = team_admin_map.get(model.team_id, user_to_delete.id)
+        else:
+            # current user is the global_admin.
+            new_owner_id = user_to_delete.id
+
+        model.user_id = new_owner_id
+
+    session.bulk_save_objects(models)
+
+
+def slugify_username(preferred_username):
+    safe_username = re.sub(r"[^\w]", "", preferred_username)
+
+    return safe_username
 
 
 def send_verification_mail(email: str, verification_token: str, username: str):
@@ -78,29 +117,15 @@ def send_reset_password_code(email: str, reset_password_code: int):
     )
 
 
-@user_router.post("/email-signup-basic")
+@user_router.post(
+    "/email-signup-basic",
+    summary="Email SignUp",
+    description=get_section(docs, "Email Signup"),
+)
 def email_signup(
     body: AccountSignupBody,
     session: Session = Depends(get_session),
 ):
-    """
-    Sign up a new user with email and password.
-
-    Parameters:
-    - body: The body of the request containing username, email, and password.
-        - Example:
-        ```json
-        {
-            "username": "johndoe",
-            "email": "johndoe@example.com",
-            "password": "securepassword"
-        }
-        ```
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the signup status.
-    """
     user: Optional[schema.User] = (
         session.query(schema.User)
         .filter(
@@ -122,7 +147,7 @@ def email_signup(
             )
 
     try:
-        is_test_environment = os.getenv("TEST_ENVIRONMENT", "False") == "True"
+        is_test_environment = os.getenv("AIRGAPPED", "False") == "True"
 
         new_user = schema.User(
             username=body.username,
@@ -158,27 +183,16 @@ def email_signup(
     )
 
 
-@user_router.post("/add-global-admin", dependencies=[Depends(global_admin_only)])
+@user_router.post(
+    "/add-global-admin",
+    dependencies=[Depends(global_admin_only)],
+    summary="Add Global Admin",
+    description=get_section(docs, "Add Global Admin"),
+)
 def add_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
-    """
-    Promote a user to global admin.
-
-    Parameters:
-    - admin_request: The request body containing the user's email.
-        - Example:
-        ```json
-        {
-            "email": "user@example.com"
-        }
-        ```
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the success of the operation.
-    """
     email = admin_request.email
     user: Optional[schema.User] = (
         session.query(schema.User).filter(schema.User.email == email).first()
@@ -200,27 +214,16 @@ def add_global_admin(
     )
 
 
-@user_router.post("/delete-global-admin", dependencies=[Depends(global_admin_only)])
+@user_router.post(
+    "/delete-global-admin",
+    dependencies=[Depends(global_admin_only)],
+    summary="Demote Global Admin",
+    description=get_section(docs, "Demote Global Admin"),
+)
 def demote_global_admin(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
 ):
-    """
-    Demote a global admin to a regular user.
-
-    Parameters:
-    - admin_request: The request body containing the user's email.
-        - Example:
-        ```json
-        {
-            "email": "user@example.com"
-        }
-        ```
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the success of the operation.
-    """
     email = admin_request.email
     user: Optional[schema.User] = (
         session.query(schema.User).filter(schema.User.email == email).first()
@@ -260,30 +263,16 @@ def demote_global_admin(
     )
 
 
-@user_router.delete("/delete-user")
+@user_router.delete(
+    "/delete-user", summary="Delete User", description=get_section(docs, "Delete User")
+)
 def delete_user(
     admin_request: AdminRequest,
     session: Session = Depends(get_session),
     current_user: schema.User = Depends(global_admin_only),
 ):
-    """
-    Delete a user from the system and reassign their models.
-
-    Parameters:
-    - admin_request: The request body containing the user's email.
-        - Example:
-        ```json
-        {
-            "email": "user@example.com"
-        }
-        ```
-    - session: The database session (dependency).
-    - current_user: The current authenticated global admin (dependency).
-
-    Returns:
-    - A JSON response indicating the success of the operation.
-    """
     email = admin_request.email
+
     user: Optional[schema.User] = (
         session.query(schema.User)
         .options(selectinload(schema.User.models))
@@ -297,26 +286,19 @@ def delete_user(
             message=f"User with email {email} not found.",
         )
 
-    team_admins: List[schema.UserTeam] = (
-        session.query(schema.UserTeam).filter_by(role=schema.Role.team_admin).all()
-    )
-    team_admin_map = {
-        team_admin.team_id: team_admin.user_id for team_admin in team_admins
-    }
+    delete_all_models_for_user(user, session)
 
-    models: List[schema.Model] = user.models
-
-    for model in models:
-        if model.access_level == schema.Access.protected:
-            new_owner_id = team_admin_map.get(model.team_id, current_user.id)
-        else:
-            # current user is the global_admin.
-            new_owner_id = current_user.id
-
-        model.user_id = new_owner_id
-
-    session.bulk_save_objects(models)
     session.delete(user)
+
+    if identity_provider == "keycloak":
+        try:
+            keycloak_admin.delete_user(user.id)
+        except Exception as e:
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message=f"Failed to delete user in Keycloak: {str(e)}",
+            )
+
     session.commit()
 
     return response(
@@ -325,18 +307,8 @@ def delete_user(
     )
 
 
-@user_router.get("/redirect-verify")
+@user_router.get("/redirect-verify", include_in_schema=False)
 def redirect_email_verify(verification_token: str, request: Request):
-    """
-    Redirect to email verification endpoint.
-
-    Parameters:
-    - verification_token: The verification token for the user.
-    - request: The HTTP request object (dependency).
-
-    Returns:
-    - A HTML response with the redirection page.
-    """
     base_url = os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT")
     args = {"verification_token": verification_token}
     verify_url = urljoin(base_url, f"api/user/email-verify?{urlencode(args)}")
@@ -345,18 +317,8 @@ def redirect_email_verify(verification_token: str, request: Request):
     return templates.TemplateResponse("verify_email_sent.html", context=context)
 
 
-@user_router.post("/email-verify")
+@user_router.post("/email-verify", include_in_schema=False)
 def email_verify(verification_token: str, session: Session = Depends(get_session)):
-    """
-    Verify the user's email with the provided token.
-
-    Parameters:
-    - verification_token: The verification token for the user.
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the verification status.
-    """
     user: Optional[schema.User] = (
         session.query(schema.User)
         .filter(schema.User.verification_token == verification_token)
@@ -375,28 +337,13 @@ def email_verify(verification_token: str, session: Session = Depends(get_session
     return {"message": "Email verification successful."}
 
 
-@user_router.get("/email-login")
+@user_router.get(
+    "/email-login", summary="Email Login", description=get_section(docs, "Email Login")
+)
 def email_login(
     credentials: HTTPBasicCredentials = Depends(basic_security),
     session: Session = Depends(get_session),
 ):
-    """
-    Log in a user with email and password.
-
-    Parameters:
-    - credentials: The HTTP basic credentials (dependency).
-        - Example:
-        ```json
-        {
-            "username": "johndoe@example.com",
-            "password": "securepassword"
-        }
-        ```
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the login status and user details along with an access token.
-    """
     user: Optional[schema.User] = (
         session.query(schema.User)
         .filter(schema.User.email == credentials.username)
@@ -434,16 +381,65 @@ def email_login(
     )
 
 
-@user_router.get("/reset-password")
+@user_router.post(
+    "/email-login-with-keycloak",
+    summary="Email Login with Keycloak",
+    description=get_section(docs, "Email Login with Keycloak"),
+)
+def email_login_with_keycloak(
+    access_token: AccessToken,
+    session: Session = Depends(get_session),
+):
+    try:
+        user_info = keycloak_openid.userinfo(access_token.access_token)
+
+        keycloak_user_id = user_info.get("sub")
+
+        user = (
+            session.query(schema.User)
+            .filter(schema.User.email == user_info.get("email"))
+            .first()
+        )
+        if not user:
+            user = schema.User(
+                id=keycloak_user_id,
+                username=slugify_username(user_info.get("preferred_username")),
+                email=user_info.get("email"),
+            )
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successfully logged in using Keycloak token.",
+            data={
+                "user": {
+                    "username": user.username,
+                    "email": user.email,
+                    "user_id": str(user.id),
+                },
+                "access_token": access_token.access_token,
+            },
+        )
+    except HTTPException as e:
+        return response(status_code=e.status_code, message=e.detail)
+    except Exception as e:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=f"An unexpected error occurred: {str(e)}",
+        )
+
+
+@user_router.get(
+    "/reset-password",
+    summary="Reset Password",
+    description=get_section(docs, "Reset Password"),
+)
 def reset_password(
     email: str,
     session: Session = Depends(get_session),
 ):
-    """
-    Helps user to reset passoword incase they want to change the password or forgot it.
-
-    - **email**: email of account to reset password for.
-    """
     user: schema.User = (
         session.query(schema.User).filter(schema.User.email == email).first()
     )
@@ -473,7 +469,7 @@ def reset_password(
     session.add(password_reset)
     session.commit()
 
-    is_test_environment = os.getenv("TEST_ENVIRONMENT", "False") == "True"
+    is_test_environment = os.getenv("AIRGAPPED", "False") == "True"
 
     if is_test_environment:
         return response(
@@ -496,29 +492,15 @@ class VerifyResetPassword(BaseModel):
     new_password: str
 
 
-@user_router.post("/new-password", include_in_schema=False)
+@user_router.post(
+    "/new-password",
+    summary="New Password",
+    description=get_section(docs, "New Password"),
+)
 def reset_password_verify(
     body: VerifyResetPassword,
     session: Session = Depends(get_session),
 ):
-    """
-    Reset the user's password after verifying the reset code.
-
-    Parameters:
-    - body: The request body containing the email, reset password code, and new password.
-        - Example:
-        ```json
-        {
-            "email": "johndoe@example.com",
-            "reset_password_code": "123456",
-            "new_password": "newsecurepassword"
-        }
-        ```
-    - session: The database session (dependency).
-
-    Returns:
-    - A JSON response indicating the password reset status.
-    """
     user: Optional[schema.User] = (
         session.query(schema.User).filter(schema.User.email == body.email).first()
     )
@@ -571,26 +553,15 @@ def reset_password_verify(
     )
 
 
-@user_router.get("/list")
+@user_router.get(
+    "/list",
+    summary="List Accessible Users",
+    description=get_section(docs, "List Accessible Users"),
+)
 def list_accessible_users(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    """
-    List users along with their team memberships and roles according to the access level of the authenticated user.
-    Global Admin:-
-        - All users
-    Not Global Admin:-
-        - Union of all members from teams in which the user is either Member or Admin.
-
-    Parameters:
-    - session: The database session (dependency).
-    - authenticated_user: AuthenticatedUser - The authenticated user (dependency).
-
-    Returns:
-    - A JSON response with the list of all users and their team details.
-    """
-
     user: schema.User = authenticated_user.user
 
     # If the user is a Global Admin, return all users
@@ -630,6 +601,7 @@ def list_accessible_users(
                 }
                 for user_team in user.teams
             ],
+            "verified": user.verified,
         }
         for user in users
     ]
@@ -641,21 +613,13 @@ def list_accessible_users(
     )
 
 
-@user_router.get("/info")
+@user_router.get(
+    "/info", summary="Get User Info", description=get_section(docs, "Get User Info")
+)
 def get_user_info(
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
-    """
-    Get detailed information about the authenticated user.
-
-    Parameters:
-    - session: The database session (dependency).
-    - authenticated_user: The authenticated user (dependency).
-
-    Returns:
-    - A JSON response with the user's information.
-    """
     user: Optional[schema.User] = (
         session.query(schema.User)
         .options(selectinload(schema.User.teams).selectinload(schema.UserTeam.team))
@@ -700,4 +664,200 @@ def get_user_info(
         status_code=status.HTTP_200_OK,
         content={"message": "Verified access token."},
         headers={"Authorization": authorization},
+    )
+
+@user_router.post(
+    "/add-user",
+    dependencies=[Depends(global_admin_only)],
+    summary="Add User by Global Admin",
+    description=get_section(docs, "Add User by Global Admin"),
+)
+def add_user_by_global_admin(
+    body: AccountSignupBody,
+    session: Session = Depends(get_session),
+):
+    global identity_provider
+
+    if identity_provider == "keycloak":
+        try:
+            keycloak_user_id = keycloak_admin.get_user_id(body.username)
+            if keycloak_user_id:
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="There is already a user associated with this name.",
+                )
+
+            existing_users = keycloak_admin.get_users({"email": body.email})
+            if existing_users:
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="There is already an account associated with this email.",
+                )
+
+            keycloak_user_id = keycloak_admin.create_user(
+                {
+                    "username": body.username,
+                    "email": body.email,
+                    "enabled": True,
+                    "emailVerified": True,
+                    "credentials": [
+                        {
+                            "type": "password",
+                            "value": body.password,
+                            "temporary": False,
+                        }
+                    ],
+                    "firstName": body.username,
+                    "lastName": "User",
+                }
+            )
+
+            new_user = schema.User(
+                username=body.username,
+                email=body.email,
+                verified=True,
+            )
+            session.add(new_user)
+            session.commit()
+            session.refresh(new_user)
+
+        except Exception as e:
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message=f"An error occurred while creating the user: {str(e)}",
+            )
+
+    else:
+        # Check if the user already exists
+        existing_user: Optional[schema.User] = (
+            session.query(schema.User)
+            .filter(
+                (schema.User.email == body.email)
+                | (schema.User.username == body.username)
+            )
+            .first()
+        )
+
+        if existing_user:
+            if existing_user.email == body.email:
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="There is already an account associated with this email.",
+                )
+            else:
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="There is already a user associated with this name.",
+                )
+
+        try:
+            new_user = schema.User(
+                username=body.username,
+                email=body.email,
+                password_hash=hash_password(body.password),
+                verified=True,  # The user is added by Global admin, so he will be verified by default.
+            )
+            session.add(new_user)
+            session.commit()
+            session.refresh(new_user)
+
+        except Exception as e:
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message=f"An error occurred while creating the user: {str(e)}",
+            )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"Successfully added user {body.username}.",
+        data={"user_id": str(new_user.id), "email": new_user.email},
+    )
+
+
+@user_router.post(
+    "/verify-user",
+    dependencies=[Depends(global_admin_only)],
+    summary="Verify User by Global Admin",
+    description=get_section(docs, "Verify User by Global Admin"),
+)
+def verify_user_by_global_admin(
+    admin_request: AdminRequest,
+    session: Session = Depends(get_session),
+):
+    global identity_provider
+
+    if identity_provider == "keycloak":
+        try:
+            # Find the user in Keycloak by email
+            users = keycloak_admin.get_users({"email": admin_request.email})
+            if not users:
+                return response(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    message="User not found.",
+                )
+            user_info = users[0]
+            user_id = user_info["id"]
+
+            if user_info.get("emailVerified", False):
+                return response(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    message="User is already verified.",
+                )
+
+            keycloak_admin.update_user(
+                user_id,
+                {
+                    "emailVerified": True,
+                },
+            )
+
+            local_user = (
+                session.query(schema.User)
+                .filter(schema.User.email == admin_request.email)
+                .first()
+            )
+            if local_user:
+                local_user.verified = True
+                session.commit()
+
+        except Exception as e:
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message=f"An error occurred while verifying the user: {str(e)}",
+            )
+
+    else:
+        # Find the user by email
+        user: Optional[schema.User] = (
+            session.query(schema.User)
+            .filter(schema.User.email == admin_request.email)
+            .first()
+        )
+
+        if not user:
+            return response(
+                status_code=status.HTTP_404_NOT_FOUND,
+                message="User not found.",
+            )
+
+        if user.verified:
+            return response(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                message="User is already verified.",
+            )
+
+        # Verify the user
+        try:
+            user.verified = True
+            user.verification_token = None  # Clear the verification token
+            session.commit()
+        except Exception as e:
+            return response(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                message=f"An error occurred while verifying the user: {str(e)}",
+            )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"User {admin_request.email} has been successfully verified.",
     )

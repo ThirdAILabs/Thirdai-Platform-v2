@@ -36,6 +36,11 @@ job "llm-dispatch" {
 
       env {
         MODEL_BAZAAR_ENDPOINT = "{{ model_bazaar_endpoint }}"
+        {% if platform == "docker" %}
+        MODEL_BAZAAR_DIR = "/model_bazaar"
+        {% elif platform == "local" %}
+        MODEL_BAZAAR_DIR = "{{ share_dir }}"
+        {% endif %}
       }
       config {
         {% if platform == "docker" %}  
@@ -47,6 +52,8 @@ job "llm-dispatch" {
             password = "{{ docker_password }}"
             server_address = "{{ registry }}"
           }
+          command = "python3"
+          args    = ["-m", "uvicorn", "main:app", "--app-dir", "{{ app_dir }}", "--host", "0.0.0.0", "--port", "80"]
         {% elif platform == "local" %}
           command = "/bin/sh"
           args    = ["-c", "cd {{ thirdai_platform_dir }} && {{ python_path }} -m uvicorn main:app --app-dir {{ app_dir }} --host 0.0.0.0 --port ${NOMAD_PORT_llm_dispatch_http}"]

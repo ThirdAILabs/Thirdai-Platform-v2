@@ -1,4 +1,6 @@
+import logging
 import os
+import pathlib
 import traceback
 from pathlib import Path
 
@@ -7,22 +9,33 @@ from backend.utils import (
     delete_nomad_job,
     get_platform,
     get_python_path,
-    model_bazaar_path,
     nomad_job_exists,
     submit_nomad_job,
     thirdai_platform_dir,
 )
 from fastapi import APIRouter, Depends, HTTPException, status
 from platform_common.pydantic_models.recovery_snapshot import BackupConfig
-from platform_common.utils import response
+from platform_common.utils import get_section, model_bazaar_path, response
 
 recovery_router = APIRouter()
 
 
 RECOVERY_SNAPSHOT_ID = "recovery-snapshot"
 
+root_folder = pathlib.Path(__file__).parent
 
-@recovery_router.post("/backup", dependencies=[Depends(verify_access_token)])
+docs_file = root_folder.joinpath("../../docs/recovery_endpoints.txt")
+
+with open(docs_file) as f:
+    docs = f.read()
+
+
+@recovery_router.post(
+    "/backup",
+    dependencies=[Depends(verify_access_token)],
+    summary="Backup",
+    description=get_section(docs, "Backup"),
+)
 def backup(config: BackupConfig):
     local_dir = os.getenv("SHARE_DIR")
     if not local_dir:
@@ -57,7 +70,7 @@ def backup(config: BackupConfig):
             registry=os.getenv("DOCKER_REGISTRY"),
             docker_username=os.getenv("DOCKER_USERNAME"),
             docker_password=os.getenv("DOCKER_PASSWORD"),
-            image_name=os.getenv("RECOVERY_SNAPSHOT_IMAGE_NAME"),
+            image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
             model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
             python_path=get_python_path(),
             thirdai_platform_dir=thirdai_platform_dir(),
@@ -67,7 +80,7 @@ def backup(config: BackupConfig):
             db_uri=db_uri,
         )
     except Exception as err:
-        traceback.print_exc()
+        logging.error(traceback.print_exc())
         return response(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, message=str(err)
         )

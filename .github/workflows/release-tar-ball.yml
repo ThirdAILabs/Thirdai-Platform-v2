@@ -29,11 +29,29 @@ jobs:
       - name: Clone Platform repository
         run: |
           git clone git@github.com:ThirdAILabs/platform.git
-
-      - name: Download and store the model
+      
+      - name: Create a unified models folder
         run: |
-          mkdir -p gen-ai-models
-          wget -O gen-ai-models/Llama-3.2-3B-Instruct-f16.gguf https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-f16.gguf?download=true
+          mkdir -p pretrained-models/
+
+      - name: Download and store the Llama model in the unified models folder
+        run: |
+          mkdir -p pretrained-models/genai
+
+          wget -O pretrained-models/genai/Llama-3.2-1B-Instruct-f16.gguf https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF/resolve/main/Llama-3.2-1B-Instruct-f16.gguf
+
+      - name: Install Python and Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip
+          pip install transformers torch
+      
+      - name: Set HF_HOME environment variable
+        run: echo "HF_HOME=$GITHUB_WORKSPACE/pretrained-models" >> $GITHUB_ENV
+
+      - name: Run Model Download Script
+        run: |
+          python3 packaging/download_pretrained_transformers.py
 
       - name: Ensure scripts directory exists
         run: mkdir -p ./platform/scripts
@@ -45,6 +63,10 @@ jobs:
       - name: Copy config.yml to parent directory
         run: |
           cp ./platform/config.yml ./config.yml
+      
+      - name: Copy new_client_config.yml to parent directory
+        run: |
+          cp ./platform/new_client_config.yml ./new_client_config.yml
 
       - name: Copy README.md to parent directory
         run: |
@@ -130,7 +152,7 @@ jobs:
           mkdir -p docker_images-${{ env.latest_tag }}
 
           # Pull and save images using the persisted ${{ env.latest_tag }} across steps
-          images=(thirdai_platform_${{ env.branch_name }} data_generation_job_${{ env.branch_name }} train_job_${{ env.branch_name }} deployment_job_${{ env.branch_name }} llm_dispatch_job_${{ env.branch_name }} frontend_${{ env.branch_name }} llm_cache_job_${{ env.branch_name }})
+          images=(thirdai_platform_${{ env.branch_name }} frontend_${{ env.branch_name }})
 
           for image in "${images[@]}"
           do
@@ -146,8 +168,8 @@ jobs:
           docker pull thirdaiplatform.azurecr.io/llama.cpp:server
           docker save -o docker_images-${{ env.latest_tag }}/llama.cpp_server.tar thirdaiplatform.azurecr.io/llama.cpp:server
 
-          docker pull thirdaiplatform.azurecr.io/redis:7.4.0
-          docker save -o docker_images-${{ env.latest_tag }}/redis_7.4.0.tar thirdaiplatform.azurecr.io/redis:7.4.0
+          docker pull thirdaiplatform.azurecr.io/keycloak:26.0.0
+          docker save -o docker_images-${{ env.latest_tag }}/keycloak_26.0.0.tar thirdaiplatform.azurecr.io/keycloak:26.0.0
 
           docker pull registry:2
           docker save -o docker_images-${{ env.latest_tag }}/registry_2.tar registry:2
@@ -161,21 +183,18 @@ jobs:
           docker pull thirdaiplatform.azurecr.io/grafana:main-ubuntu
           docker save -o docker_images-${{ env.latest_tag }}/grafana_main-ubuntu.tar thirdaiplatform.azurecr.io/grafana:main-ubuntu
 
-          docker pull thirdaiplatform.azurecr.io/loki:k221-47b9075
-          docker save -o docker_images-${{ env.latest_tag }}/loki_k221-47b9075.tar thirdaiplatform.azurecr.io/loki:k221-47b9075
-
           docker pull thirdaiplatform.azurecr.io/victoria-metrics:tags-v1.102.1-1-g76115c611f
           docker save -o docker_images-${{ env.latest_tag }}/victoria-metrics_tags-v1.102.1-1-g76115c611f.tar thirdaiplatform.azurecr.io/victoria-metrics:tags-v1.102.1-1-g76115c611f
 
           echo "All images pulled and saved in the docker_images-${{ env.latest_tag }} folder."
 
-      - name: Package platform, model, driver, config, and README into tarball
+      - name: Package platform, model, splade, driver, config, and README into tarball
         run: |
-          tar -czvf thirdai-platform-package-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz ./platform ./gen-ai-models ./driver.sh ./config.yml ./README.md
+          tar -czvf thirdai-platform-package-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz ./platform ./pretrained-models ./driver.sh ./config.yml ./README.md
 
       - name: Package Docker images, driver script, config, and README into tarball
         run: |
-          tar -czvf thirdai-platform-package-offline-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz ./platform ./docker_images-${{ env.latest_tag }} ./driver.sh ./config.yml ./README.md ./gen-ai-models
+          tar -czvf thirdai-platform-package-offline-${{ env.branch_name }}-${{ env.latest_tag }}.tar.gz ./platform ./docker_images-${{ env.latest_tag }} ./driver.sh ./config.yml ./README.md ./pretrained-models
 
       - name: Upload platform package to S3
         run: |

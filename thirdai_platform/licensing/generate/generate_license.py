@@ -14,11 +14,29 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "--thirdai_key",
     type=str,
-    required=True,
+    required=False,
     help="The thirdai license key to use for the Platform license.",
+)
+parser.add_argument(
+    "--license_file",
+    type=str,
+    required=False,
+    help="The thirdai license file to use for the Platform license",
 )
 
 args = parser.parse_args()
+
+if (not args.license_file and not args.thirdai_key) or (
+    args.license_file and args.thirdai_key
+):
+    raise ValueError("exactly one of license file or thirdai key must be specifed")
+
+if args.license_file:
+    with open(args.license_file, "rb") as f:
+        data = f.read()
+    license_key = "file " + str(base64.b64encode(data).decode())
+else:
+    license_key = args.thirdai_key
 
 cpu_mhz_limit = 100000000
 expiry_date = datetime(year=2030, month=4, day=3, tzinfo=timezone.utc)
@@ -35,7 +53,7 @@ with open(os.path.join(licensing_dir, "generate", "private_key.pem"), "rb") as f
 license_info = {
     "cpuMhzLimit": str(cpu_mhz_limit),
     "expiryDate": expiry_date.isoformat(),
-    "boltLicenseKey": args.thirdai_key,
+    "boltLicenseKey": license_key,
 }
 
 # Serialize license information

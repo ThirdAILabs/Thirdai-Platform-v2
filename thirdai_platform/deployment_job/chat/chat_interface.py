@@ -1,7 +1,10 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import AsyncGenerator, Callable, List, Union
+from threading import Lock
 
 from deployment_job.chat.ndbv2_vectorstore import NeuralDBV2VectorStore
+from fastapi import HTTPException, status
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.docstore.document import Document
 from langchain.vectorstores import NeuralDBVectorStore
@@ -28,6 +31,7 @@ class ChatInterface(ABC):
         self.top_k = top_k
         self.chat_prompt = chat_prompt
         self.query_reformulation_prompt = query_reformulation_prompt
+        self.history_lock = Lock()
 
         if isinstance(db, ndb.NeuralDB):
             self.vectorstore = NeuralDBVectorStore(db)
@@ -91,10 +95,26 @@ class ChatInterface(ABC):
 
         return top_k_docs
 
+    def _get_chat_history_conn(self, session_id: str):
+        # The lock is to prevent table already exists errors if the method is called
+        # twice in succession and both connections attempt to create the table.
+        try:
+            with self.history_lock:
+                chat_history = SQLChatMessageHistory(
+                    session_id=session_id, connection_string=self.chat_history_sql_uri
+                )
+            return chat_history
+        except Exception as err:
+            logging.error(
+                "Error connecting to sql database to store chat history: " + err
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error connecting to sql database to store chat history",
+            )
+
     def get_chat_history(self, session_id: str, **kwargs):
-        chat_history = SQLChatMessageHistory(
-            session_id=session_id, connection_string=self.chat_history_sql_uri
-        )
+        chat_history = self._get_chat_history_conn(session_id=session_id)
         chat_history_list = [
             {
                 "content": message.content,
@@ -117,9 +137,7 @@ class ChatInterface(ABC):
         llm: Callable[[], LLM],
     ) -> AsyncGenerator[str, None]:
         chain = self.create_chain(llm)
-        chat_history = SQLChatMessageHistory(
-            session_id=session_id, connection_string=self.chat_history_sql_uri
-        )
+        chat_history = self._get_chat_history_conn(session_id=session_id)
         chat_history.add_user_message(user_input)
 
         response_chunks = []

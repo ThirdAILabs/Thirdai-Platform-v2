@@ -3,50 +3,28 @@ import logging
 import math
 import os
 import re
+import shutil
 from collections import defaultdict, deque
+from functools import wraps
 from pathlib import Path
-from typing import List
+
+pass
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import bcrypt
+import pandas as pd
 import requests
+import sqlalchemy as sa
 from database import schema
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 from jinja2 import Template
 from licensing.verify.verify_license import valid_job_allocation, verify_license
+from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
+from platform_common.pydantic_models.training import LabelEntity
+from platform_common.thirdai_storage import data_types, storage
+from platform_common.utils import model_bazaar_path
 from sqlalchemy.orm import Session
-
-logger = logging.getLogger("ThirdAI_Platform")
-
-
-def setup_logger(
-    level=logging.DEBUG, format="%(asctime)s | [%(name)s] [%(levelname)s] %(message)s"
-):
-    """
-    Set up the logger with the specified logging level and format.
-
-    Parameters:
-    - level: Logging level (e.g., logging.DEBUG).
-    - format: Logging format string.
-    """
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(level)
-
-    formatter = logging.Formatter(format)
-    console_handler.setFormatter(formatter)
-
-    # add ch to logger
-    logger.addHandler(console_handler)
-
-    logger.setLevel(level)
-    logger.info("Initialized console logging.")
-
-
-setup_logger()
-
-
-def model_bazaar_path():
-    return "/model_bazaar" if os.path.exists("/.dockerenv") else os.getenv("SHARE_DIR")
 
 
 def hash_password(password: str):
@@ -85,7 +63,50 @@ def list_all_dependencies(model: schema.Model) -> List[schema.Model]:
     return all_models
 
 
-def get_model_status(model: schema.Model, train_status: bool) -> schema.Status:
+def get_job_messages(
+    session: Session, model_id: str, job_type: str, level: schema.Level, limit: int
+) -> List[str]:
+    # Return the first error since often later errors may be indirectly caused by
+    # the first.
+    messages = (
+        session.query(schema.JobMessage)
+        .filter(
+            schema.JobMessage.model_id == model_id,
+            schema.JobMessage.job_type == job_type,
+            schema.JobMessage.level == level,
+        )
+        .order_by(sa.asc(schema.JobMessage.timestamp))
+        .limit(limit)
+    )
+    if not messages:
+        return []
+    return [msg.message for msg in messages]
+
+
+def get_warnings_and_errors(
+    session: Session, model: schema.Model, job_type: str
+) -> Tuple[List[str], List[str]]:
+    warnings = []
+    errors = []
+
+    for m in list_all_dependencies(model):
+        warnings.extend(
+            get_job_messages(
+                session, m.id, job_type=job_type, level=schema.Level.warning, limit=5
+            )
+        )
+        errors.extend(
+            get_job_messages(
+                session, m.id, job_type=job_type, level=schema.Level.error, limit=1
+            )
+        )
+
+    return warnings, errors
+
+
+def get_model_status(
+    model: schema.Model, train_status: bool
+) -> Tuple[schema.Status, List[Dict[str, str]]]:
     # If the model train/deployment hasn't yet been started, was stopped, or has
     # already failed, then the status of its dependencies is irrelevant.
     status = model.train_status if train_status else model.deploy_status
@@ -101,6 +122,7 @@ def get_model_status(model: schema.Model, train_status: bool) -> schema.Status:
         status = m.train_status if train_status else m.deploy_status
         if m.id == model.id:
             statuses[status].append(f"Workflow {model.name} has status {status.value}.")
+
         else:
             statuses[status].append(
                 f"The workflow depends on workflow {model.name} which has status {status.value}."
@@ -177,7 +199,7 @@ def get_high_level_model_info(result: schema.Model):
                 try:
                     metadata.train = json.loads(metadata.train)
                 except json.JSONDecodeError as e:
-                    print(f"Error decoding JSON for train: {e}")
+                    logging.error(f"Error decoding JSON for train: {e}")
                     metadata.train = {}
             info.update(metadata.train)
         if metadata.general:
@@ -186,7 +208,7 @@ def get_high_level_model_info(result: schema.Model):
                 try:
                     metadata.general = json.loads(metadata.general)
                 except json.JSONDecodeError as e:
-                    print(f"Error decoding JSON for general: {e}")
+                    logging.error(f"Error decoding JSON for general: {e}")
                     metadata.general = {}
             info.update(metadata.general)
 
@@ -208,7 +230,9 @@ def validate_name(name):
         raise ValueError("name is not valid")
 
 
-def get_model(session: Session, username: str, model_name: str):
+def get_model(
+    session: Session, username: str, model_name: str
+) -> Optional[schema.Model]:
     """
     Get a model by username and model name.
 
@@ -266,12 +290,18 @@ def get_model_from_identifier(model_identifier, session):
     try:
         model_username, model_name = parse_model_identifier(model_identifier)
     except Exception as error:
-        raise ValueError(str(error))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unable to parse model identifier: {error}",
+        )
     model: schema.Model = get_model(
         session, username=model_username, model_name=model_name
     )
     if not model:
-        raise ValueError("There is no model with the given name.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"There is no model with name {model_identifier}.",
+        )
     return model
 
 
@@ -389,9 +419,9 @@ def delete_nomad_job(job_id, nomad_endpoint):
     response = requests.delete(job_url, headers=headers)
 
     if response.status_code == 200:
-        print(f"Job {job_id} stopped successfully")
+        logging.info(f"Job {job_id} stopped successfully")
     else:
-        print(
+        logging.error(
             f"Failed to stop job {job_id}. Status code: {response.status_code}, Response: {response.text}"
         )
 
@@ -410,6 +440,79 @@ def get_service_info(nomad_endpoint: str, service_name: str):
     )
 
 
+def get_job_name(model: schema.Model, job_type: str) -> str:
+    if job_type == "train":
+        return model.get_train_job_name()
+    elif job_type == "deploy":
+        return model.get_deployment_name()
+    else:
+        raise ValueError(
+            f"Invalid job_type '{job_type}'. Must be either 'train', 'deploy'."
+        )
+
+
+def get_task(job_type: str) -> str:
+    if job_type == "train":
+        return "server"
+    elif job_type == "deploy":
+        return "backend"
+    else:
+        raise ValueError(
+            f"Invalid job_type '{job_type}'. Must be either 'train', 'deploy'."
+        )
+
+
+def get_logs(nomad_endpoint: str, alloc_id: str, task: str, log_type: str) -> str:
+    res = requests.get(
+        urljoin(nomad_endpoint, f"v1/client/fs/logs/{alloc_id}"),
+        headers={"X-Nomad-Token": TASK_RUNNER_TOKEN},
+        params={
+            "task": task,
+            "type": log_type,
+            "origin": "end",
+            "offset": 5000,
+            "plain": True,
+        },
+    )
+
+    if res.status_code != 200:
+        raise ValueError("Error getting logs for job: " + str(res.content))
+
+    _, full_logs = res.content.decode().split("\n", 1)
+    return full_logs
+
+
+def get_job_logs(
+    nomad_endpoint: str, model: schema.Model, job_type: str
+) -> List[Dict[str, str]]:
+    allocations = requests.get(
+        urljoin(nomad_endpoint, f"v1/job/{get_job_name(model, job_type)}/allocations"),
+        headers={"X-Nomad-Token": TASK_RUNNER_TOKEN},
+    )
+    if allocations.status_code != 200:
+        raise ValueError("Error getting job allocations: " + str(allocations.content))
+
+    logs = []
+    for alloc in allocations.json():
+        alloc_id = alloc["ID"]
+
+        stdout_log = get_logs(
+            nomad_endpoint=nomad_endpoint,
+            alloc_id=alloc_id,
+            task=get_task(job_type),
+            log_type="stdout",
+        )
+        stderr_log = get_logs(
+            nomad_endpoint=nomad_endpoint,
+            alloc_id=alloc_id,
+            task=get_task(job_type),
+            log_type="stderr",
+        )
+        logs.append({"stdout": stdout_log, "stderr": stderr_log})
+
+    return logs
+
+
 def get_platform():
     """
     Get the platform identifier.
@@ -424,7 +527,7 @@ def get_platform():
     platform = os.getenv("PLATFORM", "docker")
     options = ["docker", "local"]
     if platform not in options:
-        print(
+        logging.warning(
             f"Invalid platform identifier '{platform}'. Options: {options}. Defaulting to docker."
         )
     return platform
@@ -555,3 +658,164 @@ def validate_license_info():
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"License is not valid. {str(e)}",
         )
+
+
+def handle_exceptions(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            class_name = args[0].__class__.__name__ if args else "UnknownClass"
+            method_name = func.__name__
+            logging.error(
+                f"Error in class '{class_name}', method '{method_name}' "
+                f"with arguments {args[1:]}, and keyword arguments {kwargs}. "
+                f"Error: {str(e)}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"An error occurred: {str(e)}",
+            )
+
+    return wrapper
+
+
+def tags_in_storage(data_storage: storage.DataStorage) -> List[LabelEntity]:
+    tag_metadata: data_types.TagMetadata = data_storage.get_metadata(
+        "tags_and_status"
+    ).data
+
+    tag_status = tag_metadata.tag_status
+    tags = [tag_status[tag] for tag in tag_status.keys() if tag != "O"]
+    return tags
+
+
+def copy_data_storage(old_model: schema.Model, new_model: schema.Model):
+
+    old_storage_dir = Path(model_bazaar_path()) / "data" / str(old_model.id)
+    new_storage_dir = Path(model_bazaar_path()) / "data" / str(new_model.id)
+
+    os.makedirs(new_storage_dir, exist_ok=True)
+    shutil.copy(old_storage_dir / "data_storage.db", new_storage_dir)
+
+
+def remove_unused_samples(model: schema.Model):
+    # remove unused samples from the old storage and rollback metadata to be in a consistent state
+    storage_dir = Path(model_bazaar_path()) / "data" / str(model.id)
+    data_storage = storage.DataStorage(
+        connector=storage.SQLiteConnector(db_path=storage_dir / "data_storage.db")
+    )
+    data_storage.remove_untrained_samples("ner")
+    data_storage.rollback_metadata("tags_and_status")
+
+
+def retrieve_token_classification_samples_for_generation(
+    data_storage: storage.DataStorage,
+) -> List[data_types.DataSample]:
+    # retrieve all the samples
+    samples: List[data_types.DataSample] = data_storage.retrieve_samples(
+        name="ner", num_samples=None, user_provided=True
+    )
+    # only use the samples that we did not generate synthetic data for
+    token_classification_samples = [
+        sample.data
+        for sample in samples
+        if sample.status == data_types.SampleStatus.untrained
+    ]
+
+    return token_classification_samples
+
+
+def read_file_from_back(path: str):
+    try:
+        fp = open(path, "rb")
+
+        # move the cursor to the end of the file
+        fp.seek(0, 2)
+        current_position = fp.tell()
+
+        line = b""
+        while current_position > 0:
+            fp.seek(current_position - 1)
+            char = fp.read(1)
+
+            if char == b"\n" and line:
+                yield line[::-1].decode()
+                line = b""
+            else:
+                line += char
+
+            current_position -= 1
+
+        if line:
+            yield line[::-1].decode()
+
+    finally:
+        fp.close()
+
+
+def cap_text_length(text: str, word_limit: int = 1000) -> str:
+    """Helper function to cap text to specified number of words"""
+    words = text.split()
+    if len(words) <= word_limit:
+        return text
+    return " ".join(words[:word_limit])
+
+
+async def create_classification_csv(
+    temp_dir: str, files: List[UploadFile], word_limit: int = 1000
+) -> tuple[str, List[str]]:
+    """
+    Create a CSV file from folder structure in the format expected by TextClassificationOptions
+    Args:
+        temp_dir (str): Directory for temporary file processing
+        files (List[UploadFile]): List of uploaded files
+        word_limit (int, optional): Maximum number of words to use per document. Defaults to 1000.
+    """
+    rows = []
+    categories = set()
+    for file in files:
+        parts = Path(file.filename).parts
+        if len(parts) < 3:
+            continue
+        category = parts[1]
+        categories.add(category)
+        # Get file extension and convert to lowercase
+        ext = Path(file.filename).suffix.lower()
+        content = await file.read()
+        try:
+            if ext == ".txt":
+                # Direct text processing for .txt files
+                text_content = content.decode("utf-8")
+            else:
+                # For other formats, use ndb parser
+                # Save file temporarily
+                temp_file_path = Path(temp_dir) / file.filename
+                os.makedirs(temp_file_path.parent, exist_ok=True)
+                with open(temp_file_path, "wb") as f:
+                    f.write(content)
+                try:
+                    # Convert to ndb Document
+                    doc = convert_to_ndb_file(
+                        str(temp_file_path), metadata=None, options=None
+                    )
+                    # Get text content from display column
+                    text_content = " ".join(doc.table.df["display"].tolist())
+                finally:
+                    if temp_file_path.exists():
+                        os.remove(temp_file_path)
+            # Cap the text length before adding to rows
+            capped_text = cap_text_length(text_content, word_limit)
+            rows.append({"text": capped_text, "label": category})
+        except Exception as e:
+            logging.error(f"Error processing file {file.filename}: {str(e)}")
+            continue
+    if not rows:
+        raise ValueError("No valid files were processed")
+    if len(categories) < 2:
+        raise ValueError(f"Found only {len(categories)} categories, minimum 2 required")
+    df = pd.DataFrame(rows)
+    csv_path = os.path.join(temp_dir, "document_classification.csv")
+    df.to_csv(csv_path, index=False)
+    return csv_path, list(categories)

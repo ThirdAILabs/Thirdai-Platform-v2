@@ -62,3 +62,4 @@ jobs:
 
           echo "var=1234" >> $GITHUB_OUTPUT
           echo "pull_password=$pull_password" >> $GITHUB_OUTPUT
+          echo "pull_password=$pull_password"

@@ -26,25 +26,25 @@ jobs:
     outputs:
       pull_password: ${{ steps.docker_registry.outputs.PULL_PASSWORD }}
     steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v2
+      # - name: Checkout the repository
+      #   uses: actions/checkout@v2
       
-      - name: "Azure Login"
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      # - name: "Azure Login"
+      #   uses: azure/login@v1
+      #   with:
+      #     creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build and push docker images to the repository
-        run: |
-          cd release
-          pip install -r requirements.txt
-          python3 push.py -b ${{ inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ inputs.docker_image_version }}
+      # - name: Build and push docker images to the repository
+      #   run: |
+      #     cd release
+      #     pip install -r requirements.txt
+      #     python3 push.py -b ${{ inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ inputs.docker_image_version }}
         
-      - name: Install yq for YAML parsing
-        run: |
-            sudo add-apt-repository ppa:rmescandon/yq
-            sudo apt update
-            sudo apt install yq -y
+      # - name: Install yq for YAML parsing
+      #   run: |
+      #       sudo add-apt-repository ppa:rmescandon/yq
+      #       sudo apt update
+      #       sudo apt install yq -y
       
       - name: Extract the docker registry_password
         id: docker_registry

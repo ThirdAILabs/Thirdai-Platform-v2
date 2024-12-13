@@ -26,8 +26,8 @@ jobs:
     outputs:
       pull_password: ${{ steps.docker_registry.outputs.PULL_PASSWORD }}
     steps:
-      # - name: Checkout the repository
-      #   uses: actions/checkout@v2
+      - name: Checkout the repository
+        uses: actions/checkout@v2
       
       # - name: "Azure Login"
       #   uses: azure/login@v1

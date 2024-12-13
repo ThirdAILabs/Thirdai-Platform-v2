@@ -19,12 +19,16 @@ on:
       pull_password:
         description: "Docker registry password for the image built"
         value: ${{ jobs.build_docker_images.outputs.pull_password }}
+      var:
+        description: Random output
+        value: ${{ jobs.build_docker_images.outputs.var }}
 
 jobs:
   build_docker_images:
     runs-on: ubuntu-latest-8-cores
     outputs:
       pull_password: ${{ steps.docker_registry.outputs.pull_password }}
+      var: ${{ steps.docker_registry.outputs.var }}
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v2
@@ -57,3 +61,4 @@ jobs:
           
           echo "pull_password=$pull_password" >> $GITHUB_OUTPUT
           echo "pull password = $pull_password"
+          echo "var=1234" >> $GITHUB_OUTPUT

@@ -51,9 +51,10 @@ jobs:
     steps:
       - name: print the output values
         run: |
-          echo "${{ needs.Build_and_push_images.outputs.pull_password }}"
-          echo "${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}"
-          echo "${{ needs.Retrieve_facts.outputs.version }}"
+          echo "pull password: ${{ needs.Build_and_push_images.outputs.pull_password }}"
+          echo "var: ${{ needs.Build_and_push_images.outputs.var }}"
+          echo "branch name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}"
+          echo "version: ${{ needs.Retrieve_facts.outputs.version }}"
 
   # package:
   #   needs: [Retrieve_facts]

@@ -76,9 +76,9 @@ jobs:
     with:
       docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
       docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
-      docker_registry_password: ${{ needs.Debug.outputs.docker_registry_password }}
       tarball_filename: "thirdai-platform-package-test-installation-testing-2-v0.0.2.tar.gz"
     secrets:
+      docker_registry_password: ${{ needs.Debug.outputs.docker_registry_password }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       HOST_MACHINE_PRIVATE_KEY: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}

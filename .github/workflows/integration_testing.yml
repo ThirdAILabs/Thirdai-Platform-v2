@@ -147,7 +147,7 @@ jobs:
           -o ServerAliveCountMax=25 \
           -i /tmp/id_rsa \
           ubuntu@${{ steps.host_machine.outputs.public_ip }} \
-          "grep 'Secret ID' '/opt/thirdai_platform/nomad_data/task_runner_token.txt' | awk '{print \$NF}'")
+          "sudo grep 'Secret ID' '/opt/thirdai_platform/nomad_data/task_runner_token.txt' | awk '{print \$NF}'")
           echo "token=$task_runner_token" >> $GITHUB_OUTPUT
       
       - name: Wait for model_bazaar and frontend to get started

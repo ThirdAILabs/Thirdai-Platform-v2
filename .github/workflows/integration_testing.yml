@@ -104,8 +104,7 @@ jobs:
               .license_path = "/home/ubuntu/ndb_enterprise_license.json" |
               .admin_mail = "${{ secrets.EMAIL }}" |
               .docker_registry_password = "${{ env.docker_registry_password }}"
-            ' /home/ubuntu/package2/config.yml -y
-
+            ' /home/ubuntu/package2/config.yml
           EOF
 
   #     - name: Download the package and run driver.sh

@@ -26,33 +26,33 @@ jobs:
     outputs:
       b64_encoded_docker_registry_password: ${{ steps.docker_registry.outputs.base64_encoded_password }}
     steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v2
+      # - name: Checkout the repository
+      #   uses: actions/checkout@v2
       
-      - name: "Azure Login"
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      # - name: "Azure Login"
+      #   uses: azure/login@v1
+      #   with:
+      #     creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build and push docker images to the repository
-        run: |
-          cd release
-          pip install -r requirements.txt
-          python3 push.py -b ${{ inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ inputs.docker_image_version }}
+      # - name: Build and push docker images to the repository
+      #   run: |
+      #     cd release
+      #     pip install -r requirements.txt
+      #     python3 push.py -b ${{ inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ inputs.docker_image_version }}
         
-      - name: Install yq for YAML parsing
-        run: |
-            sudo add-apt-repository ppa:rmescandon/yq
-            sudo apt update
-            sudo apt install yq -y
+      # - name: Install yq for YAML parsing
+      #   run: |
+      #       sudo add-apt-repository ppa:rmescandon/yq
+      #       sudo apt update
+      #       sudo apt install yq -y
       
       - name: Extract the docker registry_password
         id: docker_registry
         run: |
-          base64_encoded_password=$(yq e '.azure.branches.${{ inputs.docker_image_branch_name }}.pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml | base64 -w 0)
-          if [ -z "$base64_encoded_password" ]; then
-            echo "::error::No pull password found for branch ${{ inputs.docker_image_branch_name }}"
-            exit 1
-          fi
+          # base64_encoded_password=$(yq e '.azure.branches.${{ inputs.docker_image_branch_name }}.pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml | base64 -w 0)
+          # if [ -z "$base64_encoded_password" ]; then
+          #   echo "::error::No pull password found for branch ${{ inputs.docker_image_branch_name }}"
+          #   exit 1
+          # fi
           
-          echo "base64_encoded_password=$base64_encoded_password" >> $GITHUB_OUTPUT
+          echo "base64_encoded_password=QTlaWkZGTzMvdDU3dk5xWlE2V0lCTi9YeXpZeHMxMWtiRzZha0diUlVTK0FDUkRRWlhSNgo=" >> $GITHUB_OUTPUT

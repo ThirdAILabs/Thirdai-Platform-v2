@@ -25,14 +25,14 @@ jobs:
       - name: Get the new version of the docker images
         id: docker_image_version
         run: |
-          version="0.0.1"
+          version="0.0.2"
           echo "Generated version: $version"
           echo "version=$version" >> $GITHUB_OUTPUT
 
       - name: Set the branch name of the docker images
         id: docker_image_branch_name
         run: |
-          branch_name="release-test-main"
+          branch_name="test-installation-testing-2"
           echo "Docker image branch to build on: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
 
@@ -53,9 +53,6 @@ jobs:
         run: |
           pull_password=$(echo -n ${{ needs.Build_and_push_images.outputs.pull_password }} | base64 --decode)
           echo "pull password: $pull_password"
-          echo "var: ${{ needs.Build_and_push_images.outputs.var }}"
-          echo "branch name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}"
-          echo "version: ${{ needs.Retrieve_facts.outputs.version }}"
 
   # package:
   #   needs: [Retrieve_facts]

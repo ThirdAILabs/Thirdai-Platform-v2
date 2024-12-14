@@ -18,48 +18,41 @@ on:
     outputs:
       pull_password:
         description: "Docker registry password for the image built"
-        value: ${{ jobs.build_docker_images.outputs.encoded_password }}
-      var:
-        description: Random output
-        value: ${{ jobs.build_docker_images.outputs.var }}
+        value: ${{ jobs.build_docker_images.outputs.pull_password }}
 
 jobs:
   build_docker_images:
     runs-on: ubuntu-latest-8-cores
     outputs:
-      encoded_password: ${{ steps.docker_registry.outputs.encoded_password }}
-      var: ${{ steps.docker_registry.outputs.var }}
+      pull_password: ${{ steps.docker_registry.outputs.pull_password }}
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v2
-
       
-      # - name: "Azure Login"
-      #   uses: azure/login@v1
-      #   with:
-      #     creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: "Azure Login"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # - name: Build and push docker images to the repository
-      #   run: |
-      #     cd release
-      #     pip install -r requirements.txt
-      #     python3 push.py -b ${{ inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ inputs.docker_image_version }}
+      - name: Build and push docker images to the repository
+        run: |
+          cd release
+          pip install -r requirements.txt
+          python3 push.py -b ${{ inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ inputs.docker_image_version }}
         
-      # - name: Install yq for YAML parsing
-      #   run: |
-      #       sudo add-apt-repository ppa:rmescandon/yq
-      #       sudo apt update
-      #       sudo apt install yq -y
+      - name: Install yq for YAML parsing
+        run: |
+            sudo add-apt-repository ppa:rmescandon/yq
+            sudo apt update
+            sudo apt install yq -y
       
       - name: Extract the docker registry_password
         id: docker_registry
         run: |
-          pull_password=$(yq e '.azure.branches."'${{ inputs.docker_image_branch_name }}'".pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml)
+          pull_password=$(yq e '.azure.branches.${{ inputs.docker_image_branch_name }}.pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml | base64 -w 0)
           if [ -z "$pull_password" ]; then
             echo "::error::No pull password found for branch ${{ inputs.docker_image_branch_name }}"
             exit 1
           fi
-
-          echo "var=1234" >> $GITHUB_OUTPUT
-          encoded_password=$(echo "$pull_password" | base64)
-          echo "encoded_password=$encoded_password" >> $GITHUB_OUTPUT
+          
+          echo "pull_password=$pull_password" >> $GITHUB_OUTPUT

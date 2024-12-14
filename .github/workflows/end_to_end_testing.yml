@@ -52,7 +52,7 @@ jobs:
   #     Installer_branch_name: "dont-wait-for-keycloak"
   #     docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
   #     docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
-  #     docker_registry_password: "A9ZZFFO3/t57vNqZQ6WIBN/XyzYxs11kbG6akGbRUS+ACRDQZXR6"
+  #     b64_encoded_docker_registry_password: ${{ needs.Build_and_push_images.outputs.b64_encoded_docker_registry_password }}
   #   secrets:
   #     PLATFORM_INSTALLATION_DEPLOY_KEY: ${{ secrets.PLATFORM_INSTALLATION_DEPLOY_KEY }}
   #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -67,8 +67,7 @@ jobs:
       - name: print the output values
         id: password
         run: |
-          echo "docker_registry_password=A9ZZFFO3/t57vNqZQ6WIBN/XyzYxs11kbG6akGbRUS+ACRDQZXR6" >> $GITHUB_OUTPUT
-
+          echo "docker_registry_password=QTlaWkZGTzMvdDU3dk5xWlE2V0lCTi9YeXpZeHMxMWtiRzZha0diUlVTK0FDUkRRWlhSNgo=" >> $GITHUB_OUTPUT
 
   run_tests:
     needs: [Retrieve_facts, Debug]
@@ -76,9 +75,9 @@ jobs:
     with:
       docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
       docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
+      b64_encoded_docker_registry_password: "QTlaWkZGTzMvdDU3dk5xWlE2V0lCTi9YeXpZeHMxMWtiRzZha0diUlVTK0FDUkRRWlhSNgo="
       tarball_filename: "thirdai-platform-package-test-installation-testing-2-v0.0.2.tar.gz"
     secrets:
-      docker_registry_password: ${{ needs.Debug.outputs.docker_registry_password }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       HOST_MACHINE_PRIVATE_KEY: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}

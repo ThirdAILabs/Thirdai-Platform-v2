@@ -16,10 +16,11 @@ on:
         description: "Tarball file name in the S3 bucket"
         required: true
         type: string
-    secrets:
-      docker_registry_password:
-        description: "Docker registry password for the docker image"
+      b64_encoded_docker_registry_password:
+        description: "Docker registry password for the branch image encoded in base64"
         required: true
+        type: string
+    secrets:
       AWS_ACCESS_KEY_ID:
         description: "AWS access key id"
         required: true
@@ -55,7 +56,8 @@ jobs:
     steps:
       - name: Install AWS CLI
         run: |
-          echo "At reusable workflow, docker_registry_password=${{ secrets.docker_registry_password }}"
+          docker_registry_password=$(echo -n "${{ inputs.b64_encoded_docker_registry_password }}" | base64 --decode)
+          echo "At reusable workflow, docker_registry_password=$docker_registry_password"
           # sudo apt-get update
           # sudo apt-get install -y awscli
 

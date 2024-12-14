@@ -16,15 +16,15 @@ on:
         description: 'Azure credentials'
         required: true
     outputs:
-      pull_password:
-        description: "Docker registry password for the image built"
-        value: ${{ jobs.build_docker_images.outputs.pull_password }}
+      b64_encoded_docker_registry_password:
+        description: "Docker registry password for the image built encoded in base64"
+        value: ${{ jobs.build_docker_images.outputs.b64_encoded_docker_registry_password }}
 
 jobs:
   build_docker_images:
     runs-on: ubuntu-latest-8-cores
     outputs:
-      pull_password: ${{ steps.docker_registry.outputs.pull_password }}
+      b64_encoded_docker_registry_password: ${{ steps.docker_registry.outputs.base64_encoded_password }}
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v2
@@ -49,10 +49,10 @@ jobs:
       - name: Extract the docker registry_password
         id: docker_registry
         run: |
-          pull_password=$(yq e '.azure.branches.${{ inputs.docker_image_branch_name }}.pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml | base64 -w 0)
-          if [ -z "$pull_password" ]; then
+          base64_encoded_password=$(yq e '.azure.branches.${{ inputs.docker_image_branch_name }}.pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml | base64 -w 0)
+          if [ -z "$base64_encoded_password" ]; then
             echo "::error::No pull password found for branch ${{ inputs.docker_image_branch_name }}"
             exit 1
           fi
           
-          echo "pull_password=$pull_password" >> $GITHUB_OUTPUT
+          echo "base64_encoded_password=$base64_encoded_password" >> $GITHUB_OUTPUT

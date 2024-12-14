@@ -57,6 +57,7 @@ jobs:
       - name: Decode docker registry password
         run: |
           echo "docker_registry_password=$(echo -n "${{ inputs.b64_encoded_docker_registry_password }}" | base64 --decode)" >> $GITHUB_ENV
+      
       - name: Install AWS CLI
         run: |
           # sudo apt-get update
@@ -157,7 +158,7 @@ jobs:
   test:
     strategy:
       fail-fast: false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-8-cores
     needs: [setup_the_ec2_instances]
     outputs:
         exit_code: ${{ steps.backend_test_status.outputs.exit_code }}
@@ -251,9 +252,14 @@ jobs:
             aws --version
             aws sts get-caller-identity
         
+        - name: Create an identity file for ssh-login
+          run: |
+            echo "${{ secrets.HOST_MACHINE_PRIVATE_KEY }}" > /tmp/id_rsa
+            chmod 600 /tmp/id_rsa
+
         - name: Run cleanup script
           run: |
-            ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=120 -o ServerAliveCountMax=25 -i /tmp/id_rsa ubuntu@${{ steps.host_machine.outputs.public_ip }} <<EOF
+            ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=120 -o ServerAliveCountMax=25 -i /tmp/id_rsa ubuntu@${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }} <<EOF
               cd /home/ubuntu/package
 
               mkdir -p /home/ubuntu/verbose/cleanup2

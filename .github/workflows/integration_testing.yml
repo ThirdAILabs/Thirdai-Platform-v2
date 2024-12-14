@@ -12,15 +12,14 @@ on:
         required: true
         type: string
         default: latest
-      docker_registry_password:
-        description: "Docker registry password for the docker image"
-        required: true
-        type: string
       tarball_filename:
         description: "Tarball file name in the S3 bucket"
         required: true
         type: string
     secrets:
+      docker_registry_password:
+        description: "Docker registry password for the docker image"
+        required: true
       AWS_ACCESS_KEY_ID:
         description: "AWS access key id"
         required: true

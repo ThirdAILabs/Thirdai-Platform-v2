@@ -39,9 +39,9 @@ from sqlalchemy import event
 import asyncio
 from database import schema
 from fastapi import BackgroundTasks, WebSocket, WebSocketDisconnect
-# from threading import Thread
-from websocket.websocket_connection_manager import WebsocketConnectionManager
 
+from middleware.timeout_middleware import TimeoutMiddleware
+from websocket.websocket_connection_manager import WebsocketConnectionManager
 from websocket.utils import manager, notify_model_change
 
 
@@ -53,6 +53,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+app.add_middleware(
+    TimeoutMiddleware, 
+    timeout=10.0,
 )
 
 log_dir: Path = Path(model_bazaar_path()) / "logs"
@@ -73,6 +78,16 @@ app.include_router(recovery, prefix="/api/recovery", tags=["recovery"])
 app.include_router(data_router, prefix="/api/data", tags=["data"])
 app.include_router(telemetry, prefix="/api/telemetry", tags=["telemetry"])
 app.include_router(integrations, prefix="/api/integrations", tags=["integrations"])
+
+
+# @app.get("/quick")
+# async def quick_response():
+#     return {"message": "This is a quick response"}
+
+# @app.get("/slow")
+# async def slow_response():
+#     await asyncio.sleep(15)  # Simulates a long operation
+#     return {"message": "This response should never be seen due to timeout"}
 
 
 @app.exception_handler(Exception)

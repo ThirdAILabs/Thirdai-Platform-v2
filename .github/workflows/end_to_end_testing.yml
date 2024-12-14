@@ -76,7 +76,7 @@ jobs:
     with:
       docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
       docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
-      b64_encoded_docker_registry_password: ${{ needs.Build_and_push_images.outputs.b64_docker_registry_password }}
+      b64_encoded_docker_registry_password: ${{ needs.Build_and_push_images.outputs.b64_encoded_docker_registry_password }}
       tarball_filename: "thirdai-platform-package-test-installation-testing-2-v0.0.2.tar.gz"
     secrets:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}

@@ -36,71 +36,77 @@ jobs:
           echo "Docker image branch to build on: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
 
-          azure_cred=$(echo -n "${{ secrets.AZURE_CREDENTIALS }}" | base64 -w 0)
-          echo "azure: $azure_cred"
+  Build_and_push_images:
+    needs: [Retrieve_facts]
+    uses: ./.github/workflows/build_and_push_images.yml
+    with:
+      docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
+      docker_image_version: ${{ needs.Retrieve_facts.outputs.version }}
+    secrets:
+      azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
 
-  # Build_and_push_images:
+  # package:
   #   needs: [Retrieve_facts]
-  #   uses: ./.github/workflows/build_and_push_images.yml
+  #   uses: ./.github/workflows/packaging.yml
   #   with:
-  #     docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
-  #     docker_image_version: ${{ needs.Retrieve_facts.outputs.version }}
-  #   secrets:
-  #     azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
-
-  # # package:
-  # #   needs: [Retrieve_facts]
-  # #   uses: ./.github/workflows/packaging.yml
-  # #   with:
-  # #     Installer_branch_name: "dont-wait-for-keycloak"
-  # #     docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
-  # #     docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
-  # #     b64_encoded_docker_registry_password: ${{ needs.Build_and_push_images.outputs.b64_encoded_docker_registry_password }}
-  # #   secrets:
-  # #     PLATFORM_INSTALLATION_DEPLOY_KEY: ${{ secrets.PLATFORM_INSTALLATION_DEPLOY_KEY }}
-  # #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  # #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  # #     AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
-
-  # # Debug:
-  # #   runs-on: ubuntu-latest
-  # #   needs: [Retrieve_facts]
-  # #   outputs:
-  # #     docker_registry_password: ${{ steps.password.outputs.b64_docker_registry_password }}
-  # #   steps:
-  # #     - name: print the output values
-  # #       id: password
-  # #       run: |
-  # #         echo "b64_docker_registry_password=QTlaWkZGTzMvdDU3dk5xWlE2V0lCTi9YeXpZeHMxMWtiRzZha0diUlVTK0FDUkRRWlhSNgo=" >> $GITHUB_OUTPUT
-
-  # tests_on_ec2:
-  #   needs: [Retrieve_facts, Build_and_push_images]
-  #   uses: ./.github/workflows/integration_testing.yml
-  #   with:
+  #     Installer_branch_name: "dont-wait-for-keycloak"
   #     docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
   #     docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
   #     b64_encoded_docker_registry_password: ${{ needs.Build_and_push_images.outputs.b64_encoded_docker_registry_password }}
-  #     tarball_filename: "thirdai-platform-package-test-installation-testing-2-v0.0.2.tar.gz"
   #   secrets:
+  #     PLATFORM_INSTALLATION_DEPLOY_KEY: ${{ secrets.PLATFORM_INSTALLATION_DEPLOY_KEY }}
   #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #     HOST_MACHINE_PRIVATE_KEY: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
-  #     HOST_MACHINE_PUBLIC_KEY: ${{ secrets.HOST_MACHINE_PUBLIC_KEY }}
-  #     EMAIL: "gautam@thirdai.com"
-  #     PASSWORD: "password"
-  #     GENAI_KEY: ${{ secrets.GENAI_KEY }}
+  #     AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+
+  # Debug:
+  #   runs-on: ubuntu-latest
+  #   needs: [Retrieve_facts]
+  #   outputs:
+  #     docker_registry_password: ${{ steps.password.outputs.b64_docker_registry_password }}
+  #   steps:
+  #     - name: print the output values
+  #       id: password
+  #       run: |
+  #         echo "b64_docker_registry_password=QTlaWkZGTzMvdDU3dk5xWlE2V0lCTi9YeXpZeHMxMWtiRzZha0diUlVTK0FDUkRRWlhSNgo=" >> $GITHUB_OUTPUT
+
+  tests_on_ec2:
+    needs: [Retrieve_facts, Build_and_push_images]
+    uses: ./.github/workflows/integration_testing.yml
+    with:
+      docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
+      docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
+      b64_encoded_docker_registry_password: ${{ needs.Build_and_push_images.outputs.b64_encoded_docker_registry_password }}
+      tarball_filename: "thirdai-platform-package-test-installation-testing-2-v0.0.2.tar.gz"
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      HOST_MACHINE_PRIVATE_KEY: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
+      HOST_MACHINE_PUBLIC_KEY: ${{ secrets.HOST_MACHINE_PUBLIC_KEY }}
+      EMAIL: "gautam@thirdai.com"
+      PASSWORD: "password"
+      GENAI_KEY: ${{ secrets.GENAI_KEY }}
+  
+  debug:
+    runs-on: ubuntu-latest
+    needs: [tests_on_ec2]
+    steps:
+      - name: print variables
+        run: |
+          echo "backend test: ${{ needs.tests_on_ec2.outputs.backend_test_outcome }}"
+          echo "frontend test: ${{ needs.tests_on_ec2.outputs.frontend_test_outcome }}"
       
-  # # cleanup:
-  # #   needs: [Retrieve_facts, Build_and_push_images, package, run_tests]
-  # #   uses: ./.github/workflows/cleanup.yml
-  # #   with:
-  # #     docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
-  # #     docker_image_version: ${{ needs.Retrieve_facts.outputs.version }}
-  # #     offline_package_name: ${{ needs.package.outputs.offline_package_name }}
-  # #     online_package_name: ${{ needs.package.outputs.online_package_name }}
-  # #   secrets:
-  # #     AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-  # #     AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-  # #     AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-  # #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  # #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  # cleanup:
+  #   needs: [Retrieve_facts, Build_and_push_images, package, run_tests]
+  #   uses: ./.github/workflows/cleanup.yml
+  #   with:
+  #     docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
+  #     docker_image_version: ${{ needs.Retrieve_facts.outputs.version }}
+  #     offline_package_name: ${{ needs.package.outputs.offline_package_name }}
+  #     online_package_name: ${{ needs.package.outputs.online_package_name }}
+  #   secrets:
+  #     AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  #     AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  #     AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

@@ -194,10 +194,10 @@ jobs:
 
       - name: Env variables
         run: |
+          mkdir -p $HOME/nfs/dir
           echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
           echo "GENAI_KEY=${{ secrets.GENAI_KEY }}" >> $GITHUB_ENV
           echo "TASK_RUNNER_TOKEN=${{ needs.setup_the_ec2_instances.outputs.task_runner_token }}"
-          mkdir -p ${{ env.SHARE_DIR }}
 
       - name: Generate random run name
         id: random-run-name
@@ -207,7 +207,6 @@ jobs:
       - name: Run tests
         id: backend_test_status
         run: |
-          set -e
           commands=(
               python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag NDB --on-prem --generation
               python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag UDT

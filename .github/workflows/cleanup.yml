@@ -7,21 +7,22 @@ on:
         description: "Branch name of the docker images"
         required: true
         type: string
-
       docker_image_version:
         description: "version of the docker images (without prefix 'v')"
         required: true
         type: string
-      
       offline_package_name:
         description: "Offline tarball filename"
         required: true
         type: string
-
       online_package_name:
         description: "Online tarball filename"
         required: true
         type: string
+      delete_score_map_and_tokens:
+        description: "Flag to clear the score map and token associated with the docker image"
+        default: true
+        type: boolean
     secrets:
       AZURE_CLIENT_ID:
         description: "Azure client ID"

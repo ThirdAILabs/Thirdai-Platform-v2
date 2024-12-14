@@ -42,6 +42,13 @@ on:
       GENAI_KEY:
         description: "GenAI key"
         required: true
+    outputs:
+      backend_test_outcome:
+        description: "Backend test step outcome"
+        value: ${{ jobs.test.outputs.backend_test_outcome }}
+      frontend_test_outcome:
+        description: "Frontend test step outcome"
+        value: ${{ jobs.test.outputs.frontend_test_outcome }}
 
 jobs:
   setup_the_ec2_instances:
@@ -157,6 +164,9 @@ jobs:
       fail-fast: false
     runs-on: ubuntu-latest-8-cores
     needs: [setup_the_ec2_instances]
+    outputs:
+      backend_test_outcome: ${{ steps.backend_test.outcome }}
+      frontend_test_outcome: ${{ steps.frontend_test.outcome }}
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v2
@@ -200,7 +210,7 @@ jobs:
           echo "random_run_name=test_$(python3 -c "import secrets; print(secrets.token_urlsafe(8))")" >> $GITHUB_ENV
       
       - name: Run tests
-        id: backend_test_status
+        id: backend_test
         run: |
           python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag NDB --on-prem --generation
           python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag UDT
@@ -209,12 +219,12 @@ jobs:
 
       - name: Test Next.js frontend
         if: always()
-        id: frontend_test_status
+        id: frontend_test
         run: |
           BASE_URL_WITHOUT_API=$(echo "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}")
           echo "Testing frontend at $BASE_URL_WITHOUT_API"
           curl -f "$BASE_URL_WITHOUT_API" || exit 1
-  
+
   clean_ec2_instances:
       runs-on: ubuntu-latest-8-cores
       needs: [setup_the_ec2_instances, test]

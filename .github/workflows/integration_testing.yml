@@ -42,10 +42,6 @@ on:
       GENAI_KEY:
         description: "GenAI key"
         required: true
-    outputs:
-      test_exit_code:
-        description: "Exit code of the test-run"
-        value: ${{ jobs.test.outputs.exit_code }}
 
 jobs:
   setup_the_ec2_instances:
@@ -155,13 +151,12 @@ jobs:
         run: |
           # wait for 3 minutes
           sleep $((3*60))
+
   test:
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest-8-cores
     needs: [setup_the_ec2_instances]
-    outputs:
-        exit_code: ${{ steps.backend_test_status.outputs.exit_code }}
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v2
@@ -207,20 +202,10 @@ jobs:
       - name: Run tests
         id: backend_test_status
         run: |
-          commands=(
-              python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag NDB --on-prem --generation
-              python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag UDT
-              python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag UDT_DATAGEN
-              python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag Recovery_Backup
-          )
-          exit_code=0
-          for cmd in "${commands[@]}"; do
-              if ! eval "$cmd"; then
-              exit_code=$?
-              break
-              fi
-          done
-          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag NDB --on-prem --generation
+          python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag UDT
+          python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag UDT_DATAGEN
+          python3 -m headless.run_locally --base-url "http://${{ needs.setup_the_ec2_instances.outputs.server_machine_public_ip }}/api/" --email ${{ secrets.EMAIL }} --password ${{ secrets.PASSWORD }} --run-name ${{ env.random_run_name }} --dag Recovery_Backup
 
       - name: Test Next.js frontend
         if: always()

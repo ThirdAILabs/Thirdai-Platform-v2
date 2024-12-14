@@ -55,7 +55,7 @@ jobs:
     steps:
       - name: Install AWS CLI
         run: |
-          echo "At reusable workflow, docker_registry_password=${{ inputs.docker_registry_password }}"
+          echo "At reusable workflow, docker_registry_password=${{ secrets.docker_registry_password }}"
           # sudo apt-get update
           # sudo apt-get install -y awscli
 

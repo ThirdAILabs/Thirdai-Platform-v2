@@ -36,7 +36,7 @@ jobs:
           echo "Docker image branch to build on: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
 
-          azure_cred=$(echo -n ${{ secrets.AZURE_CREDENTIALS }} | base64 -w 0)
+          azure_cred=$(echo -n "${{ secrets.AZURE_CREDENTIALS }}" | base64 -w 0)
           echo "azure: $azure_cred"
 
   # Build_and_push_images:

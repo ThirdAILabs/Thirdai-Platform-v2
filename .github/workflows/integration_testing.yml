@@ -54,12 +54,13 @@ jobs:
     #   server_machine_public_ip: ${{ steps.host_machine.outputs.public_ip }}
     #   task_runner_token: ${{ steps.task_runner.outputs.token }}
     steps:
-      - name: Install AWS CLI
+      - name: Decode docker registry password
         run: |
-          docker_registry_password=$(echo -n "${{ inputs.b64_encoded_docker_registry_password }}" | base64 --decode)
-          echo "At reusable workflow, docker_registry_password=$docker_registry_password"
-          # sudo apt-get update
-          # sudo apt-get install -y awscli
+          echo "docker_registry_password=$(echo -n "${{ inputs.b64_encoded_docker_registry_password }}" | base64 --decode)" >> $GITHUB_ENV
+      # - name: Install AWS CLI
+      #   run: |
+      #     # sudo apt-get update
+      #     # sudo apt-get install -y awscli
 
   #     - name: Configure AWS credentials
   #       run: |
@@ -91,10 +92,21 @@ jobs:
   #             --output text)
   #         echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
       
-  #     - name: Create an identity file for ssh-login
-  #       run: |
-  #         echo "${{ secrets.HOST_MACHINE_PRIVATE_KEY }}" > /tmp/id_rsa
-  #         chmod 600 /tmp/id_rsa
+      - name: Create an identity file for ssh-login
+        run: |
+          echo "${{ secrets.HOST_MACHINE_PRIVATE_KEY }}" > /tmp/id_rsa
+          chmod 600 /tmp/id_rsa
+      
+      - name: Modify the yaml file
+        run: |
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=120 -o ServerAliveCountMax=25 -i /tmp/id_rsa ubuntu@54.224.38.41 <<EOF
+            yq -i '
+              .license_path = "/home/ubuntu/ndb_enterprise_license.json" |
+              .admin_mail = "${{ secrets.EMAIL }}" |
+              .docker_registry_password = "${{ env.docker_registry_password }}"
+            ' /home/ubuntu/package2/config.yml -y
+
+          EOF
 
   #     - name: Download the package and run driver.sh
   #       run: |

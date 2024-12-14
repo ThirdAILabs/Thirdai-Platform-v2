@@ -44,55 +44,48 @@ jobs:
   #     docker_image_version: ${{ needs.Retrieve_facts.outputs.version }}
   #   secrets:
   #     azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
-    
-  # Debug:
-  #   runs-on: ubuntu-latest
-  #   needs: [Retrieve_facts, Build_and_push_images]
-  #   steps:
-  #     - name: print the output values
-  #       run: |
-  #         pull_password=$(echo -n ${{ needs.Build_and_push_images.outputs.pull_password }} | base64 --decode)
-  #         echo "pull password: $pull_password"
 
-  package:
-    needs: [Retrieve_facts]
-    uses: ./.github/workflows/packaging.yml
-    with:
-      Installer_branch_name: "dont-wait-for-keycloak"
-      docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
-      docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
-      docker_registry_password: "A9ZZFFO3/t57vNqZQ6WIBN/XyzYxs11kbG6akGbRUS+ACRDQZXR6"
-    secrets:
-      PLATFORM_INSTALLATION_DEPLOY_KEY: ${{ secrets.PLATFORM_INSTALLATION_DEPLOY_KEY }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
-  Debug:
-    runs-on: ubuntu-latest
-    needs: [Retrieve_facts, package]
-    steps:
-      - name: print the output values
-        run: |
-          echo "offline tarfile name: ${{ needs.package.outputs.offline_package_name }}"
-          echo "online tarfile name: ${{ needs.package.outputs.online_package_name }}"
-
-
-  # run_tests:
+  # package:
   #   needs: [Retrieve_facts]
-  #   uses: ./.github/workflows/integration_testing.yml
+  #   uses: ./.github/workflows/packaging.yml
   #   with:
+  #     Installer_branch_name: "dont-wait-for-keycloak"
   #     docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
   #     docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
-  #     docker_registry_password: "/+rpgJ/yJ9dm3uqlFVyvrM2cUKPW1T5vcBzmKevLUp+ACRAU9thF"
-  #     tarball_filename: "thirdai-platform-package-test-installation-testing-v766.309.855.tar.gz"
+  #     docker_registry_password: "A9ZZFFO3/t57vNqZQ6WIBN/XyzYxs11kbG6akGbRUS+ACRDQZXR6"
   #   secrets:
+  #     PLATFORM_INSTALLATION_DEPLOY_KEY: ${{ secrets.PLATFORM_INSTALLATION_DEPLOY_KEY }}
   #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #     HOST_MACHINE_PRIVATE_KEY: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
-  #     HOST_MACHINE_PUBLIC_KEY: ${{ secrets.HOST_MACHINE_PUBLIC_KEY }}
-  #     EMAIL: "gautam@thirdai.com"
-  #     PASSWORD: "password"
-  #     GENAI_KEY: ${{ secrets.GENAI_KEY }}
+  #     AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+  Debug:
+    runs-on: ubuntu-latest
+    needs: [Retrieve_facts]
+    outputs:
+      docker_registry_password: ${{ steps.password.outputs.docker_registry_password }}
+    steps:
+      - name: print the output values
+        id: password
+        run: |
+          echo "docker_registry_password=A9ZZFFO3/t57vNqZQ6WIBN/XyzYxs11kbG6akGbRUS+ACRDQZXR6" >> $GITHUB_OUTPUT
+
+
+  run_tests:
+    needs: [Retrieve_facts, Debug]
+    uses: ./.github/workflows/integration_testing.yml
+    with:
+      docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
+      docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
+      docker_registry_password: ${{ needs.Debug.outputs.docker_registry_password }}
+      tarball_filename: "thirdai-platform-package-test-installation-testing-2-v0.0.2.tar.gz"
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      HOST_MACHINE_PRIVATE_KEY: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
+      HOST_MACHINE_PUBLIC_KEY: ${{ secrets.HOST_MACHINE_PUBLIC_KEY }}
+      EMAIL: "gautam@thirdai.com"
+      PASSWORD: "password"
+      GENAI_KEY: ${{ secrets.GENAI_KEY }}
       
   # cleanup:
   #   needs: [Retrieve_facts, Build_and_push_images, package, run_tests]

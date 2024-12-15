@@ -83,8 +83,8 @@ jobs:
     with:
       docker_image_branch_name: ${{ needs.Gather_facts.outputs.docker_image_branch_name }}
       docker_image_version: ${{ needs.Gather_facts.outputs.version }}
-      offline_package_name: "thirdai-platform-package-test-installation-testing-2-v0.0.2.tar.gz"
-      online_package_name: "thirdai-platform-package-offline-test-installation-testing-2-v0.0.2.tar.gz"
+      offline_package_name: ${{ needs.package.outputs.offline_package_name }}
+      online_package_name: ${{ needs.package.outputs.online_package_name }}
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}

@@ -19,10 +19,6 @@ on:
         description: "Online tarball filename"
         required: true
         type: string
-      delete_score_map_and_tokens:
-        description: "Flag to clear the score map and token associated with the docker image"
-        default: true
-        type: boolean
     secrets:
       AZURE_CLIENT_ID:
         description: "Azure client ID"

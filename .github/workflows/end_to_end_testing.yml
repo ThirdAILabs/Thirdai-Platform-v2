@@ -11,8 +11,10 @@ on:
         description: "Ansible-repo branch name"
         type: string
         default: main
-  pull_request:
-    branches: [ main ]
+      
+      docker_image_branch_name:
+        description: "Branch name of the docker images. Being used in release/push.py"
+        required: true
 
 jobs:
   Retrieve_facts:
@@ -25,15 +27,14 @@ jobs:
       - name: Get the new version of the docker images
         id: docker_image_version
         run: |
-          version="0.0.1"
-          echo "Generated version: $version"
+          version=$(shuf -i 100-999 -n 3 | paste -sd '.')
+          echo "Next version: $version"
           echo "version=$version" >> $GITHUB_OUTPUT
-
+      
       - name: Set the branch name of the docker images
         id: docker_image_branch_name
         run: |
-          branch_name="test-installation-testing-3"
-          echo "Docker image branch to build on: $branch_name"
+          echo "Docker image branch to build on: ${{ github.event.inputs.docker_image_branch_name }}"
           echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
 
   Build_and_push_images:
@@ -76,6 +77,7 @@ jobs:
       GENAI_KEY: ${{ secrets.GENAI_KEY }}
       
   cleanup:
+    if: always()
     needs: [Retrieve_facts, Build_and_push_images, package, tests_on_ec2]
     uses: ./.github/workflows/cleanup.yml
     with:
@@ -91,6 +93,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   
   delete_credentials:
+    if: always()
     runs-on: ubuntu-latest-8-cores
     needs: [Retrieve_facts, Build_and_push_images, package, tests_on_ec2]
 

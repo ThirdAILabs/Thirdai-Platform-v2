@@ -1,59 +1,117 @@
-name: Release job
+name: Release tarball
 
 on:
   release:
     types: [published] # This triggers the workflow when a new release is published
+  
+  workflow_dispatch: # Allows manual triggering of the workflow
+    inputs:
+      installer_branch_name:
+        description: "Ansible-repo branch name"
+        type: string
+        default: main
+      
+      docker_image_branch_name:
+        description: "Branch name of the docker images. This name will be also used to create packaging. Helpful to release tarballs on a different branch"
+        required: true
+      
+      image_version:
+        description: "Docker image version"
+        required: true
 
+      delete_on_failing_tests:
+        description: "Flag whether to delete the tarball & images if tests fail"
+        default: true
+        type: boolean
+      
 jobs:
   Retrieve_facts:
     runs-on: ubuntu-latest
 
     outputs:
-      version: "v${{ steps.docker_image_version.outputs.version }}"
+      version: "${{ steps.docker_image_version.outputs.version }}"
       docker_image_branch_name: ${{ steps.docker_image_branch_name.outputs.branch_name }}
-
+      installer_branch_name: ${{ steps.installer_branch.outputs.installer_branch_name }}
     steps:
       - name: Get the new version of the docker images
         id: docker_image_version
         run: |
-          version=${{ github.event.release.tag_name }}
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            version=${{ github.event.inputs.image_version }}
+          else
+            # github.event.release.tag_name contains prefix 'v'. Need to save version without this prefix
+            version="${{ github.event.release.tag_name }}"
+          fi
+
           echo "Next version: $version"
-          echo "version=$version" >> $GITHUB_OUTPUT
+
+          # removing prefix 'v' from the version (if present)
+          echo "version=${version#v}" >> $GITHUB_OUTPUT
 
       - name: Set the branch name of the docker images
         id: docker_image_branch_name
         run: |
-          branch_name="release-test-main"
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            branch_name=${{ github.event.inputs.docker_image_branch_name }}
+          else
+            branch_name="release-test-main"
+          fi
           echo "Docker image branch to build on: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
-
+      
+      - name: Set the installer branch name
+        id: installer_branch
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            installer_branch_name=${{ github.event.inputs.docker_image_branch_name }}
+          else
+            installer_branch_name="main"
+          fi
+          echo "Insatller branch name: $installer_branch_name"
+          echo "installer_branch_name=$installer_branch_name" >> $GITHUB_OUTPUT
+  
   Build_and_push_images:
     needs: [Retrieve_facts]
     uses: ./.github/workflows/build_and_push_images.yml
     with:
       docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
       docker_image_version: ${{ needs.Retrieve_facts.outputs.version }}
+    secrets:
+      azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
 
   package:
     needs: [Retrieve_facts, Build_and_push_images]
     uses: ./.github/workflows/packaging.yml
     with:
-      Installer_branch_name: main
+      Installer_branch_name: ${{ needs.Retrieve_facts.outputs.installer_branch_name }}
       docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
       docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
+      b64_encoded_docker_registry_password: ${{ needs.Build_and_push_images.outputs.b64_encoded_docker_registry_password }}
+    secrets:
+      PLATFORM_INSTALLATION_DEPLOY_KEY: ${{ secrets.PLATFORM_INSTALLATION_DEPLOY_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
       
-  run_tests:
+  tests_on_ec2:
     needs: [Retrieve_facts, Build_and_push_images, package]
     uses: ./.github/workflows/integration_testing.yml
     with:
       docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
       docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
-      docker_registry_password: ${{ needs.Build_and_push_images.outputs.pull_password }}
+      b64_encoded_docker_registry_password: ${{ needs.Build_and_push_images.outputs.b64_encoded_docker_registry_password }}
       tarball_filename: ${{ needs.package.outputs.online_package_name }}
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      HOST_MACHINE_PRIVATE_KEY: ${{ secrets.HOST_MACHINE_PRIVATE_KEY }}
+      EMAIL: "gautam@thirdai.com"
+      PASSWORD: "password"
+      GENAI_KEY: ${{ secrets.GENAI_KEY }}
   
   conditional_cleanup:
-    needs: [Retrieve_facts, Build_and_push_images, package, run_tests]
-    if: needs.run_tests.outputs.test_exit_code
+    needs: [Retrieve_facts, Build_and_push_images, package, tests_on_ec2]
+    if: ${{ (needs.tests_on_ec2.outputs.backend_test_outcome != 'success' || needs.tests_on_ec2.outputs.frontend_test_outcome != 'success') && github.event.inputs.delete_on_failing_tests }}
     uses: ./.github/workflows/cleanup.yml
     with:
       docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}

@@ -36,7 +36,6 @@ jobs:
           branch_name="test-installation-testing-2"
           echo "Docker image branch to build on: $branch_name"
           echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
-          sleep 30
 
   # Build_and_push_images:
   #   needs: [Retrieve_facts]
@@ -97,24 +96,24 @@ jobs:
   #         echo "backend test: ${{ needs.tests_on_ec2.outputs.backend_test_outcome }}"
   #         echo "frontend test: ${{ needs.tests_on_ec2.outputs.frontend_test_outcome }}"
       
-  cleanup:
-    needs: [Retrieve_facts]
-    uses: ./.github/workflows/cleanup.yml
-    with:
-      docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
-      docker_image_version: ${{ needs.Retrieve_facts.outputs.version }}
-      offline_package_name: "thirdai-platform-package-test-installation-testing-2-v0.0.2.tar.gz"
-      online_package_name: "thirdai-platform-package-offline-test-installation-testing-2-v0.0.2.tar.gz"
-    secrets:
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  # cleanup:
+  #   needs: [Retrieve_facts]
+  #   uses: ./.github/workflows/cleanup.yml
+  #   with:
+  #     docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
+  #     docker_image_version: ${{ needs.Retrieve_facts.outputs.version }}
+  #     offline_package_name: "thirdai-platform-package-test-installation-testing-2-v0.0.2.tar.gz"
+  #     online_package_name: "thirdai-platform-package-offline-test-installation-testing-2-v0.0.2.tar.gz"
+  #   secrets:
+  #     AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  #     AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  #     AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   
   Delete_credentials:
     runs-on: ubuntu-latest-8-cores
-    needs: [Retrieve_facts, cleanup]
+    needs: [Retrieve_facts]
 
     steps:
       - name: "Azure Login"
@@ -124,7 +123,7 @@ jobs:
 
       - name: Delete the score map associated with the branch image
         # Making sure that branch is not 'release-test-main'
-        if: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name != 'release-test-main' }}
+        if: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name != 'test-installation-testing-2' }}
         run: |
           # az acr scope-map delete --name "thirdaiplatform-push-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry-name thirdaiplatform --yes
           # az acr scope-map delete --name "thirdaiplatform-pull-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry-name thirdaiplatform --yes
@@ -132,7 +131,7 @@ jobs:
 
       - name: Delete the token map associated with the branch image
         # Making sure that branch is not 'release-test-main'
-        if: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name != 'release-test-main' }}
+        if: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name != 'test-installation-testing-2' }}
         run: |
           # az acr token delete --name "thirdaiplatform-pull-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry-name thirdaiplatform --yes
           # az acr token delete --name "thirdaiplatform-pull-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry-name thirdaiplatform --yes

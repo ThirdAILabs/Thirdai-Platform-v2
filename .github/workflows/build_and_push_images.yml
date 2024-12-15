@@ -55,4 +55,4 @@ jobs:
             exit 1
           fi
           
-          echo "base64_encoded_password=QTlaWkZGTzMvdDU3dk5xWlE2V0lCTi9YeXpZeHMxMWtiRzZha0diUlVTK0FDUkRRWlhSNgo=" >> $GITHUB_OUTPUT
+          echo "base64_encoded_password=$base64_encoded_password" >> $GITHUB_OUTPUT

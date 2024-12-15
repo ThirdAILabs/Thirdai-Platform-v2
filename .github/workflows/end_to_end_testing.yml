@@ -17,7 +17,7 @@ on:
         required: true
 
 jobs:
-  Retrieve_facts:
+  Gather_facts:
     runs-on: ubuntu-latest
     outputs:
       version: "${{ steps.docker_image_version.outputs.version }}"
@@ -38,21 +38,21 @@ jobs:
           echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
 
   Build_and_push_images:
-    needs: [Retrieve_facts]
+    needs: [Gather_facts]
     uses: ./.github/workflows/build_and_push_images.yml
     with:
-      docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
-      docker_image_version: ${{ needs.Retrieve_facts.outputs.version }}
+      docker_image_branch_name: ${{ needs.Gather_facts.outputs.docker_image_branch_name }}
+      docker_image_version: ${{ needs.Gather_facts.outputs.version }}
     secrets:
       azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
 
   package:
-    needs: [Retrieve_facts, Build_and_push_images]
+    needs: [Gather_facts, Build_and_push_images]
     uses: ./.github/workflows/packaging.yml
     with:
-      Installer_branch_name: "dont-wait-for-keycloak"
-      docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
-      docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
+      Installer_branch_name: ${{ github.event.inputs.installer_branch_name }}
+      docker_image_branch_name: ${{ needs.Gather_facts.outputs.docker_image_branch_name }}
+      docker_image_version: "v${{ needs.Gather_facts.outputs.version }}"
       b64_encoded_docker_registry_password: ${{ needs.Build_and_push_images.outputs.b64_encoded_docker_registry_password }}
     secrets:
       PLATFORM_INSTALLATION_DEPLOY_KEY: ${{ secrets.PLATFORM_INSTALLATION_DEPLOY_KEY }}
@@ -61,11 +61,11 @@ jobs:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
 
   tests_on_ec2:
-    needs: [Retrieve_facts, Build_and_push_images, package]
+    needs: [Gather_facts, Build_and_push_images, package]
     uses: ./.github/workflows/integration_testing.yml
     with:
-      docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
-      docker_image_version: "v${{ needs.Retrieve_facts.outputs.version }}"
+      docker_image_branch_name: ${{ needs.Gather_facts.outputs.docker_image_branch_name }}
+      docker_image_version: "v${{ needs.Gather_facts.outputs.version }}"
       b64_encoded_docker_registry_password: ${{ needs.Build_and_push_images.outputs.b64_encoded_docker_registry_password }}
       tarball_filename: ${{ needs.package.outputs.online_package_name }}
     secrets:
@@ -78,11 +78,11 @@ jobs:
       
   cleanup:
     if: always()
-    needs: [Retrieve_facts, Build_and_push_images, package, tests_on_ec2]
+    needs: [Gather_facts, Build_and_push_images, package, tests_on_ec2]
     uses: ./.github/workflows/cleanup.yml
     with:
-      docker_image_branch_name: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}
-      docker_image_version: ${{ needs.Retrieve_facts.outputs.version }}
+      docker_image_branch_name: ${{ needs.Gather_facts.outputs.docker_image_branch_name }}
+      docker_image_version: ${{ needs.Gather_facts.outputs.version }}
       offline_package_name: "thirdai-platform-package-test-installation-testing-2-v0.0.2.tar.gz"
       online_package_name: "thirdai-platform-package-offline-test-installation-testing-2-v0.0.2.tar.gz"
     secrets:
@@ -95,7 +95,7 @@ jobs:
   delete_credentials:
     if: always()
     runs-on: ubuntu-latest-8-cores
-    needs: [Retrieve_facts, Build_and_push_images, package, tests_on_ec2]
+    needs: [Gather_facts, Build_and_push_images, package, tests_on_ec2]
 
     steps:
       - name: "Azure Login"
@@ -105,14 +105,14 @@ jobs:
 
       - name: Delete the score map associated with the branch image
         # Making sure that branch is not 'release-test-main'
-        if: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name != 'release-test-main' }}
+        if: ${{ needs.Gather_facts.outputs.docker_image_branch_name != 'release-test-main' }}
         run: |
-          az acr scope-map delete --name "thirdaiplatform-push-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
-          az acr scope-map delete --name "thirdaiplatform-pull-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
+          az acr scope-map delete --name "thirdaiplatform-push-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
+          az acr scope-map delete --name "thirdaiplatform-pull-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
 
       - name: Delete the token map associated with the branch image
         # Making sure that branch is not 'release-test-main'
-        if: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name != 'release-test-main' }}
+        if: ${{ needs.Gather_facts.outputs.docker_image_branch_name != 'release-test-main' }}
         run: |
-          az acr token delete --name "thirdaiplatform-push-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
-          az acr token delete --name "thirdaiplatform-pull-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
+          az acr token delete --name "thirdaiplatform-push-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
+          az acr token delete --name "thirdaiplatform-pull-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes

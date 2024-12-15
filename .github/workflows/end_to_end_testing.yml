@@ -125,14 +125,14 @@ jobs:
         # Making sure that branch is not 'release-test-main'
         if: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name != 'release-test-main' }}
         run: |
-          az acr scope-map delete --name "thirdaiplatform-push-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry-name thirdaiplatform --yes
-          az acr scope-map delete --name "thirdaiplatform-pull-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry-name thirdaiplatform --yes
+          az acr scope-map delete --name "thirdaiplatform-push-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
+          az acr scope-map delete --name "thirdaiplatform-pull-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
 
       - name: Delete the token map associated with the branch image
         # Making sure that branch is not 'release-test-main'
         if: ${{ needs.Retrieve_facts.outputs.docker_image_branch_name != 'release-test-main' }}
         run: |
-          az acr token delete --name "thirdaiplatform-pull-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry-name thirdaiplatform --yes
-          az acr token delete --name "thirdaiplatform-pull-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry-name thirdaiplatform --yes
+          az acr token delete --name "thirdaiplatform-pull-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
+          az acr token delete --name "thirdaiplatform-pull-${{ needs.Retrieve_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
 
           echo "printed again"

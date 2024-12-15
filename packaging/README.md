@@ -202,7 +202,7 @@ When changing the public IP of your Cluster, follow these steps to update the se
    - The script searches for a `docker_images` folder and warns if it's not found, but proceeds with the playbook execution.
    - The script then navigates to the `platform/` directory and runs the `test_deploy.yml` Ansible playbook using the provided `config.yml`, the model path, the Docker images path as extra variables.
 
-### Example Command
+### Example Commands
 
 #### Running the script
 ```bash

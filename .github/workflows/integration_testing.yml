@@ -30,9 +30,6 @@ on:
       HOST_MACHINE_PRIVATE_KEY:
         description: "server machine's private key hosted on AWS"
         required: true
-      HOST_MACHINE_PUBLIC_KEY:
-        description: "server machine's public key hosted on AWS"
-        required: true
       EMAIL:
         description: "Global admin email ID"
         required: true

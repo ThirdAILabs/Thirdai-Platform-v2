@@ -202,25 +202,6 @@ When changing the public IP of your Cluster, follow these steps to update the se
    - The script searches for a `docker_images` folder and warns if it's not found, but proceeds with the playbook execution.
    - The script then navigates to the `platform/` directory and runs the `test_deploy.yml` Ansible playbook using the provided `config.yml`, the model path, the Docker images path as extra variables.
 
-### Example Commands
-
-#### Running the script
-```bash
-./driver.sh ./config.yml
-```
-
-### Adding new nodes in the cluster
-
-   New node(s) can also be added afterward as well.
-   
-   - Fill the configuration file `new_client_config.yml` present in `platform/` directory similar to `./config.yml`.
-   - Run the script with onboarding option:
-      ```bash
-         ./driver.sh ./config --onboard_clients
-      ```
-   - When prompted, enter the absolute path to the `new_client_config.yml` file.
-   - Make sure to update the `nodes` attribute of the `config.yml` with the new nodes present in `new_client_config.yml` to enable the addition of `nodes` again. 
-
 ### Troubleshooting
 
 - **Permission Denied**: If you encounter a "permission denied" error while running the script, ensure that the script has executable permissions by running the `chmod +x driver.sh` command. If you are using a `.pem` key for SSH, make sure the key file's permission is set to `400` by running `chmod 400 your-key.pem`.

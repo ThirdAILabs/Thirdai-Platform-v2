@@ -83,17 +83,6 @@ def mock_check_permission(token: str, permission_type: str = "read"):
     return True
 
 
-def mock_deployment_permissions(token):
-    return {
-        "read": True,
-        "write": True,
-        "override": True,
-        "username": "test",
-        "exp": datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(minutes=5),
-    }
-
-
 def create_config(tmp_dir: str):
     create_token_classification_model(tmp_dir)
 
@@ -120,7 +109,6 @@ def get_query_result(client: TestClient, query: str, data_type: str):
 @pytest.mark.unit
 @patch.object(Permissions, "verify_permission", mock_verify_permission)
 @patch.object(Permissions, "check_permission", mock_check_permission)
-@patch.object(Permissions, "_deployment_permissions", mock_deployment_permissions)
 def test_deployment_token_classification_unstructured(tmp_dir):
     config = create_config(tmp_dir)
 
@@ -140,7 +128,6 @@ def test_deployment_token_classification_unstructured(tmp_dir):
 @pytest.mark.unit
 @patch.object(Permissions, "verify_permission", mock_verify_permission)
 @patch.object(Permissions, "check_permission", mock_check_permission)
-@patch.object(Permissions, "_deployment_permissions", mock_deployment_permissions)
 def test_deployment_token_classification_xml(tmp_dir):
     config = create_config(tmp_dir)
 

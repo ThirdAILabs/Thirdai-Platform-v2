@@ -103,6 +103,6 @@ def test_self_hosted_integration_in_models():
 
     admin_client.undeploy(client)
 
-    admin_client.delete_self_hosted_llm()
+    response = admin_client.delete_self_hosted_llm()
     assert response["status"] == "success"
     assert response["message"] == "Successfully deleted the Self-Hosted LLM Integration"

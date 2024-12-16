@@ -17,7 +17,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
-from llm_dispatch_job.llms import LLMBase, model_classes
+from llm_dispatch_job.llms import LLMBase, default_keys, model_classes
 from llm_dispatch_job.utils import GenerateArgs
 
 app = FastAPI()
@@ -114,9 +114,7 @@ async def generate(
     Caching:
     - If `original_query` and `cache_access_token` are provided, the generated content will be cached after completion.
     """
-    key = generate_args.key
-    if generate_args.provider == "on-prem":
-        key = token
+    key = generate_args.key or default_keys.get(generate_args.provider.lower())
     if not key:
         logger.error("No generative AI key provided")
         raise HTTPException(status_code=400, detail="No generative AI key provided")

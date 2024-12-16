@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from threading import Lock
-from typing import AsyncGenerator, Callable, List, Union
+from typing import AsyncGenerator, List, Union
 
 from deployment_job.chat.ndbv2_vectorstore import NeuralDBV2VectorStore
 from fastapi import HTTPException, status
@@ -26,32 +26,24 @@ class ChatInterface(ABC):
         top_k: int = 5,
         chat_prompt: str = "Answer the user's questions based on the below context:",
         query_reformulation_prompt: str = "Given the above conversation, generate a search query that would help retrieve relevant sources for responding to the last message.",
+        **kwargs,
     ):
         self.chat_history_sql_uri = chat_history_sql_uri
-        self.top_k = top_k
-        self.chat_prompt = chat_prompt
-        self.query_reformulation_prompt = query_reformulation_prompt
-        self.history_lock = Lock()
-
         if isinstance(db, ndb.NeuralDB):
-            self.vectorstore = NeuralDBVectorStore(db)
+            vectorstore = NeuralDBVectorStore(db)
         elif isinstance(db, ndbv2.NeuralDB):
-            self.vectorstore = NeuralDBV2VectorStore(db)
+            vectorstore = NeuralDBV2VectorStore(db)
         else:
             raise ValueError(f"Cannot support db of type {type(db)}")
 
-    def create_chain(
-        self,
-        llm: Callable[[], LLM],
-    ):
-        retriever = self.vectorstore.as_retriever(search_kwargs={"k": self.top_k})
+        retriever = vectorstore.as_retriever(search_kwargs={"k": top_k})
 
         query_transform_prompt = ChatPromptTemplate.from_messages(
             [
                 MessagesPlaceholder(variable_name="messages"),
                 (
                     "user",
-                    self.query_reformulation_prompt,
+                    query_reformulation_prompt,
                 ),
             ]
         )
@@ -63,27 +55,35 @@ class ChatInterface(ABC):
                 (lambda x: x["messages"][-1].content) | retriever,
             ),
             # If messages, then we pass inputs to LLM chain to transform the query, then pass to retriever
-            query_transform_prompt | llm() | StrOutputParser() | retriever,
+            query_transform_prompt | self.llm() | StrOutputParser() | retriever,
         ).with_config(run_name="chat_retriever_chain")
 
         question_answering_prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
-                    self.chat_prompt + "\n\n{context}",
+                    chat_prompt + "\n\n{context}",
                 ),
                 MessagesPlaceholder(variable_name="messages"),
             ]
         )
 
-        document_chain = create_stuff_documents_chain(llm(), question_answering_prompt)
+        document_chain = create_stuff_documents_chain(
+            self.llm(), question_answering_prompt
+        )
 
-        return RunnablePassthrough.assign(
+        self.conversational_retrieval_chain = RunnablePassthrough.assign(
             context=query_transforming_retriever_chain
             | ChatInterface.parse_retriever_output,
         ).assign(
             answer=document_chain,
         )
+
+        self.history_lock = Lock()
+
+    @abstractmethod
+    def llm(self) -> LLM:
+        raise NotImplementedError()
 
     @staticmethod
     def parse_retriever_output(documents: List[Document]):
@@ -124,24 +124,26 @@ class ChatInterface(ABC):
         ]
         return chat_history_list
 
-    @abstractmethod
-    async def stream_chat(
-        self, user_input: str, session_id: str, access_token: str = None, **kwargs
-    ):
-        raise NotImplementedError()
+    def chat(self, user_input: str, session_id: str, **kwargs):
+        chat_history = self._get_chat_history_conn(session_id=session_id)
+        chat_history.add_user_message(user_input)
+        response = self.conversational_retrieval_chain.invoke(
+            {"messages": chat_history.messages}
+        )
+        chat_history.add_ai_message(response["answer"])
 
-    async def stream_chat_helper(
-        self,
-        user_input: str,
-        session_id: str,
-        llm: Callable[[], LLM],
+        return response["answer"]
+
+    async def stream_chat(
+        self, user_input: str, session_id: str, **kwargs
     ) -> AsyncGenerator[str, None]:
-        chain = self.create_chain(llm)
         chat_history = self._get_chat_history_conn(session_id=session_id)
         chat_history.add_user_message(user_input)
 
         response_chunks = []
-        async for chunk in chain.astream({"messages": chat_history.messages}):
+        async for chunk in self.conversational_retrieval_chain.astream(
+            {"messages": chat_history.messages}
+        ):
             if "answer" in chunk:
                 response_chunks.append(chunk["answer"])
                 yield chunk["answer"]

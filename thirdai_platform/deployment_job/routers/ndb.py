@@ -552,16 +552,16 @@ class NDBRouter:
 
     def chat(
         self,
-        chat_input: ChatInput,
+        input: ChatInput,
         token=Depends(Permissions.verify_permission("read")),
     ):
-        chat = self.model.get_chat(provider=chat_input.provider)
+        chat = self.model.get_chat(provider=input.provider)
         if not chat:
             raise Exception(
-                f"Chat is not enabled for provider: {chat_input.provider}. Please set up the provider."
+                f"Chat is not enabled for provider: {input.provider}. Please set up the provider."
             )
 
-        if not chat_input.session_id:
+        if not input.session_id:
             try:
                 # Use logged-in user id as the chat session id if no other session id is provided
                 session_id = jwt.decode(token, options={"verify_signature": False})[
@@ -572,12 +572,10 @@ class NDBRouter:
                     "Must provide a session ID or be logged in to use chat feature"
                 )
         else:
-            session_id = chat_input.session_id
+            session_id = input.session_id
 
         async def generate_response() -> AsyncGenerator[str, None]:
-            async for chunk in chat.stream_chat(
-                chat_input.user_input, session_id, access_token=token
-            ):
+            async for chunk in chat.stream_chat(input.user_input, session_id):
                 yield chunk
 
         return StreamingResponse(generate_response(), media_type="text/plain")

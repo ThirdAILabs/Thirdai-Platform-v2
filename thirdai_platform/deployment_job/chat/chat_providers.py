@@ -16,8 +16,10 @@ class OpenAIChat(ChatInterface):
         temperature: float = 0.2,
         chat_prompt: str = "Answer the user's questions based on the below context:",
         query_reformulation_prompt: str = "Given the above conversation, generate a search query that would help retrieve relevant sources for responding to the last message.",
-        **kwargs,
+        **kwargs
     ):
+        # Set instance variables necessary for self.llm() before calling super().__init__(),
+        # because super().__init__() calls self.llm()
         self.model = model
         self.key = key
         self.temperature = temperature
@@ -26,18 +28,12 @@ class OpenAIChat(ChatInterface):
             db, chat_history_sql_uri, top_k, chat_prompt, query_reformulation_prompt
         )
 
-    async def stream_chat(
-        self, user_input: str, session_id: str, access_token: str = None, **kwargs
-    ):
-        llm = lambda: ChatOpenAI(
+    def llm(self):
+        return ChatOpenAI(
             model=self.model,
             temperature=self.temperature,
             openai_api_key=self.key,
         )
-        async for chunk in super().stream_chat_helper(
-            user_input, session_id, llm, **kwargs
-        ):
-            yield chunk
 
 
 class OnPremChat(ChatInterface):
@@ -46,30 +42,23 @@ class OnPremChat(ChatInterface):
         db: ndb.NeuralDB,
         chat_history_sql_uri: str,
         base_url: str,
+        key: str = None,
         top_k: int = 5,
         chat_prompt: str = "Answer the user's questions based on the below context:",
         query_reformulation_prompt: str = "Given the above conversation, generate a search query that would help retrieve relevant sources for responding to the last message.",
-        **kwargs,
+        **kwargs
     ):
+        # Set instance variables necessary for self.llm() before calling super().__init__(),
+        # because super().__init__() calls self.llm()
         self.base_url = base_url
+        self.key = key
 
         super().__init__(
             db, chat_history_sql_uri, top_k, chat_prompt, query_reformulation_prompt
         )
 
-    async def stream_chat(
-        self, user_input: str, session_id: str, access_token: str = None, **kwargs
-    ):
-        # Since Llama.cpp supports an openai compatible api we use the ChatOpenAI
-        # object for the client. We pass the access_token as the key since its
-        # not openai we're communicating with but the on prem server. The
-        # ChatOpenAI object just takes the key you pass in and creates the
-        # appropriate Authorization Bearer header.
-        llm = lambda: ChatOpenAI(
+    def llm(self):
+        return ChatOpenAI(
             base_url=urljoin(self.base_url, "on-prem-llm"),
-            openai_api_key=access_token,
+            openai_api_key=self.key,
         )
-        async for chunk in super().stream_chat_helper(
-            user_input, session_id, llm, **kwargs
-        ):
-            yield chunk

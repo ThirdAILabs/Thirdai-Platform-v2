@@ -1,9 +1,9 @@
 import ast
 import datetime
+import enum
 import fcntl
 import re
 from dataclasses import dataclass
-from enum import Enum
 from typing import Dict, Tuple
 
 import fitz
@@ -163,14 +163,14 @@ def release_file_lock(lock):
     lock.close()
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(str, enum.Enum):
     NOT_STARTED = "not_started"
     IN_PROGRESS = "in_progress"
     FAILED = "failed"
     COMPLETE = "complete"
 
 
-class TaskAction(str, Enum):
+class TaskAction(str, enum.Enum):
     INSERT = "insert"
     DELETE = "delete"
 

@@ -28,6 +28,20 @@ def create_realm(keycloak_admin, realm_name: str):
         "accessTokenLifespan": 1500,  # Access token lifespan for this realm, It is recommended for this value to be shorter than the SSO session idle timeout: 30 minutes
     }
 
+    server_info = keycloak_admin.get_server_info()
+    login_themes = server_info["themes"]["login"]
+    theme_names = [theme["name"] for theme in login_themes]
+
+    if "custom-theme" in theme_names:
+        payload["loginTheme"] = "custom-theme"
+        payload["accountTheme"] = "custom-theme"
+        payload["adminTheme"] = "custom-theme"
+        payload["emailTheme"] = "custom-theme"
+        payload["displayName"] = thirdai_realm
+        payload["displayNameHtml"] = (
+            "<div class='kc-logo-text'><span>Keycloak</span></div>"
+        )
+
     current_realms = [
         realms_metadata["realm"] for realms_metadata in keycloak_admin.get_realms()
     ]
@@ -35,12 +49,23 @@ def create_realm(keycloak_admin, realm_name: str):
     if realm_name not in current_realms:
         try:
             response = keycloak_admin.create_realm(
-                payload
-            )  # Create the realm if it doesn't exist.
+                payload, skip_exists=True
+            )  # Attempt to create the realm
             logging.info(f"Realm '{realm_name}' created successfully: {response}")
         except Exception as e:
-            logging.error(f"Error creating realm '{realm_name}': {str(e)}")
-            return None
+            # Check if the realm now exists
+            updated_realms = [r["realm"] for r in keycloak_admin.get_realms()]
+            if realm_name in updated_realms:
+                logging.warning(
+                    f"Caught an exception after attempting to create realm '{realm_name}', "
+                    f"but the realm now appears to exist. Skipping error."
+                )
+                # Realm is created anyway, so we do not raise the error again.
+                pass
+            else:
+                # Realm truly failed to create
+                logging.error(f"Error creating realm '{realm_name}': {str(e)}")
+                raise e
 
     return realm_name
 
@@ -90,9 +115,26 @@ def create_client(
             ],
             "webOrigins": redirect_uris,  # Allowed web origins for CORS.
         }
-
-        keycloak_admin.create_client(new_client)  # Create the new client in the realm.
-        logging.info(f"Client '{client_name}' created successfully.")
+        try:
+            keycloak_admin.create_client(
+                new_client, skip_exists=True
+            )  # Attempt to create the client
+            logging.info(f"Client '{client_name}' created successfully.")
+        except Exception as e:
+            # Check if client now exists
+            updated_clients = keycloak_admin.get_clients()
+            client_created = any(c["clientId"] == client_name for c in updated_clients)
+            if client_created:
+                logging.warning(
+                    f"Caught an exception after attempting to create client '{client_name}', "
+                    f"but the client now appears to exist. Skipping error."
+                )
+                # Client is created anyway, so we do not raise the error again.
+                pass
+            else:
+                # Client truly failed to create
+                logging.error(f"Error creating client '{new_client}': {str(e)}")
+                raise e
     else:
         logging.warning(f"Client '{client_name}' already exists.")
 
@@ -192,21 +234,37 @@ if IDENTITY_PROVIDER == "keycloak":
         )
     else:
         # Create a new Keycloak user with admin credentials if it does not exist.
-        keycloak_user_id = keycloak_admin.create_user(
-            {
-                "username": admin_username,  # Username of the user to create.
-                "email": admin_mail,  # Email of the user.
-                "enabled": True,  # Enable the user account.
-                "emailVerified": True,  # Mark email as verified.
-                "credentials": [
-                    {
-                        "type": "password",  # Credential type, in this case, a password.
-                        "value": admin_password,  # Password value.
-                        "temporary": False,  # Password is permanent, not temporary.
-                    }
-                ],
-            }
-        )
+        user_payload = {
+            "username": admin_username,
+            "email": admin_mail,
+            "enabled": True,
+            "emailVerified": True,
+            "credentials": [
+                {
+                    "type": "password",
+                    "value": admin_password,
+                    "temporary": False,
+                }
+            ],
+        }
+        try:
+            keycloak_user_id = keycloak_admin.create_user(
+                user_payload,
+                exist_ok=True,
+            )
+        except Exception as e:
+            # Check if user now exists
+            check_user_id = keycloak_admin.get_user_id(admin_username)
+            if check_user_id:
+                logging.warning(
+                    f"Caught an exception after attempting to create user '{admin_username}', "
+                    f"but the user now appears to exist. Skipping error."
+                )
+                keycloak_user_id = check_user_id
+            else:
+                # User truly failed to create
+                logging.error(f"Error creating user '{admin_username}': {str(e)}")
+                raise e
 
     keycloak_roles = (
         keycloak_admin.get_realm_roles()
@@ -226,25 +284,6 @@ if IDENTITY_PROVIDER == "keycloak":
     keycloak_admin.change_current_realm(
         new_realm_name
     )  # Change the active realm in Keycloak.
-
-    # Update realm to use custom-theme
-    server_info = keycloak_admin.get_server_info()
-    login_themes = server_info["themes"]["login"]
-    theme_names = [theme["name"] for theme in login_themes]
-
-    if "custom-theme" in theme_names:
-        realm_representation = keycloak_admin.get_realm(new_realm_name)
-
-        realm_representation["loginTheme"] = "custom-theme"
-        realm_representation["accountTheme"] = "custom-theme"
-        realm_representation["adminTheme"] = "custom-theme"
-        realm_representation["emailTheme"] = "custom-theme"
-        realm_representation["displayName"] = thirdai_realm
-        realm_representation["displayNameHtml"] = (
-            "<div class='kc-logo-text'><span>Keycloak</span></div>"
-        )
-
-        keycloak_admin.update_realm(new_realm_name, realm_representation)
 
     create_client(
         keycloak_admin=keycloak_admin,

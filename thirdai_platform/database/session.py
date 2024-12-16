@@ -8,6 +8,8 @@ from database.schema import SQLDeclarativeBase as Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+import logging
+
 db_uri = os.getenv("DATABASE_URI")
 if db_uri is None:
     raise ValueError("No DATABASE_URI environment variable set")
@@ -81,35 +83,72 @@ class AdminAddition:
                 # Keycloak logic
                 keycloak_user_id = keycloak_admin.get_user_id(admin_username)
                 if keycloak_user_id:
-                    keycloak_admin.update_user(
-                        keycloak_user_id,
-                        {
-                            "email": admin_mail,
-                            "emailVerified": True,
-                            "firstName": admin_username,
-                            "lastName": "User",
-                        },
-                    )
+                    try:
+                        keycloak_admin.update_user(
+                            keycloak_user_id,
+                            {
+                                "email": admin_mail,
+                                "emailVerified": True,
+                                "firstName": admin_username,
+                                "lastName": "User",
+                            },
+                        )
+                    except Exception as e:
+                        # Check if the update was applied anyway
+                        updated_user = keycloak_admin.get_user(keycloak_user_id)
+                        if (
+                            updated_user.get("email") == admin_mail
+                            and updated_user.get("emailVerified") == True
+                            and updated_user.get("firstName") == admin_username
+                            and updated_user.get("lastName") == "User"
+                        ):
+                            logging.warning(
+                                f"Caught an exception after attempting to update user '{admin_username}', "
+                                f"but the user now appears to have the updated fields. Skipping error."
+                            )
+                        else:
+                            # Update truly failed
+                            logging.error(
+                                f"Error updating user '{admin_username}': {str(e)}"
+                            )
+                            raise e
                 else:
-
-                    keycloak_user_id = keycloak_admin.create_user(
-                        {
-                            "username": admin_username,
-                            "email": admin_mail,
-                            "enabled": True,
-                            "emailVerified": True,
-                            "credentials": [
-                                {
-                                    "type": "password",
-                                    "value": admin_password,
-                                    "temporary": False,
-                                }
-                            ],
-                            "realmRoles": ["admin"],
-                            "firstName": admin_username,
-                            "lastName": "User",
-                        }
-                    )
+                    user_payload = {
+                        "username": admin_username,
+                        "email": admin_mail,
+                        "enabled": True,
+                        "emailVerified": True,
+                        "credentials": [
+                            {
+                                "type": "password",
+                                "value": admin_password,
+                                "temporary": False,
+                            }
+                        ],
+                        "realmRoles": ["admin"],
+                        "firstName": admin_username,
+                        "lastName": "User",
+                    }
+                    try:
+                        keycloak_user_id = keycloak_admin.create_user(
+                            user_payload,
+                            exist_ok=True,
+                        )
+                    except Exception as e:
+                        # Check if the user now exists
+                        check_user_id = keycloak_admin.get_user_id(admin_username)
+                        if check_user_id:
+                            logging.warning(
+                                f"Caught an exception after attempting to create user '{admin_username}', "
+                                f"but the user now appears to exist. Skipping error."
+                            )
+                            keycloak_user_id = check_user_id
+                        else:
+                            # User truly failed to create
+                            logging.error(
+                                f"Error creating user '{admin_username}': {str(e)}"
+                            )
+                            raise e
 
             user: schema.User = (
                 session.query(schema.User)

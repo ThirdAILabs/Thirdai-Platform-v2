@@ -80,7 +80,7 @@ class XMLLog(DataType):
             )
 
         return XMLTokenClassificationResults(
-            log_type="xml",
+            data_type="xml",
             query_text=self.clean_log,
             predictions=predictions,
         )

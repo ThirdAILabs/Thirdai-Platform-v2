@@ -12,6 +12,7 @@ from deployment_job.pydantic_models.inputs import (
     TokenAnalysisPredictParams,
 )
 from deployment_job.reporter import Reporter
+from deployment_job.throughput import Throughput
 from fastapi import APIRouter, Depends, Query, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from platform_common.dependencies import is_on_low_disk
@@ -30,9 +31,7 @@ from platform_common.thirdai_storage.data_types import (
 )
 from platform_common.utils import response
 from prometheus_client import Summary
-from reporter import Reporter
 from thirdai import neural_db as ndb
-from throughput import Throughput
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 

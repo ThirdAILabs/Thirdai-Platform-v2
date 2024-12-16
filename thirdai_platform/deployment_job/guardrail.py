@@ -95,8 +95,8 @@ class Guardrail:
 
         results = res.json()["data"]["prediction_results"]
 
-        if results["log_type"] != "unstructured":
-            message = f"Guardrail model returned non-unstructured log type: {results['log_type']}"
+        if results["data_type"] != "unstructured":
+            message = f"Guardrail model returned non-unstructured data type: {results['data_type']}"
             self.logger.error(message, code=LogCode.GUARDRAILS)
             raise ValueError(message)
 

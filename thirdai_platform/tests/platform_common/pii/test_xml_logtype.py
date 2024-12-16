@@ -37,7 +37,7 @@ def test_xml_logtype_end_to_end():
 
     predictions = log.process_prediction(model_predictions=predictions)
 
-    assert predictions.log_type == "xml"
+    assert predictions.data_type == "xml"
     assert (
         predictions.query_text
         == '<Event>\n  <System>\n    <Data name="first_name">\n      Shubh\n    </Data>\n    <Data name="last_name">\n      Gupta\n    </Data>\n  </System>\n  <Message>\n    I work at {ThirdAI Corp}.\n  </Message>\n</Event>'

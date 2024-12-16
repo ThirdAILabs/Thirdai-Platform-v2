@@ -23,7 +23,7 @@ class UnstructuredText(DataType):
             )
 
         return UnstructuredTokenClassificationResults(
-            log_type="unstructured",
+            data_type="unstructured",
             query_text=self._inference_sample["source"],
             tokens=tokens,
             predicted_tags=predictions,

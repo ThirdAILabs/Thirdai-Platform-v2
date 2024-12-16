@@ -41,7 +41,6 @@ from database import schema
 from fastapi import BackgroundTasks, WebSocket, WebSocketDisconnect
 
 from middleware.timeout_middleware import TimeoutMiddleware
-from websocket.websocket_connection_manager import WebsocketConnectionManager
 from websocket.utils import manager, notify_model_change
 
 

@@ -5,7 +5,7 @@ from backend.auth_dependencies import global_admin_only, verify_access_token
 from database import schema
 from database.session import get_session
 from fastapi import APIRouter, Depends, HTTPException, status
-from platform_common.utils import response
+from platform_common.utils import get_section, response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -13,11 +13,10 @@ integrations_router = APIRouter()
 
 root_folder = pathlib.Path(__file__).parent
 
-# TODO(david) generate documentation?
-# docs_file = root_folder.joinpath("../../docs/integrations_endpoints.txt")
+docs_file = root_folder.joinpath("../../docs/integrations_endpoints.txt")
 
-# with open(docs_file) as f:
-#     docs = f.read()
+with open(docs_file) as f:
+    docs = f.read()
 
 
 # TODO(david): support having multiple self-hosted LLM endpoints
@@ -25,7 +24,7 @@ root_folder = pathlib.Path(__file__).parent
 @integrations_router.get(
     "/self-hosted-llm",
     summary="Get Self-Hosted LLM Integration",
-    # description=get_section(docs, "Get Self-Hosted LLM Integration"),
+    description=get_section(docs, "Get Self-Hosted LLM Integration"),
     dependencies=[Depends(verify_access_token)],
 )
 def get_self_hosted_llm(session: Session = Depends(get_session)):
@@ -85,7 +84,7 @@ class SelfHostedBody(BaseModel):
 @integrations_router.post(
     "/self-hosted-llm",
     summary="Store Self-Hosted LLM Integration",
-    # description=get_section(docs, "Store Self-Hosted LLM Integration"),
+    description=get_section(docs, "Store Self-Hosted LLM Integration"),
     dependencies=[Depends(global_admin_only)],
 )
 def set_self_hosted_llm(body: SelfHostedBody, session: Session = Depends(get_session)):
@@ -126,7 +125,7 @@ def set_self_hosted_llm(body: SelfHostedBody, session: Session = Depends(get_ses
 @integrations_router.delete(
     "/self-hosted-llm",
     summary="Delete Self-Hosted LLM Integration",
-    # description=get_section(docs, "Delete Self-Hosted LLM Integration"),
+    description=get_section(docs, "Delete Self-Hosted LLM Integration"),
     dependencies=[Depends(global_admin_only)],
 )
 def delete_self_hosted_llm(session: Session = Depends(get_session)):

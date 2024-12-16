@@ -123,7 +123,7 @@ async def generate(generate_args: GenerateArgs):
         f"Starting generation with provider '{generate_args.provider.lower()}':",
     )
 
-    llm: LLMBase = llm_class()
+    llm: LLMBase = llm_class(api_key=key)
 
     async def generate_stream():
         generated_response = ""

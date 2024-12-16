@@ -337,6 +337,287 @@ export function retrain_ndb({
   });
 }
 
+export async function validateDocumentClassificationFolder(files: FileList) {
+  const accessToken = getAccessToken();
+  const formData = new FormData();
+
+  // Group files by their categories first
+  const categoryMap = new Map<string, File[]>();
+
+  Array.from(files).forEach((file) => {
+    const pathParts = file.webkitRelativePath.split('/');
+    // Change this to use the category folder name (pathParts[1])
+    if (pathParts.length >= 3) {
+      const category = pathParts[1]; // Changed from pathParts[0] to pathParts[1]
+      if (!categoryMap.has(category)) {
+        categoryMap.set(category, []);
+      }
+      categoryMap.get(category)?.push(file);
+    }
+  });
+
+  // Debug logging
+  console.log('Categories being sent to backend:', Array.from(categoryMap.keys()));
+
+  // Add files to FormData maintaining category structure
+  categoryMap.forEach((files, category) => {
+    files.forEach((file) => {
+      // Include the full relative path in the file name
+      formData.append('files', file, file.webkitRelativePath);
+    });
+  });
+
+  // Debug: Log what's being sent
+  console.log(
+    'Files being sent:',
+    Array.from(formData.getAll('files')).map((f) => {
+      if (f instanceof File) {
+        return f.name;
+      }
+      return f;
+    })
+  );
+
+  try {
+    const response = await axios.post(
+      `${thirdaiPlatformBaseUrl}/api/train/validate-document-classification-folder`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    console.log('Backend validation response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Validation error details:', error);
+    if (axios.isAxiosError(error) && error.response?.data) {
+      throw new Error(error.response.data.message || 'Failed to validate folder structure');
+    }
+    throw new Error('Failed to validate folder structure');
+  }
+}
+
+interface TrainDocumentClassifierParams {
+  modelName: string;
+  files: FileList;
+  testSplit?: number;
+  nTargetClasses?: number; // Add this to accept the dynamic number of classes
+}
+
+export async function trainDocumentClassifier({
+  modelName,
+  files,
+  testSplit = 0.1,
+  nTargetClasses,
+}: TrainDocumentClassifierParams): Promise<any> {
+  const accessToken = getAccessToken();
+
+  try {
+    const formData = new FormData();
+
+    // Add all document files to FormData
+    Array.from(files).forEach((file) => {
+      formData.append('files', file, file.webkitRelativePath);
+    });
+
+    // Prepare file info with webkitRelativePath to preserve directory structure
+    const fileInfo = {
+      supervised_files: Array.from(files).map((file) => ({
+        filename: file.name,
+        content_type: file.type,
+        path: file.webkitRelativePath,
+        location: 'local',
+      })),
+      test_files: [],
+    };
+    formData.append('file_info', JSON.stringify(fileInfo));
+
+    // Model options for document classification
+    const modelOptions = {
+      model_type: 'udt',
+      udt_options: {
+        udt_sub_type: 'document',
+        text_column: 'text',
+        label_column: 'label',
+        n_target_classes: nTargetClasses, // Use the dynamically passed number of classes
+        word_limit: 1000, // Configure word limit
+      },
+      train_options: {
+        test_split: testSplit,
+      },
+    };
+    formData.append('model_options', JSON.stringify(modelOptions));
+
+    // Job options
+    const jobOptions = {
+      allocation_cores: 2,
+      allocation_memory: 16000,
+    };
+    formData.append('job_options', JSON.stringify(jobOptions));
+
+    // Train the model
+    const params = new URLSearchParams({ model_name: modelName });
+    const response = await axios.post(
+      `${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    if (response.data?.status === 'failed') {
+      throw new Error(response.data.message || 'Failed to train model');
+    }
+
+    return response.data;
+  } catch (error) {
+    console.error('Training error:', error);
+    if (axios.isAxiosError(error) && error.response?.data) {
+      throw new Error(
+        error.response.data.message || 'Failed to train document classification model'
+      );
+    }
+    throw error instanceof Error
+      ? error
+      : new Error('Failed to train document classification model');
+  }
+}
+
+export async function validateSentenceClassifierCSV(file: File) {
+  const accessToken = getAccessToken();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await axios.post(
+      `${thirdaiPlatformBaseUrl}/api/train/validate-text-classification-csv`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    return {
+      valid: response.data.status === 'success',
+      message: response.data.message,
+      labels: response.data.data?.labels || [],
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const errorMessage = error.response?.data?.message || 'Failed to validate CSV';
+      return {
+        valid: false,
+        message: errorMessage,
+        labels: [],
+      };
+    }
+    return {
+      valid: false,
+      message: 'Failed to validate CSV',
+      labels: [],
+    };
+  }
+}
+
+interface TrainTextClassifierParams {
+  modelName: string;
+  file: File;
+  labels: string[];
+  testSplit?: number;
+}
+
+export function trainTextClassifierWithCSV({
+  modelName,
+  file,
+  labels,
+  testSplit = 0.1,
+}: TrainTextClassifierParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  // Create FormData instance to handle file upload
+  const formData = new FormData();
+  formData.append('files', file);
+
+  // Add file info with correct location type
+  const fileInfo = {
+    supervised_files: [
+      {
+        filename: file.name,
+        content_type: file.type,
+        path: file.name,
+        location: 'local',
+      },
+    ],
+    test_files: [], // No test files for now, will be split from training data
+  };
+  formData.append('file_info', JSON.stringify(fileInfo));
+
+  // Model options for text classification with TextClassificationOptions
+  const modelOptions = {
+    model_type: 'udt',
+    udt_options: {
+      udt_sub_type: 'text',
+      text_column: 'text', // Column containing the text
+      label_column: 'label', // Column containing the label
+      n_target_classes: labels.length, // Number of unique labels
+      target_labels: labels, // Array of label names
+    },
+    train_options: {
+      test_split: testSplit,
+    },
+  };
+  formData.append('model_options', JSON.stringify(modelOptions));
+
+  // Job options (using defaults)
+  const jobOptions = {
+    allocation_cores: 1,
+    allocation_memory: 8000,
+  };
+  formData.append('job_options', JSON.stringify(jobOptions));
+
+  // Create URL with query parameters
+  const params = new URLSearchParams({
+    model_name: modelName,
+    base_model_identifier: '', // Empty string for new model
+  });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`, formData)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error(
+                (axiosError.response.data as any).detail ||
+                  'Failed to train text classification model'
+              )
+            );
+          } else {
+            reject(new Error('Failed to train text classification model'));
+          }
+        } else {
+          reject(new Error('Failed to train text classification model'));
+        }
+      });
+  });
+}
+
 interface RetrainTokenClassifierParams {
   model_name: string;
   base_model_identifier?: string;
@@ -376,6 +657,94 @@ export function retrainTokenClassifier({
           }
         } else {
           reject(new Error('Failed to retrain UDT model'));
+        }
+      });
+  });
+}
+
+interface trainTokenClassifierWithCSVParams {
+  model_name: string;
+  file: File;
+  labels: string[];
+  test_split?: number;
+}
+
+export function trainTokenClassifierWithCSV({
+  model_name,
+  file,
+  labels,
+  test_split = 0.1,
+}: trainTokenClassifierWithCSVParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  // Create FormData instance to handle file upload
+  const formData = new FormData();
+  formData.append('files', file);
+
+  // Add file info with correct location type
+  const fileInfo = {
+    supervised_files: [
+      {
+        filename: file.name,
+        content_type: file.type,
+        path: file.name,
+        location: 'local',
+      },
+    ],
+    test_files: [],
+  };
+  formData.append('file_info', JSON.stringify(fileInfo));
+
+  // Model options for token classification with detected labels
+  const modelOptions = {
+    model_type: 'udt',
+    udt_options: {
+      udt_sub_type: 'token',
+      source_column: 'source',
+      target_column: 'target',
+      target_labels: labels,
+    },
+    train_options: {
+      test_split: test_split,
+    },
+  };
+  formData.append('model_options', JSON.stringify(modelOptions));
+
+  // Job options (using defaults)
+  const jobOptions = {
+    allocation_cores: 1,
+    allocation_memory: 8000,
+  };
+  formData.append('job_options', JSON.stringify(jobOptions));
+
+  // Create URL with query parameters
+  const params = new URLSearchParams({
+    model_name,
+    base_model_identifier: '', // Empty string for new model
+  });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/train/udt?${params.toString()}`, formData)
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error(
+                (axiosError.response.data as any).detail ||
+                  'Failed to train token classification model'
+              )
+            );
+          } else {
+            reject(new Error('Failed to train token classification model'));
+          }
+        } else {
+          reject(new Error('Failed to train token classification model'));
         }
       });
   });
@@ -455,6 +824,106 @@ export function trainUDTWithCSV({
           }
         } else {
           reject(new Error('Failed to train UDT model with CSV'));
+        }
+      });
+  });
+}
+
+interface APIResponse {
+  status: string;
+  message: string;
+  data?: {
+    valid: boolean;
+    labels?: string[];
+  };
+}
+
+interface ValidationResult {
+  valid: boolean;
+  message: string;
+  labels?: string[];
+}
+
+export async function validateTokenClassifierCSV(file: File): Promise<ValidationResult> {
+  const accessToken = getAccessToken();
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await axios.post<APIResponse>(
+      `${thirdaiPlatformBaseUrl}/api/train/validate-token-classifier-csv`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    return {
+      valid: true,
+      message: response.data.message,
+      labels: response.data.data?.labels,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.data) {
+      // Type assertion to ensure TypeScript knows the shape of error.response.data
+      const errorData = error.response.data as APIResponse;
+      return {
+        valid: false,
+        message: errorData.message || 'Failed to validate CSV file',
+      };
+    }
+    return {
+      valid: false,
+      message: 'Failed to validate CSV file',
+    };
+  }
+}
+
+interface TrainTokenClassifierParams {
+  modelName: string;
+  file: File;
+  testSplit?: number;
+}
+
+export function trainTokenClassifierFromCSV({
+  modelName,
+  file,
+  testSplit = 0.1,
+}: TrainTokenClassifierParams): Promise<any> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('test_split', testSplit.toString());
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(
+        `${thirdaiPlatformBaseUrl}/api/train/train-token-classifier?model_name=${modelName}`,
+        formData
+      )
+      .then((res) => {
+        resolve(res.data);
+      })
+      .catch((err) => {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response && axiosError.response.data) {
+            reject(
+              new Error(
+                (axiosError.response.data as any).detail ||
+                  'Failed to train token classification model'
+              )
+            );
+          } else {
+            reject(new Error('Failed to train token classification model'));
+          }
+        } else {
+          reject(new Error('Failed to train token classification model'));
         }
       });
   });

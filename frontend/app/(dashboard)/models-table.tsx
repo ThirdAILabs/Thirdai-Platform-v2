@@ -45,31 +45,31 @@ export function ModelsTable({ searchStr, offset }: { searchStr: string; offset: 
       }
     }
   }
-  
+
   useEffect(() => {
     getWorkflows();
   }, []);
 
-  useEffect(() => {  
+  useEffect(() => {
     const socket = new WebSocket(`ws://${window.location.hostname}:8000/ws/updates`);
-  
+
     socket.onopen = () => {
       console.log('WebSocket connection established');
     };
-  
+
     socket.onmessage = async (event) => {
-      console.log(`Received notification about change in the Model table.`)
+      console.log(`Received notification about change in the Model table.`);
       getWorkflows();
-    }
-    
+    };
+
     socket.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
-  
+
     socket.onclose = () => {
       console.log('WebSocket connection closed');
     };
-  
+
     return () => {
       socket.close();
     };

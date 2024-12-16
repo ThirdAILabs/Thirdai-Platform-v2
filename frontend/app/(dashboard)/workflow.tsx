@@ -30,7 +30,6 @@ import { UserContext } from '../user_wrapper';
 import { ContentCopy, Download } from '@mui/icons-material'; // MUI icons instead of SVG paths
 import { ExpandMore, ChevronRight } from '@mui/icons-material';
 
-
 enum DeployStatus {
   None = '',
   TrainingFailed = 'Training failed',
@@ -243,23 +242,30 @@ export function WorkFlow({
 
   useEffect(() => {
     const socket = new WebSocket(`ws://${window.location.hostname}:8000/ws/updates`);
-  
+
     socket.onopen = () => {
       console.log('WebSocket connection established');
     };
-  
+
     socket.onmessage = async (event) => {
       const data = JSON.parse(event.data);
-      console.log(`Received notification about change in workflow with name ${data.name} [event: ${data.event}].`)
+      console.log(
+        `Received notification about change in workflow with name ${data.name} [event: ${data.event}].`
+      );
 
       try {
-        if (workflow.username && workflow.model_name && workflow.model_name === data.name && data.event != "delete") {
+        if (
+          workflow.username &&
+          workflow.model_name &&
+          workflow.model_name === data.name &&
+          data.event != 'delete'
+        ) {
           const modelIdentifier = `${workflow.username}/${workflow.model_name}`;
           const [trainStatus, deployStatus] = await Promise.all([
             getTrainingStatus(modelIdentifier),
             getDeployStatus(modelIdentifier),
           ]);
-  
+
           if (
             trainStatus.data.train_status === 'failed' &&
             (trainStatus.data.errors?.length > 0 || trainStatus.data.messages?.length > 0)
@@ -269,11 +275,11 @@ export function WorkFlow({
               ...(trainStatus.data.messages || []),
             ]);
           }
-  
+
           if (trainStatus.data.warnings?.length > 0) {
             console.log('Training warnings:', trainStatus.data.warnings);
           }
-  
+
           if (
             deployStatus.data.deploy_status === 'failed' &&
             deployStatus.data.messages?.length > 0
@@ -285,20 +291,19 @@ export function WorkFlow({
         console.error('Error fetching statuses:', error);
       }
     };
-  
+
     socket.onerror = (error) => {
       console.error('WebSocket error:', error);
     };
-  
+
     socket.onclose = () => {
       console.log('WebSocket connection closed');
     };
-  
+
     return () => {
       socket.close();
     };
   }, [workflow.username, workflow.model_name]);
-  
 
   const copyContentToClipboard = () => {
     try {

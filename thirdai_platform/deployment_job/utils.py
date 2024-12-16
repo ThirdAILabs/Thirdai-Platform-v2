@@ -1,9 +1,9 @@
 import ast
 import datetime
-import enum
 import fcntl
 import re
 from dataclasses import dataclass
+from enum import Enum
 from typing import Dict, Tuple
 
 import fitz

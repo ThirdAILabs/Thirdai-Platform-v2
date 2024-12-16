@@ -25,7 +25,7 @@ from deployment_job.pydantic_models.inputs import (
 )
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
-from deployment_job.utils import now, validate_name
+from deployment_job.utils import Task, TaskAction, TaskStatus, now, validate_name
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -120,10 +120,12 @@ class NDBRouter:
             "/get-signed-url", self.get_signed_url, methods=["GET"]
         )
 
-        self.task_queue = Queue()
-        # TODO(kartik): make tasks an on-disk data structure
-        self.tasks = {}
-        self.task_lock = threading.Lock()
+        # Only enable task queue in dev mode
+        if not self.config.autoscaling_enabled:
+            self.task_queue = Queue()
+            # TODO(kartik): make tasks an on-disk data structure
+            self.tasks = {}
+            self.task_lock = threading.Lock()
 
         threading.Thread(target=self.process_tasks, daemon=True).start()
 
@@ -277,13 +279,12 @@ class NDBRouter:
             task_id = str(uuid.uuid4())
             with self.task_lock:
                 self.task_queue.put(task_id)
-                self.tasks[task_id] = {
-                    "status": "not_started",
-                    "action": "insert",
-                    "last_modified": now(),
-                    "data": {"documents": documents},
-                    "message": "",
-                }
+                self.tasks[task_id] = Task(
+                    status=TaskStatus.NOT_STARTED,
+                    action=TaskAction.INSERT,
+                    last_modified=now(),
+                    data={"documents": documents},
+                )
 
             self.logger.info("Document insertion queued")
             return response(
@@ -350,13 +351,12 @@ class NDBRouter:
             task_id = str(uuid.uuid4())
             with self.task_lock:
                 self.task_queue.put(task_id)
-                self.tasks[task_id] = {
-                    "status": "not_started",
-                    "action": "delete",
-                    "last_modified": now(),
-                    "data": {"source_ids": input.source_ids},
-                    "message": "",
-                }
+                self.tasks[task_id] = Task(
+                    status=TaskStatus.NOT_STARTED,
+                    action=TaskAction.DELETE,
+                    last_modified=now(),
+                    data={"source_ids": input.source_ids},
+                )
             self.logger.info("Deletion queued")
             return response(
                 status_code=status.HTTP_202_ACCEPTED,
@@ -875,29 +875,29 @@ class NDBRouter:
             task_id = self.task_queue.get()
             try:
                 with self.task_lock:
-                    action = self.tasks[task_id]["action"]
-                    data = self.tasks[task_id]["data"]
-                    self.tasks[task_id]["status"] = "in_progress"
-                    self.tasks[task_id]["last_modified"] = now()
-                if action == "insert":
+                    action = self.tasks[task_id].action
+                    data = self.tasks[task_id].data
+                    self.tasks[task_id].status = TaskStatus.IN_PROGRESS
+                    self.tasks[task_id].last_modified = now()
+                if action == TaskAction.INSERT:
                     documents = data["documents"]
                     inserted_docs = self.model.insert(documents=documents)
                     with self.task_lock:
-                        self.tasks[task_id]["status"] = "complete"
-                        self.tasks[task_id]["last_modified"] = now()
-                        self.tasks[task_id]["data"]["sources"] = inserted_docs
-                elif action == "delete":
+                        self.tasks[task_id].status = TaskStatus.COMPLETE
+                        self.tasks[task_id].last_modified = now()
+                        self.tasks[task_id].data["sources"] = inserted_docs
+                elif action == TaskAction.DELETE:
                     doc_ids = data["source_ids"]
                     self.model.delete(doc_ids)
                     with self.task_lock:
-                        self.tasks[task_id]["status"] = "complete"
-                        self.tasks[task_id]["last_modified"] = now()
+                        self.tasks[task_id].status = TaskStatus.COMPLETE
+                        self.tasks[task_id].last_modified = now()
 
             except Exception as e:
                 with self.task_lock:
-                    self.tasks[task_id]["status"] = "failed"
-                    self.tasks[task_id]["message"] = str(traceback.format_exc())
-                    self.tasks[task_id]["last_modified"] = now()
+                    self.tasks[task_id].status = TaskStatus.FAILED
+                    self.tasks[task_id].message = str(traceback.format_exc())
+                    self.tasks[task_id].last_modified = now()
                     logging.error(
                         f"Task {task_id} with data {self.tasks[task_id]} failed: {str(traceback.format_exc())}"
                     )

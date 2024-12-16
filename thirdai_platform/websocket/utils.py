@@ -1,10 +1,11 @@
 import asyncio
-from database import schema
-from database.session import get_session
 import json
 from threading import Thread
-from .websocket_connection_manager import WebsocketConnectionManager
 
+from database import schema
+from database.session import get_session
+
+from .websocket_connection_manager import WebsocketConnectionManager
 
 manager = WebsocketConnectionManager()
 
@@ -16,10 +17,7 @@ def notify_model_change(target, event_type):
             session = next(get_session())
             data = session.query(schema.Model).get(target.id)
 
-            model = {
-                "name": data.name,
-                "event": event_type
-            }
+            model = {"name": data.name, "event": event_type}
             json_data = json.dumps(model)
 
             # logger.info(f"Notifying the frontend about the model {model['name']}")

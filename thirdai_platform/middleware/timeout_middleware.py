@@ -1,4 +1,5 @@
 import asyncio
+
 from fastapi import FastAPI, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -13,4 +14,3 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
             return await asyncio.wait_for(call_next(request), timeout=self.timeout)
         except asyncio.TimeoutError:
             raise HTTPException(status_code=504, detail="Request timed out")
-        

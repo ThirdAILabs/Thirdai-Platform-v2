@@ -34,15 +34,13 @@ from backend.status_sync import sync_job_statuses
 from backend.utils import get_platform
 from database.session import get_session
 from fastapi.middleware.cors import CORSMiddleware
-
 from sqlalchemy import event
-import asyncio
+
+pass
 from database import schema
 from fastapi import BackgroundTasks, WebSocket, WebSocketDisconnect
-
 from middleware.timeout_middleware import TimeoutMiddleware
 from websocket.utils import manager, notify_model_change
-
 
 app = fastapi.FastAPI()
 
@@ -55,7 +53,7 @@ app.add_middleware(
 )
 
 app.add_middleware(
-    TimeoutMiddleware, 
+    TimeoutMiddleware,
     timeout=10.0,
 )
 
@@ -194,7 +192,9 @@ async def websocket_endpoint(websocket: WebSocket, background_tasks: BackgroundT
     await manager.connect(websocket)
     try:
         while True:
-            data = await websocket.receive_text()  # Handle incoming messages if necessary
+            data = (
+                await websocket.receive_text()
+            )  # Handle incoming messages if necessary
             logger.info(f"Received data: {data}")
     except WebSocketDisconnect:
         manager.disconnect(websocket)

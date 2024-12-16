@@ -1,6 +1,6 @@
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 
-from typing import List
+pass
 
 
 class WebsocketConnectionManager:
@@ -17,4 +17,3 @@ class WebsocketConnectionManager:
     async def broadcast(self, message: str):
         for connection in self.active_connections:
             await connection.send_text(message)
-            

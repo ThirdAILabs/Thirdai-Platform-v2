@@ -193,7 +193,7 @@ class NDBRouter:
         self,
         documents: str = Form(...),
         files: List[UploadFile] = [],
-        queue: bool = False,
+        sync: bool = True,
         token: str = Depends(Permissions.verify_permission("write")),
     ):
         """
@@ -208,7 +208,7 @@ class NDBRouter:
                 - {"upsert": True} can only be used if source_id is specified. The newly uploaded document will replace the document that currently has source_id.
             - metadata: Optional[Dict[str, Any]] - Metadata to assign to this doc. Can be used to filter documents.
         - files: List[UploadFile] - Optional list of files to be uploaded.
-        - queue: bool - Whether to queue deletion and return asynchronously (default: False)
+        - sync: bool - Whether to sychronously insert docs or queue insertion and return asynchronously (default: True)
         - token: str - Authorization token.
 
         Returns:
@@ -275,7 +275,7 @@ class NDBRouter:
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Insert logged successfully.",
             )
-        elif queue:
+        elif not sync:
             task_id = str(uuid.uuid4())
             with self.task_lock:
                 self.task_queue.put(task_id)
@@ -316,7 +316,7 @@ class NDBRouter:
     def delete(
         self,
         input: DeleteInput,
-        queue: bool = False,
+        sync: bool = True,
         token: str = Depends(Permissions.verify_permission("write")),
     ):
         """
@@ -324,7 +324,7 @@ class NDBRouter:
 
         Parameters:
         - input: DeleteInput - The input containing source IDs to be deleted.
-        - queue: bool - Whether to queue deletion and return asynchronously (default: False)
+        - sync: bool - Whether to sychronously delete docs or queue deletion and return asynchronously (default: False)
         - token: str - Authorization token.
 
         Returns:
@@ -347,7 +347,7 @@ class NDBRouter:
                 status_code=status.HTTP_202_ACCEPTED,
                 message="Delete logged successfully.",
             )
-        elif queue:
+        elif not sync:
             task_id = str(uuid.uuid4())
             with self.task_lock:
                 self.task_queue.put(task_id)

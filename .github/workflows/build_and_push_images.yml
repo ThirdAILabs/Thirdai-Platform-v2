@@ -50,9 +50,12 @@ jobs:
         id: docker_registry
         run: |
           base64_encoded_password=$(yq e '.azure.branches.${{ inputs.docker_image_branch_name }}.pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml | base64 -w 0)
-          if [ -z "$base64_encoded_password" ]; then
+          
+          echo "base64_encoded_password=$base64_encoded_password" >> $GITHUB_OUTPUT
+          
+      - name: Check if base64_encoded_password is saved
+        run: |
+          if [ -z ${{ steps.docker_registry.outputs.base64_encoded_password }} ]; then
             echo "::error::No pull password found for branch ${{ inputs.docker_image_branch_name }}"
             exit 1
           fi
-          
-          echo "base64_encoded_password=$base64_encoded_password" >> $GITHUB_OUTPUT

@@ -35,7 +35,7 @@ jobs:
         id: docker_image_branch_name
         run: |
           echo "Docker image branch to build on: ${{ github.event.inputs.docker_image_branch_name }}"
-          echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
+          echo "branch_name=${{ github.event.inputs.docker_image_branch_name }}" >> $GITHUB_OUTPUT
 
   Build_and_push_images:
     needs: [Gather_facts]
@@ -77,7 +77,7 @@ jobs:
       GENAI_KEY: ${{ secrets.GENAI_KEY }}
       
   cleanup:
-    if: always()
+    if: always() && needs.Build_and_push_images.result == 'success'
     needs: [Gather_facts, Build_and_push_images, package, tests_on_ec2]
     uses: ./.github/workflows/cleanup.yml
     with:
@@ -93,7 +93,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   
   delete_credentials:
-    if: always()
+    if: always() && needs.Build_and_push_images.result == 'success'
     runs-on: ubuntu-latest-8-cores
     needs: [Gather_facts, Build_and_push_images, package, tests_on_ec2]
 
@@ -116,3 +116,5 @@ jobs:
         run: |
           az acr token delete --name "thirdaiplatform-push-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
           az acr token delete --name "thirdaiplatform-pull-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
+    
+      #TODO(anyone): docker-image still exists with the tag 'latest'. Could delete that one as-well

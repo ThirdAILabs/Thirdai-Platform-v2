@@ -111,7 +111,7 @@ jobs:
   
   conditional_cleanup:
     needs: [Gather_facts, Build_and_push_images, package, tests_on_ec2]
-    if: ${{ github.event_name == 'release' || ((needs.tests_on_ec2.outputs.backend_test_outcome != 'success' || needs.tests_on_ec2.outputs.frontend_test_outcome != 'success') && github.event.inputs.delete_on_failing_tests) }}
+    if: ${{ always() && needs.Build_and_push_images.result == 'success' && (github.event_name != 'release' || (github.event.inputs.delete_on_failing_tests && (needs.tests_on_ec2.outputs.backend_test_outcome != 'success' || needs.tests_on_ec2.outputs.frontend_test_outcome != 'success'))) }}
     uses: ./.github/workflows/cleanup.yml
     with:
       docker_image_branch_name: ${{ needs.Gather_facts.outputs.docker_image_branch_name }}

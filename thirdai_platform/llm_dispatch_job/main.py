@@ -129,7 +129,6 @@ async def generate(generate_args: GenerateArgs):
         generated_response = ""
         try:
             async for next_word in llm.stream(
-                key=key,
                 query=generate_args.query,
                 task_prompt=generate_args.task_prompt,
                 references=generate_args.references,

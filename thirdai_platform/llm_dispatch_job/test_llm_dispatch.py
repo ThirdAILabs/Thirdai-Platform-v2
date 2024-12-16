@@ -37,7 +37,8 @@ def test_generate_text_stream(references, prompt):
     mock_llm_instance.stream = mock_stream
 
     with patch(
-        "llm_dispatch_job.main.model_classes", {"openai": lambda: mock_llm_instance}
+        "llm_dispatch_job.main.model_classes",
+        {"openai": lambda api_key: mock_llm_instance},
     ):
         request_data = {
             "query": "test query",

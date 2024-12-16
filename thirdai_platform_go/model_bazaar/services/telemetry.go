@@ -40,6 +40,9 @@ func (s *TelemetryService) DeploymentServices(w http.ResponseWriter, r *http.Req
 
 	targets := make([]scrapeTarget, 0)
 	for _, service := range services {
+		if !strings.HasPrefix(service.Name, "deploy") {
+			continue
+		}
 		nameParts := strings.SplitN(service.Name, "-", 3)
 		if len(nameParts) != 3 {
 			slog.Error("invalid service name encountered: " + service.Name)

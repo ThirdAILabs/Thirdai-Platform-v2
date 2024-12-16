@@ -2,9 +2,11 @@ package jobs
 
 import (
 	"bytes"
+	"embed"
 	"fmt"
 	"log/slog"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"thirdai_platform/model_bazaar/nomad"
@@ -12,6 +14,37 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
+
+// This will load the given templates into the embed FS so that they are bunddled
+// into the compiled binary.
+
+//go:embed grafana_dashboards/*
+var grafanaDashboards embed.FS
+
+func copyGrafanaDashboards(storage storage.Storage) error {
+	dashboardDest := "nomad-monitoring/grafana_dashboards"
+
+	exists, err := storage.Exists(dashboardDest)
+	if err != nil {
+		return fmt.Errorf("error checking if grafana dashboards exists: %w", err)
+	}
+
+	if exists {
+		err := storage.Delete(dashboardDest)
+		if err != nil {
+			return fmt.Errorf("error deleting existing grafana dashboards directory: %w", err)
+		}
+	}
+
+	// Note: This assumes a shared filesystem, we should really walk the embed.FS
+	// and copy things using the storage interface.
+	err = os.CopyFS(filepath.Join(storage.Location(), "nomad-monitoring"), grafanaDashboards)
+	if err != nil {
+		return fmt.Errorf("error copying grafana dashboards to share: %w", err)
+	}
+
+	return nil
+}
 
 type TelemetryJobArgs struct {
 	IsLocal             bool
@@ -42,7 +75,11 @@ func StartTelemetryJob(client nomad.NomadClient, storage storage.Storage, args T
 		return fmt.Errorf("error counting telemetry targets: %w", err)
 	}
 
-	// TODO: how to ensure grafana dashboards in in expected location
+	err = copyGrafanaDashboards(storage)
+	if err != nil {
+		slog.Error("error initializing grafana dashboards", "error", err)
+		return fmt.Errorf("error initializing grafana dashboards: %w", err)
+	}
 
 	job := nomad.TelemetryJob{
 		IsLocal:                args.IsLocal,
@@ -115,9 +152,9 @@ func createPromFile(storage storage.Storage, modelBazaarEndpoint string, isLocal
 
 func getDeploymentTargetsEndpoint(modelBazaarEndpoint string, isLocal bool) string {
 	if isLocal {
-		return "http://host.docker.internal:80/api/telemetry/deployment-services"
+		return "http://host.docker.internal:80/api/v2/telemetry/deployment-services"
 	} else {
-		return strings.TrimSuffix(modelBazaarEndpoint, "/") + "/api/telemetry/deployment-services"
+		return strings.TrimSuffix(modelBazaarEndpoint, "/") + "/api/v2/telemetry/deployment-services"
 	}
 }
 

@@ -1,9 +1,9 @@
+import datetime
 import os
 import shutil
 from pathlib import Path
 from unittest.mock import patch
 
-import datetime
 import pytest
 from deployment_job.permissions import Permissions
 from deployment_job.routers.udt import UDTRouterTokenClassification

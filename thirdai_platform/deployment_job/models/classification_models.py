@@ -218,7 +218,7 @@ class TokenClassificationModel(ClassificationModel):
             )
             raise e
 
-    def predict(self, text: str, data_type: Optional[str], **kwargs):
+    def predict(self, text: str, data_type: str, **kwargs):
         try:
             if data_type == "unstructured":
                 log = UnstructuredText(text)

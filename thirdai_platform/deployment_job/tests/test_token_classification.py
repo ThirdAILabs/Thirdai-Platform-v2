@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch
 
+import datetime
 import pytest
 from deployment_job.permissions import Permissions
 from deployment_job.routers.udt import UDTRouterTokenClassification
@@ -83,7 +84,14 @@ def mock_check_permission(token: str, permission_type: str = "read"):
 
 
 def mock_deployment_permissions(token):
-    return {"read": True, "write": True, "override": True, "username": "test"}
+    return {
+        "read": True,
+        "write": True,
+        "override": True,
+        "username": "test",
+        "exp": datetime.datetime.now(datetime.timezone.utc)
+        + datetime.timedelta(minutes=5),
+    }
 
 
 def create_config(tmp_dir: str):

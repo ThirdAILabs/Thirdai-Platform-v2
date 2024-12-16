@@ -77,16 +77,6 @@ app.include_router(telemetry, prefix="/api/telemetry", tags=["telemetry"])
 app.include_router(integrations, prefix="/api/integrations", tags=["integrations"])
 
 
-# @app.get("/quick")
-# async def quick_response():
-#     return {"message": "This is a quick response"}
-
-# @app.get("/slow")
-# async def slow_response():
-#     await asyncio.sleep(15)  # Simulates a long operation
-#     return {"message": "This response should never be seen due to timeout"}
-
-
 @app.exception_handler(Exception)
 async def global_exception_handler(request: fastapi.Request, exc: Exception):
     # Log the traceback

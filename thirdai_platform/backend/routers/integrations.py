@@ -136,8 +136,24 @@ def delete_self_hosted_llm(session: Session = Depends(get_session)):
             .first()
         )
 
-        # TODO(david) check if any models are currently configured with the self-hosted llm and fail if they are.
-        # Also, lets move towards having LLM selection be more dynamic vs being rigidly attached to the model
+        # TODO(david) can we move towards having LLM selection be more dynamic vs
+        # being rigidly attached to the model
+        models = (
+            session.query(schema.Model)
+            .join(schema.ModelAttribute)
+            .filter(
+                schema.ModelAttribute.key == "llm_provider",
+                schema.ModelAttribute.value == "self-host",
+            )
+            .all()
+        )
+
+        for model in models:
+            if model.deploy_status == schema.Status.complete:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot delete self-hosted integration if there are existing deployments using it.",
+                )
 
         if existing_integration:
             session.delete(existing_integration)
@@ -151,6 +167,8 @@ def delete_self_hosted_llm(session: Session = Depends(get_session)):
             status_code=status.HTTP_200_OK,
             message="Self-Hosted LLM Integration not found",
         )
+    except HTTPException as e:
+        raise e
     except Exception as e:
         raise HTTPException(
             status_code=500, detail="Failed to delete self-hosted LLM integration."

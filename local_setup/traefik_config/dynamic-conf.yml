@@ -1,13 +1,4 @@
 http:
-  middlewares:
-    forwardauth-middleware:
-      forwardAuth:
-        address: "http://localhost:8000/api/user/auth"
-        authResponseHeaders:
-          - "Authorization"
-        authRequestHeaders:
-          - "Authorization"
-
   routers:
     modelbazaar-http:
       rule: "(PathPrefix(`/api`) && !PathPrefix(`/api/auth`))"
@@ -33,6 +24,13 @@ http:
           - url: "http://localhost:3006"
 
   middlewares:
+    forwardauth-middleware:
+      forwardAuth:
+        address: "http://localhost:80/api/user/auth"
+        authResponseHeaders:
+          - "Authorization"
+        authRequestHeaders:
+          - "Authorization"
     limit-request-body-size:
       buffering:
         # For reference: https://doc.traefik.io/traefik/v2.0/middlewares/buffering/

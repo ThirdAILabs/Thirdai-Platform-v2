@@ -82,6 +82,7 @@ Example Request:
 ```json
 ```
 Example Response:
+
 Notes:
 * `admin` indicatates whether or not the user is an admin. 
 * `team_admin` whether or not the user is an admin for the team
@@ -116,19 +117,22 @@ Example Request:
 ```json
 ```
 Example Response:
+
+Notes:
+* `admin` indicatates whether or not the user is an admin. 
+* `team_admin` whether or not the user is an admin for the team
 ```json
 {
   "id": "user uuid",
   "username": "xyz",
   "email": "xyz@mail.com",
-  "admin": false, // or true
+  "admin": false,
   "teams": [
     {
       "team_id": "team uuid",
       "team_name": "purple team",
-      "team_admin": false // whether or not the user is an admin for the team
+      "team_admin": false 
     },
-    ...
   ]
 }
 ```

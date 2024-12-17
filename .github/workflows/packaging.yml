@@ -15,8 +15,8 @@ on:
         description: "version of the docker images (with prefix 'v')"
         required: true
         type: string
-      b64_encoded_docker_registry_password:
-        description: "Docker registry password for the branch image encoded in base64"
+      b64_encoded_docker_registry_pull_password:
+        description: "Docker registry pull password for the branch image encoded in base64"
         required: true
         type: string
     secrets:
@@ -137,7 +137,7 @@ jobs:
 
         - name: Log in to Docker Registry
           run: |
-            docker_registry_password=$(echo -n "${{ inputs.b64_encoded_docker_registry_password }}" | base64 --decode)
+            docker_registry_password=$(echo -n "${{ inputs.b64_encoded_docker_registry_pull_password }}" | base64 --decode)
             docker login -u "thirdaiplatform-pull-${{ inputs.docker_image_branch_name }}" -p "$docker_registry_password" thirdaiplatform.azurecr.io
 
         - name: Download Docker images with the given tag

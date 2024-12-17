@@ -16,7 +16,7 @@ on:
         description: "Tarball file name in the S3 bucket"
         required: true
         type: string
-      b64_encoded_docker_registry_password:
+      b64_encoded_docker_registry_pull_password:
         description: "Docker registry password for the branch image encoded in base64"
         required: true
         type: string
@@ -56,23 +56,14 @@ jobs:
     steps:
       - name: Decode docker registry password
         run: |
-          echo "docker_registry_password=$(echo -n "${{ inputs.b64_encoded_docker_registry_password }}" | base64 --decode)" >> $GITHUB_ENV
-      
-      - name: Install AWS CLI
-        run: |
-          # sudo apt-get update
-          # sudo apt-get install -y awscli
+          echo "docker_registry_password=$(echo -n "${{ inputs.b64_encoded_docker_registry_pull_password }}" | base64 --decode)" >> $GITHUB_ENV
 
       - name: Configure AWS credentials
-        run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set region us-east-1      # ec2-instances are in this region
-
-      - name: Verify AWS CLI Setup
-        run: |
-          aws --version
-          aws sts get-caller-identity
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1     # ec2-instances are in this region
       
       # These instances already have the aws configured to pull thirdai-packages from the s3 bucket
       - name: start the ec2-instance
@@ -157,8 +148,6 @@ jobs:
           sleep $((3*60))
 
   test:
-    strategy:
-      fail-fast: false
     runs-on: ubuntu-latest-8-cores
     needs: [setup_the_ec2_instances]
     outputs:
@@ -172,22 +161,13 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.9
-
-      - name: Install AWS CLI
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y awscli
-
+      
       - name: Configure AWS credentials
-        run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set region us-east-2    # docker test data is stored in the s3 bucket of this region
-
-      - name: Verify AWS CLI Setup
-        run: |
-          aws --version
-          aws sts get-caller-identity
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2    # docker test data is stored in the s3 bucket of this region
 
       - name: Install requirements
         run: |
@@ -227,21 +207,12 @@ jobs:
       needs: [setup_the_ec2_instances, test]
       if: always()
       steps:
-        - name: Install AWS CLI
-          run: |
-            sudo apt-get update
-            sudo apt-get install -y awscli
-
         - name: Configure AWS credentials
-          run: |
-            aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws configure set region us-east-1
-
-        - name: Verify AWS CLI Setup
-          run: |
-            aws --version
-            aws sts get-caller-identity
+          uses: aws-actions/configure-aws-credentials@v4
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: us-east-1
         
         - name: Create an identity file for ssh-login
           run: |

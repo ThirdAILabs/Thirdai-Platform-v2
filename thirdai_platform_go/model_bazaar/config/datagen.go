@@ -38,6 +38,9 @@ func (opts *NlpTokenDatagenOptions) Validate() error {
 	}
 
 	for i, tag := range opts.Tags {
+		if tag.Name == "" {
+			return fmt.Errorf("each tag must have a specified name")
+		}
 		if tag.Status == "" {
 			opts.Tags[i].Status = "uninserted"
 		}
@@ -91,6 +94,9 @@ func (opts *NlpTextDatagenOptions) Validate() error {
 	}
 
 	for i, tag := range opts.Labels {
+		if tag.Name == "" {
+			return fmt.Errorf("each label must have a specified name")
+		}
 		if tag.Status == "" {
 			opts.Labels[i].Status = "uninserted"
 		}

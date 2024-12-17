@@ -8,7 +8,7 @@
 
 Creates a new Enterprise Search model.
 
-Example Request: 
+__Example Request__: 
 
 Notes:
 * All args are optional except for `model_name` and `retrieval_id`.
@@ -22,7 +22,7 @@ Notes:
   "default_mode": "chat"
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "model_id": "model uuid"

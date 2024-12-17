@@ -8,7 +8,7 @@
 
 Deploys the specified model. Returns 200 on success.
 
-Example Request: 
+__Example Request__: 
 
 Notes:
 * All parameters are optional.
@@ -21,7 +21,7 @@ Notes:
   "memory": 800
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -34,10 +34,10 @@ Example Response:
 
 Undeploys the specified model. Returns 200 on success. No request or response body.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -50,10 +50,10 @@ Example Response:
 
 Returns the deploy status of the model.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "status": "complete",
@@ -72,10 +72,10 @@ Example Response:
 
 Returns the recent logs from the model deployment.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 
 Notes: 
 * The output is a list because it will return a set of logs for each allocation.
@@ -98,13 +98,13 @@ Notes:
 
 Creates a new model entry for save a deployed model to. The new model's uuid is returned along with a update token. The new model's train status is set to `in_progress` so that it cannot be deployed. The update token can by used to then update the status to `complete` after the save is done. This should only be called by the deployment job.
 
-Example Request: 
+__Example Request__: 
 ```json
 {
   "model_name": "name for new saved model"
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "model_id": "new model uuid",
@@ -120,7 +120,7 @@ Example Response:
 
 Updates the deploy status of the model. The model is determined by looking at the model associated with the job token. If specified the metadata set as a json string in the `metadata` attribute of the model. This should only be called by the deployment job.
 
-Example Request: 
+__Example Request__: 
 
 Notes: 
 * `metadata` is optional.
@@ -132,7 +132,7 @@ Notes:
   }
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -146,14 +146,14 @@ Example Response:
 
 Logs a warning/error message for the deployment job. The model is determined by looking at the model associated with the job token. Returns 200 on success. This should only be called by the deployment job.
 
-Example Request: 
+__Example Request__: 
 ```json
 {
   "level": "error", 
   "message": "this failed"
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```

@@ -8,7 +8,7 @@
 
 Trains a NDB model.
 
-Example Request: 
+__Example Request__: 
 
 Notes:
 * `base_model_id` is optional, indicates a base model to start from.
@@ -39,7 +39,7 @@ Notes:
   }
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "model_id": "model uuid"
@@ -54,7 +54,7 @@ Example Response:
 
 Retrains the NDB model from all feedback collected from users.
 
-Example Request: 
+__Example Request__: 
 
 Notes:
 * `base_model_id` is required in this endpoint.
@@ -69,7 +69,7 @@ Notes:
   }
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "model_id": "model uuid"
@@ -84,7 +84,7 @@ Example Response:
 
 Trains a NLP token model on the given data.
 
-Example Request: 
+__Example Request__: 
 
 Notes:
 * `base_model_id` is optional, indicates a base model to start from.
@@ -129,7 +129,7 @@ Notes:
   }
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "model_id": "model uuid"
@@ -142,7 +142,7 @@ Example Response:
 | ------ | ---- | ------------- | ----------  |
 | `POST` | `/api/v2/train/nlp-text` | Yes | Read Access For Base Model (if specified) |
 
-Example Request: 
+__Example Request__: 
 
 Notes:
 * `base_model_id` is optional, indicates a base model to start from.
@@ -187,7 +187,7 @@ Notes:
   }
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "model_id": "model uuid"
@@ -200,7 +200,7 @@ Example Response:
 | ------ | ---- | ------------- | ----------  |
 | `POST` | `/api/v2/train/nlp-datagen` | Yes | Read Access For Base Model (if specified) |
 
-Example Request: 
+__Example Request__: 
 
 Notes:
 * `base_model_id` is optional, indicates a base model to start from.
@@ -268,7 +268,7 @@ Notes:
   }
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "model_id": "model uuid"
@@ -283,7 +283,7 @@ Example Response:
 
 Retrains the given NLP token model based off of collected user feedback.
 
-Example Request: 
+__Example Request__: 
 
 Notes:
 * `base_model_id` is required in this endpoint.
@@ -309,7 +309,7 @@ Notes:
   }
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "model_id": "model uuid"
@@ -324,11 +324,11 @@ Example Response:
 
 Accepts a multipart request containing multiple files to upload for training. Returns a path to the files that can be provided to a train endpoint to train on the files. For example if `file.pdf` was uploaded then that file can be specified by `{artifact_path}/file.pdf`. Or the plain artifact path can be passed to indicate all the files should be trained on.
 
-Example Request: 
+__Example Request__: 
 ```
 A multipart request containing the files.
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "artifact_path": "/path/to/files"
@@ -343,10 +343,10 @@ Example Response:
 
 Returns the train status of the model.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "status": "complete",
@@ -365,10 +365,10 @@ Example Response:
 
 Returns the recent logs from the model training.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 
 Notes: 
 * The output is a list because it will return a set of logs for each allocation.
@@ -389,10 +389,10 @@ Notes:
 
 Returns the train report for the most recent training. This is currently only supported for certain types of models that create a report.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```
 Train report json
 ```
@@ -407,7 +407,7 @@ Train report json
 
 Updates the train status of the model. The model is determined by looking at the model associated with the job token. If specified the metadata set as a json string in the `metadata` attribute of the model. This should only be called by the train job.
 
-Example Request: 
+__Example Request__: 
 
 Notes: 
 * `metadata` is optional.
@@ -419,7 +419,7 @@ Notes:
   }
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -433,14 +433,14 @@ Example Response:
 
 Logs a warning/error message for the train job. The model is determined by looking at the model associated with the job token. Returns 200 on success. This should only be called by the train job.
 
-Example Request: 
+__Example Request__: 
 ```json
 {
   "level": "error", 
   "message": "this failed"
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```

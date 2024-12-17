@@ -8,7 +8,7 @@
 
 Creates a new user. Not supported when using Keycloak authentication. Returns the user id for the new user.
 
-Example Request: 
+__Example Request__: 
 ```json
 {
   "username": "xyz",
@@ -16,7 +16,7 @@ Example Request:
   "password": "super secret password"
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "user_id": "user uuid"
@@ -31,14 +31,14 @@ Example Response:
 
 Logs in as the specified user. Not supported when using Keycloak authentication. Returns the access token and user id.
 
-Example Request: 
+__Example Request__: 
 ```json
 {
   "email": "xyz@mail.com",
   "password": "password"
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "user_id": "user uuid",
@@ -54,13 +54,13 @@ Example Response:
 
 Performs "login" for the user with the given access token. This seems a little counterintuitive, but this endpoint is only available when using Keycloak authentication, and it allows us to add the user to our internal DB if it doesn't already exist.
 
-Example Request: 
+__Example Request__: 
 ```json
 {
   "access_token": "<token from keycloak>"
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "user_id": "user uuid",
@@ -78,10 +78,10 @@ Example Response:
 
 Lists the users that are visible to the current user. If the user is an admin this is all users. If the user is not an admin this is any users that share a team with the current user.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 
 Notes:
 * `admin` indicatates whether or not the user is an admin. 
@@ -113,10 +113,10 @@ Notes:
 
 Returns the info for the current user.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 
 Notes:
 * `admin` indicatates whether or not the user is an admin. 
@@ -146,7 +146,7 @@ Notes:
 
 Creates a new user with the given username/email/password.
 
-Example Request: 
+__Example Request__: 
 ```json
 {
   "username": "xyz",
@@ -154,7 +154,7 @@ Example Request:
   "password": "super secret password"
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "user_id": "user uuid"
@@ -169,10 +169,10 @@ Example Response:
 
 Deletes the specified user. Returns 200 on success. No request or response body.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -185,10 +185,10 @@ Example Response:
 
 Promotes the specified use rto admin. Returns 200 on success. No request or response body.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -201,10 +201,10 @@ Example Response:
 
 Promotes the specified use rto admin. Returns 200 on success. No request or response body.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -217,10 +217,10 @@ Example Response:
 
 Marks the given user as verified. Returns 200 on success, no request or response body.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```

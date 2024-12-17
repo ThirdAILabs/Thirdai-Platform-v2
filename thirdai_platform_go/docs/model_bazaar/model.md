@@ -8,10 +8,10 @@
 
 Gets info about the specified model.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 
 Notes:
 * `attributes` and `dependencies` may be empty. 
@@ -50,10 +50,10 @@ Notes:
 
 Deletes the specified model. No request or response body. Returns 200 on success.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -66,13 +66,13 @@ Example Response:
 
 Updates the access level of the given model.
 
-Example Request: 
+__Example Request__: 
 ```json
 {
   "access": "private"
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -85,13 +85,13 @@ Example Response:
 
 Updates the default permission of the given model.
 
-Example Request: 
+__Example Request__: 
 ```json
 {
   "permission": "read"
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -104,10 +104,10 @@ Example Response:
 
 Returns a list of models that are accessible to the current user. If the user is an admin this is all models, otherwise it is the models a user owns, or the protected models that are assigned to one of the user's teams.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 
 Notes:
 * `attributes` and `dependencies` may be empty. 
@@ -148,10 +148,10 @@ Notes:
 
 Returns the permissions of the current user for the given model.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "read": true,
@@ -169,10 +169,10 @@ Example Response:
 
 Returns the raw model. Sends the data in chunks.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```
 Raw model data.
 ```
@@ -185,14 +185,14 @@ Raw model data.
 
 Creates an entry for a new model that will be uploaded. Returns an upload session token that must be used to upload chunks and complete the upload.
 
-Example Request: 
+__Example Request__: 
 ```json
 {
   "model_name": "name of new model",
   "model_type": "ndb"
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "token": "upload token"
@@ -207,11 +207,11 @@ Example Response:
 
 Stores the given chunk data as part of the upload of the new model. The url parameter `chunk_idx` is used to order the chunks. Returns 200 on success.
 
-Example Request: 
+__Example Request__: 
 ```
 Raw data of chunk
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -224,10 +224,10 @@ Example Response:
 
 Completes the model upload and updates the model train status to complete to indicate the model can be used. Returns the uuid of the new model.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "model_id": "new model uuid"

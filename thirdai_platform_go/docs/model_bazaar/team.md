@@ -8,13 +8,13 @@
 
 Creates a new team.
 
-Example Request: 
+__Example Request__: 
 ```json
 {
   "name": "name of team"
 }
 ```
-Example Response:
+__Example Response__:
 ```json
 {
   "team_id": "team uuid"
@@ -29,10 +29,10 @@ Example Response:
 
 Deletes a team.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -45,10 +45,10 @@ Example Response:
 
 Lists all teams visible to the current user. If the use is an admin then this is all teams. Otherwise it is the teams the user is a member of.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 [
   {
@@ -66,10 +66,10 @@ Example Response:
 
 Lists the users in the team.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 
 Notes:
 * `team_admin` indicates if the user is an admin of the team.
@@ -92,11 +92,11 @@ Notes:
 
 Lists the models in the team.
 
-Example Request: 
+__Example Request__: 
 ```json
 
 ```
-Example Response:
+__Example Response__:
 
 Notes:
 * `attributes` and `dependencies` may be empty. 
@@ -137,10 +137,10 @@ Notes:
 
 Adds the user as a member of the team.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -153,11 +153,11 @@ Example Response:
 
 Removes the user from the team.
 
-Example Request: 
+__Example Request__: 
 ```json
 
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -170,11 +170,11 @@ Example Response:
 
 Adds a user as an admin for the team.
 
-Example Request: 
+__Example Request__: 
 ```json
 
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -187,10 +187,10 @@ Example Response:
 
 Removes an admin from the team. The user will still be a member of the team.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -203,10 +203,10 @@ Example Response:
 
 Adds a model to a team.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```
@@ -219,10 +219,10 @@ Example Response:
 
 Removes a model from the team.
 
-Example Request: 
+__Example Request__: 
 ```json
 ```
-Example Response:
+__Example Response__:
 ```json
 {}
 ```

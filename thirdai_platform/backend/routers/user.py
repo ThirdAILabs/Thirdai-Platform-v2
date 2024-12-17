@@ -285,18 +285,28 @@ def delete_user(
             message=f"User with email {email} not found.",
         )
 
+    if not user.is_deleted:
+    # Modify user.is_deleted to 1
+        user.is_deleted = True
+        session.commit()
+        if identity_provider == "keycloak":
+            try:
+                keycloak_admin.delete_user(user.id)
+            except Exception as e:
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message=f"Failed to delete user in Keycloak: {str(e)}",
+                )
+        return response(
+            status_code=status.HTTP_200_OK,
+            message=f"User with {email} is soft deleted.",
+        )
+    
     delete_all_models_for_user(user, session)
 
     session.delete(user)
 
-    if identity_provider == "keycloak":
-        try:
-            keycloak_admin.delete_user(user.id)
-        except Exception as e:
-            return response(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                message=f"Failed to delete user in Keycloak: {str(e)}",
-            )
+    
 
     session.commit()
 
@@ -345,7 +355,8 @@ def email_login(
 ):
     user: Optional[schema.User] = (
         session.query(schema.User)
-        .filter(schema.User.email == credentials.username)
+        .filter(schema.User.email == credentials.username, 
+                schema.User.is_deleted==False)
         .first()
     )
     if not user:
@@ -396,8 +407,10 @@ def email_login_with_keycloak(
 
         user = (
             session.query(schema.User)
-            .filter(schema.User.email == user_info.get("email"))
-            .first()
+            .filter(
+                    schema.User.email == user_info.get("email"),
+                    schema.User.is_deleted == False
+                ).first()
         )
         if not user:
             user = schema.User(
@@ -601,6 +614,7 @@ def list_accessible_users(
                 for user_team in user.teams
             ],
             "verified": user.verified,
+            "is_deleted":user.is_deleted,
         }
         for user in users
     ]
@@ -644,6 +658,7 @@ def get_user_info(
             }
             for user_team in user.teams
         ],
+        "is_deleted":user.is_deleted,
     }
 
     return response(
@@ -700,9 +715,11 @@ def add_user_by_global_admin(
             )
 
             new_user = schema.User(
+                id=keycloak_user_id,
                 username=body.username,
                 email=body.email,
                 verified=True,
+                is_deleted=False,
             )
             session.add(new_user)
             session.commit()

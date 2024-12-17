@@ -14,7 +14,7 @@ export default function Users() {
   const { user } = React.useContext(UserContext);
   const isGlobalAdmin = user?.global_admin;
   const [users, setUsers] = useState<User[]>([]);
-
+  console.log("In users.tsx, ", user?.is_deleted);
   useEffect(() => {
     getUsersData();
   }, []);
@@ -83,6 +83,7 @@ export default function Users() {
           <div className="flex justify-between items-start">
             <div>
               <h4 className="text-lg font-semibold text-gray-800">{user.name}</h4>
+              {user.is_deleted ? <h4 className='text-md text-red-500'>Inactive</h4> : <h4 className='text-md text-red-500'>Active</h4>}
               <div className="text-gray-700 mb-2">Role: {user.role}</div>
               <div className="text-gray-700 mb-2">
                 Status: {user.verified ? 'Verified' : 'Not Verified'}

@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import time
 import uuid
 from pathlib import Path
 from unittest.mock import patch
@@ -209,6 +210,100 @@ def check_deletion_dev_mode(client: TestClient):
     assert len(res.json()["data"]) == 3
 
 
+def check_async_insertion_dev_mode(client: TestClient):
+    res = client.get("/sources")
+    assert res.status_code == 200
+
+    documents = [
+        {
+            "path": "apple-10k.pdf",
+            "location": "local",
+            "source_id": "async_insertion_doc",
+        },
+    ]
+
+    files = [
+        *[
+            ("files", open(os.path.join(doc_dir(), doc["path"]), "rb"))
+            for doc in documents
+        ],
+        ("documents", (None, json.dumps({"documents": documents}), "application/json")),
+    ]
+
+    res = client.post(
+        "/insert?sync=False",
+        files=files,
+    )
+    assert res.status_code == 202
+
+    task_id = res.json()["data"]["task_id"]
+    res = client.get(
+        "/tasks",
+    )
+    all_tasks = res.json()["data"]["tasks"]
+    assert task_id in all_tasks
+
+    num_seconds = 30
+    for i in range(num_seconds):
+        res = client.get(
+            f"/tasks?task_id={task_id}",
+        )
+        task_info = res.json()["data"]["task"]
+        if task_info["status"] == "complete":
+            break
+        time.sleep(1)
+    else:
+        raise RuntimeError(
+            f"Async insertion did not complete after {num_seconds} seconds"
+        )
+
+    res = client.get("/sources")
+    assert res.status_code == 200
+
+    source_ids = [s["source_id"] for s in res.json()["data"]]
+    assert "async_insertion_doc" in source_ids
+
+
+def check_async_deletion_dev_mode(client: TestClient):
+    res = client.get("/sources")
+    assert res.status_code == 200
+
+    source_ids = [s["source_id"] for s in res.json()["data"]]
+    assert "async_insertion_doc" in source_ids
+
+    res = client.post(
+        "/delete?sync=False", json={"source_ids": ["async_insertion_doc"]}
+    )
+    assert res.status_code == 202
+
+    task_id = res.json()["data"]["task_id"]
+    res = client.get(
+        "/tasks",
+    )
+    all_tasks = res.json()["data"]["tasks"]
+    assert task_id in all_tasks
+
+    num_seconds = 30
+    for i in range(num_seconds):
+        res = client.get(
+            f"/tasks?task_id={task_id}",
+        )
+        task_info = res.json()["data"]["task"]
+        if task_info["status"] == "complete":
+            break
+        time.sleep(1)
+    else:
+        raise RuntimeError(
+            f"Async deletion did not complete after {num_seconds} seconds"
+        )
+
+    res = client.get("/sources")
+    assert res.status_code == 200
+
+    source_ids = [s["source_id"] for s in res.json()["data"]]
+    assert "async_insertion_doc" not in source_ids
+
+
 @pytest.mark.unit
 @patch.object(Permissions, "verify_permission", mock_verify_permission)
 @patch.object(Permissions, "check_permission", mock_check_permission)
@@ -225,6 +320,8 @@ def test_deploy_ndb_dev_mode(tmp_dir):
     check_associate_dev_mode(client)
     check_insertion_dev_mode(client)
     check_deletion_dev_mode(client)
+    check_async_insertion_dev_mode(client)
+    check_async_deletion_dev_mode(client)
 
 
 def check_upvote_prod_mode(client: TestClient):

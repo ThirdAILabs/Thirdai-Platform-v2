@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Link,
   TextField,
   Button,
   Paper,
@@ -86,7 +87,14 @@ export default function SelfHostLLMComponent() {
       <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
         <Alert severity="info" sx={{ mb: 3 }}>
           Ensure your self-hosted API endpoint is compatible with OpenAI API streaming/generate
-          endpoint format: https://platform.openai.com/docs/api-reference/making-requests
+          endpoint format:{' '}
+          <Link
+            href="https://platform.openai.com/docs/api-reference/making-requests"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            OpenAI API Request Documentation
+          </Link>
         </Alert>
 
         <form onSubmit={handleSubmit}>

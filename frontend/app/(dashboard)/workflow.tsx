@@ -208,7 +208,16 @@ export function WorkFlow({
     } else if (workflow.type === 'udt') {
       setDeployType('Natural Language Processing');
     } else if (workflow.type === 'enterprise-search') {
-      setDeployType('Enterprise Search & Summarizer');
+      const provider = workflow.attributes.llm_provider;
+      let providerDisplay = '';
+      if (provider === 'openai') {
+        providerDisplay = 'OpenAI';
+      } else if (provider === 'on-prem') {
+        providerDisplay = 'On-Premise LLM';
+      } else if (provider === 'self-host') {
+        providerDisplay = 'Self-Hosted LLM';
+      }
+      setDeployType(`Enterprise Search & ${providerDisplay}`);
     } else if (workflow.type === 'knowledge-extraction') {
       setDeployType('Knowledge Extraction');
     }

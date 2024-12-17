@@ -80,26 +80,26 @@ Lists the users that are visible to the current user. If the user is an admin th
 
 Example Request: 
 ```json
-N/A
 ```
 Example Response:
+Notes:
+* `admin` indicatates whether or not the user is an admin. 
+* `team_admin` whether or not the user is an admin for the team
 ```json
 [
   {
     "id": "user uuid",
     "username": "xyz",
     "email": "xyz@mail.com",
-    "admin": false, // whether or not the user is an admin
+    "admin": false,
     "teams": [
       {
         "team_id": "team uuid",
         "team_name": "purple team",
-        "team_admin": false // whether or not the user is an admin for the team
+        "team_admin": false
       },
-      ...
     ]
   },
-  ...
 ]
 ```
 
@@ -114,7 +114,6 @@ Returns the info for the current user.
 
 Example Request: 
 ```json
-N/A
 ```
 Example Response:
 ```json
@@ -168,11 +167,10 @@ Deletes the specified user. Returns 200 on success. No request or response body.
 
 Example Request: 
 ```json
-N/A
 ```
 Example Response:
 ```json
-N/A
+{}
 ```
 
 ## Promoting User to Admin
@@ -185,11 +183,10 @@ Promotes the specified use rto admin. Returns 200 on success. No request or resp
 
 Example Request: 
 ```json
-N/A
 ```
 Example Response:
 ```json
-N/A
+{}
 ```
 
 ## Demoting User from Admin
@@ -202,11 +199,10 @@ Promotes the specified use rto admin. Returns 200 on success. No request or resp
 
 Example Request: 
 ```json
-N/A
 ```
 Example Response:
 ```json
-N/A
+{}
 ```
 
 ## Verifying a User
@@ -219,10 +215,9 @@ Marks the given user as verified. Returns 200 on success, no request or response
 
 Example Request: 
 ```json
-N/A
 ```
 Example Response:
 ```json
-N/A
+{}
 ```
 

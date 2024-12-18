@@ -138,5 +138,6 @@ jobs:
       docker_image_version: ${{ needs.Gather_facts.outputs.image_version }}
       base_encoded_docker_registry_push_password: ${{ needs.Versioned_build_and_push_images.outputs.b64_encoded_docker_registry_push_password }}
       base_encoded_docker_registry_pull_password: ${{ needs.Versioned_build_and_push_images.outputs.b64_encoded_docker_registry_pull_password }}
+      dont_update_latest: false
     secrets:
       azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}

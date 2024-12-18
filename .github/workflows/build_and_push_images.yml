@@ -94,10 +94,10 @@ jobs:
         run: |
           cd release
           pip install -r requirements.txt
-          if [ ${{ inputs.dont_update_latest }} ]; then
-            python3 push.py -b ${{ inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ inputs.docker_image_version }} --dont-update-latest
+          if [ "${{ inputs.dont_update_latest }}" = "true" ]; then
+            python3 push.py -b "${{ inputs.docker_image_branch_name }}" --config config.yaml --no-cache --version "${{ inputs.docker_image_version }}" --dont-update-latest
           else
-            python3 push.py -b ${{ inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ inputs.docker_image_version }}
+            python3 push.py -b "${{ inputs.docker_image_branch_name }}" --config config.yaml --no-cache --version "${{ inputs.docker_image_version }}"
           fi
 
       - name: Extract the docker registry_password

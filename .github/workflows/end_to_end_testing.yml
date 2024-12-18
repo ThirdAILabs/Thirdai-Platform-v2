@@ -44,9 +44,9 @@ jobs:
           echo "${{ secrets.HOST_MACHINE1 }}" > host_machine1.json
           echo "${{ secrets.HOST_MACHINE2 }}" > host_machine2.json
       
-          jq '.' host_machine1.json
-          jq '.identity_key' host_machine1.json
           jq --version
+          # jq '.' host_machine1.json
+          # jq '.identity_key' host_machine1.json
       - name: Create an identity file for ssh-login
         run: |
           echo $(jq '.identity_key' host_machine1.json | tr -d '"') | sed 's/\\n/\n/g' > /tmp/id_rsa

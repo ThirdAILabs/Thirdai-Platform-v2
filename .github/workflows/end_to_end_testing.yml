@@ -45,6 +45,8 @@ jobs:
           echo "${{ secrets.HOST_MACHINE2 }}" > host_machine2.json
       
           jq --version
+          id=$(cat host_machine1.json | jq '.identity_key')
+          echo "id=$id"
           # jq '.' host_machine1.json
           # jq '.identity_key' host_machine1.json
       - name: Create an identity file for ssh-login

@@ -14,7 +14,7 @@ export default function Users() {
   const { user } = React.useContext(UserContext);
   const isGlobalAdmin = user?.global_admin;
   const [users, setUsers] = useState<User[]>([]);
-  console.log("In users.tsx, ", user?.is_deleted);
+  console.log('In users.tsx, ', user?.is_deleted);
   useEffect(() => {
     getUsersData();
   }, []);
@@ -82,12 +82,13 @@ export default function Users() {
         <div key={index} className=" p-4 rounded-lg shadow-md mb-8 border">
           <div className="flex justify-between items-start">
             <div>
-              <div className='flex flex-wrap gap-3'>
+              <div className="flex flex-wrap gap-3">
                 <h4 className="text-lg font-semibold text-gray-800">{user.name}</h4>
-                {user.is_deleted && <h4 className="text-sm text-gray-800 bg-gray-300 rounded-2xl px-2 py-1 text-center max-w-26 border border-gray-400">
-                  Deactivated
-                </h4>
-                }
+                {user.is_deleted && (
+                  <h4 className="text-sm text-gray-800 bg-gray-300 rounded-2xl px-2 py-1 text-center max-w-26 border border-gray-400">
+                    Deactivated
+                  </h4>
+                )}
               </div>
               <div className="text-gray-700 mb-2">Role: {user.role}</div>
               <div className="text-gray-700 mb-2">
@@ -117,7 +118,12 @@ export default function Users() {
                     Verify User
                   </Button>
                 )}
-                <Button onClick={() => deleteUser(user.name)} variant="contained" color={!user.is_deleted ? 'warning' : 'error'} className="min-w-36">
+                <Button
+                  onClick={() => deleteUser(user.name)}
+                  variant="contained"
+                  color={!user.is_deleted ? 'warning' : 'error'}
+                  className="min-w-36"
+                >
                   {!user.is_deleted ? 'Deactivate User' : 'Delete User'}
                 </Button>
               </div>

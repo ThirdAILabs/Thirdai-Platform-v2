@@ -75,7 +75,7 @@ const getModels = async () => {
 const getUsers = async () => {
   try {
     const response = await fetchAllUsers();
-    console.log("Response of getUsers -> ", response);
+    console.log('Response of getUsers -> ', response);
     const userData = response.data.map(
       (user): User => ({
         id: user.id,
@@ -92,7 +92,7 @@ const getUsers = async () => {
         is_deleted: user.is_deleted,
       })
     );
-    console.log("In apiRequests getUsers-> ", userData);
+    console.log('In apiRequests getUsers-> ', userData);
     return userData;
   } catch (error) {
     console.error('Failed to fetch users', error);

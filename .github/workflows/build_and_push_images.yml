@@ -90,15 +90,15 @@ jobs:
             ."'"$provider"'".branches.${{ inputs.docker_image_branch_name }}.version = "${{ inputs.docker_image_version }}"
           ' $GITHUB_WORKSPACE/release/config.yaml
 
-      - name: Build and push docker images to the repository
+      - name: Build and push docker images to the repository (Only versioned)
+        if: ${{ inputs.dont_update_latest == 'true' }}
         run: |
-          cd release
-          pip install -r requirements.txt
-          if [ "${{ inputs.dont_update_latest }}" = "true" ]; then
-            python3 push.py -b "${{ inputs.docker_image_branch_name }}" --config config.yaml --no-cache --version "${{ inputs.docker_image_version }}" --dont-update-latest
-          else
-            python3 push.py -b "${{ inputs.docker_image_branch_name }}" --config config.yaml --no-cache --version "${{ inputs.docker_image_version }}"
-          fi
+          python3 push.py -b "${{ inputs.docker_image_branch_name }}" --config config.yaml --no-cache --version "${{ inputs.docker_image_version }}" --dont-update-latest
+      
+      - name: Build and push docker images to the repository (Along with latest)
+        if: ${{ inputs.dont_update_latest != 'true' }}
+        run: |
+          python3 push.py -b "${{ inputs.docker_image_branch_name }}" --config config.yaml --no-cache --version "${{ inputs.docker_image_version }}"
 
       - name: Extract the docker registry_password
         id: docker_registry

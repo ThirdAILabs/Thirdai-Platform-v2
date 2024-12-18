@@ -17,7 +17,7 @@ def test_llm_dispatch_authentication():
         "query": "Hello!",
         "references": [{"text": "Some text"}],
         "key": "!",
-        "provider": "on-prem",
+        "provider": "openai",
     }
 
     headers = {"Content-Type": "application/json"}

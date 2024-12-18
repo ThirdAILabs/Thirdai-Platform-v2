@@ -19,6 +19,10 @@ on:
         description: "Docker registry pull password of the image encoded in base64"
         required: false
         type: string
+      dont_update_latest:
+        description: "Dont't update the latest tagged docker image"
+        type: boolean
+        default: false
     secrets:
       AZURE_CREDENTIALS:
         description: 'Azure credentials'
@@ -90,7 +94,11 @@ jobs:
         run: |
           cd release
           pip install -r requirements.txt
-          python3 push.py -b ${{ inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ inputs.docker_image_version }} --dont-update-latest
+          if [ ${{ inputs.dont_update_latest }} ]; then
+            python3 push.py -b ${{ inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ inputs.docker_image_version }} --dont-update-latest
+          else
+            python3 push.py -b ${{ inputs.docker_image_branch_name }} --config config.yaml --no-cache --version ${{ inputs.docker_image_version }}
+          fi
 
       - name: Extract the docker registry_password
         id: docker_registry

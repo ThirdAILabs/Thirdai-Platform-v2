@@ -72,6 +72,7 @@ jobs:
     with:
       docker_image_branch_name: ${{ needs.Gather_facts.outputs.docker_image_branch_name }}
       docker_image_version: ${{ needs.Gather_facts.outputs.image_version }}
+      dont_update_latest: true
     secrets:
       azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
 
@@ -130,7 +131,7 @@ jobs:
     uses: ./.github/workflows/build_and_push_images.yml
     with:
       docker_image_branch_name: ${{ needs.Gather_facts.outputs.docker_image_branch_name }}
-      docker_image_version: 'latest'
+      docker_image_version: ${{ needs.Gather_facts.outputs.image_version }}
       base_encoded_docker_registry_push_password: ${{ needs.Versioned_build_and_push_images.outputs.b64_encoded_docker_registry_push_password }}
       base_encoded_docker_registry_pull_password: ${{ needs.Versioned_build_and_push_images.outputs.b64_encoded_docker_registry_pull_password }}
     secrets:

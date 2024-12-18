@@ -303,7 +303,7 @@ export default function ModelUpdate({
 
   const handleTagDisplayLess = () => {
     setNumTagDisplay(5);
-  }
+  };
 
   const getLabels = async (): Promise<string[]> => {
     axios.defaults.headers.common.Authorization = `Bearer ${getAccessToken()}`;
@@ -377,24 +377,28 @@ export default function ModelUpdate({
             <br />
             <br />
             <div className="flex flex-wrap gap-2">
-              <span className=''>Tags Used for Training: </span>
+              <span className="">Tags Used for Training: </span>
               <div className="w-fit max-w-[600px]">
                 {/* Tags Box */}
                 <div className="p-1 border-2 border-slate-300 rounded-lg flex flex-wrap">
-                  {tags.map((tag, index) => (
-                    index < numTagDisplay && <div className="rounded-lg p-2 m-2 bg-slate-100" key={`${index}-${tag}`}>
-                      {tag}
-                    </div>
-                  ))}
-                  {tags.length > 5 &&
+                  {tags.map(
+                    (tag, index) =>
+                      index < numTagDisplay && (
+                        <div className="rounded-lg p-2 m-2 bg-slate-100" key={`${index}-${tag}`}>
+                          {tag}
+                        </div>
+                      )
+                  )}
+                  {tags.length > 5 && (
                     <Button
-                      color='inherit'
-                      variant='outlined'
-                      size='medium'
-                      onClick={numTagDisplay === 5 ? handleTagDisplayMore : handleTagDisplayLess}>
+                      color="inherit"
+                      variant="outlined"
+                      size="medium"
+                      onClick={numTagDisplay === 5 ? handleTagDisplayMore : handleTagDisplayLess}
+                    >
                       {numTagDisplay === 5 ? 'Expand ▼' : 'Collapse ▲'}
                     </Button>
-                  }
+                  )}
                 </div>
               </div>
             </div>

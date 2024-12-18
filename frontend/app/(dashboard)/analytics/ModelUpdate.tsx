@@ -52,7 +52,7 @@ export default function ModelUpdate({
   const [pollingButtonDisabled, setPollingButtonDisabled] = useState(false);
 
   //state for toggling tags list
-  const [isTagDisplay, setIsTagDisplay] = useState<boolean>(false);
+  const [numTagDisplay, setNumTagDisplay] = useState<number>(5);
   const [tags, setTags] = useState<string[]>([]);
 
   // Effect to validate model name on each change
@@ -297,9 +297,13 @@ export default function ModelUpdate({
     }
   };
 
-  const handleTagDisplay = () => {
-    setIsTagDisplay(!isTagDisplay);
+  const handleTagDisplayMore = () => {
+    setNumTagDisplay(tags.length);
   };
+
+  const handleTagDisplayLess = () => {
+    setNumTagDisplay(5);
+  }
 
   const getLabels = async (): Promise<string[]> => {
     axios.defaults.headers.common.Authorization = `Bearer ${getAccessToken()}`;
@@ -320,6 +324,7 @@ export default function ModelUpdate({
         const filteredLabels = labels.filter((label) => label !== 'O');
         console.log('Filtered labels: ', filteredLabels);
         setTags(filteredLabels);
+        // setTags(["phone number", "name", "Anand", "Gautam", "pratik", "tharun", "sid", "yash", "Alice", "Charlie", "Diana", "Eve", "Frank", "Grace", "Ivy", "Jack", "Katie", "Liam", "Mia", "Noah", "Olivia", "Paul", "Quinn", "Ray", "Sophia", "Tom", "Ursula", "Victor", "Wendy", "Xavier", "Yara", "Zach", "Aria", "Bea", "Caleb", "Duke", "Ella", "Finn"])
       } catch (err) {
         if (err instanceof Error) {
           console.log(err.message);
@@ -371,37 +376,27 @@ export default function ModelUpdate({
             {`Target: "O O O O NAME NAME"`}
             <br />
             <br />
-            <div className="relative">
-              {/* Button */}
-              <Button variant="outlined" color="inherit" onClick={handleTagDisplay}>
-                {isTagDisplay ? 'Hide Tags' : 'Show Tags'}
-              </Button>
-
-              {isTagDisplay && (
-                <div className="relative mt-2 ml-20 w-fit">
-                  {/* L Shape */}
-                  <div className="absolute flex items-center left-[-40px]">
-                    {/* Vertical Line */}
-                    <div
-                      className="w-[1px] bg-gray-400"
-                      style={{
-                        height: '40px', // Adjust based on the space needed
-                      }}
-                    ></div>
-                    {/* Horizontal Line */}
-                    <div className=" w-[40px] h-[1px] bg-gray-400"></div>
-                  </div>
-
-                  {/* Tags Box */}
-                  <div className="p-1 border-2 border-slate-400 rounded-lg shadow-sm flex flex-wrap">
-                    {tags.map((tag, index) => (
-                      <div className="rounded-lg p-2 m-2 bg-slate-100" key={`${index}-${tag}`}>
-                        {tag}
-                      </div>
-                    ))}
-                  </div>
+            <div className="flex flex-wrap gap-2">
+              <span className=''>Tags Used for Training: </span>
+              <div className="w-fit max-w-[600px]">
+                {/* Tags Box */}
+                <div className="p-1 border-2 border-slate-300 rounded-lg flex flex-wrap">
+                  {tags.map((tag, index) => (
+                    index < numTagDisplay && <div className="rounded-lg p-2 m-2 bg-slate-100" key={`${index}-${tag}`}>
+                      {tag}
+                    </div>
+                  ))}
+                  {tags.length > 5 &&
+                    <Button
+                      color='inherit'
+                      variant='outlined'
+                      size='medium'
+                      onClick={numTagDisplay === 5 ? handleTagDisplayMore : handleTagDisplayLess}>
+                      {numTagDisplay === 5 ? 'Expand ▼' : 'Collapse ▲'}
+                    </Button>
+                  }
                 </div>
-              )}
+              </div>
             </div>
 
             <br />

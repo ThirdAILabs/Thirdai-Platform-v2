@@ -1,3 +1,4 @@
+import logging
 import os
 from contextlib import contextmanager
 
@@ -7,8 +8,6 @@ from database import schema
 from database.schema import SQLDeclarativeBase as Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
-import logging
 
 db_uri = os.getenv("DATABASE_URI")
 if db_uri is None:

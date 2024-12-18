@@ -7,7 +7,6 @@ from typing import Optional
 import yaml
 from auth.utils import get_hostname_from_url
 from backend.utils import (
-    delete_nomad_job,
     get_platform,
     get_python_path,
     get_root_absolute_path,

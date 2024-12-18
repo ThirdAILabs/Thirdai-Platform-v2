@@ -125,11 +125,18 @@ jobs:
             "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
             sudo apt-get update
             sudo apt-get install -y docker-ce
-
-        - name: Log in to Docker Registry
+        
+        - name: Decode docker registry pull password
           run: |
             docker_registry_password=$(echo -n "${{ inputs.b64_encoded_docker_registry_pull_password }}" | base64 --decode)
-            docker login -u "thirdaiplatform-pull-${{ inputs.docker_image_branch_name }}" -p "$docker_registry_password" thirdaiplatform.azurecr.io
+            echo "docker_registry_password=$docker_registry_password" >> $GITHUB_ENV
+
+        - name: Login to ACR
+          uses: docker/login-action@v3
+          with:
+            registry: thirdaiplatform.azurecr.io
+            username: "thirdaiplatform-pull-${{ inputs.docker_image_branch_name }}"
+            password: ${{ env.docker_registry_password }}
 
         - name: Download Docker images with the given tag
           run: |

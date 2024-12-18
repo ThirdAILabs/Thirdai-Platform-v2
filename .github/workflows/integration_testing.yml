@@ -77,7 +77,7 @@ jobs:
       # Host_machine1 = {
       #   "instance_id": "i-sdsdjsdbis",
       #   "ssh_username": "ubuntu",
-      #   "identity_key": "sdonsd"      # Corresponding public-key should be added in the authorized_hosts file in the host_machine1
+      #   "identity_key": "sdonsd"      # Corresponding public-key should be added in the authorized_keys file in the host_machine1
       # }
       # Host_machine2 = {
       #   "instance_id": "i-safdfsasds",

@@ -107,15 +107,15 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Delete the score map associated with the branch image
-        # Making sure that branch is not 'release-test-main'
-        if: ${{ needs.Gather_facts.outputs.docker_image_branch_name != 'release-test-main' }}
+        # Making sure that branch is not main_docker_image_name
         run: |
-          az acr scope-map delete --name "thirdaiplatform-push-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
-          az acr scope-map delete --name "thirdaiplatform-pull-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
+          if [ "${{ needs.Gather_facts.outputs.docker_image_branch_name}}" != "${{ secrets.MAIN_DOCKER_IMAGE_NAME }}" ]; then
+            echo "check for print"
+          fi
 
       - name: Delete the token map associated with the branch image
-        # Making sure that branch is not 'release-test-main'
-        if: ${{ needs.Gather_facts.outputs.docker_image_branch_name != 'release-test-main' }}
+        # Making sure that branch is not main_docker_image_name
         run: |
-          az acr token delete --name "thirdaiplatform-push-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
-          az acr token delete --name "thirdaiplatform-pull-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
+          if [ "${{ needs.Gather_facts.outputs.docker_image_branch_name}}" != "${{ secrets.MAIN_DOCKER_IMAGE_NAME }}" ]; then
+            echo "again check for print"
+          fi

@@ -61,6 +61,8 @@ jobs:
     outputs:
       server_machine_public_ip: ${{ steps.host_machine1.outputs.public_ip }}
       task_runner_token: ${{ steps.task_runner.outputs.token }}
+      host_machine1_instance_id: ${{ steps.host_machine1.outputs.instance_id }}
+      host_machine2_instance_id: ${{ steps.host_machine2.outputs.instance_id }}
     steps:
       - name: Decode docker registry password
         run: |
@@ -91,7 +93,7 @@ jobs:
 
           # instance_id
           echo "host_machine1_instance_id=$(jq -r '.instance_id' host_machine1.json)" >> $GITHUB_ENV
-          echo "host_machine2_instance_id=$(jq -r '.instance_id' host_machine1.json)" >> $GITHUB_ENV
+          echo "host_machine2_instance_id=$(jq -r '.instance_id' host_machine2.json)" >> $GITHUB_ENV
           
       # Regarding instances:
       #   - Server node (Host machine1) have the aws configured to pull images from s3 bucket
@@ -125,9 +127,12 @@ jobs:
             exit 1
           fi
 
-      - name: Fetch the public/private IP & ssh-username of the host machine 1
+      - name: Fetch the details of host machine 1
         id: host_machine1
         run: |
+          # Instance ID
+          echo "instance_id=${{ env.host_machine1_instance_id }}" >> $GITHUB_OUTPUT
+
           host_machine1_ips=$(aws ec2 describe-instances \
               --instance-ids ${{ env.host_machine1_instance_id }} \
               --query "Reservations[0].Instances[0].[PublicIpAddress, PrivateIpAddress]" \
@@ -140,9 +145,12 @@ jobs:
           # ssh_username
           echo "ssh_username=$(jq -r '.ssh_username' host_machine1.json)" >> $GITHUB_OUTPUT
 
-      - name: Fetch the public/private IP & ssh-username of the host machine 2
+      - name: Fetch the details of host machine 2
         id: host_machine2
         run: |
+          # Instance ID
+          echo "instance_id=${{ env.host_machine2_instance_id }}" >> $GITHUB_OUTPUT
+
           host_machine2_ips=$(aws ec2 describe-instances \
               --instance-ids ${{ env.host_machine2_instance_id }} \
               --query "Reservations[0].Instances[0].[PublicIpAddress, PrivateIpAddress]" \
@@ -163,6 +171,7 @@ jobs:
       - name: Check if license file is present on the host machine1
         run: |
           ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=120 -o ServerAliveCountMax=25 -i /tmp/id_rsa ${{ steps.host_machine1.outputs.ssh_username }}@${{ steps.host_machine1.outputs.public_ip }} <<EOF
+            root_dir=/home/${{ steps.host_machine1.outputs.ssh_username }}
             if [ ! -f "\$root_dir/ndb_enterprise_license.json" ]; then
               echo "ndb_enterprise_license.json is not at the directory \$root_dir"
               exit 1
@@ -298,5 +307,5 @@ jobs:
         
         - name: Stop the ec2-machine
           run: |
-            aws ec2 stop-instances --instance-ids ${{ env.host_machine1_instance_id }} ${{ env.host_machine2_instance_id }}
+            aws ec2 stop-instances --instance-ids ${{ needs.setup_the_ec2_instances.outputs.host_machine1_instance_id }} ${{ needs.setup_the_ec2_instances.outputs.host_machine2_instance_id }}
       

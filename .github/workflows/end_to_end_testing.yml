@@ -112,13 +112,13 @@ jobs:
       - name: Delete the score map associated with the branch image
         # Making sure that branch is not main_docker_image_name
         run: |
-          if [ "${{ needs.Gather_facts.outputs.docker_image_branch_name}}" != "${{ secrets.MAIN_DOCKER_IMAGE_NAME }}" ]; then
+          if [ "release-test-main" != "${{ secrets.MAIN_DOCKER_IMAGE_NAME }}" ]; then
             echo "check for print"
           fi
 
       - name: Delete the token map associated with the branch image
         # Making sure that branch is not main_docker_image_name
         run: |
-          if [ "${{ needs.Gather_facts.outputs.docker_image_branch_name}}" != "${{ secrets.MAIN_DOCKER_IMAGE_NAME }}" ]; then
+          if [ "release-test-main" != "${{ secrets.MAIN_DOCKER_IMAGE_NAME }}" ]; then
             echo "again check for print"
           fi 

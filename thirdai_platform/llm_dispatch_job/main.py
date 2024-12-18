@@ -9,14 +9,16 @@ load_dotenv()
 
 import asyncio
 import os
-from typing import Annotated
+
+pass
 from urllib.parse import urljoin
 
 import requests
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi.security import OAuth2PasswordBearer
+
+pass
 from llm_dispatch_job.llms import LLMBase, default_keys, model_classes
 from llm_dispatch_job.utils import GenerateArgs
 
@@ -61,13 +63,8 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/user/email-login", auto_error=False)
-
-
 @app.post("/llm-dispatch/generate")
-async def generate(
-    generate_args: GenerateArgs, token: Annotated[str, Depends(oauth2_scheme)]
-):
+async def generate(generate_args: GenerateArgs):
     """
     Generate text using a specified generative AI model, with content streamed in real-time.
     Returns a StreamingResponse with chunks of generated text.

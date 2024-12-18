@@ -100,21 +100,12 @@ jobs:
             name: thirdai-platform-package
             path: thirdai-platform-package.tar.gz
 
-        - name: Install AWS CLI
-          run: |
-            sudo apt-get update
-            sudo apt-get install -y awscli
-
         - name: Configure AWS credentials
-          run: |
-            aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws configure set region us-east-1
-
-        - name: Verify AWS CLI Setup
-          run: |
-            aws --version
-            aws sts get-caller-identity
+          uses: aws-actions/configure-aws-credentials@v4
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: us-east-1
 
         - name: "Azure Login"
           uses: azure/login@v1

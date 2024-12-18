@@ -70,7 +70,7 @@ jobs:
             sudo apt update
             sudo apt install yq -y
       
-      - name: Add credentials for the docker image in config.yml
+      - name: Add credentials for the docker image in config.yml (if provided)
         if: ${{ inputs.base_encoded_docker_registry_push_password != '' && inputs.base_encoded_docker_registry_pull_password != '' }}
         run: |
           provider=$(yq '.provider' $GITHUB_WORKSPACE/release/config.yaml)

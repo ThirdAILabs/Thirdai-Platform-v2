@@ -39,6 +39,12 @@ on:
       GENAI_KEY:
         description: "GenAI key"
         required: true
+      HOST_MACHINE1:
+        description: "Details of the host_machine1 (used as server node)"
+        required: true
+      HOST_MACHINE2:
+        description: "Details of the host_machine2 (used as client nodes)"
+        required: true
     outputs:
       backend_test_outcome:
         description: "Backend test step outcome"

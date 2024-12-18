@@ -211,6 +211,8 @@ type TrainConfig struct {
 	LicenseKey          string  `json:"license_key"`
 	BaseModelId         *string `json:"base_model_id"`
 
+	UserId string `json:"user_id"`
+
 	ModelOptions interface{} `json:"model_options"`
 	Data         interface{} `json:"data"`
 	TrainOptions interface{} `json:"train_options"`

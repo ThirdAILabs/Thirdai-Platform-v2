@@ -23,7 +23,7 @@ from platform_common.pii.data_types import (
     UnstructuredTokenClassificationResults,
     XMLTokenClassificationResults,
 )
-from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
+from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
     LabelCollection,
     LabelStatus,

@@ -26,7 +26,7 @@ try:
     from platform_common.logging import setup_logger
     from platform_common.pydantic_models.deployment import DeploymentConfig
     from platform_common.logging import JobLogger, LogCode, setup_logger
-    from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
+    from platform_common.pydantic_models.deployment import DeploymentConfig
     from platform_common.pydantic_models.training import ModelType
     from prometheus_client import make_asgi_app
 except ImportError as e:
@@ -48,7 +48,7 @@ logger = JobLogger(
     log_prefix="deployment",
     service_type="deployment",
     model_id=config.model_id,
-    model_type=config.model_options.model_type,
+    model_type=config.model_type,
     user_id=config.user_id,
 )
 
@@ -135,18 +135,18 @@ async def global_exception_handler(request: Request, exc: Exception):
 if config.model_type == ModelType.NDB:
     backend_router_factory = NDBRouter
     logger.info("Initializing NDB router", code=LogCode.MODEL_INIT)
-elif config.model_options.model_type == ModelType.NLP_TOKEN:
+elif config.model_type == ModelType.NLP_TOKEN:
     backend_router_factory = UDTRouterTokenClassification
     logger.info("Initializing UDT Token Classification router", code=LogCode.MODEL_INIT)
-elif config.model_options.model_type == ModelType.NLP_TEXT:
+elif config.model_type == ModelType.NLP_TEXT:
     backend_router_factory = UDTRouterTextClassification
     logger.info("Initializing UDT Text Classification router", code=LogCode.MODEL_INIT)
-elif config.model_options.model_type == ModelType.ENTERPRISE_SEARCH:
+elif config.model_type == ModelType.ENTERPRISE_SEARCH:
     backend_router_factory = EnterpriseSearchRouter
-elif config.model_options.model_type == ModelType.KNOWLEDGE_EXTRACTION:
+elif config.model_type == ModelType.KNOWLEDGE_EXTRACTION:
     backend_router_factory = KnowledgeExtractionRouter
 else:
-    error_message = f"Unsupported ModelType '{config.model_options.model_type}'."
+    error_message = f"Unsupported ModelType '{config.model_type}'."
     logger.error(error_message, code=LogCode.MODEL_INIT)
     raise ValueError(error_message)
 

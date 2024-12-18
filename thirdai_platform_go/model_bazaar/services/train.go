@@ -115,6 +115,7 @@ func (s *TrainService) basicTraining(w http.ResponseWriter, r *http.Request, arg
 		ModelId:             model.Id,
 		ModelType:           args.modelType,
 		BaseModelId:         args.baseModelId,
+		UserId:              userId,
 		ModelOptions:        args.modelOptions,
 		Data:                args.data,
 		TrainOptions:        args.trainOptions,

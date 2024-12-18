@@ -204,10 +204,11 @@ func (s *ModelService) List(w http.ResponseWriter, r *http.Request) {
 }
 
 type ModelPermissions struct {
-	Read  bool      `json:"read"`
-	Write bool      `json:"write"`
-	Owner bool      `json:"owner"`
-	Exp   time.Time `json:"exp"`
+	Read     bool      `json:"read"`
+	Write    bool      `json:"write"`
+	Owner    bool      `json:"owner"`
+	Username string    `json:"username"`
+	Exp      time.Time `json:"exp"`
 }
 
 func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
@@ -232,10 +233,11 @@ func (s *ModelService) Permissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := ModelPermissions{
-		Read:  permission >= auth.ReadPermission,
-		Write: permission >= auth.WritePermission,
-		Owner: permission >= auth.OwnerPermission,
-		Exp:   expiration,
+		Read:     permission >= auth.ReadPermission,
+		Write:    permission >= auth.WritePermission,
+		Owner:    permission >= auth.OwnerPermission,
+		Username: userId, // TODO(nicholas): store user info in context for audit logging
+		Exp:      expiration,
 	}
 	utils.WriteJsonResponse(w, res)
 }

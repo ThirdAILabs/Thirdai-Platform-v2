@@ -24,6 +24,7 @@ job "{{ .JobName }}" {
         AZURE_ACCOUNT_KEY = "{{ .AzureAccountKey }}"
         GCP_CREDENTIALS_FILE = "{{ .GcpCredentialsFile }}"
         {{ end }}
+        HF_HOME = "/model_bazaar/pretrained-models"
       }
 
       config {

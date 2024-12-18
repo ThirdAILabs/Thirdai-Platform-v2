@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"thirdai_platform/model_bazaar/auth"
 	"thirdai_platform/model_bazaar/config"
 	"thirdai_platform/model_bazaar/jobs"
@@ -118,10 +119,19 @@ func (s *DeployService) deployModel(modelId, userId string, autoscaling bool, au
 			requiresOnPremLlm = true
 		}
 
+		var hostDir string
+		if s.variables.BackendDriver.DriverType() == "local" {
+			hostDir = filepath.Join(s.variables.ShareDir, "host_dir")
+		} else {
+			hostDir = filepath.Join("/thirdai_platform", "host_dir")
+		}
+
 		config := config.DeployConfig{
 			ModelId:             model.Id,
+			UserId:              userId,
 			ModelType:           model.Type,
 			ModelBazaarDir:      s.storage.Location(),
+			HostDir:             hostDir,
 			ModelBazaarEndpoint: s.variables.ModelBazaarEndpoint,
 			LicenseKey:          license,
 			JobAuthToken:        token,
@@ -145,6 +155,7 @@ func (s *DeployService) deployModel(modelId, userId string, autoscaling bool, au
 				Driver:             s.variables.BackendDriver,
 				Resources:          resources,
 				CloudCredentials:   s.variables.CloudCredentials,
+				JobToken:           uuid.New().String(),
 			},
 		)
 		var newStatus string

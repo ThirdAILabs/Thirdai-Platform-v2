@@ -87,6 +87,8 @@ type DeployJob struct {
 	Resources Resources
 
 	CloudCredentials CloudCredentials
+
+	JobToken string
 }
 
 func (j DeployJob) GetJobName() string {

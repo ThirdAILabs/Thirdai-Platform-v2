@@ -94,12 +94,14 @@ jobs:
         if: ${{ inputs.dont_update_latest == 'true' }}
         run: |
           cd release
+          pip install -r requirements.txt
           python3 push.py -b "${{ inputs.docker_image_branch_name }}" --config config.yaml --no-cache --version "${{ inputs.docker_image_version }}" --dont-update-latest
       
       - name: Build and push docker images to the repository (Along with latest)
         if: ${{ inputs.dont_update_latest != 'true' }}
         run: |
           cd release
+          pip install -r requirements.txt
           python3 push.py -b "${{ inputs.docker_image_branch_name }}" --config config.yaml --no-cache --version "${{ inputs.docker_image_version }}"
 
       - name: Extract the docker registry_password

@@ -501,11 +501,7 @@ export function WorkFlow({
                   >
                     <DropdownMenuItem>
                       <Tooltip
-                        title={
-                          deployStatus !== DeployStatus.Active
-                            ? 'Access restricted: model is not Active'
-                            : ''
-                        }
+                        title={deployStatus !== DeployStatus.Active ? 'please start app first' : ''}
                         arrow
                       >
                         <span>

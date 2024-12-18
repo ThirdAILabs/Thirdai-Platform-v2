@@ -134,8 +134,8 @@ jobs:
               --output text)
 
           # IPs
-          echo "public_ip=$(echo host_machine1_ips | awk '{print $1}')" >> $GITHUB_OUTPUT
-          echo "private_ip=$(echo host_machine1_ips | awk '{print $2}')" >> $GITHUB_OUTPUT
+          echo "public_ip=$(echo $host_machine1_ips | awk '{print $1}')" >> $GITHUB_OUTPUT
+          echo "private_ip=$(echo $host_machine1_ips | awk '{print $2}')" >> $GITHUB_OUTPUT
 
           # ssh_username
           echo "ssh_username=$(jq -r '.ssh_username' host_machine1.json)" >> $GITHUB_OUTPUT
@@ -149,8 +149,8 @@ jobs:
               --output text)
           
           # IPs
-          echo "public_ip=$(echo host_machine2_ips | awk '{print $1}')" >> $GITHUB_OUTPUT
-          echo "private_ip=$(echo host_machine2_ips | awk '{print $2}')">> $GITHUB_OUTPUT
+          echo "public_ip=$(echo $host_machine2_ips | awk '{print $1}')" >> $GITHUB_OUTPUT
+          echo "private_ip=$(echo $host_machine2_ips | awk '{print $2}')">> $GITHUB_OUTPUT
           
           # ssh-username
           echo "ssh_username=$(jq -r '.ssh_username' host_machine2.json)" >> $GITHUB_OUTPUT

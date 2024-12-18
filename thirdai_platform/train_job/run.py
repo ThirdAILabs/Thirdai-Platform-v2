@@ -30,7 +30,7 @@ except ImportError as e:
 
 
 def get_model(config: TrainConfig, reporter: Reporter, logger: JobLogger):
-    model_type = config.model_options.model_type
+    model_type = config.model_type
 
     if model_type == ModelType.NDB:
         logger.info("Creating NDB model", code=LogCode.MODEL_INIT)
@@ -66,7 +66,7 @@ def main():
         log_prefix="train",
         service_type="train",
         model_id=config.model_id,
-        model_type=config.model_options.model_type,
+        model_type=config.model_type,
         user_id=config.user_id,
     )
     try:

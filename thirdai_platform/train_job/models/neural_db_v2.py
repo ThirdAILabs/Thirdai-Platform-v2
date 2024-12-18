@@ -51,8 +51,7 @@ class NeuralDBV2(Model):
             with open(ndbv2.NeuralDB.metadata_path(self.ndb_save_path()), "r") as f:
                 ndb_save_metadata = json.load(f)
             chunk_store_name = ndb_save_metadata["chunk_store_name"]
-            if chunk_store_name == "PandasChunkStore":
-                self.on_disk = False
+            self.on_disk = chunk_store_name != "PandasChunkStore"
         else:
             ndb_options = self.config.model_options
             splade = ndb_options.advanced_search

@@ -53,7 +53,12 @@ func (c *ModelClient) AwaitTrain(timeout time.Duration) error {
 }
 
 func (c *ModelClient) AwaitDeploy(timeout time.Duration) error {
-	return c.awaitJob("deploy", timeout)
+	err := c.awaitJob("deploy", timeout)
+	if err != nil {
+		return err
+	}
+	time.Sleep(4 * time.Second) // Wait to make sure traefik updates
+	return nil
 }
 
 type Logs struct {

@@ -46,6 +46,7 @@ jobs:
     with:
       docker_image_branch_name: ${{ needs.Gather_facts.outputs.docker_image_branch_name }}
       docker_image_version: ${{ needs.Gather_facts.outputs.version }}
+      dont_update_latest: true
     secrets:
       azure_credentials: ${{ secrets.AZURE_CREDENTIALS }}
 

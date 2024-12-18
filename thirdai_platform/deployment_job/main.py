@@ -136,10 +136,14 @@ if config.model_options.model_type == ModelType.NDB:
 elif config.model_options.model_type == ModelType.UDT:
     if config.model_options.udt_sub_type == UDTSubType.token:
         backend_router_factory = UDTRouterTokenClassification
+
         logger.info(
             "Initializing UDT Token Classification router", code=LogCode.MODEL_INIT
         )
-    elif config.model_options.udt_sub_type == UDTSubType.text:
+    elif (
+        config.model_options.udt_sub_type == UDTSubType.text
+        or config.model_options.udt_sub_type == UDTSubType.document
+    ):
         backend_router_factory = UDTRouterTextClassification
         logger.info(
             "Initializing UDT Text Classification router", code=LogCode.MODEL_INIT

@@ -1,14 +1,13 @@
 from abc import abstractmethod
-from logging import Logger
 from pathlib import Path
 from typing import List, Optional
 
 from deployment_job.models.model import Model
-from deployment_job.pydantic_models.inputs import (
-    SearchResultsTextClassification,
-    SearchResultsTokenClassification,
-)
+from deployment_job.pydantic_models.inputs import SearchResultsTextClassification
 from fastapi import HTTPException, status
+from platform_common.logging import JobLogger
+from platform_common.logging.logcodes import LogCode
+from platform_common.pii.data_types import UnstructuredText, XMLLog
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.thirdai_storage.data_types import (
     DataSample,
@@ -27,14 +26,13 @@ from thirdai import bolt
 
 
 class ClassificationModel(Model):
-    def __init__(self, config: DeploymentConfig, logger: Logger):
+    def __init__(self, config: DeploymentConfig, logger: JobLogger):
         super().__init__(config=config, logger=logger)
         self.model: bolt.UniversalDeepTransformer = self.load()
 
     def get_udt_path(self, model_id: Optional[str] = None) -> str:
         model_id = model_id or self.config.model_id
         udt_path = str(self.get_model_dir(model_id) / "model.udt")
-        self.logger.debug(f"UDT model path: {udt_path}")
         return udt_path
 
     def load(self):
@@ -51,11 +49,12 @@ class ClassificationModel(Model):
 
 
 class TextClassificationModel(ClassificationModel):
-    def __init__(self, config: DeploymentConfig, logger: Logger):
+    def __init__(self, config: DeploymentConfig, logger: JobLogger):
         super().__init__(config=config, logger=logger)
         self.num_classes = self.model.predict({"text": "test"}).shape[-1]
         self.logger.info(
-            f"TextClassificationModel initialized with {self.num_classes} classes"
+            f"TextClassificationModel initialized with {self.num_classes} classes",
+            code=LogCode.MODEL_INIT,
         )
         self.load_storage()
 
@@ -69,7 +68,10 @@ class TextClassificationModel(ClassificationModel):
 
         try:
             if not data_storage_path.exists():
-                self.logger.info(f"Data storage path does not exist, creating it")
+                self.logger.info(
+                    "Data storage path does not exist, creating it",
+                    code=LogCode.DATA_STORAGE,
+                )
 
                 data_storage_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -93,55 +95,74 @@ class TextClassificationModel(ClassificationModel):
                         status=MetadataStatus.unchanged,
                     )
                 )
-
             else:
                 self.data_storage = DataStorage(
                     connector=SQLiteConnector(db_path=data_storage_path)
                 )
+            self.logger.info(
+                f"Loaded data storage from {data_storage_path}",
+                code=LogCode.DATA_STORAGE,
+            )
         except Exception as e:
             self.logger.error(
-                f"Error loading data storage: {e} for the model {self.config.model_id}"
+                f"Error loading data storage: {e} for the model {self.config.model_id}",
+                code=LogCode.DATA_STORAGE,
             )
             raise e
 
     def predict(self, text: str, top_k: int, **kwargs):
-        top_k = min(top_k, self.num_classes)
-        self.logger.info(f"Predicting for text '{text}' with top_k={top_k}")
-        prediction = self.model.predict({"text": text}, top_k=top_k)
-        predicted_classes = [
-            {"class": self.model.class_name(class_id), "score": float(activation)}
-            for class_id, activation in zip(*prediction)
-        ]
+        try:
+            top_k = min(top_k, self.num_classes)
+            prediction = self.model.predict({"text": text}, top_k=top_k)
+            predicted_classes = [
+                {"class": self.model.class_name(class_id), "score": float(activation)}
+                for class_id, activation in zip(*prediction)
+            ]
 
-        return SearchResultsTextClassification(
-            query_text=text,
-            predicted_classes=predicted_classes,
-        )
+            return SearchResultsTextClassification(
+                query_text=text,
+                predicted_classes=predicted_classes,
+            )
+        except Exception as e:
+            self.logger.error(f"Error predicting: {e}", code=LogCode.MODEL_PREDICT)
+            raise e
 
     def insert_sample(self, sample: TextClassificationData):
-        self.logger.info(f"Inserting sample: {sample}")
         text_sample = DataSample(
             name="text_classification",
             data=sample,
             user_provided=True,
             status=SampleStatus.untrained,
         )
-        self.data_storage.insert_samples(
-            samples=[text_sample], override_buffer_limit=True
-        )
+        try:
+            self.data_storage.insert_samples(
+                samples=[text_sample], override_buffer_limit=True
+            )
+            self.logger.debug(f"Sample inserted into data storage")
+        except Exception as e:
+            self.logger.error(f"Error inserting sample: {e}", code=LogCode.DATA_STORAGE)
+            raise e
 
     def get_recent_samples(self, num_samples: int = 5) -> List[TextClassificationData]:
-        recent_samples = self.data_storage.retrieve_samples(
-            name="text_classification",
-            num_samples=num_samples,
-            user_provided=True,  # Assuming we want user-provided samples
-        )
-
-        return [sample.data for sample in recent_samples]
+        try:
+            recent_samples = self.data_storage.retrieve_samples(
+                name="text_classification",
+                num_samples=num_samples,
+                user_provided=True,  # Assuming we want user-provided samples
+            )
+            self.logger.debug(
+                f"Retrieved {len(recent_samples)} samples from data storage"
+            )
+            return [sample.data for sample in recent_samples]
+        except Exception as e:
+            self.logger.error(
+                f"Error retrieving samples: {e}", code=LogCode.DATA_STORAGE
+            )
+            raise e
 
 
 class TokenClassificationModel(ClassificationModel):
-    def __init__(self, config: DeploymentConfig, logger: Logger):
+    def __init__(self, config: DeploymentConfig, logger: JobLogger):
         super().__init__(config=config, logger=logger)
         self.load_storage()
 
@@ -155,7 +176,10 @@ class TokenClassificationModel(ClassificationModel):
 
         try:
             if not data_storage_path.exists():
-                self.logger.info(f"Data storage path does not exist, creating it")
+                self.logger.info(
+                    "Data storage path does not exist, creating it",
+                    code=LogCode.DATA_STORAGE,
+                )
 
                 data_storage_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -178,6 +202,10 @@ class TokenClassificationModel(ClassificationModel):
                         status=MetadataStatus.unchanged,
                     )
                 )
+                self.logger.info(
+                    f"Loading data storage from {data_storage_path}",
+                    code=LogCode.DATA_STORAGE,
+                )
 
             else:
                 self.data_storage = DataStorage(
@@ -185,29 +213,40 @@ class TokenClassificationModel(ClassificationModel):
                 )
         except Exception as e:
             self.logger.error(
-                f"Error loading data storage: {e} for the model {self.config.model_id}"
+                f"Error loading data storage: {e} for the model {self.config.model_id}",
+                code=LogCode.DATA_STORAGE,
             )
             raise e
 
-    def predict(self, text: str, **kwargs):
-        predicted_tags = self.model.predict({"source": text}, top_k=1, as_unicode=True)
-        predictions = []
-        for predicted_tag in predicted_tags:
-            predictions.append([x[0] for x in predicted_tag])
+    def predict(self, text: str, data_type: str, **kwargs):
+        try:
+            if data_type == "unstructured":
+                log = UnstructuredText(text)
+            elif data_type == "xml":
+                log = XMLLog(text)
+            else:
+                raise ValueError(
+                    "Expected data type to be either 'unstructured' or 'xml'. Found: {data_type}"
+                )
 
-        tokens = text.split()
+            model_predictions = self.model.predict(
+                log.inference_sample, top_k=1, as_unicode=True
+            )
+            result = log.process_prediction(model_predictions)
 
-        if len(predictions) != len(tokens):
+        except ValueError as e:
+            message = f"Error processing prediction: {e}"
+            self.logger.error(message, code=LogCode.MODEL_PREDICT)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Error parsing input text, this is likely because the input contains unsupported unicode characters.",
+                detail=message,
             )
+        except Exception as e:
+            message = f"Error processing prediction: {e}"
+            self.logger.error(message, code=LogCode.MODEL_PREDICT)
+            raise e
 
-        return SearchResultsTokenClassification(
-            query_text=text,
-            tokens=tokens,
-            predicted_tags=predictions,
-        )
+        return result
 
     @property
     def tag_metadata(self) -> TagMetadata:
@@ -215,7 +254,6 @@ class TokenClassificationModel(ClassificationModel):
         return self.data_storage.get_metadata("tags_and_status").data
 
     def update_tag_metadata(self, tag_metadata, status: MetadataStatus):
-        self.logger.info(f"Updating tag metadata with status: {status}")
         self.data_storage.insert_metadata(
             metadata=Metadata(name="tags_and_status", data=tag_metadata, status=status)
         )
@@ -225,22 +263,34 @@ class TokenClassificationModel(ClassificationModel):
         return list(self.tag_metadata.tag_status.keys())
 
     def add_labels(self, labels: LabelCollection):
-        self.logger.info(f"Adding labels: {[label.name for label in labels.tags]}")
-        tag_metadata = self.tag_metadata
-        for label in labels.tags:
-            tag_metadata.add_tag(label)
-
-        # update the metadata entry in the DB
-        self.update_tag_metadata(tag_metadata, MetadataStatus.updated)
+        try:
+            tag_metadata = self.tag_metadata
+            for label in labels.tags:
+                tag_metadata.add_tag(label)
+            # update the metadata entry in the DB
+            self.update_tag_metadata(tag_metadata, MetadataStatus.updated)
+            self.logger.info(f"Tag metadata updated", code=LogCode.DATA_STORAGE)
+        except Exception as e:
+            self.logger.error(
+                f"Error updating tag metadata: {e}", code=LogCode.DATA_STORAGE
+            )
+            raise e
 
     def insert_sample(self, sample: TokenClassificationData):
-        self.logger.info(f"Inserting sample: {sample}")
-        token_tag_sample = DataSample(
-            name="ner", data=sample, user_provided=True, status=SampleStatus.untrained
-        )
-        self.data_storage.insert_samples(
-            samples=[token_tag_sample], override_reservoir_limit=True
-        )
+        try:
+            token_tag_sample = DataSample(
+                name="ner",
+                data=sample,
+                user_provided=True,
+                status=SampleStatus.untrained,
+            )
+            self.data_storage.insert_samples(
+                samples=[token_tag_sample], override_reservoir_limit=True
+            )
+            self.logger.debug(f"Sample inserted into data storage")
+        except Exception as e:
+            self.logger.error(f"Error inserting sample: {e}", code=LogCode.DATA_STORAGE)
+            raise e
 
     def get_recent_samples(self, num_samples: int = 5) -> List[TokenClassificationData]:
         """
@@ -252,12 +302,20 @@ class TokenClassificationModel(ClassificationModel):
         Returns:
             List[TokenClassificationData]: A list of the most recent TokenClassificationData samples.
         """
-        # Retrieve recent samples using the existing data_storage methods
-        recent_samples = self.data_storage.retrieve_samples(
-            name="ner",
-            num_samples=num_samples,
-            user_provided=True,  # Assuming we want user-provided samples
-        )
-
-        # Return the TokenClassificationData objects directly
-        return [sample.data for sample in recent_samples]
+        try:
+            # Retrieve recent samples using the existing data_storage methods
+            recent_samples = self.data_storage.retrieve_samples(
+                name="ner",
+                num_samples=num_samples,
+                user_provided=True,  # Assuming we want user-provided samples
+            )
+            self.logger.debug(
+                f"Retrieved {len(recent_samples)} samples from data storage"
+            )
+            # Return the TokenClassificationData objects directly
+            return [sample.data for sample in recent_samples]
+        except Exception as e:
+            self.logger.error(
+                f"Error retrieving samples: {e}", code=LogCode.DATA_STORAGE
+            )
+            raise e

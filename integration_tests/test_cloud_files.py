@@ -74,6 +74,11 @@ def test_cloud_training(model_name_prefix, doc_url, provider, expected_query):
     res = ndb_client.search(expected_query, top_k=1)
     assert res["references"][0]["id"] is not None
 
+    sources = ndb_client.sources()
+    ndb_client.delete([sources[0]["source_id"]])
+    sources_after = ndb_client.sources()
+    assert len(sources) == len(sources_after) + 1
+
     # Get signed URL and check access
     signed_url = ndb_client.get_signed_url(
         source=res["references"][0]["source"], provider=provider

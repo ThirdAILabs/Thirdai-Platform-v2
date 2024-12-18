@@ -31,7 +31,7 @@ google-auth-oauthlib
 google-cloud-build
 google-cloud-storage
 hvac
-httpx
+httpx==0.27.0
 langchain
 langchain_openai
 mmh3
@@ -60,3 +60,5 @@ unstructured[pptx]
 url-normalize
 uvicorn[standard]
 websockets
+aiofiles
+PyPDF2

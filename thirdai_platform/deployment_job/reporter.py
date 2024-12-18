@@ -1,12 +1,12 @@
-from logging import Logger
 from typing import Optional
 from urllib.parse import urljoin
 
 import requests
+from platform_common.logging import JobLogger
 
 
 class Reporter:
-    def __init__(self, api_url: str, auth_token: str, logger: Logger):
+    def __init__(self, api_url: str, auth_token: str, logger: JobLogger):
         """
         Initializes the Reporter instance with the API URL.
 
@@ -115,6 +115,22 @@ class Reporter:
             status (str): The new status of the deployment.
         """
         self._request("post", "api/v2/deploy/update-status", json={"status": status})
+
+    def get_deploy_status(self, model_id: str) -> str:
+        """
+        Gets the deployment status.
+
+        Args:
+            model_id (str): The ID of the model.
+        """
+        content = self._request(
+            "get",
+            "api/deploy/internal-status",
+            params={
+                "model_id": model_id,
+            },
+        )
+        return content["data"]["deploy_status"]
 
     def log(
         self,

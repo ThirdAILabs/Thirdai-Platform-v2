@@ -1,13 +1,13 @@
 import io
+import threading
 import traceback
 import uuid
-from logging import Logger
 from pathlib import Path
-from typing import AsyncGenerator, List
+from queue import Queue
+from typing import AsyncGenerator, List, Optional
 
 import fitz
 import jwt
-import thirdai
 from deployment_job.models.ndb_models import NDBModel
 from deployment_job.permissions import Permissions
 from deployment_job.pydantic_models.inputs import (
@@ -24,6 +24,7 @@ from deployment_job.pydantic_models.inputs import (
 )
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
+from deployment_job.utils import Task, TaskAction, TaskStatus, now
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -33,10 +34,13 @@ from fastapi import (
     UploadFile,
     status,
 )
+import logging
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 from platform_common.dependencies import is_on_low_disk
 from platform_common.file_handler import download_local_files, get_cloud_client
+from platform_common.logging import LogCode
+from platform_common.logging.job_loggers import JobLogger
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
@@ -67,7 +71,7 @@ ndb_top_k_selections = [
 
 
 class NDBRouter:
-    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: JobLogger):
         self.config = config
         self.reporter = reporter
         self.logger = logger
@@ -87,6 +91,7 @@ class NDBRouter:
             dependencies=[Depends(is_on_low_disk(path=self.config.model_bazaar_dir))],
         )
         self.router.add_api_route("/delete", self.delete, methods=["POST"])
+        self.router.add_api_route("/tasks", self.get_tasks, methods=["GET"])
         self.router.add_api_route("/upvote", self.upvote, methods=["POST"])
         self.router.add_api_route("/associate", self.associate, methods=["POST"])
         self.router.add_api_route(
@@ -115,9 +120,17 @@ class NDBRouter:
             "/get-signed-url", self.get_signed_url, methods=["GET"]
         )
 
+        # Only enable task queue in dev mode
+        if not self.config.autoscaling_enabled:
+            self.task_queue = Queue()
+            # TODO(kartik): make tasks an on-disk data structure
+            self.tasks = {}
+            self.task_lock = threading.Lock()
+
+        threading.Thread(target=self.process_tasks, daemon=True).start()
+
     @staticmethod
-    def get_model(config: DeploymentConfig, logger: Logger) -> NDBModel:
-        logger.info(f"Initializing ndb model")
+    def get_model(config: DeploymentConfig, logger: JobLogger) -> NDBModel:
         return NDBModel(
             config=config, logger=logger, write_mode=not config.autoscaling_enabled
         )
@@ -180,6 +193,7 @@ class NDBRouter:
         self,
         documents: str = Form(...),
         files: List[UploadFile] = [],
+        sync: bool = True,
         token: str = Depends(Permissions.verify_permission("write")),
     ):
         """
@@ -187,26 +201,29 @@ class NDBRouter:
 
         Parameters:
         - documents: str - The documents to be inserted in JSON format.
+            - path: str - Path of the file.
+            - location: str - Where the file is stored. If uploading a file, this will be "local". Other options include "nfs", "s3", "gcp", "azure".
+            - source_id: Optional[str] - A user specified source id for the uploaded document. If not provided, a random source_id will be created.
+            - options: Dict[str, Any] - Custom options for this inserted doc. (default: {})
+                - {"upsert": True} can only be used if source_id is specified. The newly uploaded document will replace the document that currently has source_id.
+            - metadata: Optional[Dict[str, Any]] - Metadata to assign to this doc. Can be used to filter documents.
         - files: List[UploadFile] - Optional list of files to be uploaded.
+        - sync: bool - Whether to sychronously insert docs or queue insertion and return asynchronously (default: True)
         - token: str - Authorization token.
 
         Returns:
         - JSONResponse: Insertion success message.
 
-        Example Request Body (Sync Mode):
+        Example Documents Param Request Body:
         ```
         {
             "documents": [
                 {
                     "location": "local",
-                    "document_type": "PDF",
                     "path": "/path/to/file.pdf",
                     "metadata": {"author": "John Doe"},
-                    "chunk_size": 100,
-                    "stride": 40,
-                    "emphasize_first_words": 0,
-                    "ignore_header_footer": true,
-                    "ignore_nonstandard_orientation": true
+                    "options": {"upsert": True},
+                    "source_id": "1234",
                 }
             ],
         }
@@ -235,9 +252,11 @@ class NDBRouter:
             max_filesize_mb = 50
 
         if total_filesize > (max_filesize_mb * 1024 * 1024):
+            message = f"Size of uploaded files exceeds maximum of {max_filesize_mb}Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size."
+            self.logger.error(message, code=LogCode.FILE_VALIDATION)
             return response(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                message=f"Size of uploaded files exceeds maximum of {max_filesize_mb}Mb for insertion endpoint on active deployment. Please use retraining api for updates of this size.",
+                message=message,
             )
 
         documents = download_local_files(
@@ -248,23 +267,56 @@ class NDBRouter:
 
         if self.config.autoscaling_enabled:
             self.insertion_logger.log(InsertLog(documents=documents))
-            self.logger.info("Document insertion logged for autoscaling deployment")
+            self.logger.info(
+                "Document insertion logged for autoscaling deployment",
+                code=LogCode.MODEL_INSERT,
+            )
             return response(
                 status_code=status.HTTP_200_OK,
                 message="Insert logged successfully.",
             )
-        else:
-            self.model.insert(documents=documents)
-            self.logger.info("Document insertion applied successfully")
+        elif not sync:
+            task_id = str(uuid.uuid4())
+            with self.task_lock:
+                self.task_queue.put(task_id)
+                self.tasks[task_id] = Task(
+                    status=TaskStatus.NOT_STARTED,
+                    action=TaskAction.INSERT,
+                    last_modified=now(),
+                    data={"documents": documents},
+                )
+
+            self.logger.info("Document insertion queued")
             return response(
-                status_code=status.HTTP_200_OK,
-                message="Insert applied successfully.",
+                status_code=status.HTTP_202_ACCEPTED,
+                message=f"Files received, insertion will start soon.",
+                data={"task_id": task_id},
             )
+        else:
+            try:
+                inserted_docs = self.model.insert(documents=documents)
+                self.logger.info(
+                    "Document insertion applied successfully", code=LogCode.MODEL_INSERT
+                )
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message="Insert applied successfully.",
+                    data=inserted_docs,
+                )
+            except Exception as e:
+                self.logger.error(
+                    f"Error inserting documents: {e}", code=LogCode.MODEL_INSERT
+                )
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message="Error inserting documents",
+                )
 
     @ndb_delete_metric.time()
     def delete(
         self,
         input: DeleteInput,
+        sync: bool = True,
         token: str = Depends(Permissions.verify_permission("write")),
     ):
         """
@@ -272,6 +324,7 @@ class NDBRouter:
 
         Parameters:
         - input: DeleteInput - The input containing source IDs to be deleted.
+        - sync: bool - Whether to sychronously delete docs or queue deletion and return asynchronously (default: False)
         - token: str - Authorization token.
 
         Returns:
@@ -287,23 +340,54 @@ class NDBRouter:
 
         if self.config.autoscaling_enabled:
             self.deletion_logger.log(DeleteLog(doc_ids=input.source_ids))
-            self.logger.info("Deletion logged for autoscaling deployment")
+            self.logger.info(
+                "Deletion logged for autoscaling deployment", code=LogCode.MODEL_DELETE
+            )
             return response(
                 status_code=status.HTTP_200_OK,
                 message="Delete logged successfully.",
             )
+        elif not sync:
+            task_id = str(uuid.uuid4())
+            with self.task_lock:
+                self.task_queue.put(task_id)
+                self.tasks[task_id] = Task(
+                    status=TaskStatus.NOT_STARTED,
+                    action=TaskAction.DELETE,
+                    last_modified=now(),
+                    data={"source_ids": input.source_ids},
+                )
+            self.logger.info("Deletion queued")
+            return response(
+                status_code=status.HTTP_202_ACCEPTED,
+                message=f"Source ids received, deletion will start soon.",
+                data={"task_id": task_id},
+            )
         else:
             if len(input.source_ids) > 5:
+                message = f"Number of deletions exceeds the maximum {input.source_ids} that can be processed synchronously in an active deployment."
+                self.logger.error(message, code=LogCode.MODEL_DELETE)
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message=f"Number of deletions exceeds the maximum {input.source_ids} that can be processed synchronously in an active deployment.",
+                    message=message,
                 )
-            self.model.delete(input.source_ids)
-
-            return response(
-                status_code=status.HTTP_200_OK,
-                message="Delete applied successfully.",
-            )
+            try:
+                self.model.delete(input.source_ids)
+                self.logger.info(
+                    "Document deletion applied successfully", code=LogCode.MODEL_DELETE
+                )
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message="Delete applied successfully.",
+                )
+            except Exception as e:
+                self.logger.error(
+                    f"Error deleting documents: {e}", code=LogCode.MODEL_DELETE
+                )
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message="Error deleting documents",
+                )
 
     @ndb_upvote_metric.time()
     def upvote(
@@ -350,22 +434,31 @@ class NDBRouter:
         )
 
         if prod_mode:
-            return response(
-                status_code=status.HTTP_200_OK,
-                message="Upvote logged successfully.",
-            )
+            message = "Upvote logged successfully."
+            self.logger.info(message, code=LogCode.MODEL_RLHF)
+            return response(status_code=status.HTTP_200_OK, message=message)
         else:
             if len(input.text_id_pairs) > 100:
+                message = f"Number of upvote samples exceeds the maximum {input.text_id_pairs} that can be processed synchronously in an active deployment."
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
                 return response(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    message=f"Number of upvote samples exceeds the maximum {input.text_id_pairs} that can be processed synchronously in an active deployment.",
+                    status_code=status.HTTP_400_BAD_REQUEST, message=message
                 )
-            self.model.upvote(input.text_id_pairs)
-
-            return response(
-                status_code=status.HTTP_200_OK,
-                message="Upvote applied successfully.",
-            )
+            try:
+                message = "Upvote applied successfully."
+                self.model.upvote(input.text_id_pairs)
+                self.logger.info(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message=message,
+                )
+            except Exception as e:
+                message = f"Error applying upvote: {e}"
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message=message,
+                )
 
     @ndb_associate_metric.time()
     def associate(
@@ -409,22 +502,35 @@ class NDBRouter:
         )
 
         if prod_mode:
+            message = "Associate logged successfully."
+            self.logger.info(message, code=LogCode.MODEL_RLHF)
             return response(
                 status_code=status.HTTP_200_OK,
-                message="Associate logged successfully.",
+                message=message,
             )
         else:
             if len(input.text_pairs) > 100:
+                message = f"Number of association samples exceeds the maximum {input.text_pairs} that can be processed synchronously in an active deployment."
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
                 return response(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    message=f"Number of association samples exceeds the maximum {input.text_pairs} that can be processed synchronously in an active deployment.",
+                    message=message,
                 )
-            self.model.associate(input.text_pairs)
-
-            return response(
-                status_code=status.HTTP_200_OK,
-                message="Associate applied successfully.",
-            )
+            try:
+                message = "Associate applied successfully."
+                self.model.associate(input.text_pairs)
+                self.logger.info(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message=message,
+                )
+            except Exception as e:
+                message = f"Error applying association: {e}"
+                self.logger.error(message, code=LogCode.MODEL_RLHF)
+                return response(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    message=message,
+                )
 
     @ndb_implicit_feedback_metric.time()
     def implicit_feedback(
@@ -606,9 +712,11 @@ class NDBRouter:
             self._perform_save, model_id, update_token, input.override
         )
 
+        message = "Save operation initiated in the background."
+        self.logger.info(message, code=LogCode.MODEL_SAVE)
         return response(
             status_code=status.HTTP_200_OK,
-            message="Save operation initiated in the background.",
+            message=message,
             data={"new_model_id": model_id if not input.override else None},
         )
 
@@ -619,7 +727,10 @@ class NDBRouter:
                 self.reporter.save_complete(token)
             self.logger.info("Successfully saved the model in the background.")
         except Exception as err:
-            self.logger.error(f"Error in background save: {traceback.format_exc()}")
+            self.logger.error(
+                f"Error in background save: {traceback.format_exc()}",
+                code=LogCode.MODEL_SAVE,
+            )
 
     def highlighted_pdf(
         self, reference_id: int, token=Depends(Permissions.verify_permission("read"))
@@ -712,3 +823,76 @@ class NDBRouter:
             message=f"Reference with id ${reference_id} is not a PDF.",
             data={},
         )
+
+    def get_tasks(
+        self,
+        task_id: Optional[str] = None,
+        token: str = Depends(Permissions.verify_permission("write")),
+    ):
+        """
+        Returns list of queued insert or delete tasks
+        Parameters:
+        - task_id: Optional[str] - Specific task id to get info for
+        - token: str - Authorization token.
+        Returns:
+        - JSONResponse: Dict of tasks.
+        Example Response Body:
+        ```
+        {
+            "tasks": {task_id: task_data}
+        }
+        ```
+        """
+        with self.task_lock:
+            if task_id:
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message=f"Returned task info",
+                    data={"task": self.tasks.get(task_id)},
+                )
+            else:
+                return response(
+                    status_code=status.HTTP_200_OK,
+                    message=f"Returned all tasks.",
+                    data={"tasks": self.tasks},
+                )
+
+    def process_tasks(self):
+        while True:
+            task_id = self.task_queue.get()
+            try:
+                with self.task_lock:
+                    action = self.tasks[task_id].action
+                    data = self.tasks[task_id].data
+                    self.tasks[task_id].status = TaskStatus.IN_PROGRESS
+                    self.tasks[task_id].last_modified = now()
+                if action == TaskAction.INSERT:
+                    documents = data["documents"]
+                    inserted_docs = self.model.insert(documents=documents)
+                    with self.task_lock:
+                        self.tasks[task_id].status = TaskStatus.COMPLETE
+                        self.tasks[task_id].last_modified = now()
+                        self.tasks[task_id].data["sources"] = inserted_docs
+                elif action == TaskAction.DELETE:
+                    doc_ids = data["source_ids"]
+                    self.model.delete(doc_ids)
+                    with self.task_lock:
+                        self.tasks[task_id].status = TaskStatus.COMPLETE
+                        self.tasks[task_id].last_modified = now()
+
+            except Exception as e:
+                with self.task_lock:
+                    self.tasks[task_id].status = TaskStatus.FAILED
+                    self.tasks[task_id].message = str(traceback.format_exc())
+                    self.tasks[task_id].last_modified = now()
+                    logging.error(
+                        f"Task {task_id} with data {self.tasks[task_id]} failed: {str(traceback.format_exc())}"
+                    )
+
+            finally:
+                with self.task_lock:
+                    self.task_queue.task_done()
+
+    def shutdown(self):
+        self.logger.info(f"Shutting down NeuralDB deployment")
+        self.model.cleanup()

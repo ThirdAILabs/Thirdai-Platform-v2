@@ -1,15 +1,31 @@
 import os
 from typing import Any, Dict
+import uuid
+from typing import Literal, Optional
 
 from platform_common.pydantic_models.training import ModelType
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class KnowledgeExtractionOptions(BaseModel):
+    model_type: Literal[ModelType.KNOWLEDGE_EXTRACTION] = ModelType.KNOWLEDGE_EXTRACTION
+
+    llm_provider: str = "openai"
+    genai_key: Optional[str] = None
+
+    advanced_indexing: bool
+    rerank: bool
+    generate_answers: bool
 
 
 class DeploymentConfig(BaseModel):
+    deployment_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
     model_id: str
     model_type: ModelType
     model_bazaar_endpoint: str
     model_bazaar_dir: str
+    host_dir: str
     license_key: str
     job_auth_token: str
 

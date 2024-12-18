@@ -15,6 +15,7 @@ class ModelType(str, Enum):
     NLP_TOKEN = "nlp-token"
     NLP_TEXT = "nlp-text"
     ENTERPRISE_SEARCH = "enterprise-search"
+    KNOWLEDGE_EXTRACTION = "knowledge-extraction"
 
 
 class ModelDataType(str, Enum):
@@ -34,9 +35,9 @@ class FileLocation(str, Enum):
 class FileInfo(BaseModel):
     path: str
     location: FileLocation
-    doc_id: Optional[str] = None
+    source_id: Optional[str] = None
     options: Dict[str, Any] = {}
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Union[int, str, float, bool]]] = None
 
     def ext(self) -> str:
         _, ext = os.path.splitext(self.path)
@@ -209,6 +210,12 @@ class NlpTextDatagenOptions(BaseModel):
     class Config:
         protected_namespaces = ()
 
+    @model_validator(mode="after")
+    def check_target_labels_length(cls, values):
+        if len(values.labels) < 2:
+            raise ValueError("target_labels must contain at least two labels.")
+        return values
+
 
 class NlpTokenDatagenOptions(BaseModel):
     model_type: Literal[ModelType.NLP_TOKEN] = ModelType.NLP_TOKEN
@@ -252,6 +259,7 @@ class JobOptions(BaseModel):
 
 
 class TrainConfig(BaseModel):
+    user_id: str
     model_bazaar_dir: str
     license_key: str
     model_bazaar_endpoint: str
@@ -298,3 +306,10 @@ class TrainConfig(BaseModel):
             file.write(self.model_dump_json(indent=4))
 
         return config_path
+
+
+class QuestionKeywords(BaseModel):
+    question: str = Field(..., description="The mandatory question.")
+    keywords: Optional[List[str]] = Field(
+        default=None, description="Optional keywords for the question."
+    )

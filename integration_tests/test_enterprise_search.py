@@ -22,12 +22,12 @@ def upload_guardrail_model(admin_client: ModelBazaar):
     model = bolt.UniversalDeepTransformer(
         data_types={
             "source": bolt.types.text(),
-            "target": bolt.types.token_tags(tags=["PHONENUMBER"], default_tag="O"),
+            "target": bolt.types.token_tags(tags=[], default_tag="O"),
         },
         target="target",
-        rules=True,
         embedding_dimension=10,
     )
+    model.add_ner_rule("PHONENUMBER")
 
     path = "./phone_guardrail"
     model.save(path)
@@ -86,6 +86,8 @@ def test_enterprise_search_with_guardrails():
     assert [m["model_name"] for m in ndb_used_by] == [
         client.model_identifier.split("/")[1]
     ]
+
+    admin_client.await_deploy(client)
 
     query = "American Express Profit Rises 14. my phone number is 123-457-2490"
     results = client.search(query)

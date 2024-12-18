@@ -111,7 +111,7 @@ class Permissions:
         return permissions
 
     @classmethod
-    def _get_permissions(cls, token: str) -> Tuple[bool, bool, bool]:
+    def _get_permissions(cls, token: str) -> Tuple[bool, bool, bool, str]:
         """
         Retrieves permissions for a token, updating the cache if necessary.
 
@@ -119,7 +119,7 @@ class Permissions:
             token (str): The access token.
 
         Returns:
-            Tuple[bool, bool, bool]: Read, write, and override permissions.
+            Tuple[bool, bool, bool, str]: Read, write, override permissions and username.
         """
         cls._clear_expired_entries()
         curr_time = now()
@@ -132,11 +132,21 @@ class Permissions:
                 )
             )
             cls.cache[token] = permissions
-            return permissions["read"], permissions["write"], permissions["owner"]
+            return (
+                permissions["read"],
+                permissions["write"],
+                permissions["owner"],
+                permissions["username"],
+            )
         if cls.cache[token]["exp"] <= curr_time:
-            return False, False, False
+            return False, False, False, "unknown"
         permissions = cls.cache[token]
-        return permissions["read"], permissions["write"], permissions["owner"]
+        return (
+            permissions["read"],
+            permissions["write"],
+            permissions["owner"],
+            permissions["username"],
+        )
 
     @classmethod
     def verify_permission(cls, permission_type: str = "read") -> Callable[[str], str]:

@@ -1,6 +1,5 @@
 import os
 import time
-from logging import Logger
 
 from deployment_job.models.classification_models import (
     ClassificationModel,
@@ -9,15 +8,22 @@ from deployment_job.models.classification_models import (
 )
 from deployment_job.permissions import Permissions
 from deployment_job.pydantic_models.inputs import (
-    SearchResultsTokenClassification,
     TextAnalysisPredictParams,
+    TokenAnalysisPredictParams,
 )
 from deployment_job.reporter import Reporter
+from deployment_job.throughput import Throughput
 from fastapi import APIRouter, Depends, Query, UploadFile, status
 from fastapi.encoders import jsonable_encoder
 from platform_common.dependencies import is_on_low_disk
+from platform_common.logging import JobLogger, LogCode
 from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
 from platform_common.pydantic_models.deployment import DeploymentConfig
+from platform_common.pii.data_types import (
+    UnstructuredTokenClassificationResults,
+    XMLTokenClassificationResults,
+)
+from platform_common.pydantic_models.deployment import DeploymentConfig, UDTSubType
 from platform_common.thirdai_storage.data_types import (
     LabelCollection,
     LabelStatus,
@@ -26,9 +32,7 @@ from platform_common.thirdai_storage.data_types import (
 )
 from platform_common.utils import response
 from prometheus_client import Summary
-from reporter import Reporter
 from thirdai import neural_db as ndb
-from throughput import Throughput
 
 udt_predict_metric = Summary("udt_predict", "UDT predictions")
 
@@ -36,7 +40,7 @@ udt_query_length = Summary("udt_query_length", "Distribution of query lengths")
 
 
 class UDTBaseRouter:
-    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: JobLogger):
         self.model: ClassificationModel = self.get_model(config, logger)
         self.logger = logger
 
@@ -47,12 +51,11 @@ class UDTBaseRouter:
         self.queries_ingested_bytes = Throughput()
 
         self.router = APIRouter()
-        self.router.add_api_route("/predict", self.predict, methods=["POST"])
         self.router.add_api_route("/stats", self.stats, methods=["GET"])
         self.router.add_api_route("/get-text", self.get_text, methods=["POST"])
 
     @staticmethod
-    def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
+    def get_model(config: DeploymentConfig, logger: JobLogger) -> ClassificationModel:
         raise NotImplementedError("Subclasses should implement this method")
 
     def get_text(
@@ -70,92 +73,44 @@ class UDTBaseRouter:
         Returns:
             A JSON response containing the extracted text content.
         """
-        self.logger.info(f"Processing text extraction for file: {file.filename}")
-        # Define the path where the uploaded file will be temporarily saved
-        destination_path = self.model.data_dir / file.filename
+        try:
+            # Define the path where the uploaded file will be temporarily saved
+            destination_path = self.model.data_dir / file.filename
 
-        # Save the uploaded file to the temporary location
-        with open(destination_path, "wb") as f:
-            f.write(file.file.read())
+            # Save the uploaded file to the temporary location
+            with open(destination_path, "wb") as f:
+                f.write(file.file.read())
 
-        # Convert the file to an ndb Document object
-        # This likely involves parsing and processing the file content
-        doc: ndb.Document = convert_to_ndb_file(
-            destination_path, metadata=None, options=None
-        )
-
-        # Extract the 'display' column from the document's table
-        # and convert it to a list
-        display_list = doc.table.df["display"].tolist()
-
-        # Remove the temporary file
-        os.remove(destination_path)
-
-        # Return a JSON response with the extracted text content
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Successful",
-            data=jsonable_encoder(display_list),
-        )
-
-    @udt_predict_metric.time()
-    def predict(
-        self,
-        params: TextAnalysisPredictParams,
-        token=Depends(Permissions.verify_permission("read")),
-    ):
-        """
-        Predicts the output based on the provided query parameters.
-
-        Parameters:
-        - text: str - The text for the sample to perform inference on.
-        - top_k: int - The number of results to return.
-        - token: str - Authorization token (inferred from permissions dependency).
-
-        Returns:
-        - JSONResponse: Prediction results.
-
-        Example Request Body:
-        ```
-        {
-            "text": "What is artificial intelligence?",
-            "top_k": 5
-        }
-        ```
-        """
-        start_time = time.perf_counter()
-
-        text_length = len(params.text.split())
-        udt_query_length.observe(text_length)
-
-        results = self.model.predict(**params.model_dump())
-
-        # TODO(pratik/geordie/yash): Add logging for search results text classification
-        if isinstance(results, SearchResultsTokenClassification):
-            identified_count = len(
-                [tags[0] for tags in results.predicted_tags if tags[0] != "O"]
+            # Convert the file to an ndb Document object
+            # This likely involves parsing and processing the file content
+            doc: ndb.Document = convert_to_ndb_file(
+                destination_path, metadata=None, options=None
             )
-            self.tokens_identified.log(identified_count)
-            self.queries_ingested.log(1)
-            self.queries_ingested_bytes.log(len(params.text))
+
+            # Extract the 'display' column from the document's table
+            # and convert it to a list
+            display_list = doc.table.df["display"].tolist()
+
+            # Remove the temporary file
+            os.remove(destination_path)
+
             self.logger.info(
-                f"Prediction complete with {identified_count} tokens identified",
-                extra={"text_length": len(params.text)},
+                f"Processing text extraction for file: {file.filename}",
+                code=LogCode.FILE_VALIDATION,
             )
-        end_time = time.perf_counter()
-        time_taken = end_time - start_time
 
-        # Add time_taken to the response data
-        response_data = {
-            "prediction_results": jsonable_encoder(results),
-            "time_taken": time_taken,
-        }
-
-        return response(
-            status_code=status.HTTP_200_OK,
-            message="Successful",
-            data=response_data,
-        )
+            # Return a JSON response with the extracted text content
+            return response(
+                status_code=status.HTTP_200_OK,
+                message="Successful",
+                data=jsonable_encoder(display_list),
+            )
+        except Exception as e:
+            self.logger.error(
+                f"Error processing text extraction for file: {file.filename}. Error: {e}",
+                code=LogCode.FILE_VALIDATION,
+            )
+            raise e
 
     def stats(self, token=Depends(Permissions.verify_permission("read"))):
         """
@@ -202,7 +157,7 @@ class UDTBaseRouter:
 
 
 class UDTRouterTextClassification(UDTBaseRouter):
-    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: JobLogger):
         super().__init__(config, reporter, logger)
         # Add routes specific to text classification
         self.router.add_api_route(
@@ -214,9 +169,61 @@ class UDTRouterTextClassification(UDTBaseRouter):
         self.router.add_api_route(
             "/get_recent_samples", self.get_recent_samples, methods=["GET"]
         )
+        self.router.add_api_route("/predict", self.predict, methods=["POST"])
+
+    @udt_predict_metric.time()
+    def predict(
+        self,
+        params: TextAnalysisPredictParams,
+        token=Depends(Permissions.verify_permission("read")),
+    ):
+        """
+        Predicts the output based on the provided query parameters.
+
+        Parameters:
+        - text: str - The text for the sample to perform inference on.
+        - top_k: int - The number of results to return.
+        - token: str - Authorization token (inferred from permissions dependency).
+
+        Returns:
+        - JSONResponse: Prediction results.
+
+        Example Request Body:
+        ```
+        {
+            "text": "What is artificial intelligence?",
+            "top_k": 5
+        }
+        ```
+        """
+        start_time = time.perf_counter()
+
+        text_length = len(params.text.split())
+        udt_query_length.observe(text_length)
+
+        results = self.model.predict(**params.model_dump())
+        self.queries_ingested.log(1)
+        self.queries_ingested_bytes.log(len(params.text))
+
+        end_time = time.perf_counter()
+        time_taken = end_time - start_time
+
+        # Add time_taken to the response data
+        response_data = {
+            "prediction_results": jsonable_encoder(results),
+            "time_taken": time_taken,
+        }
+
+        self.logger.debug(f"Prediction complete with time taken: {time_taken} seconds")
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successful",
+            data=response_data,
+        )
 
     @staticmethod
-    def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
+    def get_model(config: DeploymentConfig, logger: JobLogger) -> ClassificationModel:
         logger.info(f"Initializing Nlp Text Classification model")
         return TextClassificationModel(config=config, logger=logger)
 
@@ -244,7 +251,7 @@ class UDTRouterTextClassification(UDTBaseRouter):
 
 
 class UDTRouterTokenClassification(UDTBaseRouter):
-    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: Logger):
+    def __init__(self, config: DeploymentConfig, reporter: Reporter, logger: JobLogger):
         super().__init__(config, reporter, logger)
         # The following routes are only applicable for token classification models
         # TODO(Shubh): Make different routers for text and token classification models
@@ -259,9 +266,10 @@ class UDTRouterTokenClassification(UDTBaseRouter):
         self.router.add_api_route(
             "/get_recent_samples", self.get_recent_samples, methods=["GET"]
         )
+        self.router.add_api_route("/predict", self.predict, methods=["POST"])
 
     @staticmethod
-    def get_model(config: DeploymentConfig, logger: Logger) -> ClassificationModel:
+    def get_model(config: DeploymentConfig, logger: JobLogger) -> ClassificationModel:
         logger.info(f"Initializing Nlp Token Classification model")
         return TokenClassificationModel(config=config, logger=logger)
 
@@ -361,4 +369,75 @@ class UDTRouterTokenClassification(UDTBaseRouter):
             status_code=status.HTTP_200_OK,
             message="Successful",
             data=jsonable_encoder(recent_samples),
+        )
+
+    @udt_predict_metric.time()
+    def predict(
+        self,
+        params: TokenAnalysisPredictParams,
+        token=Depends(Permissions.verify_permission("read")),
+    ):
+        """
+        Predicts the output based on the provided query parameters.
+
+        Parameters:
+        - text: str - The text for the sample to perform inference on
+        - top_k: int - The number of results to return
+        - data_type: str - The data type of the text. (unstructured or xml)
+        - token: str - Authorization token (inferred from permissions dependency).
+
+        Returns:
+        - JSONResponse: Prediction results.
+
+        Example Request Body:
+        ```
+        {
+            "text": "What is artificial intelligence?",
+            "top_k": 5,
+            "data_type": "unstructured"
+        }
+        ```
+        """
+        start_time = time.perf_counter()
+
+        text_length = len(params.text.split())
+        udt_query_length.observe(text_length)
+
+        results = self.model.predict(**params.model_dump())
+        self.queries_ingested.log(1)
+        self.queries_ingested_bytes.log(len(params.text))
+
+        # TODO(pratik/geordie/yash): Add logging for search results text classification
+        if isinstance(results, UnstructuredTokenClassificationResults):
+            identified_count = len(
+                [tags[0] for tags in results.predicted_tags if tags[0] != "O"]
+            )
+            self.tokens_identified.log(identified_count)
+            self.logger.debug(
+                f"Prediction complete with {identified_count} tokens identified",
+                text_length=len(params.text),
+            )
+
+        elif isinstance(results, XMLTokenClassificationResults):
+            self.tokens_identified.log(len(results.predictions))
+            self.logger.debug(
+                f"Prediction complete with {len(results.predictions)} predictions",
+                text_length=len(params.text),
+            )
+
+        end_time = time.perf_counter()
+        time_taken = end_time - start_time
+
+        # Add time_taken to the response data
+        response_data = {
+            "prediction_results": jsonable_encoder(results),
+            "time_taken": time_taken,
+        }
+
+        self.logger.debug(f"Prediction complete with time taken: {time_taken} seconds")
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Successful",
+            data=response_data,
         )

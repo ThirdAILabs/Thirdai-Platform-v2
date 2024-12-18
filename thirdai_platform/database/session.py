@@ -150,26 +150,44 @@ class AdminAddition:
                             )
                             raise e
 
-            user: schema.User = (
-                session.query(schema.User)
-                .filter(schema.User.email == admin_mail)
-                .first()
-            )
-
-            if not user:
-                user = schema.User(
-                    username=admin_username,
-                    email=admin_mail,
-                    password_hash=hash_password(admin_password),
-                    verified=True,
-                    global_admin=True,
+            try:
+                user: schema.User = (
+                    session.query(schema.User)
+                    .filter(schema.User.email == admin_mail)
+                    .first()
                 )
-                session.add(user)
-                session.commit()
-                session.refresh(user)
-            else:
-                user.global_admin = True
-                session.commit()
+
+                if not user:
+                    user = schema.User(
+                        username=admin_username,
+                        email=admin_mail,
+                        password_hash=hash_password(admin_password),
+                        verified=True,
+                        global_admin=True,
+                    )
+                    session.add(user)
+                    session.commit()
+                    session.refresh(user)
+                else:
+                    user.global_admin = True
+                    session.commit()
+            except Exception as e:
+                # Attempt to check if the user was already added
+                existing_user = (
+                    session.query(schema.User)
+                    .filter(schema.User.email == admin_mail)
+                    .first()
+                )
+                if existing_user and existing_user.global_admin:
+                    logging.warning(
+                        f"Attempted to add admin user '{admin_username}', but the user already exists as a global admin. Skipping error."
+                    )
+                else:
+                    # If the user doesn't exist or isn't a global admin, re-raise the exception
+                    logging.error(
+                        f"Error adding/updating admin user '{admin_username}': {str(e)}"
+                    )
+                    raise e
 
 
 AdminAddition.add_admin(

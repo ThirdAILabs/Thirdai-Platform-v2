@@ -33,8 +33,6 @@ async def restart_generate_job():
     - Response: The response from the Nomad API.
     """
     nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
-    # if nomad_job_exists(GENERATE_JOB_ID, nomad_endpoint):
-    #     delete_nomad_job(GENERATE_JOB_ID, nomad_endpoint)
     cwd = Path(os.getcwd())
     platform = get_platform()
     return submit_nomad_job(
@@ -70,10 +68,9 @@ async def start_on_prem_generate_job(
     - Response: The response from the Nomad API.
     """
     nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
-    # if nomad_job_exists(ON_PREM_GENERATE_JOB_ID, nomad_endpoint):
-    #     if not restart_if_exists:
-    #         return
-    #     delete_nomad_job(ON_PREM_GENERATE_JOB_ID, nomad_endpoint)
+    if nomad_job_exists(ON_PREM_GENERATE_JOB_ID, nomad_endpoint):
+        if not restart_if_exists:
+            return
     share_dir = os.getenv("SHARE_DIR")
     if not share_dir:
         raise ValueError("SHARE_DIR variable is not set.")
@@ -108,8 +105,6 @@ async def start_on_prem_generate_job(
 
 async def restart_thirdai_platform_frontend():
     nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
-    # if nomad_job_exists(THIRDAI_PLATFORM_FRONTEND_ID, nomad_endpoint):
-    #     delete_nomad_job(THIRDAI_PLATFORM_FRONTEND_ID, nomad_endpoint)
     cwd = Path(os.getcwd())
     return submit_nomad_job(
         nomad_endpoint=nomad_endpoint,
@@ -142,8 +137,6 @@ async def restart_thirdai_platform_frontend():
 
 async def restart_llm_cache_job():
     nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
-    # if nomad_job_exists(LLM_CACHE_JOB_ID, nomad_endpoint):
-    #     delete_nomad_job(LLM_CACHE_JOB_ID, nomad_endpoint)
     cwd = Path(os.getcwd())
     platform = get_platform()
     try:
@@ -283,8 +276,6 @@ async def restart_telemetry_jobs():
     - Response: The response from the Nomad API.
     """
     nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
-    # if nomad_job_exists(TELEMETRY_ID, nomad_endpoint):
-    #     delete_nomad_job(TELEMETRY_ID, nomad_endpoint)
 
     cwd = Path(os.getcwd())
     platform = get_platform()

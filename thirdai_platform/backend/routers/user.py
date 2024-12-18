@@ -286,7 +286,7 @@ def delete_user(
         )
 
     if not user.is_deleted:
-    # Modify user.is_deleted to 1
+        # Modify user.is_deleted to 1
         user.is_deleted = True
         session.commit()
         if identity_provider == "keycloak":
@@ -301,12 +301,10 @@ def delete_user(
             status_code=status.HTTP_200_OK,
             message=f"User with {email} is soft deleted.",
         )
-    
+
     delete_all_models_for_user(user, session)
 
     session.delete(user)
-
-    
 
     session.commit()
 
@@ -355,8 +353,9 @@ def email_login(
 ):
     user: Optional[schema.User] = (
         session.query(schema.User)
-        .filter(schema.User.email == credentials.username, 
-                schema.User.is_deleted==False)
+        .filter(
+            schema.User.email == credentials.username, schema.User.is_deleted == False
+        )
         .first()
     )
     if not user:
@@ -408,9 +407,10 @@ def email_login_with_keycloak(
         user = (
             session.query(schema.User)
             .filter(
-                    schema.User.email == user_info.get("email"),
-                    schema.User.is_deleted == False
-                ).first()
+                schema.User.email == user_info.get("email"),
+                schema.User.is_deleted == False,
+            )
+            .first()
         )
         if not user:
             user = schema.User(
@@ -614,7 +614,7 @@ def list_accessible_users(
                 for user_team in user.teams
             ],
             "verified": user.verified,
-            "is_deleted":user.is_deleted,
+            "is_deleted": user.is_deleted,
         }
         for user in users
     ]
@@ -658,7 +658,7 @@ def get_user_info(
             }
             for user_team in user.teams
         ],
-        "is_deleted":user.is_deleted,
+        "is_deleted": user.is_deleted,
     }
 
     return response(

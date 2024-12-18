@@ -9,16 +9,12 @@ load_dotenv()
 
 import asyncio
 import os
-
-pass
 from urllib.parse import urljoin
 
 import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-
-pass
 from llm_dispatch_job.llms import LLMBase, default_keys, model_classes
 from llm_dispatch_job.utils import GenerateArgs
 

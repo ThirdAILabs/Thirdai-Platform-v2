@@ -121,8 +121,21 @@ export function WorkFlow({
         break;
       }
       case 'udt': {
-        const prefix =
-          workflow.sub_type === 'token' ? '/token-classification' : '/text-classification';
+        let prefix;
+        switch (workflow.sub_type) {
+          case 'token':
+            prefix = '/token-classification';
+            break;
+          case 'document':
+            prefix = '/doc-classification';
+            break;
+          case 'text':
+            prefix = '/text-classification';
+            break;
+          default:
+            prefix = '/text-classification';
+            break;
+        }
         window.open(`${prefix}/${workflow.model_id}`, '_blank');
         break;
       }
@@ -206,7 +219,13 @@ export function WorkFlow({
         setDeployType('Enterprise Search');
       }
     } else if (workflow.type === 'udt') {
-      setDeployType('Natural Language Processing');
+      if (workflow.sub_type === 'document') {
+        setDeployType('Document Classification');
+      } else if (workflow.sub_type === 'token') {
+        setDeployType('Text Extraction');
+      } else if (workflow.sub_type === 'text') {
+        setDeployType('Text Classification');
+      }
     } else if (workflow.type === 'enterprise-search') {
       setDeployType('Enterprise Search & Summarizer');
     } else if (workflow.type === 'knowledge-extraction') {

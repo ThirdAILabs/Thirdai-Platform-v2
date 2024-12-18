@@ -11,6 +11,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { parseCSV, parseExcel, parseTXT } from '@/utils/fileParsingUtils';
 import InferenceTimeDisplay from '@/components/ui/InferenceTimeDisplay';
 import ThumbsUpButton from './thumbsUpButton';
+import ExpandingInput from '@/components/ui/ExpandingInput';
 
 interface ParsedData {
   type: 'csv' | 'pdf' | 'other';
@@ -169,40 +170,7 @@ export default function Page() {
         >
           <Box display="flex" flexDirection="column" width="100%">
             <Box display="flex" justifyContent="center" alignItems="center" width="100%">
-              <label htmlFor="file-upload" style={{ marginRight: '10px' }}>
-                <Button size="sm" asChild>
-                  <span>Upload File</span>
-                </Button>
-              </label>
-              <input
-                ref={fileInputRef}
-                id="file-upload"
-                type="file"
-                accept=".txt,.pdf,.docx,.csv,.xls,.xlsx"
-                onChange={handleFileChange}
-                style={{ display: 'none' }}
-              />
-              <Input
-                autoFocus
-                className="text-md"
-                style={{ height: '3rem', flex: 1 }}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="Enter your text..."
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleRun();
-                  }
-                }}
-              />
-              <Button
-                size="sm"
-                style={{ height: '3rem', marginLeft: '10px', padding: '0 20px' }}
-                onClick={() => handleRun()}
-              >
-                Run
-              </Button>
+              <ExpandingInput onSubmit={handleRun} onFileChange={handleFileChange} />
             </Box>
 
             {fileError && (
@@ -210,10 +178,6 @@ export default function Page() {
                 {fileError}
               </Alert>
             )}
-
-            <Typography variant="caption" display="block" mt={1}>
-              Supported file types: .txt, .pdf, .docx, .csv, .xls, .xlsx (Max size: 1MB)
-            </Typography>
           </Box>
 
           {isLoading ? (

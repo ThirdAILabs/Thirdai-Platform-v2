@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { Button } from '@mui/material';
 import {
   fetchAllUsers,
@@ -79,11 +79,16 @@ export default function Users() {
 
       <h3 className="text-xl font-semibold text-gray-800 mb-4">Users</h3>
       {users.map((user, index) => (
-        <div key={index} className="bg-gray-100 p-4 rounded-lg shadow-md mb-8">
+        <div key={index} className=" p-4 rounded-lg shadow-md mb-8 border">
           <div className="flex justify-between items-start">
             <div>
-              <h4 className="text-lg font-semibold text-gray-800">{user.name}</h4>
-              {user.is_deleted ? <h4 className='text-md text-red-500'>Inactive</h4> : <h4 className='text-md text-red-500'>Active</h4>}
+              <div className='flex flex-wrap gap-3'>
+                <h4 className="text-lg font-semibold text-gray-800">{user.name}</h4>
+                {user.is_deleted && <h4 className="text-sm text-gray-800 bg-gray-300 rounded-2xl px-2 py-1 text-center max-w-26 border border-gray-400">
+                  Deactivated
+                </h4>
+                }
+              </div>
               <div className="text-gray-700 mb-2">Role: {user.role}</div>
               <div className="text-gray-700 mb-2">
                 Status: {user.verified ? 'Verified' : 'Not Verified'}
@@ -112,8 +117,8 @@ export default function Users() {
                     Verify User
                   </Button>
                 )}
-                <Button onClick={() => deleteUser(user.name)} variant="contained" color="error">
-                  Delete User
+                <Button onClick={() => deleteUser(user.name)} variant="contained" color={!user.is_deleted ? 'warning' : 'error'} className="min-w-36">
+                  {!user.is_deleted ? 'Deactivate User' : 'Delete User'}
                 </Button>
               </div>
             )}

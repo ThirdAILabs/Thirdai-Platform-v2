@@ -88,28 +88,39 @@ export default function Button(theme) {
       }),
     };
 
-    // ***** New Code for Delete Button with Red Color *****
+    // ***** New Code for Button with Red Color *****
     const containedRedDelete = {
       ...(containedVariant &&
         ownerState.color === 'error' && {
-          backgroundColor: theme.palette.error.main, // Red color for delete
-          color: theme.palette.common.white,
-          '&:hover': {
-            backgroundColor: theme.palette.error.dark, // Darker red on hover
-          },
-        }),
+        backgroundColor: theme.palette.error.main, // Red color for delete
+        color: theme.palette.common.white,
+        '&:hover': {
+          backgroundColor: theme.palette.error.dark, // Darker red on hover
+        },
+      }),
     };
 
-    // ***** New Code for Delete Button with Red Color *****
+    // ***** New Code for Button with Green Color *****
     const containedGreenSuccess = {
       ...(containedVariant &&
         ownerState.color === 'success' && {
-          backgroundColor: theme.palette.success.main,
-          color: theme.palette.common.white,
-          '&:hover': {
-            backgroundColor: theme.palette.success.dark,
-          },
-        }),
+        backgroundColor: theme.palette.success.main,
+        color: theme.palette.common.white,
+        '&:hover': {
+          backgroundColor: theme.palette.success.dark,
+        },
+      }),
+    };
+    // ***** New Code for Button with Green Color *****
+    const containedYellowWarning = {
+      ...(containedVariant &&
+        ownerState.color === 'warning' && {
+        backgroundColor: theme.palette.warning.main,
+        color: theme.palette.common.white,
+        '&:hover': {
+          backgroundColor: theme.palette.warning.dark,
+        },
+      }),
     };
 
     const disabledState = {
@@ -143,6 +154,7 @@ export default function Button(theme) {
       containedLightBlue,
       containedRedDelete,
       containedGreenSuccess,
+      containedYellowWarning,
       ...colorStyle,
       defaultStyle,
       disabledState,

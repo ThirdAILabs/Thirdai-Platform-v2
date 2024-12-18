@@ -2442,19 +2442,19 @@ export interface SelfHostedLLM {
   api_key: string;
 }
 
-export interface APIResponse {
+export interface LLMAPIResponse {
   status: string;
   message: string;
   data?: SelfHostedLLM;
 }
 
-export const getSelfHostedLLM = (): Promise<APIResponse> => {
+export const getSelfHostedLLM = (): Promise<LLMAPIResponse> => {
   const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
   return axios.get(`${deploymentBaseUrl}/api/integrations/self-hosted-llm`).then((res) => res.data);
 };
 
-export const addSelfHostedLLM = (data: SelfHostedLLM): Promise<APIResponse> => {
+export const addSelfHostedLLM = (data: SelfHostedLLM): Promise<LLMAPIResponse> => {
   const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
@@ -2466,7 +2466,7 @@ export const addSelfHostedLLM = (data: SelfHostedLLM): Promise<APIResponse> => {
     .then((res) => res.data);
 };
 
-export const deleteSelfHostedLLM = (): Promise<APIResponse> => {
+export const deleteSelfHostedLLM = (): Promise<LLMAPIResponse> => {
   const accessToken = getAccessToken();
   axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
   return axios

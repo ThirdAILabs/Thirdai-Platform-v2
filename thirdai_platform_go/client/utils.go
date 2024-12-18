@@ -173,7 +173,7 @@ func updateLocalFilePrefixes(files []config.FileInfo, prefix string) []config.Fi
 		newFiles = append(newFiles, config.FileInfo{
 			Path:     newPath,
 			Location: file.Location,
-			DocId:    file.DocId,
+			SourceId: file.SourceId,
 			Options:  file.Options,
 			Metadata: file.Metadata,
 		})

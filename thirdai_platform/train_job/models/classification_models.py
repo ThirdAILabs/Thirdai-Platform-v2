@@ -279,7 +279,7 @@ class TextClassificationModel(ClassificationModel):
                     )
                     model.train(
                         train_file,
-                        epochs=self.train_options.supervised_epochs,
+                        epochs=self.train_options.epochs,
                         learning_rate=self.train_options.learning_rate,
                         batch_size=self.train_options.batch_size,
                         metrics=["precision@1", "recall@1"],
@@ -374,7 +374,7 @@ class DocClassificationModel(TextClassificationModel):
                 start_time = time.time()
                 model.train(
                     train_csv_path,
-                    epochs=self.train_options.supervised_epochs,
+                    epochs=self.train_options.epochs,
                     learning_rate=self.train_options.learning_rate,
                     batch_size=self.train_options.batch_size,
                     metrics=self.train_options.metrics,
@@ -742,7 +742,7 @@ class TokenClassificationModel(ClassificationModel):
                 try:
                     model.train(
                         train_file,
-                        epochs=self.train_options.supervised_epochs,
+                        epochs=self.train_options.epochs,
                         learning_rate=self.train_options.learning_rate,
                         batch_size=self.train_options.batch_size,
                         metrics=["precision@1", "recall@1"],

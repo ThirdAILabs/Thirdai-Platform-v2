@@ -20,7 +20,7 @@ const (
 type FileInfo struct {
 	Path     string                 `json:"path"`
 	Location string                 `json:"location"`
-	DocId    *string                `json:"doc_id"`
+	SourceId *string                `json:"source_id"`
 	Options  map[string]interface{} `json:"options"`
 	Metadata map[string]interface{} `json:"metadata"`
 }

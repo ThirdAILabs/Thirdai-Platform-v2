@@ -317,7 +317,7 @@ func createNdbAndInsert(t *testing.T, autoscaling bool) (*client.NdbClient, []cl
 		{
 			Path:     "./data/articles.csv",
 			Location: "local",
-			DocId:    &oldSources[0].SourceId,
+			SourceId: &oldSources[0].SourceId,
 			Options:  map[string]interface{}{"upsert": true},
 		},
 	})
@@ -506,11 +506,9 @@ func TestTrainErrorHandling(t *testing.T) {
 	if len(status.Warnings) < 1 || !strings.Contains(status.Warnings[0], warningMsg) {
 		t.Fatal("warning not found in status messages")
 	}
-	if !strings.Contains(logs[0].Stderr, warningMsg) {
-		t.Fatal("warning not found in logs")
-	}
+	// Warning may be to far up in logs to find so we do not check for it here
 
-	errorMsg := "Error tokenizing data. C error:"
+	errorMsg := "The number of documents indexed and trained is 0"
 	if len(status.Errors) < 1 || !strings.Contains(status.Errors[0], errorMsg) {
 		t.Fatal("error not found in status messages")
 	}

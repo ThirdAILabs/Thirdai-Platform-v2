@@ -37,10 +37,10 @@ def get_model(config: TrainConfig, reporter: Reporter, logger: JobLogger):
         return NeuralDBV2(config, reporter, logger)
     elif model_type == ModelType.NLP_TOKEN:
         logger.info(f"Creating NLP Token model", code=LogCode.MODEL_INIT)
-        return TextClassificationModel(config, reporter, logger)
+        return TokenClassificationModel(config, reporter, logger)
     elif model_type == ModelType.NLP_TEXT:
         logger.info(f"Creating NLP Text model", code=LogCode.MODEL_INIT)
-        return DocClassificationModel(config, reporter, logger)
+        return TextClassificationModel(config, reporter, logger)
 
     message = f"Unsupported model type {model_type.value}"
     logger.error(message, code=LogCode.MODEL_INIT)

@@ -17,6 +17,7 @@ func TestEnterpriseSearchWithGuardrail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log("uploaded guardrail model")
 
 	guardrail := model.(*client.NlpTokenClient)
 
@@ -35,6 +36,7 @@ func TestEnterpriseSearchWithGuardrail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log("trained ndb model")
 
 	es, err := c.CreateEnterpriseSearchWorkflow(randomName("es"), ndb, guardrail)
 	if err != nil {
@@ -66,11 +68,13 @@ func TestEnterpriseSearchWithGuardrail(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	t.Log("deployment started")
 
 	err = es.AwaitDeploy(100 * time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Log("deployment complete")
 
 	query := "American Express Profit Rises 14. my phone number is 123-457-2490"
 

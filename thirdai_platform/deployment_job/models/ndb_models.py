@@ -103,8 +103,6 @@ class NDBModel(Model):
         return inputs.SearchResultsNDB(query_text=query, references=results)
 
     def insert(self, documents: List[FileInfo], **kwargs: Any) -> List[Dict[str, str]]:
-        # TODO(V2 Support): add flag for upsert
-
         documents = expand_cloud_buckets_and_directories(documents)
         ndb_docs = [
             ndbv2_parser.parse_doc(

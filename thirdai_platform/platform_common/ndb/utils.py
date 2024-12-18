@@ -12,6 +12,7 @@ def delete_docs_and_remove_files(
 ):
     deleted_filenames = set([])
     for doc_id in doc_ids:
+        print("DELETING: ", doc_id)
         deleted_chunks = db.delete_doc(
             doc_id, keep_latest_version=keep_latest_version, return_deleted_chunks=True
         )

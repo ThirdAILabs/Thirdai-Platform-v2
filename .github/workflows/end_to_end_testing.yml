@@ -41,8 +41,8 @@ jobs:
       
       - name: host machine creds
         run: |
-          echo "${{ secrets.HOST_MACHINE1 }}" > host_machine1.json
-          echo "${{ secrets.HOST_MACHINE2 }}" > host_machine2.json
+          echo ${{ secrets.HOST_MACHINE1 }} > host_machine1.json
+          echo ${{ secrets.HOST_MACHINE2 }} > host_machine2.json
       
           jq --version
           id=$(cat host_machine1.json | jq '.identity_key')

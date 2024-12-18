@@ -493,6 +493,18 @@ export function WorkFlow({
                   </DropdownMenuItem>
                 )}
 
+                {user?.global_admin && workflow.type === 'enterprise-search' && (
+                  <Link 
+                    href={`/appconfig?id=${encodeURIComponent(workflow.model_id)}&type=${encodeURIComponent(workflow.type)}${workflow.attributes?.llm_provider ? '&llm=true' : ''}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <DropdownMenuItem>
+                      <button type="button">Configure App</button>
+                    </DropdownMenuItem>
+                  </Link>
+                )}
+
                 {workflow.type === 'enterprise-search' &&
                   (modelOwner[workflow.model_name] === user?.username || user?.global_admin) && (
                     <Link

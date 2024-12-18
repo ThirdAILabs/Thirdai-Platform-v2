@@ -65,7 +65,7 @@ app.include_router(telemetry, prefix="/api/telemetry", tags=["telemetry"])
 
 @app.get("/api/health")
 async def health_check():
-    # This endpoint now falls under /api, which is served by modelbazaar-service
+    # TODO(pratik): we should add a check whether all the dependency are running fine
     return {"status": "ok"}
 
 

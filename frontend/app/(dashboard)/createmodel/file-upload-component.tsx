@@ -1,4 +1,5 @@
 import React, { ChangeEvent, useRef, useState } from 'react';
+import { FolderOpen, Upload } from 'lucide-react';
 
 interface FileUploadProps {
   index: number;
@@ -62,11 +63,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   return (
-    <div className="flex flex-col space-y-2">
-      <div className="flex space-x-2 items-center">
+    <div className="flex flex-col space-y-3">
+      <div className="flex items-center gap-3">
         <button
           type="button"
-          className="text-md bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          className="text-md bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center gap-2"
           onClick={() => {
             if (inputRef.current) {
               inputRef.current.removeAttribute('webkitdirectory');
@@ -74,17 +75,20 @@ const FileUpload: React.FC<FileUploadProps> = ({
             }
           }}
         >
+          <Upload className="w-5 h-5" />
           Choose Files
         </button>
         <button
           type="button"
-          className="text-md bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+          className="text-md bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 flex items-center gap-2"
           onClick={openFolderPicker}
         >
+          <FolderOpen className="w-5 h-5" />
           Choose Folder
         </button>
         {fileCount > 0 && (
-          <span className="text-md text-gray-700">
+          <span className="text-gray-600 flex items-center gap-2">
+            <Upload className="w-4 h-4" />
             {fileCount} file{fileCount !== 1 ? 's' : ''} selected
           </span>
         )}
@@ -94,7 +98,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
         type="file"
         className="hidden"
         onChange={handleUpload}
-        accept={allowedFileTypes.join(',')}
+        accept={allowedFileTypes.map((type) => `.${type}`).join(',')}
         multiple
       />
     </div>

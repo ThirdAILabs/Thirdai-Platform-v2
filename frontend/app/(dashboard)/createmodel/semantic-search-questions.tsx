@@ -206,7 +206,7 @@ const SemanticSearchQuestions = ({
     sources.forEach(({ type, files }) => {
       files.forEach((file) => {
         formData.append('files', file);
-        unsupervisedFiles.push({ path: file.name, location: type });
+        unsupervisedFiles.push({ path: file.webkitRelativePath, location: type });
         fileCount++;
       });
     });
@@ -356,7 +356,7 @@ const SemanticSearchQuestions = ({
                   index={index}
                   setSourceValue={setSourceValue}
                   // Optional: custom allowed file types
-                  allowedFileTypes={['.csv', '.pdf', '.docx']}
+                  allowedFileTypes={ALLOWED_FILE_TYPES_ARRAY}
                 />
               </div>
             )}

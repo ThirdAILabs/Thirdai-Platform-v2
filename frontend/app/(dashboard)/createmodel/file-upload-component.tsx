@@ -9,14 +9,14 @@ interface FileUploadProps {
 const FileUpload: React.FC<FileUploadProps> = ({
   index,
   setSourceValue,
-  allowedFileTypes = ['.csv', '.pdf', '.docx'],
+  allowedFileTypes = ['csv', 'pdf', 'docx'],
 }) => {
   const [fileCount, setFileCount] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Check if file type is allowed
   const isAllowedFileType = (fileName: string, allowedTypes: string[]): boolean => {
-    const fileExt = '.' + fileName.split('.').pop()?.toLowerCase();
+    const fileExt = '' + fileName.split('.').pop()?.toLowerCase();
     return allowedTypes.includes(fileExt);
   };
 

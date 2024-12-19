@@ -195,7 +195,7 @@ def predict(
         data_type="unstructured",
         query_text=text,
         tokens=tokens,
-        predicted_tags=[tags],
+        predicted_tags=[[tag] for tag in tags],
     )
 
     return results

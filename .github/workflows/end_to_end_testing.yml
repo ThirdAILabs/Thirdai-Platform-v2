@@ -112,13 +112,15 @@ jobs:
       - name: Delete the score map associated with the branch image
         # Making sure that branch is not main_docker_image_name
         run: |
-          if [ "release-test-main" != "${{ secrets.MAIN_DOCKER_IMAGE_NAME }}" ]; then
-            echo "check for print"
+          if [ "${{ needs.Gather_facts.outputs.docker_image_branch_name }}" != "${{ secrets.MAIN_DOCKER_IMAGE_NAME }}" ]; then
+            az acr scope-map delete --name "thirdaiplatform-push-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
+            az acr scope-map delete --name "thirdaiplatform-pull-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
           fi
 
       - name: Delete the token map associated with the branch image
         # Making sure that branch is not main_docker_image_name
         run: |
-          if [ "release-test-main" != "${{ secrets.MAIN_DOCKER_IMAGE_NAME }}" ]; then
-            echo "again check for print"
+          if [ "${{ needs.Gather_facts.outputs.docker_image_branch_name }}" != "${{ secrets.MAIN_DOCKER_IMAGE_NAME }}" ]; then
+            az acr token delete --name "thirdaiplatform-push-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
+            az acr token delete --name "thirdaiplatform-pull-${{ needs.Gather_facts.outputs.docker_image_branch_name }}" --registry thirdaiplatform --yes
           fi 

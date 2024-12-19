@@ -193,7 +193,7 @@ jobs:
 
             # Modify the config.yml
             yq -i '
-                .license_path = "\$root_dir/ndb_enterprise_license.json" |
+                .license_path = \"$root_dir/ndb_enterprise_license.json\" |
                 .admin_mail = "${{ inputs.email }}" |
                 .admin_username = "admin" |
                 .admin_password = "${{ inputs.password }}" |

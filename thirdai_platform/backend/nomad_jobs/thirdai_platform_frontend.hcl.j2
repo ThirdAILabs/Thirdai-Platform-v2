@@ -4,8 +4,8 @@ job "thirdai-platform-frontend" {
   type = "service"
 
   constraint {
-    attribute = "${meta.role}"
-    value     = "critical-service"
+    attribute = "${node.class}"
+    value = "critical_services"
   }
 
   constraint {

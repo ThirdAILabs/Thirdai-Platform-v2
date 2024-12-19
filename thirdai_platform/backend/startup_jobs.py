@@ -116,7 +116,9 @@ async def restart_thirdai_platform_frontend():
         filepath=str(
             cwd / "backend" / "nomad_jobs" / "thirdai_platform_frontend.hcl.j2"
         ),
-        public_model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+        public_model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT").rstrip(
+            "/"
+        ),
         openai_api_key=os.getenv("GENAI_KEY"),
         deployment_base_url=os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT"),
         thirdai_platform_base_url=os.getenv("PUBLIC_MODEL_BAZAAR_ENDPOINT"),

@@ -206,7 +206,7 @@ const SemanticSearchQuestions = ({
     sources.forEach(({ type, files }) => {
       files.forEach((file) => {
         formData.append('files', file);
-        unsupervisedFiles.push({ path: file.webkitRelativePath, location: type });
+        unsupervisedFiles.push({ path: file.webkitRelativePath || file.name, location: type });
         fileCount++;
       });
     });

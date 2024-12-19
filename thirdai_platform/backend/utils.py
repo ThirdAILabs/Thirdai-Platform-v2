@@ -13,12 +13,14 @@ from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import bcrypt
+import pandas as pd
 import requests
 import sqlalchemy as sa
 from database import schema
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 from jinja2 import Template
 from licensing.verify.verify_license import valid_job_allocation, verify_license
+from platform_common.ndb.ndbv1_parser import convert_to_ndb_file
 from platform_common.pydantic_models.training import LabelEntity
 from platform_common.thirdai_storage import data_types, storage
 from platform_common.utils import model_bazaar_path
@@ -751,3 +753,69 @@ def read_file_from_back(path: str):
 
     finally:
         fp.close()
+
+
+def cap_text_length(text: str, word_limit: int = 1000) -> str:
+    """Helper function to cap text to specified number of words"""
+    words = text.split()
+    if len(words) <= word_limit:
+        return text
+    return " ".join(words[:word_limit])
+
+
+async def create_classification_csv(
+    temp_dir: str, files: List[UploadFile], word_limit: int = 1000
+) -> tuple[str, List[str]]:
+    """
+    Create a CSV file from folder structure in the format expected by TextClassificationOptions
+    Args:
+        temp_dir (str): Directory for temporary file processing
+        files (List[UploadFile]): List of uploaded files
+        word_limit (int, optional): Maximum number of words to use per document. Defaults to 1000.
+    """
+    rows = []
+    categories = set()
+    for file in files:
+        parts = Path(file.filename).parts
+        if len(parts) < 3:
+            continue
+        category = parts[1]
+        categories.add(category)
+        # Get file extension and convert to lowercase
+        ext = Path(file.filename).suffix.lower()
+        content = await file.read()
+        try:
+            if ext == ".txt":
+                # Direct text processing for .txt files
+                text_content = content.decode("utf-8")
+            else:
+                # For other formats, use ndb parser
+                # Save file temporarily
+                temp_file_path = Path(temp_dir) / file.filename
+                os.makedirs(temp_file_path.parent, exist_ok=True)
+                with open(temp_file_path, "wb") as f:
+                    f.write(content)
+                try:
+                    # Convert to ndb Document
+                    doc = convert_to_ndb_file(
+                        str(temp_file_path), metadata=None, options=None
+                    )
+                    # Get text content from display column
+                    text_content = " ".join(doc.table.df["display"].tolist())
+                finally:
+                    if temp_file_path.exists():
+                        os.remove(temp_file_path)
+            # Cap the text length before adding to rows
+            capped_text = cap_text_length(text_content, word_limit)
+            rows.append({"text": capped_text, "label": category})
+        except Exception as e:
+            logging.error(f"Error processing file {file.filename}: {str(e)}")
+            continue
+    if not rows:
+        raise ValueError("No valid files were processed")
+    if len(categories) < 2:
+        raise ValueError(f"Found only {len(categories)} categories, minimum 2 required")
+    df = pd.DataFrame(rows)
+    csv_path = os.path.join(temp_dir, "document_classification.csv")
+    df.to_csv(csv_path, index=False)
+    return csv_path, list(categories)

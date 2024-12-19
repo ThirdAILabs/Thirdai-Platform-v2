@@ -11,8 +11,9 @@ import thirdai
 from platform_common.file_handler import expand_cloud_buckets_and_directories
 from platform_common.logging.logcodes import LogCode
 from platform_common.ndb.ndbv2_parser import parse_doc
+from platform_common.ndb.utils import delete_docs_and_remove_files
 from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLog
-from platform_common.pydantic_models.training import FileInfo, NDBOptions, TrainConfig
+from platform_common.pydantic_models.training import FileInfo, TrainConfig
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
 from thirdai.neural_db_v2.retrievers import FinetunableRetriever
@@ -25,12 +26,11 @@ class NeuralDBV2(Model):
     def __init__(self, config: TrainConfig, reporter: Reporter, logger: Logger):
         super().__init__(config=config, reporter=reporter, logger=logger)
 
-        self.ndb_options: NDBOptions = self.config.model_options
-
-        splade = self.ndb_options.advanced_search
+        self.on_disk = self.config.model_options.on_disk
+        splade = self.config.model_options.advanced_search
 
         self.logger.info(
-            f"NDB options - advanced_search: {splade}, on_disk: {self.ndb_options.on_disk}"
+            f"NDB options - advanced_search: {splade}, on_disk: {self.on_disk}"
         )
 
         if self.config.base_model_id:
@@ -54,6 +54,12 @@ class NeuralDBV2(Model):
                 dirs_exist_ok=True,
             )
             self.db = ndbv2.NeuralDB.load(self.ndb_save_path())
+
+            with open(ndbv2.NeuralDB.metadata_path(self.ndb_save_path()), "r") as f:
+                ndb_save_metadata = json.load(f)
+            chunk_store_name = ndb_save_metadata["chunk_store_name"]
+            if chunk_store_name == "PandasChunkStore":
+                self.on_disk = False
         else:
             self.logger.info("Creating new NDBv2 model", code=LogCode.MODEL_INIT)
             if self.ndb_options.on_disk:
@@ -177,14 +183,19 @@ class NeuralDBV2(Model):
             f"Found {len(upsert_doc_ids)} docs to upsert, removing old versions",
             code=LogCode.MODEL_DELETE,
         )
-        for doc_id in upsert_doc_ids:
-            try:
-                self.db.delete_doc(doc_id=doc_id, keep_latest_version=True)
-            except Exception as e:
-                self.logger.error(
-                    f"Failed to upsert doc {doc_id} with error {e}",
-                    code=LogCode.MODEL_DELETE,
-                )
+
+        try:
+            delete_docs_and_remove_files(
+                db=self.db,
+                doc_ids=upsert_doc_ids,
+                full_documents_path=self.doc_save_path(),
+                keep_latest_version=True,
+            )
+        except Exception as e:
+            self.logger.error(
+                f"Failed to delete upserted files with error {e}",
+                code=LogCode.MODEL_DELETE,
+            )
 
         total_chunks = self.db.retriever.retriever.size()
         self.logger.info(
@@ -337,8 +348,12 @@ class NeuralDBV2(Model):
         self.logger.debug(f"Total training time: {train_time} seconds")
 
         if self.config.data.deletions:
-            for doc_id in self.config.data.deletions:
-                self.db.delete_doc(doc_id=doc_id)
+            delete_docs_and_remove_files(
+                db=self.db,
+                doc_ids=self.config.data.deletions,
+                full_documents_path=self.doc_save_path(),
+                keep_latest_version=False,
+            )
             self.logger.debug(f"Deleted {len(self.config.data.deletions)} docs.")
 
         self.save()
@@ -359,20 +374,30 @@ class NeuralDBV2(Model):
 
     def save(self):
         try:
-            if self.config.base_model_id:
-                with open(ndbv2.NeuralDB.metadata_path(self.ndb_save_path()), "r") as f:
-                    ndb_save_metadata = json.load(f)
-                chunk_store_name = ndb_save_metadata["chunk_store_name"]
-                if chunk_store_name == "PandasChunkStore":
+            # If its on disk it should already be saved
+            if not self.on_disk:
+                # if we're retraining from a base model we need to save the in memory chunk_store
+                if self.config.base_model_id:
                     os.remove(self.db.chunk_store_path(self.ndb_save_path()))
                     self.db.chunk_store.save(
                         self.db.chunk_store_path(self.ndb_save_path())
                     )
-            elif not self.ndb_options.on_disk:
-                self.db.save(self.ndb_save_path())
-            self.logger.info(
-                f"Model saved to {self.ndb_save_path()}", code=LogCode.MODEL_SAVE
-            )
+                else:
+                    self.db.save(self.ndb_save_path())
+                    # TODO(david/kartik) Find out why this fails this fails only sometimes
+                    # Its not essential to the platform to remove it so we don't raise
+                    # the exception but it saves disk usage.
+                    try:
+                        shutil.rmtree(self.retriever_save_path())
+                    except Exception as e:
+                        self.logger.warning(
+                            f"Could not delete retriever with error {e}. Continuing without deleting temp retriever.",
+                            code=LogCode.MODEL_SAVE,
+                        )
+
+                self.logger.info(
+                    f"Model saved to {self.ndb_save_path()}", code=LogCode.MODEL_SAVE
+                )
         except Exception as e:
             self.logger.error(
                 f"Failed to save model with error {e}", code=LogCode.MODEL_SAVE

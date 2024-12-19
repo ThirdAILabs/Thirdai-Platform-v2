@@ -899,4 +899,6 @@ class NDBRouter:
                     self.task_queue.task_done()
 
     def shutdown(self):
+    def shutdown(self):
+        self.logger.info(f"Shutting down NeuralDB deployment")
         self.model.cleanup()

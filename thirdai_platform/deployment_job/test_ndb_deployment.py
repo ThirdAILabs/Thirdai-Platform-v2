@@ -18,6 +18,7 @@ from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.chunk_stores import PandasChunkStore
 from thirdai.neural_db_v2.retrievers import FinetunableRetriever
 
+DEPLOYMENT_ID = "123"
 USER_ID = "abc"
 MODEL_ID = "xyz"
 
@@ -70,6 +71,18 @@ def create_ndbv2_model(tmp_dir: str, on_disk: bool):
     )
 
     db.save(os.path.join(tmp_dir, "models", f"{MODEL_ID}", "model.ndb"))
+    db.save(
+        os.path.join(
+            tmp_dir,
+            "host_dir",
+            "models",
+            f"{MODEL_ID}",
+            f"{DEPLOYMENT_ID}",
+            "model.ndb",
+        )
+    )
+
+    shutil.rmtree(random_path)
 
     shutil.rmtree(random_path)
 
@@ -88,11 +101,12 @@ def create_config(tmp_dir: str, autoscaling: bool, on_disk: bool):
     license_info = verify_license.verify_license(THIRDAI_LICENSE)
 
     return DeploymentConfig(
+        deployment_id=DEPLOYMENT_ID,
         user_id=USER_ID,
         model_id=MODEL_ID,
         model_bazaar_endpoint="",
         model_bazaar_dir=tmp_dir,
-        host_dir=tmp_dir,
+        host_dir=os.path.join(tmp_dir, "host_dir"),
         license_key=license_info["boltLicenseKey"],
         autoscaling_enabled=autoscaling,
         model_options=NDBDeploymentOptions(),
@@ -207,7 +221,7 @@ def check_deletion_dev_mode(client: TestClient):
 def test_deploy_ndb_dev_mode(tmp_dir, on_disk):
     from deployment_job.routers.ndb import NDBRouter
 
-    config = create_config(tmp_dir=tmp_dir, autoscaling=False, on_disk=on_disk)
+    config = create_config(tmp_dir=tmp_dir, autoscaling=False, on_disk=True)
 
     router = NDBRouter(config, None, logger)
     client = TestClient(router.router)

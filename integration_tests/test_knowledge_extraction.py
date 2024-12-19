@@ -15,10 +15,8 @@ def await_report(report_id, client: KnowledgeExtraction):
         status = report["status"]
         if status == "queued" or status == "in_progress":
             time.sleep(1)
-        elif status == "failed":
-            raise ValueError("report failed")
         else:
-            return report["content"]
+            return report
 
 
 def test_knowledge_extraction():
@@ -32,7 +30,7 @@ def test_knowledge_extraction():
         f"knowledge-extraction-{uuid.uuid4()}",
         questions=[
             "net revenue of apple",
-            "iphone sales in 2021",
+            "iphone sales in 2021 (in billion)",
             "a question that should be deleted",
             "did sales in europe change from 2022 to 2023",
             "how much did apple spend on research and development in 2021",
@@ -52,11 +50,19 @@ def test_knowledge_extraction():
 
     report = client.create_report([doc])
 
+    reports = client.list_reports()
+    assert len(reports) == 1
+    assert reports[0]["report_id"] == report
+
     report = await_report(report, client)
+    assert report["status"] == "complete"
+
+    assert len(report["documents"]) == 1
+    report = report["content"]
 
     question_to_expected_answer = {
         "net revenue of apple": "383.3",
-        "iphone sales in 2021": "191,973",
+        "iphone sales in 2021 (in billion)": "191.973",
         "did sales in europe change from 2022 to 2023": "decreased",
         "how much did apple spend on research and development in 2021": "21,914",
         "what were the EPS in 2022": "6.15",
@@ -73,5 +79,15 @@ def test_knowledge_extraction():
 
     with pytest.raises(requests.exceptions.HTTPError, match=".*404.*"):
         client.get_report(report["report_id"])
+
+    report = client.create_report([__file__])
+    report = await_report(report, client)
+
+    assert report["status"] == "failed"
+    assert (
+        report["msg"]
+        == "Error processing report: Unable to process document 'test_knowledge_extraction.py'. "
+        "Please ensure that document is a supported type (pdf, docx, csv, html) and has correct extension."
+    )
 
     client.stop()

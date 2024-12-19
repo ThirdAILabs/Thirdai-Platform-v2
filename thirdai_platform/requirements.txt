@@ -61,3 +61,5 @@ unstructured[pptx]
 url-normalize
 uvicorn[standard]
 websockets
+aiofiles
+PyPDF2

@@ -23,6 +23,7 @@ from deployment_job.utils import acquire_file_lock, release_file_lock
 from fastapi import HTTPException, status
 from platform_common.file_handler import FileInfo, expand_cloud_buckets_and_directories
 from platform_common.logging import JobLogger, LogCode
+from platform_common.ndb.utils import delete_docs_and_remove_files
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from thirdai import neural_db_v2 as ndbv2
 from thirdai.neural_db_v2.core.types import Chunk
@@ -126,8 +127,13 @@ class NDBModel(Model):
                 for doc in documents
                 if doc.source_id and doc.options.get("upsert", False)
             ]
-            for doc_id in upsert_doc_ids:
-                self.db.delete_doc(doc_id, keep_latest_version=True)
+
+            delete_docs_and_remove_files(
+                db=self.db,
+                doc_ids=upsert_doc_ids,
+                full_documents_path=self.doc_save_path(),
+                keep_latest_version=True,
+            )
 
         return [
             {
@@ -155,8 +161,12 @@ class NDBModel(Model):
 
     def delete(self, source_ids: List[str], **kwargs: Any) -> None:
         with self.db_lock:
-            for id in source_ids:
-                self.db.delete_doc(doc_id=id)
+            delete_docs_and_remove_files(
+                db=self.db,
+                doc_ids=source_ids,
+                full_documents_path=self.doc_save_path(),
+                keep_latest_version=False,
+            )
 
     def sources(self) -> List[Dict[str, str]]:
         with self.db_lock:
@@ -253,39 +263,62 @@ class NDBModel(Model):
 
     def load(self, write_mode: bool = False, **kwargs) -> ndbv2.NeuralDB:
         try:
-            with open(ndbv2.NeuralDB.metadata_path(self.ndb_save_path()), "r") as f:
-                ndb_save_metadata = json.load(f)
-            chunk_store_name = ndb_save_metadata["chunk_store_name"]
+            if self.host_model_dir.parent.exists():
+                # This logic for cleaning up of old models assumes there can only be one deployment of a model at a time
+                self.logger.info(
+                    f"Cleaning up stale model copies at {self.host_model_dir.parent}"
+                )
 
-            if write_mode or chunk_store_name == "PandasChunkStore":
-                loaded_db = ndbv2.NeuralDB.load(
+                if write_mode:
+                    shutil.rmtree(self.host_model_dir.parent, ignore_errors=True)
+                else:
+                    deployment_ids = [
+                        deployment.name
+                        for deployment in self.host_model_dir.parent.iterdir()
+                        if deployment.is_dir()
+                    ]
+                    for deployment_id in deployment_ids:
+                        if deployment_id != self.config.deployment_id:
+                            shutil.rmtree(
+                                self.host_model_dir.parent / deployment_id,
+                                ignore_errors=True,
+                            )
+
+            if write_mode:
+                loaded_ndb = ndbv2.NeuralDB.load(
                     self.ndb_save_path(), read_only=not write_mode
                 )
+
+                self.logger.info(
+                    f"Loaded NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}",
+                    code=LogCode.MODEL_LOAD,
+                )
+
+                return loaded_ndb
             else:
                 lockfile = os.path.join(self.host_model_dir, "ndb.lock")
                 lock = acquire_file_lock(lockfile)
                 try:
                     if not os.path.exists(self.ndb_host_save_path()):
-                        self.logger.info(
-                            f"Creating a local ndb copy at {self.ndb_host_save_path()}"
-                        )
                         shutil.copytree(self.ndb_save_path(), self.ndb_host_save_path())
                     else:
                         pass
                 finally:
                     release_file_lock(lock)
 
-                loaded_db = ndbv2.NeuralDB.load(
+                loaded_ndb = ndbv2.NeuralDB.load(
                     self.ndb_host_save_path(), read_only=not write_mode
                 )
-            self.logger.info(
-                f"Loaded NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}",
-                code=LogCode.MODEL_LOAD,
-            )
-            return loaded_db
+
+                self.logger.info(
+                    f"Loaded NDBv2 model from {self.ndb_host_save_path()} read_only={not write_mode}",
+                    code=LogCode.MODEL_LOAD,
+                )
+
+                return loaded_ndb
         except Exception as e:
             self.logger.error(
-                f"Failed to load NDBv2 model from {self.ndb_save_path()} read_only={not write_mode}",
+                f"Failed to load NDBv2 model from {self.ndb_save_path() if write_mode else self.ndb_host_save_path()} read_only={not write_mode}",
                 code=LogCode.MODEL_LOAD,
             )
             raise e
@@ -402,5 +435,6 @@ class NDBModel(Model):
 
     def cleanup(self):
         if self.config.autoscaling_enabled:
-            self.logger.info(f"Cleaning up local ndb")
-            shutil.rmtree(self.ndb_host_save_path(), ignore_errors=True)
+            del self.db
+            self.logger.info(f"Cleaning up model at {self.host_model_dir}")
+            shutil.rmtree(self.host_model_dir, ignore_errors=True)

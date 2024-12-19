@@ -38,6 +38,8 @@ class Model(ABC):
         return Path(self.config.model_bazaar_dir) / "models" / model_id
 
     def get_host_model_dir(self, model_id: str):
-        host_model_dir = Path(self.config.host_dir) / "models" / model_id
+        host_model_dir = (
+            Path(self.config.host_dir) / "models" / model_id / self.config.deployment_id
+        )
         os.makedirs(host_model_dir, exist_ok=True)
         return host_model_dir

@@ -109,7 +109,7 @@ export default function Users() {
             </div>
             {isGlobalAdmin && (
               <div className="flex gap-2">
-                {!user.verified && (
+                {!user.verified && !user.is_deleted && (
                   <Button
                     onClick={() => handleVerifyUser(user.email)}
                     variant="contained"
@@ -134,7 +134,7 @@ export default function Users() {
           )}
           {isGlobalAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '30%' }}>
-              {user.role !== 'Global Admin' && (
+              {user.role !== 'Global Admin' && !user.is_deleted && (
                 <Button
                   onClick={() => handlePromotion(user.name)}
                   variant="contained"

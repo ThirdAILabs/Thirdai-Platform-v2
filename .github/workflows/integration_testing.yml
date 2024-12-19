@@ -60,6 +60,7 @@ jobs:
     runs-on: ubuntu-latest-8-cores
     outputs:
       server_machine_public_ip: ${{ steps.host_machine1.outputs.public_ip }}
+      server_machine_ssh_username: ${{ steps.host_machine1.outputs.ssh_username }}
       task_runner_token: ${{ steps.task_runner.outputs.token }}
       host_machine1_instance_id: ${{ steps.host_machine1.outputs.instance_id }}
       host_machine2_instance_id: ${{ steps.host_machine2.outputs.instance_id }}
@@ -224,6 +225,10 @@ jobs:
             mkdir -p ${{ env.root_dir }}/verbose/installation
             # Run the driver.sh script
             ./driver.sh ./config.yml -v 1> ${{ env.root_dir }}/verbose/installation/installation.out 2> ${{ env.root_dir }}/verbose/installation/installation.err
+          
+            # Delete the package and tarfile
+            cd ${{ env.root_dir }}
+            rm -rf ${{ env.root_dir }}/package ${{ env.root_dir }}/${{ inputs.tarball_filename }}
           EOF
 
       - name: Fetch the task runner token
@@ -274,7 +279,7 @@ jobs:
           mkdir -p $HOME/nfs/dir
           echo "SHARE_DIR=$HOME/nfs/dir" >> $GITHUB_ENV
           echo "GENAI_KEY=${{ secrets.GENAI_KEY }}" >> $GITHUB_ENV
-          echo "TASK_RUNNER_TOKEN=${{ needs.setup_the_ec2_instances.outputs.task_runner_token }}"
+          echo "TASK_RUNNER_TOKEN=${{ needs.setup_the_ec2_instances.outputs.task_runner_token }}" >> $GITHUB_ENV
 
       - name: Generate random run name
         id: random-run-name
@@ -308,7 +313,7 @@ jobs:
             aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
             aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             aws-region: us-east-1
-        
+
         - name: Stop the ec2-machine
           run: |
             aws ec2 stop-instances --instance-ids ${{ needs.setup_the_ec2_instances.outputs.host_machine1_instance_id }} ${{ needs.setup_the_ec2_instances.outputs.host_machine2_instance_id }}

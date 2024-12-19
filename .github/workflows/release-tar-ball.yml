@@ -115,7 +115,7 @@ jobs:
   # Removes branch_image:version from the registry and tarball from s3 bucket
   conditional_cleanup:
     needs: [Gather_facts, Versioned_build_and_push_images, package, tests_on_ec2]
-    if: ${{ always() && needs.Versioned_build_and_push_images.result == 'success' && github.event_name == 'release' && needs.tests_on_ec2.result == 'success' }}
+    if: ${{ always() && needs.Versioned_build_and_push_images.result == 'success' && github.event_name == 'release' && needs.tests_on_ec2.result != 'success' }}
     uses: ./.github/workflows/cleanup.yml
     with:
       docker_image_branch_name: ${{ needs.Gather_facts.outputs.docker_image_branch_name }}
@@ -123,7 +123,6 @@ jobs:
       offline_package_name: ${{ needs.package.outputs.offline_package_name }}
       online_package_name: ${{ needs.package.outputs.online_package_name }}
     secrets:
-      secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
@@ -131,7 +130,8 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   Latest_build_and_push_images:
-    needs: [Gather_facts, Versioned_build_and_push_images, package, tests_on_ec2, conditional_cleanup]
+    needs: [Gather_facts, Versioned_build_and_push_images, package, tests_on_ec2]
+    if: ${{ github.event_name == 'release' }}
     uses: ./.github/workflows/build_and_push_images.yml
     with:
       docker_image_branch_name: ${{ needs.Gather_facts.outputs.docker_image_branch_name }}

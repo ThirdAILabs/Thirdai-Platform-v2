@@ -177,23 +177,27 @@ jobs:
               exit 1
             fi
           EOF
+      
+      - name: Root dir path in the host machine 1
+        run: |
+          # Unable to set license_path in the host_machine without minor modification
+          echo "root_dir=/home/${{ steps.host_machine1.outputs.ssh_username }}" >> $GITHUB_ENV
 
       - name: Download the package and run driver.sh on host_machine1
         run: |
-          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=120 -o ServerAliveCountMax=25 -i /tmp/id_rsa ${{ steps.host_machine1.outputs.ssh_username }}@${{ steps.host_machine1.outputs.public_ip }} <<EOF        
-            root_dir=/home/${{ steps.host_machine1.outputs.ssh_username }}
+          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=120 -o ServerAliveCountMax=25 -i /tmp/id_rsa ${{ steps.host_machine1.outputs.ssh_username }}@${{ steps.host_machine1.outputs.public_ip }} <<EOF
           
-            aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.tarball_filename }} \$root_dir
+            aws s3 cp s3://thirdai-corp-public/ThirdAI-Platform-latest-release/${{ inputs.tarball_filename }} ${{ env.root_dir }}
 
             # unzip the package
-            mkdir -p \$root_dir/package/verbose
-            tar -xvf ${{ inputs.tarball_filename }} -C \$root_dir/package
+            mkdir -p ${{ env.root_dir }}/package/verbose
+            tar -xvf ${{ inputs.tarball_filename }} -C ${{ env.root_dir }}/package
 
-            cd \$root_dir/package
+            cd ${{ env.root_dir }}/package
 
             # Modify the config.yml
             yq -i '
-                .license_path = \"$root_dir/ndb_enterprise_license.json\" |
+                .license_path = "${{ env.root_dir }}/ndb_enterprise_license.json" |
                 .admin_mail = "${{ inputs.email }}" |
                 .admin_username = "admin" |
                 .admin_password = "${{ inputs.password }}" |
@@ -209,17 +213,17 @@ jobs:
                 .nodes[1].private_ip = "${{ steps.host_machine2.outputs.private_ip }}" |
                 .nodes[1].ssh_username = "${{ steps.host_machine2.outputs.ssh_username }}" |
                 .nodes[1].connection_type = "ssh"
-            '  \$root_dir/package/config.yml
+            '  ${{ env.root_dir }}/package/config.yml
 
             # verbose dir would contain the stdout and stderr of the run
-            mkdir -p \$root_dir/verbose/pre_installation_cleanup
+            mkdir -p ${{ env.root_dir }}/verbose/pre_installation_cleanup
 
             # Run the cleanup script
-            ./driver.sh ./config.yml --cleanup 1> \$root_dir/verbose/pre_installation_cleanup/cleanup.out 2> \$root_dir/verbose/pre_installation_cleanup/cleanup.err
+            ./driver.sh ./config.yml --cleanup 1> ${{ env.root_dir }}/verbose/pre_installation_cleanup/cleanup.out 2> ${{ env.root_dir }}/verbose/pre_installation_cleanup/cleanup.err
 
-            mkdir -p \$root_dir/verbose/installation
+            mkdir -p ${{ env.root_dir }}/verbose/installation
             # Run the driver.sh script
-            ./driver.sh ./config.yml -v 1> \$root_dir/verbose/installation/installation.out 2> \$root_dir/verbose/installation/installation.err
+            ./driver.sh ./config.yml -v 1> ${{ env.root_dir }}/verbose/installation/installation.out 2> ${{ env.root_dir }}/verbose/installation/installation.err
           EOF
 
       - name: Fetch the task runner token

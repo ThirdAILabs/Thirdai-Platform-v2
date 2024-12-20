@@ -181,7 +181,7 @@ jobs:
       run: |
         source ${{ github.workspace }}/venv/bin/activate
         cd $GITHUB_WORKSPACE
-        pytest -s
+        pytest
 
     - name: Display Logs
       if: always()

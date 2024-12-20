@@ -44,6 +44,7 @@ export default function Page() {
   const [processingFolder, setProcessingFolder] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const [skippedFiles, setSkippedFiles] = useState<string[]>([]);
 
   const MAX_FILE_SIZE = 1024 * 1024;
 
@@ -63,12 +64,15 @@ export default function Page() {
     setPredictions([]);
     setProcessingTime(undefined);
     setInputText('');
+    setSkippedFiles([]); // Reset skipped files
 
     try {
+      const oversizedFiles: string[] = [];
+
       // Process files sequentially with delay
       for (const file of files) {
         if (file.size > MAX_FILE_SIZE) {
-          console.warn(`Skipping ${file.name}: exceeds size limit of 1MB`);
+          oversizedFiles.push(file.name);
           continue;
         }
 
@@ -120,6 +124,11 @@ export default function Page() {
           // Continue processing other files even if one fails
         }
       }
+
+      if (oversizedFiles.length > 0) {
+        setSkippedFiles(oversizedFiles);
+        setFileError(`${oversizedFiles.length} files exceeded 1MB size limit and were skipped.`);
+      }
     } catch (error) {
       console.error('Error processing folder:', error);
       setFileError('Error processing folder files');
@@ -130,6 +139,13 @@ export default function Page() {
       }
     }
   };
+
+  // Add this below the file error alert
+  {
+    skippedFiles.length > 0 && (
+      <div className="mt-2 text-sm text-gray-500">Skipped files: {skippedFiles.join(', ')}</div>
+    );
+  }
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

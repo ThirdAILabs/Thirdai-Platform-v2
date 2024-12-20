@@ -605,7 +605,7 @@ export function trainTextClassifierWithCSV({
             reject(
               new Error(
                 (axiosError.response.data as any).detail ||
-                  'Failed to train text classification model'
+                'Failed to train text classification model'
               )
             );
           } else {
@@ -737,7 +737,7 @@ export function trainTokenClassifierWithCSV({
             reject(
               new Error(
                 (axiosError.response.data as any).detail ||
-                  'Failed to train token classification model'
+                'Failed to train token classification model'
               )
             );
           } else {
@@ -916,7 +916,7 @@ export function trainTokenClassifierFromCSV({
             reject(
               new Error(
                 (axiosError.response.data as any).detail ||
-                  'Failed to train token classification model'
+                'Failed to train token classification model'
               )
             );
           } else {
@@ -2083,6 +2083,29 @@ export async function updateModelAccessLevel(
   return new Promise((resolve, reject) => {
     axios
       .post(`${thirdaiPlatformBaseUrl}/api/model/update-access-level?${params.toString()}`)
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.error('Error updating model access level:', err);
+        alert('Error updating model access level:' + err);
+        reject(err);
+      });
+  });
+}
+
+export async function updateModelOwner(
+  model_identifier: string,
+  userName: string
+): Promise<void> {
+  const accessToken = getAccessToken();
+  axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+  const params = new URLSearchParams({ model_identifier, userName });
+
+  return new Promise((resolve, reject) => {
+    axios
+      .post(`${thirdaiPlatformBaseUrl}/api/model/update-model-owner?${params.toString()}`)
       .then(() => {
         resolve();
       })

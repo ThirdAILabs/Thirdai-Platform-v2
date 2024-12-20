@@ -6,7 +6,7 @@ type Model = {
   owner: string;
   users?: string[];
   team?: string;
-  teamAdmin?: string;
+  teamAdmin?: string[];
   domain: string;
   latency: string;
   modelId: string;

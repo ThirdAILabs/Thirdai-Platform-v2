@@ -114,7 +114,7 @@ const Placeholder = styled.section`
 const labels = [
   {
     id: 1,
-    name: 'PHONENUMBER',
+    name: 'BRAND',
     color: 'blue',
     amount: '217,323',
     checked: true,
@@ -123,37 +123,12 @@ const labels = [
   },
   {
     id: 2,
-    name: 'SSN',
+    name: 'MODEL_NUM',
     color: 'orange',
     amount: '8,979',
     checked: true,
     description:
       'The format of a US Social Security Number (SSN) is XXX-XX-XXXX, where "X" represents a digit from 0 to 9. It consists of three parts: area, group, and serial numbers.',
-  },
-  {
-    id: 3,
-    name: 'CREDITCARDNUMBER',
-    color: 'red',
-    amount: '13,272',
-    checked: true,
-    description:
-      'A US credit card number is a 16-digit number typically formatted as XXXX XXXX XXXX XXXX, where "X" represents a digit from 0 to 9. It includes the Issuer Identifier, account number, and a check digit.',
-  },
-  {
-    id: 4,
-    name: 'LOCATION',
-    color: 'green',
-    amount: '2,576,904',
-    checked: true,
-    description: `A US address format includes the recipient's name, street address (number and name), city, state abbreviation, and ZIP code, for example: John Doe 123 Main St Springfield, IL 62701`,
-  },
-  {
-    id: 5,
-    name: 'NAME',
-    color: 'purple',
-    amount: '1,758,131',
-    checked: true,
-    description: `An English name format typically consists of a first name, middle name(s), and last name (surname), for example: John Michael Smith. Titles and suffixes, like Mr. or Jr., may also be included.`,
   },
 ];
 
@@ -167,6 +142,7 @@ function ChatBox({
   transformedMessage?: string[][];
   sentiment?: string;
 }) {
+  console.log('transformedMessage final', transformedMessage)
   const sentimentColor = (sentiment: string) => {
     switch (sentiment) {
       case 'positive': // Positive sentiment
@@ -269,10 +245,14 @@ export default function Chat({
 
     return piiDetect(messageContent, piiWorkflowId)
       .then((result) => {
-        const { tokens, predicted_tags } = result;
+        const { tokens, predicted_tags } = result.data.prediction_results;
+
         let transformed: string[][] = [];
         let currentSentence = '';
         let currentTag = '';
+
+        console.log('tokens', tokens)
+        console.log('predicted_tags', predicted_tags)
 
         for (let i = 0; i < tokens.length; i++) {
           const word = tokens[i];

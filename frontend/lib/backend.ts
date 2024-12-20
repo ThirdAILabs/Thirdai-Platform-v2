@@ -1586,11 +1586,6 @@ export function useRecentSamples({
   return { recentSamples, error, isLoading, refresh };
 }
 
-export interface TokenClassificationResult {
-  query_text: string;
-  tokens: string[];
-  predicted_tags: string[][];
-}
 export interface PredictionResponse {
   prediction_results: TokenClassificationResult;
   time_taken: number;
@@ -1932,17 +1927,33 @@ export function useSentimentClassification(workflowId: string | null) {
   };
 }
 
+interface PIIDetectionResponse {
+  status: string;
+  message: string;
+  data: {
+    prediction_results: TokenClassificationResult;
+    time_taken: number;
+  };
+}
+
+interface TokenClassificationResult {
+  data_type: string;
+  query_text: string;
+  tokens: string[];
+  predicted_tags: string[][];
+}
+
+
 export async function piiDetect(
   query: string,
   workflowId: string
-): Promise<TokenClassificationResult> {
+): Promise<PIIDetectionResponse> {
   try {
-    // Corrected the key from 'query' to 'text'
     const response = await axios.post(`${deploymentBaseUrl}/${workflowId}/predict`, {
       text: query,
       top_k: 1,
     });
-    return response.data.data;
+    return response.data;
   } catch (error) {
     console.error('Error performing pii detection:', error);
     alert('Error performing pii detection: ' + error);

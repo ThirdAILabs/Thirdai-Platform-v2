@@ -1,3 +1,4 @@
+import logging
 import os
 from contextlib import contextmanager
 
@@ -7,8 +8,6 @@ from database import schema
 from database.schema import SQLDeclarativeBase as Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
-import logging
 
 db_uri = os.getenv("DATABASE_URI")
 if db_uri is None:
@@ -93,26 +92,42 @@ class AdminAddition:
                         },
                     )
                 else:
-
-                    keycloak_user_id = keycloak_admin.create_user(
-                        {
-                            "username": admin_username,
-                            "email": admin_mail,
-                            "enabled": True,
-                            "emailVerified": True,
-                            "credentials": [
-                                {
-                                    "type": "password",
-                                    "value": admin_password,
-                                    "temporary": False,
-                                }
-                            ],
-                            "realmRoles": ["admin"],
-                            "firstName": admin_username,
-                            "lastName": "User",
-                        },
-                        exist_ok=True,
-                    )
+                    user_payload = {
+                        "username": admin_username,
+                        "email": admin_mail,
+                        "enabled": True,
+                        "emailVerified": True,
+                        "credentials": [
+                            {
+                                "type": "password",
+                                "value": admin_password,
+                                "temporary": False,
+                            }
+                        ],
+                        "realmRoles": ["admin"],
+                        "firstName": admin_username,
+                        "lastName": "User",
+                    }
+                    try:
+                        keycloak_user_id = keycloak_admin.create_user(
+                            user_payload,
+                            exist_ok=True,
+                        )
+                    except Exception as e:
+                        # Check if the user now exists
+                        check_user_id = keycloak_admin.get_user_id(admin_username)
+                        if check_user_id:
+                            logging.warning(
+                                f"Caught an exception after attempting to create user '{admin_username}', "
+                                f"but the user now appears to exist. Skipping error."
+                            )
+                            keycloak_user_id = check_user_id
+                        else:
+                            # User truly failed to create
+                            logging.error(
+                                f"Error creating user '{admin_username}': {str(e)}"
+                            )
+                            raise e
 
             try:
                 user: schema.User = (

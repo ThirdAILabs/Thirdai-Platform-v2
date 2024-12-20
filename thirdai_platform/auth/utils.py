@@ -209,22 +209,37 @@ if IDENTITY_PROVIDER == "keycloak":
         )
     else:
         # Create a new Keycloak user with admin credentials if it does not exist.
-        keycloak_user_id = keycloak_admin.create_user(
-            {
-                "username": admin_username,  # Username of the user to create.
-                "email": admin_mail,  # Email of the user.
-                "enabled": True,  # Enable the user account.
-                "emailVerified": True,  # Mark email as verified.
-                "credentials": [
-                    {
-                        "type": "password",  # Credential type, in this case, a password.
-                        "value": admin_password,  # Password value.
-                        "temporary": False,  # Password is permanent, not temporary.
-                    }
-                ],
-            },
-            exist_ok=True,
-        )
+        user_payload = {
+            "username": admin_username,
+            "email": admin_mail,
+            "enabled": True,
+            "emailVerified": True,
+            "credentials": [
+                {
+                    "type": "password",
+                    "value": admin_password,
+                    "temporary": False,
+                }
+            ],
+        }
+        try:
+            keycloak_user_id = keycloak_admin.create_user(
+                user_payload,
+                exist_ok=True,
+            )
+        except Exception as e:
+            # Check if user now exists
+            check_user_id = keycloak_admin.get_user_id(admin_username)
+            if check_user_id:
+                logging.warning(
+                    f"Caught an exception after attempting to create user '{admin_username}', "
+                    f"but the user now appears to exist. Skipping error."
+                )
+                keycloak_user_id = check_user_id
+            else:
+                # User truly failed to create
+                logging.error(f"Error creating user '{admin_username}': {str(e)}")
+                raise e
 
     keycloak_roles = (
         keycloak_admin.get_realm_roles()

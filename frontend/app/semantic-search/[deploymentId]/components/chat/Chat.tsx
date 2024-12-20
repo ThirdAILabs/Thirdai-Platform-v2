@@ -225,6 +225,8 @@ export default function Chat({
 
   useEffect(() => {
     if (modelService && provider) {
+      console.log('print the provider', provider)
+
       // Set the chat settings based on the provider
       modelService
         .setChat(provider)
@@ -362,6 +364,7 @@ export default function Chat({
         await modelService?.chat(
           lastTextInput,
           provider,
+          {"BRAND": {"constraint_type": "EqualTo", "value": "Google"}},
           (newWord: string) => {
             aiResponse += newWord;
             setChatHistory((history) => {

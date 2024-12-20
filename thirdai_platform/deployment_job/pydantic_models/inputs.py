@@ -194,6 +194,7 @@ class ChatInput(BaseModel):
     user_input: str
     session_id: Optional[str] = None
     provider: str = "openai"
+    constraints: Optional[Dict[str, Dict[str, str]]] = None
 
 
 class ChatHistoryInput(BaseModel):

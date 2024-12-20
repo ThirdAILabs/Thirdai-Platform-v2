@@ -89,7 +89,7 @@ def test_enterprise_search_with_guardrails():
     ]
 
     admin_client.await_deploy(client)
-    time.sleep(60)  # To wait for traefik to update with new models
+    time.sleep(5)  # To wait for traefik to update with new models
 
     query = "American Express Profit Rises 14. my phone number is 123-457-2490"
     results = client.search(query)

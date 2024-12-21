@@ -22,6 +22,7 @@ from deployment_job.pydantic_models.inputs import (
     NDBSearchParams,
     SaveModel,
     UpvoteInput,
+    ChatFeedbackInput,
 )
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
@@ -47,6 +48,7 @@ from platform_common.pydantic_models.feedback_logs import (
     DeleteLog,
     FeedbackLog,
     ImplicitUpvoteLog,
+    ChatFeedbackLog,
     InsertLog,
     UpvoteLog,
 )
@@ -57,7 +59,8 @@ from pydantic import ValidationError
 ndb_query_metric = Summary("ndb_query", "NDB Queries")
 ndb_upvote_metric = Summary("ndb_upvote", "NDB upvotes")
 ndb_associate_metric = Summary("ndb_associate", "NDB associations")
-ndb_implicit_feedback_metric = Summary("ndb_implicit_feedback", "NDB implicit feedback")
+ndb_chat_upvote_metric = Counter("ndb_chat_upvote_metric", "NDB chat upvote")
+ndb_chat_downvote_metric = Counter("ndb_chat_downvote_metric", "NDB chat downvote")
 ndb_insert_metric = Summary("ndb_insert", "NDB insertions")
 ndb_delete_metric = Summary("ndb_delete", "NDB deletions")
 
@@ -553,6 +556,29 @@ class NDBRouter:
             ndb_top_k_selections
         ):
             ndb_top_k_selections[feedback.reference_rank].inc()
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Implicit feedback logged successfully.",
+        )
+
+    def chat_feedback(
+        self,
+        feedback: ChatFeedbackInput,
+        token: str = Depends(Permissions.verify_permission("read")),
+    ):
+        self.feedback_logger.log(
+            ChatFeedbackLog(
+                chunk_id=feedback.reference_id,
+                query=feedback.query_text,
+                upvote=feedback.upvote,
+            )
+        )
+
+        if feedback.upvote:
+            ndb_chat_upvote_metric.inc()
+        else:
+            ndb_chat_downvote_metric.inc()
 
         return response(
             status_code=status.HTTP_200_OK,

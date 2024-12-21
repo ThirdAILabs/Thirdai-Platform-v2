@@ -205,6 +205,14 @@ function AILoadingChatBox() {
   return <TypingAnimation />;
 }
 
+export interface SearchConstraint {
+  constraint_type: "EqualTo";
+  value: string;
+}
+
+// Using Record directly instead of a custom interface
+type SearchConstraints = Record<string, SearchConstraint>;
+
 export default function Chat({
   piiWorkflowId, // Workflow ID for pii detection
   sentimentWorkflowId, // Workflow ID for sentiment classification
@@ -361,10 +369,24 @@ export default function Chat({
         let aiResponse = '';
         const aiIndex = chatHistory.length + 1;
 
+        // Get PII detection results for the input
+        const detectedPII = await performPIIDetection(lastTextInput);
+        
+        // Build constraints from PII detection
+        const searchConstraints: SearchConstraints = {};
+        detectedPII.forEach(([text, tag]) => {
+          if (tag === 'BRAND' || tag === 'MODEL_NUM') {
+            searchConstraints[tag] = {
+              constraint_type: "EqualTo",
+              value: text.trim()
+            };
+          }
+        });
+
         await modelService?.chat(
           lastTextInput,
           provider,
-          {"BRAND": {"constraint_type": "EqualTo", "value": "Google"}},
+          searchConstraints,
           (newWord: string) => {
             aiResponse += newWord;
             setChatHistory((history) => {

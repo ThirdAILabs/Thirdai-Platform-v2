@@ -8,7 +8,9 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStore
 from licensing.verify import verify_license
-
+from thirdai.neural_db_v2.chunk_stores.constraints import (
+    EqualTo
+)
 
 class NeuralDBV2VectorStore(VectorStore):
     """Vectorstore that uses ThirdAI's NeuralDB.
@@ -220,7 +222,7 @@ class NeuralDBV2VectorStore(VectorStore):
         return preprocessed_sources
 
     def similarity_search(
-        self, query: str, k: int = 10, **kwargs: Any
+        self, query: str, k: int = 10, constraints = None,  **kwargs: Any
     ) -> List[Document]:
         """Retrieve {k} contexts with for a given query
 
@@ -229,7 +231,11 @@ class NeuralDBV2VectorStore(VectorStore):
             k: The max number of context results to retrieve. Defaults to 10.
         """
         try:
-            references = self.db.search(query=query, top_k=k, **kwargs)
+            # TODO(Peter): convert constraints to data format
+            data = {
+                "BRAND": EqualTo("Kenmore"),
+            }
+            references = self.db.search(query=query, top_k=k, constraints=data, **kwargs)
             return [
                 Document(
                     page_content=chunk.keywords + " " + chunk.text,

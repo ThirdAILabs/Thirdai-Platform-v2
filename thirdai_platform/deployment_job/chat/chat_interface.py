@@ -124,10 +124,7 @@ class ChatInterface(ABC):
         return response["answer"]
 
     def get_retriever(self, constraints=None):
-        search_kwargs = {"k": self.top_k}
-        # Only add constraints if they exist and if metadata exists
-        if constraints and hasattr(self.vectorstore.db, "has_metadata") and self.vectorstore.db.has_metadata:
-            search_kwargs["constraints"] = constraints
+        search_kwargs = {"k": self.top_k, 'constraints': constraints}
         return self.vectorstore.as_retriever(search_kwargs=search_kwargs)
 
     async def stream_chat(self, user_input: str, session_id: str, constraints: Optional[Dict[str, Dict[str, str]]] = None, **kwargs) -> AsyncGenerator[str, None]:

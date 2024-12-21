@@ -101,6 +101,9 @@ class NDBRouter:
             "/implicit-feedback", self.implicit_feedback, methods=["POST"]
         )
         self.router.add_api_route(
+            "/chat-feedback", self.chat_feedback, methods=["POST"]
+        )
+        self.router.add_api_route(
             "/update-chat-settings", self.update_chat_settings, methods=["POST"]
         )
         self.router.add_api_route(

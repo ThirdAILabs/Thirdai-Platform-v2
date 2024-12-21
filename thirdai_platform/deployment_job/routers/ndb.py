@@ -628,7 +628,11 @@ class NDBRouter:
             session_id = input.session_id
 
         async def generate_response() -> AsyncGenerator[str, None]:
-            async for chunk in chat.stream_chat(input.user_input, session_id):
+            async for chunk in chat.stream_chat(
+                input.user_input, 
+                session_id,
+                constraints=input.constraints
+            ):
                 yield chunk
 
         return StreamingResponse(generate_response(), media_type="text/plain")

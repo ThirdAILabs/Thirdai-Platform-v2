@@ -123,47 +123,20 @@ class ChatInterface(ABC):
         chat_history.add_ai_message(response["answer"])
         return response["answer"]
 
+    def get_retriever(self, constraints=None):
+        search_kwargs = {"k": self.top_k}
+        # Only add constraints if they exist and if metadata exists
+        if constraints and hasattr(self.vectorstore.db, "has_metadata") and self.vectorstore.db.has_metadata:
+            search_kwargs["constraints"] = constraints
+        return self.vectorstore.as_retriever(search_kwargs=search_kwargs)
+
     async def stream_chat(self, user_input: str, session_id: str, constraints: Optional[Dict[str, Dict[str, str]]] = None, **kwargs) -> AsyncGenerator[str, None]:
         chat_history = self._get_chat_history_conn(session_id=session_id)
         chat_history.add_user_message(user_input)
 
-        retriever = self.vectorstore.as_retriever(
-            search_kwargs={"k": self.top_k, "constraints": constraints} if constraints else {"k": self.top_k}
-        )
-        
-        query_transforming_retriever_chain = RunnableBranch(
-            (
-                lambda x: len(x.get("messages", [])) == 1,
-                (lambda x: x["messages"][-1].content) | retriever,
-            ),
-            self.query_transform_prompt | self.llm() | StrOutputParser() | retriever,
-        )
-        
-        self.conversational_retrieval_chain = RunnablePassthrough.assign(
-            context=query_transforming_retriever_chain | self.parse_retriever_output,
-        ).assign(
-            answer=self.document_chain,
-        )
+        print('constraints is', constraints, flush=True)
+        retriever = self.get_retriever(constraints)
 
-        response_chunks = []
-        async for chunk in self.conversational_retrieval_chain.astream(
-            {"messages": chat_history.messages}
-        ):
-            if "answer" in chunk:
-                response_chunks.append(chunk["answer"])
-                yield chunk["answer"]
-
-        full_response = "".join(response_chunks)
-        chat_history.add_ai_message(full_response)
-        chat_history = self._get_chat_history_conn(session_id=session_id)
-        chat_history.add_user_message(user_input)
-
-        # Create retriever with constraints
-        retriever = self.vectorstore.as_retriever(
-            search_kwargs={"k": self.top_k, "constraints": constraints} if constraints else {"k": self.top_k}
-        )
-        
-        # Update chain with new retriever
         query_transforming_retriever_chain = RunnableBranch(
             (
                 lambda x: len(x.get("messages", [])) == 1,

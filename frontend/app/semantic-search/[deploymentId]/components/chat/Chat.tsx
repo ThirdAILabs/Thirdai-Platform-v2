@@ -123,7 +123,7 @@ const labels = [
   },
   {
     id: 2,
-    name: 'MODEL_NUM',
+    name: 'MODEL_NUMBER',
     color: 'orange',
     amount: '8,979',
     checked: true,
@@ -375,7 +375,7 @@ export default function Chat({
         // Build constraints from PII detection
         const searchConstraints: SearchConstraints = {};
         detectedPII.forEach(([text, tag]) => {
-          if (tag === 'BRAND' || tag === 'MODEL_NUM') {
+          if (tag === 'BRAND' || tag === 'MODEL_NUMBER') {
             searchConstraints[tag] = {
               constraint_type: "EqualTo",
               value: text.trim()

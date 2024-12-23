@@ -364,7 +364,7 @@ export function WorkFlow({
       setTimeout(() => document.body.removeChild(errorToast), 2000);
     }
   };
-  console.log("Workflow: ", workflow);
+  console.log('Workflow: ', workflow);
   return (
     <>
       <TableRow>

@@ -21,11 +21,11 @@ export default function UsageStats() {
   const { model_id, default_mode } = getUrlParams();
   let replace_variable;
   if (default_mode === 'search')
-    replace_variable = 'x';
+    replace_variable = 'fe3m66kjmu0hsa/search-model';
   else
-    replace_variable = 'y';
+    replace_variable = 'ae7rn25nhxdkwc/chat';
 
-  const panelUrl = `${grafanaUrl}/d-solo/fe3m66kjmu0hsa/search-model?orgId=1&var-workload=deployment-${model_id}&theme=light`;
+  const panelUrl = `${grafanaUrl}/d-solo/${replace_variable}?orgId=1&var-workload=deployment-${model_id}&theme=light`;
 
   return (
     <div className="px-4">

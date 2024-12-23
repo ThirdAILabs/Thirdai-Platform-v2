@@ -14,7 +14,7 @@ export default function Users() {
   const { user } = React.useContext(UserContext);
   const isGlobalAdmin = user?.global_admin;
   const [users, setUsers] = useState<User[]>([]);
-  console.log('In users.tsx, ', user?.is_deactivated);
+
   useEffect(() => {
     getUsersData();
   }, []);

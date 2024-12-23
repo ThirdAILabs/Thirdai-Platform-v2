@@ -354,7 +354,8 @@ def email_login(
     user: Optional[schema.User] = (
         session.query(schema.User)
         .filter(
-            schema.User.email == credentials.username, schema.User.is_deactivated == False
+            schema.User.email == credentials.username,
+            schema.User.is_deactivated == False,
         )
         .first()
     )

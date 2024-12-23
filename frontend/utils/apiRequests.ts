@@ -34,7 +34,7 @@ type User = {
   teams: { id: string; name: string; role: 'Member' | 'team_admin' | 'Global Admin' }[];
   ownedModels: string[];
   verified: boolean;
-  is_deleted: boolean;
+  is_deactivated: boolean;
 };
 
 const getModels = async () => {
@@ -89,7 +89,7 @@ const getUsers = async () => {
         })),
         ownedModels: [],
         verified: user.verified,
-        is_deleted: user.is_deleted,
+        is_deactivated: user.is_deactivated,
       })
     );
     console.log('In apiRequests getUsers-> ', userData);

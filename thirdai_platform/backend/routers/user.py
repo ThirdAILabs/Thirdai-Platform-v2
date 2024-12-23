@@ -285,9 +285,9 @@ def delete_user(
             message=f"User with email {email} not found.",
         )
 
-    if not user.is_deleted:
-        # Modify user.is_deleted to 1
-        user.is_deleted = True
+    if not user.is_deactivated:
+        # Modify user.is_deactivated to 1
+        user.is_deactivated = True
         session.commit()
         if identity_provider == "keycloak":
             try:
@@ -354,7 +354,7 @@ def email_login(
     user: Optional[schema.User] = (
         session.query(schema.User)
         .filter(
-            schema.User.email == credentials.username, schema.User.is_deleted == False
+            schema.User.email == credentials.username, schema.User.is_deactivated == False
         )
         .first()
     )
@@ -408,7 +408,7 @@ def email_login_with_keycloak(
             session.query(schema.User)
             .filter(
                 schema.User.email == user_info.get("email"),
-                schema.User.is_deleted == False,
+                schema.User.is_deactivated == False,
             )
             .first()
         )
@@ -614,7 +614,7 @@ def list_accessible_users(
                 for user_team in user.teams
             ],
             "verified": user.verified,
-            "is_deleted": user.is_deleted,
+            "is_deactivated": user.is_deactivated,
         }
         for user in users
     ]
@@ -658,7 +658,7 @@ def get_user_info(
             }
             for user_team in user.teams
         ],
-        "is_deleted": user.is_deleted,
+        "is_deactivated": user.is_deactivated,
     }
 
     return response(
@@ -719,7 +719,7 @@ def add_user_by_global_admin(
                 username=body.username,
                 email=body.email,
                 verified=True,
-                is_deleted=False,
+                is_deactivated=False,
             )
             session.add(new_user)
             session.commit()

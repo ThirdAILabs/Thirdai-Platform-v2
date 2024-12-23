@@ -605,7 +605,7 @@ export function trainTextClassifierWithCSV({
             reject(
               new Error(
                 (axiosError.response.data as any).detail ||
-                  'Failed to train text classification model'
+                'Failed to train text classification model'
               )
             );
           } else {
@@ -737,7 +737,7 @@ export function trainTokenClassifierWithCSV({
             reject(
               new Error(
                 (axiosError.response.data as any).detail ||
-                  'Failed to train token classification model'
+                'Failed to train token classification model'
               )
             );
           } else {
@@ -916,7 +916,7 @@ export function trainTokenClassifierFromCSV({
             reject(
               new Error(
                 (axiosError.response.data as any).detail ||
-                  'Failed to train token classification model'
+                'Failed to train token classification model'
               )
             );
           } else {
@@ -1995,7 +1995,7 @@ interface UserResponse {
   teams: UserTeamInfo[];
   username: string;
   verified: boolean;
-  is_deleted: boolean;
+  is_deactivated: boolean;
 }
 
 interface TeamResponse {
@@ -2351,7 +2351,7 @@ export interface User {
   email: string;
   global_admin: boolean;
   teams: Team[];
-  is_deleted: boolean;
+  is_deactivated: boolean;
 }
 
 export async function accessTokenUser(accessToken: string | null) {

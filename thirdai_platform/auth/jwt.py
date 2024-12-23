@@ -77,7 +77,7 @@ def validate_access_token(access_token: str, session: Session):
                 session.query(schema.User)
                 .filter(
                     schema.User.email == user_info.get("email"),
-                    schema.User.is_deleted == False,
+                    schema.User.is_deactivated == False,
                 )
                 .first()
             )
@@ -127,7 +127,7 @@ def validate_access_token(access_token: str, session: Session):
 
             user = (
                 session.query(schema.User)
-                .filter(schema.User.id == user_id, schema.User.is_deleted == False)
+                .filter(schema.User.id == user_id, schema.User.is_deactivated == False)
                 .first()
             )
 

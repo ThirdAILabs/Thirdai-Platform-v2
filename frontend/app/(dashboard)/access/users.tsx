@@ -14,7 +14,7 @@ export default function Users() {
   const { user } = React.useContext(UserContext);
   const isGlobalAdmin = user?.global_admin;
   const [users, setUsers] = useState<User[]>([]);
-  console.log('In users.tsx, ', user?.is_deleted);
+  console.log('In users.tsx, ', user?.is_deactivated);
   useEffect(() => {
     getUsersData();
   }, []);
@@ -84,7 +84,7 @@ export default function Users() {
             <div>
               <div className="flex flex-wrap gap-3">
                 <h4 className="text-lg font-semibold text-gray-800">{user.name}</h4>
-                {user.is_deleted && (
+                {user.is_deactivated && (
                   <h4 className="text-sm text-gray-800 bg-gray-300 rounded-2xl px-2 py-1 text-center max-w-26 border border-gray-400">
                     Deactivated
                   </h4>
@@ -109,7 +109,7 @@ export default function Users() {
             </div>
             {isGlobalAdmin && (
               <div className="flex gap-2">
-                {!user.verified && !user.is_deleted && (
+                {!user.verified && !user.is_deactivated && (
                   <Button
                     onClick={() => handleVerifyUser(user.email)}
                     variant="contained"
@@ -121,10 +121,10 @@ export default function Users() {
                 <Button
                   onClick={() => deleteUser(user.name)}
                   variant="contained"
-                  color={!user.is_deleted ? 'warning' : 'error'}
+                  color={!user.is_deactivated ? 'warning' : 'error'}
                   className="min-w-36"
                 >
-                  {!user.is_deleted ? 'Deactivate User' : 'Delete User'}
+                  {!user.is_deactivated ? 'Deactivate User' : 'Delete User'}
                 </Button>
               </div>
             )}
@@ -134,7 +134,7 @@ export default function Users() {
           )}
           {isGlobalAdmin && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '30%' }}>
-              {user.role !== 'Global Admin' && !user.is_deleted && (
+              {user.role !== 'Global Admin' && !user.is_deactivated && (
                 <Button
                   onClick={() => handlePromotion(user.name)}
                   variant="contained"

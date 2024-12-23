@@ -103,7 +103,7 @@ class User(SQLDeclarativeBase):
         "ModelPermission", back_populates="user", cascade="all, delete-orphan"
     )
 
-    is_deleted = Column(Boolean, default=False)  # This is used to soft delete a user
+    is_deactivated = Column(Boolean, default=False)  # This is used to soft delete a user
 
     @validates("username")
     def validate_username(self, key, username):

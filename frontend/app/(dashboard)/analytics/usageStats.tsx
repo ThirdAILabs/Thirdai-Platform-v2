@@ -19,11 +19,12 @@ export default function UsageStats() {
   const thirdaiPlatformBaseUrl = _.trim(process.env.THIRDAI_PLATFORM_BASE_URL!, '/');
   const grafanaUrl = `${thirdaiPlatformBaseUrl}/grafana`;
   const { model_id, default_mode } = getUrlParams();
-  let replace_variable;
-  if (default_mode === 'search') replace_variable = 'fe3m66kjmu0hsa/search-model';
-  else replace_variable = 'ae7rn25nhxdkwc/chat';
 
-  const panelUrl = `${grafanaUrl}/d-solo/${replace_variable}?orgId=1&var-workload=deployment-${model_id}&theme=light`;
+  let dashboardInitials;
+  if (default_mode === 'search') dashboardInitials = 'fe3m66kjmu0hsa/search-model';
+  else dashboardInitials = 'ae7rn25nhxdkwc/chat';
+
+  const panelUrl = `${grafanaUrl}/d-solo/${dashboardInitials}?orgId=1&var-workload=deployment-${model_id}&theme=light`;
 
   return (
     <div className="px-4">

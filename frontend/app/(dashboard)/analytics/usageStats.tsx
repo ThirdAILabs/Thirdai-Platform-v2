@@ -11,6 +11,7 @@ function getUrlParams() {
   const userName = params.get('username');
   const modelName = params.get('model_name');
   const model_id = params.get('old_model_id');
+  const default_mode = params.get('default');
   return { userName, modelName, model_id };
 }
 
@@ -30,17 +31,17 @@ export default function UsageStats() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
             <iframe
               src={`${panelUrl}&panelId=1&from=now-6h&to=now&t=${Date.now()}`}
-              width="550"
+              width="100%"
               height="300"
             ></iframe>
             <iframe
               src={`${panelUrl}&panelId=2&from=now-6h&to=now&t=${Date.now()}`}
-              width="550"
+              width="100%"
               height="300"
             ></iframe>
             <iframe
               src={`${panelUrl}&panelId=3&from=now-6h&to=now&t=${Date.now()}`}
-              width="550"
+              width="100%"
               height="300"
             ></iframe>
           </div>

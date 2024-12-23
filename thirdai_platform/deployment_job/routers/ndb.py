@@ -1,5 +1,6 @@
 import io
 import threading
+import time
 import traceback
 import uuid
 from pathlib import Path
@@ -60,6 +61,10 @@ ndb_associate_metric = Summary("ndb_associate", "NDB associations")
 ndb_implicit_feedback_metric = Summary("ndb_implicit_feedback", "NDB implicit feedback")
 ndb_insert_metric = Summary("ndb_insert", "NDB insertions")
 ndb_delete_metric = Summary("ndb_delete", "NDB deletions")
+chat_query = Summary("chat_query", "Query metric of chat interface")
+chat_response_time = Summary(
+    "chat_response_time", "Response time metrc of chat interface"
+)
 
 TOPK_SELECTIONS_TO_TRACK = 5
 ndb_top_k_selections = [
@@ -603,6 +608,7 @@ class NDBRouter:
             data=chat_history,
         )
 
+    @chat_query.time()
     def chat(
         self,
         input: ChatInput,
@@ -628,8 +634,11 @@ class NDBRouter:
             session_id = input.session_id
 
         async def generate_response() -> AsyncGenerator[str, None]:
+            start_time = time.monotonic()
             async for chunk in chat.stream_chat(input.user_input, session_id):
                 yield chunk
+            elapsed = time.monotonic() - start_time
+            chat_response_time.observe(elapsed)
 
         return StreamingResponse(generate_response(), media_type="text/plain")
 

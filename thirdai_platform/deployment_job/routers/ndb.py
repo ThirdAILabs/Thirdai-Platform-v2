@@ -63,7 +63,7 @@ ndb_insert_metric = Summary("ndb_insert", "NDB insertions")
 ndb_delete_metric = Summary("ndb_delete", "NDB deletions")
 chat_query = Summary("chat_query", "Query metric of chat interface")
 chat_response_time = Summary(
-    "chat_response_time", "Response time metrc of chat interface"
+    "chat_response_time", "Response time metric of chat interface"
 )
 
 TOPK_SELECTIONS_TO_TRACK = 5

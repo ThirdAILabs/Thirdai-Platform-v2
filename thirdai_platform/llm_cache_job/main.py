@@ -23,6 +23,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# def get_model_dir(self, model_id: str):
+#    return Path(self.config.model_bazaar_dir) / "models" / model_id
+
 license_key = os.getenv("LICENSE_KEY")
 model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
 verify_license.activate_thirdai_license(license_key)

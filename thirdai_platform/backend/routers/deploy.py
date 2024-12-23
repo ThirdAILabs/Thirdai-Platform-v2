@@ -157,6 +157,29 @@ def get_model_permissions(
     )
 
 
+async def start_llm_cache_job(model_id: str, deployment_name: str, license_info):
+    nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
+    cwd = Path(os.getcwd())
+    platform = get_platform()
+    return submit_nomad_job(
+        nomad_endpoint=nomad_endpoint,
+        filepath=str(cwd / "backend" / "nomad_jobs" / "llm_cache_job.hcl.j2"),
+        platform=platform,
+        tag=os.getenv("TAG"),
+        registry=os.getenv("DOCKER_REGISTRY"),
+        docker_username=os.getenv("DOCKER_USERNAME"),
+        docker_password=os.getenv("DOCKER_PASSWORD"),
+        image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
+        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+        share_dir=os.getenv("SHARE_DIR"),
+        python_path=get_python_path(),
+        thirdai_platform_dir=thirdai_platform_dir(),
+        app_dir="llm_cache_job",
+        license_key=license_info["boltLicenseKey"],
+        model_id=model_id,
+    )
+
+
 # TODO(Any): move args like llm_provider to model attributes.
 async def deploy_single_model(
     model_id: str,
@@ -272,6 +295,25 @@ async def deploy_single_model(
             detail=f"Unsupported model type '{model.type}'.",
         )
 
+    if autoscaling_enabled:
+        start_llm_cache_job(
+            model_id=str(model_id),
+            deployment_name=deployment_name,
+            license_info=license_info,
+        )
+        # if the job fails, where do we report errors to?
+        # make sure to save the cache in the directory for the model
+
+    if requires_on_prem_llm:
+        llm_autoscaling_env = os.getenv("AUTOSCALING_ENABLED")
+        if llm_autoscaling_env is not None:
+            llm_autoscaling_enabled = llm_autoscaling_env.lower() == "true"
+        else:
+            llm_autoscaling_enabled = autoscaling_enabled
+        await start_on_prem_generate_job(
+            restart_if_exists=False, autoscaling_enabled=llm_autoscaling_enabled
+        )
+
     config = DeploymentConfig(
         user_id=str(user.id),
         model_id=str(model.id),
@@ -329,16 +371,6 @@ async def deploy_single_model(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(err),
-        )
-
-    if requires_on_prem_llm:
-        llm_autoscaling_env = os.getenv("AUTOSCALING_ENABLED")
-        if llm_autoscaling_env is not None:
-            llm_autoscaling_enabled = llm_autoscaling_env.lower() == "true"
-        else:
-            llm_autoscaling_enabled = autoscaling_enabled
-        await start_on_prem_generate_job(
-            restart_if_exists=False, autoscaling_enabled=llm_autoscaling_enabled
         )
 
 

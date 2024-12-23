@@ -12,7 +12,8 @@ import os
 from urllib.parse import urljoin
 
 import requests
-from fastapi import FastAPI, HTTPException, Request
+from typing import Optional
+from fastapi import FastAPI, HTTPException, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from llm_dispatch_job.llms import LLMBase, default_keys, model_classes
@@ -59,8 +60,14 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
+def extract_token(authorization: Optional[str] = Header(None)) -> Optional[str]:
+    if authorization and authorization.startswith("Bearer "):
+        return authorization[len("Bearer "):]
+    return None
+
+
 @app.post("/llm-dispatch/generate")
-async def generate(generate_args: GenerateArgs):
+async def generate(generate_args: GenerateArgs, token: Optional[str] = Depends(extract_token)):
     """
     Generate text using a specified generative AI model, with content streamed in real-time.
     Returns a StreamingResponse with chunks of generated text.

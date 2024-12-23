@@ -266,6 +266,11 @@ async def deploy_single_model(
         )
         llm_provider = model_options.llm_provider
         knowledge_extraction = True
+        if llm_provider == "self-host":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Knowledge Extraction not supported with self-hosted LLM."
+            )
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

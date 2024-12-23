@@ -176,6 +176,8 @@ class OnPremLLM(LLMBase):
 
 class SelfHostedLLM(OpenAILLM):
     def __init__(self, api_key: str):
+        # TODO(david) figure out another way for internal service to service 
+        # communication that doesn't require forwarding JWT access tokens
         self.backend_endpoint = os.getenv("MODEL_BAZAAR_ENDPOINT")
         response = requests.get(
             urljoin(self.backend_endpoint, "/api/integrations/self-hosted-llm"),

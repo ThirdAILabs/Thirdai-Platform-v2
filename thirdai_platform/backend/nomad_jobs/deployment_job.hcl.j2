@@ -53,7 +53,7 @@ job "deployment-{{ model_id }}" {
         "traefik.http.routers.{{ model_id }}-http.priority=10",
         # Health check configuration
         "traefik.http.services.deployment-{{ model_id }}.loadbalancer.healthcheck.path=/health",
-        "traefik.http.services.deployment-{{ model_id }}.loadbalancer.healthcheck.interval=5s",
+        "traefik.http.services.deployment-{{ model_id }}.loadbalancer.healthcheck.interval=15s",
         "traefik.http.services.deployment-{{ model_id }}.loadbalancer.healthcheck.timeout=3s",
         "traefik.http.services.deployment-{{ model_id }}.loadbalancer.healthcheck.scheme=http",
       ]

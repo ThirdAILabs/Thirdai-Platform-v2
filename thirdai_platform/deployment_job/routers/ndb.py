@@ -687,7 +687,9 @@ class NDBRouter:
             async for chunk in chat.stream_chat(
                 input.user_input, 
                 session_id,
-                constraints=input.constraints
+                constraints=input.constraints,
+                model_bazaar_dir = self.config.model_bazaar_dir,
+                model_id = self.config.model_id
             ):
                 yield chunk
                 conversation_response += chunk
@@ -722,6 +724,11 @@ class NDBRouter:
                 "query": f'service_type: "chat" AND model_id: "{self.config.model_id}"'
             },
         )
+        if chat_response.status_code != 200:
+            return response(
+                status_code=chat_response.status_code,
+                message=chat_response.text
+            )
 
         chat_history = defaultdict(list)
         json_lines = chat_response.text.strip().split("\n")

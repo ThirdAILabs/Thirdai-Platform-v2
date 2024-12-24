@@ -2,7 +2,7 @@ import logging
 from abc import ABC, abstractmethod
 from threading import Lock
 from typing import AsyncGenerator, List, Union, Optional, Dict
-
+import os
 from deployment_job.chat.ndbv2_vectorstore import NeuralDBV2VectorStore
 from fastapi import HTTPException, status
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -162,7 +162,7 @@ class ChatInterface(ABC):
                     {
                         "chunk_id": doc.metadata["chunk_id"],
                         "query": doc.metadata["query"],
-                        "sourceURL": doc.metadata["document"],
+                        "sourceURL": os.path.join(kwargs.get('model_bazaar_dir'), kwargs.get('model_id') ,doc.metadata["document"]),
                         "sourceName": doc.metadata["document"].split('/')[-1],
                         "content": doc.page_content,
                         "metadata": doc.metadata.get("metadata", {})

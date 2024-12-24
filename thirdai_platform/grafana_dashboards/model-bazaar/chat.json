@@ -1,290 +1,290 @@
 {
-    "annotations": {
-      "list": [
-        {
-          "builtIn": 1,
-          "datasource": {
-            "type": "grafana",
-            "uid": "-- Grafana --"
-          },
-          "enable": true,
-          "hide": true,
-          "iconColor": "rgba(0, 211, 255, 1)",
-          "name": "Annotations & Alerts",
-          "type": "dashboard"
-        }
-      ]
-    },
-    "description": "Chat interface dashboard",
-    "editable": true,
-    "fiscalYearStartMonth": 0,
-    "graphTooltip": 0,
-    "id": 12,
-    "links": [],
-    "panels": [
+  "annotations": {
+    "list": [
       {
+        "builtIn": 1,
         "datasource": {
-          "default": true,
-          "type": "prometheus",
-          "uid": "PBFA97CFB590B2093"
+          "type": "grafana",
+          "uid": "-- Grafana --"
         },
-        "description": "Number of messages",
-        "fieldConfig": {
-          "defaults": {
-            "color": {
-              "mode": "palette-classic"
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Chat interface dashboard",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 3,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "default": true,
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "Number of conversational messages",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
             },
-            "custom": {
-              "axisBorderShow": false,
-              "axisCenteredZero": false,
-              "axisColorMode": "text",
-              "axisLabel": "",
-              "axisPlacement": "auto",
-              "barAlignment": 0,
-              "barWidthFactor": 0.6,
-              "drawStyle": "line",
-              "fillOpacity": 0,
-              "gradientMode": "none",
-              "hideFrom": {
-                "legend": false,
-                "tooltip": false,
-                "viz": false
-              },
-              "insertNulls": false,
-              "lineInterpolation": "linear",
-              "lineWidth": 1,
-              "pointSize": 5,
-              "scaleDistribution": {
-                "type": "linear"
-              },
-              "showPoints": "auto",
-              "spanNulls": false,
-              "stacking": {
-                "group": "A",
-                "mode": "none"
-              },
-              "thresholdsStyle": {
-                "mode": "off"
-              }
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
             },
-            "decimals": 0,
-            "mappings": [],
-            "min": 0,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                {
-                  "color": "green",
-                  "value": null
-                },
-                {
-                  "color": "red",
-                  "value": 80
-                }
-              ]
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
             }
           },
-          "overrides": []
-        },
-        "gridPos": {
-          "h": 11,
-          "w": 24,
-          "x": 0,
-          "y": 0
-        },
-        "id": 1,
-        "options": {
-          "legend": {
-            "calcs": [],
-            "displayMode": "list",
-            "placement": "bottom",
-            "showLegend": true
-          },
-          "tooltip": {
-            "mode": "single",
-            "sort": "none"
-          }
-        },
-        "targets": [
-          {
-            "datasource": {
-              "type": "prometheus",
-              "uid": "PBFA97CFB590B2093"
-            },
-            "editorMode": "code",
-            "expr": "sum (chat_query_count{job=\"deployment-jobs\",workload=\"$workload\"})",
-            "instant": false,
-            "legendFormat": "value",
-            "range": true,
-            "refId": "A"
-          }
-        ],
-        "title": "Messages",
-        "type": "timeseries"
-      },
-      {
-        "datasource": {
-          "default": true,
-          "type": "prometheus",
-          "uid": "PBFA97CFB590B2093"
-        },
-        "description": "Average response time of a chat message",
-        "fieldConfig": {
-          "defaults": {
-            "color": {
-              "mode": "palette-classic"
-            },
-            "custom": {
-              "axisBorderShow": false,
-              "axisCenteredZero": false,
-              "axisColorMode": "text",
-              "axisLabel": "",
-              "axisPlacement": "auto",
-              "barAlignment": 0,
-              "barWidthFactor": 0.6,
-              "drawStyle": "line",
-              "fillOpacity": 0,
-              "gradientMode": "none",
-              "hideFrom": {
-                "legend": false,
-                "tooltip": false,
-                "viz": false
+          "decimals": 0,
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
               },
-              "insertNulls": false,
-              "lineInterpolation": "linear",
-              "lineWidth": 1,
-              "pointSize": 5,
-              "scaleDistribution": {
-                "type": "linear"
-              },
-              "showPoints": "auto",
-              "spanNulls": false,
-              "stacking": {
-                "group": "A",
-                "mode": "none"
-              },
-              "thresholdsStyle": {
-                "mode": "off"
+              {
+                "color": "red",
+                "value": 80
               }
-            },
-            "mappings": [],
-            "min": 0,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                {
-                  "color": "green",
-                  "value": null
-                },
-                {
-                  "color": "red",
-                  "value": 80
-                }
-              ]
-            },
-            "unit": "s"
-          },
-          "overrides": []
-        },
-        "gridPos": {
-          "h": 14,
-          "w": 24,
-          "x": 0,
-          "y": 11
-        },
-        "id": 2,
-        "options": {
-          "legend": {
-            "calcs": [],
-            "displayMode": "list",
-            "placement": "bottom",
-            "showLegend": true
-          },
-          "tooltip": {
-            "mode": "single",
-            "sort": "none"
+            ]
           }
         },
-        "targets": [
-          {
-            "datasource": {
-              "type": "prometheus",
-              "uid": "PBFA97CFB590B2093"
-            },
-            "editorMode": "code",
-            "expr": "sum (chat_response_time_sum{job=\"deployment-jobs\",workload=\"$workload\"}) / sum (chat_response_time_count{job=\"deployment-jobs\",workload=\"$workload\"})",
-            "instant": false,
-            "legendFormat": "value",
-            "range": true,
-            "refId": "A"
-          }
-        ],
-        "title": "Response time",
-        "type": "timeseries"
-      }
-    ],
-    "schemaVersion": 39,
-    "tags": [],
-    "templating": {
-      "list": [
-        {
-          "current": {
-            "selected": false,
-            "text": "Prometheus",
-            "value": "PBFA97CFB590B2093"
-          },
-          "description": "Datasource of the dashboard",
-          "hide": 0,
-          "includeAll": false,
-          "label": "Datasource",
-          "multi": false,
-          "name": "Datasource",
-          "options": [],
-          "query": "prometheus",
-          "refresh": 1,
-          "regex": "",
-          "skipUrlSync": false,
-          "type": "datasource"
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
         {
-          "current": {
-            "selected": false,
-            "text": "deployment-24064604-682d-434a-8c5a-775c4070f3a4",
-            "value": "deployment-24064604-682d-434a-8c5a-775c4070f3a4"
-          },
           "datasource": {
             "type": "prometheus",
-            "uid": "${Datasource}"
+            "uid": "PBFA97CFB590B2093"
           },
-          "definition": "label_values(exported_job)",
-          "description": "Deployment-job name\nE.g.: deployment-{uuid}",
-          "hide": 0,
-          "includeAll": false,
-          "label": "Workload",
-          "multi": false,
-          "name": "workload",
-          "options": [],
-          "query": {
-            "qryType": 1,
-            "query": "label_values(exported_job)",
-            "refId": "PrometheusVariableQueryEditor-VariableQuery"
-          },
-          "refresh": 1,
-          "regex": "^deployment.*",
-          "skipUrlSync": false,
-          "sort": 0,
-          "type": "query"
+          "editorMode": "code",
+          "expr": "sum (chat_query_count{job=\"deployment-jobs\",workload=\"$workload\"})",
+          "instant": false,
+          "legendFormat": "value",
+          "range": true,
+          "refId": "A"
         }
-      ]
+      ],
+      "title": "Conversation count",
+      "type": "timeseries"
     },
-    "time": {
-      "from": "now-6h",
-      "to": "now"
-    },
-    "timepicker": {},
-    "timezone": "browser",
-    "title": "Chat",
-    "uid": "ae7rn25nhxdkwc",
-    "version": 9,
-    "weekStart": ""
-  }
+    {
+      "datasource": {
+        "default": true,
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "Average response time of a chat message",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum (chat_response_time_sum{job=\"deployment-jobs\",workload=\"$workload\"}) / sum (chat_response_time_count{job=\"deployment-jobs\",workload=\"$workload\"})",
+          "instant": false,
+          "legendFormat": "value",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Response time",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "Prometheus",
+          "value": "PBFA97CFB590B2093"
+        },
+        "description": "Datasource of the dashboard",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "Datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "deployment-13bc01ce-f9da-4e99-97bb-1afcce082259",
+          "value": "deployment-13bc01ce-f9da-4e99-97bb-1afcce082259"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${Datasource}"
+        },
+        "definition": "label_values(exported_job)",
+        "description": "Deployment-job name\nE.g.: deployment-{uuid}",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Workload",
+        "multi": false,
+        "name": "workload",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(exported_job)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "^deployment.*",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Chat",
+  "uid": "ae7rn25nhxdkwc",
+  "version": 2,
+  "weekStart": ""
+}

@@ -2447,3 +2447,21 @@ export async function fetchFeedback(username: string, modelName: string) {
     throw error;
   }
 }
+
+export async function getAllChatHistory(deploymentID: string) {
+  const accessToken = getAccessToken();
+  try {
+    const response = await axios({
+      method: 'get',
+      url: `${deploymentBaseUrl}/${deploymentID}/get_all_chat_history`,
+
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    return response.data.data;
+  } catch (error) {
+    console.error('Error getting Chat response Response:', error);
+    throw error;
+  }
+}

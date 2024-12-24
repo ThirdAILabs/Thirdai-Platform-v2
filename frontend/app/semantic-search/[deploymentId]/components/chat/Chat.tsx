@@ -179,6 +179,10 @@ function ChatBox({
         return;
       }
 
+      // Append the full path prefix for PDF sources
+      const pdfPrefix = '/home/peter/share/model_bazaar_cache/models/c53ea287-5622-4dd5-be17-70d805368737/model.ndb/documents/';
+      ref.sourceURL = pdfPrefix + ref.sourceURL;
+
       const pdf = await modelService.getPdfInfo(ref);
       window.open(pdf.source, '_blank');
     } catch (error) {

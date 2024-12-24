@@ -1943,11 +1943,7 @@ interface TokenClassificationResult {
   predicted_tags: string[][];
 }
 
-
-export async function piiDetect(
-  query: string,
-  workflowId: string
-): Promise<PIIDetectionResponse> {
+export async function piiDetect(query: string, workflowId: string): Promise<PIIDetectionResponse> {
   try {
     const response = await axios.post(`${deploymentBaseUrl}/${workflowId}/predict`, {
       text: query,

@@ -29,6 +29,7 @@ from deployment_job.pydantic_models.inputs import (
     NDBSearchParams,
     SaveModel,
     UpvoteInput,
+    ChatFeedbackInput,
 )
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
@@ -54,6 +55,7 @@ from platform_common.pydantic_models.feedback_logs import (
     DeleteLog,
     FeedbackLog,
     ImplicitUpvoteLog,
+    ChatFeedbackLog,
     InsertLog,
     UpvoteLog,
 )
@@ -65,6 +67,8 @@ ndb_query_metric = Summary("ndb_query", "NDB Queries")
 ndb_upvote_metric = Summary("ndb_upvote", "NDB upvotes")
 ndb_associate_metric = Summary("ndb_associate", "NDB associations")
 ndb_implicit_feedback_metric = Summary("ndb_implicit_feedback", "NDB implicit feedback")
+ndb_chat_upvote_metric = Counter("ndb_chat_upvote_metric", "NDB chat upvote")
+ndb_chat_downvote_metric = Counter("ndb_chat_downvote_metric", "NDB chat downvote")
 ndb_insert_metric = Summary("ndb_insert", "NDB insertions")
 ndb_delete_metric = Summary("ndb_delete", "NDB deletions")
 chat_query = Summary("chat_query", "Query metric of chat interface")
@@ -116,6 +120,9 @@ class NDBRouter:
         self.router.add_api_route("/associate", self.associate, methods=["POST"])
         self.router.add_api_route(
             "/implicit-feedback", self.implicit_feedback, methods=["POST"]
+        )
+        self.router.add_api_route(
+            "/chat-feedback", self.chat_feedback, methods=["POST"]
         )
         self.router.add_api_route(
             "/update-chat-settings", self.update_chat_settings, methods=["POST"]
@@ -582,6 +589,29 @@ class NDBRouter:
             message="Implicit feedback logged successfully.",
         )
 
+    def chat_feedback(
+        self,
+        feedback: ChatFeedbackInput,
+        token: str = Depends(Permissions.verify_permission("read")),
+    ):
+        self.feedback_logger.log(
+            ChatFeedbackLog(
+                chunk_id=feedback.reference_id,
+                query=feedback.query_text,
+                upvote=feedback.upvote,
+            )
+        )
+
+        if feedback.upvote:
+            ndb_chat_upvote_metric.inc()
+        else:
+            ndb_chat_downvote_metric.inc()
+
+        return response(
+            status_code=status.HTTP_200_OK,
+            message="Implicit feedback logged successfully.",
+        )
+
     def update_chat_settings(
         self,
         settings: ChatSettings,
@@ -654,7 +684,11 @@ class NDBRouter:
         async def generate_response() -> AsyncGenerator[str, None]:
             start_time = time.time()
             conversation_response = ""
-            async for chunk in chat.stream_chat(input.user_input, session_id):
+            async for chunk in chat.stream_chat(
+                input.user_input, 
+                session_id,
+                constraints=input.constraints
+            ):
                 yield chunk
                 conversation_response += chunk
             end_time = time.time()

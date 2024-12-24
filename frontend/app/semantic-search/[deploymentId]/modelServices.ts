@@ -380,6 +380,8 @@ export class ModelService {
   }
 
   getPdfInfo(reference: ReferenceInfo): Promise<PdfInfo> {
+    console.log('called getPdfInfo')
+
     const blobUrl = new URL(this.url + '/pdf-blob');
     blobUrl.searchParams.append('source', reference.sourceURL.toString());
     const blobPromise = fetch(blobUrl, { headers: this.authHeader() })
@@ -446,6 +448,7 @@ export class ModelService {
   }
 
   openHighlightedPDF(reference: ReferenceInfo) {
+    console.log('called openHighlightedPDF')
     const url = new URL(this.url + '/highlighted-pdf');
     url.searchParams.append('reference_id', reference.id.toString());
     fetch(url, { headers: this.authHeader() })

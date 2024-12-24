@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import styled from 'styled-components';
 import { borderRadius, color, duration, fontSizes, padding } from '../../stylingConstants';
 import { ModelServiceContext } from '../../Context';
-import { ChatMessage, ModelService } from '../../modelServices';
+import { ChatMessage, ModelService, ReferenceInfo } from '../../modelServices';
 import TypingAnimation from '../TypingAnimation';
 import { piiDetect, useSentimentClassification } from '@/lib/backend'; // Import for sentiment classification
 // Import FontAwesomeIcon and faPause
@@ -133,68 +133,107 @@ const labels = [
 ];
 
 // ChatBox component to display human/AI message with sentiment
+const sentimentColor = (sentiment: string) => {
+  switch (sentiment) {
+    case 'positive': return 'green';
+    case 'neutral': return 'orange';
+    case 'negative': return 'red';
+    default: return '#888';
+  }
+};
+
 function ChatBox({
   message,
   transformedMessage,
   sentiment,
+  context,
+  modelService,
 }: {
   message: ChatMessage;
   transformedMessage?: string[][];
   sentiment?: string;
+  context?: Array<{
+    chunk_id: number;
+    query: string;
+    sourceURL: string;
+    sourceName: string;
+    content: string;
+    metadata: any;
+  }>;
+  modelService: ModelService | null;
 }) {
-  console.log('transformedMessage final', transformedMessage)
-  const sentimentColor = (sentiment: string) => {
-    switch (sentiment) {
-      case 'positive': // Positive sentiment
-        return 'green';
-      case 'neutral': // Neutral sentiment
-        return 'orange';
-      case 'negative': // Negative sentiment
-        return 'red';
-      default:
-        return '#888'; // Default gray for unknown sentiment
+  const handleReferenceClick = async (chunkInfo: any) => {
+    if (!modelService) return;
+
+    const ref: ReferenceInfo = {
+      id: chunkInfo.chunk_id,
+      sourceURL: chunkInfo.sourceURL,
+      sourceName: chunkInfo.sourceName,
+      content: chunkInfo.content,
+      metadata: chunkInfo.metadata
+    };
+
+    try {
+      if (!ref.sourceURL.toLowerCase().endsWith('.pdf')) {
+        modelService.openReferenceSource(ref);
+        return;
+      }
+
+      const pdf = await modelService.getPdfInfo(ref);
+      window.open(pdf.source, '_blank');
+    } catch (error) {
+      console.error('Failed to open reference:', error);
+      alert('Failed to open reference. Please try again.');
     }
   };
 
   return (
     <ChatBoxContainer>
       <ChatBoxSender>{message.sender === 'human' ? '👋 You' : '🤖 AI'}</ChatBoxSender>
-      <ChatBoxContent style={{ display: 'flex', alignItems: 'center' }}>
-        <div style={{ flexGrow: 1 }}>
-          {
-            transformedMessage && transformedMessage.length > 0 ? (
-              transformedMessage.map(([sentence, tag], index) => {
-                const label = labels.find((label) => label.name === tag);
-                return (
-                  <span
-                    key={index}
-                    style={{
-                      color: label?.checked ? label.color : 'inherit',
-                    }}
+      <ChatBoxContent>
+        <div>
+          {transformedMessage && transformedMessage.length > 0 ? (
+            transformedMessage.map(([sentence, tag], index) => {
+              const label = labels.find((label) => label.name === tag);
+              return (
+                <span key={index} style={{ color: label?.checked ? label.color : 'inherit' }}>
+                  {sentence} {label?.checked && `(${tag}) `}
+                </span>
+              );
+            })
+          ) : (
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          )}
+          
+          {context && message.sender === 'AI' && (
+            <div className="mt-2 text-sm text-gray-600">
+              <div className="font-medium mb-1">References:</div>
+              <div className="flex flex-wrap gap-2">
+                {context.map((ref, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleReferenceClick(ref)}
+                    className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm transition-colors"
+                    title={`From ${ref.sourceName}`}
                   >
-                    {sentence} {label?.checked && `(${tag}) `}
-                  </span>
-                );
-              })
-            ) : (
-              <ReactMarkdown>{message.content}</ReactMarkdown>
-            ) // Render without PII highlighting if no transformation is available
-          }
-        </div>
+                    Reference {i + 1}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-        {/* Display sentiment text for human messages */}
-        {message.sender === 'human' && sentiment && (
-          <span
-            style={{
+          {message.sender === 'human' && sentiment && (
+            <span style={{
               fontSize: '0.85rem',
               marginLeft: '8px',
-              color: sentimentColor(sentiment), // Apply color based on sentiment
+              color: sentimentColor(sentiment),
               whiteSpace: 'nowrap',
-            }}
-          >
-            [sentiment: {sentiment}] {/* Directly displaying the sentiment label */}
-          </span>
-        )}
+            }}>
+              [sentiment: {sentiment}]
+            </span>
+          )}
+        </div>
       </ChatBoxContent>
     </ChatBoxContainer>
   );
@@ -230,6 +269,9 @@ export default function Chat({
   const [transformedMessages, setTransformedMessages] = useState<Record<number, string[][]>>({});
   const [aiLoading, setAiLoading] = useState(false);
   const scrollableAreaRef = useRef<HTMLElement | null>(null);
+  const responseBuffer = useRef<string>('');
+  const contextReceived = useRef<boolean>(false);
+  const [contextData, setContextData] = useState<Record<number, any>>({});
 
   useEffect(() => {
     if (modelService && provider) {
@@ -346,15 +388,18 @@ export default function Chat({
       const lastTextInput = textInput;
       const lastChatHistory = chatHistory;
       const currentIndex = chatHistory.length;
+      const aiIndex = chatHistory.length + 1;
 
       setAiLoading(true);
-      setChatHistory((history) => [...history, { sender: 'human', content: lastTextInput }]);
+      setChatHistory(history => [...history, { sender: 'human', content: lastTextInput }]);
       setTextInput('');
 
       // Trigger sentiment classification if classifier exists
       if (sentimentWorkflowId) {
         classifySentiment(lastTextInput, currentIndex);
       }
+      responseBuffer.current = '';
+      contextReceived.current = false;
 
       // Perform PII detection on the human's message
       if (piiWorkflowId) {
@@ -366,13 +411,7 @@ export default function Chat({
       }
 
       try {
-        let aiResponse = '';
-        const aiIndex = chatHistory.length + 1;
-
-        // Get PII detection results for the input
         const detectedPII = await performPIIDetection(lastTextInput);
-        
-        // Build constraints from PII detection
         const searchConstraints: SearchConstraints = {};
         detectedPII.forEach(([text, tag]) => {
           if (tag === 'BRAND' || tag === 'MODEL_NUMBER') {
@@ -387,52 +426,61 @@ export default function Chat({
           lastTextInput,
           provider,
           searchConstraints,
-          (newWord: string) => {
-            aiResponse += newWord;
-            setChatHistory((history) => {
-              const newHistory = [...history];
-              if (newHistory[newHistory.length - 1].sender === 'AI') {
-                newHistory[newHistory.length - 1].content = aiResponse;
-              } else {
-                newHistory.push({ sender: 'AI', content: aiResponse });
+          (newData: string) => {
+            if (newData.startsWith('context:')) {
+              try {
+                const contextJson = JSON.parse(newData.substring(9));
+                setContextData(prev => ({
+                  ...prev,
+                  [aiIndex]: contextJson
+                }));
+                contextReceived.current = true;
+              } catch (e) {
+                console.error('Error parsing context:', e);
               }
-              return newHistory;
-            });
+            } else {
+              if (!contextReceived.current) {
+                responseBuffer.current += newData;
+              } else {
+                if (responseBuffer.current) {
+                  setChatHistory(history => {
+                    const newHistory = [...history];
+                    newHistory.push({ sender: 'AI', content: responseBuffer.current + newData });
+                    return newHistory;
+                  });
+                  responseBuffer.current = '';
+                } else {
+                  setChatHistory(history => {
+                    const newHistory = [...history];
+                    if (newHistory[newHistory.length - 1].sender === 'AI') {
+                      newHistory[newHistory.length - 1].content += newData;
+                    } else {
+                      newHistory.push({ sender: 'AI', content: newData });
+                    }
+                    return newHistory;
+                  });
+                }
+              }
+            }
           },
           async (finalResponse: string) => {
             if (piiWorkflowId) {
-              const aiTransformed = await performPIIDetection(finalResponse);
-              setTransformedMessages((prev) => ({
+              const cleanResponse = finalResponse.replace(/^context:.*?\]/, '').trim();
+              const aiTransformed = await performPIIDetection(cleanResponse);
+              setTransformedMessages(prev => ({
                 ...prev,
                 [aiIndex]: aiTransformed,
               }));
             }
             setAiLoading(false);
             setAbortController(null);
+            responseBuffer.current = '';
+            contextReceived.current = false;
           },
           controller.signal
         );
       } catch (error) {
-        // Type guard for Error objects
-        if (error instanceof Error) {
-          if (error.name === 'AbortError') {
-            console.log('Chat was aborted');
-            // Don't reset the chat history or text input for aborted requests
-          } else {
-            console.error('Error in chat:', error);
-            alert('Failed to send chat. Please try again.');
-            setChatHistory(lastChatHistory);
-            setTextInput(lastTextInput);
-          }
-        } else {
-          console.error('An unknown error occurred:', error);
-          alert('Failed to send chat. Please try again.');
-          setChatHistory(lastChatHistory);
-          setTextInput(lastTextInput);
-        }
-      } finally {
-        setAiLoading(false);
-        setAbortController(null);
+        console.error(error, lastChatHistory, lastTextInput);
       }
     }
   };
@@ -445,9 +493,11 @@ export default function Chat({
             {chatHistory.map((message, i) => (
               <ChatBox
                 key={i}
+                modelService = {modelService}
                 message={message}
                 transformedMessage={piiWorkflowId ? transformedMessages[i] : undefined} // Pass PII-transformed message for human and AI
                 sentiment={sentiments[i]} // Pass sentiment for human message
+                context={contextData[i]}
               />
             ))}
             {aiLoading && (

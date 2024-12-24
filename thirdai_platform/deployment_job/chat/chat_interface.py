@@ -61,6 +61,8 @@ class ChatInterface(ABC):
     def parse_retriever_output(documents: List[Document]):
         top_k_docs = documents
 
+        print('top_k_docs', top_k_docs, flush=True)
+
         # The chatbot currently doesn't utilize any metadata, so we delete it to save memory
         for doc in top_k_docs:
             doc.metadata["metadata"] = None
@@ -132,7 +134,6 @@ class ChatInterface(ABC):
         chat_history = self._get_chat_history_conn(session_id=session_id)
         chat_history.add_user_message(user_input)
 
-        print('constraints is', constraints, flush=True)
         retriever = self.get_retriever(constraints)
 
         query_transforming_retriever_chain = RunnableBranch(
@@ -161,6 +162,10 @@ class ChatInterface(ABC):
                     {
                         "chunk_id": doc.metadata["chunk_id"],
                         "query": doc.metadata["query"],
+                        "sourceURL": doc.metadata["document"],
+                        "sourceName": doc.metadata["document"].split('/')[-1],
+                        "content": doc.page_content,
+                        "metadata": doc.metadata.get("metadata", {})
                     }
                     for doc in chunk["context"]
                 ]

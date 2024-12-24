@@ -20,6 +20,7 @@ from deployment_job.models.ndb_models import NDBModel
 from deployment_job.permissions import Permissions
 from deployment_job.pydantic_models.inputs import (
     AssociateInput,
+    ChatFeedbackInput,
     ChatHistoryInput,
     ChatInput,
     ChatSettings,
@@ -29,7 +30,6 @@ from deployment_job.pydantic_models.inputs import (
     NDBSearchParams,
     SaveModel,
     UpvoteInput,
-    ChatFeedbackInput,
 )
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
@@ -52,10 +52,10 @@ from platform_common.logging.job_loggers import JobLogger
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
+    ChatFeedbackLog,
     DeleteLog,
     FeedbackLog,
     ImplicitUpvoteLog,
-    ChatFeedbackLog,
     InsertLog,
     UpvoteLog,
 )
@@ -685,14 +685,15 @@ class NDBRouter:
             start_time = time.time()
             conversation_response = ""
             async for chunk in chat.stream_chat(
-                input.user_input, 
+                input.user_input,
                 session_id,
                 constraints=input.constraints,
-                model_bazaar_dir = self.config.model_bazaar_dir,
-                model_id = self.config.model_id
+                model_bazaar_dir=self.config.model_bazaar_dir,
+                model_id=self.config.model_id,
             ):
                 yield chunk
-                conversation_response += chunk
+                if not chunk.startswith("context: "):
+                    conversation_response += chunk
             end_time = time.time()
             chat_response_time.observe(end_time - start_time)
 
@@ -726,8 +727,7 @@ class NDBRouter:
         )
         if chat_response.status_code != 200:
             return response(
-                status_code=chat_response.status_code,
-                message=chat_response.text
+                status_code=chat_response.status_code, message=chat_response.text
             )
 
         chat_history = defaultdict(list)

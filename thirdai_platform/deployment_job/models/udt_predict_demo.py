@@ -1,7 +1,8 @@
-from typing import List, Literal
-from pydantic import BaseModel
-from difflib import get_close_matches
 import re
+from difflib import get_close_matches
+from typing import List, Literal
+
+from pydantic import BaseModel
 
 common_entities = {
     "BRAND": [

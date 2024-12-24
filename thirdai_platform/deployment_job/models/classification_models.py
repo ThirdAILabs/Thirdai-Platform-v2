@@ -3,10 +3,10 @@ from pathlib import Path
 from typing import List, Optional
 
 from deployment_job.models.model import Model
-from deployment_job.pydantic_models.inputs import SearchResultsTextClassification
 from deployment_job.models.udt_predict_demo import (
     predict as overloaded_predict_for_demo,
 )
+from deployment_job.pydantic_models.inputs import SearchResultsTextClassification
 from fastapi import HTTPException, status
 from platform_common.logging import JobLogger
 from platform_common.logging.logcodes import LogCode

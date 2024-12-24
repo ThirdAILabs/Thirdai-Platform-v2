@@ -39,14 +39,6 @@ azure:
         password: 6DSwbtoUZpFEsAEdV6bL9VpVK+8qJoRcn8li7VRgAz+ACRDNRKRx
         username: thirdaiplatform-push-mshift
       version: 0.0.12
-    multiple-frontend-instances:
-      pull_credentials:
-        password: Cw12rdsjU6oMPFbK1jZawAtdfStakTn96+Um+RxBeM+ACRCvQ3DB
-        username: thirdaiplatform-pull-multiple-frontend-instances
-      push_credentials:
-        password: myIuG0Cctv1rgPb+QEpI4oeP8ti8ZRi8v+n6cncgu/+ACRAESdtO
-        username: thirdaiplatform-push-multiple-frontend-instances
-      version: 0.0.1
     ner-upload:
       pull_credentials:
         password: smPJdoL77d94iTueQPbXszB+MCDaxL3gTyYbcBG95++ACRBbOpLP

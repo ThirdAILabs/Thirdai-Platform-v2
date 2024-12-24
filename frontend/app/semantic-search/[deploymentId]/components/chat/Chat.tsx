@@ -215,7 +215,32 @@ function ChatBox({
     <ChatBoxContainer>
       <ChatBoxSender>{message.sender === 'human' ? '👋 You' : '🤖 AI'}</ChatBoxSender>
       <ChatBoxContent>
-        {/* Existing content rendering... */}
+        <div>
+          {transformedMessage && transformedMessage.length > 0 ? (
+            transformedMessage.map(([sentence, tag], index) => {
+              const label = labels.find((label) => label.name === tag);
+              return (
+                <span key={index} style={{ color: label?.checked ? label.color : 'inherit' }}>
+                  {sentence} {label?.checked && `(${tag}) `}
+                </span>
+              );
+            })
+          ) : (
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          )}
+
+          {message.sender === 'human' && sentiment && (
+            <span style={{
+              fontSize: '0.85rem',
+              marginLeft: '8px',
+              color: sentimentColor(sentiment),
+              whiteSpace: 'nowrap',
+            }}>
+              [sentiment: {sentiment}]
+            </span>
+          )}
+        </div>
+        
         {context && message.sender === 'AI' && (
           <div className="mt-2 text-sm text-gray-600">
             <div className="font-medium mb-1">References:</div>

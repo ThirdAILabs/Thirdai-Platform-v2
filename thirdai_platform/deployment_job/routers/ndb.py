@@ -1,19 +1,20 @@
 import io
+import json
 import os
 import threading
 import time
-import requests
 import traceback
 import uuid
+from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from queue import Queue
-from urllib.parse import urljoin
 from typing import AsyncGenerator, List, Optional
-import json
-from datetime import datetime
-from collections import defaultdict
+from urllib.parse import urljoin
+
 import fitz
 import jwt
+import requests
 import thirdai
 from deployment_job.models.ndb_models import NDBModel
 from deployment_job.permissions import Permissions
@@ -87,7 +88,7 @@ class NDBRouter:
         self.logger = logger
         self.chat_logger = JobLogger(
             log_dir=Path(config.model_bazaar_dir) / "logs" / config.model_id / "chat",
-            log_prefix=os.getenv('NOMAD_ALLOC_ID'),
+            log_prefix=os.getenv("NOMAD_ALLOC_ID"),
             service_type="chat",
             model_id=config.model_id,
             model_type=config.model_options.model_type,
@@ -658,53 +659,57 @@ class NDBRouter:
 
             self.chat_logger.info(
                 msg="chat query/reply",
-                session_id = session_id,
-                query_time = datetime.fromtimestamp(start_time).strftime('%Y-%m-%d %H:%M:%S'),
-                response_time = datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M:%S'),
+                session_id=session_id,
+                query_time=datetime.fromtimestamp(start_time).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+                response_time=datetime.fromtimestamp(end_time).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
                 query_text=input.user_input,
                 response_text=conversation_response,
             )
 
         return StreamingResponse(generate_response(), media_type="text/plain")
-    
+
     def fetch_all_session_chat(
         self,
         token=Depends(Permissions.verify_permission("read")),
     ):
         # Fetch logs from victorialogs
         chat_response = requests.get(
-            url = urljoin(
-                self.config.model_bazaar_endpoint, 'victorialogs/select/logsql/query'
+            url=urljoin(
+                self.config.model_bazaar_endpoint, "victorialogs/select/logsql/query"
             ),
             params={
-                'query': f'service_type: "chat" AND model_id: "{self.config.model_id}"'
-            }
+                "query": f'service_type: "chat" AND model_id: "{self.config.model_id}"'
+            },
         )
 
         chat_history = defaultdict(list)
-        json_lines = chat_response.text.strip().split('\n')
+        json_lines = chat_response.text.strip().split("\n")
         for line in json_lines:
             data = json.loads(line)
-            chat_history[data['session_id']].append(
+            chat_history[data["session_id"]].append(
                 {
-                    'query_time': data['query_time'],
-                    'query_text': data['query_text'],
-                    'response_time': data['response_time'],
-                    'response_text': data['response_text'],
+                    "query_time": data["query_time"],
+                    "query_text": data["query_text"],
+                    "response_time": data["response_time"],
+                    "response_text": data["response_text"],
                 }
             )
 
         # sort based on query time
         for session_id in chat_history.keys():
-            chat_history[session_id] = sorted(chat_history[session_id], key=lambda x: x['query_time'])
-        
+            chat_history[session_id] = sorted(
+                chat_history[session_id], key=lambda x: x["query_time"]
+            )
+
         return response(
             status_code=status.HTTP_200_OK,
-            message = 'Successfully retrieved the chat logs',
-            data = jsonable_encoder(chat_history)
+            message="Successfully retrieved the chat logs",
+            data=jsonable_encoder(chat_history),
         )
-            
-
 
     def get_sources(self, token=Depends(Permissions.verify_permission("read"))):
         """

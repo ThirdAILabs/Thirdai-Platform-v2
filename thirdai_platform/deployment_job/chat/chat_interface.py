@@ -162,7 +162,7 @@ class ChatInterface(ABC):
                     {
                         "chunk_id": doc.metadata["chunk_id"],
                         "query": doc.metadata["query"],
-                        "sourceURL": os.path.join(kwargs.get('model_bazaar_dir'), kwargs.get('model_id') ,doc.metadata["document"]),
+                        "sourceURL": os.path.join(kwargs.get('model_bazaar_dir'), "models", kwargs.get('model_id'), "model.ndb/documents", doc.metadata["document"]),
                         "sourceName": doc.metadata["document"].split('/')[-1],
                         "content": doc.page_content,
                         "metadata": doc.metadata.get("metadata", {})

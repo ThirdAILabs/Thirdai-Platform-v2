@@ -183,6 +183,42 @@ class NDBModel(Model):
             key=lambda x: x["source"],
         )
 
+    def get_metadata(self, doc_id: str, doc_version: int):
+        with self.db_lock:
+            chunk_ids = self.db.chunk_store.get_doc_chunks(
+                doc_id=doc_id, before_version=doc_version + 1
+            )
+            chunks = self.db.chunk_store.get_chunks(chunk_ids)
+
+        doc_type = Path(chunks[0].document).suffix.lower() if chunks else None
+
+        metadata_aggregator = {}
+
+        if doc_type == ".csv" or doc_type == ".docx" or doc_type == ".html":
+            for chunk in chunks:
+                for key, value in chunk.metadata.items():
+                    if key not in metadata_aggregator:
+                        metadata_aggregator[key] = (
+                            set()
+                        )  # Use a set to store unique values
+                    metadata_aggregator[key].add(value)
+
+        elif doc_type == ".pdf":
+            # Skip keys like 'highlight' and 'page' for PDFs
+            for chunk in chunks:
+                for key, value in chunk.metadata.items():
+                    if key not in {"highlight", "page", "chunk_boxes"}:
+                        if key not in metadata_aggregator:
+                            metadata_aggregator[key] = (
+                                set()
+                            )  # Use a set to store unique values
+                        metadata_aggregator[key].add(value)
+
+        else:
+            raise ValueError(f"{doc_type} is not supported.")
+
+        return {key: list(values) for key, values in metadata_aggregator.items()}
+
     def highlight_v1(self, chunk: Chunk) -> Tuple[str, Optional[bytes]]:
         source = self.full_source_path(chunk.document)
         highlights = ast.literal_eval(chunk.metadata["highlight"])

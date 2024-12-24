@@ -124,6 +124,7 @@ class NDBRouter:
             "/get-chat-history", self.get_chat_history, methods=["POST"]
         )
         self.router.add_api_route("/chat", self.chat, methods=["POST"])
+        self.router.add_api_route("/chat", self.fetch_all_session_chat, methods=["GET"])
         self.router.add_api_route("/sources", self.get_sources, methods=["GET"])
         self.router.add_api_route(
             "/save",

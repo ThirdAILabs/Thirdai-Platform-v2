@@ -250,9 +250,8 @@ function ChatBox({
                   key={i}
                   onClick={() => handleReferenceClick(ref)}
                   className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm transition-colors"
-                  title={`From ${ref.sourceName}`}
                 >
-                  Reference {i + 1}
+                  {ref.sourceName}
                 </button>
               ))}
             </div>

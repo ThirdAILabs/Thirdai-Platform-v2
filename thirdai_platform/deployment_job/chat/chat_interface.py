@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from threading import Lock
 from typing import AsyncGenerator, Dict, List, Optional, Union
-
+import os
 from deployment_job.chat.ndbv2_vectorstore import NeuralDBV2VectorStore
 from fastapi import HTTPException, status
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -154,7 +154,7 @@ class ChatInterface(ABC):
         self,
         user_input: str,
         session_id: str,
-        document_path_prefix: Path,
+        document_path_prefix: str,
         constraints: Optional[Dict[str, Dict[str, str]]] = None,
         **kwargs,
     ) -> AsyncGenerator[str, None]:
@@ -189,7 +189,7 @@ class ChatInterface(ABC):
                     {
                         "chunk_id": doc.metadata["chunk_id"],
                         "query": doc.metadata["query"],
-                        "sourceURL": document_path_prefix / doc.metadata["document"],
+                        "sourceURL": os.path.join(str(document_path_prefix), doc.metadata["document"]),
                         "sourceName": doc.metadata["document"].split("/")[-1],
                         "content": doc.page_content,
                         "metadata": doc.metadata.get("metadata", {}),

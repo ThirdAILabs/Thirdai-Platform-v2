@@ -845,7 +845,7 @@ class NDBRouter:
         token: str = Depends(Permissions.verify_permission("read")),
     ):
 
-        metadata = self.model.get_metadata(doc_id=source_id, doc_version=version)
+        metadata = self.model.get_metadata(doc_id=source_id, doc_version=int(version))
 
         return response(
             status_code=status.HTTP_200_OK,

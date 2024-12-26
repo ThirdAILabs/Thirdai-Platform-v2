@@ -35,6 +35,7 @@ common_entities = {
     "MODEL_NUMBER": [
         # kenmore
         "75085",
+        "76100",
         "75135",
         "75151",
         "75251",

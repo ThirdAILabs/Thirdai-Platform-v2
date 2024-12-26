@@ -571,19 +571,14 @@ export default function Chat({
             )}
           </AllChatBoxes>
         ) : (
-          <Placeholder
-            style={{
-              fontSize: fontSizes.m,
-              textAlign: 'center',
-              maxWidth: '600px',
-              lineHeight: '1.5',
+          <ChatBox
+            message={{ 
+              sender: 'AI', 
+              content: "Welcome! I'm here to assist you with any questions or issues related to air-conditioners.\n\nFeel free to share the BRAND and MODEL_NUMBER of your air-conditioner if you have it handy. Don't worry if you don't. Just tell me what you need, and I'll do my best to answer!"
             }}
-          >
-            Welcome! I'm here to assist you with any questions or issues related to
-            air-conditioners. Feel free to share the BRAND and MODEL_NUMBER of your air-conditioner
-            if you have it handy. Don't worry if you don't. Just tell me what you need, and I'll do
-            my best to answer!
-          </Placeholder>
+            modelService={modelService}
+            onOpenPdf={handleOpenPdf}
+          />
         )}
       </ScrollableArea>
       <ChatBarContainer>

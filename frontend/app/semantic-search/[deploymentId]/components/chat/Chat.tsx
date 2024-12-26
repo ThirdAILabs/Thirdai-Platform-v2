@@ -419,31 +419,39 @@ export default function Chat({
       setAbortController(controller);
 
       const lastTextInput = textInput;
-      const lastChatHistory = chatHistory;
       const currentIndex = chatHistory.length;
       const aiIndex = chatHistory.length + 1;
 
-      setAiLoading(true);
-      setChatHistory((history) => [...history, { sender: 'human', content: lastTextInput }]);
+      // Clear input and set loading state
       setTextInput('');
-
-      // Trigger sentiment classification if classifier exists
+      setAiLoading(true);
+  
+      // Add human message
+      const newHistory = [...chatHistory, { sender: 'human', content: lastTextInput }];
+      setChatHistory(newHistory);
+  
+      // Handle sentiment classification
       if (sentimentWorkflowId) {
         classifySentiment(lastTextInput, currentIndex);
       }
+  
+      // Reset buffers and state
       responseBuffer.current = '';
       contextReceived.current = false;
-
-      // Perform PII detection on the human's message
-      if (piiWorkflowId) {
-        const humanTransformed = await performPIIDetection(lastTextInput);
-        setTransformedMessages((prev) => ({
-          ...prev,
-          [currentIndex]: humanTransformed,
-        }));
-      }
+      isCollectingContext.current = false;
+      contextBuffer.current = '';
 
       try {
+        // Handle PII detection
+        if (piiWorkflowId) {
+          const humanTransformed = await performPIIDetection(lastTextInput);
+          setTransformedMessages(prev => ({
+            ...prev,
+            [currentIndex]: humanTransformed,
+          }));
+        }
+  
+        // Process constraints
         const detectedPII = await performPIIDetection(lastTextInput);
         const newConstraints: SearchConstraints = {};
         detectedPII.forEach(([text, tag]) => {
@@ -455,19 +463,22 @@ export default function Chat({
           }
         });
 
-        // Update persistent constraints only if new constraints are detected
         if (Object.keys(newConstraints).length > 0) {
           setPersistentConstraints(newConstraints);
         }
 
+        // Initialize AI message in chat history
+        setChatHistory(prev => [...prev, { sender: 'AI', content: '' }]);
+  
+        // Start chat with streaming
         await modelService?.chat(
           lastTextInput,
           provider,
           Object.keys(newConstraints).length > 0 ? newConstraints : persistentConstraints,
           (newData: string) => {
             if (newData.startsWith('context:') || isCollectingContext.current) {
+              // Handle context streaming
               try {
-                // Start collecting context
                 if (newData.startsWith('context:')) {
                   isCollectingContext.current = true;
                   contextBuffer.current = newData.substring(9);
@@ -475,52 +486,86 @@ export default function Chat({
                   contextBuffer.current += newData;
                 }
                 
-                // Try parsing the accumulated context
-                const contextJson = JSON.parse(contextBuffer.current);
-                setContextData(prev => ({
-                  ...prev,
-                  [aiIndex]: contextJson
-                }));
-                
-                // Reset context collection state
-                isCollectingContext.current = false;
-                contextBuffer.current = '';
-                return;
-              } catch (e) {
-                // If JSON parsing fails, continue collecting context
-                isCollectingContext.current = true;
-                return;
-              }
-            }
-        
-            // Only handle non-context messages if we're not collecting context
-            if (!isCollectingContext.current) {
-              responseBuffer.current += newData;
-              setChatHistory(history => {
-                const newHistory = [...history];
-                const currentContent = responseBuffer.current;
-                
-                if (newHistory[newHistory.length - 1]?.sender === 'AI') {
-                  newHistory[newHistory.length - 1].content = currentContent;
-                } else {
-                  newHistory.push({ sender: 'AI', content: currentContent });
+                try {
+                  const contextJson = JSON.parse(contextBuffer.current);
+                  setContextData(prev => ({
+                    ...prev,
+                    [aiIndex]: contextJson
+                  }));
+                  isCollectingContext.current = false;
+                  contextBuffer.current = '';
+                } catch {
+                  // Continue collecting context if JSON is incomplete
+                  return;
                 }
-                return newHistory;
+              } catch (e) {
+                console.error('Error handling context:', e);
+              }
+            } else if (!isCollectingContext.current) {
+              // Handle message streaming
+              responseBuffer.current += newData;
+              
+              // Update chat history with new content
+              setChatHistory(prev => {
+                const updatedHistory = [...prev];
+                const lastMessage = updatedHistory[updatedHistory.length - 1];
+                
+                if (lastMessage?.sender === 'AI') {
+                  return [
+                    ...updatedHistory.slice(0, -1),
+                    { ...lastMessage, content: responseBuffer.current }
+                  ];
+                }
+                return updatedHistory;
               });
             }
           },
-          async (finalResponse: string) => {
-            // Reset all buffers and flags
+          () => {
+            // Final callback - ensure message persists
+            const finalContent = responseBuffer.current;
+            
+            setChatHistory(prev => {
+              const updatedHistory = [...prev];
+              const lastMessage = updatedHistory[updatedHistory.length - 1];
+              
+              if (lastMessage?.sender === 'AI') {
+                return [
+                  ...updatedHistory.slice(0, -1),
+                  { ...lastMessage, content: finalContent }
+                ];
+              }
+              // If no AI message exists, add it
+              return [...updatedHistory, { sender: 'AI', content: finalContent }];
+            });
+  
+            // Reset state
             setAiLoading(false);
             setAbortController(null);
-            responseBuffer.current = '';
+            responseBuffer.current = finalContent; // Keep the content in buffer
             contextBuffer.current = '';
             isCollectingContext.current = false;
           },
           controller.signal
         );
       } catch (error) {
-        console.error(error, lastChatHistory, lastTextInput);
+        console.error('Chat error:', error);
+        
+        // Handle error state
+        setChatHistory(prev => {
+          const updatedHistory = [...prev];
+          const lastMessage = updatedHistory[updatedHistory.length - 1];
+          
+          if (lastMessage?.sender === 'AI') {
+            return [
+              ...updatedHistory.slice(0, -1),
+              { ...lastMessage, content: responseBuffer.current || 'An error occurred during the response.' }
+            ];
+          }
+          return updatedHistory;
+        });
+  
+        setAiLoading(false);
+        setAbortController(null);
       }
     }
   };

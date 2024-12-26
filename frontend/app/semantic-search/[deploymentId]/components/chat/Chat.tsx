@@ -246,15 +246,19 @@ function ChatBox({
         {context && message.sender === 'AI' && (
           <div className="mt-2 text-sm text-gray-600">
             <div className="font-medium mb-1">References:</div>
-            <div className="flex flex-wrap gap-2">
+            <div className="space-y-2">
               {context.map((ref, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleReferenceClick(ref)}
-                  className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm transition-colors"
-                >
-                  {ref.sourceName}
-                </button>
+                <div key={i} className="bg-gray-50 rounded-lg p-3">
+                  <button
+                    onClick={() => handleReferenceClick(ref)}
+                    className="text-blue-600 hover:text-blue-800 font-medium mb-1 transition-colors"
+                  >
+                    {ref.sourceName}
+                  </button>
+                  <div className="text-gray-700 text-sm mt-1">
+                    {ref.content.length > 150 ? `${ref.content.substring(0, 150)}...` : ref.content}
+                  </div>
+                </div>
               ))}
             </div>
           </div>

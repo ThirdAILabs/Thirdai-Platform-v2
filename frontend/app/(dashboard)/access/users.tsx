@@ -1,5 +1,5 @@
 import React, { useState, useEffect, use } from 'react';
-import { Button } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography } from '@mui/material';
 import {
   fetchAllUsers,
   deleteUserAccount,
@@ -14,6 +14,8 @@ export default function Users() {
   const { user } = React.useContext(UserContext);
   const isGlobalAdmin = user?.global_admin;
   const [users, setUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     getUsersData();
@@ -37,6 +39,29 @@ export default function Users() {
 
       await deleteUserAccount(user.email);
       await getUsersData();
+    } catch (error) {
+      console.error('Failed to delete user', error);
+      alert('Failed to delete user: ' + error);
+    }
+  };
+
+  const handleOpenDeleteDialog = (user: User) => {
+    setSelectedUser(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setSelectedUser(null);
+    setDeleteDialogOpen(false);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+
+    try {
+      await deleteUserAccount(selectedUser.email);
+      await getUsersData();
+      setDeleteDialogOpen(false);
     } catch (error) {
       console.error('Failed to delete user', error);
       alert('Failed to delete user: ' + error);
@@ -119,7 +144,7 @@ export default function Users() {
                   </Button>
                 )}
                 <Button
-                  onClick={() => deleteUser(user.name)}
+                  onClick={() => handleOpenDeleteDialog(user)}
                   variant="contained"
                   color={!user.is_deactivated ? 'warning' : 'error'}
                   className="min-w-36"
@@ -147,6 +172,48 @@ export default function Users() {
           )}
         </div>
       ))}
+      {/* Delete Confirmation Dialog */}
+      {selectedUser?.is_deactivated ? (
+        <Dialog open={isDeleteDialogOpen} onClose={handleCloseDeleteDialog}>
+          <DialogTitle>Are you sure you want to delete the user{' '}
+            <strong>{selectedUser.name}</strong>?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              {selectedUser.name} currently owns{' '}
+              <strong>{selectedUser?.ownedModels.length}</strong> models.<br />
+              Deleting {selectedUser.name} will also remove their models. <br />Please transfer model ownership
+              before proceeding to avoid data loss.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDeleteDialog} color="secondary">
+              Cancel
+            </Button>
+            <Button onClick={handleDeleteUser} color="error">
+              Delete User
+            </Button>
+          </DialogActions>
+        </Dialog>
+      ) : (
+        // Deactivate confirmation dialog box
+        <Dialog open={isDeleteDialogOpen} onClose={handleCloseDeleteDialog}>
+          <DialogTitle>Confirm Deactivation</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to deactivate the user{' '}
+              <strong>{selectedUser?.name}</strong>
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDeleteDialog} color="secondary">
+              No
+            </Button>
+            <Button onClick={handleDeleteUser} color="error">
+              Yes
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </div>
   );
 }

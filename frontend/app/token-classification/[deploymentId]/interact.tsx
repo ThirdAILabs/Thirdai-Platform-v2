@@ -467,6 +467,7 @@ export default function Interact() {
 
   const cacheNewTag = async (newTag: string) => {
     if (!selectedRange) return;
+    setSelectedTokenIndex(null); // Clear dropdown
 
     const updatedTags = annotations.map((token, index) => ({
       text: token.text,

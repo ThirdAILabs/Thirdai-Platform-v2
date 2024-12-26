@@ -11,6 +11,7 @@ import { piiDetect, useSentimentClassification } from '@/lib/backend'; // Import
 // Import FontAwesomeIcon and faPause
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faStop } from '@fortawesome/free-solid-svg-icons';
+import { ThumbsUp, ThumbsDown } from 'lucide-react';
 
 const PdfViewerWrapper = styled.section`
   position: fixed;
@@ -164,6 +165,78 @@ const sentimentColor = (sentiment: string) => {
   }
 };
 
+interface VoteButtonProps {
+  onClick: (e: React.MouseEvent) => void;
+  icon: React.ElementType;
+  active?: boolean;
+}
+
+const VoteButton: React.FC<VoteButtonProps> = ({ onClick, icon: Icon, active = false }) => (
+  <button 
+    onClick={onClick}
+    className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${
+      active ? 'text-blue-500' : 'text-gray-500'
+    }`}
+  >
+    <Icon size={16} />
+  </button>
+);
+
+interface Reference {
+  chunk_id: number;
+  query: string;
+  sourceURL: string;
+  sourceName: string;
+  content: string;
+  metadata: any;
+}
+
+interface ReferenceItemProps {
+  reference: Reference;
+  query: string;
+  onVote: (refId: number, content: string, voteType: 'up' | 'down') => void;
+  onReferenceClick: (reference: Reference) => void;
+}
+
+const ReferenceItem: React.FC<ReferenceItemProps> = ({
+  reference,
+  query,
+  onVote,
+  onReferenceClick
+}) => {
+  const handleUpvote = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onVote(reference.chunk_id, reference.content, 'up');
+  };
+
+  const handleDownvote = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onVote(reference.chunk_id, reference.content, 'down');
+  };
+
+  return (
+    <div className="bg-gray-50 rounded-lg p-3 relative">
+      <div className="flex justify-between items-start">
+        <button
+          onClick={() => onReferenceClick(reference)}
+          className="text-blue-600 hover:text-blue-800 font-medium mb-1 transition-colors"
+        >
+          {reference.sourceName}
+        </button>
+        <div className="flex items-center gap-1">
+          <VoteButton onClick={handleUpvote} icon={ThumbsUp} />
+          <VoteButton onClick={handleDownvote} icon={ThumbsDown} />
+        </div>
+      </div>
+      <div className="text-gray-700 text-sm mt-1">
+        {reference.content.length > 150 
+          ? `${reference.content.substring(0, 150)}...` 
+          : reference.content}
+      </div>
+    </div>
+  );
+};
+
 function ChatBox({
   message,
   transformedMessage,
@@ -248,17 +321,19 @@ function ChatBox({
             <div className="font-medium mb-1">References:</div>
             <div className="space-y-2">
               {context.map((ref, i) => (
-                <div key={i} className="bg-gray-50 rounded-lg p-3">
-                  <button
-                    onClick={() => handleReferenceClick(ref)}
-                    className="text-blue-600 hover:text-blue-800 font-medium mb-1 transition-colors"
-                  >
-                    {ref.sourceName}
-                  </button>
-                  <div className="text-gray-700 text-sm mt-1">
-                    {ref.content.length > 150 ? `${ref.content.substring(0, 150)}...` : ref.content}
-                  </div>
-                </div>
+                <ReferenceItem
+                  key={i}
+                  reference={ref}
+                  query={ref.query}
+                  onVote={(refId, content, voteType) => {
+                    if (voteType === 'up') {
+                      modelService?.upvote("null", ref.query, refId, content);
+                    } else {
+                      modelService?.downvote("null", ref.query, refId, content);
+                    }
+                  }}
+                  onReferenceClick={handleReferenceClick}
+                />
               ))}
             </div>
           </div>

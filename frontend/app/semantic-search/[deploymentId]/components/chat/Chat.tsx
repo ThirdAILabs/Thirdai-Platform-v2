@@ -293,6 +293,7 @@ export default function Chat({
   const [textInput, setTextInput] = useState('');
   const [transformedMessages, setTransformedMessages] = useState<Record<number, string[][]>>({});
   const [aiLoading, setAiLoading] = useState(false);
+  const [persistentConstraints, setPersistentConstraints] = useState<SearchConstraints>({});
   const scrollableAreaRef = useRef<HTMLElement | null>(null);
   const responseBuffer = useRef<string>('');
   const contextReceived = useRef<boolean>(false);
@@ -440,20 +441,25 @@ export default function Chat({
 
       try {
         const detectedPII = await performPIIDetection(lastTextInput);
-        const searchConstraints: SearchConstraints = {};
+        const newConstraints: SearchConstraints = {};
         detectedPII.forEach(([text, tag]) => {
           if (tag === 'BRAND' || tag === 'MODEL_NUMBER') {
-            searchConstraints[tag] = {
+            newConstraints[tag] = {
               constraint_type: 'EqualTo',
               value: text.trim(),
             };
           }
         });
 
+        // Update persistent constraints only if new constraints are detected
+        if (Object.keys(newConstraints).length > 0) {
+          setPersistentConstraints(newConstraints);
+        }
+
         await modelService?.chat(
           lastTextInput,
           provider,
-          searchConstraints,
+          Object.keys(newConstraints).length > 0 ? newConstraints : persistentConstraints,
           (newData: string) => {
             if (newData.startsWith('context:') || isCollectingContext.current) {
               try {

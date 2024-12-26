@@ -934,12 +934,56 @@ def update_access_level(
 
     model.access_level = access_level
     session.commit()
-
+    
     return response(
         status_code=status.HTTP_200_OK,
         message=f"Access level updated to '{access_level}' for model '{model_identifier}'.",
         data={"model_id": str(model.id), "access_level": str(model.access_level)},
     )
+
+# Update model ownership:-
+@model_router.post("/update-model-owner")
+def update_model_owner(
+    model_identifier: str,
+    userName: str,
+    session: Session = Depends(get_session),
+):
+    """
+    Update the owner of a model.
+
+    Parameters:
+    - model_identifier: The identifier of the model to update.
+    - userName: The username of the new owner for the model.
+
+    Returns:
+    - A JSON response indicating the success of the operation, including the model ID and the updated owner.
+    """
+
+    model = get_model_from_identifier(model_identifier, session)
+    if not model:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Model not found",
+        )
+
+    # Check if the provided username_of_new_owner exists
+    new_owner = session.query(schema.User).filter_by(username=userName).first()
+    if not new_owner:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="The provided username does not exist.",
+        )
+
+    # Update the owner of the model
+    model.user_id= new_owner.id
+    session.commit()
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"Ownership of model '{model_identifier}' updated to '{userName}'.",
+        data={"model_id": str(model.id), "new_owner": userName},
+    )
+
 
 
 @model_router.post("/update-default-permission", dependencies=[Depends(is_model_owner)])

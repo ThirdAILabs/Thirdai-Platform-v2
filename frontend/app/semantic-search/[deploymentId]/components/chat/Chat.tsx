@@ -298,6 +298,9 @@ export default function Chat({
   const contextReceived = useRef<boolean>(false);
   const [contextData, setContextData] = useState<Record<number, any>>({});
 
+  const contextBuffer = useRef<string>('');
+  const isCollectingContext = useRef<boolean>(false);
+
   useEffect(() => {
     if (modelService && provider) {
       console.log('print the provider', provider);
@@ -452,61 +455,57 @@ export default function Chat({
           provider,
           searchConstraints,
           (newData: string) => {
-            if (newData.startsWith('context:')) {
+            if (newData.startsWith('context:') || isCollectingContext.current) {
               try {
-                const contextJson = JSON.parse(newData.substring(9));
-                setContextData((prev) => ({
+                // Start collecting context
+                if (newData.startsWith('context:')) {
+                  isCollectingContext.current = true;
+                  contextBuffer.current = newData.substring(9);
+                } else {
+                  contextBuffer.current += newData;
+                }
+                
+                // Try parsing the accumulated context
+                const contextJson = JSON.parse(contextBuffer.current);
+                setContextData(prev => ({
                   ...prev,
-                  [aiIndex]: contextJson,
+                  [aiIndex]: contextJson
                 }));
-                contextReceived.current = true;
+                
+                // Reset context collection state
+                isCollectingContext.current = false;
+                contextBuffer.current = '';
+                return;
               } catch (e) {
-                console.error('Error parsing context:', e);
+                // If JSON parsing fails, continue collecting context
+                isCollectingContext.current = true;
+                return;
               }
-              return;
             }
-
-            // Always append to buffer first
-            responseBuffer.current += newData;
-            
-            // Update chat history with current buffer
-            setChatHistory(history => {
-              const newHistory = [...history];
-              const currentContent = responseBuffer.current;
-              
-              if (newHistory[newHistory.length - 1]?.sender === 'AI') {
-                newHistory[newHistory.length - 1].content = currentContent;
-              } else {
-                newHistory.push({ sender: 'AI', content: currentContent });
-              }
-              return newHistory;
-            });
+        
+            // Only handle non-context messages if we're not collecting context
+            if (!isCollectingContext.current) {
+              responseBuffer.current += newData;
+              setChatHistory(history => {
+                const newHistory = [...history];
+                const currentContent = responseBuffer.current;
+                
+                if (newHistory[newHistory.length - 1]?.sender === 'AI') {
+                  newHistory[newHistory.length - 1].content = currentContent;
+                } else {
+                  newHistory.push({ sender: 'AI', content: currentContent });
+                }
+                return newHistory;
+              });
+            }
           },
           async (finalResponse: string) => {
-            // if (piiWorkflowId) {
-            //   const cleanResponse = finalResponse.replace(/^context:.*?\]/, '').trim();
-            //   const aiTransformed = await performPIIDetection(cleanResponse);
-            //   setTransformedMessages(prev => ({
-            //     ...prev,
-            //     [aiIndex]: aiTransformed,
-            //   }));
-            // }
-            
-            // // Set final response one last time to ensure consistency
-            // setChatHistory(history => {
-            //   const newHistory = [...history];
-            //   if (newHistory[newHistory.length - 1]?.sender === 'AI') {
-            //     newHistory[newHistory.length - 1].content = finalResponse;
-            //   } else {
-            //     newHistory.push({ sender: 'AI', content: finalResponse });
-            //   }
-            //   return newHistory;
-            // });
-
+            // Reset all buffers and flags
             setAiLoading(false);
             setAbortController(null);
             responseBuffer.current = '';
-            contextReceived.current = false;
+            contextBuffer.current = '';
+            isCollectingContext.current = false;
           },
           controller.signal
         );

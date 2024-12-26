@@ -20,6 +20,7 @@ from deployment_job.models.ndb_models import NDBModel
 from deployment_job.permissions import Permissions
 from deployment_job.pydantic_models.inputs import (
     AssociateInput,
+    ChatFeedbackInput,
     ChatHistoryInput,
     ChatInput,
     ChatSettings,
@@ -29,7 +30,6 @@ from deployment_job.pydantic_models.inputs import (
     NDBSearchParams,
     SaveModel,
     UpvoteInput,
-    ChatFeedbackInput,
 )
 from deployment_job.reporter import Reporter
 from deployment_job.update_logger import UpdateLogger
@@ -52,10 +52,10 @@ from platform_common.logging.job_loggers import JobLogger
 from platform_common.pydantic_models.deployment import DeploymentConfig
 from platform_common.pydantic_models.feedback_logs import (
     AssociateLog,
+    ChatFeedbackLog,
     DeleteLog,
     FeedbackLog,
     ImplicitUpvoteLog,
-    ChatFeedbackLog,
     InsertLog,
     UpvoteLog,
 )
@@ -685,12 +685,18 @@ class NDBRouter:
             start_time = time.time()
             conversation_response = ""
             async for chunk in chat.stream_chat(
-                input.user_input, 
+                input.user_input,
                 session_id,
-                constraints=input.constraints
+                constraints=input.constraints,
+                document_path_prefix=Path(self.config.model_bazaar_dir)
+                / "models"
+                / self.config.model_id
+                / "model.ndb"
+                / "documents",
             ):
                 yield chunk
-                conversation_response += chunk
+                if not chunk.startswith("context: "):
+                    conversation_response += chunk
             end_time = time.time()
             chat_response_time.observe(end_time - start_time)
 
@@ -722,6 +728,10 @@ class NDBRouter:
                 "query": f'service_type: "chat" AND model_id: "{self.config.model_id}"'
             },
         )
+        if chat_response.status_code != 200:
+            return response(
+                status_code=chat_response.status_code, message=chat_response.text
+            )
 
         chat_history = defaultdict(list)
         json_lines = chat_response.text.strip().split("\n")
@@ -739,7 +749,8 @@ class NDBRouter:
         # sort based on query time
         for session_id in chat_history.keys():
             chat_history[session_id] = sorted(
-                chat_history[session_id], key=lambda x: x["query_time"]
+                chat_history[session_id],
+                key=lambda x: datetime.strptime(x["query_time"], "%Y-%m-%d %H:%M:%S"),
             )
 
         return response(

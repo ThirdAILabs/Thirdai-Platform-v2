@@ -153,10 +153,14 @@ const labels = [
 // ChatBox component to display human/AI message with sentiment
 const sentimentColor = (sentiment: string) => {
   switch (sentiment) {
-    case 'positive': return 'green';
-    case 'neutral': return 'orange';
-    case 'negative': return 'red';
-    default: return '#888';
+    case 'positive':
+      return 'green';
+    case 'neutral':
+      return 'orange';
+    case 'negative':
+      return 'red';
+    default:
+      return '#888';
   }
 };
 
@@ -166,7 +170,7 @@ function ChatBox({
   sentiment,
   context,
   modelService,
-  onOpenPdf
+  onOpenPdf,
 }: {
   message: ChatMessage;
   transformedMessage?: string[][];
@@ -190,7 +194,7 @@ function ChatBox({
       sourceURL: chunkInfo.sourceURL,
       sourceName: chunkInfo.sourceName,
       content: chunkInfo.content,
-      metadata: chunkInfo.metadata
+      metadata: chunkInfo.metadata,
     };
 
     try {
@@ -198,10 +202,6 @@ function ChatBox({
         modelService.openReferenceSource(ref);
         return;
       }
-
-      // Append the full path prefix for PDF sources
-      const pdfPrefix = '/home/peter/share/model_bazaar_cache/models/c53ea287-5622-4dd5-be17-70d805368737/model.ndb/documents/';
-      ref.sourceURL = pdfPrefix + ref.sourceURL;
 
       const pdfInfo = await modelService.getPdfInfo(ref);
       onOpenPdf(pdfInfo);
@@ -230,17 +230,19 @@ function ChatBox({
           )}
 
           {message.sender === 'human' && sentiment && (
-            <span style={{
-              fontSize: '0.85rem',
-              marginLeft: '8px',
-              color: sentimentColor(sentiment),
-              whiteSpace: 'nowrap',
-            }}>
+            <span
+              style={{
+                fontSize: '0.85rem',
+                marginLeft: '8px',
+                color: sentimentColor(sentiment),
+                whiteSpace: 'nowrap',
+              }}
+            >
               [sentiment: {sentiment}]
             </span>
           )}
         </div>
-        
+
         {context && message.sender === 'AI' && (
           <div className="mt-2 text-sm text-gray-600">
             <div className="font-medium mb-1">References:</div>
@@ -262,14 +264,13 @@ function ChatBox({
   );
 }
 
-
 // AI typing animation while the response is being processed
 function AILoadingChatBox() {
   return <TypingAnimation />;
 }
 
 export interface SearchConstraint {
-  constraint_type: "EqualTo";
+  constraint_type: 'EqualTo';
   value: string;
 }
 
@@ -299,7 +300,7 @@ export default function Chat({
 
   useEffect(() => {
     if (modelService && provider) {
-      console.log('print the provider', provider)
+      console.log('print the provider', provider);
 
       // Set the chat settings based on the provider
       modelService
@@ -327,8 +328,8 @@ export default function Chat({
         let currentSentence = '';
         let currentTag = '';
 
-        console.log('tokens', tokens)
-        console.log('predicted_tags', predicted_tags)
+        console.log('tokens', tokens);
+        console.log('predicted_tags', predicted_tags);
 
         for (let i = 0; i < tokens.length; i++) {
           const word = tokens[i];
@@ -415,7 +416,7 @@ export default function Chat({
       const aiIndex = chatHistory.length + 1;
 
       setAiLoading(true);
-      setChatHistory(history => [...history, { sender: 'human', content: lastTextInput }]);
+      setChatHistory((history) => [...history, { sender: 'human', content: lastTextInput }]);
       setTextInput('');
 
       // Trigger sentiment classification if classifier exists
@@ -440,8 +441,8 @@ export default function Chat({
         detectedPII.forEach(([text, tag]) => {
           if (tag === 'BRAND' || tag === 'MODEL_NUMBER') {
             searchConstraints[tag] = {
-              constraint_type: "EqualTo",
-              value: text.trim()
+              constraint_type: 'EqualTo',
+              value: text.trim(),
             };
           }
         });
@@ -454,9 +455,9 @@ export default function Chat({
             if (newData.startsWith('context:')) {
               try {
                 const contextJson = JSON.parse(newData.substring(9));
-                setContextData(prev => ({
+                setContextData((prev) => ({
                   ...prev,
-                  [aiIndex]: contextJson
+                  [aiIndex]: contextJson,
                 }));
                 contextReceived.current = true;
               } catch (e) {
@@ -467,14 +468,14 @@ export default function Chat({
                 responseBuffer.current += newData;
               } else {
                 if (responseBuffer.current) {
-                  setChatHistory(history => {
+                  setChatHistory((history) => {
                     const newHistory = [...history];
                     newHistory.push({ sender: 'AI', content: responseBuffer.current + newData });
                     return newHistory;
                   });
                   responseBuffer.current = '';
                 } else {
-                  setChatHistory(history => {
+                  setChatHistory((history) => {
                     const newHistory = [...history];
                     if (newHistory[newHistory.length - 1].sender === 'AI') {
                       newHistory[newHistory.length - 1].content += newData;
@@ -491,7 +492,7 @@ export default function Chat({
             if (piiWorkflowId) {
               const cleanResponse = finalResponse.replace(/^context:.*?\]/, '').trim();
               const aiTransformed = await performPIIDetection(cleanResponse);
-              setTransformedMessages(prev => ({
+              setTransformedMessages((prev) => ({
                 ...prev,
                 [aiIndex]: aiTransformed,
               }));
@@ -511,7 +512,7 @@ export default function Chat({
 
   const [pdfInfo, setPdfInfo] = useState<PdfInfo | null>(null);
   const [selectedPdfChunk, setSelectedPdfChunk] = useState<Chunk | null>(null);
-  
+
   const handleOpenPdf = (info: PdfInfo) => {
     setPdfInfo(info);
     setSelectedPdfChunk(info.highlighted);
@@ -555,7 +556,19 @@ export default function Chat({
             )}
           </AllChatBoxes>
         ) : (
-          <Placeholder> Ask anything to start chatting! </Placeholder>
+          <Placeholder
+            style={{
+              fontSize: fontSizes.m,
+              textAlign: 'center',
+              maxWidth: '600px',
+              lineHeight: '1.5',
+            }}
+          >
+            Welcome! I'm here to assist you with any questions or issues related to
+            air-conditioners. Feel free to share the BRAND and MODEL_NUMBER of your air-conditioner
+            if you have it handy. Don't worry if you don't. Just tell me what you need, and I'll do
+            my best to answer!
+          </Placeholder>
         )}
       </ScrollableArea>
       <ChatBarContainer>

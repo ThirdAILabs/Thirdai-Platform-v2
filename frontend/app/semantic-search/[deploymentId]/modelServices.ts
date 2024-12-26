@@ -380,7 +380,7 @@ export class ModelService {
   }
 
   getPdfInfo(reference: ReferenceInfo): Promise<PdfInfo> {
-    console.log('called getPdfInfo')
+    console.log('called getPdfInfo');
 
     const blobUrl = new URL(this.url + '/pdf-blob');
     blobUrl.searchParams.append('source', reference.sourceURL.toString());
@@ -448,7 +448,7 @@ export class ModelService {
   }
 
   openHighlightedPDF(reference: ReferenceInfo) {
-    console.log('called openHighlightedPDF')
+    console.log('called openHighlightedPDF');
     const url = new URL(this.url + '/highlighted-pdf');
     url.searchParams.append('reference_id', reference.id.toString());
     fetch(url, { headers: this.authHeader() })
@@ -764,7 +764,7 @@ export class ModelService {
   async chat(
     textInput: string,
     provider: string,
-    constraints: Record<string, {constraint_type: string, value: string}>,
+    constraints: Record<string, { constraint_type: string; value: string }>,
     onNextWord: (str: string) => void,
     onComplete?: (finalResponse: string) => void,
     signal?: AbortSignal
@@ -776,7 +776,7 @@ export class ModelService {
           session_id: this.sessionId,
           user_input: textInput,
           provider: provider,
-          constraints: constraints
+          constraints: constraints,
         }),
         headers: {
           'Content-type': 'application/json; charset=UTF-8',

@@ -1,7 +1,7 @@
 import json
 import logging
-import os
 from abc import ABC, abstractmethod
+from pathlib import Path
 from threading import Lock
 from typing import AsyncGenerator, Dict, List, Optional, Union
 
@@ -154,6 +154,7 @@ class ChatInterface(ABC):
         self,
         user_input: str,
         session_id: str,
+        document_path_prefix: Path,
         constraints: Optional[Dict[str, Dict[str, str]]] = None,
         **kwargs,
     ) -> AsyncGenerator[str, None]:
@@ -188,13 +189,7 @@ class ChatInterface(ABC):
                     {
                         "chunk_id": doc.metadata["chunk_id"],
                         "query": doc.metadata["query"],
-                        "sourceURL": os.path.join(
-                            kwargs.get("model_bazaar_dir"),
-                            "models",
-                            kwargs.get("model_id"),
-                            "model.ndb/documents",
-                            doc.metadata["document"],
-                        ),
+                        "sourceURL": document_path_prefix / doc.metadata["document"],
                         "sourceName": doc.metadata["document"].split("/")[-1],
                         "content": doc.page_content,
                         "metadata": doc.metadata.get("metadata", {}),

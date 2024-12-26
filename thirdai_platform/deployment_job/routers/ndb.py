@@ -688,8 +688,11 @@ class NDBRouter:
                 input.user_input,
                 session_id,
                 constraints=input.constraints,
-                model_bazaar_dir=self.config.model_bazaar_dir,
-                model_id=self.config.model_id,
+                document_path_prefix=Path(self.config.model_bazaar_dir)
+                / "models"
+                / self.config.model_id
+                / "model.ndb"
+                / "documents",
             ):
                 yield chunk
                 if not chunk.startswith("context: "):
@@ -746,7 +749,8 @@ class NDBRouter:
         # sort based on query time
         for session_id in chat_history.keys():
             chat_history[session_id] = sorted(
-                chat_history[session_id], key=lambda x: x["query_time"]
+                chat_history[session_id],
+                key=lambda x: datetime.strptime(x["query_time"], "%Y-%m-%d %H:%M:%S"),
             )
 
         return response(

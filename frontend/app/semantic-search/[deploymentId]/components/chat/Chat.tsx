@@ -463,40 +463,46 @@ export default function Chat({
               } catch (e) {
                 console.error('Error parsing context:', e);
               }
-            } else {
-              if (!contextReceived.current) {
-                responseBuffer.current += newData;
-              } else {
-                if (responseBuffer.current) {
-                  setChatHistory((history) => {
-                    const newHistory = [...history];
-                    newHistory.push({ sender: 'AI', content: responseBuffer.current + newData });
-                    return newHistory;
-                  });
-                  responseBuffer.current = '';
-                } else {
-                  setChatHistory((history) => {
-                    const newHistory = [...history];
-                    if (newHistory[newHistory.length - 1].sender === 'AI') {
-                      newHistory[newHistory.length - 1].content += newData;
-                    } else {
-                      newHistory.push({ sender: 'AI', content: newData });
-                    }
-                    return newHistory;
-                  });
-                }
-              }
+              return;
             }
+
+            // Always append to buffer first
+            responseBuffer.current += newData;
+            
+            // Update chat history with current buffer
+            setChatHistory(history => {
+              const newHistory = [...history];
+              const currentContent = responseBuffer.current;
+              
+              if (newHistory[newHistory.length - 1]?.sender === 'AI') {
+                newHistory[newHistory.length - 1].content = currentContent;
+              } else {
+                newHistory.push({ sender: 'AI', content: currentContent });
+              }
+              return newHistory;
+            });
           },
           async (finalResponse: string) => {
-            if (piiWorkflowId) {
-              const cleanResponse = finalResponse.replace(/^context:.*?\]/, '').trim();
-              const aiTransformed = await performPIIDetection(cleanResponse);
-              setTransformedMessages((prev) => ({
-                ...prev,
-                [aiIndex]: aiTransformed,
-              }));
-            }
+            // if (piiWorkflowId) {
+            //   const cleanResponse = finalResponse.replace(/^context:.*?\]/, '').trim();
+            //   const aiTransformed = await performPIIDetection(cleanResponse);
+            //   setTransformedMessages(prev => ({
+            //     ...prev,
+            //     [aiIndex]: aiTransformed,
+            //   }));
+            // }
+            
+            // // Set final response one last time to ensure consistency
+            // setChatHistory(history => {
+            //   const newHistory = [...history];
+            //   if (newHistory[newHistory.length - 1]?.sender === 'AI') {
+            //     newHistory[newHistory.length - 1].content = finalResponse;
+            //   } else {
+            //     newHistory.push({ sender: 'AI', content: finalResponse });
+            //   }
+            //   return newHistory;
+            // });
+
             setAiLoading(false);
             setAbortController(null);
             responseBuffer.current = '';

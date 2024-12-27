@@ -31,32 +31,33 @@ def deployment_services():
     platform = get_platform()
 
     targets = []
-    for service in services_res.json()[0]["Services"]:
-        service_name: str = service["ServiceName"]
-        if service_name.startswith("deployment"):
-            service_info_res = get_service_info(nomad_endpoint, service_name)
-            if service_info_res.status_code != 200:
-                logging.error(
-                    f"Unable to retrieve info for service {service_name}",
-                )
-                continue
+    if len(services_res.json()) > 0:
+        for service in services_res.json()[0]["Services"]:
+            service_name: str = service["ServiceName"]
+            if service_name.startswith("deployment"):
+                service_info_res = get_service_info(nomad_endpoint, service_name)
+                if service_info_res.status_code != 200:
+                    logging.error(
+                        f"Unable to retrieve info for service {service_name}",
+                    )
+                    continue
 
-            _, model_id = service_name.split("-", maxsplit=1)
-            for allocation in service_info_res.json():
-                if platform == "local":
-                    address = f"http://host.docker.internal:{allocation['Port']}"
-                else:
-                    address = f"{allocation['Address']}:{allocation['Port']}"
-                targets.append(
-                    {
-                        "targets": [address],
-                        "labels": {
-                            "model_id": model_id,
-                            "alloc_id": allocation["AllocID"],
-                            "node_id": allocation["NodeID"],
-                            "address": address,
-                        },
-                    }
-                )
+                _, model_id = service_name.split("-", maxsplit=1)
+                for allocation in service_info_res.json():
+                    if platform == "local":
+                        address = f"http://host.docker.internal:{allocation['Port']}"
+                    else:
+                        address = f"{allocation['Address']}:{allocation['Port']}"
+                    targets.append(
+                        {
+                            "targets": [address],
+                            "labels": {
+                                "model_id": model_id,
+                                "alloc_id": allocation["AllocID"],
+                                "node_id": allocation["NodeID"],
+                                "address": address,
+                            },
+                        }
+                    )
 
     return JSONResponse(content=jsonable_encoder(targets))

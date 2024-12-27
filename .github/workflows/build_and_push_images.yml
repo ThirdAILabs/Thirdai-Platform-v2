@@ -84,13 +84,11 @@ jobs:
           decoded_push_password=$(echo -n "${{ inputs.base_encoded_docker_registry_push_password }}" | base64 --decode)
           decoded_pull_password=$(echo -n "${{ inputs.base_encoded_docker_registry_pull_password }}" | base64 --decode)
 
-          yq -i "
-            .${provider}.branches."\${{ inputs.docker_image_branch_name }}\".push_credentials.username = \"${push_username}\" |
-            .${provider}.branches."\${{ inputs.docker_image_branch_name }}\".push_credentials.password = \"${decoded_push_password}\" |
-            .${provider}.branches."\${{ inputs.docker_image_branch_name }}\".pull_credentials.username = \"${pull_username}\" |
-            .${provider}.branches."\${{ inputs.docker_image_branch_name }}\".pull_credentials.password = \"${decoded_pull_password}\" |
-            .${provider}.branches."\${{ inputs.docker_image_branch_name }}\".version = \"${{ inputs.docker_image_version }}\"
-          " $GITHUB_WORKSPACE/release/config.yaml
+          yq -i ".${provider}.branches.${{ inputs.docker_image_branch_name }}.push_credentials.username = ${push_username}" $GITHUB_WORKSPACE/release/config.yaml
+          yq -i ".${provider}.branches.${{ inputs.docker_image_branch_name }}.push_credentials.password = ${decoded_push_password}" $GITHUB_WORKSPACE/release/config.yaml
+          yq -i ".${provider}.branches.${{ inputs.docker_image_branch_name }}.pull_credentials.username = ${pull_username}" $GITHUB_WORKSPACE/release/config.yaml
+          yq -i ".${provider}.branches.${{ inputs.docker_image_branch_name }}.pull_credentials.password = ${decoded_pull_password}" $GITHUB_WORKSPACE/release/config.yaml
+          yq -i ".${provider}.branches.${{ inputs.docker_image_branch_name }}.version = "${{ inputs.docker_image_version }}" $GITHUB_WORKSPACE/release/config.yaml
 
       - name: Build and push docker images to the repository (Only versioned)
         if: ${{ inputs.dont_update_latest == true }}

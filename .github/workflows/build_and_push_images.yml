@@ -78,7 +78,7 @@ jobs:
       - name: Add credentials for the docker image in config.yml (if provided)
         if: ${{ inputs.base_encoded_docker_registry_push_password != '' && inputs.base_encoded_docker_registry_pull_password != '' }}
         run: |
-          provider=$( '.provider' $GITHUB_WORKSPACE/release/config.yaml)
+          provider=$(yq e '.provider' $GITHUB_WORKSPACE/release/config.yaml)
           push_username=$(echo -n "thirdaiplatform-push-${{ inputs.docker_image_branch_name }}" | tr '_' '-')
           pull_username=$(echo -n "thirdaiplatform-pull-${{ inputs.docker_image_branch_name }}" | tr '_' '-')
           decoded_push_password=$(echo -n "${{ inputs.base_encoded_docker_registry_push_password }}" | base64 --decode)

@@ -37,7 +37,7 @@ jobs:
         id: docker_image_version
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            image_version=${{ github.event.inputs.image_version }}
+            image_version=${{ inputs.image_version }}
           else
             # github.event.release.tag_name contains prefix 'v'. Need to save version without this prefix
             image_version="${{ github.event.release.tag_name }}"
@@ -52,7 +52,7 @@ jobs:
         id: docker_image_branch_name
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            branch_name=${{ github.event.inputs.docker_image_branch_name }}
+            branch_name=${{ inputs.docker_image_branch_name }}
           else
             branch_name="${{ secrets.MAIN_DOCKER_IMAGE_NAME }}"
           fi
@@ -63,7 +63,7 @@ jobs:
         id: installer_branch
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            installer_branch_name=${{ github.event.inputs.installer_branch_name }}
+            installer_branch_name=${{ inputs.installer_branch_name }}
           else
             installer_branch_name="main"
           fi

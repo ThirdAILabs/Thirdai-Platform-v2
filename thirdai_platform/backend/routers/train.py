@@ -445,9 +445,9 @@ def retrain_ndb(
     llm_cache_job_id = f"llm-cache-{model.id}"
     # TODO what happens if someone calls deploy when its still refreshing?
     # if nomad_job_exists(llm_cache_job_id, nomad_endpoint):
-    #     # TODO(david) Should we be able to refresh the cache job during a deployment?
-    #     # How does this work when using a deployment name for the endpoint?
-    #     # But the cache job being down should be fine otherwise?
+    #     # TODO(david) we should make sure no one deploys while its refreshing
+    #     # refreshing while deployed can be done in a future PR by copying the 
+    #     # ndb, running the refresh in the background, and hotswapping
     #     return response(
     #         status_code=status.HTTP_400_BAD_REQUEST,
     #         message="Cannot refresh the cache job if deployment still active.",
@@ -455,8 +455,7 @@ def retrain_ndb(
 
     license_info = validate_license_info()
 
-    # TODO what happens if there's a failure in the llm cache refreshing
-    # report status back to db
+    # TODO add status reporting logic to the refresh
 
     try:
         submit_nomad_job(

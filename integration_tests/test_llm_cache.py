@@ -1,14 +1,13 @@
 import glob
-
-pass
 import os
+import time
 import uuid
 
 import pytest
 import requests
-from utils import doc_dir
 
 from client.bazaar import ModelBazaar
+from integration_tests.utils import doc_dir
 
 
 @pytest.mark.unit
@@ -53,7 +52,7 @@ def test_llm_cache():
         headers=auth_header(),
     )
     assert suggestions_response.status_code == 200
-    assert not suggestions_response.json()["suggestions"]
+    assert len(suggestions_response.json()["suggestions"]) == 0
 
     cache_token_url = f"http://127.0.0.1:80/{model_id}/cache/token"
     token_response = requests.get(
@@ -69,7 +68,7 @@ def test_llm_cache():
         json={"query": "lol", "llm_res": "response", "references": ["something"]},
         headers={"Authorization": f"Bearer {cache_token}"},
     )
-    insertion_response
+    assert insertion_response.status_code == 200
 
     pattern = os.path.join(
         model_bazaar_dir, "models", model_id, "llm_cache", "insertions", "*.jsonl"
@@ -78,6 +77,7 @@ def test_llm_cache():
     assert len(matching_files) > 0
 
     admin_client.undeploy(ndb_client)
+    time.sleep(10)
 
     stopped_response = requests.get(cache_health_url)
     assert stopped_response.status_code != 200
@@ -89,6 +89,8 @@ def test_llm_cache():
         headers=auth_header(),
     )
     assert refresh_response.status_code == 200
+    # TODO add a status check for when its done refreshing
+    time.sleep(20)
 
     pattern = os.path.join(
         model_bazaar_dir, "models", model_id, "llm_cache", "insertions", "*.jsonl"
@@ -105,6 +107,7 @@ def test_llm_cache():
         params={"query": "lol", "model_id": model_id},
         headers=auth_header(),
     )
-    assert suggestions_response_after_restart.status_code != 200
+    assert suggestions_response_after_restart.status_code == 200
+    assert len(suggestions_response.json()["suggestions"]) == 1
 
     admin_client.undeploy(ndb_client)

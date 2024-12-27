@@ -882,4 +882,29 @@ export class ModelService {
       throw new Error('Failed to record feedback: ' + e);
     }
   }
+
+  async recordGeneratedResponseFeedback(feedback: boolean): Promise<any> {
+    try {
+      const response = await fetch(this.url + '/chat-feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.authHeader(),
+        },
+        body: JSON.stringify({ upvote: feedback }),
+      });
+
+      if (response.ok) {
+        return response.json();
+      } else {
+        const error = await response.json();
+        throw new Error(error.detail || 'Unknown error occurred');
+      }
+    } catch (e) {
+      console.error(e);
+      alert(e);
+      throw new Error('Failed to record generated response feedback: ' + e);
+    }
+  }
 }
+

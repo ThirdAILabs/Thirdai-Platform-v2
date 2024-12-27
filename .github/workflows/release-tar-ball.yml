@@ -140,17 +140,17 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Update the latest tagged image for the main branch
+      - name: Update the latest tagged image for the specified branch-image
         run: |
           az acr import \
             --name thirdaiplatform \
-            --source thirdaiplatform.azurecr.io/thirdai_platform_release-test-main:v${{ needs.Gather_facts.outputs.image_version }} \
-            --image thirdai_platform_release-test-main:latest \
+            --source thirdaiplatform.azurecr.io/thirdai_platform_${{ needs.Gather_facts.outputs.docker_image_branch_name }}:v${{ needs.Gather_facts.outputs.image_version }} \
+            --image thirdai_platform_${{ needs.Gather_facts.outputs.docker_image_branch_name }}:latest \
             --force
           
           az acr import \
             --name thirdaiplatform \
-            --source thirdaiplatform.azurecr.io/frontend_release-test-main:v${{ needs.Gather_facts.outputs.image_version }} \
-            --image frontend_release-test-main:latest \
+            --source thirdaiplatform.azurecr.io/frontend_${{ needs.Gather_facts.outputs.docker_image_branch_name }}:v${{ needs.Gather_facts.outputs.image_version }} \
+            --image frontend_${{ needs.Gather_facts.outputs.docker_image_branch_name }}:latest \
             --force
           

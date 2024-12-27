@@ -5,9 +5,13 @@ import os
 import secrets
 import shutil
 import tempfile
+
+pass
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+pass
 
 import pandas as pd
 from auth.jwt import AuthenticatedUser, verify_access_token
@@ -413,6 +417,83 @@ def retrain_ndb(
             "user_id": str(user.id),
             "disk_usage": disk_usage(),
         },
+    )
+
+
+@train_router.post("/refresh-llm-cache", dependencies=[Depends(is_on_low_disk())])
+def retrain_ndb(
+    model_identifier: str,
+    job_options: JobOptions,
+    session: Session = Depends(get_session),
+    authenticated_user: AuthenticatedUser = Depends(verify_access_token),
+):
+    try:
+        job_options = JobOptions.model_validate_json(job_options)
+    except ValidationError as e:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Invalid options format: " + str(e),
+        )
+
+    try:
+        model: schema.Model = get_model_from_identifier(model_identifier, session)
+    except Exception as error:
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message=str(error),
+        )
+
+    # TODO(david) check if there are still files with new data to train on
+
+    nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
+    llm_cache_job_id = f"llm-cache-{model.id}"
+    if nomad_job_exists(llm_cache_job_id, nomad_endpoint):
+        # TODO(david) Should we be able to refresh the cache job during a deployment?
+        # How does this work when using a deployment name for the endpoint?
+        # But the cache job being down should be fine otherwise?
+        return response(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            message="Cannot refresh the cache job if deployment still active.",
+        )
+
+    license_info = validate_license_info()
+
+    try:
+        submit_nomad_job(
+            str(
+                Path(os.getcwd())
+                / "backend"
+                / "nomad_jobs"
+                / "refresh_llm_cache_job.hcl.j2"
+            ),
+            nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+            platform=get_platform(),
+            tag=os.getenv("TAG"),
+            registry=os.getenv("DOCKER_REGISTRY"),
+            docker_username=os.getenv("DOCKER_USERNAME"),
+            docker_password=os.getenv("DOCKER_PASSWORD"),
+            image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
+            thirdai_platform_dir=thirdai_platform_dir(),
+            llm_cache_script="llm_cache_job.refresh_llm_cache",
+            model_id=str(model.id),
+            share_dir=os.getenv("SHARE_DIR", None),
+            python_path=get_python_path(),
+            allocation_cores=job_options.allocation_cores,
+            allocation_memory=job_options.allocation_memory,
+            license_key=license_info["boltLicenseKey"],
+            # TODO(David): Find a more graceful way to handle memory allocation for
+            # larger training jobs
+            allocation_memory_max=60_000,
+        )
+    except Exception as err:
+        return response(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=str(err),
+        )
+
+    return response(
+        status_code=status.HTTP_200_OK,
+        message=f"Successfully refreshed LLM Cache for model: {model.id}",
     )
 
 

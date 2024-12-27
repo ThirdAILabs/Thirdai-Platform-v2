@@ -19,7 +19,6 @@ from platform_common.utils import model_bazaar_path
 
 GENERATE_JOB_ID = "llm-generation"
 THIRDAI_PLATFORM_FRONTEND_ID = "thirdai-platform-frontend"
-LLM_CACHE_JOB_ID = "llm-cache"
 TELEMETRY_ID = "telemetry"
 
 
@@ -101,6 +100,30 @@ async def start_on_prem_generate_job(
         docker_username=os.getenv("DOCKER_USERNAME"),
         docker_password=os.getenv("DOCKER_PASSWORD"),
         autoscaling_enabled="true" if autoscaling_enabled else "false",
+    )
+
+
+async def start_llm_cache_job(model_id: str, deployment_name: str, license_info):
+    nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
+    cwd = Path(os.getcwd())
+    platform = get_platform()
+    return submit_nomad_job(
+        nomad_endpoint=nomad_endpoint,
+        filepath=str(cwd / "backend" / "nomad_jobs" / "llm_cache_job.hcl.j2"),
+        platform=platform,
+        tag=os.getenv("TAG"),
+        registry=os.getenv("DOCKER_REGISTRY"),
+        docker_username=os.getenv("DOCKER_USERNAME"),
+        docker_password=os.getenv("DOCKER_PASSWORD"),
+        image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
+        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
+        share_dir=os.getenv("SHARE_DIR"),
+        python_path=get_python_path(),
+        thirdai_platform_dir=thirdai_platform_dir(),
+        app_dir="llm_cache_job",
+        license_key=license_info["boltLicenseKey"],
+        model_id=model_id,
+        deployment_name=deployment_name,
     )
 
 

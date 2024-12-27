@@ -33,6 +33,8 @@ class NeuralDBV2(Model):
             f"NDB options - advanced_search: {splade}, on_disk: {self.on_disk}"
         )
 
+        self.llm_cache = None
+
         if self.config.base_model_id:
             base_model_path = os.path.join(
                 self.config.model_bazaar_dir,
@@ -60,6 +62,25 @@ class NeuralDBV2(Model):
             chunk_store_name = ndb_save_metadata["chunk_store_name"]
             if chunk_store_name == "PandasChunkStore":
                 self.on_disk = False
+
+            # copy the cache over and load the cache
+            cache_path = os.path.join(
+                self.config.model_bazaar_dir,
+                "models",
+                self.config.base_model_id,
+                "llm_cache",
+                "llm_cache.ndb",
+            )
+
+            # TODO(david) should we throw here
+            if os.path.exists(cache_path):
+                shutil.copytree(
+                    cache_path,
+                    self.llm_cache_path(),
+                    ignore=shutil.ignore_patterns("*.tmpdb"),
+                    dirs_exist_ok=True,
+                )
+                self.llm_cache = ndbv2.NeuralDB.load(self.llm_cache_path())
         else:
             self.logger.info("Creating new NDBv2 model", code=LogCode.MODEL_INIT)
             if self.on_disk:
@@ -83,6 +104,9 @@ class NeuralDBV2(Model):
 
     def ndb_save_path(self):
         return os.path.join(self.model_dir, "model.ndb")
+
+    def llm_cache_path(self):
+        return os.path.join(self.model_dir, "llm_cache", "llm_cache.ndb")
 
     def doc_save_path(self):
         return os.path.join(self.ndb_save_path(), "documents")
@@ -359,10 +383,33 @@ class NeuralDBV2(Model):
         self.save()
         self.logger.info("Model saved successfully.", code=LogCode.MODEL_SAVE)
 
+        num_evictions = self.evict_stale_cache_responses()
+        self.logger.info(
+            f"Evicted {num_evictions} stale responses from llm cache.",
+            code=LogCode.LLM_CACHE,
+        )
+
         self.finalize_training(train_time)
         self.logger.info(
             "Training finalized and reported successfully.", code=LogCode.MODEL_TRAIN
         )
+
+    def evict_stale_cache_responses(self, **kwargs) -> int:
+        """
+        If references used for generation of llm cache responses are different,
+        delete that response from the cache
+        """
+        chunk_ids_to_delete = []
+        # TODO (david) Universe PR for iter_chunks() method
+        for chunk in self.llm_cache.chunk_store.iter_chunks():
+            results = self.db.search(self.db.query)
+            num_refs = chunk.metadata["num_references"]
+            reference_texts = [r.text for r in results][:num_refs]
+            if hash("".join(reference_texts)) != chunk.metadata["reference_hash"]:
+                chunk_ids_to_delete.append(chunk.id)
+
+        self.cache.delete(chunk_ids_to_delete)
+        return len(chunk_ids_to_delete)
 
     def evaluate(self, **kwargs):
         """

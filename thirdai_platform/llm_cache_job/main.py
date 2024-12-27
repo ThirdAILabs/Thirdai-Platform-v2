@@ -23,14 +23,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# def get_model_dir(self, model_id: str):
-#    return Path(self.config.model_bazaar_dir) / "models" / model_id
 
 license_key = os.getenv("LICENSE_KEY")
-model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
 verify_license.activate_thirdai_license(license_key)
 
-log_dir: Path = Path(model_bazaar_dir) / "logs"
+model_bazaar_dir = os.getenv("MODEL_BAZAAR_DIR")
+model_id = os.getenv("MODEL_ID")
+model_dir = Path(model_bazaar_dir) / "models" / model_id
+log_dir: Path = Path(model_bazaar_dir) / "logs" / model_id
 
 setup_logger(log_dir=log_dir, log_prefix="llm-cache")
 
@@ -38,7 +38,7 @@ logger = logging.getLogger("llm-cache")
 
 permissions = Permissions()
 
-cache: Cache = NDBSemanticCache(logger=logger)
+cache: Cache = NDBSemanticCache(model_dir=model_dir, logger=logger)
 
 
 @app.middleware("http")
@@ -66,8 +66,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 @router.get("/suggestions", dependencies=[Depends(permissions.verify_read_permission)])
-def suggestions(model_id: str, query: str):
-    result = cache.suggestions(model_id=model_id, query=query)
+def suggestions(query: str):
+    result = cache.suggestions(query=query)
 
     logger.info(f"found {len(result)} suggestions for query={query}")
 
@@ -78,8 +78,8 @@ def suggestions(model_id: str, query: str):
 
 
 @router.get("/query", dependencies=[Depends(permissions.verify_read_permission)])
-def cache_query(model_id: str, query: str):
-    result = cache.query(model_id=model_id, query=query)
+def cache_query(query: str):
+    result = cache.query(query=query)
 
     if result:
         logger.info(f"found cached result for query={query}")
@@ -96,9 +96,9 @@ def cache_query(model_id: str, query: str):
 def cache_insert(
     query: str,
     llm_res: str,
-    model_id: str = Depends(permissions.verify_temporary_cache_access_token),
+    _: str = Depends(permissions.verify_temporary_cache_access_token),
 ):
-    cache.insert(model_id=model_id, query=query, llm_res=llm_res)
+    cache.insert(query=query, llm_res=llm_res)
 
     logger.info(f"cached query={query}")
 
@@ -108,19 +108,9 @@ def cache_insert(
     )
 
 
-@router.post("/invalidate", dependencies=[Depends(permissions.verify_write_permission)])
-def cache_invalidate(model_id: str):
-    cache.invalidate(model_id=model_id)
-
-    return JSONResponse(
-        status_code=status.HTTP_200_OK,
-        content={"status": "success", "message": "invalidated cache for model id"},
-    )
-
-
 @router.get("/token", dependencies=[Depends(permissions.verify_read_permission)])
-def temporary_cache_token(model_id: str):
-    logger.info(f"creating cache token for model {model_id}")
+def temporary_cache_token():
+    logger.info(f"creating cache token")
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,

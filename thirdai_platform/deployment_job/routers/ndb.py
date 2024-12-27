@@ -898,7 +898,7 @@ class NDBRouter:
                     self.tasks[task_id].status = TaskStatus.FAILED
                     self.tasks[task_id].message = str(traceback.format_exc())
                     self.tasks[task_id].last_modified = now()
-                    logging.error(
+                    self.logger.error(
                         f"Task {task_id} with data {self.tasks[task_id]} failed: {str(traceback.format_exc())}"
                     )
 

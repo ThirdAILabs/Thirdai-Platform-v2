@@ -26,6 +26,7 @@ from backend.utils import (
     get_warnings_and_errors,
     list_all_dependencies,
     model_accessible,
+    nomad_job_exists,
     read_file_from_back,
     submit_nomad_job,
     thirdai_platform_dir,
@@ -46,6 +47,7 @@ from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLo
 from platform_common.pydantic_models.training import ModelType
 from platform_common.utils import disk_usage, model_bazaar_path, response
 from sqlalchemy.orm import Session
+from startup_jobs import start_llm_cache_job
 
 deploy_router = APIRouter()
 
@@ -154,29 +156,6 @@ def get_model_permissions(
                 else "unknown"
             ),
         },
-    )
-
-
-async def start_llm_cache_job(model_id: str, deployment_name: str, license_info):
-    nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
-    cwd = Path(os.getcwd())
-    platform = get_platform()
-    return submit_nomad_job(
-        nomad_endpoint=nomad_endpoint,
-        filepath=str(cwd / "backend" / "nomad_jobs" / "llm_cache_job.hcl.j2"),
-        platform=platform,
-        tag=os.getenv("TAG"),
-        registry=os.getenv("DOCKER_REGISTRY"),
-        docker_username=os.getenv("DOCKER_USERNAME"),
-        docker_password=os.getenv("DOCKER_PASSWORD"),
-        image_name=os.getenv("THIRDAI_PLATFORM_IMAGE_NAME"),
-        model_bazaar_endpoint=os.getenv("PRIVATE_MODEL_BAZAAR_ENDPOINT"),
-        share_dir=os.getenv("SHARE_DIR"),
-        python_path=get_python_path(),
-        thirdai_platform_dir=thirdai_platform_dir(),
-        app_dir="llm_cache_job",
-        license_key=license_info["boltLicenseKey"],
-        model_id=model_id,
     )
 
 
@@ -296,13 +275,14 @@ async def deploy_single_model(
         )
 
     if autoscaling_enabled:
-        start_llm_cache_job(
-            model_id=str(model_id),
-            deployment_name=deployment_name,
-            license_info=license_info,
-        )
-        # if the job fails, where do we report errors to?
-        # make sure to save the cache in the directory for the model
+        try:
+            start_llm_cache_job(
+                model_id=str(model_id),
+                deployment_name=deployment_name,
+                license_info=license_info,
+            )
+        except Exception as e:
+            logging.error(f"LLM Cache Job failed with error: {e}")
 
     if requires_on_prem_llm:
         llm_autoscaling_env = os.getenv("AUTOSCALING_ENABLED")
@@ -826,11 +806,18 @@ def undeploy_model(
             message=f"Unable to stop deployment for model {model_identifier} since it is used by other active workflows.",
         )
 
+    nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
     try:
         delete_nomad_job(
             job_id=f"deployment-{str(model.id)}",
-            nomad_endpoint=os.getenv("NOMAD_ENDPOINT"),
+            nomad_endpoint=nomad_endpoint,
         )
+        llm_cache_job_id = f"llm-cache-{model.id}"
+        if nomad_job_exists(llm_cache_job_id, nomad_endpoint):
+            delete_nomad_job(
+                job_id=llm_cache_job_id,
+                nomad_endpoint=nomad_endpoint,
+            )
         model.deploy_status = schema.Status.stopped
         session.commit()
 

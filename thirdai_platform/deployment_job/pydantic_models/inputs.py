@@ -103,8 +103,8 @@ class ImplicitFeedbackInput(BaseModel):
 
 
 class ChatFeedbackInput(BaseModel):
-    query_text: str
-    reference_id: int = Field(..., ge=0)
+    # query_text: str
+    # reference_id: int = Field(..., ge=0)
     upvote: bool
 
 

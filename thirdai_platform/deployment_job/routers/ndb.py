@@ -68,6 +68,8 @@ ndb_upvote_metric = Summary("ndb_upvote", "NDB upvotes")
 ndb_associate_metric = Summary("ndb_associate", "NDB associations")
 ndb_implicit_feedback_metric = Summary("ndb_implicit_feedback", "NDB implicit feedback")
 ndb_chat_upvote_metric = Counter("ndb_chat_upvote_metric", "NDB chat upvote")
+ndb_chat_upvote_metric.inc()        # satisfaction score = (chat_upvote / (chat_upvote + chat_downvote)). To avoid divide-by-zero error, incrementing chat_upvote by 1
+ndb_chat_same_question = Counter("ndb_chat_same_question", "Metric for same question being asked in the chat")
 ndb_chat_downvote_metric = Counter("ndb_chat_downvote_metric", "NDB chat downvote")
 ndb_insert_metric = Summary("ndb_insert", "NDB insertions")
 ndb_delete_metric = Summary("ndb_delete", "NDB deletions")
@@ -123,6 +125,9 @@ class NDBRouter:
         )
         self.router.add_api_route(
             "/chat-feedback", self.chat_feedback, methods=["POST"]
+        )
+        self.router.add_api_route(
+            "/chat-same-question", self.chat_same_question, methods=["GET"]
         )
         self.router.add_api_route(
             "/update-chat-settings", self.update_chat_settings, methods=["POST"]
@@ -589,18 +594,28 @@ class NDBRouter:
             message="Implicit feedback logged successfully.",
         )
 
+    def chat_same_question(
+        self,
+        token: str = Depends(Permissions.verify_permission("read")),
+    ):
+        ndb_chat_same_question.inc()
+        return response(
+            status_code=status.HTTP_200_OK,
+            message = "haan sab theek hai"
+        )
+
     def chat_feedback(
         self,
         feedback: ChatFeedbackInput,
         token: str = Depends(Permissions.verify_permission("read")),
     ):
-        self.feedback_logger.log(
-            ChatFeedbackLog(
-                chunk_id=feedback.reference_id,
-                query=feedback.query_text,
-                upvote=feedback.upvote,
-            )
-        )
+        # self.feedback_logger.log(
+        #     ChatFeedbackLog(
+        #         chunk_id=feedback.reference_id,
+        #         query=feedback.query_text,
+        #         upvote=feedback.upvote,
+        #     )
+        # )
 
         if feedback.upvote:
             ndb_chat_upvote_metric.inc()

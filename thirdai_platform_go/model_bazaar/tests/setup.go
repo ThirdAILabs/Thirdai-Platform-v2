@@ -46,8 +46,6 @@ func setupTestEnv(t *testing.T) *testEnv {
 
 	tmpDir := t.TempDir()
 	licensePath := filepath.Join(tmpDir, "/platform_license")
-	storagePath := filepath.Join(tmpDir, "/storage")
-
 	file, err := os.Create(licensePath)
 	if err != nil {
 		t.Fatal(err)
@@ -55,6 +53,12 @@ func setupTestEnv(t *testing.T) *testEnv {
 	err = json.NewEncoder(file).Encode(TEST_LICENSE)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	storagePath := filepath.Join(tmpDir, "/storage")
+	err = os.MkdirAll(storagePath, 0777)
+	if err != nil {
+		t.Fatalf("error creating storate directory: %v", err)
 	}
 
 	store := storage.NewSharedDisk(storagePath)

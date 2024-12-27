@@ -271,7 +271,8 @@ func (s *TrainService) UploadData(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *TrainService) GetStatus(w http.ResponseWriter, r *http.Request) {
-	getStatusHandler(w, r, s.db, "train")
+	modelId := chi.URLParam(r, "model_id")
+	getStatusHandler(w, modelId, s.db, "train")
 }
 
 func (s *TrainService) UpdateStatus(w http.ResponseWriter, r *http.Request) {

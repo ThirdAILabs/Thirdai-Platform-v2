@@ -61,6 +61,7 @@ func (s *DeployService) Routes() chi.Router {
 		r.Use(s.jobAuth.Verifier())
 		r.Use(s.jobAuth.Authenticator())
 
+		r.Get("/status-internal", s.GetStatusInternal)
 		r.Post("/update-status", s.UpdateStatus)
 		r.Post("/log", s.JobLog)
 	})
@@ -279,8 +280,18 @@ func (s *DeployService) Stop(w http.ResponseWriter, r *http.Request) {
 	utils.WriteSuccess(w)
 }
 
+func (s *DeployService) GetStatusInternal(w http.ResponseWriter, r *http.Request) {
+	modelId, err := auth.ValueFromContext(r, "model_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	getStatusHandler(w, modelId, s.db, "deploy")
+}
+
 func (s *DeployService) GetStatus(w http.ResponseWriter, r *http.Request) {
-	getStatusHandler(w, r, s.db, "deploy")
+	modelId := chi.URLParam(r, "model_id")
+	getStatusHandler(w, modelId, s.db, "deploy")
 }
 
 func (s *DeployService) UpdateStatus(w http.ResponseWriter, r *http.Request) {

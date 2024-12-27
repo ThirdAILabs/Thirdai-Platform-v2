@@ -49,6 +49,10 @@ job "{{ .JobName }}" {
         "traefik.http.middlewares.{{ .ModelId }}-stripprefix.stripprefix.prefixes=/{{ .ModelId }}",
         {{ end }}
         "traefik.http.routers.{{ .ModelId }}-http.priority=10",
+        "traefik.http.services.deployment-{{ .ModelId }}.loadbalancer.healthcheck.path=/health",
+        "traefik.http.services.deployment-{{ .ModelId }}.loadbalancer.healthcheck.interval=10s",
+        "traefik.http.services.deployment-{{ .ModelId }}.loadbalancer.healthcheck.timeout=3s",
+        "traefik.http.services.deployment-{{ .ModelId }}.loadbalancer.healthcheck.scheme=http",
       ]
     }
 
@@ -57,6 +61,7 @@ job "{{ .JobName }}" {
         driver = "raw_exec"
       {{ else if isDocker .Driver }}  
         driver = "docker"
+        kill_timeout = "15s"
 
       template {
         destination = "${NOMAD_SECRETS_DIR}/env.vars"
@@ -99,7 +104,8 @@ EOF
             server_address = "{{ .Registry }}"
           }
           volumes = [
-            "{{ .ShareDir }}:/model_bazaar"
+            "{{ .ShareDir }}:/model_bazaar",
+            "/opt/thirdai_platform:/thirdai_platform"
           ]
           {{ end }}
           command = "python3"

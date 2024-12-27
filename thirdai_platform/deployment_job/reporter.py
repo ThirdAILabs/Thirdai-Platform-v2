@@ -123,14 +123,8 @@ class Reporter:
         Args:
             model_id (str): The ID of the model.
         """
-        content = self._request(
-            "get",
-            "api/deploy/internal-status",
-            params={
-                "model_id": model_id,
-            },
-        )
-        return content["data"]["deploy_status"]
+        content = self._request("get", "api/v2/deploy/status-internal")
+        return content["status"]
 
     def log(
         self,

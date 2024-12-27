@@ -155,9 +155,7 @@ type StatusResponse struct {
 	Warnings []string `json:"warnings"`
 }
 
-func getStatusHandler(w http.ResponseWriter, r *http.Request, db *gorm.DB, job string) {
-	modelId := chi.URLParam(r, "model_id")
-
+func getStatusHandler(w http.ResponseWriter, modelId string, db *gorm.DB, job string) {
 	slog.Info("getting status for model", "job", job, "model_id", modelId)
 
 	var res StatusResponse

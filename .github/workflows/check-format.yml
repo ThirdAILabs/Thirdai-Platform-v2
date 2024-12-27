@@ -61,12 +61,13 @@ jobs:
           decoded_push_password="random_push_password"
           decoded_pull_password="random_pull_password"
 
-          yq -i '."'"$provider"'".branches.test-install.push_credentials.username = "'"$push_username"'" |
-            ."'"$provider"'".branches.test-install.push_credentials.password = "'"$decoded_push_password"'" |
-            ."'"$provider"'".branches.test-install.pull_credentials.username = "'"$pull_username"'" |
-            ."'"$provider"'".branches.test-install.pull_credentials.password = "'"$decoded_pull_password"'" |
-            ."'"$provider"'".branches.test-install.version = "0.0.1"
-          ' $GITHUB_WORKSPACE/release/config.yaml
+          yq eval -i "
+            .${provider}.branches.test-install.push_credentials.username = \"${push_username}\" |
+            .${provider}.branches.test-install.push_credentials.password = \"${decoded_push_password}\" |
+            .${provider}.branches.test-install.pull_credentials.username = \"${pull_username}\" |
+            .${provider}.branches.test-install.pull_credentials.password = \"${decoded_pull_password}\" |
+            .${provider}.branches.test-install.version = \"0.0.1\"
+          " $GITHUB_WORKSPACE/release/config.yaml
       - name: check for the entries
         run: |
           provider=$(yq e '.provider' $GITHUB_WORKSPACE/release/config.yaml)

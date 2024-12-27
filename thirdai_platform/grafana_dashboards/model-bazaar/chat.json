@@ -412,7 +412,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum (increase(ndb_chat_same_question_count{job=\"deployment-jobs\",workload=\"$workload\"})[10s])",
+          "expr": "sum (increase(ndb_chat_same_question_total{job=\"deployment-jobs\",workload=\"$workload\"})[10s])",
           "instant": false,
           "legendFormat": "value",
           "range": true,
@@ -449,9 +449,9 @@
       },
       {
         "current": {
-          "selected": false,
-          "text": "deployment-21dfd1d9-657c-4fbd-8c4f-10695847f273",
-          "value": "deployment-21dfd1d9-657c-4fbd-8c4f-10695847f273"
+          "selected": true,
+          "text": "deployment-9dc1e932-d593-44a2-a706-4731109422dc",
+          "value": "deployment-9dc1e932-d593-44a2-a706-4731109422dc"
         },
         "datasource": {
           "type": "prometheus",
@@ -486,6 +486,6 @@
   "timezone": "browser",
   "title": "Chat",
   "uid": "ae7rn25nhxdkwc",
-  "version": 13,
+  "version": 15,
   "weekStart": ""
 }

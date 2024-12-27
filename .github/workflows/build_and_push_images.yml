@@ -71,10 +71,9 @@ jobs:
 
       - name: Install yq for YAML parsing
         run: |
-            sudo add-apt-repository ppa:rmescandon/yq
-            sudo apt update
-            sudo apt install yq -y
-            yq --version 
+            sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+            sudo chmod +x /usr/bin/yq
+            yq --version
       
       - name: Add credentials for the docker image in config.yml (if provided)
         if: ${{ inputs.base_encoded_docker_registry_push_password != '' && inputs.base_encoded_docker_registry_pull_password != '' }}

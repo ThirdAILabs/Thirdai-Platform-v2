@@ -139,7 +139,8 @@ jobs:
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-
+      
+      # TODO(anyone): use `docker_constant.py` to identify the images thats needed to be migrated to 'latest' tag instead of hardcoding to two images
       - name: Update the latest tagged image for the specified branch-image
         run: |
           az acr import \

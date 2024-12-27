@@ -282,7 +282,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -328,7 +329,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Count of repeated questions to uncover where users are struggling with the provided answers.",
+      "description": "Count of repeated questions.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -412,14 +413,14 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum (increase(ndb_chat_same_question_total{job=\"deployment-jobs\",workload=\"$workload\"})[10s])",
+          "expr": "sum (ndb_chat_same_question_total{job=\"deployment-jobs\",workload=\"$workload\"}) / (sum (ndb_chat_same_question_total{job=\"deployment-jobs\",workload=\"$workload\"}) + sum (chat_query_count{job=\"deployment-jobs\",workload=\"$workload\"}))",
           "instant": false,
           "legendFormat": "value",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Engagement Gaps",
+      "title": "Repeated Questions",
       "type": "timeseries"
     }
   ],
@@ -449,9 +450,9 @@
       },
       {
         "current": {
-          "selected": true,
-          "text": "deployment-9dc1e932-d593-44a2-a706-4731109422dc",
-          "value": "deployment-9dc1e932-d593-44a2-a706-4731109422dc"
+          "selected": false,
+          "text": "deployment-197882d6-8d20-439c-98d3-7e2dc62bd978",
+          "value": "deployment-197882d6-8d20-439c-98d3-7e2dc62bd978"
         },
         "datasource": {
           "type": "prometheus",
@@ -486,6 +487,6 @@
   "timezone": "browser",
   "title": "Chat",
   "uid": "ae7rn25nhxdkwc",
-  "version": 15,
+  "version": 20,
   "weekStart": ""
 }

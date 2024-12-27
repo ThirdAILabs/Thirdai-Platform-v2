@@ -131,8 +131,8 @@ jobs:
 
   Latest_build_and_push_images:
     needs: [Gather_facts, Versioned_build_and_push_images, package, tests_on_ec2]
-    if: ${{ always() && github.event_name == 'workflow_dispatch' && needs.Versioned_build_and_push_images.result == 'success' }}
-    # push the latest images if the event is 'workflow dispatch', irrespective of passing or failing the test
+    if: ${{ always() && needs.Versioned_build_and_push_images.result == 'success' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'release' && needs.tests_on_ec2.result == 'success'))}}
+    # push the latest images if the event is 'workflow_dispatch' (irrespective of passing or failing the test) OR the event is 'release' and tests are passed
     uses: ./.github/workflows/build_and_push_images.yml
     with:
       docker_image_branch_name: ${{ needs.Gather_facts.outputs.docker_image_branch_name }}

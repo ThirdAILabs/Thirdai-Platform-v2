@@ -53,14 +53,19 @@ export default function UsageStats() {
               ></iframe>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
               <iframe
-                src={`${panelUrl}&panelId=1&from=now-6h&to=now&t=${Date.now()}`}
+                src={`${panelUrl}&panelId=2&from=now-6h&to=now&t=${Date.now()}`}
                 width="100%"
                 height="300px"
               ></iframe>
               <iframe
-                src={`${panelUrl}&panelId=2&from=now-6h&to=now&t=${Date.now()}`}
+                src={`${panelUrl}&panelId=3&from=now-6h&to=now&t=${Date.now()}`}
+                width="100%"
+                height="300px"
+              ></iframe>
+              <iframe
+                src={`${panelUrl}&panelId=4&from=now-6h&to=now&t=${Date.now()}`}
                 width="100%"
                 height="300px"
               ></iframe>

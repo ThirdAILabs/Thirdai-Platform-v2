@@ -172,11 +172,10 @@ interface VoteButtonProps {
 }
 
 const VoteButton: React.FC<VoteButtonProps> = ({ onClick, icon: Icon, active = false }) => (
-  <button 
+  <button
     onClick={onClick}
-    className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${
-      active ? 'text-blue-500' : 'text-gray-500'
-    }`}
+    className={`p-2 rounded-full hover:bg-gray-100 transition-colors ${active ? 'text-blue-500' : 'text-gray-500'
+      }`}
   >
     <Icon size={16} />
   </button>
@@ -229,8 +228,8 @@ const ReferenceItem: React.FC<ReferenceItemProps> = ({
         </div>
       </div>
       <div className="text-gray-700 text-sm mt-1">
-        {reference.content.length > 150 
-          ? `${reference.content.substring(0, 150)}...` 
+        {reference.content.length > 150
+          ? `${reference.content.substring(0, 150)}...`
           : reference.content}
       </div>
     </div>
@@ -284,6 +283,12 @@ function ChatBox({
     }
   };
 
+  const handleUpvote = () => {
+    modelService?.recordGeneratedResponseFeedback(true);
+  }
+  const handleDownvote = () => {
+    modelService?.recordGeneratedResponseFeedback(false);
+  }
   return (
     <ChatBoxContainer>
       <ChatBoxSender>{message.sender === 'human' ? '👋 You' : '🤖 AI'}</ChatBoxSender>
@@ -301,7 +306,11 @@ function ChatBox({
           ) : (
             <ReactMarkdown>{message.content}</ReactMarkdown>
           )}
-
+          {message.sender === 'AI' && <div className='flex wrap'>
+            Here you can upvote/downvote the genreated answer.
+            <VoteButton onClick={handleUpvote} icon={ThumbsUp} />
+            <VoteButton onClick={handleDownvote} icon={ThumbsDown} />
+          </div>}
           {message.sender === 'human' && sentiment && (
             <span
               style={{
@@ -500,16 +509,16 @@ export default function Chat({
       // Clear input and set loading state
       setTextInput('');
       setAiLoading(true);
-  
+
       // Add human message
       const newHistory = [...chatHistory, { sender: 'human', content: lastTextInput }];
       setChatHistory(newHistory);
-  
+
       // Handle sentiment classification
       if (sentimentWorkflowId) {
         classifySentiment(lastTextInput, currentIndex);
       }
-  
+
       // Reset buffers and state
       responseBuffer.current = '';
       contextReceived.current = false;
@@ -525,7 +534,7 @@ export default function Chat({
             [currentIndex]: humanTransformed,
           }));
         }
-  
+
         // Process constraints
         const detectedPII = await performPIIDetection(lastTextInput);
         const newConstraints: SearchConstraints = {};
@@ -544,7 +553,7 @@ export default function Chat({
 
         // Initialize AI message in chat history
         setChatHistory(prev => [...prev, { sender: 'AI', content: '' }]);
-  
+
         // Start chat with streaming
         await modelService?.chat(
           lastTextInput,
@@ -560,7 +569,7 @@ export default function Chat({
                 } else {
                   contextBuffer.current += newData;
                 }
-                
+
                 try {
                   const contextJson = JSON.parse(contextBuffer.current);
                   setContextData(prev => ({
@@ -579,12 +588,12 @@ export default function Chat({
             } else if (!isCollectingContext.current) {
               // Handle message streaming
               responseBuffer.current += newData;
-              
+
               // Update chat history with new content
               setChatHistory(prev => {
                 const updatedHistory = [...prev];
                 const lastMessage = updatedHistory[updatedHistory.length - 1];
-                
+
                 if (lastMessage?.sender === 'AI') {
                   return [
                     ...updatedHistory.slice(0, -1),
@@ -598,11 +607,11 @@ export default function Chat({
           () => {
             // Final callback - ensure message persists
             const finalContent = responseBuffer.current;
-            
+
             setChatHistory(prev => {
               const updatedHistory = [...prev];
               const lastMessage = updatedHistory[updatedHistory.length - 1];
-              
+
               if (lastMessage?.sender === 'AI') {
                 return [
                   ...updatedHistory.slice(0, -1),
@@ -612,7 +621,7 @@ export default function Chat({
               // If no AI message exists, add it
               return [...updatedHistory, { sender: 'AI', content: finalContent }];
             });
-  
+
             // Reset state
             setAiLoading(false);
             setAbortController(null);
@@ -624,12 +633,12 @@ export default function Chat({
         );
       } catch (error) {
         console.error('Chat error:', error);
-        
+
         // Handle error state
         setChatHistory(prev => {
           const updatedHistory = [...prev];
           const lastMessage = updatedHistory[updatedHistory.length - 1];
-          
+
           if (lastMessage?.sender === 'AI') {
             return [
               ...updatedHistory.slice(0, -1),
@@ -638,7 +647,7 @@ export default function Chat({
           }
           return updatedHistory;
         });
-  
+
         setAiLoading(false);
         setAbortController(null);
       }
@@ -692,8 +701,8 @@ export default function Chat({
           </AllChatBoxes>
         ) : (
           <ChatBox
-            message={{ 
-              sender: 'AI', 
+            message={{
+              sender: 'AI',
               content: "Welcome! I'm here to assist you with any questions or issues related to air-conditioners.\n\nFeel free to share the BRAND and MODEL_NUMBER of your air-conditioner if you have it handy. Don't worry if you don't. Just tell me what you need, and I'll do my best to answer!"
             }}
             modelService={modelService}

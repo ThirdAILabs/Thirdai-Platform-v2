@@ -75,9 +75,9 @@ const Conversations: React.FC = () => {
     <div className='p-4'>
       <Card style={{ width: '70%', maxHeight: '65rem' }} className="pb-4">
         <CardHeader className="bg-blue-900 text-white mb-3">
-          <CardTitle>Chat Archives</CardTitle>
+          <CardTitle>Query Archive</CardTitle>
           <CardDescription className="text-white">
-            Keep track of your conversations effortlessly
+            Quick access to your asked questions
           </CardDescription>
         </CardHeader>
         <CardContent style={{ overflowY: 'auto', maxHeight: '45rem' }}>

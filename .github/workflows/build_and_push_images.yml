@@ -71,25 +71,38 @@ jobs:
 
       - name: Install yq for YAML parsing
         run: |
-            sudo add-apt-repository ppa:rmescandon/yq
-            sudo apt update
-            sudo apt install yq -y
+            sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+            sudo chmod +x /usr/bin/yq
+            yq --version
       
       - name: Add credentials for the docker image in config.yml (if provided)
         if: ${{ inputs.base_encoded_docker_registry_push_password != '' && inputs.base_encoded_docker_registry_pull_password != '' }}
         run: |
-          provider=$(yq '.provider' $GITHUB_WORKSPACE/release/config.yaml)
+          provider=$(yq e '.provider' $GITHUB_WORKSPACE/release/config.yaml)
           push_username=$(echo -n "thirdaiplatform-push-${{ inputs.docker_image_branch_name }}" | tr '_' '-')
           pull_username=$(echo -n "thirdaiplatform-pull-${{ inputs.docker_image_branch_name }}" | tr '_' '-')
           decoded_push_password=$(echo -n "${{ inputs.base_encoded_docker_registry_push_password }}" | base64 --decode)
           decoded_pull_password=$(echo -n "${{ inputs.base_encoded_docker_registry_pull_password }}" | base64 --decode)
-        
-          yq -i '."'"$provider"'".branches.${{ inputs.docker_image_branch_name }}.push_credentials.username = "'"$push_username"'" |
-            ."'"$provider"'".branches.${{ inputs.docker_image_branch_name }}.push_credentials.password = "'"$decoded_push_password"'" |
-            ."'"$provider"'".branches.${{ inputs.docker_image_branch_name }}.pull_credentials.username = "'"$pull_username"'" |
-            ."'"$provider"'".branches.${{ inputs.docker_image_branch_name }}.pull_credentials.password = "'"$decoded_pull_password"'" |
-            ."'"$provider"'".branches.${{ inputs.docker_image_branch_name }}.version = "${{ inputs.docker_image_version }}"
-          ' $GITHUB_WORKSPACE/release/config.yaml
+
+          yq -i "
+            .\"${provider}\".branches.install-test-3.push_credentials.username = \"${push_username}\"" \
+            "$GITHUB_WORKSPACE/release/config.yaml"
+
+          yq -i "
+            .\"${provider}\".branches.install-test-3.push_credentials.password = \"${decoded_push_password}\"" \
+            "$GITHUB_WORKSPACE/release/config.yaml"
+
+          yq -i "
+            .\"${provider}\".branches.install-test-3.pull_credentials.username = \"${pull_username}\"" \
+            "$GITHUB_WORKSPACE/release/config.yaml"
+
+          yq -i "
+            .\"${provider}\".branches.install-test-3.pull_credentials.password = \"${decoded_pull_password}\"" \
+            "$GITHUB_WORKSPACE/release/config.yaml"
+
+          yq -i "
+            .\"${provider}\".branches.${{ inputs.docker_image_branch_name }}.version = \"${{ inputs.docker_image_version }}\"" \
+            "$GITHUB_WORKSPACE/release/config.yaml"
 
       - name: Build and push docker images to the repository (Only versioned)
         if: ${{ inputs.dont_update_latest == true }}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAllChatHistory } from '@/lib/backend';
-
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 interface ConversationData {
   query_time: string;
   query_text: string;
@@ -62,30 +62,40 @@ const Conversations: React.FC = () => {
   }
 
   return (
-    <div className="mb-4 border border-gray-300 rounded-lg">
-      {(chatHistory).map((conversation) => (
-        <div key={`${conversation.query_time}-${conversation.response_time}`} >
-          <div className="p-4">
-            <div className="flex flex-col">
-              {/* Query Section */}
-              <div className="flex justify-start">
-                <div className="border shadow-sm p-4 rounded-lg w-fit max-w-[70%]">
-                  <div className="text-gray-700">{conversation.query_text}</div>
-                  <div className="text-xs text-gray-500">{conversation.query_time}</div>
-                </div>
-              </div>
+    <div className='p-4'>
+      <Card style={{ width: '100%', maxHeight: '65rem' }} className="pb-4">
+        <CardHeader className="bg-blue-900 text-white mb-3">
+          <CardTitle>Chat Archives</CardTitle>
+          <CardDescription className="text-white">
+            Keep track of your conversations effortlessly
+          </CardDescription>
+        </CardHeader>
+        <CardContent style={{ overflowY: 'auto', maxHeight: '45rem' }}>
+          {(chatHistory).map((conversation) => (
+            <div key={`${conversation.query_time}-${conversation.response_time}`} >
+              <div className="p-4">
+                <div className="flex flex-col">
+                  {/* Query Section */}
+                  <div className="flex justify-start">
+                    <div className="border shadow-sm p-4 rounded-lg w-fit max-w-[70%]">
+                      <div className="text-gray-700">{conversation.query_text}</div>
+                      <div className="text-xs text-gray-500">{conversation.query_time}</div>
+                    </div>
+                  </div>
 
-              {/* Response Section */}
-              <div className="flex justify-end my-4">
-                <div className="bg-green-100 border shadow-sm p-4 rounded-lg w-fit max-w-[70%]">
-                  <div className="text-gray-700">{conversation.response_text}</div>
-                  <div className="text-xs text-gray-500">{conversation.response_time}</div>
+                  {/* Response Section */}
+                  <div className="flex justify-end my-4">
+                    <div className="bg-green-100 border shadow-sm p-4 rounded-lg w-fit max-w-[70%]">
+                      <div className="text-gray-700">{conversation.response_text}</div>
+                      <div className="text-xs text-gray-500">{conversation.response_time}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      ))}
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 };

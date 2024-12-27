@@ -306,10 +306,22 @@ function ChatBox({
           ) : (
             <ReactMarkdown>{message.content}</ReactMarkdown>
           )}
-          {message.sender === 'AI' && <div className='flex wrap'>
-            Here you can upvote/downvote the genreated answer.
-            <VoteButton onClick={handleUpvote} icon={ThumbsUp} />
-            <VoteButton onClick={handleDownvote} icon={ThumbsDown} />
+          {message.sender === 'AI' && <div className='flex mt-4'>
+            <div className='flex items-center justify-center space-x-4 py-1 px-6 bg-gray-50 border rounded-full w-fit'>
+              <p className="text-sm font-medium text-gray-700">Share your feedback:</p>
+              <button
+                onClick={handleUpvote}
+                className="flex items-center justify-center w-8 h-8 text-gray-800 rounded-full hover:bg-gray-200 focus:bg-blue-700"
+              >
+                <ThumbsUp className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleDownvote}
+                className="flex items-center justify-center w-8 h-8 text-gray-800 rounded-full hover:bg-gray-200 focus:bg-blue-700"
+              >
+                <ThumbsDown className="w-4 h-4" />
+              </button>
+            </div>
           </div>}
           {message.sender === 'human' && sentiment && (
             <span

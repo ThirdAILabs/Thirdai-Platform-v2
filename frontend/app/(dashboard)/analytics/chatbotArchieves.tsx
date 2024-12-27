@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAllChatHistory } from '@/lib/backend';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@mui/material';
 interface ConversationData {
   query_time: string;
   query_text: string;
@@ -11,7 +12,11 @@ interface ConversationData {
 interface Data {
   [sessionId: string]: ConversationData[]; // Maps session IDs to an array of conversations
 }
-
+function min(a: number, b: number) {
+  if (a < b)
+    return a;
+  return b;
+}
 function getUrlParams() {
   const url = new URL(window.location.href);
   const params = new URLSearchParams(url.search);
@@ -36,10 +41,14 @@ function convertAndSortDataByQueryTime(data: Data): ConversationData[] {
 const Conversations: React.FC = () => {
   // State variable for storing chat history
   const [chatHistory, setChatHistory] = useState<ConversationData[]>([]);
+  const [numberOfQuestions, setNumberOfQuestions] = useState<number>(0);
+
+  const handleShowMore = () => {
+    setNumberOfQuestions(min(numberOfQuestions + 50, chatHistory.length));
+  }
 
   // Extract parameters from the URL
   const { model_id, default_mode } = getUrlParams();
-
   useEffect(() => {
     if (default_mode === 'chat' && model_id !== null) {
       const getChatData = async () => {
@@ -47,6 +56,7 @@ const Conversations: React.FC = () => {
           const data = await getAllChatHistory(model_id);
           const convertedData = convertAndSortDataByQueryTime(data)
           setChatHistory(convertedData);
+          setNumberOfQuestions(min(50, convertedData.length));
         } catch (error) {
           console.error('Error fetching chat history:', error);
         }
@@ -63,7 +73,7 @@ const Conversations: React.FC = () => {
 
   return (
     <div className='p-4'>
-      <Card style={{ width: '100%', maxHeight: '65rem' }} className="pb-4">
+      <Card style={{ width: '70%', maxHeight: '65rem' }} className="pb-4">
         <CardHeader className="bg-blue-900 text-white mb-3">
           <CardTitle>Chat Archives</CardTitle>
           <CardDescription className="text-white">
@@ -71,29 +81,28 @@ const Conversations: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent style={{ overflowY: 'auto', maxHeight: '45rem' }}>
-          {(chatHistory).map((conversation) => (
-            <div key={`${conversation.query_time}-${conversation.response_time}`} >
-              <div className="p-4">
-                <div className="flex flex-col">
-                  {/* Query Section */}
-                  <div className="flex justify-start">
-                    <div className="border shadow-sm p-4 rounded-lg w-fit max-w-[70%]">
-                      <div className="text-gray-700">{conversation.query_text}</div>
-                      <div className="text-xs text-gray-500">{conversation.query_time}</div>
-                    </div>
-                  </div>
-
-                  {/* Response Section */}
-                  <div className="flex justify-end my-4">
-                    <div className="bg-green-100 border shadow-sm p-4 rounded-lg w-fit max-w-[70%]">
-                      <div className="text-gray-700">{conversation.response_text}</div>
-                      <div className="text-xs text-gray-500">{conversation.response_time}</div>
-                    </div>
+          {(chatHistory).map((conversation, index) => {
+            return (index < numberOfQuestions) && <div key={`${conversation.query_time}-${conversation.response_time}`}
+              className="mb-1">
+              <div className="flex flex-col">
+                {/* Query Section */}
+                <div className="flex justify-center">
+                  <div className="border py-2 px-4 rounded-lg w-[90%]">
+                    <div className="text-gray-700">{conversation.query_text}</div>
+                    <div className="text-xs text-gray-500">{conversation.query_time}</div>
                   </div>
                 </div>
               </div>
             </div>
-          ))}
+          })}
+          {(numberOfQuestions < chatHistory.length) && <div className="flex justify-center mt-2">
+            <Button
+              variant='contained'
+              onClick={handleShowMore}
+            >
+              Show More
+            </Button>
+          </div>}
         </CardContent>
       </Card>
     </div>

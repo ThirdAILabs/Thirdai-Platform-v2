@@ -44,7 +44,7 @@ job "telemetry" {
 
       service {
         name     = "vicky-web"
-        provider = "consul"
+        provider = "nomad"
         port     = "vicky-http"
         tags = [
           "traefik.enable=true",
@@ -89,7 +89,7 @@ job "telemetry" {
       service {
         name     = "vicky-logs"
         port     = "vicky-logs-http"
-        provider = "consul"
+        provider = "nomad"
         tags = [
           "traefik.enable=true",
           "traefik.http.routers.vicky-logs-http.rule=PathPrefix(`/victorialogs`)",
@@ -273,7 +273,7 @@ EOF
       service {
         name = "grafana"
         port = "grafana-http"
-        provider = "consul"
+        provider = "nomad"
         tags = [
           "traefik.enable=true",
           "traefik.http.routers.grafana-http.rule=PathPrefix(`/grafana`)",

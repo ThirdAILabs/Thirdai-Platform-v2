@@ -21,7 +21,7 @@ on:
 
 jobs:
   python-format:
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
@@ -47,36 +47,6 @@ jobs:
       - name: Check isort format
         run: |
           isort --diff --check --profile black --skip-glob deps --skip _deps .
-      
-      - name: Install yq for YAML parsing
-        run: |
-          sudo add-apt-repository ppa:rmescandon/yq
-          sudo apt update
-          sudo apt install yq -y
-      - name: check for yq working
-        run: |
-          provider=$(yq e '.provider' $GITHUB_WORKSPACE/release/config.yaml)
-          push_username="random_push_username"
-          pull_username="random_pull_username"
-          decoded_push_password="random_push_password"
-          decoded_pull_password="random_pull_password"
-
-          yq eval -i "
-            .${provider}.branches.test-install.push_credentials.username = \"${push_username}\" |
-            .${provider}.branches.test-install.push_credentials.password = \"${decoded_push_password}\" |
-            .${provider}.branches.test-install.pull_credentials.username = \"${pull_username}\" |
-            .${provider}.branches.test-install.pull_credentials.password = \"${decoded_pull_password}\" |
-            .${provider}.branches.test-install.version = \"0.0.1\"
-          " $GITHUB_WORKSPACE/release/config.yaml
-      - name: check for the entries
-        run: |
-          provider=$(yq e '.provider' $GITHUB_WORKSPACE/release/config.yaml)
-          base64_encoded_push_password=$(yq e '."'"$provider"'".branches.test-install.push_credentials.password' $GITHUB_WORKSPACE/release/config.yaml)
-          base64_encoded_pull_password=$(yq e '."'"$provider"'".branches.test-install.pull_credentials.password' $GITHUB_WORKSPACE/release/config.yaml)
-
-          echo "base64_encoded_pull_password=$base64_encoded_pull_password"
-          echo "base64_encoded_push_password=$base64_encoded_push_password"
-          
 
   js-format:
     name: Prettier

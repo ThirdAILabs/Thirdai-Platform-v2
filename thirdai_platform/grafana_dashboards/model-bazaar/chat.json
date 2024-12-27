@@ -328,7 +328,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
-      "description": "Count of repeated questions to uncover where users may struggle with the provided answers.",
+      "description": "Count of repeated questions to uncover where users are struggling with the provided answers.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -412,7 +412,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum (ndb_chat_same_question_count{job=\"deployment-jobs\",workload=\"$workload\"})",
+          "expr": "sum (increase(ndb_chat_same_question_count{job=\"deployment-jobs\",workload=\"$workload\"})[1m])",
           "instant": false,
           "legendFormat": "value",
           "range": true,
@@ -449,7 +449,7 @@
       },
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "deployment-21dfd1d9-657c-4fbd-8c4f-10695847f273",
           "value": "deployment-21dfd1d9-657c-4fbd-8c4f-10695847f273"
         },
@@ -486,6 +486,6 @@
   "timezone": "browser",
   "title": "Chat",
   "uid": "ae7rn25nhxdkwc",
-  "version": 7,
+  "version": 9,
   "weekStart": ""
 }

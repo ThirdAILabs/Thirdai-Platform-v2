@@ -157,6 +157,8 @@ async def generate(generate_args: GenerateArgs):
     return StreamingResponse(generate_stream(), media_type="text/plain")
 
 
+# TODO avoid caching bad answers like "I cannot answer", use keyword detection for now
+# TODO if there's a deployment name we need to hit that endpoint instead of the /modelid endpoint
 async def insert_into_cache(
     original_query: str, generated_response: str, cache_access_token: str
 ):

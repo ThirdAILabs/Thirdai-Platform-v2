@@ -6,7 +6,7 @@ from pydantic import BaseModel
 class InsertLog(BaseModel):
     query: str
     llm_res: str
-    reference_hash: str
+    reference_hash: int
     num_references: int
 
 

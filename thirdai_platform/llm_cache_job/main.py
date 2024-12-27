@@ -2,6 +2,7 @@ import logging
 import os
 import traceback
 from pathlib import Path
+from typing import List
 
 from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
@@ -11,6 +12,7 @@ from licensing.verify import verify_license
 from llm_cache_job.cache import Cache, NDBSemanticCache
 from llm_cache_job.permissions import Permissions
 from platform_common.logging import setup_logger
+from pydantic import BaseModel
 
 app = FastAPI()
 router = APIRouter()
@@ -92,15 +94,24 @@ def cache_query(query: str):
     )
 
 
+class CacheInsertRequest(BaseModel):
+    query: str
+    llm_res: str
+    references: List[str]
+
+
 @router.post("/insert")
 def cache_insert(
-    query: str,
-    llm_res: str,
+    insert_data: CacheInsertRequest,
     _: str = Depends(permissions.verify_temporary_cache_access_token),
 ):
-    cache.insert(query=query, llm_res=llm_res)
+    cache.queue_insert(
+        query=insert_data.query,
+        llm_res=insert_data.llm_res,
+        references=insert_data.references,
+    )
 
-    logger.info(f"cached query={query}")
+    logger.info(f"cached query={insert_data.query}")
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -121,6 +132,11 @@ def temporary_cache_token():
             ),
         },
     )
+
+
+@router.get("/health")
+async def health_check() -> dict:
+    return {"status": "success"}
 
 
 app.include_router(router, prefix="/cache")

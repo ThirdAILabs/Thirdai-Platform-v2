@@ -5,13 +5,9 @@ import os
 import secrets
 import shutil
 import tempfile
-
-pass
 import uuid
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-
-pass
 
 import pandas as pd
 from auth.jwt import AuthenticatedUser, verify_access_token
@@ -423,7 +419,7 @@ def retrain_ndb(
 @train_router.post("/refresh-llm-cache", dependencies=[Depends(is_on_low_disk())])
 def retrain_ndb(
     model_identifier: str,
-    job_options: JobOptions,
+    job_options: str = Form(default="{}"),
     session: Session = Depends(get_session),
     authenticated_user: AuthenticatedUser = Depends(verify_access_token),
 ):
@@ -447,16 +443,19 @@ def retrain_ndb(
 
     nomad_endpoint = os.getenv("NOMAD_ENDPOINT")
     llm_cache_job_id = f"llm-cache-{model.id}"
-    if nomad_job_exists(llm_cache_job_id, nomad_endpoint):
-        # TODO(david) Should we be able to refresh the cache job during a deployment?
-        # How does this work when using a deployment name for the endpoint?
-        # But the cache job being down should be fine otherwise?
-        return response(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            message="Cannot refresh the cache job if deployment still active.",
-        )
+    # TODO what happens if someone calls deploy when its still refreshing?
+    # if nomad_job_exists(llm_cache_job_id, nomad_endpoint):
+    #     # TODO(david) Should we be able to refresh the cache job during a deployment?
+    #     # How does this work when using a deployment name for the endpoint?
+    #     # But the cache job being down should be fine otherwise?
+    #     return response(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         message="Cannot refresh the cache job if deployment still active.",
+    #     )
 
     license_info = validate_license_info()
+
+    # TODO what happens if there's a failure in the llm cache refreshing
 
     try:
         submit_nomad_job(

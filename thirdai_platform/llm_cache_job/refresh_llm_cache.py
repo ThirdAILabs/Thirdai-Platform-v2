@@ -3,11 +3,10 @@ import os
 from pathlib import Path
 from typing import List
 
-from cache import NDBSemanticCache
 from licensing.verify import verify_license
 from llm_cache_job.cache import Cache, NDBSemanticCache
+from llm_cache_job.utils import InsertLog
 from platform_common.logging import setup_logger
-from utils import InsertLog
 
 license_key = os.getenv("LICENSE_KEY")
 verify_license.activate_thirdai_license(license_key)
@@ -43,7 +42,7 @@ def main():
         cache.insert(insert_log)
 
     for logfile in os.listdir(insertions_folder):
-        os.remove(logfile)
+        os.remove(os.path.join(insertions_folder, logfile))
 
 
 if __name__ == "__main__":

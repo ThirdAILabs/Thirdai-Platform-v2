@@ -383,11 +383,12 @@ class NeuralDBV2(Model):
         self.save()
         self.logger.info("Model saved successfully.", code=LogCode.MODEL_SAVE)
 
-        num_evictions = self.evict_stale_cache_responses()
-        self.logger.info(
-            f"Evicted {num_evictions} stale responses from llm cache.",
-            code=LogCode.LLM_CACHE,
-        )
+        if self.llm_cache:
+            num_evictions = self.evict_stale_cache_responses()
+            self.logger.info(
+                f"Evicted {num_evictions} stale responses from llm cache.",
+                code=LogCode.LLM_CACHE,
+            )
 
         self.finalize_training(train_time)
         self.logger.info(

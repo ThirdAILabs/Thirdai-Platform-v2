@@ -15,7 +15,7 @@ from auth.jwt import (
     verify_access_token_no_throw,
 )
 from backend.auth_dependencies import is_model_owner, verify_model_read_access
-from backend.startup_jobs import start_on_prem_generate_job
+from backend.startup_jobs import start_llm_cache_job, start_on_prem_generate_job
 from backend.utils import (
     delete_nomad_job,
     get_job_logs,
@@ -47,7 +47,6 @@ from platform_common.pydantic_models.feedback_logs import ActionType, FeedbackLo
 from platform_common.pydantic_models.training import ModelType
 from platform_common.utils import disk_usage, model_bazaar_path, response
 from sqlalchemy.orm import Session
-from startup_jobs import start_llm_cache_job
 
 deploy_router = APIRouter()
 
@@ -276,7 +275,7 @@ async def deploy_single_model(
 
     if autoscaling_enabled:
         try:
-            start_llm_cache_job(
+            await start_llm_cache_job(
                 model_id=str(model_id),
                 deployment_name=deployment_name,
                 license_info=license_info,

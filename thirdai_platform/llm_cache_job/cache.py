@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 from logging import Logger
 from typing import Any, Dict, List, Optional, Set
 
+from llm_cache_job.utils import InsertLog, UpdateLogger
 from thirdai import neural_db_v2 as ndb
-from utils import InsertLog, UpdateLogger
 
 
 class Cache(ABC):
@@ -18,10 +18,6 @@ class Cache(ABC):
 
     @abstractmethod
     def insert(self, query: str, llm_res: str) -> None:
-        raise NotImplemented
-
-    @abstractmethod
-    def invalidate(self) -> None:
         raise NotImplemented
 
 
@@ -106,7 +102,12 @@ class NDBSemanticCache(Cache):
         self.logger.info(f"Inserting query into cache for query '{query}'")
         reference_hash = hash("".join(references))
         self.insertion_logger.log(
-            InsertLog(query, llm_res, reference_hash, len(references))
+            InsertLog(
+                query=query,
+                llm_res=llm_res,
+                reference_hash=reference_hash,
+                num_references=len(references),
+            )
         )
 
     def insert(self, insert_log: InsertLog):

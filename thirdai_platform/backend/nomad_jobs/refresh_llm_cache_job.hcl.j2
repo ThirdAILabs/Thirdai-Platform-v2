@@ -1,13 +1,13 @@
-job "recovery-snapshot" {
+job "llm-cache-refresh-{{ model_id }}" {
 
   datacenters = ["dc1"]
 
   type = "batch"
 
-  group "snapshot" {
+  group "llm-cache-refresh" {
     count = 1
 
-    task "backup-task" {
+    task "cache-refresh" {
 
       {% if platform == "docker" %}
         driver = "docker"
@@ -46,8 +46,9 @@ job "recovery-snapshot" {
       }
 
       resources {
-        cpu = {{ allocation_cores }}
+        cpu = {{ allocation_cores * 2400 }}
         memory = {{ allocation_memory }}
+        memory_max = {{ allocation_memory_max }}
       }
     }
   }

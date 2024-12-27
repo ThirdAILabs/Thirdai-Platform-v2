@@ -456,6 +456,7 @@ def retrain_ndb(
     license_info = validate_license_info()
 
     # TODO what happens if there's a failure in the llm cache refreshing
+    # report status back to db
 
     try:
         submit_nomad_job(

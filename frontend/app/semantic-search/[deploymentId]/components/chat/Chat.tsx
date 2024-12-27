@@ -243,6 +243,7 @@ function ChatBox({
   context,
   modelService,
   onOpenPdf,
+  showFeedback,
 }: {
   message: ChatMessage;
   transformedMessage?: string[][];
@@ -257,7 +258,9 @@ function ChatBox({
   }>;
   modelService: ModelService | null;
   onOpenPdf: (pdfInfo: PdfInfo) => void;
+  showFeedback: boolean;
 }) {
+
   const handleReferenceClick = async (chunkInfo: any) => {
     if (!modelService) return;
 
@@ -306,7 +309,7 @@ function ChatBox({
           ) : (
             <ReactMarkdown>{message.content}</ReactMarkdown>
           )}
-          {message.sender === 'AI' && <div className='flex mt-4'>
+          {showFeedback && message.sender === 'AI' && <div className='flex mt-4'>
             <div className='flex items-center justify-center space-x-4 py-1 px-6 bg-gray-50 border rounded-full w-fit'>
               <p className="text-sm font-medium text-gray-700">Share your feedback:</p>
               <button
@@ -337,7 +340,7 @@ function ChatBox({
           )}
         </div>
 
-        {context && message.sender === 'AI' && (
+        {showFeedback && context && message.sender === 'AI' && (
           <div className="mt-2 text-sm text-gray-600">
             <div className="font-medium mb-1">References:</div>
             <div className="space-y-2">
@@ -398,7 +401,6 @@ export default function Chat({
   const responseBuffer = useRef<string>('');
   const contextReceived = useRef<boolean>(false);
   const [contextData, setContextData] = useState<Record<number, any>>({});
-
   const contextBuffer = useRef<string>('');
   const isCollectingContext = useRef<boolean>(false);
 
@@ -645,7 +647,6 @@ export default function Chat({
         );
       } catch (error) {
         console.error('Chat error:', error);
-
         // Handle error state
         setChatHistory(prev => {
           const updatedHistory = [...prev];
@@ -703,6 +704,7 @@ export default function Chat({
                 sentiment={sentiments[i]}
                 context={contextData[i]}
                 onOpenPdf={handleOpenPdf}
+                showFeedback={!aiLoading}
               />
             ))}
             {aiLoading && (
@@ -719,6 +721,7 @@ export default function Chat({
             }}
             modelService={modelService}
             onOpenPdf={handleOpenPdf}
+            showFeedback={!aiLoading}
           />
         )}
       </ScrollableArea>
